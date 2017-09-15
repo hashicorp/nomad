@@ -9,5 +9,4 @@ func (s *Server) setupEnterprise(config *Config) error {
 }
 
 func (s *Server) startEnterpriseBackground() {
-	return nil
 }

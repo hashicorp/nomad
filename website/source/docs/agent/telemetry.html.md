@@ -641,7 +641,7 @@ detailed above) but any new metrics will only be available in the new format.
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.TaskGroup>.<AllocID>.<Task>.cpu.user`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.user`</td>
     <td>Total CPU resources consumed by the task in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>

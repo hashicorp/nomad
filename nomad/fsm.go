@@ -325,7 +325,8 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// We always add the job to the periodic dispatcher because there is the
 	// possibility that the periodic spec was removed and then we should stop
 	// tracking it.
-	if err := n.periodicDispatcher.Add(req.Job); err != nil {
+	added, err := n.periodicDispatcher.Add(req.Job)
+	if err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
 		return err
 	}
@@ -338,7 +339,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// is added to when it was suppose to launch, leader election occurs and the
 	// job was not launched. In this case, we use the insertion time to
 	// determine if a launch was missed.
-	if req.Job.IsPeriodic() {
+	if added {
 		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
@@ -792,7 +793,7 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BootstrapACLTokens(index, req.Token); err != nil {
+	if err := n.state.BootstrapACLTokens(index, req.ResetIndex, req.Token); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: BootstrapACLToken failed: %v", err)
 		return err
 	}

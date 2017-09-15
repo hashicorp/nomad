@@ -1,6 +1,6 @@
 package agent
 
-//go:generate codecgen -o fs_endpoint.generated.go fs_endpoint.go
+//go:generate codecgen -d 101 -o fs_endpoint.generated.go fs_endpoint.go
 
 import (
 	"bytes"

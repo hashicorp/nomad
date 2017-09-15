@@ -176,7 +176,7 @@ func (a *TestAgent) Start() *TestAgent {
 	if a.Config.ACL.Enabled && a.Config.Server.Enabled && a.Config.ACL.PolicyTTL != 0 {
 		a.Token = mock.ACLManagementToken()
 		state := a.Agent.server.State()
-		if err := state.BootstrapACLTokens(1, a.Token); err != nil {
+		if err := state.BootstrapACLTokens(1, 0, a.Token); err != nil {
 			panic(fmt.Sprintf("token bootstrap failed: %v", err))
 		}
 	}

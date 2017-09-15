@@ -1,6 +1,10 @@
 package nomad
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -883,6 +887,70 @@ func TestACLEndpoint_Bootstrap(t *testing.T) {
 	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
 	assert.Nil(t, err)
 	assert.Equal(t, created, out)
+}
+
+func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
+	t.Parallel()
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := testServer(t, func(c *Config) {
+		c.ACLEnabled = true
+		c.DataDir = dir
+		c.DevMode = false
+		c.Bootstrap = true
+		c.DevDisableBootstrap = false
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Lookup the tokens
+	req := &structs.ACLTokenBootstrapRequest{
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.ACLTokenUpsertResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+	assert.NotNil(t, resp.Tokens[0])
+	resetIdx := resp.Tokens[0].CreateIndex
+
+	// Try again, should fail
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err == nil {
+		t.Fatalf("expected err")
+	}
+
+	// Create the reset file
+	output := []byte(fmt.Sprintf("%d", resetIdx))
+	path := filepath.Join(dir, aclBootstrapReset)
+	assert.Nil(t, ioutil.WriteFile(path, output, 0755))
+
+	// Try again, should work with reset
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.NotEqual(t, uint64(0), resp.Index)
+	assert.NotNil(t, resp.Tokens[0])
+
+	// Get the token out from the response
+	created := resp.Tokens[0]
+	assert.NotEqual(t, "", created.AccessorID)
+	assert.NotEqual(t, "", created.SecretID)
+	assert.NotEqual(t, time.Time{}, created.CreateTime)
+	assert.Equal(t, structs.ACLManagementToken, created.Type)
+	assert.Equal(t, "Bootstrap Token", created.Name)
+	assert.Equal(t, true, created.Global)
+
+	// Check we created the token
+	out, err := s1.fsm.State().ACLTokenByAccessorID(nil, created.AccessorID)
+	assert.Nil(t, err)
+	assert.Equal(t, created, out)
+
+	// Try again, should fail
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err == nil {
+		t.Fatalf("expected err")
+	}
 }
 
 func TestACLEndpoint_UpsertTokens(t *testing.T) {

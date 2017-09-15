@@ -80,8 +80,9 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	}
 	srv.registerHandlers(config.EnableDebug)
 
-	// Start the server
+	// Handle requests with gzip compression
 	go http.Serve(ln, gziphandler.GzipHandler(mux))
+
 	return srv, nil
 }
 
@@ -101,8 +102,9 @@ func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
 	}
 	srv.registerHandlers(false) // Never allow debug for SCADA
 
-	// Start the server
+	// Handle requests with gzip compression
 	go http.Serve(list, gziphandler.GzipHandler(mux))
+
 	return srv
 }
 

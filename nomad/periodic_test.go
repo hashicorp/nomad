@@ -116,8 +116,8 @@ func TestPeriodicDispatch_SetEnabled(t *testing.T) {
 	// Enable and track something
 	p.SetEnabled(true)
 	job := mock.PeriodicJob()
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -130,8 +130,10 @@ func TestPeriodicDispatch_Add_NonPeriodic(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
 	job := mock.Job()
-	if err := p.Add(job); err != nil {
+	if added, err := p.Add(job); err != nil {
 		t.Fatalf("Add of non-periodic job failed: %v; expect no-op", err)
+	} else if added {
+		t.Fatalf("Add of non-periodic job happened, expect no-op")
 	}
 
 	tracked := p.Tracked()
@@ -145,8 +147,23 @@ func TestPeriodicDispatch_Add_Periodic_Parameterized(t *testing.T) {
 	p, _ := testPeriodicDispatcher()
 	job := mock.PeriodicJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add of periodic parameterized job failed: %v; expect no-op", err)
+	if added, err := p.Add(job); err != nil || added {
+		t.Fatalf("Add of periodic parameterized job failed: %v %v", added, err)
+	}
+
+	tracked := p.Tracked()
+	if len(tracked) != 0 {
+		t.Fatalf("Add of periodic parameterized job should be no-op: %v", tracked)
+	}
+}
+
+func TestPeriodicDispatch_Add_Periodic_Stopped(t *testing.T) {
+	t.Parallel()
+	p, _ := testPeriodicDispatcher()
+	job := mock.PeriodicJob()
+	job.Stop = true
+	if added, err := p.Add(job); err != nil || added {
+		t.Fatalf("Add of stopped periodic job failed: %v %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -159,8 +176,8 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
 	job := mock.PeriodicJob()
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -170,8 +187,8 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 
 	// Update the job and add it again.
 	job.Periodic.Spec = "foo"
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	tracked = p.Tracked()
@@ -191,8 +208,14 @@ func TestPeriodicDispatch_Add_Remove_Namespaced(t *testing.T) {
 	job := mock.PeriodicJob()
 	job2 := mock.PeriodicJob()
 	job2.Namespace = "test"
-	assert.Nil(p.Add(job))
-	assert.Nil(p.Add(job2))
+	added, err := p.Add(job)
+	assert.Nil(err)
+	assert.True(added)
+
+	added, err = p.Add(job2)
+	assert.Nil(err)
+	assert.True(added)
+
 	assert.Len(p.Tracked(), 2)
 
 	assert.Nil(p.Remove(job2.Namespace, job2.ID))
@@ -204,8 +227,8 @@ func TestPeriodicDispatch_Add_RemoveJob(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher()
 	job := mock.PeriodicJob()
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -215,8 +238,8 @@ func TestPeriodicDispatch_Add_RemoveJob(t *testing.T) {
 
 	// Update the job to be non-periodic and add it again.
 	job.Periodic = nil
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	tracked = p.Tracked()
@@ -233,15 +256,15 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
 
 	// Add it.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	// Update it to be sooner and re-add.
 	expected := time.Now().Round(1 * time.Second).Add(1 * time.Second)
 	job.Periodic.Spec = fmt.Sprintf("%d", expected.Unix())
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	// Check that nothing is created.
@@ -281,8 +304,8 @@ func TestPeriodicDispatch_Remove_Tracked(t *testing.T) {
 	p, _ := testPeriodicDispatcher()
 
 	job := mock.PeriodicJob()
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -308,8 +331,8 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 	job := testPeriodicJob(time.Now().Add(1 * time.Second))
 
 	// Add it.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	// Remove the job.
@@ -347,8 +370,8 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
 
 	// Add it.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	// ForceRun the job
@@ -379,8 +402,8 @@ func TestPeriodicDispatch_Run_DisallowOverlaps(t *testing.T) {
 	job.Periodic.ProhibitOverlap = true
 
 	// Add it.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	time.Sleep(3 * time.Second)
@@ -408,8 +431,8 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 	job := testPeriodicJob(launch1, launch2)
 
 	// Add it.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	time.Sleep(3 * time.Second)
@@ -440,11 +463,11 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 	job2 := testPeriodicJob(launch)
 
 	// Add them.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
-	if err := p.Add(job2); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job2); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
 
 	if l := len(p.Tracked()); l != 2 {
@@ -480,11 +503,15 @@ func TestPeriodicDispatch_Run_SameID_Different_Namespace(t *testing.T) {
 	job2.Namespace = "test"
 
 	// Add them.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
 	}
-	if err := p.Add(job2); err != nil {
-		t.Fatalf("Add failed %v", err)
+	if added, err := p.Add(job2); err != nil || !added {
+		t.Fatalf("Add failed %v", added, err)
+	}
+
+	if l := len(p.Tracked()); l != 2 {
+		t.Fatalf("got %d tracked; want 2", l)
 	}
 
 	if l := len(p.Tracked()); l != 2 {
@@ -560,8 +587,8 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 	shuffle(toDelete)
 
 	for _, job := range jobs {
-		if err := p.Add(job); err != nil {
-			t.Fatalf("Add failed %v", err)
+		if added, err := p.Add(job); err != nil || !added {
+			t.Fatalf("Add failed %v", added, err)
 		}
 	}
 

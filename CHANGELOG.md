@@ -1,20 +1,41 @@
 ## 0.7 (Unreleased)
 
 IMPROVEMENTS:
+ * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
 
-## 0.6.3 (Unreleased)
+BUG FIXES:
+ * core: Fix restoration of stopped periodic jobs [GH-3201]
+ * core: Fix issue where node-drain with complete batch allocation would create
+   replacement [GH-3217]
+ * core: Fix issue in which batch allocations from previous job versions may not
+   have been stopped properly. [GH-3217]
+ * core: Fix issue in which allocations with the same name during a scale
+   down/stop event wouldn't be properly stopped [GH-3217]
+ * core: Fix a race condition in which scheduling results from one invocation of
+   the scheduler wouldn't be considered by the next for the same job [GH-3206]
+ * api: Sort /v1/agent/servers output so that output of Consul checks does not
+   change [GH-3214]
+ * api: Fix search handling of jobs with more than four hyphens and case were
+   length could cause lookup error [GH-3203]
+ * client: Fix lock contention that could cause a node to miss a heartbeat and
+   be marked as down [GH-3195]
+ * driver/docker: Fix docker user specified syslogging [GH-3184]
+
+## 0.6.3 (September 11, 2017)
 
 BUG FIXES:
  * api: Search handles prefix longer than allowed UUIDs [GH-3138]
  * api: Search endpoint handles even UUID prefixes with hyphens [GH-3120]
+ * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: Sort task groups when displaying a deployment [GH-3137]
  * cli: Handle reading files that are in a symlinked directory [GH-3164]
- * api: Don't merge empty update stanza from job into task groups [GH-3139]
  * cli: All status commands handle even UUID prefixes with hyphens [GH-3122]
- * cli: Fix autocompletion of paths that include directories on zsh [GH-3129] 
+ * cli: Fix autocompletion of paths that include directories on zsh [GH-3129]
  * cli: Fix job deployment -latest handling of jobs without deployments
    [GH-3166]
+ * cli: Hide CLI commands not expected to be run by user from autocomplete
+   suggestions [GH-3177]
  * cli: Status command honors exact job match even when it is the prefix of
    another job [GH-3120]
  * cli: Fix setting of TLSServerName for node API Client. This fixes an issue of
@@ -22,6 +43,7 @@ BUG FIXES:
  * client/template: Fix issue in which the template block could cause high load
    on Vault when secret lease duration was less than the Vault grace [GH-3153]
  * driver/docker: Always purge stopped containers [GH-3148]
+ * driver/docker: Fix MemorySwappiness on Windows [GH-3187]
  * driver/docker: Fix issue in which mounts could parse incorrectly [GH-3163]
  * driver/docker: Fix issue where potentially incorrect syslog server address is
    used [GH-3135]

@@ -11,8 +11,6 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
-
-	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
 // HostStats represents resource usage stats of the host running a Nomad client
@@ -94,47 +92,74 @@ func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollec
 
 // Collect collects stats related to resource usage of a host
 func (h *HostStatsCollector) Collect() error {
+	h.hostStatsLock.Lock()
+	defer h.hostStatsLock.Unlock()
+
 	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
-	memStats, err := mem.VirtualMemory()
+
+	// Determine up-time
+	uptime, err := host.Uptime()
 	if err != nil {
 		return err
 	}
-	hs.Memory = &MemoryStats{
+	hs.Uptime = uptime
+
+	// Collect memory stats
+	mstats, err := h.collectMemoryStats()
+	if err != nil {
+		return err
+	}
+	hs.Memory = mstats
+
+	// Collect cpu stats
+	cpus, ticks, err := h.collectCPUStats()
+	if err != nil {
+		return err
+	}
+	hs.CPU = cpus
+	hs.CPUTicksConsumed = ticks
+
+	// Collect disk stats
+	diskStats, err := h.collectDiskStats()
+	if err != nil {
+		return err
+	}
+	hs.DiskStats = diskStats
+
+	// Getting the disk stats for the allocation directory
+	usage, err := disk.Usage(h.allocDir)
+	if err != nil {
+		return err
+	}
+	hs.AllocDirStats = h.toDiskStats(usage, nil)
+
+	// Update the collected status object.
+	h.hostStats = hs
+
+	return nil
+}
+
+func (h *HostStatsCollector) collectMemoryStats() (*MemoryStats, error) {
+	memStats, err := mem.VirtualMemory()
+	if err != nil {
+		return nil, err
+	}
+	mem := &MemoryStats{
 		Total:     memStats.Total,
 		Available: memStats.Available,
 		Used:      memStats.Used,
 		Free:      memStats.Free,
 	}
 
-	ticksConsumed := 0.0
-	cpuStats, err := cpu.Times(true)
-	if err != nil {
-		return err
-	}
-	cs := make([]*CPUStats, len(cpuStats))
-	for idx, cpuStat := range cpuStats {
-		percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
-		if !ok {
-			percentCalculator = NewHostCpuStatsCalculator()
-			h.statsCalculator[cpuStat.CPU] = percentCalculator
-		}
-		idle, user, system, total := percentCalculator.Calculate(cpuStat)
-		cs[idx] = &CPUStats{
-			CPU:    cpuStat.CPU,
-			User:   user,
-			System: system,
-			Idle:   idle,
-			Total:  total,
-		}
-		ticksConsumed += (total / 100) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
-	}
-	hs.CPU = cs
-	hs.CPUTicksConsumed = ticksConsumed
+	return mem, nil
+}
 
+func (h *HostStatsCollector) collectDiskStats() ([]*DiskStats, error) {
 	partitions, err := disk.Partitions(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	var diskStats []*DiskStats
 	for _, partition := range partitions {
 		usage, err := disk.Usage(partition.Mountpoint)
@@ -153,25 +178,8 @@ func (h *HostStatsCollector) Collect() error {
 		ds := h.toDiskStats(usage, &partition)
 		diskStats = append(diskStats, ds)
 	}
-	hs.DiskStats = diskStats
 
-	// Getting the disk stats for the allocation directory
-	usage, err := disk.Usage(h.allocDir)
-	if err != nil {
-		return err
-	}
-	hs.AllocDirStats = h.toDiskStats(usage, nil)
-
-	uptime, err := host.Uptime()
-	if err != nil {
-		return err
-	}
-	hs.Uptime = uptime
-
-	h.hostStatsLock.Lock()
-	h.hostStats = hs
-	h.hostStatsLock.Unlock()
-	return nil
+	return diskStats, nil
 }
 
 // Stats returns the host stats that has been collected
@@ -228,22 +236,33 @@ func (h *HostCpuStatsCalculator) Calculate(times cpu.TimesStat) (idle float64, u
 	currentUser := times.User
 	currentSystem := times.System
 	currentTotal := times.Total()
+	currentBusy := times.User + times.System + times.Nice + times.Iowait + times.Irq +
+		times.Softirq + times.Steal + times.Guest + times.GuestNice + times.Stolen
 
 	deltaTotal := currentTotal - h.prevTotal
 	idle = ((currentIdle - h.prevIdle) / deltaTotal) * 100
 	user = ((currentUser - h.prevUser) / deltaTotal) * 100
 	system = ((currentSystem - h.prevSystem) / deltaTotal) * 100
-
-	currentBusy := times.User + times.System + times.Nice + times.Iowait + times.Irq +
-		times.Softirq + times.Steal + times.Guest + times.GuestNice + times.Stolen
-
 	total = ((currentBusy - h.prevBusy) / deltaTotal) * 100
+
+	// Protect against any invalid values
+	if math.IsNaN(idle) || math.IsInf(idle, 0) {
+		idle = 100.0
+	}
+	if math.IsNaN(user) || math.IsInf(user, 0) {
+		user = 0.0
+	}
+	if math.IsNaN(system) || math.IsInf(system, 0) {
+		system = 0.0
+	}
+	if math.IsNaN(total) || math.IsInf(total, 0) {
+		total = 0.0
+	}
 
 	h.prevIdle = currentIdle
 	h.prevUser = currentUser
 	h.prevSystem = currentSystem
 	h.prevTotal = currentTotal
 	h.prevBusy = currentBusy
-
 	return
 }

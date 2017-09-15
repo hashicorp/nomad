@@ -3261,17 +3261,27 @@ func (s *StateStore) ACLTokensByGlobal(ws memdb.WatchSet, globalVal bool) (memdb
 	return iter, nil
 }
 
-// CanBootstrapACLToken checks if bootstrapping is possible
-func (s *StateStore) CanBootstrapACLToken() (bool, error) {
+// CanBootstrapACLToken checks if bootstrapping is possible and returns the reset index
+func (s *StateStore) CanBootstrapACLToken() (bool, uint64, error) {
 	txn := s.db.Txn(false)
 
 	// Lookup the bootstrap sentinel
 	out, err := txn.First("index", "id", "acl_token_bootstrap")
-	return out == nil, err
+	if err != nil {
+		return false, 0, err
+	}
+
+	// No entry, we haven't bootstrapped yet
+	if out == nil {
+		return true, 0, nil
+	}
+
+	// Return the reset index if we've already bootstrapped
+	return false, out.(*IndexEntry).Value, nil
 }
 
 // BootstrapACLToken is used to create an initial ACL token
-func (s *StateStore) BootstrapACLTokens(index uint64, token *structs.ACLToken) error {
+func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs.ACLToken) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -3281,7 +3291,11 @@ func (s *StateStore) BootstrapACLTokens(index uint64, token *structs.ACLToken) e
 		return fmt.Errorf("bootstrap check failed: %v", err)
 	}
 	if existing != nil {
-		return fmt.Errorf("ACL bootstrap already done")
+		if resetIndex == 0 {
+			return fmt.Errorf("ACL bootstrap already done")
+		} else if resetIndex != existing.(*IndexEntry).Value {
+			return fmt.Errorf("Invalid reset index for ACL bootstrap")
+		}
 	}
 
 	// Update the Create/Modify time
@@ -3293,7 +3307,7 @@ func (s *StateStore) BootstrapACLTokens(index uint64, token *structs.ACLToken) e
 		return fmt.Errorf("upserting token failed: %v", err)
 	}
 
-	// Update the indexes table, prevents future bootstrap
+	// Update the indexes table, prevents future bootstrap until reset
 	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}

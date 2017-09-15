@@ -3,7 +3,9 @@ layout: "guides"
 page_title: "ACLs"
 sidebar_current: "guides-acl"
 description: |-
- Nomad provides an optional Access Control List (ACL) system which can be used to control access to data and APIs. The ACL is Capability-based, relying on tokens which are associated with policies to determine which fine grained rules can be applied. Nomad's capability based ACL system is very similar to the design of AWS IAM.
+  Nomad provides an optional Access Control List (ACL) system which can be used to control
+  access to data and APIs. The ACL is Capability-based, relying on tokens which are
+  associated with policies to determine which fine grained rules can be applied.
 ---
 
 # ACL System
@@ -80,28 +82,22 @@ Please take care to restart the servers one at a time, and ensure each server ha
 
 ### Generate the initial token
 
-Once the ACL system is enabled, we need to generate our initial token. This first token is used to bootstrap the system and care should be taken not to lose it. Once the ACL system is enabled, we use the [Bootstrap API](/api/acl-tokens.html#bootstrap-token):
+Once the ACL system is enabled, we need to generate our initial token. This first token is used to bootstrap the system and care should be taken not to lose it. Once the ACL system is enabled, we use the [Bootstrap CLI](/docs/commands/acl/bootstrap.html):
 
 ```text
-$ curl \
-    --request POST \
-    https://nomad.rocks/v1/acl/bootstrap?pretty=true
-```
-```json
-{
-    "AccessorID":"b780e702-98ce-521f-2e5f-c6b87de05b24",
-    "SecretID":"3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
-    "Name":"Bootstrap Token",
-    "Type":"management",
-    "Policies":null,
-    "Global":true,
-    "CreateTime":"2017-08-23T22:47:14.695408057Z",
-    "CreateIndex":7,
-    "ModifyIndex":7
-}
+$ nomad acl bootstrap
+Accessor ID  = 5b7fd453-d3f7-6814-81dc-fcfe6daedea5
+Secret ID    = 9184ec35-65d4-9258-61e3-0c066d0a45c5
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 17:38:10.999089612 +0000 UTC
+Create Index = 7
+Modify Index = 7
 ```
 
-Once the initial bootstrap is performed, it _cannot be performed again_. Make sure to save this AccessorID and SecretID.
+Once the initial bootstrap is performed, it cannot be performed again unless [reset](#reseting-acl-bootstrap). Make sure to save this AccessorID and SecretID.
 The bootstrap token is a `management` type token, meaning it can perform any operation. It should be used to setup the ACL policies and create additional ACL tokens. The bootstrap token can be deleted and is like any other token, so care should be taken to not revoke all management tokens.
 
 ### Enable ACLs on Nomad Clients
@@ -307,4 +303,47 @@ ACL policies and global ACL tokens. All other regions asychronously replicate fr
 region. When replication is interrupted, the existing data is used for request processing and may
 become stale. When the authoritative region is reachable, replication will resume and repair any
 inconsistency.
+
+### Reseting ACL Bootstrap
+
+If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again.
+First, we need to determine the reset index, this can be done by calling the reset endpoint:
+
+```
+$ nomad acl bootstrap
+
+Error bootstrapping: Unexpected response code: 500 (ACL bootstrap already done (reset index: 7))
+```
+
+Here we can see the `reset index`. To reset the ACL system, we create the `acl-bootstrap-reset` file in the data directory:
+
+```
+$ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset
+```
+
+With the reset key setup, we can bootstrap like normal:
+
+```
+$ nomad acl bootstrap
+Accessor ID  = 52d3353d-d7b9-d945-0591-1af608732b76
+Secret ID    = 4b0a41ca-6d32-1853-e64b-de0d347e4525
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-09-11 18:38:11.929089612 +0000 UTC
+Create Index = 11
+Modify Index = 11
+```
+
+If we attempt to bootstrap again, we will get a mismatch on the reset index:
+
+```
+$ nomad acl bootstrap
+
+Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset index (specified 7, reset index: 11))
+```
+
+This is because the reset file is in place, but with the incorrect index.
+The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
