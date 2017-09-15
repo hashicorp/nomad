@@ -1125,6 +1125,64 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the node
+	alloc := mock.Alloc()
+	node := mock.Node()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)), "UpsertJobSummary")
+	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead)+
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+
+	// Lookup the node without a token and expect failure
+	req := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	{
+		var resp structs.NodeAllocsResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+	}
+
+	// Try with a valid token
+	req.SecretID = validToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Equal(alloc.ID, resp.Allocs[0].ID)
+	}
+
+	// Try with a invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Equal(alloc.ID, resp.Allocs[0].ID)
+	}
+}
+
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)

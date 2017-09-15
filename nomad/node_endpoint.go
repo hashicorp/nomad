@@ -12,6 +12,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -556,6 +557,18 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
+
+	// Check node read and namespace job read permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNodeRead() {
+			return structs.ErrPermissionDenied
+		}
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
 
 	// Verify the arguments
 	if args.NodeID == "" {
