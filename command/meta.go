@@ -209,9 +209,8 @@ func generalOptionsUsage() string {
     will also be skipped if NOMAD_SKIP_VERIFY is set.
 
   -token
-    Provide an ACL token to access privilated information
-		The SecretID of an ACL token to use to authenticate API requests with.
-		Additionally, the NOMAD_TOKEN env var will also be sourced.
+    The SecretID of an ACL token to use to authenticate API requests with.
+    Overrides the NOMAD_TOKEN environment variable if set.
 `
 	return strings.TrimSpace(helpText)
 }
