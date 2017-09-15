@@ -298,6 +298,81 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 	assert.NotEqual(uint64(0), resp.Index)
 }
 
+func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create the policy and tokens
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req := &structs.NamespaceDeleteRequest{
+		Namespaces:   []string{ns1.Name, ns2.Name},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Delete namespaces without a token and expect failure
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not delete the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
+
+	// Try with an invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not delete the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Check we deleted the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+}
+
 func TestNamespaceEndpoint_DeleteNamespaces_Default(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()

@@ -69,6 +69,13 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespaces"}, time.Now())
 
+	// Check management permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate at least one namespace
 	if len(args.Namespaces) == 0 {
 		return fmt.Errorf("must specify at least one namespace to delete")
