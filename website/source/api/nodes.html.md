@@ -24,7 +24,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `YES`            | `none`       |
+| `YES`            | `node:read`  |
 
 ### Parameters
 

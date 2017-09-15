@@ -1923,6 +1923,58 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the node
+	node := mock.Node()
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
+
+	// Lookup the node without a token and expect failure
+	req := &structs.NodeListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	{
+		var resp structs.NodeListResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp), "RPC")
+	}
+
+	// Try with a valid token
+	req.SecretID = validToken.SecretID
+	{
+		var resp structs.NodeListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp), "RPC")
+		assert.Equal(node.ID, resp.Nodes[0].ID)
+	}
+
+	// Try with a invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NodeListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.NodeListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp), "RPC")
+		assert.Equal(node.ID, resp.Nodes[0].ID)
+	}
+}
+
 func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
