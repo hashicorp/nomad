@@ -1695,6 +1695,62 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the alloc
+	alloc := mock.Alloc()
+	node := mock.Node()
+	node.ID = alloc.NodeID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)), "UpsertJobSummary")
+	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+
+	// Re-evaluate without a token and expect failure
+	req := &structs.NodeEvaluateRequest{
+		NodeID:       alloc.NodeID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	{
+		var resp structs.NodeUpdateResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp), "RPC")
+	}
+
+	// Try with a valid token
+	req.SecretID = validToken.SecretID
+	{
+		var resp structs.NodeUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp), "RPC")
+	}
+
+	// Try with a invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NodeUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.NodeUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp), "RPC")
+	}
+}
+
 func TestClientEndpoint_ListNodes(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
