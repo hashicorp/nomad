@@ -15,7 +15,7 @@ import (
 // establishEnterpriseLeadership is used to instantiate Nomad Pro and Premium
 // systems upon acquiring leadership.
 func (s *Server) establishEnterpriseLeadership(stopCh chan struct{}) error {
-	if err := s.establishProLeadership(); err != nil {
+	if err := s.establishProLeadership(stopCh); err != nil {
 		return err
 	}
 
