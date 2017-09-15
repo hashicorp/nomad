@@ -187,6 +187,8 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 	s.CheckRestart.Canonicalize()
 
+	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
+	// into each check.
 	for _, c := range s.Checks {
 		c.CheckRestart.Canonicalize()
 		c.CheckRestart = c.CheckRestart.Merge(s.CheckRestart)

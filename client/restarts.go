@@ -74,7 +74,9 @@ func (r *RestartTracker) SetWaitResult(res *dstructs.WaitResult) *RestartTracker
 }
 
 // SetRestartTriggered is used to mark that the task has been signalled to be
-// restarted
+// restarted. Setting the failure to true restarts according to the restart
+// policy. When failure is false the task is restarted without considering the
+// restart policy.
 func (r *RestartTracker) SetRestartTriggered(failure bool) *RestartTracker {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -159,6 +161,9 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 			}
 		}
 
+		// If this task has been restarted due to failures more times
+		// than the restart policy allows within an interval fail
+		// according to the restart policy's mode.
 		if r.count > r.policy.Attempts {
 			if r.policy.Mode == structs.RestartPolicyModeFail {
 				r.reason = fmt.Sprintf(
