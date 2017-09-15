@@ -41,12 +41,12 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	err = ioutil.WriteFile(f.Name(), []byte(policy.Rules), 0700)
 	assert.Nil(err)
 
-	// Request Job List without providing a valid token
+	// Attempt to apply a policy without a valid management token
 	os.Setenv("NOMAD_TOKEN", "foo")
 	code := cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
 	assert.Equal(1, code)
 
-	// Request Job List with a valid token
+	// Apply a policy with a valid management token
 	os.Setenv("NOMAD_TOKEN", token.SecretID)
 	code = cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
 	assert.Equal(0, code)
