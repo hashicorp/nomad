@@ -672,7 +672,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
-	// Create the namespace policy and tokens
+	// Create the policy and tokens
 	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
 	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
 
@@ -921,7 +921,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
-	// Create the namespace policy and tokens
+	// Create the policy and tokens
 	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
 	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
 
@@ -1766,7 +1766,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)), "UpsertJobSummary")
 	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
 
-	// Create the namespace policy and tokens
+	// Create the policy and tokens
 	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
 	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
 
