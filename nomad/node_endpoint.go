@@ -386,6 +386,13 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
+	// Check node write permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for drain update")

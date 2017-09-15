@@ -9,10 +9,12 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
@@ -653,6 +655,59 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	}
 	if !out.Drain {
 		t.Fatalf("bad: %#v", out)
+	}
+}
+
+func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the alloc
+	node := mock.Node()
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+
+	// Update the status without a token and expect failure
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:       node.ID,
+		Drain:        true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	{
+		var resp structs.NodeDrainUpdateResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+	}
+
+	// Try with a valid token
+	dereg.SecretID = validToken.SecretID
+	{
+		var resp structs.NodeDrainUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+	}
+
+	// Try with a invalid token
+	dereg.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NodeDrainUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	dereg.SecretID = root.SecretID
+	{
+		var resp structs.NodeDrainUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
 	}
 }
 
