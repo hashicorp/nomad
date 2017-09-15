@@ -648,9 +648,12 @@
 			"revisionTime": "2017-09-01T21:42:48Z"
 		},
 		{
+			"checksumSHA1": "m8B3L3qJ3tFfP6BI9pIFr9oal3w=",
 			"comment": "1.0.0",
+			"origin": "github.com/dadgar/cronexpr",
 			"path": "github.com/gorhill/cronexpr",
-			"revision": "a557574d6c024ed6e36acc8b610f5f211c91568a"
+			"revision": "675cac9b2d182dccb5ba8d5f8a0d5988df8a4394",
+			"revisionTime": "2017-09-15T18:30:32Z"
 		},
 		{
 			"comment": "1.0.0",
