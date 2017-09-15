@@ -52,7 +52,10 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 			Namespace: job.Namespace,
 		},
 	}
-	_, index, err := s.raftApply(structs.JobRegisterRequestType, req)
+	fsmErr, index, err := s.raftApply(structs.JobRegisterRequestType, req)
+	if err, ok := fsmErr.(error); ok && err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}

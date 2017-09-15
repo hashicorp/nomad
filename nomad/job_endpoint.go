@@ -178,7 +178,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		args.Job.SetSubmitTime()
 
 		// Commit this update via Raft
-		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		if err, ok := fsmErr.(error); ok && err != nil {
+			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			return err
+		}
 		if err != nil {
 			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
 			return err
@@ -1203,7 +1207,11 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	}
 
 	// Commit this update via Raft
-	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
+	fsmErr, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
+	if err, ok := fsmErr.(error); ok && err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
+		return err
+	}
 	if err != nil {
 		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
 		return err
