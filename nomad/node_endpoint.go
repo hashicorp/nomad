@@ -503,6 +503,13 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
+	// Check node read permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,

@@ -666,7 +666,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
 
-	// Create the alloc
+	// Create the node
 	node := mock.Node()
 	state := s1.fsm.State()
 
@@ -905,6 +905,59 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	}
 	if resp2.Node != nil {
 		t.Fatalf("unexpected node")
+	}
+}
+
+func TestClientEndpoint_GetNode_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the node
+	node := mock.Node()
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
+
+	// Lookup the node without a token and expect failure
+	req := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	{
+		var resp structs.SingleNodeResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")
+	}
+
+	// Try with a valid token
+	req.SecretID = validToken.SecretID
+	{
+		var resp structs.SingleNodeResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")
+		assert.Equal(node.ID, resp.Node.ID)
+	}
+
+	// Try with a invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.SingleNodeResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.SingleNodeResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")
+		assert.Equal(node.ID, resp.Node.ID)
 	}
 }
 
@@ -1703,7 +1756,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
 
-	// Create the alloc
+	// Create the node with an alloc
 	alloc := mock.Alloc()
 	node := mock.Node()
 	node.ID = alloc.NodeID
