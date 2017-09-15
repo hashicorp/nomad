@@ -267,7 +267,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 	}
 }
 
-// Watch a task and restart it if unhealthy.
+// Watch a check and restart its task if unhealthy.
 func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter TaskRestarter) {
 	if !check.TriggersRestarts() {
 		// Not watched, noop
@@ -302,7 +302,7 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 	}
 }
 
-// Unwatch a task.
+// Unwatch a check.
 func (w *checkWatcher) Unwatch(cid string) {
 	c := checkWatchUpdate{
 		checkID: cid,
