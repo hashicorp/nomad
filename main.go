@@ -35,6 +35,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		case "job deployments", "job dispatch", "job history", "job promote", "job revert":
 		case "namespace list", "namespace delete", "namespace apply":
 		case "operator raft", "operator raft list-peers", "operator raft remove-peer":
+		case "acl policy", "acl policy apply", "acl token", "acl token create":
 		default:
 			commandsInclude = append(commandsInclude, k)
 		}
