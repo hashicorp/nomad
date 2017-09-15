@@ -11,6 +11,10 @@ import (
 
 // namespaceExists returns whether a namespace exists
 func (s *StateStore) namespaceExists(txn *memdb.Txn, namespace string) (bool, error) {
+	if namespace == structs.DefaultNamespace {
+		return true, nil
+	}
+
 	existing, err := txn.First(TableNamespaces, "id", namespace)
 	if err != nil {
 		return false, fmt.Errorf("namespace lookup failed: %v", err)
