@@ -79,6 +79,13 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
+	// Check namespace read-job permissions
+	if aclObj, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
