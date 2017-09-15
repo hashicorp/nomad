@@ -10,7 +10,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/driver"
@@ -682,6 +682,13 @@ func (j *Job) List(args *structs.JobListRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
+
+	// Check for list-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
