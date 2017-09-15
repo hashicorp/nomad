@@ -25,6 +25,13 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
+	// Check management permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate there is at least one namespace
 	if len(args.Namespaces) == 0 {
 		return fmt.Errorf("must specify at least one namespace")

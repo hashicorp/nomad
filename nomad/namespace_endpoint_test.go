@@ -7,6 +7,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -343,4 +344,79 @@ func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
 	out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
 	assert.Nil(err)
 	assert.NotNil(out)
+}
+
+func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+
+	// Create the policy and tokens
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Create the register request
+	req := &structs.NamespaceUpsertRequest{
+		Namespaces:   []*structs.Namespace{ns1, ns2},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Upsert the namespace without a token and expect failure
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not create the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+
+	// Try with an invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not create the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Check we created the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
 }
