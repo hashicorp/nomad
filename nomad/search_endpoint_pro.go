@@ -10,6 +10,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var (
+	// allContexts are the available contexts which are searched to find matches
+	// for a given prefix
+	allContexts = append(ossContexts, proContexts...)
+
+	// proContexts are the pro contexts which are searched to find matches
+	// for a given prefix
+	proContexts = []structs.Context{structs.Namespaces}
+)
+
 // getEnterpriseMatch is used to match on an object only defined in Nomad Pro or
 // Premium
 func getEnterpriseMatch(match interface{}) (id string, ok bool) {
