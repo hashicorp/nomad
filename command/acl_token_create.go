@@ -24,15 +24,30 @@ General Options:
 
 Create Options:
 
-  -
+  -name=""
+    Sets the human readable name for the ACL token.
 
+  -type="client"
+    Sets the type of token. Must be one of "client" (default), or "management".
+
+  -global=false
+    Toggles the global mode of the token. Global tokens are replicated to all regions.
+
+  -policy=""
+    Specifies a policy to associate with the token. Can be specified multiple times,
+    but only with client type tokens.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *ACLTokenCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"name":   complete.PredictAnything,
+			"type":   complete.PredictAnything,
+			"global": complete.PredictNothing,
+			"policy": complete.PredictAnything,
+		})
 }
 
 func (c *ACLTokenCreateCommand) AutocompleteArgs() complete.Predictor {
