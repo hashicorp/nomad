@@ -45,7 +45,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	// users should not be running should be placed here, versus hiding
 	// subcommands from the main help, which should be filtered out of the
 	// commands above.
-	hidden := []string{"check", "executor", "syslog", "apply"}
+	hidden := []string{"check", "executor", "syslog"}
 
 	cli := &cli.CLI{
 		Name:           "nomad",
