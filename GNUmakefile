@@ -212,8 +212,8 @@ prodev: check ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: release
-release: clean ember-dist static-assets check
-	@$(foreach t,$(ALL_TARGETS),make GO_TAGS="ui" pkg/$(t).zip;) ## Build all release packages which can be built on this platform.
+release: GO_TAGS="ui"
+release: clean ember-dist static-assets check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
