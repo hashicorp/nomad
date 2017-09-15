@@ -1,13 +1,24 @@
 package command
 
-import "github.com/mitchellh/cli"
+import (
+	"strings"
+
+	"github.com/mitchellh/cli"
+)
 
 type ACLCommand struct {
 	Meta
 }
 
 func (f *ACLCommand) Help() string {
-	return "This command is accessed by using one of the subcommands below."
+	helpText := `
+Usage: nomad acl <subcommand> [options]
+
+  Interact with ACL policies and tokens.
+
+  Run nomad acl <subcommand> with no arguments for help on that subcommand.
+`
+	return strings.TrimSpace(helpText)
 }
 
 func (f *ACLCommand) Synopsis() string {
