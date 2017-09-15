@@ -1216,6 +1216,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
+										CheckRestart: &api.CheckRestart{
+											Limit:          3,
+											Grace:          helper.TimeToPtr(10 * time.Second),
+											IgnoreWarnings: true,
+										},
 									},
 								},
 							},
@@ -1406,6 +1411,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
+										CheckRestart: &structs.CheckRestart{
+											Limit:          3,
+											Grace:          10 * time.Second,
+											IgnoreWarnings: true,
+										},
 									},
 								},
 							},
