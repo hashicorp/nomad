@@ -559,15 +559,33 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
 	// Check node read and namespace job read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	aclObj, err := n.srv.resolveToken(args.SecretID)
+	if err != nil {
 		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNodeRead() {
-			return structs.ErrPermissionDenied
+	}
+	if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	// cache namespace perms
+	readableNamespaces := map[string]bool{}
+
+	// readNS is a caching namespace read-job helper
+	readNS := func(ns string) bool {
+		if aclObj == nil {
+			// ACLs are disabled; everything is readable
+			return true
 		}
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
+
+		if readable, ok := readableNamespaces[ns]; ok {
+			// cache hit
+			return readable
 		}
+
+		// cache miss
+		readable := aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+		readableNamespaces[ns] = readable
+		return readable
 	}
 
 	// Verify the arguments
@@ -587,9 +605,16 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 			}
 
 			// Setup the output
-			if len(allocs) != 0 {
-				reply.Allocs = allocs
+			if n := len(allocs); n != 0 {
+				reply.Allocs = make([]*structs.Allocation, 0, n)
 				for _, alloc := range allocs {
+					if readNS(alloc.Namespace) {
+						reply.Allocs = append(reply.Allocs, alloc)
+					}
+
+					// Get the max of all allocs since
+					// subsequent requests need to start
+					// from the latest index
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
 			} else {
