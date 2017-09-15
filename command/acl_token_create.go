@@ -97,7 +97,7 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Get the bootstrap token
+	// Create the bootstrap token
 	token, _, err := client.ACLTokens().Create(tk, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating token: %s", err))

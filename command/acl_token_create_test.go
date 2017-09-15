@@ -27,12 +27,12 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-	// Request Job List without providing a valid token
+	// Request to create a new token without providing a valid management token
 	os.Setenv("NOMAD_TOKEN", "foo")
 	code := cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
 	assert.Equal(1, code)
 
-	// Request Job List with a valid token
+	// Request to create a new token with a valid management token
 	os.Setenv("NOMAD_TOKEN", token.SecretID)
 	code = cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
 	assert.Equal(0, code)
