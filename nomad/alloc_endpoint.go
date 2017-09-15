@@ -5,6 +5,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -20,6 +21,13 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
+
+	// Check namespace read-job permissions
+	if aclObj, err := a.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{

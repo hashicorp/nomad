@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAllocEndpoint_List(t *testing.T) {
@@ -75,6 +77,62 @@ func TestAllocEndpoint_List(t *testing.T) {
 	if resp2.Allocations[0].ID != alloc.ID {
 		t.Fatalf("bad: %#v", resp2.Allocations[0])
 	}
+}
+
+func TestAllocEndpoint_List_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the alloc
+	alloc := mock.Alloc()
+	allocs := []*structs.Allocation{alloc}
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
+
+	stubAllocs := []*structs.AllocListStub{alloc.Stub()}
+	stubAllocs[0].CreateIndex = 1000
+	stubAllocs[0].ModifyIndex = 1000
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	// Lookup the allocs without a token and expect failure
+	get := &structs.AllocListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	var resp structs.AllocListResponse
+	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
+
+	// Try with a valid token
+	get.SecretID = validToken.SecretID
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1000, "resp.Index")
+	assert.Equal(stubAllocs, resp.Allocations, "Returned alloc list not equal")
+
+	// Try with a invalid token
+	get.SecretID = invalidToken.SecretID
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
+	assert.NotNil(err, "RPC")
+	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+	// Try with a root token
+	get.SecretID = root.SecretID
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1000, "resp.Index")
+	assert.Equal(stubAllocs, resp.Allocations, "Returned alloc list not equal")
 }
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
