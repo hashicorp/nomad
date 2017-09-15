@@ -2780,15 +2780,16 @@ func (c *CheckRestart) Validate() error {
 		return nil
 	}
 
+	var mErr multierror.Error
 	if c.Limit < 0 {
-		return fmt.Errorf("limit must be greater than or equal to 0 but found %d", c.Limit)
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("limit must be greater than or equal to 0 but found %d", c.Limit))
 	}
 
 	if c.Grace < 0 {
-		return fmt.Errorf("grace period must be greater than or equal to 0 but found %d", c.Grace)
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("grace period must be greater than or equal to 0 but found %d", c.Grace))
 	}
 
-	return nil
+	return mErr.ErrorOrNil()
 }
 
 const (
