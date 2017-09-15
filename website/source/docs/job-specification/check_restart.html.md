@@ -30,6 +30,8 @@ unhealthy for the `limit` specified in a `check_restart` stanza, it is
 restarted according to the task group's [`restart` policy][restart_stanza]. The
 `check_restart` settings apply to [`check`s][check_stanza], but may also be
 placed on [`service`s][service_stanza] to apply to all checks on a service.
+`check_restart` settings on `service` will only overwrite unset `check_restart`
+settings on `checks.`
 
 ```hcl
 job "mysql" {
@@ -66,7 +68,6 @@ job "mysql" {
           check_restart {
             limit = 3
             grace = "90s"
-
             ignore_warnings = false
           }
         }
@@ -78,7 +79,7 @@ job "mysql" {
 
 - `limit` `(int: 0)` - Restart task when a health check has failed `limit`
   times.  For example 1 causes a restart on the first failure. The default,
-  `0`, disables healtcheck based restarts. Failures must be consecutive. A
+  `0`, disables health check based restarts. Failures must be consecutive. A
   single passing check will reset the count, so flapping services may not be
   restarted.
 
@@ -124,8 +125,8 @@ restart {
 ```
 
 The [`restart` stanza][restart_stanza] controls the restart behavior of the
-task. In this case it will wait 10 seconds before restarting. Note that even if
-the check passes in this time the restart will still occur.
+task. In this case it will stop the task and then wait 10 seconds before
+starting it again.
 
 Once the task restarts Nomad waits the `grace` period again before starting to
 check the task's health.
