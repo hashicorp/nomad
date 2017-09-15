@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -327,6 +328,46 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 	if launchOut.Launch.IsZero() {
 		t.Fatalf("bad launch time: %v", launchOut.Launch)
+	}
+}
+
+func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	job := mock.Job()
+	job.Namespace = "foo"
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp == nil {
+		t.Fatalf("no resp: %v", resp)
+	}
+	err, ok := resp.(error)
+	if !ok {
+		t.Fatalf("resp not of error type: %T %v", resp, resp)
+	}
+	if !strings.Contains(err.Error(), "non-existant namespace") {
+		t.Fatalf("bad error: %v", err)
+	}
+
+	// Verify we are not registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if jobOut != nil {
+		t.Fatalf("job found!")
 	}
 }
 

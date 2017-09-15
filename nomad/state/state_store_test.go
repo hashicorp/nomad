@@ -1277,6 +1277,21 @@ func TestStateStore_UpsertJob_NoEphemeralDisk(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	job := mock.Job()
+	job.Namespace = "foo"
+
+	err := state.UpsertJob(1000, job)
+	assert.Contains(err.Error(), "non-existant namespace")
+
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	assert.Nil(err)
+	assert.Nil(out)
+}
+
 // Upsert a job that is the child of a parent job and ensures its summary gets
 // updated.
 func TestStateStore_UpsertJob_ChildJob(t *testing.T) {

@@ -9,6 +9,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// namespaceExists returns whether a namespace exists
+func (s *StateStore) namespaceExists(txn *memdb.Txn, namespace string) (bool, error) {
+	existing, err := txn.First(TableNamespaces, "id", namespace)
+	if err != nil {
+		return false, fmt.Errorf("namespace lookup failed: %v", err)
+	}
+
+	return existing != nil, nil
+}
+
 // UpsertNnamespace is used to register or update a set of namespaces
 func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namespace) error {
 	txn := s.db.Txn(true)

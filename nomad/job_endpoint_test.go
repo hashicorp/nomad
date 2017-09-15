@@ -140,6 +140,42 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Namespace = "foo"
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Try without a token, expect failure
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "non-existant namespace") {
+		t.Fatalf("expected namespace error: %v", err)
+	}
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("expected no job")
+	}
+}
+
 func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {

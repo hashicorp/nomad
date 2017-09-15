@@ -659,6 +659,14 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	if job.Namespace == "" {
 		panic("empty namespace")
 	}
+
+	// Assert the namespace exists
+	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("job %q is in non-existant namespace %q", job.ID, job.Namespace)
+	}
+
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
 	if err != nil {
