@@ -789,8 +789,8 @@ OUTER:
 					return
 				}
 			case structs.VaultChangeModeRestart:
-				const failure = false
-				r.Restart("vault", "new Vault token acquired", failure)
+				const noFailure = false
+				r.Restart("vault", "new Vault token acquired", noFailure)
 			case structs.VaultChangeModeNoop:
 				fallthrough
 			default:
