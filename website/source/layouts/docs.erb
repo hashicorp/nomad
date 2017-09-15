@@ -412,6 +412,24 @@
       <li<%= sidebar_current("docs-faq") %>>
         <a href="/docs/faq.html">FAQ</a>
       </li>
+
+      <hr>
+
+      <li<%= sidebar_current("docs-enterprise") %>>
+        <a href="/docs/enterprise/index.html">Nomad Enterprise</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-enterprise-backups") %>>
+            <a href="/docs/enterprise/backups/index.html">Namespaces</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-upgrades") %>>
+            <a href="/docs/enterprise/upgrades/index.html">Namespace Quotas</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-read-scale") %>>
+            <a href="/docs/enterprise/read-scale/index.html">Policy Enforcent with Sentinel</a>
+          </li>
+        </ul>
+      </li>
+
     </ul>
   <% end %>
 
