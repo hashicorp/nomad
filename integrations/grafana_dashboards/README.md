@@ -5,7 +5,8 @@ This is a sample Grafana dashboard to use for a Nomad cluster.
 Requirements:
 
 1. Set up a Prometheus server configured to read data from Nomad. See
-  /nomad/integrations/prometheus for a sample Prometheus configuration.
+  this [sample Prometheus configuration][https://github.com/hashicorp/nomad/integrations/prometheus]
+  for an example.
 
 2. Set up a Grafana server configured with a Prometheus data source. See
 [Prometheus's instructions for Grafana](https://prometheus.io/docs/visualization/grafana/#creating-a-prometheus-data-source)
