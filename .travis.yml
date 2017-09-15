@@ -9,6 +9,9 @@ language: go
 go:
   -  1.9.x
 
+git:
+  depth: 300
+
 branches:
   only:
     - master
