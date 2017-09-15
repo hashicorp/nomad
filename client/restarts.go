@@ -145,42 +145,42 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 	}
 
 	// Handle restarts due to failures
-	if r.failure {
-		if r.startErr != nil {
-			// If the error is not recoverable, do not restart.
-			if !structs.IsRecoverable(r.startErr) {
-				r.reason = ReasonUnrecoverableErrror
-				return structs.TaskNotRestarting, 0
-			}
-		} else if r.waitRes != nil {
-			// If the task started successfully and restart on success isn't specified,
-			// don't restart but don't mark as failed.
-			if r.waitRes.Successful() && !r.onSuccess {
-				r.reason = "Restart unnecessary as task terminated successfully"
-				return structs.TaskTerminated, 0
-			}
-		}
-
-		// If this task has been restarted due to failures more times
-		// than the restart policy allows within an interval fail
-		// according to the restart policy's mode.
-		if r.count > r.policy.Attempts {
-			if r.policy.Mode == structs.RestartPolicyModeFail {
-				r.reason = fmt.Sprintf(
-					`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
-					r.policy.Attempts, r.policy.Interval)
-				return structs.TaskNotRestarting, 0
-			} else {
-				r.reason = ReasonDelay
-				return structs.TaskRestarting, r.getDelay()
-			}
-		}
-
-		r.reason = ReasonWithinPolicy
-		return structs.TaskRestarting, r.jitter()
+	if !r.failure {
+		return "", 0
 	}
 
-	return "", 0
+	if r.startErr != nil {
+		// If the error is not recoverable, do not restart.
+		if !structs.IsRecoverable(r.startErr) {
+			r.reason = ReasonUnrecoverableErrror
+			return structs.TaskNotRestarting, 0
+		}
+	} else if r.waitRes != nil {
+		// If the task started successfully and restart on success isn't specified,
+		// don't restart but don't mark as failed.
+		if r.waitRes.Successful() && !r.onSuccess {
+			r.reason = "Restart unnecessary as task terminated successfully"
+			return structs.TaskTerminated, 0
+		}
+	}
+
+	// If this task has been restarted due to failures more times
+	// than the restart policy allows within an interval fail
+	// according to the restart policy's mode.
+	if r.count > r.policy.Attempts {
+		if r.policy.Mode == structs.RestartPolicyModeFail {
+			r.reason = fmt.Sprintf(
+				`Exceeded allowed attempts %d in interval %v and mode is "fail"`,
+				r.policy.Attempts, r.policy.Interval)
+			return structs.TaskNotRestarting, 0
+		} else {
+			r.reason = ReasonDelay
+			return structs.TaskRestarting, r.getDelay()
+		}
+	}
+
+	r.reason = ReasonWithinPolicy
+	return structs.TaskRestarting, r.jitter()
 }
 
 // getDelay returns the delay time to enter the next interval.
