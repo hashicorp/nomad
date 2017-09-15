@@ -1,9 +1,5 @@
-global:
-  external_labels:
-    monitor: 'codelab-monitor'
-
 scrape_configs:
-  - job_name: 'nomad_data'
+  - job_name: 'nomad_metrics'
 
     consul_sd_configs:
     - server: 'localhost:8500'
@@ -18,5 +14,3 @@ scrape_configs:
     metrics_path: /v1/metrics
     params:
       format: ['prometheus']
-
-
