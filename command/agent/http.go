@@ -27,6 +27,10 @@ const (
 	// this is checked to switch between the ACLToken and
 	// AtlasACLToken
 	scadaHTTPAddr = "SCADA"
+
+	// ErrEntOnly is the error returned if accessing an enterprise only
+	// endpoint
+	ErrEntOnly = "Nomad Enterprise only endpoint"
 )
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
