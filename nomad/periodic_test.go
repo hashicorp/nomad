@@ -535,46 +535,6 @@ func TestPeriodicDispatch_Run_SameID_Different_Namespace(t *testing.T) {
 	}
 }
 
-func TestPeriodicDispatch_Run_SameID_Different_Namespace(t *testing.T) {
-	t.Parallel()
-	p, m := testPeriodicDispatcher()
-
-	// Create two job that will be launched at the same time.
-	launch := time.Now().Round(1 * time.Second).Add(1 * time.Second)
-	job := testPeriodicJob(launch)
-	job2 := testPeriodicJob(launch)
-	job2.ID = job.ID
-	job2.Namespace = "test"
-
-	// Add them.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
-	if err := p.Add(job2); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
-
-	if l := len(p.Tracked()); l != 2 {
-		t.Fatalf("got %d tracked; want 2", l)
-	}
-
-	time.Sleep(2 * time.Second)
-
-	// Check that the jobs were launched correctly.
-	for _, job := range []*structs.Job{job, job2} {
-		times, err := m.LaunchTimes(p, job.Namespace, job.ID)
-		if err != nil {
-			t.Fatalf("failed to get launch times for job %q", job.ID)
-		}
-		if len(times) != 1 {
-			t.Fatalf("incorrect number of launch times for job %q; got %d; want 1", job.ID, len(times))
-		}
-		if times[0] != launch {
-			t.Fatalf("periodic dispatcher created eval for time %v; want %v", times[0], launch)
-		}
-	}
-}
-
 // This test adds and removes a bunch of jobs, some launching at the same time,
 // some after each other and some invalid times, and ensures the correct
 // behavior.
