@@ -67,5 +67,6 @@ func (c *NamespaceDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Successfully deleted namespace %q!", namespace))
 	return 0
 }

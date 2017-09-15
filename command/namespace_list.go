@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -101,6 +102,9 @@ func formatNamespaces(namespaces []*api.Namespace) string {
 	if len(namespaces) == 0 {
 		return "No namespaces found"
 	}
+
+	// Sort the output by namespace name
+	sort.Slice(namespaces, func(i, j int) bool { return namespaces[i].Name < namespaces[j].Name })
 
 	rows := make([]string, len(namespaces)+1)
 	rows[0] = "Name|Description"

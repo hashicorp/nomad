@@ -14,18 +14,16 @@ type NamespaceApplyCommand struct {
 
 func (c *NamespaceApplyCommand) Help() string {
 	helpText := `
-Usage: nomad namespace apply [options]
+Usage: nomad namespace apply [options] <namespace>
 
-Apply is used to create or update a namespace.
+Apply is used to create or update a namespace. It takes the namespace name to
+create or update as its only argument.
 
 General Options:
 
   ` + generalOptionsUsage() + `
 
 Apply Options:
-
-  -name
-    The name of the namespace.
 
   -description
     An optional description for the namespace.
@@ -36,7 +34,6 @@ Apply Options:
 func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-name":        complete.PredictAnything,
 			"-description": complete.PredictAnything,
 		})
 }
@@ -50,11 +47,10 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 }
 
 func (c *NamespaceApplyCommand) Run(args []string) int {
-	var name, description string
+	var description string
 
 	flags := c.Meta.FlagSet("namespace apply", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&description, "description", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -63,10 +59,12 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 
 	// Check that we got no arguments
 	args = flags.Args()
-	if l := len(args); l != 0 {
+	if l := len(args); l != 1 {
 		c.Ui.Error(c.Help())
 		return 1
 	}
+
+	name := args[0]
 
 	// Validate we have at-least a name
 	if name == "" {
@@ -93,5 +91,6 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Successfully applied namespace %q!", name))
 	return 0
 }
