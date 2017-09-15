@@ -30,8 +30,8 @@ unhealthy for the `limit` specified in a `check_restart` stanza, it is
 restarted according to the task group's [`restart` policy][restart_stanza]. The
 `check_restart` settings apply to [`check`s][check_stanza], but may also be
 placed on [`service`s][service_stanza] to apply to all checks on a service.
-`check_restart` settings on `service` will only overwrite unset `check_restart`
-settings on `checks.`
+If `check_restart` is set on both the check and service, the stanza's are
+merged with the check values taking precedence.
 
 ```hcl
 job "mysql" {
