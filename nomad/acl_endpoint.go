@@ -2,6 +2,9 @@ package nomad
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -13,6 +16,12 @@ import (
 var (
 	// aclDisabled is returned when an ACL endpoint is hit but ACLs are not enabled
 	aclDisabled = fmt.Errorf("ACL support disabled")
+)
+
+const (
+	// aclBootstrapReset is the file name to create in the data dir. It's only contents
+	// should be the reset index
+	aclBootstrapReset = "acl-bootstrap-reset"
 )
 
 // ACL endpoint is used for manipulating ACL tokens and policies
@@ -274,6 +283,9 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "bootstrap"}, time.Now())
 
+	// Always ignore the reset index from the arguements
+	args.ResetIndex = 0
+
 	// Snapshot the state
 	state, err := a.srv.State().Snapshot()
 	if err != nil {
@@ -282,12 +294,21 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 
 	// Verify bootstrap is possible. The state store method re-verifies this,
 	// but we do an early check to avoid raft transactions when possible.
-	ok, err := state.CanBootstrapACLToken()
+	ok, resetIdx, err := state.CanBootstrapACLToken()
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("ACL bootstrap already done")
+		// Check if there is a reset index specified
+		specifiedIndex := a.fileBootstrapResetIndex()
+		if specifiedIndex == 0 {
+			return fmt.Errorf("ACL bootstrap already done (reset index: %d)", resetIdx)
+		} else if specifiedIndex != resetIdx {
+			return fmt.Errorf("Invalid bootstrap reset index (specified %d, reset index: %d)", specifiedIndex, resetIdx)
+		}
+
+		// Setup the reset index to allow bootstrapping again
+		args.ResetIndex = resetIdx
 	}
 
 	// Create a new global management token, override any parameter
@@ -322,6 +343,32 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	// Update the index
 	reply.Index = index
 	return nil
+}
+
+// fileBootstrapResetIndex is used to read the reset file from <data-dir>/acl-bootstrap-reset
+func (a *ACL) fileBootstrapResetIndex() uint64 {
+	// Determine the file path to check
+	path := filepath.Join(a.srv.config.DataDir, aclBootstrapReset)
+
+	// Read the file
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			a.srv.logger.Printf("[ERR] acl.bootstrap: failed to read %q: %v", path, err)
+		}
+		return 0
+	}
+
+	// Attempt to parse the file
+	var resetIdx uint64
+	if _, err := fmt.Sscanf(string(raw), "%d", &resetIdx); err != nil {
+		a.srv.logger.Printf("[ERR] acl.bootstrap: failed to parse %q: %v", path, err)
+		return 0
+	}
+
+	// Return the reset index
+	a.srv.logger.Printf("[WARN] acl.bootstrap: parsed %q: reset index %d", path, resetIdx)
+	return resetIdx
 }
 
 // UpsertTokens is used to create or update a set of tokens

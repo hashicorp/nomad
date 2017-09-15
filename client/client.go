@@ -296,7 +296,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Start collecting stats
 	go c.emitStats()
 
-	c.logger.Printf("[INFO] client: Node ID %q", c.Node().ID)
+	c.logger.Printf("[INFO] client: Node ID %q", c.NodeID())
 	return c, nil
 }
 
@@ -369,15 +369,22 @@ func (c *Client) Leave() error {
 
 // Datacenter returns the datacenter for the given client
 func (c *Client) Datacenter() string {
-	c.configLock.RLock()
-	dc := c.configCopy.Node.Datacenter
-	c.configLock.RUnlock()
-	return dc
+	return c.config.Node.Datacenter
 }
 
 // Region returns the region for the given client
 func (c *Client) Region() string {
 	return c.config.Region
+}
+
+// NodeID returns the node ID for the given client
+func (c *Client) NodeID() string {
+	return c.config.Node.ID
+}
+
+// secretNodeID returns the secret node ID for the given client
+func (c *Client) secretNodeID() string {
+	return c.config.Node.SecretID
 }
 
 // RPCMajorVersion returns the structs.ApiMajorVersion supported by the
@@ -467,7 +474,7 @@ func (c *Client) Stats() map[string]map[string]string {
 	defer c.heartbeatLock.Unlock()
 	stats := map[string]map[string]string{
 		"client": map[string]string{
-			"node_id":         c.Node().ID,
+			"node_id":         c.NodeID(),
 			"known_servers":   c.servers.all().String(),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
@@ -1159,9 +1166,8 @@ func (c *Client) updateNodeStatus() error {
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
 
-	node := c.Node()
 	req := structs.NodeUpdateStatusRequest{
-		NodeID:       node.ID,
+		NodeID:       c.NodeID(),
 		Status:       structs.NodeStatusReady,
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
@@ -1226,7 +1232,7 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	// send the fields that are updatable by the client.
 	stripped := new(structs.Allocation)
 	stripped.ID = alloc.ID
-	stripped.NodeID = c.Node().ID
+	stripped.NodeID = c.NodeID()
 	stripped.TaskStates = alloc.TaskStates
 	stripped.ClientStatus = alloc.ClientStatus
 	stripped.ClientDescription = alloc.ClientDescription
@@ -1303,10 +1309,9 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	// The request and response for getting the map of allocations that should
 	// be running on the Node to their AllocModifyIndex which is incremented
 	// when the allocation is updated by the servers.
-	n := c.Node()
 	req := structs.NodeSpecificRequest{
-		NodeID:   n.ID,
-		SecretID: n.SecretID,
+		NodeID:   c.NodeID(),
+		SecretID: c.secretNodeID(),
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
 			AllowStale: true,
@@ -1664,8 +1669,8 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	// DeriveVaultToken of nomad server can take in a set of tasks and
 	// creates tokens for all the tasks.
 	req := &structs.DeriveVaultTokenRequest{
-		NodeID:   c.Node().ID,
-		SecretID: c.Node().SecretID,
+		NodeID:   c.NodeID(),
+		SecretID: c.secretNodeID(),
 		AllocID:  alloc.ID,
 		Tasks:    verifiedTasks,
 		QueryOptions: structs.QueryOptions{
@@ -1849,7 +1854,7 @@ DISCOLOOP:
 func (c *Client) emitStats() {
 	// Assign labels directly before emitting stats so the information expected
 	// is ready
-	c.baseLabels = []metrics.Label{{Name: "node_id", Value: c.Node().ID}, {Name: "datacenter", Value: c.Node().Datacenter}}
+	c.baseLabels = []metrics.Label{{Name: "node_id", Value: c.NodeID()}, {Name: "datacenter", Value: c.Datacenter()}}
 
 	// Start collecting host stats right away and then keep collecting every
 	// collection interval
@@ -1940,6 +1945,7 @@ func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats) {
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
 func (c *Client) setGaugeForAllocationStats(nodeID string) {
+	c.configLock.RLock()
 	node := c.configCopy.Node
 	c.configLock.RUnlock()
 	total := node.Resources
@@ -2026,7 +2032,7 @@ func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 
 // emitHostStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitHostStats() {
-	nodeID := c.Node().ID
+	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
 
 	c.setGaugeForMemoryStats(nodeID, hStats)
@@ -2040,7 +2046,7 @@ func (c *Client) emitHostStats() {
 
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
-	nodeID := c.Node().ID
+	nodeID := c.NodeID()
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0

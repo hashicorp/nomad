@@ -15,11 +15,6 @@ const (
 )
 
 var (
-	// allContexts are the available contexts which are searched to find matches
-	// for a given prefix
-	allContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
-		structs.Evals, structs.Deployments, structs.Namespaces}
-
 	// ossContexts are the oss contexts which are searched to find matches
 	// for a given prefix
 	ossContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
@@ -107,7 +102,7 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 	if l%2 == 0 {
 		return prefix
 	}
-	return prefix[:l-1]
+	return prefix[:len(prefix)-1]
 }
 
 // PrefixSearch is used to list matches for a given prefix, and returns
@@ -140,6 +135,8 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 					// this case we want to ignore.
 					case strings.Contains(e, "Invalid UUID: encoding/hex"):
 					case strings.Contains(e, "UUID have 36 characters"):
+					case strings.Contains(e, "must be even length"):
+					case strings.Contains(e, "UUID should have maximum of 4"):
 					default:
 						return err
 					}

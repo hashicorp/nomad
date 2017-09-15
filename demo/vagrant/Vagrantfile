@@ -10,7 +10,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip curl vim \
     software-properties-common
 
 # Download Nomad
-NOMAD_VERSION=0.6.0
+NOMAD_VERSION=0.6.3
 
 echo "Fetching Nomad..."
 cd /tmp/

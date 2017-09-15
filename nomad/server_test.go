@@ -47,7 +47,7 @@ func testACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken) 
 		}
 	})
 	token := mock.ACLManagementToken()
-	err := server.State().BootstrapACLTokens(1, token)
+	err := server.State().BootstrapACLTokens(1, 0, token)
 	if err != nil {
 		t.Fatalf("failed to bootstrap ACL token: %v", err)
 	}

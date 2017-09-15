@@ -26,6 +26,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 	}
 
 	return map[string]cli.CommandFactory{
+		"acl": func() (cli.Command, error) {
+			return &command.ACLCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl bootstrap": func() (cli.Command, error) {
+			return &command.ACLBootstrapCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc-status": func() (cli.Command, error) {
 			return &command.AllocStatusCommand{
 				Meta: meta,

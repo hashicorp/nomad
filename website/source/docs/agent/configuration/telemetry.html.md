@@ -114,6 +114,13 @@ telemetry {
 }
 ```
 
+### `prometheus`
+
+These `telemetry` parameters apply to [Prometheus](https://prometheus.io).
+
+- `prometheus_metrics` `(bool: false)` - Specifies whether the agent should
+  make Prometheus formatted metrics available at `/v1/metrics?format=prometheus`.
+
 ### `circonus`
 
 These `telemetry` parameters apply to

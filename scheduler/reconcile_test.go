@@ -150,6 +150,7 @@ func allocNameToIndex(name string) uint {
 }
 
 func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
+	t.Helper()
 	m := make(map[uint]int)
 	for _, i := range indexes {
 		m[uint(i)] += 1
@@ -177,6 +178,7 @@ func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
 }
 
 func assertNoCanariesStopped(t *testing.T, d *structs.Deployment, stop []allocStopResult) {
+	t.Helper()
 	canaryIndex := make(map[string]struct{})
 	for _, state := range d.TaskGroups {
 		for _, c := range state.PlacedCanaries {
@@ -192,6 +194,7 @@ func assertNoCanariesStopped(t *testing.T, d *structs.Deployment, stop []allocSt
 }
 
 func assertPlaceResultsHavePreviousAllocs(t *testing.T, numPrevious int, place []allocPlaceResult) {
+	t.Helper()
 	names := make(map[string]struct{}, numPrevious)
 
 	found := 0
@@ -273,7 +276,7 @@ type resultExpectation struct {
 }
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
-
+	t.Helper()
 	if exp.createDeployment != nil && r.deployment == nil {
 		t.Fatalf("Expect a created deployment got none")
 	} else if exp.createDeployment == nil && r.deployment != nil {
@@ -457,6 +460,46 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 	})
 
 	assertNamesHaveIndexes(t, intRange(0, 19), stopResultsToNames(r.stop))
+}
+
+// Tests the reconciler properly handles stopping allocations for a job that has
+// scaled down to zero desired where allocs have duplicate names
+func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
+	// Set desired 0
+	job := mock.Job()
+	job.TaskGroups[0].Count = 0
+
+	// Create 20 existing allocations
+	var allocs []*structs.Allocation
+	var expectedStopped []int
+	for i := 0; i < 20; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = structs.GenerateUUID()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%2))
+		allocs = append(allocs, alloc)
+		expectedStopped = append(expectedStopped, i%2)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              20,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Stop: 20,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, expectedStopped, stopResultsToNames(r.stop))
 }
 
 // Tests the reconciler properly handles inplace upgrading allocations

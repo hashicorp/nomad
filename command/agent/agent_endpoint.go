@@ -3,6 +3,7 @@ package agent
 import (
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -148,6 +149,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	}
 
 	peers := s.agent.client.GetServers()
+	sort.Strings(peers)
 	return peers, nil
 }
 

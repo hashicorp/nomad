@@ -6,6 +6,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,6 +40,59 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 		},
 	}
 	var resp structs.SingleDeploymentResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1000, "resp.Index")
+	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
+}
+
+func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	// Lookup the deployments without a token and expect failure
+	get := &structs.DeploymentSpecificRequest{
+		DeploymentID: d.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	var resp structs.SingleDeploymentResponse
+	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
+
+	// Try with a good token
+	get.SecretID = validToken.SecretID
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1000, "resp.Index")
+	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
+
+	// Try with a bad token
+	get.SecretID = invalidToken.SecretID
+	err := msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp)
+	assert.NotNil(err, "RPC")
+	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+	// Try with a root token
+	get.SecretID = root.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
