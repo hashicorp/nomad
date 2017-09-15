@@ -47,7 +47,7 @@ ALL_TARGETS += freebsd_amd64
 endif
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -63,7 +63,7 @@ pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
 		-o "$@"
 
 pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -71,7 +71,7 @@ pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
 		-o "$@"
 
 pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -79,7 +79,7 @@ pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
 		-o "$@"
 
 pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -87,7 +87,7 @@ pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
 		-o "$@"
 
 pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -100,7 +100,7 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 #	CC=i686-w64-mingw32-gcc
 #	CXX=i686-w64-mingw32-g++
 pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -108,7 +108,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 		-o "$@.exe"
 
 pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -116,7 +116,7 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-o "$@.exe"
 
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
@@ -149,6 +149,8 @@ deps: ## Install build and development dependencies
 	go get -u github.com/axw/gocov/gocov
 	go get -u gopkg.in/matm/v1/gocov-html
 	go get -u github.com/ugorji/go/codec/codecgen
+	go get -u github.com/jteeuwen/go-bindata/...
+	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/hashicorp/vault
 	go get -u github.com/a8m/tree/cmd/tree
 
@@ -158,7 +160,7 @@ check: ## Lint the source code
 	@gometalinter \
 		--deadline 10m \
 		--vendor \
-		--exclude '.*\.generated\.go:\d+:' \
+		--exclude '(.*\.generated\.go:\d+:|bindata_assetfs)' \
 		--disable-all \
 		--sort severity \
 		$(CHECKS) \
@@ -185,7 +187,7 @@ dev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test ent"
+		GO_TAGS="nomad_test ent $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -203,20 +205,30 @@ prodev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test pro"
+		GO_TAGS="nomad_test pro $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: release
-release: clean check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+release: GO_TAGS="ui"
+release: clean ember-dist static-assets check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: test
-test: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-test: dev ## Run Nomad test suites
+test: ## Run the Nomad test suite and/or the Nomad UI test suite
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make test-nomad; \
+		fi
+	@if [ $(RUN_UI_TESTS) ]; then \
+		make test-ui; \
+		fi
+
+.PHONY: test-nomad
+test-nomad: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
 		go test \
@@ -257,6 +269,33 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 		nomad-client02 \
 		nomad-client03 \
 		$(if $(PROVIDER),--provider $(PROVIDER))
+
+.PHONY: static-assets
+static-assets: ## Compile the static routes to serve alongside the API
+	@echo "--> Generating static assets"
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
+	@mv bindata_assetfs.go command/agent
+
+.PHONY: test-ui
+test-ui: ## Run Noma UI test suite
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm install phantomjs-prebuilt
+	@echo "--> Running ember tests"
+	@cd ui && phantomjs --version
+	@cd ui && npm test
+
+.PHONY: ember-dist
+ember-dist: ## Build the static UI assets from source
+	@echo "--> Installing JavaScript assets"
+	@cd ui && yarn install
+	@cd ui && npm rebuild node-sass
+	@echo "--> Building Ember application"
+	@cd ui && npm run build
+
+.PHONY: dev-ui
+dev-ui: ember-dist static-assets
+	@$(MAKE) NOMAD_UI_TAG="ui" dev ## Build a dev binary with the UI baked in
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 .PHONY: help

@@ -518,6 +518,12 @@
 			"revision": "8929fe90cee4b2cb9deb468b51fb34eba64d1bf0"
 		},
 		{
+			"checksumSHA1": "7DxViusFRJ7UPH0jZqYatwDrOkY=",
+			"path": "github.com/elazarl/go-bindata-assetfs",
+			"revision": "30f82fa23fd844bd5bb1e5f216db87fd77b5eb43",
+			"revisionTime": "2017-02-27T21:27:28Z"
+		},
+		{
 			"checksumSHA1": "QBkOnLnM6zZ158NJSVLqoE4V6fI=",
 			"path": "github.com/fatih/structs",
 			"revision": "14f46232cd7bc732dc67313a9e4d3d210e082587",

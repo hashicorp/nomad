@@ -1,0 +1,15 @@
+{{#global-header class="page-header"}}
+  {{#each breadcrumbs as |breadcrumb|}}
+    <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+  {{/each}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "jobs/job/subnav"}}
+  <section class="section">
+    <div class="boxed-section">
+      <div class="boxed-section-body is-dark">
+        {{json-viewer json=model.definition}}
+      </div>
+    </div>
+  </section>
+{{/gutter-menu}}

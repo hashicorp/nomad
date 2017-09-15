@@ -1,0 +1,42 @@
+.tag {
+  text-transform: uppercase;
+  border-radius: 200px;
+  font-weight: $weight-normal;
+  font-size: $size-7;
+  line-height: 1;
+  height: 1.5em;
+
+  &.is-pending {
+    background: $grey-blue;
+    color: findColorInvert(darken($grey-blue, 10%));
+  }
+
+  &.is-running {
+    background: $blue;
+    color: $blue-invert;
+  }
+
+  &.is-error {
+    background: $danger;
+    color: $danger-invert;
+  }
+
+  &.is-cancelled {
+    background: $orange;
+    color: $orange-invert;
+  }
+
+  &.is-hollow {
+    font-weight: $weight-semibold;
+    color: darken($grey-blue, 20%);
+    background: transparent;
+  }
+
+  &.no-text-transform {
+    text-transform: none;
+  }
+
+  &.is-outlined {
+    box-shadow: 0 0 0 1px $white;
+  }
+}
