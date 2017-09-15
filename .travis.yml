@@ -29,7 +29,7 @@ install:
   - cd ../../
   - git clone --branch=$TRAVIS_BRANCH git@github.com:hashicorp/nomad-enterprise.git $TRAVIS_REPO_SLUG
   - cd $TRAVIS_REPO_SLUG
-  - git checkout -qf $TRAVIS_COMMIT
+  - git checkout -qf `git rev-parse $TRAVIS_COMMIT_RANGE | head -n1`
   - make bootstrap
 
 script:
