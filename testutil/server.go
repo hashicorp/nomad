@@ -22,9 +22,9 @@ import (
 	"os/exec"
 	"sync/atomic"
 
-	"github.com/hashicorp/go-cleanhttp"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // offset is used to atomically increment the port numbers.
@@ -246,7 +246,8 @@ func (s *TestServer) Stop() {
 // but will likely return before a leader is elected.
 func (s *TestServer) waitForAPI() {
 	WaitForResult(func() (bool, error) {
-		resp, err := s.HTTPClient.Get(s.url("/v1/agent/self"))
+		// Using this endpoint as it is does not have restricted access
+		resp, err := s.HTTPClient.Get(s.url("/v1/metrics"))
 		if err != nil {
 			return false, err
 		}
@@ -267,7 +268,8 @@ func (s *TestServer) waitForAPI() {
 func (s *TestServer) waitForLeader() {
 	WaitForResult(func() (bool, error) {
 		// Query the API and check the status code
-		resp, err := s.HTTPClient.Get(s.url("/v1/jobs"))
+		// Using this endpoint as it is does not have restricted access
+		resp, err := s.HTTPClient.Get(s.url("/v1/status/leader"))
 		if err != nil {
 			return false, err
 		}
@@ -276,10 +278,6 @@ func (s *TestServer) waitForLeader() {
 			return false, err
 		}
 
-		// Ensure we have a leader and a node registeration
-		if leader := resp.Header.Get("X-Nomad-KnownLeader"); leader != "true" {
-			return false, fmt.Errorf("Nomad leader status: %#v", leader)
-		}
 		return true, nil
 	}, func(err error) {
 		defer s.Stop()
