@@ -684,7 +684,9 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	}
 	{
 		var resp structs.NodeDrainUpdateResponse
-		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a valid token
@@ -932,7 +934,9 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	}
 	{
 		var resp structs.SingleNodeResponse
-		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a valid token
@@ -1154,7 +1158,9 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	}
 	{
 		var resp structs.NodeAllocsResponse
-		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a valid token
@@ -1835,7 +1841,9 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	}
 	{
 		var resp structs.NodeUpdateResponse
-		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp), "RPC")
+		err := msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a valid token
@@ -1946,7 +1954,9 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	}
 	{
 		var resp structs.NodeListResponse
-		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp), "RPC")
+		err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a valid token
