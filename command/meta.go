@@ -210,6 +210,8 @@ func generalOptionsUsage() string {
 
   -token
     Provide an ACL token to access privilated information
+		The SecretID of an ACL token to use to authenticate API requests with.
+		Additionally, the NOMAD_TOKEN env var will also be sourced.
 `
 	return strings.TrimSpace(helpText)
 }
