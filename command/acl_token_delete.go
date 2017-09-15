@@ -15,7 +15,7 @@ func (c *ACLTokenDeleteCommand) Help() string {
 	helpText := `
 Usage: nomad acl token delete [options]
 
-Delete is used to delete existing ACL tokens. Requires a management token.
+Delete is used to delete an existing ACL token. Requires a management token.
 
 General Options:
 
