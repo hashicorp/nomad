@@ -12,6 +12,8 @@ At this point we have a fully functioning cluster with a job running in it. We h
 learned how to inspect a job using `nomad status`, next we'll learn how to inspect
 a job in the web client.
 
+~> **Beta Feature!** This page covers the Nomad UI, a feature of v0.7 which is still in beta.
+
 ## Opening the Web UI
 
 As long as Nomad is running, the Nomad UI is also running. It is hosted at the same address
