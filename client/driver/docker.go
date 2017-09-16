@@ -1657,16 +1657,15 @@ func (h *DockerHandle) collectStats() {
 				}
 
 				// Calculate percentage
-				cores := len(s.CPUStats.CPUUsage.PercpuUsage)
 				cs.Percent = calculatePercent(
 					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, cores)
+					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, numCores)
 				cs.SystemMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
 				cs.UserMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
 				cs.TotalTicks = (cs.Percent / 100) * shelpers.TotalTicksAvailable() / float64(numCores)
 
 				h.resourceUsageLock.Lock()
