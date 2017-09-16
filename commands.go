@@ -71,6 +71,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl token info": func() (cli.Command, error) {
+			return &command.ACLTokenInfoCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc-status": func() (cli.Command, error) {
 			return &command.AllocStatusCommand{
 				Meta: meta,

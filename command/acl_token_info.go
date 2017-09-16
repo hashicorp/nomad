@@ -38,7 +38,7 @@ func (c *ACLTokenInfoCommand) Synopsis() string {
 }
 
 func (c *ACLTokenInfoCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl token create", FlagSetClient)
+	flags := c.Meta.FlagSet("acl token info", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1

@@ -49,6 +49,11 @@ func TestACLTokenInfoCommand_ViaEnvVar(t *testing.T) {
 	code = cmd.Run([]string{"-address=" + url, mockToken.AccessorID})
 	assert.Equal(0, code)
 
+	// Fetch info on a token with a valid management token via a CLI option
+	os.Setenv("NOMAD_TOKEN", "")
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, mockToken.AccessorID})
+	assert.Equal(0, code)
+
 	// Check the output
 	out := ui.OutputWriter.String()
 	if !strings.Contains(out, mockToken.AccessorID) {
