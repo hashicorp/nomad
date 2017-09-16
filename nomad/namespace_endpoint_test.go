@@ -3,6 +3,7 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -284,6 +285,80 @@ func TestNamespaceEndpoint_List(t *testing.T) {
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp2))
 	assert.EqualValues(1000, resp2.Index)
 	assert.Len(resp2.Namespaces, 1)
+}
+
+func TestNamespaceEndpoint_List_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+
+	ns1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	ns2.Name = "bbbbbbbb-3350-4b4b-d185-0e1992ed43e9"
+	assert.Nil(s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+
+	validDefToken := CreatePolicyAndToken(t, state, 1001, "test-def-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validMultiToken := CreatePolicyAndToken(t, state, 1002, "test-multi-valid", fmt.Sprintf("%s\n%s",
+		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}),
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get := &structs.NamespaceListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Lookup the namespaces without a token and expect a failure
+	{
+		var resp structs.NamespaceListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp)
+		assert.Nil(err)
+		assert.Len(resp.Namespaces, 0)
+	}
+
+	// Try with an invalid token
+	get.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp)
+		assert.Nil(err)
+		assert.Len(resp.Namespaces, 0)
+	}
+
+	// Try with a valid token for one
+	get.SecretID = validDefToken.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 1)
+	}
+
+	// Try with a valid token for two
+	get.SecretID = validMultiToken.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 2)
+	}
+
+	// Try with a root token
+	get.SecretID = root.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 3)
+	}
 }
 
 func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
