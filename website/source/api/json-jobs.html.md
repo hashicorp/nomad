@@ -147,6 +147,8 @@ The `Job` object supports the following keys:
 
 - `Meta` - Annotates the job with opaque metadata.
 
+- `Namespace` - The namespace to execute the job in, defaults to "default".
+
 - `ParameterizedJob` - Specifies the job as a parameterized job such that it can
   be dispatched against. The `ParamaterizedJob` object supports the following
   attributes:
