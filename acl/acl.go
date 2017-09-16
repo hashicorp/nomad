@@ -145,6 +145,24 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 	return capabilities.Check(op)
 }
 
+// AllowNamespace checks if any operations are allowed for a namespace
+func (a *ACL) AllowNamespace(ns string) bool {
+	// Hot path management tokens
+	if a.management {
+		return true
+	}
+
+	// Check for a matching capability set
+	raw, ok := a.namespaces.Get([]byte(ns))
+	if !ok {
+		return false
+	}
+
+	// Check if the capability has been granted
+	capabilities := raw.(capabilitySet)
+	return len(capabilities) > 0
+}
+
 // AllowAgentRead checks if read operations are allowed for an agent
 func (a *ACL) AllowAgentRead() bool {
 	switch {

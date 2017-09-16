@@ -43,6 +43,67 @@ func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
 	assert.Nil(resp.Namespace)
 }
 
+func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create the policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
+		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(ns2.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get := &structs.NamespaceSpecificRequest{
+		Name:         ns1.Name,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Lookup the namespace without a token and expect failure
+	{
+		var resp structs.SingleNamespaceResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	get.SecretID = invalidToken.SecretID
+	{
+		var resp structs.SingleNamespaceResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token
+	get.SecretID = validToken.SecretID
+	{
+		var resp structs.SingleNamespaceResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Equal(ns1, resp.Namespace)
+	}
+
+	// Try with a root token
+	get.SecretID = root.SecretID
+	{
+		var resp structs.SingleNamespaceResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Equal(ns1, resp.Namespace)
+	}
+}
+
 func TestNamespaceEndpoint_GetNamespace_Blocking(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()

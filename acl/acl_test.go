@@ -67,9 +67,11 @@ func TestACLManagement(t *testing.T) {
 	// Check default namespace rights
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.Equal(t, true, acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
 	assert.Equal(t, true, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.Equal(t, true, acl.AllowNamespace("foo"))
 
 	// Check the other simpler operations
 	assert.Equal(t, true, acl.IsManagement())
@@ -93,9 +95,11 @@ func TestACLMerge(t *testing.T) {
 	// Check default namespace rights
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.Equal(t, true, acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
 	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.Equal(t, false, acl.AllowNamespace("foo"))
 
 	// Check the other simpler operations
 	assert.Equal(t, false, acl.IsManagement())
