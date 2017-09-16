@@ -30,6 +30,7 @@ func TestMeta_FlagSet(t *testing.T) {
 				"client-key",
 				"insecure",
 				"tls-skip-verify",
+				"token",
 			},
 		},
 	}

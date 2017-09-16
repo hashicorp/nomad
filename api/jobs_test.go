@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJobs_Register(t *testing.T) {
@@ -1294,4 +1296,43 @@ func TestJobs_Sort(t *testing.T) {
 	if !reflect.DeepEqual(jobs, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)
 	}
+}
+
+func TestJobs_Summary_WithACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	c, s, root := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	invalidToken := mock.ACLToken()
+
+	// Registering with an invalid  token should fail
+	c.SetSecretID(invalidToken.SecretID)
+	job := testJob()
+	_, _, err := jobs.Register(job, nil)
+	assert.NotNil(err)
+
+	// Register with token should succeed
+	c.SetSecretID(root.SecretID)
+	resp2, wm, err := jobs.Register(job, nil)
+	assert.Nil(err)
+	assert.NotNil(resp2)
+	assert.NotEqual("", resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Query the job summary with an invalid token should fail
+	c.SetSecretID(invalidToken.SecretID)
+	result, _, err := jobs.Summary(*job.ID, nil)
+	assert.NotNil(err)
+
+	// Query the job summary with a valid token should succeed
+	c.SetSecretID(root.SecretID)
+	result, qm, err := jobs.Summary(*job.ID, nil)
+	assert.Nil(err)
+	assertQueryMeta(t, qm)
+
+	// Check that the result is what we expect
+	assert.Equal(*job.ID, result.JobID)
 }
