@@ -13,7 +13,7 @@ type ACLTokenDeleteCommand struct {
 
 func (c *ACLTokenDeleteCommand) Help() string {
 	helpText := `
-Usage: nomad acl token delete [options]
+Usage: nomad acl token delete <token_accessor_id>
 
 Delete is used to delete an existing ACL token. Requires a management token.
 
