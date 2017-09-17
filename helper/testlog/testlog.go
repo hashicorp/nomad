@@ -6,27 +6,29 @@ import (
 	"log"
 )
 
-// TestLogger is the methods of testing.T (or testing.B) needed by the test
+// Logger is the methods of testing.T (or testing.B) needed by the test
 // logger.
-type TestLogger interface {
+type Logger interface {
 	Logf(format string, args ...interface{})
 }
 
-type testWriter struct {
-	t TestLogger
+// Writer implements io.Writer on top of a Logger.
+type Writer struct {
+	t Logger
 }
 
-func (w *testWriter) Write(p []byte) (n int, err error) {
+// Write to an underlying Logger. Never returns an error.
+func (w *Writer) Write(p []byte) (n int, err error) {
 	w.t.Logf(string(p))
 	return len(p), nil
 }
 
-// New test logger. See https://golang.org/pkg/log/#New
-func New(t TestLogger, prefix string, flag int) *log.Logger {
-	return log.New(&testWriter{t}, prefix, flag)
+// NewLog returns a new test logger. See https://golang.org/pkg/log/#New
+func NewLog(t Logger, prefix string, flag int) *log.Logger {
+	return log.New(&Writer{t}, prefix, flag)
 }
 
-// NewTest logger with "TEST" prefix and the Lmicroseconds flag.
-func NewTest(t TestLogger) *log.Logger {
-	return New(t, "TEST ", log.Lmicroseconds)
+// New logger with "TEST" prefix and the Lmicroseconds flag.
+func New(t Logger) *log.Logger {
+	return NewLog(t, "TEST ", log.Lmicroseconds)
 }

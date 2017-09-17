@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 )
 
 // TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
 // set a localPrevAlloc will block on it.
 func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
-	_, prevAR := testAllocRunner(false)
+	_, prevAR := testAllocRunner(t, false)
 	prevAR.alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "10s"
 
 	newAlloc := mock.Alloc()
@@ -29,7 +30,7 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config["run_for"] = "500ms"
 
-	waiter := newAllocWatcher(newAlloc, prevAR, nil, nil, testLogger())
+	waiter := newAllocWatcher(newAlloc, prevAR, nil, nil, testlog.New(t))
 
 	// Wait in a goroutine with a context to make sure it exits at the right time
 	ctx, cancel := context.WithCancel(context.Background())
@@ -166,7 +167,7 @@ func TestPrevAlloc_StreamAllocDir(t *testing.T) {
 
 	rc := ioutil.NopCloser(buf)
 
-	prevAlloc := &remotePrevAlloc{logger: testLogger()}
+	prevAlloc := &remotePrevAlloc{logger: testlog.New(t)}
 	if err := prevAlloc.streamAllocDir(context.Background(), rc, dir1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
