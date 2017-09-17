@@ -24,13 +24,6 @@ const (
 	yPort = 1235
 )
 
-func testLogger() *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, "", log.LstdFlags)
-	}
-	return log.New(ioutil.Discard, "", 0)
-}
-
 func testTask() *structs.Task {
 	return &structs.Task{
 		Name: "taskname",
@@ -109,10 +102,10 @@ func (t *testFakeCtx) syncOnce() error {
 
 // setupFake creates a testFakeCtx with a ServiceClient backed by a fakeConsul.
 // A test Task is also provided.
-func setupFake() *testFakeCtx {
+func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, true, testLogger()),
+		ServiceClient: NewServiceClient(fc, true, testlog.NewTest(t)),
 		FakeConsul:    fc,
 		Task:          testTask(),
 		Restarter:     &restartRecorder{},
@@ -121,7 +114,7 @@ func setupFake() *testFakeCtx {
 }
 
 func TestConsul_ChangeTags(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	allocID := "allocid"
 	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, ctx.Restarter, nil, nil); err != nil {
@@ -222,7 +215,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 // it in Consul. Since ports are not part of the service ID this is a slightly
 // different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:      "c1",
@@ -403,7 +396,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 // TestConsul_ChangeChecks asserts that updating only the checks on a service
 // properly syncs with Consul.
 func TestConsul_ChangeChecks(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:      "c1",
@@ -638,7 +631,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 
 // TestConsul_RegServices tests basic service registration.
 func TestConsul_RegServices(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	// Add a check w/restarting
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -774,7 +767,7 @@ func TestConsul_RegServices(t *testing.T) {
 // TestConsul_ShutdownOK tests the ok path for the shutdown logic in
 // ServiceClient.
 func TestConsul_ShutdownOK(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	// Add a script check to make sure its TTL gets updated
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -832,7 +825,7 @@ func TestConsul_ShutdownOK(t *testing.T) {
 // ServiceClient.
 func TestConsul_ShutdownSlow(t *testing.T) {
 	t.Parallel() // run the slow tests in parallel
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	// Add a script check to make sure its TTL gets updated
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -904,7 +897,7 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 // shutdown logic in ServiceClient.
 func TestConsul_ShutdownBlocked(t *testing.T) {
 	t.Parallel() // run the slow tests in parallel
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	// Add a script check to make sure its TTL gets updated
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -972,8 +965,8 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 // TestConsul_NoTLSSkipVerifySupport asserts that checks with
 // TLSSkipVerify=true are skipped when Consul doesn't support TLSSkipVerify.
 func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
-	ctx := setupFake()
-	ctx.ServiceClient = NewServiceClient(ctx.FakeConsul, false, testLogger())
+	ctx := setupFake(t)
+	ctx.ServiceClient = NewServiceClient(ctx.FakeConsul, false, testlog.NewTest(t))
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		// This check sets TLSSkipVerify so it should get dropped
 		{
@@ -1017,7 +1010,7 @@ func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
 // TestConsul_RemoveScript assert removing a script check removes all objects
 // related to that check.
 func TestConsul_CancelScript(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:     "scriptcheckDel",
@@ -1105,7 +1098,7 @@ func TestConsul_CancelScript(t *testing.T) {
 // auto-use set then services should advertise it unless explicitly set to
 // host. Checks should always use host.
 func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	ctx.Task.Services = []*structs.Service{
 		{
@@ -1231,7 +1224,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 // set auto-use only services which request the driver's network should
 // advertise it.
 func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	ctx.Task.Services = []*structs.Service{
 		{
@@ -1304,7 +1297,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 // TestConsul_DriverNetwork_Change asserts that if a driver network is
 // specified and a service updates its use its properly updated in Consul.
 func TestConsul_DriverNetwork_Change(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	ctx.Task.Services = []*structs.Service{
 		{
