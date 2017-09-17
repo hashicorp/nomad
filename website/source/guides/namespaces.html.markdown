@@ -3,7 +3,7 @@ layout: "guides"
 page_title: "Namespaces"
 sidebar_current: "guides-namespaces"
 description: |-
-  Nomad Enterprise has support for namespaces, which allows jobs and their
+  Nomad Enterprise provides support for namespaces, which allows jobs and their
   associated objects to be segmented from each other and other users of the
   cluster.
 ---
