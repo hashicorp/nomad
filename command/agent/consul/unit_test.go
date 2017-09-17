@@ -3,9 +3,6 @@ package consul
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -14,6 +11,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 )
@@ -105,7 +103,7 @@ func (t *testFakeCtx) syncOnce() error {
 func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, true, testlog.NewTest(t)),
+		ServiceClient: NewServiceClient(fc, true, testlog.New(t)),
 		FakeConsul:    fc,
 		Task:          testTask(),
 		Restarter:     &restartRecorder{},
@@ -966,7 +964,7 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 // TLSSkipVerify=true are skipped when Consul doesn't support TLSSkipVerify.
 func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
 	ctx := setupFake(t)
-	ctx.ServiceClient = NewServiceClient(ctx.FakeConsul, false, testlog.NewTest(t))
+	ctx.ServiceClient = NewServiceClient(ctx.FakeConsul, false, testlog.New(t))
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		// This check sets TLSSkipVerify so it should get dropped
 		{

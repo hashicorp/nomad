@@ -39,7 +39,7 @@ func tmpDir(t testing.TB) string {
 
 func TestAgent_RPCPing(t *testing.T) {
 	t.Parallel()
-	agent := NewTestAgent(t.Name(), nil)
+	agent := NewTestAgent(t, nil)
 	defer agent.Shutdown()
 
 	var out struct{}

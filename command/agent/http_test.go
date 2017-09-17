@@ -26,7 +26,7 @@ import (
 // makeHTTPServer returns a test server whose logs will be written to
 // the passed writer. If the writer is nil, the logs are written to stderr.
 func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestAgent {
-	return NewTestAgent(t.Name(), cb)
+	return NewTestAgent(t, cb)
 }
 
 func BenchmarkHTTPRequests(b *testing.B) {

@@ -3,30 +3,38 @@
 package testlog
 
 import (
+	"io"
 	"log"
 )
 
-// TestLogger is the methods of testing.T (or testing.B) needed by the test
+// Logger is the methods of testing.T (or testing.B) needed by the test
 // logger.
-type TestLogger interface {
+type Logger interface {
 	Logf(format string, args ...interface{})
 }
 
-type testWriter struct {
-	t TestLogger
+// writer implements io.Writer on top of a Logger.
+type writer struct {
+	t Logger
 }
 
-func (w *testWriter) Write(p []byte) (n int, err error) {
+// Write to an underlying Logger. Never returns an error.
+func (w *writer) Write(p []byte) (n int, err error) {
 	w.t.Logf(string(p))
 	return len(p), nil
 }
 
-// New test logger. See https://golang.org/pkg/log/#New
-func New(t TestLogger, prefix string, flag int) *log.Logger {
-	return log.New(&testWriter{t}, prefix, flag)
+// NewWriter creates a new io.Writer backed by a Logger.
+func NewWriter(t Logger) io.Writer {
+	return &writer{t}
 }
 
-// NewTest logger with "TEST" prefix and the Lmicroseconds flag.
-func NewTest(t TestLogger) *log.Logger {
-	return New(t, "TEST ", log.Lmicroseconds)
+// NewLog returns a new test logger. See https://golang.org/pkg/log/#New
+func NewLog(t Logger, prefix string, flag int) *log.Logger {
+	return log.New(&writer{t}, prefix, flag)
+}
+
+// New logger with "TEST" prefix and the Lmicroseconds flag.
+func New(t Logger) *log.Logger {
+	return NewLog(t, "TEST ", log.Lmicroseconds)
 }

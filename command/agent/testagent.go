@@ -16,6 +16,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -73,12 +74,22 @@ type TestAgent struct {
 	Token *structs.ACLToken
 }
 
+// TestingT is the subset of *testing.T needed by the TestAgent
+type TestingT interface {
+	Name() string
+	Logf(format string, args ...interface{})
+}
+
 // NewTestAgent returns a started agent with the given name and
 // configuration. It panics if the agent could not be started. The
 // caller should call Shutdown() to stop the agent and remove temporary
 // directories.
-func NewTestAgent(name string, configCallback func(*Config)) *TestAgent {
-	a := &TestAgent{Name: name, ConfigCallback: configCallback}
+func NewTestAgent(t TestingT, configCallback func(*Config)) *TestAgent {
+	a := &TestAgent{
+		Name:           t.Name(),
+		ConfigCallback: configCallback,
+		LogOutput:      testlog.NewWriter(t),
+	}
 	a.Start()
 	return a
 }
