@@ -29,24 +29,24 @@ In addition to these tools, [Graphite](https://graphiteapp.org/) and
 ## Setting up metrics
 
 Configurations for Grafana and Prometheus can be found in the
-[integrations](https://github.com/hashicorp/nomad/integrations) subfolder.
+[integrations](https://github.com/hashicorp/nomad/tree/master/integrations) subfolder.
 
 For Prometheus, first follow Prometheus's [Getting Started
 Guide](https://prometheus.io/docs/introduction/getting_started/) in order to
 set up a Prometheus server. Next, use the (Nomad Prometheus
-Configuration)[https://github.com/hashicorp/noamd/integrations/prometheus/prometheus.yml]
+Configuration)[https://github.com/hashicorp/tree/master/noamd/integrations/prometheus/prometheus.yml]
 in order to configure Prometheus to talk to a Consul agent to fetch information
 about the Nomad cluster. See the
-[README](https://github.com/hashicorp/nomad/integrations/prometheus/README.md)
+[README](https://github.com/hashicorp/tree/master/nomad/integrations/prometheus/README.md)
 for more information.
 
 For Grafana, follow Grafana's [Getting
 Started](http://docs.grafana.org/guides/getting_started/) guide to set up a
 running Grafana instance. Then, import the sample [Nomad
-Dashboard](https://github.com/hashicorp/nomad/integrations/grafana/sample_dashboard.json)
+Dashboard](https://github.com/hashicorp/nomad/tree/master/integrations/grafana/sample_dashboard.json)
 for an example Grafana dashboard. This dashboard requires a Prometheus data
 source to be configured, see the
-[README.md](https://github.com/hashicorp/nomad/integrations/grafana/README.md)
+[README.md](https://github.com/hashicorp/nomad/tree/master/integrations/grafana/README.md)
 for more information.
 
 ## Tagged Metrics
