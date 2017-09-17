@@ -12,8 +12,8 @@ description: |-
 
 In [Nomad Enterprise](https://www.hashicorp.com/products/nomad/), a shared
 cluster can be partioned into [namespaces](/guides/namespaces.html) which allows
-jobs and their associated objects to be segmented from each other and other
-users of the cluster.
+jobs and their associated objects to be isolated from each other and other users
+of the cluster.
 
 Namespaces enhance the usability of a shared cluster by isolating teams from the
 jobs of others, provide fine grain access control to jobs when coupled with
