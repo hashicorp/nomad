@@ -25,8 +25,8 @@ allowing designated users access to read or modify the jobs and associated
 objects in a namespace.
 
 When quotas are applied to a namespace they provide a means to limit resource
-consumption the jobs in the namespace. This can prevent a single actor from
-consuming excessive cluster resources and negatively impact other teams and
+consumption by the jobs in the namespace. This can prevent a single actor from
+consuming excessive cluster resources and negatively impacting other teams and
 applications sharing the cluster.
 
 ## Namespaced Objects
@@ -65,7 +65,7 @@ web-qa    QA instances of webservers
 ### Running jobs
 
 To run a job in a specific namespace, we annotate the job with the `namespace`
-parameter. If ommitted, the job will be run in the default namespace. Below is
+parameter. If ommitted, the job will be run in the `default` namespace. Below is
 an example of running the job in the newly created `web-qa` namespace:
 
 ```

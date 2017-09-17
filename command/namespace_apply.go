@@ -57,7 +57,7 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
+	// Check that we get exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error(c.Help())
