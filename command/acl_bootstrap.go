@@ -78,8 +78,8 @@ func formatKVPolicy(policy *api.ACLPolicy) string {
 		fmt.Sprintf("Name|%s", policy.Name),
 		fmt.Sprintf("Description|%s", policy.Description),
 		fmt.Sprintf("Rules|%s", policy.Rules),
-		fmt.Sprintf("CreateIndex|%s", policy.CreateIndex),
-		fmt.Sprintf("ModifyIndex|%s", policy.ModifyIndex),
+		fmt.Sprintf("CreateIndex|%v", policy.CreateIndex),
+		fmt.Sprintf("ModifyIndex|%v", policy.ModifyIndex),
 	}
 	return formatKV(output)
 }

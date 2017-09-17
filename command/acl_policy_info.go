@@ -38,7 +38,7 @@ func (c *ACLPolicyInfoCommand) Synopsis() string {
 }
 
 func (c *ACLPolicyInfoCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl policy apply", FlagSetClient)
+	flags := c.Meta.FlagSet("acl policy info", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
