@@ -72,6 +72,18 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	return 0
 }
 
+// formatKVPolicy returns a K/V formatted policy
+func formatKVPolicy(policy *api.ACLPolicy) string {
+	output := []string{
+		fmt.Sprintf("Name|%s", policy.Name),
+		fmt.Sprintf("Description|%s", policy.Description),
+		fmt.Sprintf("Rules|%s", policy.Rules),
+		fmt.Sprintf("CreateIndex|%s", policy.CreateIndex),
+		fmt.Sprintf("ModifyIndex|%s", policy.ModifyIndex),
+	}
+	return formatKV(output)
+}
+
 // formatKVACLToken returns a K/V formatted ACL token
 func formatKVACLToken(token *api.ACLToken) string {
 	// Add the fixed preamble
