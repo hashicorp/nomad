@@ -13,7 +13,7 @@ type ACLPolicyDeleteCommand struct {
 
 func (c *ACLPolicyDeleteCommand) Help() string {
 	helpText := `
-Usage: nomad acl policy delete [options] <name> <path>
+Usage: nomad acl policy delete <name>
 
 Delete is used to delete an existing ACL policy.
 
@@ -61,7 +61,7 @@ func (c *ACLPolicyDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Upsert the policy
+	// Delete the policy
 	_, err = client.ACLPolicies().Delete(policyName, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting ACL policy: %s", err))
