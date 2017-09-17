@@ -18,13 +18,14 @@ integrate with a Nomad cluster. While this introduces the basics to get a
 dashboard up and running, Nomad exposes a wide vareity of metrics, which can be
 explored via both Grafana and Prometheus.
 
-## What are Prometheus and Grafana?
+## What metrics tools can be integrated with Nomad?
 
-Amongst other great metrics visualization tools, Prometheus and Grafana both
-aggregate data and provide an easy eay to visuqlize data.
+Nomad provides the opportunity to integrate with metrics dashboard tools such
+as [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/),
+[Graphite](https://graphiteapp.org/) and [DataDog](https://www.datadoghq.com/).
 
-In addition to these tools, [Graphite](https://graphiteapp.org/) and
-[DataDog](https://www.datadoghq.com/) are also great tools to consider.
+See Nomad's [Metrics API](/api/metrics.html.md) for more information on how
+data can be exposed for other metrics tools as well.
 
 ## Setting up metrics
 
