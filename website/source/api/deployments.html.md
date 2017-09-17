@@ -3,7 +3,7 @@ layout: api
 page_title: Deployments - HTTP API
 sidebar_current: api-deployments
 description: |-
-  The /deployment are used to query for and interact with deployments.
+  The /deployment endpoints are used to query for and interact with deployments.
 ---
 
 # Deployments HTTP API
