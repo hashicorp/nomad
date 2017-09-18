@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
+ * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
  * telemetry: Add basic Prometheus configuration for a Nomad cluster [GH-3186]
 

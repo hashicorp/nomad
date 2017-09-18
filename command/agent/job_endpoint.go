@@ -704,6 +704,13 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						Header:        check.Header,
 						Method:        check.Method,
 					}
+					if check.CheckRestart != nil {
+						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
+							Limit:          check.CheckRestart.Limit,
+							Grace:          *check.CheckRestart.Grace,
+							IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
+						}
+					}
 				}
 			}
 		}

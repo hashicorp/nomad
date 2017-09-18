@@ -53,7 +53,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	}
 
 	// Send a restart
-	ctx.tr.Restart("test", "don't panic")
+	ctx.tr.Restart("test", "don't panic", false)
 
 	if len(ctx.upd.events) != 2 {
 		t.Fatalf("should have 2 ctx.updates: %#v", ctx.upd.events)

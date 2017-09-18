@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -56,10 +57,21 @@ func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEve
 	}
 }
 
+// String for debugging purposes.
+func (m *MockTaskStateUpdater) String() string {
+	s := fmt.Sprintf("Updates:\n  state=%q\n  failed=%t\n  events=\n", m.state, m.failed)
+	for _, e := range m.events {
+		s += fmt.Sprintf("    %#v\n", e)
+	}
+	return s
+}
+
 type taskRunnerTestCtx struct {
 	upd      *MockTaskStateUpdater
 	tr       *TaskRunner
 	allocDir *allocdir.AllocDir
+	vault    *vaultclient.MockVaultClient
+	consul   *mockConsulServiceClient
 }
 
 // Cleanup calls Destroy on the task runner and alloc dir
@@ -130,7 +142,13 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
-	return &taskRunnerTestCtx{upd, tr, allocDir}
+	return &taskRunnerTestCtx{
+		upd:      upd,
+		tr:       tr,
+		allocDir: allocDir,
+		vault:    vclient,
+		consul:   cclient,
+	}
 }
 
 // testWaitForTaskToStart waits for the task to or fails the test
@@ -657,7 +675,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	// Wait for it to start
 	go func() {
 		testWaitForTaskToStart(t, ctx)
-		ctx.tr.Restart("test", "restart")
+		ctx.tr.Restart("test", "restart", false)
 
 		// Wait for it to restart then kill
 		go func() {
@@ -1251,8 +1269,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	})
 
 	// Error the token renewal
-	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[token]
+	renewalCh, ok := ctx.vault.RenewTokens[token]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1279,13 +1296,12 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	})
 
 	// Check the token was revoked
-	m := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
 	testutil.WaitForResult(func() (bool, error) {
-		if len(m.StoppedTokens) != 1 {
-			return false, fmt.Errorf("Expected a stopped token: %v", m.StoppedTokens)
+		if len(ctx.vault.StoppedTokens) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", ctx.vault.StoppedTokens)
 		}
 
-		if a := m.StoppedTokens[0]; a != token {
+		if a := ctx.vault.StoppedTokens[0]; a != token {
 			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
 		}
 		return true, nil
@@ -1317,8 +1333,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 	testWaitForTaskToStart(t, ctx)
 
 	// Error the token renewal
-	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[ctx.tr.vaultFuture.Get()]
+	renewalCh, ok := ctx.vault.RenewTokens[ctx.tr.vaultFuture.Get()]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1394,8 +1409,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 	testWaitForTaskToStart(t, ctx)
 
 	// Error the token renewal
-	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[ctx.tr.vaultFuture.Get()]
+	renewalCh, ok := ctx.vault.RenewTokens[ctx.tr.vaultFuture.Get()]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1726,20 +1740,19 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 
 	// Service should get removed quickly; loop until RemoveTask is called
 	found := false
-	mockConsul := ctx.tr.consul.(*mockConsulServiceClient)
 	deadline := destroyed.Add(task.ShutdownDelay)
 	for time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
 
-		mockConsul.mu.Lock()
-		n := len(mockConsul.ops)
+		ctx.consul.mu.Lock()
+		n := len(ctx.consul.ops)
 		if n < 2 {
-			mockConsul.mu.Unlock()
+			ctx.consul.mu.Unlock()
 			continue
 		}
 
-		lastOp := mockConsul.ops[n-1].op
-		mockConsul.mu.Unlock()
+		lastOp := ctx.consul.ops[n-1].op
+		ctx.consul.mu.Unlock()
 
 		if lastOp == "remove" {
 			found = true
@@ -1760,5 +1773,99 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	// It should be impossible to reach here in less time than the shutdown delay
 	if time.Now().Before(destroyed.Add(task.ShutdownDelay)) {
 		t.Fatalf("task exited before shutdown delay")
+	}
+}
+
+// TestTaskRunner_CheckWatcher_Restart asserts that when enabled an unhealthy
+// Consul check will cause a task to restart following restart policy rules.
+func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+
+	// Make the restart policy fail within this test
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Attempts = 2
+	tg.RestartPolicy.Interval = 1 * time.Minute
+	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
+
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "100s",
+	}
+
+	// Make the task register a check that fails
+	task.Services[0].Checks[0] = &structs.ServiceCheck{
+		Name:     "test-restarts",
+		Type:     structs.ServiceCheckTCP,
+		Interval: 50 * time.Millisecond,
+		CheckRestart: &structs.CheckRestart{
+			Limit: 2,
+			Grace: 100 * time.Millisecond,
+		},
+	}
+
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+
+	// Replace mock Consul ServiceClient, with the real ServiceClient
+	// backed by a mock consul whose checks are always unhealthy.
+	consulAgent := consul.NewMockAgent()
+	consulAgent.SetStatus("critical")
+	consulClient := consul.NewServiceClient(consulAgent, true, ctx.tr.logger)
+	go consulClient.Run()
+	defer consulClient.Shutdown()
+
+	ctx.tr.consul = consulClient
+	ctx.consul = nil // prevent accidental use of old mock
+
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	select {
+	case <-ctx.tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	expected := []string{
+		"Received",
+		"Task Setup",
+		"Started",
+		"Restart Signaled",
+		"Killing",
+		"Killed",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Killing",
+		"Killed",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Killing",
+		"Killed",
+		"Not Restarting",
+	}
+
+	if n := len(ctx.upd.events); n != len(expected) {
+		t.Fatalf("should have %d ctx.updates found %d: %s", len(expected), n, ctx.upd)
+	}
+
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
+	}
+
+	if !ctx.upd.failed {
+		t.Fatalf("expected failed")
+	}
+
+	for i, actual := range ctx.upd.events {
+		if actual.Type != expected[i] {
+			t.Errorf("%.2d - Expected %q but found %q", i, expected[i], actual.Type)
+		}
 	}
 }

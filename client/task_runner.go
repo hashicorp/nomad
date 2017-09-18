@@ -65,13 +65,29 @@ var (
 	taskRunnerStateAllKey = []byte("simple-all")
 )
 
+// taskRestartEvent wraps a TaskEvent with additional metadata to control
+// restart behavior.
+type taskRestartEvent struct {
+	// taskEvent to report
+	taskEvent *structs.TaskEvent
+
+	// if false, don't count against restart count
+	failure bool
+}
+
+func newTaskRestartEvent(reason string, failure bool) *taskRestartEvent {
+	return &taskRestartEvent{
+		taskEvent: structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason),
+		failure:   failure,
+	}
+}
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	stateDB        *bolt.DB
 	config         *config.Config
 	updater        TaskStateUpdater
 	logger         *log.Logger
-	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 	consul         ConsulServiceAPI
 
@@ -82,6 +98,7 @@ type TaskRunner struct {
 	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.RWMutex
 
+	alloc   *structs.Allocation
 	task    *structs.Task
 	taskDir *allocdir.TaskDir
 
@@ -139,7 +156,7 @@ type TaskRunner struct {
 	unblockLock sync.Mutex
 
 	// restartCh is used to restart a task
-	restartCh chan *structs.TaskEvent
+	restartCh chan *taskRestartEvent
 
 	// signalCh is used to send a signal to a task
 	signalCh chan SignalEvent
@@ -247,7 +264,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		waitCh:           make(chan struct{}),
 		startCh:          make(chan struct{}, 1),
 		unblockCh:        make(chan struct{}),
-		restartCh:        make(chan *structs.TaskEvent),
+		restartCh:        make(chan *taskRestartEvent),
 		signalCh:         make(chan SignalEvent),
 	}
 
@@ -772,7 +789,8 @@ OUTER:
 					return
 				}
 			case structs.VaultChangeModeRestart:
-				r.Restart("vault", "new Vault token acquired")
+				const noFailure = false
+				r.Restart("vault", "new Vault token acquired", noFailure)
 			case structs.VaultChangeModeNoop:
 				fallthrough
 			default:
@@ -1137,7 +1155,7 @@ func (r *TaskRunner) run() {
 				res := r.handle.Signal(se.s)
 				se.result <- res
 
-			case event := <-r.restartCh:
+			case restartEvent := <-r.restartCh:
 				r.runningLock.Lock()
 				running := r.running
 				r.runningLock.Unlock()
@@ -1147,8 +1165,8 @@ func (r *TaskRunner) run() {
 					continue
 				}
 
-				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, event.RestartReason)
-				r.setState(structs.TaskStateRunning, event, false)
+				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, restartEvent.taskEvent.RestartReason)
+				r.setState(structs.TaskStateRunning, restartEvent.taskEvent, false)
 				r.killTask(nil)
 
 				close(stopCollection)
@@ -1157,9 +1175,7 @@ func (r *TaskRunner) run() {
 					<-handleWaitCh
 				}
 
-				// Since the restart isn't from a failure, restart immediately
-				// and don't count against the restart policy
-				r.restartTracker.SetRestartTriggered()
+				r.restartTracker.SetRestartTriggered(restartEvent.failure)
 				break WAIT
 
 			case <-r.destroyCh:
@@ -1439,7 +1455,7 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		exec = h
 	}
 	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, exec, n)
+	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, r, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1584,6 +1600,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	for _, t := range tg.Tasks {
 		if t.Name == r.task.Name {
 			updatedTask = t.Copy()
+			break
 		}
 	}
 	if updatedTask == nil {
@@ -1641,7 +1658,7 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, r, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
@@ -1669,10 +1686,10 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 	return
 }
 
-// Restart will restart the task
-func (r *TaskRunner) Restart(source, reason string) {
+// Restart will restart the task.
+func (r *TaskRunner) Restart(source, reason string, failure bool) {
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
-	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
+	event := newTaskRestartEvent(reasonStr, failure)
 
 	select {
 	case r.restartCh <- event:

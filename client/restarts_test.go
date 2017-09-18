@@ -99,8 +99,21 @@ func TestClient_RestartTracker_RestartTriggered(t *testing.T) {
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
 	rt := newRestartTracker(p, structs.JobTypeService)
-	if state, when := rt.SetRestartTriggered().GetState(); state != structs.TaskRestarting && when != 0 {
+	if state, when := rt.SetRestartTriggered(false).GetState(); state != structs.TaskRestarting && when != 0 {
 		t.Fatalf("expect restart immediately, got %v %v", state, when)
+	}
+}
+
+func TestClient_RestartTracker_RestartTriggered_Failure(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(true, structs.RestartPolicyModeFail)
+	p.Attempts = 1
+	rt := newRestartTracker(p, structs.JobTypeService)
+	if state, when := rt.SetRestartTriggered(true).GetState(); state != structs.TaskRestarting || when == 0 {
+		t.Fatalf("expect restart got %v %v", state, when)
+	}
+	if state, when := rt.SetRestartTriggered(true).GetState(); state != structs.TaskNotRestarting || when != 0 {
+		t.Fatalf("expect failed got %v %v", state, when)
 	}
 }
 

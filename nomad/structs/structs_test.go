@@ -1154,6 +1154,24 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
+	invalidCheckRestart := &CheckRestart{
+		Limit: -1,
+		Grace: -1,
+	}
+
+	err := invalidCheckRestart.Validate()
+	assert.NotNil(t, err, "invalidateCheckRestart.Validate()")
+	assert.Len(t, err.(*multierror.Error).Errors, 2)
+
+	validCheckRestart := &CheckRestart{}
+	assert.Nil(t, validCheckRestart.Validate())
+
+	validCheckRestart.Limit = 1
+	validCheckRestart.Grace = 1
+	assert.Nil(t, validCheckRestart.Validate())
+}
+
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),

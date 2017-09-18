@@ -95,6 +95,12 @@ job "binstore-storagelocker" {
           interval = "10s"
           timeout  = "2s"
           port     = "admin"
+
+          check_restart {
+            limit = 3
+            grace_period = "10s"
+            ignore_warnings = true
+          }
         }
       }
 

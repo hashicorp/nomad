@@ -66,7 +66,12 @@ Below is the JSON representation of the job outputed by `$ nomad init`:
                         "Interval": 10000000000,
                         "Timeout": 2000000000,
                         "InitialStatus": "",
-                        "TLSSkipVerify": false
+                        "TLSSkipVerify": false,
+                        "CheckRestart": {
+                            "Limit": 3,
+                            "Grace": "30s",
+                            "IgnoreWarnings": false
+                        }
                     }]
                 }],
                 "Resources": {
@@ -376,6 +381,20 @@ The `Task` object supports the following keys:
 
 	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
 	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+
+	   - `CheckRestart`: `CheckRestart` is an object which enables
+	     restarting of tasks based upon Consul health checks.
+
+	     - `Limit`: The number of unhealthy checks allowed before the
+	       service is restarted. Defaults to `0` which disables
+               health-based restarts.
+
+	     - `Grace`: The duration to wait after a task starts or restarts
+	       before counting unhealthy checks count against the limit.
+               Defaults to "1s".
+
+	     - `IgnoreWarnings`: Treat checks that are warning as passing.
+	       Defaults to false which means warnings are considered unhealthy.
 
 - `ShutdownDelay` - Specifies the duration to wait when killing a task between
   removing it from Consul and sending it a shutdown signal. Ideally services
