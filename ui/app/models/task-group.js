@@ -22,6 +22,8 @@ export default Fragment.extend({
   reservedMemory: sumAggregation('tasks', 'reservedMemory'),
   reservedDisk: sumAggregation('tasks', 'reservedDisk'),
 
+  reservedEphemeralDisk: attr('number'),
+
   queuedOrStartingAllocs: computed('summary.{queuedAllocs,startingAllocs}', function() {
     return this.get('summary.queuedAllocs') + this.get('summary.startingAllocs');
   }),

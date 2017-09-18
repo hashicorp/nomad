@@ -43,7 +43,7 @@ moduleForAcceptance('Acceptance | task group detail', {
 test('/jobs/:id/:task-group should list high-level metrics for the allocation', function(assert) {
   const totalCPU = tasks.mapBy('Resources.CPU').reduce(sum, 0);
   const totalMemory = tasks.mapBy('Resources.MemoryMB').reduce(sum, 0);
-  const totalDisk = tasks.mapBy('Resources.DiskMB').reduce(sum, 0);
+  const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
   assert.equal(
     find('.inline-definitions .pair:eq(0)').text(),

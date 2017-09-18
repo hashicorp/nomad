@@ -8,4 +8,5 @@ export default Fragment.extend({
   reservedMemory: attr('number'),
   reservedCPU: attr('number'),
   reservedDisk: attr('number'),
+  reservedEphemeralDisk: attr('number'),
 });

@@ -8,6 +8,7 @@ export default ApplicationSerializer.extend({
       hash.ReservedMemory = resources.MemoryMB;
       hash.ReservedCPU = resources.CPU;
       hash.ReservedDisk = resources.DiskMB;
+      hash.ReservedEphemeralDisk = hash.EphemeralDisk.SizeMB;
     }
 
     return this._super(typeHash, hash);
