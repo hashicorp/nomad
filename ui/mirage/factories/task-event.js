@@ -1,4 +1,4 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
 
 const REF_TIME = new Date();
@@ -6,6 +6,12 @@ const STATES = provide(10, faker.system.fileExt.bind(faker.system));
 
 export default Factory.extend({
   type: faker.list.random(...STATES),
+
+  // Message is a function of type, and this type uses the vanilla
+  // message property.
+  messagePassthru: trait({
+    type: 'Task Setup',
+  }),
 
   signal: () => '',
   exitCode: () => null,

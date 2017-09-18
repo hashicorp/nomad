@@ -12,6 +12,9 @@ export default Factory.extend({
   clientStatus: faker.list.random(...CLIENT_STATUSES),
   desiredStatus: faker.list.random(...DESIRED_STATUSES),
 
+  // Meta property for hinting at task events
+  useMessagePassthru: false,
+
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
@@ -52,6 +55,7 @@ export default Factory.extend({
       server.create('task-state', {
         allocation,
         name: server.db.tasks.find(id).name,
+        useMessagePassthru: allocation.useMessagePassthru,
       })
     );
 

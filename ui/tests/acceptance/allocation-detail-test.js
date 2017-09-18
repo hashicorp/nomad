@@ -12,7 +12,9 @@ moduleForAcceptance('Acceptance | allocation detail', {
 
     node = server.create('node');
     job = server.create('job', { groupCount: 0 });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    allocation = server.create('allocation', 'withTaskWithPorts', {
+      useMessagePassthru: true,
+    });
 
     visit(`/allocations/${allocation.id}`);
   },

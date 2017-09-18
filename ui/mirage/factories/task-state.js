@@ -14,10 +14,19 @@ export default Factory.extend({
     return new Date(this.startedAt + Math.random(1000 * 60 * 3) + 50);
   },
 
+  useMessagePassthru: false,
+
   afterCreate(state, server) {
-    const events = server.createList('task-event', faker.random.number({ min: 1, max: 10 }), {
-      taskStateId: state.id,
-    });
+    const props = [
+      'task-event',
+      faker.random.number({ min: 1, max: 10 }),
+      state.useMessagePassthru && 'messagePassthru',
+      {
+        taskStateId: state.id,
+      },
+    ].compact();
+
+    const events = server.createList(...props);
 
     state.update({
       eventIds: events.mapBy('id'),
