@@ -12,6 +12,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -386,6 +387,13 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
+	// Check node write permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for drain update")
@@ -441,6 +449,13 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "evaluate"}, time.Now())
 
+	// Check node write permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for evaluation")
@@ -489,6 +504,13 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
+	// Check node read permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -536,6 +558,36 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
+	// Check node read and namespace job read permissions
+	aclObj, err := n.srv.resolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
+	if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	// cache namespace perms
+	readableNamespaces := map[string]bool{}
+
+	// readNS is a caching namespace read-job helper
+	readNS := func(ns string) bool {
+		if aclObj == nil {
+			// ACLs are disabled; everything is readable
+			return true
+		}
+
+		if readable, ok := readableNamespaces[ns]; ok {
+			// cache hit
+			return readable
+		}
+
+		// cache miss
+		readable := aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+		readableNamespaces[ns] = readable
+		return readable
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID")
@@ -553,9 +605,16 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 			}
 
 			// Setup the output
-			if len(allocs) != 0 {
-				reply.Allocs = allocs
+			if n := len(allocs); n != 0 {
+				reply.Allocs = make([]*structs.Allocation, 0, n)
 				for _, alloc := range allocs {
+					if readNS(alloc.Namespace) {
+						reply.Allocs = append(reply.Allocs, alloc)
+					}
+
+					// Get the max of all allocs since
+					// subsequent requests need to start
+					// from the latest index
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
 			} else {
@@ -755,6 +814,13 @@ func (n *Node) List(args *structs.NodeListRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
+
+	// Check node read permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{

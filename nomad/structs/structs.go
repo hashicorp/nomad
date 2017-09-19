@@ -2762,6 +2762,41 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+// CheckRestart describes if and when a task should be restarted based on
+// failing health checks.
+type CheckRestart struct {
+	Limit          int           // Restart task after this many unhealthy intervals
+	Grace          time.Duration // Grace time to give tasks after starting to get healthy
+	IgnoreWarnings bool          // If true treat checks in `warning` as passing
+}
+
+func (c *CheckRestart) Copy() *CheckRestart {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(CheckRestart)
+	*nc = *c
+	return nc
+}
+
+func (c *CheckRestart) Validate() error {
+	if c == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+	if c.Limit < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("limit must be greater than or equal to 0 but found %d", c.Limit))
+	}
+
+	if c.Grace < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("grace period must be greater than or equal to 0 but found %d", c.Grace))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 const (
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
@@ -2793,6 +2828,7 @@ type ServiceCheck struct {
 	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
 	Method        string              // HTTP Method to use (GET by default)
 	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -2803,6 +2839,7 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	*nsc = *sc
 	nsc.Args = helper.CopySliceString(sc.Args)
 	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
+	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
 }
 
@@ -2868,7 +2905,7 @@ func (sc *ServiceCheck) validate() error {
 
 	}
 
-	return nil
+	return sc.CheckRestart.Validate()
 }
 
 // RequiresPort returns whether the service check requires the task has a port.
@@ -2879,6 +2916,12 @@ func (sc *ServiceCheck) RequiresPort() bool {
 	default:
 		return false
 	}
+}
+
+// TriggersRestarts returns true if this check should be watched and trigger a restart
+// on failure.
+func (sc *ServiceCheck) TriggersRestarts() bool {
+	return sc.CheckRestart != nil && sc.CheckRestart.Limit > 0
 }
 
 // Hash all ServiceCheck fields and the check's corresponding service ID to
@@ -3018,6 +3061,7 @@ func (s *Service) Validate() error {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: %v", c.Name, err))
 		}
 	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -3758,7 +3802,7 @@ type TaskEvent struct {
 }
 
 func (te *TaskEvent) GoString() string {
-	return fmt.Sprintf("%v at %v", te.Type, te.Time)
+	return fmt.Sprintf("%v - %v", te.Time, te.Type)
 }
 
 // SetMessage sets the message of TaskEvent

@@ -2285,6 +2285,66 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer srv.Shutdown()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+	state := srv.fsm.State()
+
+	var err error
+
+	// Create the register request
+	job := mock.Job()
+	err = state.UpsertJob(1000, job)
+	assert.Nil(err)
+
+	req := &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &resp)
+	assert.NotNil(err)
+
+	// Expect success for request with a management token
+	var mgmtResp structs.JobListResponse
+	req.SecretID = root.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &mgmtResp)
+	assert.Nil(err)
+	assert.Equal(1, len(mgmtResp.Jobs))
+	assert.Equal(job.ID, mgmtResp.Jobs[0].ID)
+
+	// Expect failure for request with a token that has incorrect permissions
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &invalidResp)
+	assert.NotNil(err)
+
+	// Try with a valid token with correct permissions
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	var validResp structs.JobListResponse
+	req.SecretID = validToken.SecretID
+
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &validResp)
+	assert.Nil(err)
+	assert.Equal(1, len(validResp.Jobs))
+	assert.Equal(job.ID, validResp.Jobs[0].ID)
+}
+
 func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)

@@ -86,6 +86,7 @@ job "docs" {
   with user-defined metadata.
 
 - `namespace` `(string: "default")` - The namespace in which to execute the job.
+  Values other than default are not allowed in non-Enterprise versions of Nomad.
 
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
   the job as a parameterized job such that it can be dispatched against.

@@ -10,8 +10,8 @@ import (
 // ConsulServiceAPI is the interface the Nomad Client uses to register and
 // remove services and checks from Consul.
 type ConsulServiceAPI interface {
-	RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error
+	RegisterTask(allocID string, task *structs.Task, restarter consul.TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error
 	RemoveTask(allocID string, task *structs.Task)
-	UpdateTask(allocID string, existing, newTask *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error
+	UpdateTask(allocID string, existing, newTask *structs.Task, restart consul.TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error
 	AllocRegistrations(allocID string) (*consul.AllocRegistration, error)
 }

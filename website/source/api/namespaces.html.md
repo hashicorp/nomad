@@ -10,6 +10,9 @@ description: |-
 
 The `/namespace` endpoints are used to query for and interact with namespaces.
 
+~> **Enterprise Only!** This API endpoint and functionality only exists in
+Nomad Enterprise. This is not present in the open source version of Nomad.
+
 ## List Namespaces
 
 This endpoint lists all namespaces.

@@ -47,6 +47,12 @@ job "docs" {
           args     = ["--verbose"]
           interval = "60s"
           timeout  = "5s"
+
+          check_restart {
+            limit = 3
+            grace = "90s"
+            ignore_warnings = false
+          }
         }
       }
     }
@@ -111,6 +117,8 @@ scripts.
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
+- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
+
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
   other value for a failing health check. This is required for script-based
@@ -170,6 +178,7 @@ the header to be set multiple times, once for each value.
 
 ```hcl
 service {
+  # ...
   check {
     type     = "http"
     port     = "lb"
@@ -315,7 +324,9 @@ service {
 [qemu driver][qemu] since the Nomad client does not have access to the file
 system of a task for that driver.</small>
 
+[check_restart_stanza]: /docs/job-specification/check_restart.html "check_restart stanza"
 [service-discovery]: /docs/service-discovery/index.html "Nomad Service Discovery"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
 [qemu]: /docs/drivers/qemu.html "Nomad qemu Driver"
+[restart_stanza]: /docs/job-specification/restart.html "restart stanza"

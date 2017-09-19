@@ -22,12 +22,12 @@ Vagrant.configure(2) do |config|
 			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
 
-    # Expose the nomad api and ui to the host
-    vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
+        # Expose the nomad api and ui to the host
+        vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
 
-    # Expose Ember ports to the host (one for the site, one for livereload)
-    vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
-    vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
+        # Expose Ember ports to the host (one for the site, one for livereload)
+        vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
+        vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
 	end
 
 	config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|
@@ -120,9 +120,9 @@ def configureLinuxProvisioners(vmCfg)
 		privileged: true,
 		path: './scripts/vagrant-linux-priv-rkt.sh'
 
-  vmCfg.vm.provision "shell",
-    privileged: false,
-    path: './scripts/vagrant-linux-priv-ui.sh'
+    vmCfg.vm.provision "shell",
+        privileged: false,
+        path: './scripts/vagrant-linux-priv-ui.sh'
 
 	return vmCfg
 end

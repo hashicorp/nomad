@@ -36,6 +36,46 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl policy": func() (cli.Command, error) {
+			return &command.ACLPolicyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl policy apply": func() (cli.Command, error) {
+			return &command.ACLPolicyApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl policy delete": func() (cli.Command, error) {
+			return &command.ACLPolicyDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl policy info": func() (cli.Command, error) {
+			return &command.ACLPolicyInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl token": func() (cli.Command, error) {
+			return &command.ACLTokenCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl token create": func() (cli.Command, error) {
+			return &command.ACLTokenCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl token delete": func() (cli.Command, error) {
+			return &command.ACLTokenDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl token info": func() (cli.Command, error) {
+			return &command.ACLTokenInfoCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc-status": func() (cli.Command, error) {
 			return &command.AllocStatusCommand{
 				Meta: meta,

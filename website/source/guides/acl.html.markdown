@@ -230,8 +230,8 @@ Namespace rules are keyed by the namespace name they apply to. When no namespace
 The coarse grained policy dispositions are shorthand for the fine grained capabilities:
 
 * `deny` policy - ["deny"]
-* `read` policy - ["list-jobs", "read-jobs"]
-* `write` policy - ["list-jobs", "read-jobs", "submit-job", "read-logs", "read-fs"]
+* `read` policy - ["list-jobs", "read-job"]
+* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs"]
 
 When both the policy short hand and a capabilities list are provided, the capabilities are merged:
 

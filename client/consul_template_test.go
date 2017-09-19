@@ -57,7 +57,7 @@ func NewMockTaskHooks() *MockTaskHooks {
 		EmitEventCh: make(chan struct{}, 1),
 	}
 }
-func (m *MockTaskHooks) Restart(source, reason string) {
+func (m *MockTaskHooks) Restart(source, reason string, failure bool) {
 	m.Restarts++
 	select {
 	case m.RestartCh <- struct{}{}:

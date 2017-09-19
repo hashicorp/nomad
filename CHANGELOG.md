@@ -2,7 +2,9 @@
 
 IMPROVEMENTS:
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
+ * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
+ * telemetry: Add basic Prometheus configuration for a Nomad cluster [GH-3186]
 
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [GH-3201]
@@ -21,6 +23,8 @@ BUG FIXES:
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [GH-3195]
  * driver/docker: Fix docker user specified syslogging [GH-3184]
+ * driver/docker: Fix issue where CPU usage statistics were artificially high
+   [GH-3229]
 
 ## 0.6.3 (September 11, 2017)
 

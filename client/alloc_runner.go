@@ -336,7 +336,8 @@ func (r *AllocRunner) RestoreState() error {
 			// Restart task runner if RestoreState gave a reason
 			if restartReason != "" {
 				r.logger.Printf("[INFO] client: restarting alloc %s task %s: %v", r.allocID, name, restartReason)
-				tr.Restart("upgrade", restartReason)
+				const failure = false
+				tr.Restart("upgrade", restartReason, failure)
 			}
 		} else {
 			tr.Destroy(taskDestroyEvent)

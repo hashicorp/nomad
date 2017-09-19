@@ -24,7 +24,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `YES`            | `none`       |
+| `YES`            | `node:read`  |
 
 ### Parameters
 
@@ -73,9 +73,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required      |
+| ---------------- | ----------------- |
+| `YES`            | `node:read`       |
 
 ### Parameters
 
@@ -175,9 +175,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required                   |
+| ---------------- | ------------------------------ |
+| `YES`            | `node:read,namespace:read-job` |
 
 ### Parameters
 
@@ -523,9 +523,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required       |
+| ---------------- | ------------------ |
+| `NO`             | `node:write`       |
 
 ### Parameters
 
@@ -580,9 +580,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required       |
+| ---------------- | ------------------ |
+| `NO`             | `node:write`       |
 
 ### Parameters
 

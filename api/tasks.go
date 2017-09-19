@@ -79,6 +79,71 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	}
 }
 
+// CheckRestart describes if and when a task should be restarted based on
+// failing health checks.
+type CheckRestart struct {
+	Limit          int            `mapstructure:"limit"`
+	Grace          *time.Duration `mapstructure:"grace_period"`
+	IgnoreWarnings bool           `mapstructure:"ignore_warnings"`
+}
+
+// Canonicalize CheckRestart fields if not nil.
+func (c *CheckRestart) Canonicalize() {
+	if c == nil {
+		return
+	}
+
+	if c.Grace == nil {
+		c.Grace = helper.TimeToPtr(1 * time.Second)
+	}
+}
+
+// Copy returns a copy of CheckRestart or nil if unset.
+func (c *CheckRestart) Copy() *CheckRestart {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(CheckRestart)
+	nc.Limit = c.Limit
+	if c.Grace != nil {
+		g := *c.Grace
+		nc.Grace = &g
+	}
+	nc.IgnoreWarnings = c.IgnoreWarnings
+	return nc
+}
+
+// Merge values from other CheckRestart over default values on this
+// CheckRestart and return merged copy.
+func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
+	if c == nil {
+		// Just return other
+		return o
+	}
+
+	nc := c.Copy()
+
+	if o == nil {
+		// Nothing to merge
+		return nc
+	}
+
+	if nc.Limit == 0 {
+		nc.Limit = o.Limit
+	}
+
+	if nc.Grace == nil {
+		nc.Grace = o.Grace
+	}
+
+	if nc.IgnoreWarnings {
+		nc.IgnoreWarnings = o.IgnoreWarnings
+	}
+
+	return nc
+}
+
 // The ServiceCheck data model represents the consul health check that
 // Nomad registers for a Task
 type ServiceCheck struct {
@@ -96,16 +161,18 @@ type ServiceCheck struct {
 	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
 	Header        map[string][]string
 	Method        string
+	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
 }
 
 // The Service model represents a Consul service definition
 type Service struct {
-	Id          string
-	Name        string
-	Tags        []string
-	PortLabel   string `mapstructure:"port"`
-	AddressMode string `mapstructure:"address_mode"`
-	Checks      []ServiceCheck
+	Id           string
+	Name         string
+	Tags         []string
+	PortLabel    string `mapstructure:"port"`
+	AddressMode  string `mapstructure:"address_mode"`
+	Checks       []ServiceCheck
+	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
@@ -116,6 +183,15 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default to AddressModeAuto
 	if s.AddressMode == "" {
 		s.AddressMode = "auto"
+	}
+
+	s.CheckRestart.Canonicalize()
+
+	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
+	// into each check.
+	for _, c := range s.Checks {
+		c.CheckRestart.Canonicalize()
+		c.CheckRestart = c.CheckRestart.Merge(s.CheckRestart)
 	}
 }
 
