@@ -1,0 +1,22 @@
+<div class="page-column is-left">
+  <div class="gutter">
+    <aside class="menu">
+      <p class="menu-label">
+        Workload
+      </p>
+      <ul class="menu-list">
+        <li>{{#link-to "jobs" activeClass="is-active"}}Jobs{{/link-to}}</li>
+      </ul>
+      <p class="menu-label">
+        Cluster
+      </p>
+      <ul class="menu-list">
+        <li>{{#link-to "nodes" activeClass="is-active"}}Clients{{/link-to}}</li>
+        <li>{{#link-to "servers" activeClass="is-active"}}Servers{{/link-to}}</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+<div class="page-column is-right">
+  {{yield}}
+</div>

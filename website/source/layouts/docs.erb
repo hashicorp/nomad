@@ -263,6 +263,20 @@
           <li<%= sidebar_current("docs-commands-logs") %>>
             <a href="/docs/commands/logs.html">logs</a>
           </li>
+          <li<%= sidebar_current("docs-commands-namespace") %>>
+            <a href="/docs/commands/namespace.html">namespace</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-namespace-apply") %>>
+                <a href="/docs/commands/namespace/apply.html">namespace apply</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-namespace-delete") %>>
+                <a href="/docs/commands/namespace/delete.html">namespace delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-namespace-list") %>>
+                <a href="/docs/commands/namespace/list.html">namespace list</a>
+              </li>
+            </ul>
+          </li>
           <li<%= sidebar_current("docs-commands-node-drain") %>>
             <a href="/docs/commands/node-drain.html">node-drain</a>
           </li>
@@ -285,6 +299,23 @@
           </li>
           <li<%= sidebar_current("docs-commands-run") %>>
             <a href="/docs/commands/run.html">run</a>
+          </li>
+          <li<%= sidebar_current("docs-commands-sentinel") %>>
+            <a href="/docs/commands/sentinel.html">sentinel</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-sentinel-apply") %>>
+                <a href="/docs/commands/sentinel/apply.html">sentinel apply</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-sentinel-delete") %>>
+                <a href="/docs/commands/sentinel/delete.html">sentinel delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-sentinel-list") %>>
+                <a href="/docs/commands/sentinel/list.html">sentinel list</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-sentinel-read") %>>
+                <a href="/docs/commands/sentinel/read.html">sentinel read</a>
+              </li>
+            </ul>
           </li>
           <li<%= sidebar_current("docs-commands-server-force-leave") %>>
             <a href="/docs/commands/server-force-leave.html">server-force-leave</a>
@@ -325,6 +356,9 @@
               </li>
               <li <%= sidebar_current("docs-agent-configuration-consul") %>>
                 <a href="/docs/agent/configuration/consul.html">consul</a>
+              </li>
+              <li <%= sidebar_current("docs-agent-configuration-sentinel") %>>
+                <a href="/docs/agent/configuration/sentinel.html">sentinel</a>
               </li>
               <li <%= sidebar_current("docs-agent-configuration-server") %>>
                 <a href="/docs/agent/configuration/server.html">server</a>
@@ -387,6 +421,24 @@
       <li<%= sidebar_current("docs-faq") %>>
         <a href="/docs/faq.html">FAQ</a>
       </li>
+
+      <hr>
+
+      <li<%= sidebar_current("docs-enterprise") %>>
+        <a href="/docs/enterprise/index.html">Nomad Enterprise</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-enterprise-namespaces") %>>
+            <a href="/docs/enterprise/namespaces/index.html">Namespaces</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-quotas") %>>
+            <a href="/docs/enterprise/quotas/index.html">Namespace Quotas</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-sentinel") %>>
+            <a href="/docs/enterprise/sentinel/index.html">Sentinel Policy Enforcement</a>
+          </li>
+        </ul>
+      </li>
+
     </ul>
   <% end %>
 

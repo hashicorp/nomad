@@ -50,7 +50,7 @@ func TestNamespaceApplyCommand_Good(t *testing.T) {
 
 	// Create a namespace
 	name, desc := "foo", "bar"
-	if code := cmd.Run([]string{"-address=" + url, "-name=" + name, "-description=" + desc}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "-description=" + desc, name}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 	}
 

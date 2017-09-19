@@ -225,12 +225,13 @@ Namespace rules are keyed by the namespace name they apply to. When no namespace
 * `submit-job` - Allows jobs to be submitted or modified.
 * `read-logs` - Allows the logs associated with a job to be viewed.
 * `read-fs` - Allows the filesystem of allocations associated to be viewed.
+* `sentinel-override` - Allows soft mandatory policies to be overriden.
 
 The coarse grained policy dispositions are shorthand for the fine grained capabilities:
 
 * `deny` policy - ["deny"]
-* `read` policy - ["list-jobs", "read-jobs"]
-* `write` policy - ["list-jobs", "read-jobs", "submit-job", "read-logs", "read-fs"]
+* `read` policy - ["list-jobs", "read-job"]
+* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs"]
 
 When both the policy short hand and a capabilities list are provided, the capabilities are merged:
 

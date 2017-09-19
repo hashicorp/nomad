@@ -239,6 +239,12 @@ type Config struct {
 	// ReplicationToken is the ACL Token Secret ID used to fetch from
 	// the Authoritative Region.
 	ReplicationToken string
+
+	// SentinelGCInterval is the interval that we GC unused policies.
+	SentinelGCInterval time.Duration
+
+	// SentinelConfig is this Agent's Sentinel configuration
+	SentinelConfig *config.SentinelConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -296,6 +302,7 @@ func DefaultConfig() *Config {
 		RPCHoldTimeout:                   5 * time.Second,
 		TLSConfig:                        &config.TLSConfig{},
 		ReplicationBackoff:               30 * time.Second,
+		SentinelGCInterval:               30 * time.Second,
 	}
 
 	// Enable all known schedulers by default

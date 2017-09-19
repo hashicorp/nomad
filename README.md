@@ -107,6 +107,17 @@ $ bin/nomad
 ...
 ```
 
+If the Nomad UI is desired in the development version, run `make dev-ui`. This will build the UI from source and compile it into the dev binary.
+
+```sh
+$ make dev-ui
+...
+$ bin/nomad
+...
+```
+
+**Note:** Building the Nomad UI from source requires Node, Yarn, and Ember CLI. These tools are already in the Vagrant VM. Read the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for more info.
+
 To cross-compile Nomad, run `make release`. This will compile Nomad for multiple
 platforms and place the resulting binaries into the `./pkg` directory:
 

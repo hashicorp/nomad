@@ -166,6 +166,9 @@ type Server struct {
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
 
+	// EnterpriseState is used to fill in state for Pro/Ent builds
+	EnterpriseState
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -309,6 +312,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
 	}
 
+	// Setup the enterprise state
+	if err := s.setupEnterprise(config); err != nil {
+		return nil, err
+	}
+
 	// Monitor leadership changes
 	go s.monitorLeadership()
 
@@ -332,6 +340,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Emit metrics
 	go s.heartbeatStats()
+
+	// Start enterprise background workers
+	s.startEnterpriseBackground()
 
 	// Done
 	return s, nil

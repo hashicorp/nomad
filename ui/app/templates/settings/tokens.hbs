@@ -1,0 +1,37 @@
+<section class="section">
+  <h1 class="title">Access Control Tokens</h1>
+  <div class="columns">
+    <div class="column is-two-thirds">
+      <p class="message">Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token <strong>Secret ID</strong>, each future request will be authenticated, potentially authorizing read access to additional information. By providing a token <strong>Accessor ID</strong>, the policies and rules for the token will be listed.</p>
+
+      <div class="notification is-info">
+        <div class="columns">
+          <div class="column">
+            <h3 class="title is-4">Token Storage</h3>
+            <p>To protect Secret IDs, tokens are stored client-side in <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage">session storage</a>. Your ACL token is automatically cleared from storage upon closing your browser window. You can also manually clear your token instead.</p>
+          </div>
+          <div class="column is-centered is-minimum">
+            <button class="button is-info" {{action "clearTokenProperties"}}>Clear Token</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label">Secret ID</label>
+        <div class="control">
+          <input class="input token-secret" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.secret}} oninput={{action "setTokenProperty" "secret"}}>
+        </div>
+        <p class="help">Sent with every request to determine authorization</p>
+      </div>
+
+      <div class="field">
+        <label class="label">Accessor ID</label>
+        <div class="control">
+          <input class="input token-accessor" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.accessor}} oninput={{action "setTokenProperty" "accessor"}}>
+        </div>
+        <p class="help">Used to look up authorized policies</p>
+      </div>
+    </div>
+  </div>
+</section>
+
