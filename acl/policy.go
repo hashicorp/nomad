@@ -21,12 +21,13 @@ const (
 	// The Policy stanza is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
-	NamespaceCapabilityDeny      = "deny"
-	NamespaceCapabilityListJobs  = "list-jobs"
-	NamespaceCapabilityReadJob   = "read-job"
-	NamespaceCapabilitySubmitJob = "submit-job"
-	NamespaceCapabilityReadLogs  = "read-logs"
-	NamespaceCapabilityReadFS    = "read-fs"
+	NamespaceCapabilityDeny             = "deny"
+	NamespaceCapabilityListJobs         = "list-jobs"
+	NamespaceCapabilityReadJob          = "read-job"
+	NamespaceCapabilitySubmitJob        = "submit-job"
+	NamespaceCapabilityReadLogs         = "read-logs"
+	NamespaceCapabilityReadFS           = "read-fs"
+	NamespaceCapabilitySentinelOverride = "sentinel-override"
 )
 
 var (
@@ -76,6 +77,9 @@ func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
 	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityReadLogs, NamespaceCapabilityReadFS:
+		return true
+	// Seperate the enterprise-only capabilities
+	case NamespaceCapabilitySentinelOverride:
 		return true
 	default:
 		return false

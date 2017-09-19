@@ -151,6 +151,25 @@ func TestParse(t *testing.T) {
 			"Invalid namespace name",
 			nil,
 		},
+		{
+			`
+			namespace "default" {
+				capabilities = ["sentinel-override"]
+			}
+			`,
+			"",
+			&Policy{
+				Namespaces: []*NamespacePolicy{
+					&NamespacePolicy{
+						Name:   "default",
+						Policy: "",
+						Capabilities: []string{
+							NamespaceCapabilitySentinelOverride,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for idx, tc := range tcases {

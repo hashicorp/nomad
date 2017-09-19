@@ -1,0 +1,231 @@
+.table {
+  color: $text;
+  border-radius: $radius;
+  border: 1px solid $grey-blue;
+  border-collapse: separate;
+
+  &.is-fixed {
+    table-layout: fixed;
+
+    td {
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  }
+
+  &.with-foot {
+    margin-bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+
+    + .table-foot {
+      margin-bottom: 1.5rem;
+    }
+  }
+
+  &.is-compact {
+    th,
+    td {
+      padding: 0.75em;
+    }
+  }
+
+  &.is-darkened {
+    tbody tr:not(.is-selected) {
+      background-color: $white-bis;
+
+      &:hover {
+        background-color: $white-ter;
+      }
+    }
+
+    &.is-striped {
+      tbody tr:not(.is-selected) {
+        &:nth-child(even) {
+          background-color: $white-ter;
+
+          &:hover {
+            background-color: darken($white-ter, 5%);
+          }
+        }
+      }
+    }
+  }
+
+  th,
+  td {
+    padding: 0.75em 1.5em;
+    border: none;
+
+    &.is-three-quarters {
+      width: 75%;
+    }
+
+    &.is-two-thirds {
+      width: 66.66%;
+    }
+
+    &.is-half {
+      width: 50%;
+    }
+
+    &.is-one-third {
+      width: 33.33%;
+    }
+
+    &.is-one-quarter {
+      width: 25%;
+    }
+
+    // Only use px modifiers when text needs to be truncated.
+    // In this and only this scenario are percentages not effective.
+    &.is-200px {
+      width: 200px;
+      max-width: 200px;
+    }
+
+    &.is-truncatable {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @for $i from 1 through 11 {
+      &.is-#{$i} {
+        width: 100% / 12 * $i;
+        max-width: 100% / 12 * $i;
+      }
+    }
+
+    a {
+      color: $blue;
+      text-decoration: underline;
+      font-weight: $weight-normal;
+
+      &.is-primary {
+        color: $text;
+        text-decoration: none;
+        font-weight: $weight-semibold;
+      }
+    }
+  }
+
+  thead {
+    background: $white-ter;
+    border: 1px solid $grey-blue;
+
+    tr {
+      &:hover {
+        background-color: inherit;
+      }
+    }
+
+    td,
+    th {
+      color: $grey-light;
+      font-weight: $weight-normal;
+      vertical-align: bottom;
+      border-bottom: 1px solid $grey-blue;
+
+      &.is-selectable {
+        padding: 0;
+
+        a {
+          display: block;
+          padding: 0.75em 1.5em;
+          width: 100%;
+          text-decoration: none;
+
+          &:hover {
+            background-color: darken($white-ter, 5%);
+          }
+        }
+      }
+
+      &.is-active {
+        position: relative;
+
+        &::after {
+          content: "";
+          width: 10px;
+          right: 1.5em;
+          top: 0.75em;
+          bottom: 0.75em;
+          position: absolute;
+          display: block;
+        }
+
+        &.asc::after {
+          content: "⬇";
+        }
+
+        &.desc::after {
+          content: "⬆";
+        }
+      }
+
+      a {
+        color: $grey;
+      }
+    }
+  }
+
+  tbody {
+    tr {
+      &.is-interactive {
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+
+      &.is-active {
+        background: rgba($blue, 0.1);
+
+        td:first-child {
+          position: relative;
+
+          &::after {
+            position: absolute;
+            content: "";
+            width: 3px;
+            top: 0;
+            bottom: 0;
+            left: -1px;
+            display: block;
+            background: $blue;
+          }
+        }
+      }
+    }
+
+    td.is-subheading {
+      font-weight: $weight-bold;
+      background: $white;
+      color: $blue;
+    }
+
+    td {
+      border: 1px solid $grey-blue;
+      border-width: 0 0 1px;
+      padding: 1.25em 1.5em;
+    }
+  }
+
+  .is-faded {
+    color: $grey-light;
+  }
+}
+
+.table tfoot,
+.table-foot {
+  margin-top: -1px;
+  background: $white-ter;
+  border: 1px solid $grey-blue;
+  border-bottom-right-radius: $radius;
+  border-bottom-left-radius: $radius;
+  overflow: hidden;
+
+  .pagination {
+    padding: 0;
+    margin: 0;
+  }
+}

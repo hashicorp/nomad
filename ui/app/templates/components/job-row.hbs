@@ -1,0 +1,10 @@
+<td><a href="{{href-to "jobs.job" job.id}}" class="is-primary">{{job.name}}</a></td>
+<td>
+  <span class="tag {{job.statusClass}}">{{job.status}}</span>
+</td>
+<td>{{job.type}}</td>
+<td>{{job.priority}}</td>
+<td>{{job.taskGroups.length}}</td>
+<td>
+  <div class="inline-chart">{{allocation-status-bar allocationContainer=job isNarrow=true}}</div>
+</td>

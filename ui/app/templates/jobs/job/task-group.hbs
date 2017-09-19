@@ -1,0 +1,97 @@
+{{#global-header class="page-header"}}
+  {{#each breadcrumbs as |breadcrumb|}}
+    <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+  {{/each}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  <div class="tabs is-subnav">
+    <ul>
+      <li>{{#link-to "jobs.job.task-group" model.job model activeClass="is-active"}}Overview{{/link-to}}</li>
+    </ul>
+  </div>
+  <section class="section">
+    <h1 class="title">
+      {{model.name}}
+    </h1>
+
+    <div class="boxed-section is-small">
+      <div class="boxed-section-body inline-definitions">
+        <span class="label">Task Group Details</span>
+
+        <span class="pair"><span class="term"># Tasks</span> {{model.tasks.length}}</span>
+        <span class="pair"><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
+        <span class="pair"><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
+        <span class="pair"><span class="term">Reserved Disk</span> {{model.reservedEphemeralDisk}} MiB</span>
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        <div>Allocation Status <span class="badge is-white">{{allocations.length}}</span></div>
+      </div>
+      <div class="boxed-section-body">
+        {{#allocation-status-bar allocationContainer=model.summary class="split-view" as |chart|}}
+          <ol class="legend">
+            {{#each chart.data as |datum index|}}
+              <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
+                <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+                <span class="value">{{datum.value}}</span>
+                <span class="label">
+                  {{datum.label}}
+                </span>
+              </li>
+            {{/each}}
+          </ol>
+        {{/allocation-status-bar}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Allocations
+        {{search-box
+          searchTerm=(mut searchTerm)
+          placeholder="Search allocations..."
+          class="is-inline pull-right"
+          inputClass="is-compact"}}
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-pagination
+          source=sortedAllocations
+          size=pageSize
+          page=currentPage
+          class="allocations" as |p|}}
+          {{#list-table
+            source=p.list
+            sortProperty=sortProperty
+            sortDescending=sortDescending as |t|}}
+            {{#t.head}}
+              {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+              {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+              {{#t.sort-by prop="clientStatus"}}Status{{/t.sort-by}}
+              {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
+              <th>CPU</th>
+              <th>Memory</th>
+            {{/t.head}}
+            {{#t.body as |row|}}
+              {{allocation-row allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
+            {{/t.body}}
+          {{/list-table}}
+          <nav class="pagination is-centered">
+            <ul class="pagination-list">
+              {{#p.first class="pagination-link"}} |&lt; {{/p.first}}
+              {{#p.prev class="pagination-link"}} &lt; {{/p.prev}}
+              {{#each p.pageLinks as |link|}}
+                {{#link-to (query-params currentPage=link.pageNumber) class="pagination-link" activeClass="is-current"}}
+                  {{link.pageNumber}}
+                {{/link-to}}
+              {{/each}}
+              {{#p.next class="pagination-link"}} &gt; {{/p.next}}
+              {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
+            </ul>
+          </nav>
+        {{/list-pagination}}
+      </div>
+    </div>
+  </section>
+{{/gutter-menu}}

@@ -1,0 +1,91 @@
+<section class="section">
+  <h1 class="title">Allocation {{model.name}}</h1>
+  <h3 class="subtitle">
+    For job <a href="{{href-to "jobs.job" model.job}}">{{model.job.name}}</a>
+    on node <a href="{{href-to "nodes.node" model.node}}">{{model.node.shortId}}</a>
+  </h3>
+
+  <div class="message">
+    <div class="message-header">
+      Tasks
+    </div>
+    {{#list-table
+      source=sortedStates
+      sortProperty=sortProperty
+      sortDescending=sortDescending
+      class="is-striped tasks" as |t|}}
+      {{#t.head}}
+        {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+        {{#t.sort-by prop="state"}}State{{/t.sort-by}}
+        <th>Last Event</th>
+        {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
+        <th>Addresses</th>
+      {{/t.head}}
+      {{#t.body as |row|}}
+        <tr>
+          <td>{{row.model.task.name}}</td>
+          <td>{{row.model.state}}</td>
+          <td>
+            {{#if row.model.events.lastObject.displayMessage}}
+              {{row.model.events.lastObject.displayMessage}}
+            {{else}}
+              <em>No message</em>
+            {{/if}}
+          </td>
+          <td>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
+          <td>
+            <ul>
+              {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
+                <li>
+                  <strong>{{port.Label}}:</strong>
+                  <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                </li>
+              {{/each}}
+              {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
+                <li>
+                  <strong>{{port.Label}}:</strong>
+                  <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                </li>
+              {{/each}}
+            </ul>
+          </td>
+        </tr>
+      {{/t.body}}
+    {{/list-table}}
+  </div>
+
+  {{#each model.states as |state|}}
+    <div class="message task-state-events">
+      <div class="message-header">
+        {{state.task.name}} ({{state.state}}) Started: {{moment-format state.startedAt "MM/DD/YY HH:mm:ss [UTC]"}}
+        {{#unless state.isActive}}
+          Ended: {{moment-format state.finishedAt "MM/DD/YY HH:mm:ss [UTC]"}}
+        {{/unless}}
+      </div>
+      <table class="table is-striped task-events">
+        <thead>
+          <tr>
+            <td class="is-3">Time</td>
+            <td class="is-1">Type</td>
+            <td>Description</td>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each (reverse state.events) as |event|}}
+            <tr>
+              <td>{{moment-format event.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
+              <td>{{event.type}}</td>
+              <td>
+                {{#if event.displayMessage}}
+                  {{event.displayMessage}}
+                {{else}}
+                  <em>No message</em>
+                {{/if}}
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+ {{/each}}
+</section>

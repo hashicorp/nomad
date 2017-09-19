@@ -208,7 +208,6 @@ func TestPeriodicDispatch_Add_Remove_Namespaced(t *testing.T) {
 	job := mock.PeriodicJob()
 	job2 := mock.PeriodicJob()
 	job2.Namespace = "test"
-
 	added, err := p.Add(job)
 	assert.Nil(err)
 	assert.True(added)
@@ -509,6 +508,10 @@ func TestPeriodicDispatch_Run_SameID_Different_Namespace(t *testing.T) {
 	}
 	if added, err := p.Add(job2); err != nil || !added {
 		t.Fatalf("Add failed %v", added, err)
+	}
+
+	if l := len(p.Tracked()); l != 2 {
+		t.Fatalf("got %d tracked; want 2", l)
 	}
 
 	if l := len(p.Tracked()); l != 2 {

@@ -75,12 +75,22 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Check job submission permissions
 	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNamespaceOperation(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
-		return structs.ErrPermissionDenied
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+				j.srv.logger.Printf("[WARN] nomad.job: policy override attempted without permissions for Job %q", args.Job.ID)
+				return structs.ErrPermissionDenied
+			}
+			j.srv.logger.Printf("[WARN] nomad.job: policy override set for Job %q", args.Job.ID)
+		}
 	}
 
 	// Lookup the job
-	snap, err := j.srv.fsm.State().Snapshot()
+	snap, err := j.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -149,6 +159,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
+	// Enforce Sentinel policies
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
+	if err != nil {
+		return err
+	}
+	if policyWarnings != nil {
+		reply.Warnings = structs.MergeMultierrorWarnings(warnings,
+			canonicalizeWarnings, policyWarnings)
+	}
+
 	// Clear the Vault token
 	args.Job.VaultToken = ""
 
@@ -158,7 +178,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		args.Job.SetSubmitTime()
 
 		// Commit this update via Raft
-		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		if err, ok := fsmErr.(error); ok && err != nil {
+			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			return err
+		}
 		if err != nil {
 			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
 			return err
@@ -917,6 +941,31 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
+	// Check job submission permissions, which we assume is the same for plan
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+	}
+
+	// Enforce Sentinel policies
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
+	if err != nil {
+		return err
+	}
+	if policyWarnings != nil {
+		reply.Warnings = structs.MergeMultierrorWarnings(warnings,
+			canonicalizeWarnings, policyWarnings)
+	}
+
 	// Acquire a snapshot of the state
 	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -1166,7 +1215,11 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	}
 
 	// Commit this update via Raft
-	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
+	fsmErr, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
+	if err, ok := fsmErr.(error); ok && err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
+		return err
+	}
 	if err != nil {
 		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
 		return err
