@@ -322,7 +322,12 @@ func (f *FSCommand) Run(args []string) int {
 		return 1
 	}
 
-	io.Copy(os.Stdout, r)
+	_, err = io.Copy(os.Stdout, r)
+	if err != nil {
+		f.Ui.Error(fmt.Sprintf("error tailing file: %s", err))
+		return 1
+	}
+
 	return 0
 }
 
@@ -332,16 +337,18 @@ func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	path, origin string, offset, numLines int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, err := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
-	if err != nil {
+	frames, errCh := client.AllocFS().Stream(alloc, path, origin, offset, cancel, nil)
+	select {
+	case err := <-errCh:
 		return nil, err
+	default:
 	}
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	// Create a reader
 	var r io.ReadCloser
-	frameReader := api.NewFrameReader(frames, cancel)
+	frameReader := api.NewFrameReader(frames, errCh, cancel)
 	frameReader.SetUnblockTime(500 * time.Millisecond)
 	r = frameReader
 
