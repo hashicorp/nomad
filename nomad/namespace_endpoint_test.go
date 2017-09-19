@@ -305,7 +305,7 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 	assert.Nil(s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
 
 	validDefToken := CreatePolicyAndToken(t, state, 1001, "test-def-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS}))
 	validMultiToken := CreatePolicyAndToken(t, state, 1002, "test-multi-valid", fmt.Sprintf("%s\n%s",
 		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}),
 		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})))
