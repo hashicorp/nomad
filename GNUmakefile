@@ -161,6 +161,7 @@ check: ## Lint the source code
 		--deadline 10m \
 		--vendor \
 		--exclude '(.*\.generated\.go:\d+:|bindata_assetfs)' \
+		--skip="ui/" \
 		--disable-all \
 		--sort severity \
 		$(CHECKS) \
