@@ -27,7 +27,11 @@ fi
 rm -rf ./pkg/dist
 mkdir -p ./pkg/dist
 
-find ./pkg -mindepth 1 -maxdepth 1 -type f -exec cp ./pkg/{} ./pkg/dist/nomad_"${VERSION}"_{} \;
+#find ./pkg -mindepth 1 -maxdepth 1 -type f -exec cp ./pkg/{} ./pkg/dist/nomad_"${VERSION}"_{} \;
+for FILENAME in $(find ./pkg -mindepth 1 -maxdepth 1 -type f); do
+    FILENAME=$(basename $FILENAME)
+    cp ./pkg/${FILENAME} ./pkg/dist/nomad_${VERSION}_${FILENAME}
+done
 
 # Make the checksums
 pushd ./pkg/dist
