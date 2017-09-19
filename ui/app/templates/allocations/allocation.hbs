@@ -41,6 +41,12 @@
                   <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
                 </li>
               {{/each}}
+              {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
+                <li>
+                  <strong>{{port.Label}}:</strong>
+                  <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                </li>
+              {{/each}}
             </ul>
           </td>
         </tr>

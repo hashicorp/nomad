@@ -81,7 +81,7 @@ test('each row in the task group table should show basic information about the t
   );
   assert.equal(
     taskGroupRow.find('td:eq(5)').text(),
-    `${sum(tasks, 'Resources.DiskMB')} MiB`,
+    `${taskGroup.ephemeralDisk.SizeMB} MiB`,
     'Reserved Disk'
   );
 });

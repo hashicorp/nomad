@@ -97,7 +97,7 @@
               {{#t.sort-by prop="queuedOrStartingAllocs" class="is-3"}}Allocation Status{{/t.sort-by}}
               {{#t.sort-by prop="reservedCPU"}}Reserved CPU{{/t.sort-by}}
               {{#t.sort-by prop="reservedMemory"}}Reserved Memory{{/t.sort-by}}
-              {{#t.sort-by prop="reservedDisk"}}Reserved Disk{{/t.sort-by}}
+              {{#t.sort-by prop="reservedEphemeralDisk"}}Reserved Disk{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
               {{task-group-row taskGroup=row.model onClick=(action "gotoTaskGroup" row.model)}}
