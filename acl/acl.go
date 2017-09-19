@@ -160,7 +160,11 @@ func (a *ACL) AllowNamespace(ns string) bool {
 
 	// Check if the capability has been granted
 	capabilities := raw.(capabilitySet)
-	return len(capabilities) > 0
+	if len(capabilities) == 0 {
+		return false
+	}
+
+	return !capabilities.Check(PolicyDeny)
 }
 
 // AllowAgentRead checks if read operations are allowed for an agent

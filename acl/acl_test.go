@@ -199,3 +199,45 @@ operator {
 	policy = "deny"
 }
 `
+
+func TestAllowNamespace(t *testing.T) {
+	tests := []struct {
+		Policy string
+		Allow  bool
+	}{
+		{
+			Policy: `namespace "foo" {}`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { policy = "deny" }`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { capabilities = ["deny"] }`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { capabilities = ["list-jobs"] }`,
+			Allow:  true,
+		},
+		{
+			Policy: `namespace "foo" { policy = "read" }`,
+			Allow:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.Nil(err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			assert.Equal(tc.Allow, acl.AllowNamespace("foo"))
+		})
+	}
+}
