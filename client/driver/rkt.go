@@ -17,6 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	appcschema "github.com/appc/spec/schema"
+	rktv1 "github.com/rkt/rkt/api/v1"
+
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -53,6 +56,9 @@ const (
 
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
+
+	// rktNetworkDeadline is how long to wait for container network to start
+	rktNetworkDeadline = 5 * time.Second
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -106,6 +112,72 @@ type rktPID struct {
 	ExecutorPid    int
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
+}
+
+// Retrieve pod status for the pod with the given UUID.
+func rktGetStatus(uuid string) (*rktv1.Pod, error) {
+	statusArgs := []string{
+		"status",
+		"--format=json",
+		uuid,
+	}
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command(rktCmd, statusArgs...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	var status rktv1.Pod
+	if err := json.Unmarshal(outBuf.Bytes(), &status); err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+// Retrieves a pod manifest
+func rktGetManifest(uuid string) (*appcschema.PodManifest, error) {
+	statusArgs := []string{
+		"cat-manifest",
+		uuid,
+	}
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command(rktCmd, statusArgs...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	var manifest appcschema.PodManifest
+	if err := json.Unmarshal(outBuf.Bytes(), &manifest); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
+}
+
+// Given a rkt/appc pod manifest and driver portmap configuration, create
+// a driver portmap.
+func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[string]string) (map[string]int, error) {
+	if len(manifest.Apps) == 0 {
+		return nil, fmt.Errorf("manifest has no apps")
+	}
+	if len(manifest.Apps) != 1 {
+		return nil, fmt.Errorf("manifest has multiple apps!")
+	}
+	app := manifest.Apps[0]
+	if app.App == nil {
+		return nil, fmt.Errorf("specified app has no App object")
+	}
+
+	portMap := make(map[string]int)
+	for svc, name := range configPortMap {
+		for _, port := range app.App.Ports {
+			if port.Name.String() == name {
+				portMap[svc] = int(port.Port)
+			}
+		}
+	}
+	return portMap, nil
 }
 
 // NewRktDriver is used to create a new exec driver
@@ -516,8 +588,51 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	//TODO Set Network
-	return &StartResponse{Handle: h}, nil
+
+	d.logger.Printf("[DEBUG] driver.rkt: retrieving status for pod %q (UUID %s) for task %q with", img, uuid, d.taskName)
+	deadline := time.Now().Add(rktNetworkDeadline)
+	var driverNetwork *cstructs.DriverNetwork
+	var notFirst bool
+	for driverNetwork == nil && time.Now().Before(deadline) {
+		if notFirst {
+			time.Sleep(400 * time.Millisecond)
+		}
+		notFirst = true
+
+		status, err := rktGetStatus(uuid)
+		if err != nil {
+			continue
+		}
+		for _, net := range status.Networks {
+			if !net.IP.IsGlobalUnicast() {
+				continue
+			}
+
+			// Get the pod manifest so we can figure out which ports are exposed
+			var portmap map[string]int
+			d.logger.Printf("[DEBUG] driver.rkt: grabbing manifest for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
+			manifest, err := rktGetManifest(uuid)
+			if err == nil {
+				portmap, err = rktManifestMakePortMap(manifest, driverConfig.PortMap)
+				if err != nil {
+					d.logger.Printf("[DEBUG] driver.rkt: could not create manifest-based portmap for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
+				}
+			} else {
+				d.logger.Printf("[WARN] driver.rkt: could get not pod manifest for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
+			}
+
+			driverNetwork = &cstructs.DriverNetwork{
+				PortMap: portmap,
+				IP:      status.Networks[0].IP.String(),
+			}
+			break
+		}
+	}
+	if driverNetwork == nil {
+		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed", img, uuid, d.taskName)
+	}
+
+	return &StartResponse{Handle: h, Network: driverNetwork}, nil
 }
 
 func (d *RktDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

@@ -60,6 +60,30 @@
 			"revisionTime": "2017-04-10T19:29:09Z"
 		},
 		{
+			"checksumSHA1": "uWJDTv0R/NJVYv51LVy6vKP1CZw=",
+			"path": "github.com/appc/spec/schema",
+			"revision": "cbe99b7160b1397bf89f9c8bb1418f69c9424049",
+			"revisionTime": "2017-09-19T09:55:19Z"
+		},
+		{
+			"checksumSHA1": "Q47G6996hbfQaNp/8CFkGWTVQpw=",
+			"path": "github.com/appc/spec/schema/common",
+			"revision": "cbe99b7160b1397bf89f9c8bb1418f69c9424049",
+			"revisionTime": "2017-09-19T09:55:19Z"
+		},
+		{
+			"checksumSHA1": "kYXCle7Ikc8WqiMs7NXz99bUWqo=",
+			"path": "github.com/appc/spec/schema/types",
+			"revision": "cbe99b7160b1397bf89f9c8bb1418f69c9424049",
+			"revisionTime": "2017-09-19T09:55:19Z"
+		},
+		{
+			"checksumSHA1": "VgPsPj5PH7LKXMa3ZLe5/+Avydo=",
+			"path": "github.com/appc/spec/schema/types/resource",
+			"revision": "cbe99b7160b1397bf89f9c8bb1418f69c9424049",
+			"revisionTime": "2017-09-19T09:55:19Z"
+		},
+		{
 			"path": "github.com/armon/circbuf",
 			"revision": "bbbad097214e2918d8543d5201d12bfd7bca254d"
 		},
@@ -275,6 +299,18 @@
 			"revisionTime": "2016-11-21T13:51:53Z"
 		},
 		{
+			"checksumSHA1": "NeAp/3+Hedu9tnMai+LihERPj84=",
+			"path": "github.com/containernetworking/cni/pkg/types",
+			"revision": "5c3c17164270150467498a32c71436c7cd5501be",
+			"revisionTime": "2016-06-02T16:00:07Z"
+		},
+		{
+			"checksumSHA1": "97BsbXOiZ8+Kr+LIuZkQFtSj7H4=",
+			"path": "github.com/coreos/go-semver/semver",
+			"revision": "1817cd4bea52af76542157eeabd74b057d1a199e",
+			"revisionTime": "2017-06-13T09:22:38Z"
+		},
+		{
 			"checksumSHA1": "/5cvgU+J4l7EhMXTK76KaCAfOuU=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
@@ -427,14 +463,14 @@
 		{
 			"checksumSHA1": "rArZ5mYIe9I1L5PRQOJu8BwafFw=",
 			"path": "github.com/docker/docker/pkg/pools",
-			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
-			"revisionTime": "2016-05-20T15:17:10Z"
+			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
+			"revisionTime": "2016-05-28T08:11:04Z"
 		},
 		{
 			"checksumSHA1": "rArZ5mYIe9I1L5PRQOJu8BwafFw=",
 			"path": "github.com/docker/docker/pkg/pools",
-			"revision": "da39e9a4f920a15683dd0f23923c302d4db6eed5",
-			"revisionTime": "2016-05-28T08:11:04Z"
+			"revision": "52debcd58ac91bf68503ce60561536911b74ff05",
+			"revisionTime": "2016-05-20T15:17:10Z"
 		},
 		{
 			"checksumSHA1": "txf3EORYff4hO6PEvwBm2lyh1MU=",
@@ -1247,6 +1283,20 @@
 			"revisionTime": "2017-07-03T10:12:42Z"
 		},
 		{
+			"checksumSHA1": "ge4Z0w3QJJYTBqJaK3S+a6MCxzQ=",
+			"path": "github.com/rkt/rkt/api/v1",
+			"revision": "3abde24bc284b7ded5784c56b4e8184c28999641",
+			"revisionTime": "2017-08-01T12:18:56Z",
+			"version": "v1.28.1",
+			"versionExact": "v1.28.1"
+		},
+		{
+			"checksumSHA1": "4QqLbh9MmajcN6gCx8Er1voiQys=",
+			"path": "github.com/rkt/rkt/networking/netinfo",
+			"revision": "5e83d91aafef5f7a38fef62c045e8b57eeeb8bce",
+			"revisionTime": "2017-09-20T12:17:54Z"
+		},
+		{
 			"checksumSHA1": "M57Rrfc8Z966p+IBtQ91QOcUtcg=",
 			"comment": "v2.0.1-8-g983d3a5",
 			"path": "github.com/ryanuber/columnize",
@@ -1320,6 +1370,12 @@
 			"revisionTime": "2016-09-30T03:27:40Z"
 		},
 		{
+			"checksumSHA1": "Q52Y7t0lEtk/wcDn5q7tS7B+jqs=",
+			"path": "github.com/spf13/pflag",
+			"revision": "7aff26db30c1be810f9de5038ec5ef96ac41fd7c",
+			"revisionTime": "2017-08-24T17:57:12Z"
+		},
+		{
 			"checksumSHA1": "K0crHygPTP42i1nLKWphSlvOQJw=",
 			"path": "github.com/stretchr/objx",
 			"revision": "1a9d0bb9f541897e62256577b352fdbc1fb4fd94",
@@ -1366,6 +1422,12 @@
 			"path": "github.com/ulikunitz/xz/lzma",
 			"revision": "0c6b41e72360850ca4f98dc341fd999726ea007f",
 			"revisionTime": "2017-06-05T21:53:11Z"
+		},
+		{
+			"checksumSHA1": "PMr/a5kcnC4toJtVwWhlU5E4tJY=",
+			"path": "go4.org/errorutil",
+			"revision": "034d17a462f7b2dcd1a4a73553ec5357ff6e6c6e",
+			"revisionTime": "2017-05-24T23:16:39Z"
 		},
 		{
 			"checksumSHA1": "5TlXhxVMqfHQKpCKucmXNeE6/kc=",
@@ -1612,6 +1674,12 @@
 			"path": "gopkg.in/fsnotify.v1",
 			"revision": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb",
 			"revisionTime": "2016-06-29T01:11:04Z"
+		},
+		{
+			"checksumSHA1": "6f8MEU31llHM1sLM/GGH4/Qxu0A=",
+			"path": "gopkg.in/inf.v0",
+			"revision": "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4",
+			"revisionTime": "2015-09-11T12:57:57Z"
 		},
 		{
 			"checksumSHA1": "i97goLq3AIfUNB8l1hxGGMSW0+s=",
