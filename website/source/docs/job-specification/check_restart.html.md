@@ -66,8 +66,8 @@ job "mysql" {
           timeout  = "5s"
 
           check_restart {
-            limit = 3
-            grace = "90s"
+            limit           = 3
+            grace_period    = "90s"
             ignore_warnings = false
           }
         }
@@ -83,7 +83,7 @@ job "mysql" {
   single passing check will reset the count, so flapping services may not be
   restarted.
 
-- `grace` `(string: "1s")` - Duration to wait after a task starts or restarts
+- `grace_period` `(string: "1s")` - Duration to wait after a task starts or restarts
   before checking its health.
 
 - `ignore_warnings` `(bool: false)` - By default checks with both `critical`
@@ -97,7 +97,7 @@ Using the example `mysql` above would have the following behavior:
 ```hcl
 check_restart {
   # ...
-  grace = "90s"
+  grace_period = "90s"
   # ...
 }
 ```
@@ -128,7 +128,7 @@ The [`restart` stanza][restart_stanza] controls the restart behavior of the
 task. In this case it will stop the task and then wait 10 seconds before
 starting it again.
 
-Once the task restarts Nomad waits the `grace` period again before starting to
+Once the task restarts Nomad waits the `grace_period` period again before starting to
 check the task's health.
 
 
