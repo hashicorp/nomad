@@ -112,3 +112,11 @@ migrating existing allocations to another client.
 You are now running the latest Nomad version. You can verify all
 Clients joined by running `nomad node-status` and checking all the clients
 are in a `ready` state.
+
+## Upgrading to Nomad Enterprise
+
+The process of upgrading to a Nomad Enterprise version is identical to upgrading
+between versions of open source Nomad. The same guidance above should be
+followed and as always, prior to starting the upgrade please check the [specific
+version details](/docs/upgrade/upgrade-specific.html) page as some version
+differences may require specific steps.
