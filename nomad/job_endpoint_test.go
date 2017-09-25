@@ -3118,6 +3118,42 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	job := mock.Job()
+
+	req := &structs.JobValidateRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to update without providing a valid token
+	var resp structs.JobValidateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp)
+	assert.NotNil(err)
+
+	// Update with a valid token
+	req.SecretID = root.SecretID
+	var validResp structs.JobValidateResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &validResp)
+	assert.Nil(err)
+
+	assert.Equal("", validResp.Error)
+	assert.Equal("", validResp.Warnings)
+}
+
 func TestJobEndpoint_Dispatch(t *testing.T) {
 	t.Parallel()
 

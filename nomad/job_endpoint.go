@@ -353,6 +353,13 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Initialize the job fields (sets defaults and any necessary init work).
 	canonicalizeWarnings := args.Job.Canonicalize()
 
