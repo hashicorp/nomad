@@ -28,6 +28,14 @@ Many hosts cannot properly resolve their hostname, so Nomad 0.6 defaults
 
 If you manually configure `advertise` addresses no changes are necessary.
 
+## Nomad Clients
+
+The change to the default, advertised IP also effect clients that do not specify
+which network_interface to use. If you have several routable IPs, it is advised
+to configure the client's [network
+interface](https://www.nomadproject.io/docs/agent/configuration/client.html#network_interface)
+such that tasks bind to the correct address.
+
 ## Nomad 0.5.5
 
 ### Docker `load` changes
