@@ -3139,7 +3139,7 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 		},
 	}
 
-	// Attenpt to update without providing a valid token
+	// Attempt to update without providing a valid token
 	var resp structs.JobValidateResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp)
 	assert.NotNil(err)
