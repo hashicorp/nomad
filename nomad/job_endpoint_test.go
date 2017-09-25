@@ -1023,6 +1023,71 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Revert_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(300, job)
+	assert.Nil(err)
+
+	job2 := job.Copy()
+	job2.Priority = 1
+	err = state.UpsertJob(400, job2)
+	assert.Nil(err)
+
+	// Create revert request and enforcing it be at the current version
+	revertReq := &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a valid token
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	revertReq.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Fetch the response with a valid management token
+	revertReq.SecretID = root.SecretID
+	var validResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp)
+	assert.Nil(err)
+
+	// Try with a valid non-management token
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+	revertReq.SecretID = validToken.SecretID
+	var validResp2 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
+	assert.Nil(err)
+}
+
 func TestJobEndpoint_Stable(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {

@@ -393,6 +393,13 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "revert"}, time.Now())
 
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.JobID == "" {
 		return fmt.Errorf("missing job ID for revert")
