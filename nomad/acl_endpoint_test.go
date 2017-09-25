@@ -509,6 +509,16 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 	}
 	assert.Equal(t, uint64(1000), resp.Index)
 	assert.Nil(t, resp.Token)
+
+	// Lookup the token by accessor id using the tokens secret ID
+	get.AccessorID = token.AccessorID
+	get.SecretID = token.SecretID
+	var resp2 structs.SingleACLTokenResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetToken", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp2.Index)
+	assert.Equal(t, token, resp2.Token)
 }
 
 func TestACLEndpoint_GetToken_Blocking(t *testing.T) {

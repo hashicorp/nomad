@@ -622,11 +622,9 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_token"}, time.Now())
 
-	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	acl, err := a.srv.resolveToken(args.SecretID)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
-		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
@@ -638,6 +636,14 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 			out, err := state.ACLTokenByAccessorID(ws, args.AccessorID)
 			if err != nil {
 				return err
+			}
+
+			// Check management level permissions or that the secret ID matches the
+			// accessor ID
+			if acl != nil && out != nil {
+				if !acl.IsManagement() && out.SecretID != args.SecretID {
+					return structs.ErrPermissionDenied
+				}
 			}
 
 			// Setup the output
