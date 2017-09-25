@@ -451,6 +451,13 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "stable"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.JobID == "" {
 		return fmt.Errorf("missing job ID for marking job as stable")
