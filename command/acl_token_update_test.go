@@ -1,7 +1,6 @@
 package command
 
 import (
-	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
@@ -38,14 +37,11 @@ func TestACLTokenUpdateCommand(t *testing.T) {
 
 	// Request to update a new token without providing a valid management token
 	invalidToken := mock.ACLToken()
-	os.Setenv("NOMAD_TOKEN", invalidToken.SecretID)
-	code := cmd.Run([]string{"-address=" + url, "-name=bar", mockToken.AccessorID})
-	//code := cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
+	code := cmd.Run([]string{"--token=" + invalidToken.SecretID, "-address=" + url, "-name=bar", mockToken.AccessorID})
 	assert.Equal(1, code)
 
 	// Request to update a new token with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, "-name=bar", mockToken.AccessorID})
+	code = cmd.Run([]string{"--token=" + token.SecretID, "-address=" + url, "-name=bar", mockToken.AccessorID})
 	assert.Equal(0, code)
 
 	// Check the output
