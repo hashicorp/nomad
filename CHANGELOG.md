@@ -13,6 +13,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [GH-3201]
+ * core: Run deployment garbage collector on an interval [GH-3267]
  * core: Fix issue where node-drain with complete batch allocation would create
    replacement [GH-3217]
  * core: Fix issue in which batch allocations from previous job versions may not
