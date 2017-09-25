@@ -2039,14 +2039,13 @@ func (c *Client) emitHostStats() {
 	c.setGaugeForUptime(hStats)
 	c.setGaugeForCPUStats(nodeID, hStats)
 	c.setGaugeForDiskStats(nodeID, hStats)
-
-	// TODO: This should be moved to emitClientMetrics
-	c.setGaugeForAllocationStats(nodeID)
 }
 
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
 	nodeID := c.NodeID()
+
+	c.setGaugeForAllocationStats(nodeID)
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
