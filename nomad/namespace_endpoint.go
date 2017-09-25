@@ -25,6 +25,13 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
+	// Check management permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate there is at least one namespace
 	if len(args.Namespaces) == 0 {
 		return fmt.Errorf("must specify at least one namespace")
@@ -62,6 +69,13 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespaces"}, time.Now())
 
+	// Check management permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate at least one namespace
 	if len(args.Namespaces) == 0 {
 		return fmt.Errorf("must specify at least one namespace to delete")
@@ -96,6 +110,12 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "list_namespace"}, time.Now())
 
+	// Resolve token to acl to filter namespace list
+	aclObj, err := n.srv.resolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -120,7 +140,11 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 					break
 				}
 				ns := raw.(*structs.Namespace)
-				reply.Namespaces = append(reply.Namespaces, ns)
+
+				// Only return namespaces allowed by acl
+				if aclObj == nil || aclObj.AllowNamespace(ns.Name) {
+					reply.Namespaces = append(reply.Namespaces, ns)
+				}
 			}
 
 			// Use the last index that affected the namespace table
@@ -146,6 +170,13 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespace"}, time.Now())
+
+	// Check capabilities for the given namespace permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNamespace(args.Name) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{

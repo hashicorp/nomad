@@ -67,9 +67,11 @@ func TestACLManagement(t *testing.T) {
 	// Check default namespace rights
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.Equal(t, true, acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
 	assert.Equal(t, true, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.Equal(t, true, acl.AllowNamespace("foo"))
 
 	// Check the other simpler operations
 	assert.Equal(t, true, acl.IsManagement())
@@ -93,9 +95,11 @@ func TestACLMerge(t *testing.T) {
 	// Check default namespace rights
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.Equal(t, true, acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
 	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.Equal(t, false, acl.AllowNamespace("foo"))
 
 	// Check the other simpler operations
 	assert.Equal(t, false, acl.IsManagement())
@@ -195,3 +199,45 @@ operator {
 	policy = "deny"
 }
 `
+
+func TestAllowNamespace(t *testing.T) {
+	tests := []struct {
+		Policy string
+		Allow  bool
+	}{
+		{
+			Policy: `namespace "foo" {}`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { policy = "deny" }`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { capabilities = ["deny"] }`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { capabilities = ["list-jobs"] }`,
+			Allow:  true,
+		},
+		{
+			Policy: `namespace "foo" { policy = "read" }`,
+			Allow:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.Nil(err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			assert.Equal(tc.Allow, acl.AllowNamespace("foo"))
+		})
+	}
+}

@@ -3,10 +3,12 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -40,6 +42,67 @@ func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
 	assert.EqualValues(1000, resp.Index)
 	assert.Nil(resp.Namespace)
+}
+
+func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create the policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
+		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(ns2.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get := &structs.NamespaceSpecificRequest{
+		Name:         ns1.Name,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Lookup the namespace without a token and expect failure
+	{
+		var resp structs.SingleNamespaceResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	get.SecretID = invalidToken.SecretID
+	{
+		var resp structs.SingleNamespaceResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token
+	get.SecretID = validToken.SecretID
+	{
+		var resp structs.SingleNamespaceResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Equal(ns1, resp.Namespace)
+	}
+
+	// Try with a root token
+	get.SecretID = root.SecretID
+	{
+		var resp structs.SingleNamespaceResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Equal(ns1, resp.Namespace)
+	}
 }
 
 func TestNamespaceEndpoint_GetNamespace_Blocking(t *testing.T) {
@@ -224,6 +287,80 @@ func TestNamespaceEndpoint_List(t *testing.T) {
 	assert.Len(resp2.Namespaces, 1)
 }
 
+func TestNamespaceEndpoint_List_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+
+	ns1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	ns2.Name = "bbbbbbbb-3350-4b4b-d185-0e1992ed43e9"
+	assert.Nil(s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+
+	validDefToken := CreatePolicyAndToken(t, state, 1001, "test-def-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS}))
+	validMultiToken := CreatePolicyAndToken(t, state, 1002, "test-multi-valid", fmt.Sprintf("%s\n%s",
+		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}),
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get := &structs.NamespaceListRequest{
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Lookup the namespaces without a token and expect a failure
+	{
+		var resp structs.NamespaceListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp)
+		assert.Nil(err)
+		assert.Len(resp.Namespaces, 0)
+	}
+
+	// Try with an invalid token
+	get.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp)
+		assert.Nil(err)
+		assert.Len(resp.Namespaces, 0)
+	}
+
+	// Try with a valid token for one
+	get.SecretID = validDefToken.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 1)
+	}
+
+	// Try with a valid token for two
+	get.SecretID = validMultiToken.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 2)
+	}
+
+	// Try with a root token
+	get.SecretID = root.SecretID
+	{
+		var resp structs.NamespaceListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 3)
+	}
+}
+
 func TestNamespaceEndpoint_List_Blocking(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
@@ -297,6 +434,81 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 	assert.NotEqual(uint64(0), resp.Index)
 }
 
+func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create the policy and tokens
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req := &structs.NamespaceDeleteRequest{
+		Namespaces:   []string{ns1.Name, ns2.Name},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Delete namespaces without a token and expect failure
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not delete the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
+
+	// Try with an invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not delete the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Check we deleted the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+}
+
 func TestNamespaceEndpoint_DeleteNamespaces_Default(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
@@ -343,4 +555,79 @@ func TestNamespaceEndpoint_UpsertNamespaces(t *testing.T) {
 	out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
 	assert.Nil(err)
 	assert.NotNil(out)
+}
+
+func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+
+	// Create the policy and tokens
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Create the register request
+	req := &structs.NamespaceUpsertRequest{
+		Namespaces:   []*structs.Namespace{ns1, ns2},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Upsert the namespace without a token and expect failure
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not create the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+
+	// Try with an invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+		// Check we did not create the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.Nil(out)
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Check we created the namespaces
+		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+
+		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
+		assert.Nil(err)
+		assert.NotNil(out)
+	}
 }
