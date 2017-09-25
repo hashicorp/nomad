@@ -96,7 +96,7 @@ network {
 ### Dynamic Ports
 
 This example specifies a dynamic port allocation for the port labeled "http".
-Dynamic ports are allocated in a range from `20000` to `60000`.
+Dynamic ports are allocated in a range from `20000` to `32000`.
 
 Most services run in your cluster should use dynamic ports. This means that the
 port will be allocated dynamically by the scheduler, and your service will have
