@@ -1746,6 +1746,7 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 	var resp structs.SingleJobResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp)
 	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
 
 	// Expect failure for request with an invalid token
 	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
@@ -1755,6 +1756,7 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 	var invalidResp structs.SingleJobResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &invalidResp)
 	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
 
 	// Looking up the job with a management token should succeed
 	get.SecretID = root.SecretID
@@ -1772,7 +1774,6 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &validResp2)
 	assert.Nil(err)
 	assert.Equal(job.ID, validResp2.Job.ID)
-
 }
 
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
