@@ -247,7 +247,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {
 	tgs := make([]string, 0, len(groups))
-	for tg, _ := range groups {
+	for tg := range groups {
 		tgs = append(tgs, tg)
 	}
 	sort.Strings(tgs)

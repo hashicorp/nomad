@@ -7,9 +7,6 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X main.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
-# Enable additional linters as the codebase evolves to pass them
-CHECKS ?= --enable goimports
-
 default: help
 
 ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
@@ -160,11 +157,23 @@ check: ## Lint the source code
 	@gometalinter \
 		--deadline 10m \
 		--vendor \
-		--exclude '(.*\.generated\.go:\d+:|bindata_assetfs)' \
+		--exclude='.*\.generated\.go' \
+		--exclude='.*bindata_assetfs\.go' \
 		--skip="ui/" \
+		--sort="path" \
+		--aggregate \
+		--enable-gc \
 		--disable-all \
-		--sort severity \
-		$(CHECKS) \
+		--enable goimports \
+		--enable misspell \
+		--enable vet \
+		--enable deadcode \
+		--enable varcheck \
+		--enable ineffassign \
+		--enable structcheck \
+		--enable unconvert \
+		--enable gas \
+		--enable gofmt \
 		./...
 
 .PHONY: checkscripts

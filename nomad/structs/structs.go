@@ -3424,7 +3424,7 @@ func validateServices(t *Task) error {
 	if t.Resources != nil {
 		for _, network := range t.Resources.Networks {
 			ports := network.PortLabels()
-			for portLabel, _ := range ports {
+			for portLabel := range ports {
 				portLabels[portLabel] = struct{}{}
 			}
 		}

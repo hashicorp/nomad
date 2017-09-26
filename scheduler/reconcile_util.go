@@ -89,10 +89,8 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 
 	if job != nil {
 		for _, tg := range job.TaskGroups {
-			s, ok := m[tg.Name]
-			if !ok {
-				s = make(map[string]*structs.Allocation)
-				m[tg.Name] = s
+			if _, ok := m[tg.Name]; !ok {
+				m[tg.Name] = make(map[string]*structs.Allocation)
 			}
 		}
 	}
@@ -102,15 +100,6 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 // allocSet is a set of allocations with a series of helper functions defined
 // that help reconcile state.
 type allocSet map[string]*structs.Allocation
-
-// newAllocSet creates an allocation set given a set of allocations
-func newAllocSet(allocs []*structs.Allocation) allocSet {
-	s := make(map[string]*structs.Allocation, len(allocs))
-	for _, a := range allocs {
-		s[a.ID] = a
-	}
-	return s
-}
 
 // GoString provides a human readable view of the set
 func (a allocSet) GoString() string {
@@ -281,7 +270,7 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 		max = minSize
 	} else if max%8 == 0 {
 		// This may be possible if the job was scaled down. We want to make sure
-		// that the max index is not byte-alligned otherwise we will overflow
+		// that the max index is not byte-aligned otherwise we will overflow
 		// the bitmap.
 		max++
 	}

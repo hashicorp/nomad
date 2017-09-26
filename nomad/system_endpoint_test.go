@@ -108,7 +108,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 			JobID:     job.ID,
 			Namespace: job.Namespace,
 			Summary: map[string]structs.TaskGroupSummary{
-				"web": structs.TaskGroupSummary{
+				"web": {
 					Queued: 10,
 				},
 			},

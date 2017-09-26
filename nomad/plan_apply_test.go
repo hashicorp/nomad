@@ -92,7 +92,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 		Deployment:        dnew,
 		DeploymentUpdates: updates,
@@ -177,10 +177,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID))
 	planRes = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{allocEvict},
+			node.ID: {allocEvict},
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc2},
+			node.ID: {alloc2},
 		},
 	}
 
@@ -248,7 +248,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 		Deployment: mock.Deployment(),
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
@@ -300,8 +300,8 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID:  []*structs.Allocation{alloc},
-			node2.ID: []*structs.Allocation{alloc2},
+			node.ID:  {alloc},
+			node2.ID: {alloc2},
 		},
 		Deployment: d,
 	}
@@ -353,8 +353,8 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	plan := &structs.Plan{
 		AllAtOnce: true, // Require all to make progress
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID:  []*structs.Allocation{alloc},
-			node2.ID: []*structs.Allocation{alloc2},
+			node.ID:  {alloc},
+			node2.ID: {alloc2},
 		},
 		Deployment: mock.Deployment(),
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
@@ -398,7 +398,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 
@@ -425,7 +425,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 
@@ -452,7 +452,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 
@@ -477,7 +477,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			nodeID: []*structs.Allocation{alloc},
+			nodeID: {alloc},
 		},
 	}
 
@@ -512,7 +512,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	snap, _ := state.Snapshot()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc2},
+			node.ID: {alloc2},
 		},
 	}
 
@@ -542,7 +542,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 
@@ -576,10 +576,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
 		NodeUpdate: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{allocEvict},
+			node.ID: {allocEvict},
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc2},
+			node.ID: {alloc2},
 		},
 	}
 
@@ -611,7 +611,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc2},
+			node.ID: {alloc2},
 		},
 	}
 
@@ -645,7 +645,7 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	plan := &structs.Plan{
 		NodeUpdate: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{allocEvict},
+			node.ID: {allocEvict},
 		},
 	}
 

@@ -25,7 +25,7 @@ func Node() *structs.Node {
 			DiskMB:   100 * 1024,
 			IOPS:     150,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,
@@ -37,7 +37,7 @@ func Node() *structs.Node {
 			MemoryMB: 256,
 			DiskMB:   4 * 1024,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
 					ReservedPorts: []structs.Port{{Label: "main", Value: 22}},
@@ -71,14 +71,14 @@ func Job() *structs.Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
-			&structs.Constraint{
+			{
 				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*structs.TaskGroup{
-			&structs.TaskGroup{
+			{
 				Name:  "web",
 				Count: 10,
 				EphemeralDisk: &structs.EphemeralDisk{
@@ -91,7 +91,7 @@ func Job() *structs.Job {
 					Mode:     structs.RestartPolicyModeDelay,
 				},
 				Tasks: []*structs.Task{
-					&structs.Task{
+					{
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
@@ -126,7 +126,7 @@ func Job() *structs.Job {
 							CPU:      500,
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
-								&structs.NetworkResource{
+								{
 									MBits:        50,
 									DynamicPorts: []structs.Port{{Label: "http"}, {Label: "admin"}},
 								},
@@ -168,14 +168,14 @@ func SystemJob() *structs.Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
-			&structs.Constraint{
+			{
 				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*structs.TaskGroup{
-			&structs.TaskGroup{
+			{
 				Name:  "web",
 				Count: 1,
 				RestartPolicy: &structs.RestartPolicy{
@@ -186,7 +186,7 @@ func SystemJob() *structs.Job {
 				},
 				EphemeralDisk: structs.DefaultEphemeralDisk(),
 				Tasks: []*structs.Task{
-					&structs.Task{
+					{
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
@@ -197,7 +197,7 @@ func SystemJob() *structs.Job {
 							CPU:      500,
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
-								&structs.NetworkResource{
+								{
 									MBits:        50,
 									DynamicPorts: []structs.Port{{Label: "http"}},
 								},
@@ -269,7 +269,7 @@ func Alloc() *structs.Allocation {
 			MemoryMB: 256,
 			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
 					ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
@@ -279,11 +279,11 @@ func Alloc() *structs.Allocation {
 			},
 		},
 		TaskResources: map[string]*structs.Resources{
-			"web": &structs.Resources{
+			"web": {
 				CPU:      500,
 				MemoryMB: 256,
 				Networks: []*structs.NetworkResource{
-					&structs.NetworkResource{
+					{
 						Device:        "eth0",
 						IP:            "192.168.0.100",
 						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
@@ -323,7 +323,7 @@ func Deployment() *structs.Deployment {
 		JobModifyIndex: 20,
 		JobCreateIndex: 18,
 		TaskGroups: map[string]*structs.DeploymentState{
-			"web": &structs.DeploymentState{
+			"web": {
 				DesiredTotal: 10,
 			},
 		},

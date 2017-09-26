@@ -47,7 +47,7 @@ type Meta struct {
 	// namespace to send API requests
 	namespace string
 
-	// token is used for ACLs to access privilaged information
+	// token is used for ACLs to access privileged information
 	token string
 
 	caCert     string

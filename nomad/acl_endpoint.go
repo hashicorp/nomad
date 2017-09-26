@@ -283,7 +283,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "bootstrap"}, time.Now())
 
-	// Always ignore the reset index from the arguements
+	// Always ignore the reset index from the arguments
 	args.ResetIndex = 0
 
 	// Snapshot the state

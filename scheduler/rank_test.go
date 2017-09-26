@@ -26,7 +26,7 @@ func TestFeasibleRankIterator(t *testing.T) {
 func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				Resources: &structs.Resources{
@@ -39,7 +39,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Overloaded
 				Resources: &structs.Resources{
@@ -52,7 +52,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// 50% fit
 				Resources: &structs.Resources{
@@ -102,7 +102,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -112,7 +112,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -128,7 +128,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	// Add a planned alloc to node1 that fills it
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
+		{
 			Resources: &structs.Resources{
 				CPU:      2048,
 				MemoryMB: 2048,
@@ -138,7 +138,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 
 	// Add a planned alloc to node2 that half fills it
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
+		{
 			Resources: &structs.Resources{
 				CPU:      1024,
 				MemoryMB: 1024,
@@ -178,7 +178,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -188,7 +188,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -267,7 +267,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -277,7 +277,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -364,12 +364,12 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				ID: structs.GenerateUUID(),
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				ID: structs.GenerateUUID(),
 			},
@@ -380,11 +380,11 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	// Add a planned alloc to node1 that fills it
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
+		{
 			ID:    structs.GenerateUUID(),
 			JobID: "foo",
 		},
-		&structs.Allocation{
+		{
 			ID:    structs.GenerateUUID(),
 			JobID: "foo",
 		},
@@ -392,7 +392,7 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 
 	// Add a planned alloc to node2 that half fills it
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
+		{
 			JobID: "bar",
 		},
 	}

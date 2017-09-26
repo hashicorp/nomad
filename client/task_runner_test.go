@@ -39,6 +39,12 @@ func prefixedTestLogger(prefix string) *log.Logger {
 	return log.New(ioutil.Discard, "", 0)
 }
 
+// Returns a tracker that never restarts.
+func noRestartsTracker() *RestartTracker {
+	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
+	return newRestartTracker(policy, structs.JobTypeBatch)
+}
+
 type MockTaskStateUpdater struct {
 	state  string
 	failed bool
@@ -1073,10 +1079,6 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 
 func TestTaskRunner_Template_Block(t *testing.T) {
 	t.Parallel()
-	testRetryRate = 2 * time.Second
-	defer func() {
-		testRetryRate = 0
-	}()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"

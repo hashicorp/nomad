@@ -14,22 +14,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/go-ps"
-)
-
-var (
-	constraint = &structs.Resources{
-		CPU:      250,
-		MemoryMB: 256,
-		Networks: []*structs.NetworkResource{
-			&structs.NetworkResource{
-				MBits:        50,
-				DynamicPorts: []structs.Port{{Label: "http"}},
-			},
-		},
-	}
 )
 
 func testLogger() *log.Logger {

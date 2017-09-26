@@ -11,7 +11,6 @@ import (
 type CpuStats struct {
 	prevCpuTime float64
 	prevTime    time.Time
-	clkSpeed    float64
 
 	totalCpus int
 }

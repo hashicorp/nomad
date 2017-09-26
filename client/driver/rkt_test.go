@@ -451,7 +451,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 			"image": "docker://redis:latest",
 			"args":  []string{"--version"},
 			"port_map": []map[string]string{
-				map[string]string{
+				{
 					"main": "6379-tcp",
 				},
 			},
@@ -465,7 +465,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 			MemoryMB: 256,
 			CPU:      512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					IP:            "127.0.0.1",
 					ReservedPorts: []structs.Port{{Label: "main", Value: 8080}},
 				},

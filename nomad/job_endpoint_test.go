@@ -160,7 +160,7 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	// Try without a token, expect failure
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "non-existant namespace") {
+	if err == nil || !strings.Contains(err.Error(), "non-existent namespace") {
 		t.Fatalf("expected namespace error: %v", err)
 	}
 
@@ -2096,7 +2096,7 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
+			"web": {},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
@@ -2158,7 +2158,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
+			"web": {},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
@@ -2248,7 +2248,6 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	}
 	start = time.Now()
 	var resp1 structs.JobSummaryResponse
-	start = time.Now()
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3063,7 +3062,7 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	job := mock.Job()
 	signal := "SIGUSR1"
 	job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
-		&structs.Template{
+		{
 			SourcePath:   "foo",
 			DestPath:     "bar",
 			ChangeMode:   structs.TemplateChangeModeSignal,

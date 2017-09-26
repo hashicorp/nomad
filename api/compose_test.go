@@ -20,7 +20,7 @@ func TestCompose(t *testing.T) {
 			DiskMB:   helper.IntToPtr(2048),
 			IOPS:     helper.IntToPtr(500),
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					CIDR:          "0.0.0.0/0",
 					MBits:         helper.IntToPtr(100),
 					ReservedPorts: []Port{{"", 80}, {"", 443}},
@@ -55,25 +55,25 @@ func TestCompose(t *testing.T) {
 			"foo": "bar",
 		},
 		Constraints: []*Constraint{
-			&Constraint{
+			{
 				LTarget: "kernel.name",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name:  helper.StringToPtr("grp1"),
 				Count: helper.IntToPtr(2),
 				Constraints: []*Constraint{
-					&Constraint{
+					{
 						LTarget: "kernel.name",
 						RTarget: "linux",
 						Operand: "=",
 					},
 				},
 				Tasks: []*Task{
-					&Task{
+					{
 						Name:   "task1",
 						Driver: "exec",
 						Resources: &Resources{
@@ -82,7 +82,7 @@ func TestCompose(t *testing.T) {
 							DiskMB:   helper.IntToPtr(2048),
 							IOPS:     helper.IntToPtr(500),
 							Networks: []*NetworkResource{
-								&NetworkResource{
+								{
 									CIDR:  "0.0.0.0/0",
 									MBits: helper.IntToPtr(100),
 									ReservedPorts: []Port{
@@ -93,7 +93,7 @@ func TestCompose(t *testing.T) {
 							},
 						},
 						Constraints: []*Constraint{
-							&Constraint{
+							{
 								LTarget: "kernel.name",
 								RTarget: "linux",
 								Operand: "=",

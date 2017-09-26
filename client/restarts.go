@@ -201,9 +201,3 @@ func (r *RestartTracker) jitter() time.Duration {
 	j := float64(r.rand.Int63n(d)) * jitter
 	return time.Duration(d + int64(j))
 }
-
-// Returns a tracker that never restarts.
-func noRestartsTracker() *RestartTracker {
-	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
-	return newRestartTracker(policy, structs.JobTypeBatch)
-}

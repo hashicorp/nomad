@@ -25,10 +25,8 @@ import (
 )
 
 const (
-	clientHttpCheckInterval = 10 * time.Second
-	clientHttpCheckTimeout  = 3 * time.Second
-	serverHttpCheckInterval = 10 * time.Second
-	serverHttpCheckTimeout  = 6 * time.Second
+	agentHttpCheckInterval  = 10 * time.Second
+	agentHttpCheckTimeout   = 5 * time.Second
 	serverRpcCheckInterval  = 10 * time.Second
 	serverRpcCheckTimeout   = 3 * time.Second
 	serverSerfCheckInterval = 10 * time.Second
@@ -419,7 +417,7 @@ func (a *Agent) setupServer() error {
 			PortLabel: a.config.AdvertiseAddrs.RPC,
 			Tags:      []string{consul.ServiceTagRPC},
 			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
+				{
 					Name:      "Nomad Server RPC Check",
 					Type:      "tcp",
 					Interval:  serverRpcCheckInterval,
@@ -433,7 +431,7 @@ func (a *Agent) setupServer() error {
 			PortLabel: a.config.AdvertiseAddrs.Serf,
 			Tags:      []string{consul.ServiceTagSerf},
 			Checks: []*structs.ServiceCheck{
-				&structs.ServiceCheck{
+				{
 					Name:      "Nomad Server Serf Check",
 					Type:      "tcp",
 					Interval:  serverSerfCheckInterval,
@@ -538,8 +536,8 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		Type:      "http",
 		Path:      "/v1/agent/servers",
 		Protocol:  "http",
-		Interval:  clientHttpCheckInterval,
-		Timeout:   clientHttpCheckTimeout,
+		Interval:  agentHttpCheckInterval,
+		Timeout:   agentHttpCheckTimeout,
 		PortLabel: httpCheckAddr,
 	}
 	// Switch to endpoint that doesn't require a leader for servers

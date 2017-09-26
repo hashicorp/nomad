@@ -673,7 +673,7 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("job %q is in non-existant namespace %q", job.ID, job.Namespace)
+		return fmt.Errorf("job %q is in non-existent namespace %q", job.ID, job.Namespace)
 	}
 
 	// Check if the job already exists
