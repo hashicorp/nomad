@@ -2613,6 +2613,67 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+	err := state.UpsertEvals(1000,
+		[]*structs.Evaluation{eval1, eval2})
+	assert.Nil(err)
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: eval1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
+	}
+
+	// Attempt to fetch without providing a token
+	var resp structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch with valid management token should succeed
+	get.SecretID = root.SecretID
+	var validResp structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &validResp)
+	assert.Nil(err)
+	assert.Equal(2, len(validResp.Evaluations))
+
+	// Attempt to fetch with valid token should succeed
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.SecretID = validToken.SecretID
+	var validResp2 structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &validResp2)
+	assert.Nil(err)
+	assert.Equal(2, len(validResp2.Evaluations))
+}
+
 func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
