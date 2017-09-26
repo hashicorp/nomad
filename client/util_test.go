@@ -29,7 +29,7 @@ func TestDiffAllocs(t *testing.T) {
 			alloc4.ID:  alloc4,
 		},
 		filtered: map[string]struct{}{
-			alloc1.ID: struct{}{},
+			alloc1.ID: {},
 		},
 	}
 

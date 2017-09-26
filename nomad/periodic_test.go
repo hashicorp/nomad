@@ -188,7 +188,7 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	// Update the job and add it again.
 	job.Periodic.Spec = "foo"
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed: %v %v", added, err)
 	}
 
 	tracked = p.Tracked()
@@ -228,7 +228,7 @@ func TestPeriodicDispatch_Add_RemoveJob(t *testing.T) {
 	p, _ := testPeriodicDispatcher()
 	job := mock.PeriodicJob()
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -239,7 +239,7 @@ func TestPeriodicDispatch_Add_RemoveJob(t *testing.T) {
 	// Update the job to be non-periodic and add it again.
 	job.Periodic = nil
 	if added, err := p.Add(job); err != nil || added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	tracked = p.Tracked()
@@ -257,14 +257,14 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 
 	// Add it.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	// Update it to be sooner and re-add.
 	expected := time.Now().Round(1 * time.Second).Add(1 * time.Second)
 	job.Periodic.Spec = fmt.Sprintf("%d", expected.Unix())
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	// Check that nothing is created.
@@ -305,7 +305,7 @@ func TestPeriodicDispatch_Remove_Tracked(t *testing.T) {
 
 	job := mock.PeriodicJob()
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	tracked := p.Tracked()
@@ -332,12 +332,12 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 
 	// Add it.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	// Remove the job.
 	if err := p.Remove(job.Namespace, job.ID); err != nil {
-		t.Fatalf("Add failed %v", err)
+		t.Fatalf("Remove failed %v", err)
 	}
 
 	time.Sleep(2 * time.Second)
@@ -371,7 +371,7 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 
 	// Add it.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	// ForceRun the job
@@ -403,7 +403,7 @@ func TestPeriodicDispatch_Run_DisallowOverlaps(t *testing.T) {
 
 	// Add it.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	time.Sleep(3 * time.Second)
@@ -432,7 +432,7 @@ func TestPeriodicDispatch_Run_Multiple(t *testing.T) {
 
 	// Add it.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	time.Sleep(3 * time.Second)
@@ -464,10 +464,10 @@ func TestPeriodicDispatch_Run_SameTime(t *testing.T) {
 
 	// Add them.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 	if added, err := p.Add(job2); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	if l := len(p.Tracked()); l != 2 {
@@ -504,10 +504,10 @@ func TestPeriodicDispatch_Run_SameID_Different_Namespace(t *testing.T) {
 
 	// Add them.
 	if added, err := p.Add(job); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 	if added, err := p.Add(job2); err != nil || !added {
-		t.Fatalf("Add failed %v", added, err)
+		t.Fatalf("Add failed %v %v", added, err)
 	}
 
 	if l := len(p.Tracked()); l != 2 {
@@ -570,11 +570,11 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 
 	// Create a map of expected eval job ids.
 	expected := map[string][]time.Time{
-		job1.ID: []time.Time{same},
-		job2.ID: []time.Time{same},
+		job1.ID: {same},
+		job2.ID: {same},
 		job3.ID: nil,
-		job4.ID: []time.Time{launch1, launch3},
-		job5.ID: []time.Time{launch2},
+		job4.ID: {launch1, launch3},
+		job5.ID: {launch2},
 		job6.ID: nil,
 		job7.ID: nil,
 		job8.ID: nil,
@@ -588,7 +588,7 @@ func TestPeriodicDispatch_Complex(t *testing.T) {
 
 	for _, job := range jobs {
 		if added, err := p.Add(job); err != nil || !added {
-			t.Fatalf("Add failed %v", added, err)
+			t.Fatalf("Add failed %v %v", added, err)
 		}
 	}
 

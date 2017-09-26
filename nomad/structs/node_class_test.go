@@ -22,7 +22,7 @@ func testNode() *Node {
 			DiskMB:   100 * 1024,
 			IOPS:     150,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,

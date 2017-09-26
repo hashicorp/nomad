@@ -23,7 +23,7 @@ var basicResources = &structs.Resources{
 	MemoryMB: 256,
 	DiskMB:   20,
 	Networks: []*structs.NetworkResource{
-		&structs.NetworkResource{
+		{
 			IP:            "0.0.0.0",
 			ReservedPorts: []structs.Port{{Label: "main", Value: 12345}},
 			DynamicPorts:  []structs.Port{{Label: "HTTP", Value: 43330}},
@@ -140,7 +140,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 			CPU:      1000,
 			MemoryMB: 500,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					IP:            "1.2.3.4",
 					ReservedPorts: []structs.Port{{Label: "one", Value: 80}, {Label: "two", Value: 443}},
 					DynamicPorts:  []structs.Port{{Label: "admin", Value: 8081}, {Label: "web", Value: 8086}},
@@ -301,31 +301,6 @@ func TestDriver_TaskEnv_Image(t *testing.T) {
 	// Any remaining env vars are unexpected
 	for actk, actv := range act {
 		t.Errorf("Env var %s=%q is unexpected", actk, actv)
-	}
-}
-
-func TestMapMergeStrInt(t *testing.T) {
-	t.Parallel()
-	a := map[string]int{
-		"cakes":   5,
-		"cookies": 3,
-	}
-
-	b := map[string]int{
-		"cakes": 3,
-		"pies":  2,
-	}
-
-	c := mapMergeStrInt(a, b)
-
-	d := map[string]int{
-		"cakes":   3,
-		"cookies": 3,
-		"pies":    2,
-	}
-
-	if !reflect.DeepEqual(c, d) {
-		t.Errorf("\nExpected\n%+v\nGot\n%+v\n", d, c)
 	}
 }
 

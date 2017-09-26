@@ -105,7 +105,7 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 	// If the global writes are bigger than the minSize and we're about to write
 	// a response containing a content type we want to handle, enable
 	// compression.
-	if len(w.buf) >= w.minSize && handleContentType(w.contentTypes, w) {
+	if len(w.buf) >= w.minSize && handleContentType(w.contentTypes, w) && w.Header().Get(contentEncoding) == "" {
 		err := w.startGzip()
 		if err != nil {
 			return 0, err

@@ -1,14 +1,14 @@
 ---
 layout: "docs"
-page_title: "Nomad Enterprise Namespace Quotas"
+page_title: "Nomad Enterprise Resource Quotas"
 sidebar_current: "docs-enterprise-quotas"
 description: |-
-  Nomad Enterprise provides support for applying quotas to namespaces which
-  restricts the overall resources that jobs within the namespace are allowed to
-  consume.
+  Nomad Enterprise provides support for applying resource quotas to namespaces
+  which restricts the overall resources that jobs within the namespace are
+  allowed to consume.
 ---
 
-# Nomad Enterprise Namespace Quotas
+# Nomad Enterprise Resource Quotas
 
 In [Nomad Enterprise](https://www.hashicorp.com/products/nomad/), operators can
 define quota specifications and apply them to namespaces. When a quota is

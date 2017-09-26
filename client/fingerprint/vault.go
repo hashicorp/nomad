@@ -63,7 +63,7 @@ func (f *VaultFingerprint) Fingerprint(config *client.Config, node *structs.Node
 	}
 
 	node.Attributes["vault.accessible"] = strconv.FormatBool(true)
-	// We strip the Vault prefix becasue < 0.6.2 the version looks like:
+	// We strip the Vault prefix because < 0.6.2 the version looks like:
 	// status.Version = "Vault v0.6.1"
 	node.Attributes["vault.version"] = strings.TrimPrefix(status.Version, "Vault ")
 	node.Attributes["vault.cluster_id"] = status.ClusterID

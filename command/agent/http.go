@@ -95,7 +95,12 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	srv.registerHandlers(config.EnableDebug)
 
 	// Handle requests with gzip compression
-	go http.Serve(ln, gziphandler.GzipHandler(mux))
+	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
+	if err != nil {
+		return nil, err
+	}
+
+	go http.Serve(ln, gzip(mux))
 
 	return srv, nil
 }

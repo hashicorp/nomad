@@ -49,11 +49,6 @@ type allocState struct {
 	client      string
 	clientDesc  string
 	index       uint64
-
-	// full is the allocation struct with full details. This
-	// must be queried for explicitly so it is only included
-	// if there is important error information inside.
-	full *api.Allocation
 }
 
 // monitor wraps an evaluation monitor and holds metadata and
@@ -326,17 +321,6 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 	}
 
 	return 0
-}
-
-// dumpAllocStatus is a helper to generate a more user-friendly error message
-// for scheduling failures, displaying a high level status of why the job
-// could not be scheduled out.
-func dumpAllocStatus(ui cli.Ui, alloc *api.Allocation, length int) {
-	// Print filter stats
-	ui.Output(fmt.Sprintf("Allocation %q status %q (%d/%d nodes filtered)",
-		limit(alloc.ID, length), alloc.ClientStatus,
-		alloc.Metrics.NodesFiltered, alloc.Metrics.NodesEvaluated))
-	ui.Output(formatAllocMetrics(alloc.Metrics, true, "  "))
 }
 
 func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix string) string {

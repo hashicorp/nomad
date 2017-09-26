@@ -1,8 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -11,9 +13,10 @@ func TestFS_FrameReader(t *testing.T) {
 	t.Parallel()
 	// Create a channel of the frames and a cancel channel
 	framesCh := make(chan *StreamFrame, 3)
+	errCh := make(chan error)
 	cancelCh := make(chan struct{})
 
-	r := NewFrameReader(framesCh, cancelCh)
+	r := NewFrameReader(framesCh, errCh, cancelCh)
 
 	// Create some frames and send them
 	f1 := &StreamFrame{
@@ -80,9 +83,10 @@ func TestFS_FrameReader_Unblock(t *testing.T) {
 	t.Parallel()
 	// Create a channel of the frames and a cancel channel
 	framesCh := make(chan *StreamFrame, 3)
+	errCh := make(chan error)
 	cancelCh := make(chan struct{})
 
-	r := NewFrameReader(framesCh, cancelCh)
+	r := NewFrameReader(framesCh, errCh, cancelCh)
 	r.SetUnblockTime(10 * time.Millisecond)
 
 	// Read a little
@@ -110,5 +114,28 @@ func TestFS_FrameReader_Unblock(t *testing.T) {
 	case <-resultCh:
 		t.Fatalf("shouldn't have unblocked")
 	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+func TestFS_FrameReader_Error(t *testing.T) {
+	t.Parallel()
+	// Create a channel of the frames and a cancel channel
+	framesCh := make(chan *StreamFrame, 3)
+	errCh := make(chan error, 1)
+	cancelCh := make(chan struct{})
+
+	r := NewFrameReader(framesCh, errCh, cancelCh)
+	r.SetUnblockTime(10 * time.Millisecond)
+
+	// Send an error
+	expected := fmt.Errorf("test error")
+	errCh <- expected
+
+	// Read a little
+	p := make([]byte, 12)
+
+	_, err := r.Read(p)
+	if err == nil || !strings.Contains(err.Error(), expected.Error()) {
+		t.Fatalf("bad error: %v", err)
 	}
 }

@@ -39,7 +39,7 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 	me := future.Configuration().Servers[0]
 	expected := structs.RaftConfigurationResponse{
 		Servers: []*structs.RaftServer{
-			&structs.RaftServer{
+			{
 				ID:      me.ID,
 				Node:    fmt.Sprintf("%v.%v", s1.config.NodeName, s1.config.Region),
 				Address: me.Address,

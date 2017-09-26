@@ -71,10 +71,6 @@ type AgentAPI interface {
 	UpdateTTL(id, output, status string) error
 }
 
-// addrParser is usually the Task.FindHostAndPortFor method for turning a
-// portLabel into an address and port.
-type addrParser func(portLabel string) (string, int)
-
 // operations are submitted to the main loop via commit() for synchronizing
 // with Consul.
 type operations struct {

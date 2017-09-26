@@ -9,7 +9,6 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/mitchellh/colorstring"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
@@ -19,7 +18,6 @@ import (
 
 type AllocStatusCommand struct {
 	Meta
-	color *colorstring.Colorize
 }
 
 func (c *AllocStatusCommand) Help() string {

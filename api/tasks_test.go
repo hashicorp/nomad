@@ -38,12 +38,12 @@ func TestTaskGroup_Constrain(t *testing.T) {
 	// Add a second constraint
 	grp.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
-		&Constraint{
+		{
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
 		},
-		&Constraint{
+		{
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
@@ -95,11 +95,11 @@ func TestTaskGroup_AddTask(t *testing.T) {
 	// Add a second task
 	grp.AddTask(NewTask("task2", "exec"))
 	expect := []*Task{
-		&Task{
+		{
 			Name:   "task1",
 			Driver: "java",
 		},
-		&Task{
+		{
 			Name:   "task2",
 			Driver: "exec",
 		},
@@ -178,7 +178,7 @@ func TestTask_Require(t *testing.T) {
 		DiskMB:   helper.IntToPtr(2048),
 		IOPS:     helper.IntToPtr(500),
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				CIDR:          "0.0.0.0/0",
 				MBits:         helper.IntToPtr(100),
 				ReservedPorts: []Port{{"", 80}, {"", 443}},
@@ -214,12 +214,12 @@ func TestTask_Constrain(t *testing.T) {
 	// Add a second constraint
 	task.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
-		&Constraint{
+		{
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
 		},
-		&Constraint{
+		{
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",

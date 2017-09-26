@@ -190,7 +190,7 @@ func (f *FileRotator) createFile() error {
 // flushPeriodically flushes the buffered writer every 100ms to the underlying
 // file
 func (f *FileRotator) flushPeriodically() {
-	for _ = range f.flushTicker.C {
+	for range f.flushTicker.C {
 		f.flushBuffer()
 	}
 }

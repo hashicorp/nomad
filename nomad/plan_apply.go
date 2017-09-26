@@ -405,7 +405,6 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
-	proposed := existingAlloc
 	var remove []*structs.Allocation
 	if update := plan.NodeUpdate[nodeID]; len(update) > 0 {
 		remove = append(remove, update...)
@@ -415,7 +414,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 			remove = append(remove, alloc)
 		}
 	}
-	proposed = structs.RemoveAllocs(existingAlloc, remove)
+	proposed := structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
 	// Check if these allocations fit

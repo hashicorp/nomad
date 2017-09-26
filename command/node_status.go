@@ -8,7 +8,6 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
@@ -26,7 +25,6 @@ const (
 
 type NodeStatusCommand struct {
 	Meta
-	color       *colorstring.Colorize
 	length      int
 	short       bool
 	verbose     bool
@@ -221,7 +219,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Query the specific node
-	nodeID := ""
+	var nodeID string
 	if !c.self {
 		nodeID = args[0]
 	} else {

@@ -179,12 +179,12 @@ func TestConfig_Parse(t *testing.T) {
 				},
 				Sentinel: &config.SentinelConfig{
 					Imports: []*config.SentinelImport{
-						&config.SentinelImport{
+						{
 							Name: "foo",
 							Path: "foo",
 							Args: []string{"a", "b", "c"},
 						},
-						&config.SentinelImport{
+						{
 							Name: "bar",
 							Path: "bar",
 							Args: []string{"x", "y", "z"},

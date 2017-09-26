@@ -30,7 +30,7 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 func TestEvalContext_ProposedAlloc(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -40,7 +40,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
 				ID: structs.GenerateUUID(),
@@ -94,7 +94,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 
 	// Add a planned placement to node1
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
+		{
 			Resources: &structs.Resources{
 				CPU:      1024,
 				MemoryMB: 1024,

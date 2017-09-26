@@ -157,11 +157,13 @@ func (a *AllocFS) Cat(alloc *Allocation, path string, q *QueryOptions) (io.ReadC
 //
 // The return value is a channel that will emit StreamFrames as they are read.
 func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
-	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, error) {
+	cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
 
+	errCh := make(chan error, 1)
 	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return nil, errCh
 	}
 
 	if q == nil {
@@ -177,7 +179,8 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 
 	r, err := nodeClient.rawQuery(fmt.Sprintf("/v1/client/fs/stream/%s", alloc.ID), q)
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return nil, errCh
 	}
 
 	// Create the output channel
@@ -201,6 +204,7 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 			// Decode the next frame
 			var frame StreamFrame
 			if err := dec.Decode(&frame); err != nil {
+				errCh <- err
 				close(frames)
 				return
 			}
@@ -214,7 +218,7 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 		}
 	}()
 
-	return frames, nil
+	return frames, errCh
 }
 
 // Logs streams the content of a tasks logs blocking on EOF.
@@ -229,11 +233,13 @@ func (a *AllocFS) Stream(alloc *Allocation, path, origin string, offset int64,
 //
 // The return value is a channel that will emit StreamFrames as they are read.
 func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin string,
-	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, error) {
+	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
 
+	errCh := make(chan error, 1)
 	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return nil, errCh
 	}
 
 	if q == nil {
@@ -251,7 +257,8 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 
 	r, err := nodeClient.rawQuery(fmt.Sprintf("/v1/client/fs/logs/%s", alloc.ID), q)
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return nil, errCh
 	}
 
 	// Create the output channel
@@ -275,6 +282,7 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 			// Decode the next frame
 			var frame StreamFrame
 			if err := dec.Decode(&frame); err != nil {
+				errCh <- err
 				close(frames)
 				return
 			}
@@ -288,12 +296,13 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 		}
 	}()
 
-	return frames, nil
+	return frames, errCh
 }
 
 // FrameReader is used to convert a stream of frames into a read closer.
 type FrameReader struct {
 	frames   <-chan *StreamFrame
+	errCh    <-chan error
 	cancelCh chan struct{}
 
 	closedLock sync.Mutex
@@ -309,9 +318,10 @@ type FrameReader struct {
 
 // NewFrameReader takes a channel of frames and returns a FrameReader which
 // implements io.ReadCloser
-func NewFrameReader(frames <-chan *StreamFrame, cancelCh chan struct{}) *FrameReader {
+func NewFrameReader(frames <-chan *StreamFrame, errCh <-chan error, cancelCh chan struct{}) *FrameReader {
 	return &FrameReader{
 		frames:   frames,
+		errCh:    errCh,
 		cancelCh: cancelCh,
 	}
 }
@@ -354,6 +364,8 @@ func (f *FrameReader) Read(p []byte) (n int, err error) {
 			f.byteOffset = int(f.frame.Offset)
 		case <-unblock:
 			return 0, nil
+		case err := <-f.errCh:
+			return 0, err
 		case <-f.cancelCh:
 			return 0, io.EOF
 		}

@@ -1004,7 +1004,7 @@ func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx, desiredOffset in
 	}
 
 	// Binary search the indexes to get the desiredIdx
-	sort.Sort(indexTupleArray(indexes))
+	sort.Sort(indexes)
 	i := sort.Search(len(indexes), func(i int) bool { return indexes[i].idx >= desiredIdx })
 	l := len(indexes)
 	if i == l {

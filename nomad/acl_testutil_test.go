@@ -11,7 +11,7 @@ import (
 )
 
 // NamespacePolicy is a helper for generating the policy hcl for a given
-// namepsace. Either policy or capabilites may be nil but not both.
+// namepsace. Either policy or capabilities may be nil but not both.
 func NamespacePolicy(namespace string, policy string, capabilities []string) string {
 	policyHCL := fmt.Sprintf("namespace %q {", namespace)
 	if policy != "" {

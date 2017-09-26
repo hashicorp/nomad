@@ -60,7 +60,7 @@ func TestDiffAllocs(t *testing.T) {
 
 	allocs := []*structs.Allocation{
 		// Update the 1st
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[0]",
@@ -68,7 +68,7 @@ func TestDiffAllocs(t *testing.T) {
 		},
 
 		// Ignore the 2rd
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[1]",
@@ -76,7 +76,7 @@ func TestDiffAllocs(t *testing.T) {
 		},
 
 		// Evict 11th
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[10]",
@@ -84,14 +84,14 @@ func TestDiffAllocs(t *testing.T) {
 		},
 
 		// Migrate the 3rd
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
 		},
 		// Mark the 4th lost
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "dead",
 			Name:   "my-job.web[3]",
@@ -101,19 +101,19 @@ func TestDiffAllocs(t *testing.T) {
 
 	// Have three terminal allocs
 	terminalAllocs := map[string]*structs.Allocation{
-		"my-job.web[4]": &structs.Allocation{
+		"my-job.web[4]": {
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[4]",
 			Job:    job,
 		},
-		"my-job.web[5]": &structs.Allocation{
+		"my-job.web[5]": {
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[5]",
 			Job:    job,
 		},
-		"my-job.web[6]": &structs.Allocation{
+		"my-job.web[6]": {
 			ID:     structs.GenerateUUID(),
 			NodeID: "zip",
 			Name:   "my-job.web[6]",
@@ -197,7 +197,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 	allocs := []*structs.Allocation{
 		// Update allocation on baz
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "baz",
 			Name:   "my-job.web[0]",
@@ -205,7 +205,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 
 		// Ignore allocation on bar
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: "bar",
 			Name:   "my-job.web[0]",
@@ -213,14 +213,14 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 
 		// Stop allocation on draining node.
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 		// Mark as lost on a dead node
-		&structs.Allocation{
+		{
 			ID:     structs.GenerateUUID(),
 			NodeID: deadNode.ID,
 			Name:   "my-job.web[0]",
@@ -230,7 +230,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 	// Have three terminal allocs
 	terminalAllocs := map[string]*structs.Allocation{
-		"my-job.web[0]": &structs.Allocation{
+		"my-job.web[0]": {
 			ID:     structs.GenerateUUID(),
 			NodeID: "pipe",
 			Name:   "my-job.web[0]",
@@ -393,11 +393,11 @@ func TestTaintedNodes(t *testing.T) {
 	noErr(t, state.UpsertNode(1003, node4))
 
 	allocs := []*structs.Allocation{
-		&structs.Allocation{NodeID: node1.ID},
-		&structs.Allocation{NodeID: node2.ID},
-		&structs.Allocation{NodeID: node3.ID},
-		&structs.Allocation{NodeID: node4.ID},
-		&structs.Allocation{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
+		{NodeID: node1.ID},
+		{NodeID: node2.ID},
+		{NodeID: node3.ID},
+		{NodeID: node4.ID},
+		{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
 	tainted, err := taintedNodes(state, allocs)
 	if err != nil {
@@ -576,10 +576,10 @@ func TestTasksUpdated(t *testing.T) {
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
 	}
 	diff := &diffResult{}
 
@@ -600,10 +600,10 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
 	}
 	diff := &diffResult{}
 
@@ -922,10 +922,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
 	}
 	diff := &diffResult{}
 
@@ -954,7 +954,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 		Constraints:   []*structs.Constraint{constr},
 		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
-			&structs.Task{
+			{
 				Driver: "exec",
 				Resources: &structs.Resources{
 					CPU:      500,
@@ -962,7 +962,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 				},
 				Constraints: []*structs.Constraint{constr2},
 			},
-			&structs.Task{
+			{
 				Driver: "docker",
 				Resources: &structs.Resources{
 					CPU:      500,
@@ -975,7 +975,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 
 	// Build the expected values.
 	expConstr := []*structs.Constraint{constr, constr2, constr3}
-	expDrivers := map[string]struct{}{"exec": struct{}{}, "docker": struct{}{}}
+	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
 	expSize := &structs.Resources{
 		CPU:      1000,
 		MemoryMB: 512,
@@ -1001,7 +1001,7 @@ func TestProgressMade(t *testing.T) {
 	}
 
 	m := map[string][]*structs.Allocation{
-		"foo": []*structs.Allocation{mock.Alloc()},
+		"foo": {mock.Alloc()},
 	}
 	both := &structs.PlanResult{
 		NodeAllocation: m,
@@ -1027,29 +1027,29 @@ func TestDesiredUpdates(t *testing.T) {
 	a2 := &structs.Allocation{TaskGroup: "bar"}
 
 	place := []allocTuple{
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg2},
+		{TaskGroup: tg1},
+		{TaskGroup: tg1},
+		{TaskGroup: tg1},
+		{TaskGroup: tg2},
 	}
 	stop := []allocTuple{
-		allocTuple{TaskGroup: tg2, Alloc: a2},
-		allocTuple{TaskGroup: tg2, Alloc: a2},
+		{TaskGroup: tg2, Alloc: a2},
+		{TaskGroup: tg2, Alloc: a2},
 	}
 	ignore := []allocTuple{
-		allocTuple{TaskGroup: tg1},
+		{TaskGroup: tg1},
 	}
 	migrate := []allocTuple{
-		allocTuple{TaskGroup: tg2},
+		{TaskGroup: tg2},
 	}
 	inplace := []allocTuple{
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg1},
+		{TaskGroup: tg1},
+		{TaskGroup: tg1},
 	}
 	destructive := []allocTuple{
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg2},
-		allocTuple{TaskGroup: tg2},
+		{TaskGroup: tg1},
+		{TaskGroup: tg2},
+		{TaskGroup: tg2},
 	}
 	diff := &diffResult{
 		place:   place,
@@ -1094,13 +1094,13 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 
 	planResult := structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
-			"node-1": []*structs.Allocation{alloc1},
+			"node-1": {alloc1},
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
-			"node-1": []*structs.Allocation{
+			"node-1": {
 				alloc2,
 			},
-			"node-2": []*structs.Allocation{
+			"node-2": {
 				alloc3, alloc4,
 			},
 		},

@@ -93,7 +93,7 @@ func (d *DockerLogParser) logContentIndex(line []byte) int {
 			}
 		}
 	}
-	// then the colon is what seperates it, followed by a space
+	// then the colon is what separates it, followed by a space
 	for i := cursor; i < len(line); i++ {
 		if line[i] == ':' && i+1 < len(line) && line[i+1] == ' ' {
 			cursor = i + 1

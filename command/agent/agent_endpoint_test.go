@@ -135,17 +135,12 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		// Establish a baseline number of servers
-		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
-		assert.Nil(err)
-		respW := httptest.NewRecorder()
-
 		// Create the request
-		req, err = http.NewRequest("PUT", "/v1/agent/servers", nil)
+		req, err := http.NewRequest("PUT", "/v1/agent/servers", nil)
 		assert.Nil(err)
 
 		// Send the request
-		respW = httptest.NewRecorder()
+		respW := httptest.NewRecorder()
 		_, err = s.Server.AgentServersRequest(respW, req)
 		assert.NotNil(err)
 		assert.Contains(err.Error(), "missing server address")
