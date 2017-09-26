@@ -593,13 +593,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	d.logger.Printf("[DEBUG] driver.rkt: retrieving status for pod %q (UUID %s) for task %q with", img, uuid, d.taskName)
 	deadline := time.Now().Add(rktNetworkDeadline)
 	var driverNetwork *cstructs.DriverNetwork
-	var notFirst bool
+networkLoop:
 	for driverNetwork == nil && time.Now().Before(deadline) {
-		if notFirst {
-			time.Sleep(400 * time.Millisecond)
-		}
-		notFirst = true
-
 		status, err := rktGetStatus(uuid)
 		if err != nil {
 			continue
@@ -616,20 +611,29 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 			if err == nil {
 				portmap, err = rktManifestMakePortMap(manifest, driverConfig.PortMap)
 				if err != nil {
-					d.logger.Printf("[DEBUG] driver.rkt: could not create manifest-based portmap for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
+					d.logger.Printf("[WARN] driver.rkt: could not create manifest-based portmap for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
+					break networkLoop
 				}
 			} else {
 				d.logger.Printf("[WARN] driver.rkt: could get not pod manifest for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
+				break networkLoop
 			}
 
 			driverNetwork = &cstructs.DriverNetwork{
 				PortMap: portmap,
 				IP:      status.Networks[0].IP.String(),
 			}
-			break
+			break networkLoop
 		}
+
+		time.Sleep(400 * time.Millisecond)
 	}
 	if driverNetwork == nil {
+		// If a portmap was given, this turns into a fatal error
+		if len(driverConfig.PortMap) != 0 {
+			pluginClient.Kill()
+			return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+		}
 		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed", img, uuid, d.taskName)
 	}
 
