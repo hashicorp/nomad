@@ -2701,6 +2701,68 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 	assert.Len(resp.Deployments, 2, "deployments for job")
 }
 
+func TestJobEndpoint_Deployments_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	assert.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
+	}
+	// Lookup with no token should fail
+	var resp structs.DeploymentListResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.SecretID = invalidToken.SecretID
+	var invalidResp structs.DeploymentListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Lookup with valid management token should succeed
+	get.SecretID = root.SecretID
+	var validResp structs.DeploymentListResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &validResp), "RPC")
+	assert.EqualValues(1002, validResp.Index, "response index")
+	assert.Len(validResp.Deployments, 2, "deployments for job")
+
+	// Lookup with valid token should succeed
+	validToken := CreatePolicyAndToken(t, state, 1005, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.SecretID = validToken.SecretID
+	var validResp2 structs.DeploymentListResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &validResp2), "RPC")
+	assert.EqualValues(1002, validResp2.Index, "response index")
+	assert.Len(validResp2.Deployments, 2, "deployments for job")
+}
+
 func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
