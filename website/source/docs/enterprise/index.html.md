@@ -14,7 +14,7 @@ for microservices deployments across complex network topologies. It also
 increases both scalability and resilience. Features include:
 
 - [Namespaces](/docs/enterprise/namespaces/index.html)
-- [Namespace Quotas](/docs/enterprise/quotas/index.html)
+- [Resource Quotas](/docs/enterprise/quotas/index.html)
 - [Sentinel Policy Enforcement](/docs/enterprise/sentinel/index.html)
 
 These features are part of [Nomad Enterprise](https://www.hashicorp.com/products/nomad/).
