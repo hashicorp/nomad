@@ -484,6 +484,9 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	if resp.Network == nil {
+		t.Fatalf("Expected driver to set a DriverNetwork, but it did not!")
+	}
 
 	failCh := make(chan error, 1)
 	go func() {
