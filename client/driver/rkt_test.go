@@ -449,7 +449,6 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 		Driver: "rkt",
 		Config: map[string]interface{}{
 			"image": "docker://redis:latest",
-			"args":  []string{"--version"},
 			"port_map": []map[string]string{
 				map[string]string{
 					"main": "6379-tcp",
