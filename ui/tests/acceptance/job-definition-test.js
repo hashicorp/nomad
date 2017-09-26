@@ -1,9 +1,10 @@
+import { findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
 let job;
 
-moduleForAcceptance('Acceptance | job detail', {
+moduleForAcceptance('Acceptance | job definition', {
   beforeEach() {
     server.create('node');
     server.create('job');
@@ -17,7 +18,7 @@ test('visiting /jobs/:job_id/definition', function(assert) {
 });
 
 test('the job definition page contains a json viewer component', function(assert) {
-  assert.ok(find('.json-viewer').length, 'JSON viewer found');
+  assert.ok(findAll('.json-viewer').length, 'JSON viewer found');
 });
 
 test('the job definition page requests the job to display in an unmutated form', function(assert) {

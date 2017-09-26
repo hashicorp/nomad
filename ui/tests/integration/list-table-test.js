@@ -1,3 +1,4 @@
+import { findAll, find } from 'ember-native-dom-helpers';
 import { test, skip, moduleForComponent } from 'ember-qunit';
 import { faker } from 'ember-cli-mirage';
 import hbs from 'htmlbars-inline-precompile';
@@ -6,11 +7,13 @@ moduleForComponent('list-table', 'Integration | Component | list table', {
   integration: true,
 });
 
-const commonTable = Array(10).fill(null).map(() => ({
-  firstName: faker.name.firstName(),
-  lastName: faker.name.lastName(),
-  age: faker.random.number({ min: 18, max: 60 }),
-}));
+const commonTable = Array(10)
+  .fill(null)
+  .map(() => ({
+    firstName: faker.name.firstName(),
+    lastName: faker.name.lastName(),
+    age: faker.random.number({ min: 18, max: 60 }),
+  }));
 
 // thead
 test('component exposes a thead contextual component', function(assert) {
@@ -25,12 +28,8 @@ test('component exposes a thead contextual component', function(assert) {
     {{/list-table}}
   `);
 
-  assert.ok(this.$('.head').length, 'Table head is rendered');
-  assert.equal(
-    this.$('.head').prop('tagName').toLowerCase(),
-    'thead',
-    'Table head is a thead element'
-  );
+  assert.ok(findAll('.head').length, 'Table head is rendered');
+  assert.equal(find('.head').tagName.toLowerCase(), 'thead', 'Table head is a thead element');
 });
 
 // tbody
@@ -52,22 +51,39 @@ test('component exposes a tbody contextual component', function(assert) {
     {{/list-table}}
   `);
 
-  assert.ok(this.$('.body').length, 'Table body is rendered');
-  assert.equal(
-    this.$('.body').prop('tagName').toLowerCase(),
-    'tbody',
-    'Table body is a tbody element'
-  );
+  assert.ok(findAll('.body').length, 'Table body is rendered');
+  assert.equal(find('.body').tagName.toLowerCase(), 'tbody', 'Table body is a tbody element');
 
-  assert.equal(this.$('.item').length, this.get('source.length'), 'Each item gets its own row');
+  assert.equal(findAll('.item').length, this.get('source.length'), 'Each item gets its own row');
 
   // list-table is not responsible for sorting, only dispatching sort events. The table is still
   // rendered in index-order.
   this.get('source').forEach((item, index) => {
     const $item = this.$(`.item:eq(${index})`);
-    assert.equal($item.find('td:eq(0)').text().trim(), item.firstName, 'First name');
-    assert.equal($item.find('td:eq(1)').text().trim(), item.lastName, 'Last name');
-    assert.equal($item.find('td:eq(2)').text().trim(), item.age, 'Age');
+    assert.equal(
+      $item
+        .find('td:eq(0)')
+        .text()
+        .trim(),
+      item.firstName,
+      'First name'
+    );
+    assert.equal(
+      $item
+        .find('td:eq(1)')
+        .text()
+        .trim(),
+      item.lastName,
+      'Last name'
+    );
+    assert.equal(
+      $item
+        .find('td:eq(2)')
+        .text()
+        .trim(),
+      item.age,
+      'Age'
+    );
   });
 });
 

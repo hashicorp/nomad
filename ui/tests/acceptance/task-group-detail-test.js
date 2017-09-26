@@ -1,5 +1,9 @@
+import Ember from 'ember';
+import { click, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+
+const { $ } = Ember;
 
 let job;
 let taskGroup;
@@ -47,39 +51,43 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
   const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
   assert.equal(
-    find('.inline-definitions .pair:eq(0)').text(),
+    findAll('.inline-definitions .pair')[0].textContent,
     `# Tasks ${tasks.length}`,
     '# Tasks'
   );
   assert.equal(
-    find('.inline-definitions .pair:eq(1)').text(),
+    findAll('.inline-definitions .pair')[1].textContent,
     `Reserved CPU ${totalCPU} MHz`,
     'Aggregated CPU reservation for all tasks'
   );
   assert.equal(
-    find('.inline-definitions .pair:eq(2)').text(),
+    findAll('.inline-definitions .pair')[2].textContent,
     `Reserved Memory ${totalMemory} MiB`,
     'Aggregated Memory reservation for all tasks'
   );
   assert.equal(
-    find('.inline-definitions .pair:eq(3)').text(),
+    findAll('.inline-definitions .pair')[3].textContent,
     `Reserved Disk ${totalDisk} MiB`,
     'Aggregated Disk reservation for all tasks'
   );
 });
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
-  assert.equal(find('.breadcrumb:eq(0)').text(), 'Jobs', 'First breadcrumb says jobs');
-  assert.equal(find('.breadcrumb:eq(1)').text(), job.name, 'Second breadcrumb says the job name');
+  assert.equal(findAll('.breadcrumb')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    find('.breadcrumb:eq(2)').text(),
+    findAll('.breadcrumb')[1].textContent,
+    job.name,
+    'Second breadcrumb says the job name'
+  );
+  assert.equal(
+    findAll('.breadcrumb')[2].textContent,
     taskGroup.name,
     'Third breadcrumb says the job name'
   );
 });
 
 test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(assert) {
-  click('.breadcrumb:eq(0)');
+  click(findAll('.breadcrumb')[0]);
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
@@ -88,7 +96,7 @@ test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(asse
 test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(
   assert
 ) {
-  click('.breadcrumb:eq(1)');
+  click(findAll('.breadcrumb')[1]);
   andThen(() => {
     assert.equal(
       currentURL(),
@@ -118,7 +126,7 @@ test('/jobs/:id/:task-group should list one page of allocations for the task gro
     );
 
     assert.equal(
-      find('.allocations tbody tr').length,
+      findAll('.allocations tbody tr').length,
       pageSize,
       'All allocations for the task group'
     );
@@ -127,7 +135,7 @@ test('/jobs/:id/:task-group should list one page of allocations for the task gro
 
 test('each allocation should show basic information about the allocation', function(assert) {
   const allocation = allocations.sortBy('name')[0];
-  const allocationRow = find('.allocations tbody tr:eq(0)');
+  const allocationRow = $(findAll('.allocations tbody tr')[0]);
 
   assert.equal(
     allocationRow
@@ -162,7 +170,7 @@ test('each allocation should show basic information about the allocation', funct
     'Node ID'
   );
 
-  click(allocationRow.find('td:eq(3) a'));
+  click(allocationRow.find('td:eq(3) a').get(0));
 
   andThen(() => {
     assert.equal(currentURL(), `/nodes/${allocation.nodeId}`, 'Node links to node page');
@@ -173,7 +181,7 @@ test('each allocation should show stats about the allocation, retrieved directly
   assert
 ) {
   const allocation = allocations.sortBy('name')[0];
-  const allocationRow = find('.allocations tbody tr:eq(0)');
+  const allocationRow = $(findAll('.allocations tbody tr')[0]);
   const allocStats = server.db.clientAllocationStats.find(allocation.id);
   const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
 
