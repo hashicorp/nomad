@@ -29,7 +29,7 @@ func (c *NamespaceDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NamespaceDeleteCommand) AutocompleteArgs() complete.Predictor {
-	filter := map[string]struct{}{"default": struct{}{}}
+	filter := map[string]struct{}{"default": {}}
 	return NamespacePredictor(c.Meta.Client, filter)
 }
 

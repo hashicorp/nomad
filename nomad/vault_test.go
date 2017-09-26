@@ -1140,8 +1140,8 @@ func TestVaultClient_RevokeTokens_Root(t *testing.T) {
 
 	// Create two VaultAccessors
 	vas := []*structs.VaultAccessor{
-		&structs.VaultAccessor{Accessor: t1.Auth.Accessor},
-		&structs.VaultAccessor{Accessor: t2.Auth.Accessor},
+		{Accessor: t1.Auth.Accessor},
+		{Accessor: t2.Auth.Accessor},
 	}
 
 	// Issue a token revocation
@@ -1208,8 +1208,8 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 
 	// Create two VaultAccessors
 	vas := []*structs.VaultAccessor{
-		&structs.VaultAccessor{Accessor: t1.Auth.Accessor},
-		&structs.VaultAccessor{Accessor: t2.Auth.Accessor},
+		{Accessor: t1.Auth.Accessor},
+		{Accessor: t2.Auth.Accessor},
 	}
 
 	// Issue a token revocation

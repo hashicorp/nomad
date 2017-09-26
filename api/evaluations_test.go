@@ -145,16 +145,16 @@ func TestEvaluations_Allocations(t *testing.T) {
 func TestEvaluations_Sort(t *testing.T) {
 	t.Parallel()
 	evals := []*Evaluation{
-		&Evaluation{CreateIndex: 2},
-		&Evaluation{CreateIndex: 1},
-		&Evaluation{CreateIndex: 5},
+		{CreateIndex: 2},
+		{CreateIndex: 1},
+		{CreateIndex: 5},
 	}
 	sort.Sort(EvalIndexSort(evals))
 
 	expect := []*Evaluation{
-		&Evaluation{CreateIndex: 5},
-		&Evaluation{CreateIndex: 2},
-		&Evaluation{CreateIndex: 1},
+		{CreateIndex: 5},
+		{CreateIndex: 2},
+		{CreateIndex: 1},
 	}
 	if !reflect.DeepEqual(evals, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", evals, expect)

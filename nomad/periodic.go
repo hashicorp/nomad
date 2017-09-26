@@ -190,7 +190,7 @@ func (p *PeriodicDispatch) Tracked() []*structs.Job {
 
 // Add begins tracking of a periodic job. If it is already tracked, it acts as
 // an update to the jobs periodic spec. The method returns whether the job was
-// added and any error that may have occured.
+// added and any error that may have occurred.
 func (p *PeriodicDispatch) Add(job *structs.Job) (added bool, err error) {
 	p.l.Lock()
 	defer p.l.Unlock()

@@ -78,7 +78,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityReadLogs, NamespaceCapabilityReadFS:
 		return true
-	// Seperate the enterprise-only capabilities
+	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
 		return true
 	default:

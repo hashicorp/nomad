@@ -1394,13 +1394,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							"hello": "world",
 						},
 						Services: []*structs.Service{
-							&structs.Service{
+							{
 								Name:        "serviceA",
 								Tags:        []string{"1", "2"},
 								PortLabel:   "foo",
 								AddressMode: "auto",
 								Checks: []*structs.ServiceCheck{
-									&structs.ServiceCheck{
+									{
 										Name:          "bar",
 										Type:          "http",
 										Command:       "foo",

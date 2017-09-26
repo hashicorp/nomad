@@ -315,7 +315,7 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{
-				&config.SentinelImport{
+				{
 					Name: "foo",
 					Path: "foo",
 					Args: []string{"a", "b", "c"},

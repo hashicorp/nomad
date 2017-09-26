@@ -356,7 +356,7 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("resp not of error type: %T %v", resp, resp)
 	}
-	if !strings.Contains(err.Error(), "non-existant namespace") {
+	if !strings.Contains(err.Error(), "non-existent namespace") {
 		t.Fatalf("bad error: %v", err)
 	}
 
@@ -1362,11 +1362,11 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.TaskGroups = map[string]*structs.DeploymentState{
-		"web": &structs.DeploymentState{
+		"web": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
-		"foo": &structs.DeploymentState{
+		"foo": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
@@ -2156,7 +2156,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 		JobID:     alloc.Job.ID,
 		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Starting: 1,
 			},
 		},
@@ -2210,7 +2210,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		JobID:     job1.ID,
 		Namespace: job1.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Queued: 10,
 			},
 		},
@@ -2229,7 +2229,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 		JobID:     alloc.Job.ID,
 		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Queued:   9,
 				Starting: 1,
 			},

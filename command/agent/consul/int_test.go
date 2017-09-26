@@ -154,6 +154,10 @@ func TestConsul_Integration(t *testing.T) {
 	// Block waiting for the service to appear
 	catalog := consulClient.Catalog()
 	res, meta, err := catalog.Service("httpd2", "test", nil)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		//Expected initial request to fail, do a blocking query
 		res, meta, err = catalog.Service("httpd2", "test", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})

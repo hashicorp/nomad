@@ -163,8 +163,6 @@ type UniversalExecutor struct {
 	lro         *logging.FileRotator
 	rotatorLock sync.Mutex
 
-	shutdownCh chan struct{}
-
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
 

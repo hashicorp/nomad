@@ -80,19 +80,19 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"class": &fields.FieldSchema{
+			"class": {
 				Type: fields.TypeString,
 			},
-			"class_path": &fields.FieldSchema{
+			"class_path": {
 				Type: fields.TypeString,
 			},
-			"jar_path": &fields.FieldSchema{
+			"jar_path": {
 				Type: fields.TypeString,
 			},
-			"jvm_options": &fields.FieldSchema{
+			"jvm_options": {
 				Type: fields.TypeArray,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},

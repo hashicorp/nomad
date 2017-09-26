@@ -622,13 +622,13 @@ func TestJobs_EnforceRegister(t *testing.T) {
 
 	// Create a job and attempt to register it with an incorrect index.
 	job := testJob()
-	resp2, wm, err := jobs.EnforceRegister(job, 10, nil)
+	resp2, _, err := jobs.EnforceRegister(job, 10, nil)
 	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
 
 	// Register
-	resp2, wm, err = jobs.EnforceRegister(job, 0, nil)
+	resp2, wm, err := jobs.EnforceRegister(job, 0, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -655,7 +655,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 	curIndex := resp[0].JobModifyIndex
 
 	// Fail at incorrect index
-	resp2, wm, err = jobs.EnforceRegister(job, 123456, nil)
+	resp2, _, err = jobs.EnforceRegister(job, 123456, nil)
 	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
@@ -699,7 +699,7 @@ func TestJobs_Revert(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Fail revert at incorrect enforce
-	_, wm, err = jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(10), nil)
+	_, _, err = jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(10), nil)
 	if err == nil || !strings.Contains(err.Error(), "enforcing version") {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
@@ -1127,6 +1127,7 @@ func TestJobs_Plan(t *testing.T) {
 	if len(planResp.CreatedEvals) == 0 {
 		t.Fatalf("got no CreatedEvals: %#v", planResp)
 	}
+	assertWriteMeta(t, wm)
 
 	// Make a plan request w/o the diff
 	planResp, wm, err = jobs.Plan(job, false, nil)
@@ -1263,12 +1264,12 @@ func TestJobs_Constrain(t *testing.T) {
 	// Adding another constraint preserves the original
 	job.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
-		&Constraint{
+		{
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
 		},
-		&Constraint{
+		{
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
@@ -1282,16 +1283,16 @@ func TestJobs_Constrain(t *testing.T) {
 func TestJobs_Sort(t *testing.T) {
 	t.Parallel()
 	jobs := []*JobListStub{
-		&JobListStub{ID: "job2"},
-		&JobListStub{ID: "job0"},
-		&JobListStub{ID: "job1"},
+		{ID: "job2"},
+		{ID: "job0"},
+		{ID: "job1"},
 	}
 	sort.Sort(JobIDSort(jobs))
 
 	expect := []*JobListStub{
-		&JobListStub{ID: "job0"},
-		&JobListStub{ID: "job1"},
-		&JobListStub{ID: "job2"},
+		{ID: "job0"},
+		{ID: "job1"},
+		{ID: "job2"},
 	}
 	if !reflect.DeepEqual(jobs, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)

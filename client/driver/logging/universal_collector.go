@@ -56,9 +56,7 @@ type LogCollector interface {
 // SyslogCollector is a LogCollector which starts a syslog server and does
 // rotation to incoming stream
 type SyslogCollector struct {
-	addr      net.Addr
-	logConfig *structs.LogConfig
-	ctx       *LogCollectorContext
+	ctx *LogCollectorContext
 
 	lro        *FileRotator
 	lre        *FileRotator

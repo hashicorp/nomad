@@ -7,6 +7,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	// The key populated in Node Attributes to indicate the presence of the Exec
+	// driver
+	execDriverAttr = "driver.exec"
+)
+
 func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
 	// Only enable if cgroups are available and we are root
 	if !cgroupsMounted(node) {

@@ -49,6 +49,18 @@ func (m *MockAllocStateUpdater) Last() (int, *structs.Allocation) {
 	return n, m.Allocs[n-1].Copy()
 }
 
+// allocationBucketExists checks if the allocation bucket was created.
+func allocationBucketExists(tx *bolt.Tx, allocID string) bool {
+	allocations := tx.Bucket(allocationsBucket)
+	if allocations == nil {
+		return false
+	}
+
+	// Retrieve the specific allocations bucket
+	alloc := allocations.Bucket([]byte(allocID))
+	return alloc != nil
+}
+
 func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	logger := testLogger()
 	conf := config.DefaultConfig()

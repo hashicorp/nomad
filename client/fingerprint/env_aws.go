@@ -236,10 +236,15 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 	}
 
 	res, err := client.Get(metadataURL + "instance-type")
+	if err != nil {
+		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading instance-type: %v", err)
+		return 0
+	}
+
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for instance-type")
+		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for instance-type: %v", err)
 		return 0
 	}
 

@@ -334,7 +334,7 @@ func TestStreamFramer_Order(t *testing.T) {
 	}
 
 	expected := bytes.NewBuffer(make([]byte, 0, 100000))
-	for _, _ = range files {
+	for range files {
 		expected.Write(input.Bytes())
 	}
 	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
@@ -424,7 +424,7 @@ func TestStreamFramer_Order_PlainText(t *testing.T) {
 	}
 
 	expected := bytes.NewBuffer(make([]byte, 0, 100000))
-	for _, _ = range files {
+	for range files {
 		expected.Write(input.Bytes())
 	}
 	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))

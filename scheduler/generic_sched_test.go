@@ -2821,7 +2821,7 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 	alloc.TaskStates = map[string]*structs.TaskState{
-		"web": &structs.TaskState{
+		"web": {
 			State: structs.TaskStateDead,
 			Events: []*structs.TaskEvent{
 				{
@@ -2963,7 +2963,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		alloc.TaskStates = map[string]*structs.TaskState{
-			"web": &structs.TaskState{
+			"web": {
 				State: structs.TaskStateDead,
 				Events: []*structs.TaskEvent{
 					{
