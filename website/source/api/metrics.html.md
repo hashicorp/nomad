@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: Metrics - HTTP API
-sidebar_current: metrics-search
+sidebar_current: api-metrics
 description: |-
   The /metrics endpoint is used to view metrics for Nomad
 ---
