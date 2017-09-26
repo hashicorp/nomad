@@ -10,6 +10,7 @@ const sum = (total, n) => total + n;
 
 moduleForAcceptance('Acceptance | task group detail', {
   beforeEach() {
+    server.create('agent');
     server.create('node', 'forceIPv4');
 
     job = server.create('job', {
@@ -158,8 +159,14 @@ test('each allocation should show basic information about the allocation', funct
       .text()
       .trim(),
     server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-    'Node name'
+    'Node ID'
   );
+
+  click(allocationRow.find('td:eq(3) a'));
+
+  andThen(() => {
+    assert.equal(currentURL(), `/nodes/${allocation.nodeId}`, 'Node links to node page');
+  });
 });
 
 test('each allocation should show stats about the allocation, retrieved directly from the node', function(
