@@ -8,6 +8,7 @@ IMPROVEMENTS:
    objects to be isolated from each other and other users of the cluster.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
+ * driver/rkt: Enable rkt driver to use address_mode = 'driver' [GH-3256]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
  * telemetry: Add basic Prometheus configuration for a Nomad cluster [GH-3186]
 
