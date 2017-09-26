@@ -19,4 +19,29 @@ function install_rkt() {
 	mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
 }
 
+function configure_rkt_networking() {
+	if [[ -e /etc/rkt/net.d/99-network.conf ]] ; then
+		return
+	fi
+
+	mkdir -p /etc/rkt/net.d
+	cat <<EOT > /etc/rkt/net.d/99-network.conf
+{
+  "name": "default",
+  "type": "ptp",
+  "ipMasq": false,
+  "ipam": {
+    "type": "host-local",
+    "subnet": "172.16.28.0/24",
+    "routes": [
+      {
+        "dst": "0.0.0.0/0"
+      }
+    ]
+  }
+}
+EOT
+}
+
 install_rkt
+configure_rkt_networking
