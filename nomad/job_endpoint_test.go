@@ -1230,6 +1230,76 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(300, job)
+	assert.Nil(err)
+
+	// Force a re-evaluation
+	reEval := &structs.JobEvaluateRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp)
+	assert.NotNil(err)
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	reEval.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &invalidResp)
+	assert.NotNil(err)
+
+	// Fetch the response with a valid management token
+	reEval.SecretID = root.SecretID
+	var validResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp)
+	assert.Nil(err)
+
+	// Fetch the response with a valid token
+	validToken := CreatePolicyAndToken(t, state, 1005, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	reEval.SecretID = validToken.SecretID
+	var validResp2 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp2)
+	assert.Nil(err)
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	assert.Nil(err)
+	assert.NotNil(eval)
+
+	assert.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	assert.Equal(eval.Priority, job.Priority)
+	assert.Equal(eval.Type, job.Type)
+	assert.Equal(eval.TriggeredBy, structs.EvalTriggerJobRegister)
+	assert.Equal(eval.JobID, job.ID)
+	assert.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	assert.Equal(eval.Status, structs.EvalStatusPending)
+}
+
 func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
