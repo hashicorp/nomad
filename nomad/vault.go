@@ -59,9 +59,6 @@ const (
 	// vaultTokenLookupPath is the path used to lookup a token
 	vaultTokenLookupPath = "auth/token/lookup"
 
-	// vaultTokenLookupSelfPath is the path used to lookup self token
-	vaultTokenLookupSelfPath = "auth/token/lookup-self"
-
 	// vaultTokenRevokePath is the path used to revoke a token
 	vaultTokenRevokePath = "auth/token/revoke-accessor"
 
@@ -90,11 +87,6 @@ var (
 	// Vault token should have on the path. The token must have at least one of
 	// the capabilities.
 	vaultTokenLookupCapability = []string{"update", "root"}
-
-	// vaultTokenLookupSelfCapability is the expected capability Nomad's
-	// Vault token should have on the path. The token must have at least one of
-	// the capabilities.
-	vaultTokenLookupSelfCapability = []string{"update", "root"}
 
 	// vaultTokenRevokeCapability is the expected capability Nomad's
 	// Vault token should have on the path. The token must have at least one of

@@ -160,7 +160,7 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	// Try without a token, expect failure
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "non-existant namespace") {
+	if err == nil || !strings.Contains(err.Error(), "non-existent namespace") {
 		t.Fatalf("expected namespace error: %v", err)
 	}
 
@@ -1021,6 +1021,71 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	if len(versions) != 3 {
 		t.Fatalf("got %d versions; want %d", len(versions), 3)
 	}
+}
+
+func TestJobEndpoint_Revert_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(300, job)
+	assert.Nil(err)
+
+	job2 := job.Copy()
+	job2.Priority = 1
+	err = state.UpsertJob(400, job2)
+	assert.Nil(err)
+
+	// Create revert request and enforcing it be at the current version
+	revertReq := &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a valid token
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	revertReq.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Fetch the response with a valid management token
+	revertReq.SecretID = root.SecretID
+	var validResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp)
+	assert.Nil(err)
+
+	// Try with a valid non-management token
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+	revertReq.SecretID = validToken.SecretID
+	var validResp2 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
+	assert.Nil(err)
 }
 
 func TestJobEndpoint_Stable(t *testing.T) {
@@ -2031,7 +2096,7 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
+			"web": {},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
@@ -2093,7 +2158,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
+			"web": {},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
@@ -2183,7 +2248,6 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	}
 	start = time.Now()
 	var resp1 structs.JobSummaryResponse
-	start = time.Now()
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2998,7 +3062,7 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	job := mock.Job()
 	signal := "SIGUSR1"
 	job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
-		&structs.Template{
+		{
 			SourcePath:   "foo",
 			DestPath:     "bar",
 			ChangeMode:   structs.TemplateChangeModeSignal,
@@ -3116,6 +3180,42 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 	} else {
 		t.Log(err)
 	}
+}
+
+func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	job := mock.Job()
+
+	req := &structs.JobValidateRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to update without providing a valid token
+	var resp structs.JobValidateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp)
+	assert.NotNil(err)
+
+	// Update with a valid token
+	req.SecretID = root.SecretID
+	var validResp structs.JobValidateResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &validResp)
+	assert.Nil(err)
+
+	assert.Equal("", validResp.Error)
+	assert.Equal("", validResp.Warnings)
 }
 
 func TestJobEndpoint_Dispatch(t *testing.T) {

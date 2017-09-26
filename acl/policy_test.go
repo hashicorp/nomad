@@ -24,7 +24,7 @@ func TestParse(t *testing.T) {
 			"",
 			&Policy{
 				Namespaces: []*NamespacePolicy{
-					&NamespacePolicy{
+					{
 						Name:   "default",
 						Policy: PolicyRead,
 						Capabilities: []string{
@@ -59,7 +59,7 @@ func TestParse(t *testing.T) {
 			"",
 			&Policy{
 				Namespaces: []*NamespacePolicy{
-					&NamespacePolicy{
+					{
 						Name:   "default",
 						Policy: PolicyRead,
 						Capabilities: []string{
@@ -67,7 +67,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJob,
 						},
 					},
-					&NamespacePolicy{
+					{
 						Name:   "other",
 						Policy: PolicyWrite,
 						Capabilities: []string{
@@ -78,7 +78,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadFS,
 						},
 					},
-					&NamespacePolicy{
+					{
 						Name: "secret",
 						Capabilities: []string{
 							NamespaceCapabilityDeny,
@@ -160,7 +160,7 @@ func TestParse(t *testing.T) {
 			"",
 			&Policy{
 				Namespaces: []*NamespacePolicy{
-					&NamespacePolicy{
+					{
 						Name:   "default",
 						Policy: "",
 						Capabilities: []string{

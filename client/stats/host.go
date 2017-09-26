@@ -61,7 +61,6 @@ type NodeStatsCollector interface {
 
 // HostStatsCollector collects host resource usage stats
 type HostStatsCollector struct {
-	clkSpeed        float64
 	numCores        int
 	statsCalculator map[string]*HostCpuStatsCalculator
 	logger          *log.Logger

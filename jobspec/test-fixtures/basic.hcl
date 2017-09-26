@@ -98,7 +98,7 @@ job "binstore-storagelocker" {
 
           check_restart {
             limit = 3
-            grace_period = "10s"
+            grace = "10s"
             ignore_warnings = true
           }
         }

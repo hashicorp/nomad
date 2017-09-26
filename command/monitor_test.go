@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 )
@@ -72,7 +71,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 	// New allocations write new logs
 	state := &evalState{
 		allocs: map[string]*allocState{
-			"alloc1": &allocState{
+			"alloc1": {
 				id:      "87654321-abcd-efab-cdef-123456789abc",
 				group:   "group1",
 				node:    "12345678-abcd-efab-cdef-123456789abc",
@@ -110,7 +109,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 	// Alloc updates cause more log lines
 	state = &evalState{
 		allocs: map[string]*allocState{
-			"alloc1": &allocState{
+			"alloc1": {
 				id:      "87654321-abcd-efab-cdef-123456789abc",
 				group:   "group1",
 				node:    "12345678-abcd-efab-cdef-123456789abc",
@@ -145,7 +144,7 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 	state := &evalState{
 		index: 2,
 		allocs: map[string]*allocState{
-			"alloc3": &allocState{
+			"alloc3": {
 				id:    "87654321-abcd-bafe-cdef-123456789abc",
 				node:  "12345678-abcd-efab-cdef-123456789abc",
 				group: "group2",
@@ -285,73 +284,4 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 		t.Fatalf("expected evaluation monitoring output, got: %s", out)
 	}
 
-}
-
-func TestMonitor_DumpAllocStatus(t *testing.T) {
-	t.Parallel()
-	ui := new(cli.MockUi)
-
-	// Create an allocation and dump its status to the UI
-	alloc := &api.Allocation{
-		ID:           "87654321-abcd-efab-cdef-123456789abc",
-		TaskGroup:    "group1",
-		ClientStatus: structs.AllocClientStatusRunning,
-		Metrics: &api.AllocationMetric{
-			NodesEvaluated: 10,
-			NodesFiltered:  5,
-			NodesExhausted: 1,
-			DimensionExhausted: map[string]int{
-				"cpu": 1,
-			},
-			ConstraintFiltered: map[string]int{
-				"$attr.kernel.name = linux": 1,
-			},
-			ClassExhausted: map[string]int{
-				"web-large": 1,
-			},
-		},
-	}
-	dumpAllocStatus(ui, alloc, fullId)
-
-	// Check the output
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
-		t.Fatalf("missing alloc\n\n%s", out)
-	}
-	if !strings.Contains(out, structs.AllocClientStatusRunning) {
-		t.Fatalf("missing status\n\n%s", out)
-	}
-	if !strings.Contains(out, "5/10") {
-		t.Fatalf("missing filter stats\n\n%s", out)
-	}
-	if !strings.Contains(
-		out, `Constraint "$attr.kernel.name = linux" filtered 1 nodes`) {
-		t.Fatalf("missing constraint\n\n%s", out)
-	}
-	if !strings.Contains(out, "Resources exhausted on 1 nodes") {
-		t.Fatalf("missing resource exhaustion\n\n%s", out)
-	}
-	if !strings.Contains(out, `Class "web-large" exhausted on 1 nodes`) {
-		t.Fatalf("missing class exhaustion\n\n%s", out)
-	}
-	if !strings.Contains(out, `Dimension "cpu" exhausted on 1 nodes`) {
-		t.Fatalf("missing dimension exhaustion\n\n%s", out)
-	}
-	ui.OutputWriter.Reset()
-
-	// Dumping alloc status with no eligible nodes adds a warning
-	alloc.Metrics.NodesEvaluated = 0
-	dumpAllocStatus(ui, alloc, shortId)
-
-	// Check the output
-	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "No nodes were eligible") {
-		t.Fatalf("missing eligibility warning\n\n%s", out)
-	}
-	if strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
-		t.Fatalf("expected truncated id, got %s", out)
-	}
-	if !strings.Contains(out, "87654321") {
-		t.Fatalf("expected alloc id, got %s", out)
-	}
 }

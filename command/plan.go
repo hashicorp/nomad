@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 )
 
@@ -26,7 +25,6 @@ potentially invalid.`
 type PlanCommand struct {
 	Meta
 	JobGetter
-	color *colorstring.Colorize
 }
 
 func (c *PlanCommand) Help() string {

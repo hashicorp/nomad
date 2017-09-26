@@ -1,6 +1,11 @@
 ## 0.7 (Unreleased)
 
 IMPROVEMENTS:
+ * core: Capability based ACL system with authoratative region, providing
+   federated ACLs.
+ * core/enterprise: Sentinel integration for fine grain policy enforcement.
+ * core/enterprise: Namespace support allowing jobs and their associated
+   objects to be isolated from each other and other users of the cluster.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
@@ -8,6 +13,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [GH-3201]
+ * core: Run deployment garbage collector on an interval [GH-3267]
  * core: Fix issue where node-drain with complete batch allocation would create
    replacement [GH-3217]
  * core: Fix issue in which batch allocations from previous job versions may not

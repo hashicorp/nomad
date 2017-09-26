@@ -64,11 +64,11 @@ func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"command": &fields.FieldSchema{
+			"command": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},

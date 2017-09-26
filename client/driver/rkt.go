@@ -126,41 +126,41 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"image": &fields.FieldSchema{
+			"image": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"command": &fields.FieldSchema{
+			"command": {
 				Type: fields.TypeString,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
-			"trust_prefix": &fields.FieldSchema{
+			"trust_prefix": {
 				Type: fields.TypeString,
 			},
-			"dns_servers": &fields.FieldSchema{
+			"dns_servers": {
 				Type: fields.TypeArray,
 			},
-			"dns_search_domains": &fields.FieldSchema{
+			"dns_search_domains": {
 				Type: fields.TypeArray,
 			},
-			"net": &fields.FieldSchema{
+			"net": {
 				Type: fields.TypeArray,
 			},
-			"port_map": &fields.FieldSchema{
+			"port_map": {
 				Type: fields.TypeArray,
 			},
-			"debug": &fields.FieldSchema{
+			"debug": {
 				Type: fields.TypeBool,
 			},
-			"volumes": &fields.FieldSchema{
+			"volumes": {
 				Type: fields.TypeArray,
 			},
-			"no_overlay": &fields.FieldSchema{
+			"no_overlay": {
 				Type: fields.TypeBool,
 			},
-			"insecure_options": &fields.FieldSchema{
+			"insecure_options": {
 				Type: fields.TypeArray,
 			},
 		},

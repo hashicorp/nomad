@@ -33,7 +33,7 @@ func TestSyslogServer_Start_Shutdown(t *testing.T) {
 
 	received := false
 	go func() {
-		for _ = range s.messages {
+		for range s.messages {
 			received = true
 		}
 	}()

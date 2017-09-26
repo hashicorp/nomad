@@ -137,7 +137,7 @@ func TestClient_StartStop(t *testing.T) {
 	}
 }
 
-// Certain labels for metrics are dependant on client intial setup. This tests
+// Certain labels for metrics are dependant on client initial setup. This tests
 // that the client has properly initialized before we assign values to labels
 func TestClient_BaseLabels(t *testing.T) {
 	t.Parallel()

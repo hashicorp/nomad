@@ -62,7 +62,7 @@ const (
 	stateSnapshotIntv = 60 * time.Second
 
 	// initialHeartbeatStagger is used to stagger the interval between
-	// starting and the intial heartbeat. After the intial heartbeat,
+	// starting and the initial heartbeat. After the initial heartbeat,
 	// we switch to using the TTL specified by the servers.
 	initialHeartbeatStagger = 10 * time.Second
 
@@ -120,7 +120,7 @@ type Client struct {
 	triggerDiscoveryCh chan struct{}
 
 	// discovered will be ticked whenever Consul discovery completes
-	// succesfully
+	// successfully
 	serversDiscoveredCh chan struct{}
 
 	// allocs is the current set of allocations
@@ -473,7 +473,7 @@ func (c *Client) Stats() map[string]map[string]string {
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
 	stats := map[string]map[string]string{
-		"client": map[string]string{
+		"client": {
 			"node_id":         c.NodeID(),
 			"known_servers":   c.servers.all().String(),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
@@ -1650,10 +1650,9 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	}
 
 	verifiedTasks := []string{}
-	found := false
 	// Check if the given task names actually exist in the allocation
 	for _, taskName := range taskNames {
-		found = false
+		found := false
 		for _, task := range group.Tasks {
 			if task.Name == taskName {
 				found = true
@@ -1903,7 +1902,10 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats) 
 func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats) {
 	for _, cpu := range hStats.CPU {
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{"cpu", cpu.CPU})
+			labels := append(c.baseLabels, metrics.Label{
+				Name:  "cpu",
+				Value: cpu.CPU,
+			})
 
 			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "total"}, float32(cpu.Total), labels)
 			metrics.SetGaugeWithLabels([]string{"client", "host", "cpu", "user"}, float32(cpu.User), labels)
@@ -1924,7 +1926,10 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats) {
 func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats) {
 	for _, disk := range hStats.DiskStats {
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{"disk", disk.Device})
+			labels := append(c.baseLabels, metrics.Label{
+				Name:  "disk",
+				Value: disk.Device,
+			})
 
 			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "size"}, float32(disk.Size), labels)
 			metrics.SetGaugeWithLabels([]string{"client", "host", "disk", "used"}, float32(disk.Used), labels)
@@ -1969,7 +1974,10 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 
 	for _, n := range allocated.Networks {
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{"device", n.Device})
+			labels := append(c.baseLabels, metrics.Label{
+				Name:  "device",
+				Value: n.Device,
+			})
 			metrics.SetGaugeWithLabels([]string{"client", "allocated", "network"}, float32(n.MBits), labels)
 		}
 
@@ -1999,18 +2007,19 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	}
 
 	for _, n := range allocated.Networks {
-		totalMbits := 0
-
 		totalIdx := total.NetIndex(n)
 		if totalIdx != -1 {
-			totalMbits = total.Networks[totalIdx].MBits
 			continue
 		}
 
+		totalMbits := total.Networks[totalIdx].MBits
 		unallocatedMbits := totalMbits - n.MBits
 
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{"device", n.Device})
+			labels := append(c.baseLabels, metrics.Label{
+				Name:  "device",
+				Value: n.Device,
+			})
 			metrics.SetGaugeWithLabels([]string{"client", "unallocated", "network"}, float32(unallocatedMbits), labels)
 		}
 
@@ -2039,14 +2048,13 @@ func (c *Client) emitHostStats() {
 	c.setGaugeForUptime(hStats)
 	c.setGaugeForCPUStats(nodeID, hStats)
 	c.setGaugeForDiskStats(nodeID, hStats)
-
-	// TODO: This should be moved to emitClientMetrics
-	c.setGaugeForAllocationStats(nodeID)
 }
 
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
 	nodeID := c.NodeID()
+
+	c.setGaugeForAllocationStats(nodeID)
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0

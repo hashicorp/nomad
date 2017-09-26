@@ -363,6 +363,8 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer nodeGC.Stop()
 	jobGC := time.NewTicker(s.config.JobGCInterval)
 	defer jobGC.Stop()
+	deploymentGC := time.NewTicker(s.config.DeploymentGCInterval)
+	defer deploymentGC.Stop()
 
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
@@ -390,6 +392,10 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 		case <-jobGC.C:
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobJobGC, index))
+			}
+		case <-deploymentGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobDeploymentGC, index))
 			}
 		case <-stopCh:
 			return

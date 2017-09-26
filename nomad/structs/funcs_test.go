@@ -11,10 +11,10 @@ import (
 
 func TestRemoveAllocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{ID: "foo"},
-		&Allocation{ID: "bar"},
-		&Allocation{ID: "baz"},
-		&Allocation{ID: "zip"},
+		{ID: "foo"},
+		{ID: "bar"},
+		{ID: "baz"},
+		{ID: "zip"},
 	}
 
 	out := RemoveAllocs(l, []*Allocation{l[1], l[3]})
@@ -28,25 +28,25 @@ func TestRemoveAllocs(t *testing.T) {
 
 func TestFilterTerminalAllocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{
+		{
 			ID:            "bar",
 			Name:          "myname1",
 			DesiredStatus: AllocDesiredStatusEvict,
 		},
-		&Allocation{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
-		&Allocation{
+		{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
+		{
 			ID:            "foo",
 			DesiredStatus: AllocDesiredStatusRun,
 			ClientStatus:  AllocClientStatusPending,
 		},
-		&Allocation{
+		{
 			ID:            "bam",
 			Name:          "myname",
 			DesiredStatus: AllocDesiredStatusRun,
 			ClientStatus:  AllocClientStatusComplete,
 			CreateIndex:   5,
 		},
-		&Allocation{
+		{
 			ID:            "lol",
 			Name:          "myname",
 			DesiredStatus: AllocDesiredStatusRun,
@@ -80,7 +80,7 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	n := &Node{
 		Resources: &Resources{
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "10.0.0.0/8",
 					MBits:  100,
@@ -99,9 +99,9 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 			},
 		},
 		TaskResources: map[string]*Resources{
-			"web": &Resources{
+			"web": {
 				Networks: []*NetworkResource{
-					&NetworkResource{
+					{
 						Device:        "eth0",
 						IP:            "10.0.0.1",
 						MBits:         50,
@@ -139,7 +139,7 @@ func TestAllocsFit(t *testing.T) {
 			DiskMB:   10000,
 			IOPS:     100,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "10.0.0.0/8",
 					MBits:  100,
@@ -152,7 +152,7 @@ func TestAllocsFit(t *testing.T) {
 			DiskMB:   5000,
 			IOPS:     50,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
@@ -169,7 +169,7 @@ func TestAllocsFit(t *testing.T) {
 			DiskMB:   5000,
 			IOPS:     50,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,

@@ -1,8 +1,6 @@
 package command
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -279,20 +276,4 @@ func parseCheckIndex(input string) (uint64, bool, error) {
 
 	u, err := strconv.ParseUint(input, 10, 64)
 	return u, true, err
-}
-
-// convertStructJob is used to take a *structs.Job and convert it to an *api.Job.
-// This function is just a hammer and probably needs to be revisited.
-func convertStructJob(in *structs.Job) (*api.Job, error) {
-	gob.Register([]map[string]interface{}{})
-	gob.Register([]interface{}{})
-	var apiJob *api.Job
-	buf := new(bytes.Buffer)
-	if err := gob.NewEncoder(buf).Encode(in); err != nil {
-		return nil, err
-	}
-	if err := gob.NewDecoder(buf).Decode(&apiJob); err != nil {
-		return nil, err
-	}
-	return apiJob, nil
 }

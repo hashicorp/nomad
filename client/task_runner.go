@@ -268,14 +268,33 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		signalCh:         make(chan SignalEvent),
 	}
 
-	tc.baseLabels = []metrics.Label{{"job", tc.alloc.Job.Name}, {"task_group", tc.alloc.TaskGroup}, {"alloc_id", tc.alloc.ID}, {"task", tc.task.Name}}
+	tc.baseLabels = []metrics.Label{
+		{
+			Name:  "job",
+			Value: tc.alloc.Job.Name,
+		},
+		{
+			Name:  "task_group",
+			Value: tc.alloc.TaskGroup,
+		},
+		{
+			Name:  "alloc_id",
+			Value: tc.alloc.ID,
+		},
+		{
+			Name:  "task",
+			Value: tc.task.Name,
+		},
+	}
 
 	return tc
 }
 
 // MarkReceived marks the task as received.
 func (r *TaskRunner) MarkReceived() {
-	r.updater(r.task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived), false)
+	// We lazy sync this since there will be a follow up message almost
+	// immediately.
+	r.updater(r.task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived), true)
 }
 
 // WaitCh returns a channel to wait for termination
@@ -1677,7 +1696,7 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 
 			r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc %q. Retrying in %v: %v",
 				r.task.Name, r.alloc.ID, backoff, err)
-			time.Sleep(time.Duration(backoff))
+			time.Sleep(backoff)
 		} else {
 			// Kill was successful
 			return true, nil

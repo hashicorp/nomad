@@ -349,7 +349,6 @@ type DockerHandle struct {
 	ImageID           string
 	containerID       string
 	version           string
-	clkSpeed          float64
 	killTimeout       time.Duration
 	maxKillTimeout    time.Duration
 	resourceUsageLock sync.RWMutex
@@ -427,108 +426,108 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"image": &fields.FieldSchema{
+			"image": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"load": &fields.FieldSchema{
+			"load": {
 				Type: fields.TypeString,
 			},
-			"command": &fields.FieldSchema{
+			"command": {
 				Type: fields.TypeString,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
-			"ipc_mode": &fields.FieldSchema{
+			"ipc_mode": {
 				Type: fields.TypeString,
 			},
-			"network_mode": &fields.FieldSchema{
+			"network_mode": {
 				Type: fields.TypeString,
 			},
-			"network_aliases": &fields.FieldSchema{
+			"network_aliases": {
 				Type: fields.TypeArray,
 			},
-			"ipv4_address": &fields.FieldSchema{
+			"ipv4_address": {
 				Type: fields.TypeString,
 			},
-			"ipv6_address": &fields.FieldSchema{
+			"ipv6_address": {
 				Type: fields.TypeString,
 			},
-			"mac_address": &fields.FieldSchema{
+			"mac_address": {
 				Type: fields.TypeString,
 			},
-			"pid_mode": &fields.FieldSchema{
+			"pid_mode": {
 				Type: fields.TypeString,
 			},
-			"uts_mode": &fields.FieldSchema{
+			"uts_mode": {
 				Type: fields.TypeString,
 			},
-			"userns_mode": &fields.FieldSchema{
+			"userns_mode": {
 				Type: fields.TypeString,
 			},
-			"port_map": &fields.FieldSchema{
+			"port_map": {
 				Type: fields.TypeArray,
 			},
-			"privileged": &fields.FieldSchema{
+			"privileged": {
 				Type: fields.TypeBool,
 			},
-			"dns_servers": &fields.FieldSchema{
+			"dns_servers": {
 				Type: fields.TypeArray,
 			},
-			"dns_options": &fields.FieldSchema{
+			"dns_options": {
 				Type: fields.TypeArray,
 			},
-			"dns_search_domains": &fields.FieldSchema{
+			"dns_search_domains": {
 				Type: fields.TypeArray,
 			},
-			"extra_hosts": &fields.FieldSchema{
+			"extra_hosts": {
 				Type: fields.TypeArray,
 			},
-			"hostname": &fields.FieldSchema{
+			"hostname": {
 				Type: fields.TypeString,
 			},
-			"labels": &fields.FieldSchema{
+			"labels": {
 				Type: fields.TypeArray,
 			},
-			"auth": &fields.FieldSchema{
+			"auth": {
 				Type: fields.TypeArray,
 			},
-			"auth_soft_fail": &fields.FieldSchema{
+			"auth_soft_fail": {
 				Type: fields.TypeBool,
 			},
 			// COMPAT: Remove in 0.6.0. SSL is no longer needed
-			"ssl": &fields.FieldSchema{
+			"ssl": {
 				Type: fields.TypeBool,
 			},
-			"tty": &fields.FieldSchema{
+			"tty": {
 				Type: fields.TypeBool,
 			},
-			"interactive": &fields.FieldSchema{
+			"interactive": {
 				Type: fields.TypeBool,
 			},
-			"shm_size": &fields.FieldSchema{
+			"shm_size": {
 				Type: fields.TypeInt,
 			},
-			"work_dir": &fields.FieldSchema{
+			"work_dir": {
 				Type: fields.TypeString,
 			},
-			"logging": &fields.FieldSchema{
+			"logging": {
 				Type: fields.TypeArray,
 			},
-			"volumes": &fields.FieldSchema{
+			"volumes": {
 				Type: fields.TypeArray,
 			},
-			"volume_driver": &fields.FieldSchema{
+			"volume_driver": {
 				Type: fields.TypeString,
 			},
 			"mounts": {
 				Type: fields.TypeArray,
 			},
-			"force_pull": &fields.FieldSchema{
+			"force_pull": {
 				Type: fields.TypeBool,
 			},
-			"security_opt": &fields.FieldSchema{
+			"security_opt": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -1153,7 +1152,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	if len(driverConfig.NetworkAliases) > 0 || driverConfig.IPv4Address != "" || driverConfig.IPv6Address != "" {
 		networkingConfig = &docker.NetworkingConfig{
 			EndpointsConfig: map[string]*docker.EndpointConfig{
-				hostConfig.NetworkMode: &docker.EndpointConfig{},
+				hostConfig.NetworkMode: {},
 			},
 		}
 	}
@@ -1414,7 +1413,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	// Look for a running container with this ID
 	containers, err := client.ListContainers(docker.ListContainersOptions{
 		Filters: map[string][]string{
-			"id": []string{pid.ContainerID},
+			"id": {pid.ContainerID},
 		},
 	})
 	if err != nil {

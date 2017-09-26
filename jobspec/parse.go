@@ -1062,7 +1062,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 	valid := []string{
 		"limit",
-		"grace_period",
+		"grace",
 		"ignore_warnings",
 	}
 

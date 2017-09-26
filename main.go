@@ -27,7 +27,7 @@ func Run(args []string) int {
 func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	// Build the commands to include in the help now.
 	commandsInclude := make([]string, 0, len(commands))
-	for k, _ := range commands {
+	for k := range commands {
 		switch k {
 		case "deployment list", "deployment status", "deployment pause",
 			"deployment resume", "deployment fail", "deployment promote":

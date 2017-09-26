@@ -17,14 +17,14 @@ func MockJob() *Job {
 		AllAtOnce:   helper.BoolToPtr(false),
 		Datacenters: []string{"dc1"},
 		Constraints: []*Constraint{
-			&Constraint{
+			{
 				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name:  helper.StringToPtr("web"),
 				Count: helper.IntToPtr(10),
 				EphemeralDisk: &EphemeralDisk{
@@ -37,7 +37,7 @@ func MockJob() *Job {
 					Mode:     helper.StringToPtr("delay"),
 				},
 				Tasks: []*Task{
-					&Task{
+					{
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
@@ -72,7 +72,7 @@ func MockJob() *Job {
 							CPU:      helper.IntToPtr(500),
 							MemoryMB: helper.IntToPtr(256),
 							Networks: []*NetworkResource{
-								&NetworkResource{
+								{
 									MBits:        helper.IntToPtr(50),
 									DynamicPorts: []Port{{Label: "http"}, {Label: "admin"}},
 								},

@@ -1167,7 +1167,7 @@ func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
 	job.Namespace = "foo"
 
 	err := state.UpsertJob(1000, job)
-	assert.Contains(err.Error(), "non-existant namespace")
+	assert.Contains(err.Error(), "non-existent namespace")
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
@@ -2265,7 +2265,7 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Starting: 10,
 			},
 		},
@@ -2316,7 +2316,7 @@ func TestStateStore_Indexes(t *testing.T) {
 	}
 
 	expect := []*IndexEntry{
-		&IndexEntry{"nodes", 1000},
+		{"nodes", 1000},
 	}
 
 	if !reflect.DeepEqual(expect, out) {
@@ -3066,7 +3066,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	}
 
 	// Create the delta updates
-	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStateRunning}}
+	ts := map[string]*structs.TaskState{"web": {State: structs.TaskStateRunning}}
 	update := &structs.Allocation{
 		ID:           alloc.ID,
 		ClientStatus: structs.AllocClientStatusComplete,
@@ -3154,7 +3154,7 @@ func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
 	}
 
 	// Create the delta updates
-	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStatePending}}
+	ts := map[string]*structs.TaskState{"web": {State: structs.TaskStatePending}}
 	update := &structs.Allocation{
 		ID:           alloc1.ID,
 		ClientStatus: structs.AllocClientStatusFailed,
@@ -3253,7 +3253,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 	}
 
 	// Create the delta updates
-	ts := map[string]*structs.TaskState{"web": &structs.TaskState{State: structs.TaskStatePending}}
+	ts := map[string]*structs.TaskState{"web": {State: structs.TaskStatePending}}
 	update := &structs.Allocation{
 		ID:           alloc.ID,
 		ClientStatus: structs.AllocClientStatusRunning,
@@ -3293,7 +3293,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 		JobID:     alloc.JobID,
 		Namespace: alloc.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Starting: 1,
 			},
 		},
@@ -3766,7 +3766,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Running: 1,
 			},
 		},
@@ -3820,7 +3820,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 		JobID:     job.ID,
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
+			"web": {},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 1000,
@@ -3903,10 +3903,10 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 		JobID:     alloc.Job.ID,
 		Namespace: alloc.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Running: 1,
 			},
-			"db": structs.TaskGroupSummary{
+			"db": {
 				Starting: 1,
 				Running:  1,
 				Failed:   1,
@@ -3957,7 +3957,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 		JobID:     alloc1.JobID,
 		Namespace: alloc1.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
+			"web": {},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: 500,
@@ -4188,6 +4188,10 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 	}
 
 	out1, err := state.AllocsByJob(ws, job1.Namespace, job1.ID, false)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
 	expected = len(allocs1)
 	if len(out1) != expected {
 		t.Fatalf("expected: %v, actual: %v", expected, len(out1))
@@ -5247,11 +5251,11 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	d.JobID = j.ID
 	d.TaskGroups = map[string]*structs.DeploymentState{
-		"web": &structs.DeploymentState{
+		"web": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
-		"foo": &structs.DeploymentState{
+		"foo": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
@@ -5343,11 +5347,11 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.TaskGroups = map[string]*structs.DeploymentState{
-		"web": &structs.DeploymentState{
+		"web": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
-		"foo": &structs.DeploymentState{
+		"foo": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},

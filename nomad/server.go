@@ -924,7 +924,7 @@ func (s *Server) setupRaft() error {
 			// we add support for node IDs.
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
-					raft.Server{
+					{
 						ID:      raft.ServerID(trans.LocalAddr()),
 						Address: trans.LocalAddr(),
 					},
@@ -1069,7 +1069,7 @@ func (s *Server) Regions() []string {
 	defer s.peerLock.RUnlock()
 
 	regions := make([]string, 0, len(s.peers))
-	for region, _ := range s.peers {
+	for region := range s.peers {
 		regions = append(regions, region)
 	}
 	sort.Strings(regions)
@@ -1131,7 +1131,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		return strconv.FormatUint(v, 10)
 	}
 	stats := map[string]map[string]string{
-		"nomad": map[string]string{
+		"nomad": {
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
 			"leader_addr":   string(s.raft.Leader()),

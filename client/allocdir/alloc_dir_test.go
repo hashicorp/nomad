@@ -21,11 +21,6 @@ import (
 )
 
 var (
-	osMountSharedDirSupport = map[string]bool{
-		"darwin": true,
-		"linux":  true,
-	}
-
 	t1 = &structs.Task{
 		Name:   "web",
 		Driver: "exec",

@@ -105,7 +105,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// If -self flag is set then determine the current node.
-	nodeID := ""
+	var nodeID string
 	if !self {
 		nodeID = args[0]
 	} else {

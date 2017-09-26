@@ -40,12 +40,6 @@ const (
 	DefaultMaxTemplateEventRate = 3 * time.Second
 )
 
-var (
-	// testRetryRate is used to speed up tests by setting consul-templates retry
-	// rate to something low
-	testRetryRate time.Duration = 0
-)
-
 // TaskHooks is an interface which provides hooks into the tasks life-cycle
 type TaskHooks interface {
 	// Restart is used to restart the task

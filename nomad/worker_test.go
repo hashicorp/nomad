@@ -68,7 +68,7 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 		t.Fatalf("should get token")
 	}
 	if waitIndex != eval1.ModifyIndex {
-		t.Fatalf("bad wait index; got %d; want %d", eval1.ModifyIndex)
+		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
 	}
 
 	// Ensure we get a sane eval
@@ -113,7 +113,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 		t.Fatalf("should get token")
 	}
 	if waitIndex != eval1.ModifyIndex {
-		t.Fatalf("bad wait index; got %d; want %d", eval1.ModifyIndex)
+		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
 	}
 
 	// Ensure we get a sane eval
@@ -185,7 +185,7 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 		t.Fatalf("should get token")
 	}
 	if waitIndex != eval1.ModifyIndex {
-		t.Fatalf("bad wait index; got %d; want %d", eval1.ModifyIndex)
+		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
 	}
 
 	// Ensure we get a sane eval
@@ -356,7 +356,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	plan := &structs.Plan{
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 
@@ -416,7 +416,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	plan := &structs.Plan{
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
-			node2.ID: []*structs.Allocation{alloc},
+			node2.ID: {alloc},
 		},
 	}
 
