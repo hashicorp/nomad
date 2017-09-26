@@ -156,6 +156,50 @@ func rktGetManifest(uuid string) (*appcschema.PodManifest, error) {
 	return &manifest, nil
 }
 
+func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string) (*cstructs.DriverNetwork, error) {
+	deadline := time.Now().Add(rktNetworkDeadline)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if status, err := rktGetStatus(uuid); err == nil {
+			for _, net := range status.Networks {
+				if !net.IP.IsGlobalUnicast() {
+					continue
+				}
+
+				// Get the pod manifest so we can figure out which ports are exposed
+				var portmap map[string]int
+				manifest, err := rktGetManifest(uuid)
+				if err == nil {
+					portmap, err = rktManifestMakePortMap(manifest, driverConfigPortMap)
+					if err != nil {
+						lastErr = fmt.Errorf("could not create manifest-based portmap: %v", err)
+						return nil, lastErr
+					}
+				} else {
+					lastErr = fmt.Errorf("could not get pod manifest: %v", err)
+					return nil, lastErr
+				}
+
+				return &cstructs.DriverNetwork{
+					PortMap: portmap,
+					IP:      status.Networks[0].IP.String(),
+				}, nil
+			}
+
+			if len(status.Networks) == 0 {
+				lastErr = fmt.Errorf("no networks found")
+			} else {
+				lastErr = fmt.Errorf("no good driver networks out of %d returned", len(status.Networks))
+			}
+		} else {
+			lastErr = fmt.Errorf("getting status failed: %v", err)
+		}
+
+		time.Sleep(400 * time.Millisecond)
+	}
+	return nil, fmt.Errorf("timed out, last error: %v", lastErr)
+}
+
 // Given a rkt/appc pod manifest and driver portmap configuration, create
 // a driver portmap.
 func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[string]string) (map[string]int, error) {
@@ -590,56 +634,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 	go h.run()
 
-	d.logger.Printf("[DEBUG] driver.rkt: retrieving status for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
-	deadline := time.Now().Add(rktNetworkDeadline)
-	var driverNetwork *cstructs.DriverNetwork
-	var lastErr error
-networkLoop:
-	for driverNetwork == nil && time.Now().Before(deadline) {
-		if status, err := rktGetStatus(uuid); err == nil {
-			for _, net := range status.Networks {
-				if !net.IP.IsGlobalUnicast() {
-					d.logger.Printf("[DEBUG] driver.rkt: network %s for pod %q (UUID %s) for task %q ignored", net.IP.String(), img, uuid, d.taskName)
-					continue
-				}
+	d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
+	driverNetwork, err := rktGetDriverNetwork(uuid, driverConfig.PortMap)
+	if err != nil && !pluginClient.Exited() {
+		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
 
-				// Get the pod manifest so we can figure out which ports are exposed
-				var portmap map[string]int
-				d.logger.Printf("[DEBUG] driver.rkt: grabbing manifest for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
-				manifest, err := rktGetManifest(uuid)
-				if err == nil {
-					portmap, err = rktManifestMakePortMap(manifest, driverConfig.PortMap)
-					if err != nil {
-						lastErr = err
-						d.logger.Printf("[WARN] driver.rkt: could not create manifest-based portmap for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
-						break networkLoop
-					}
-				} else {
-					lastErr = err
-					d.logger.Printf("[WARN] driver.rkt: could get not pod manifest for %q (UUID %s) for task %q: %v", img, uuid, d.taskName, err)
-					break networkLoop
-				}
-
-				driverNetwork = &cstructs.DriverNetwork{
-					PortMap: portmap,
-					IP:      status.Networks[0].IP.String(),
-				}
-				break networkLoop
-			}
-
-			if len(status.Networks) == 0 {
-				lastErr = fmt.Errorf("no networks found")
-			} else {
-				lastErr = fmt.Errorf("no good driver networks out of %d returned", len(status.Networks))
-			}
-		} else {
-			lastErr = err
-		}
-
-		time.Sleep(400 * time.Millisecond)
-	}
-	if driverNetwork == nil {
-		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, lastErr)
 		// If a portmap was given, this turns into a fatal error
 		if len(driverConfig.PortMap) != 0 {
 			pluginClient.Kill()
