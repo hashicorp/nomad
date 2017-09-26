@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import { lazyClick } from '../helpers/lazy-click';
 
 const { Component, inject, computed } = Ember;
 
@@ -28,6 +29,7 @@ export default Component.extend({
   }),
 
   click() {
-    this.get('router').transitionTo('servers.server', this.get('agent'));
+    const transition = () => this.get('router').transitionTo('servers.server', this.get('agent'));
+    lazyClick([transition, event]);
   },
 });

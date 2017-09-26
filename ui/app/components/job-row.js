@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import { lazyClick } from '../helpers/lazy-click';
 
 const { Component } = Ember;
 
@@ -11,7 +12,7 @@ export default Component.extend({
   onClick() {},
 
   click(event) {
-    this.get('onClick')(event);
+    lazyClick([this.get('onClick'), event]);
   },
 
   didReceiveAttrs() {
