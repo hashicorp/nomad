@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -121,10 +122,10 @@ func rktGetStatus(uuid string) (*rktv1.Pod, error) {
 		"--format=json",
 		uuid,
 	}
-	var outBuf, errBuf bytes.Buffer
+	var outBuf bytes.Buffer
 	cmd := exec.Command(rktCmd, statusArgs...)
 	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	cmd.Stderr = ioutil.Discard
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
@@ -141,10 +142,10 @@ func rktGetManifest(uuid string) (*appcschema.PodManifest, error) {
 		"cat-manifest",
 		uuid,
 	}
-	var outBuf, errBuf bytes.Buffer
+	var outBuf bytes.Buffer
 	cmd := exec.Command(rktCmd, statusArgs...)
 	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	cmd.Stderr = ioutil.Discard
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
