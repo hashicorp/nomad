@@ -590,7 +590,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 	go h.run()
 
-	d.logger.Printf("[DEBUG] driver.rkt: retrieving status for pod %q (UUID %s) for task %q with", img, uuid, d.taskName)
+	d.logger.Printf("[DEBUG] driver.rkt: retrieving status for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
 	deadline := time.Now().Add(rktNetworkDeadline)
 	var driverNetwork *cstructs.DriverNetwork
 networkLoop:
