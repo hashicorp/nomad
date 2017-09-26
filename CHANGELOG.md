@@ -1,5 +1,10 @@
 ## 0.7 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * driver/rkt: Nomad now requires at least rkt version `1.27.0` for the rkt
+   driver to function. Please update your version of rkt to at least this
+   version.
+
 IMPROVEMENTS:
  * core: Capability based ACL system with authoratative region, providing
    federated ACLs.

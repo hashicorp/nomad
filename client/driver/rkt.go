@@ -44,7 +44,7 @@ const (
 	// minRktVersion is the earliest supported version of rkt. rkt added support
 	// for CPU and memory isolators in 0.14.0. We cannot support an earlier
 	// version to maintain an uniform interface across all drivers
-	minRktVersion = "1.0.0"
+	minRktVersion = "1.27.0"
 
 	// The key populated in the Node Attributes to indicate the presence of the
 	// Rkt driver
