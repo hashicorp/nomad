@@ -599,6 +599,7 @@ networkLoop:
 		if status, err := rktGetStatus(uuid); err == nil {
 			for _, net := range status.Networks {
 				if !net.IP.IsGlobalUnicast() {
+					d.logger.Printf("[DEBUG] driver.rkt: network %s for pod %q (UUID %s) for task %q ignored", net.IP.String(), img, uuid, d.taskName)
 					continue
 				}
 
@@ -624,6 +625,12 @@ networkLoop:
 					IP:      status.Networks[0].IP.String(),
 				}
 				break networkLoop
+			}
+
+			if len(status.Networks) == 0 {
+				lastErr = fmt.Errorf("no networks found")
+			} else {
+				lastErr = fmt.Errorf("no good driver networks out of %d returned", len(status.Networks))
 			}
 		} else {
 			lastErr = err
