@@ -2516,6 +2516,69 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Allocations_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create allocations for a job
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.JobID = alloc1.JobID
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+	err := state.UpsertAllocs(1000,
+		[]*structs.Allocation{alloc1, alloc2})
+	assert.Nil(err)
+
+	// Look up allocations for that job
+	get := &structs.JobSpecificRequest{
+		JobID: alloc1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: alloc1.Job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token should fail
+	var resp structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token should fail
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with valid management token should succeed
+	get.SecretID = root.SecretID
+	var validResp structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &validResp)
+	assert.Nil(err)
+
+	// Attempt to fetch the response with valid management token should succeed
+	validToken := CreatePolicyAndToken(t, state, 1005, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.SecretID = validToken.SecretID
+	var validResp2 structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &validResp2)
+	assert.Nil(err)
+
+	assert.Equal(2, len(validResp2.Allocations))
+}
+
 func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
