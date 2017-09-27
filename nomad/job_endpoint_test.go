@@ -2623,7 +2623,7 @@ func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
 
-	// Create the register request
+	// Create evaluations for the same job
 	eval1 := mock.Eval()
 	eval2 := mock.Eval()
 	eval2.JobID = eval1.JobID
