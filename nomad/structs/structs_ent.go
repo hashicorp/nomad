@@ -334,6 +334,15 @@ type QuotaUsage struct {
 	ModifyIndex uint64
 }
 
+// QuotaUsageFromSpec initializes a quota specification that can be used to
+// track the usage for the specification.
+func QuotaUsageFromSpec(spec *QuotaSpec) *QuotaUsage {
+	return &QuotaUsage{
+		Name: spec.Name,
+		Used: make(map[string]*QuotaLimit, len(spec.Limits)),
+	}
+}
+
 // QuotaSpecListRequest is used to request a list of quota specifications
 type QuotaSpecListRequest struct {
 	QueryOptions
