@@ -23,7 +23,7 @@ Sentinel integrates with the ACL system, and provides the ability to do fine gra
 
  * **Policy Scope**. Sentinel policies declare a "scope", which determines when the policies apply. Currently the only supported scope is "submit-job", which applies to any new jobs being submitted, or existing jobs being updated.
 
- * **Enforcement Level**. Sentinel policies support multiple enforcement levels. The `advisory` level emits a warning when the policy fails, while `soft-mandatory` and `hard-mandatory` will prevent the operation. A `soft-mandatory` policy can be overriden if the user has necessary permissions.
+ * **Enforcement Level**. Sentinel policies support multiple enforcement levels. The `advisory` level emits a warning when the policy fails, while `soft-mandatory` and `hard-mandatory` will prevent the operation. A `soft-mandatory` policy can be overridden if the user has necessary permissions.
 
 ### Sentinel Policies
 
@@ -184,7 +184,7 @@ FALSE - test-policy:5:1 - Rule "all_drivers_exec"
 ==> Evaluation "16195b50" finished with status "complete"
 ```
 
-This time, the job was accepted but with a warning that our policy is failing but was overriden.
+This time, the job was accepted but with a warning that our policy is failing but was overridden.
 
 # Policy Specification
 

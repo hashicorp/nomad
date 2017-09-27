@@ -18,7 +18,7 @@ $ nomad run -output my-job.nomad
 
 ## Syntax
 
-Below is the JSON representation of the job outputed by `$ nomad init`:
+Below is the JSON representation of the job outputted by `$ nomad init`:
 
 ```json
 {

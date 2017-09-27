@@ -82,7 +82,7 @@ job "docs" {
       # with Consul for service discovery and monitoring.
       service {
         # This tells Consul to monitor the service on the port
-        # labled "http". Since Nomad allocates high dynamic port
+        # labelled "http". Since Nomad allocates high dynamic port
         # numbers, we use labels to refer to them.
         port = "http"
 

@@ -68,13 +68,13 @@ web-qa    QA instances of webservers
 ### Running jobs
 
 To run a job in a specific namespace, we annotate the job with the `namespace`
-parameter. If ommitted, the job will be run in the `default` namespace. Below is
+parameter. If omitted, the job will be run in the `default` namespace. Below is
 an example of running the job in the newly created `web-qa` namespace:
 
 ```
 job "rails-www" {
 
-    # Run in the QA environmet
+    # Run in the QA environments
     namespace = "web-qa"
 
     # Only run in one datacenter when QAing
