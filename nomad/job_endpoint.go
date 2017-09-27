@@ -671,6 +671,13 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job_versions"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,

@@ -1866,6 +1866,73 @@ func TestJobEndpoint_GetJobVersions(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create two versions of a job with different priorities
+	job := mock.Job()
+	job.Priority = 88
+	err := state.UpsertJob(10, job)
+	assert.Nil(err)
+
+	job.Priority = 100
+	err = state.UpsertJob(100, job)
+	assert.Nil(err)
+
+	// Lookup the job
+	get := &structs.JobVersionsRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch without a token should fail
+	var resp structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.SecretID = invalidToken.SecretID
+	var invalidResp structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Expect success for request with a valid management token
+	get.SecretID = root.SecretID
+	var validResp structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &validResp)
+	assert.Nil(err)
+
+	// Expect success for request with a valid token
+	validToken := CreatePolicyAndToken(t, state, 1005, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.SecretID = validToken.SecretID
+	var validResp2 structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &validResp2)
+	assert.Nil(err)
+
+	// Make sure there are two job versions
+	versions := validResp2.Versions
+	assert.Equal(2, len(versions))
+	assert.Equal(versions[0].ID, job.ID)
+	assert.Equal(versions[1].ID, job.ID)
+}
+
 func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
