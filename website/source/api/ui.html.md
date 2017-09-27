@@ -126,7 +126,7 @@ the leader.
 
 ## Server Detail
 
-This page lists all tags assocaited with a server.
+This page lists all tags associated with a server.
 
 | Path                     | Produces    |
 | ------------------------ | ----------- |

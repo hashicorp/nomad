@@ -111,7 +111,7 @@ The table below shows this endpoint's support for
   current job is at.
 
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overriden. This allows a job to be registered when it would be denied
+  will be overridden. This allows a job to be registered when it would be denied
   by policy.
 
 ### Sample Payload
@@ -1057,7 +1057,7 @@ The table below shows this endpoint's support for
   current job is at.
 
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overriden. This allows a job to be registered when it would be denied
+  will be overridden. This allows a job to be registered when it would be denied
   by policy.
 
 ### Sample Payload
@@ -1328,7 +1328,7 @@ The table below shows this endpoint's support for
   response.
 
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overriden. This allows a job to be registered when it would be denied
+  will be overridden. This allows a job to be registered when it would be denied
   by policy.
 
 ### Sample Payload

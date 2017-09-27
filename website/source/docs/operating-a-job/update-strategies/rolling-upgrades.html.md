@@ -24,7 +24,7 @@ Rolling updates are enabled by adding the [`update` stanza][update] to the job
 specification. The `update` stanza may be placed at the job level or in an
 individual task group. When placed at the job level, the update strategy is
 inherited by all task groups in the job. When placed at both the job and group
-level, the `update` stanzas are merged, with group stanzas taking precedance
+level, the `update` stanzas are merged, with group stanzas taking precedence
 over job level stanzas. See the [`update` stanza
 documentation](/docs/job-specification/update.html#upgrade-stanza-inheritance)
 for an example.
