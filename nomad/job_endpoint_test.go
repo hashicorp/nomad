@@ -1260,6 +1260,7 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	var resp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp)
 	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch the response with an invalid token
 	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
@@ -1269,6 +1270,7 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	var invalidResp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &invalidResp)
 	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
 
 	// Fetch the response with a valid management token
 	reEval.SecretID = root.SecretID
