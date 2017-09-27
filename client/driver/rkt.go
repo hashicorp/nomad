@@ -1,3 +1,5 @@
+//+build linux
+
 package driver
 
 import (
@@ -225,7 +227,7 @@ func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[
 	return portMap, nil
 }
 
-// NewRktDriver is used to create a new exec driver
+// NewRktDriver is used to create a new rkt driver
 func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
 }
