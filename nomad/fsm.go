@@ -66,10 +66,12 @@ type nomadFSM struct {
 	evalBroker         *EvalBroker
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
-	logOutput          io.Writer
 	logger             *log.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
+
+	// config is the FSM config
+	config *FSMConfig
 
 	// enterpriseAppliers holds the set of enterprise only LogAppliers
 	enterpriseAppliers LogAppliers
@@ -96,21 +98,44 @@ type nomadSnapshot struct {
 type snapshotHeader struct {
 }
 
+// FSMConfig is used to configure the FSM
+type FSMConfig struct {
+	// EvalBroker is the evaluation broker evaluations should be added to
+	EvalBroker *EvalBroker
+
+	// Periodic is the periodic job dispatcher that periodic jobs should be
+	// added/removed from
+	Periodic *PeriodicDispatch
+
+	// BlockedEvals is the blocked eval tracker that blocked evaulations should
+	// be added to.
+	Blocked *BlockedEvals
+
+	// LogOutput is the writer logs should be written to
+	LogOutput io.Writer
+
+	// Region is the region of the server embedding the FSM
+	Region string
+}
+
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch,
-	blocked *BlockedEvals, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
-	state, err := state.NewStateStore(logOutput)
+	sconfig := &state.StateStoreConfig{
+		LogOutput: config.LogOutput,
+		Region:    config.Region,
+	}
+	state, err := state.NewStateStore(sconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	fsm := &nomadFSM{
-		evalBroker:          evalBroker,
-		periodicDispatcher:  periodic,
-		blockedEvals:        blocked,
-		logOutput:           logOutput,
-		logger:              log.New(logOutput, "", log.LstdFlags),
+		evalBroker:          config.EvalBroker,
+		periodicDispatcher:  config.Periodic,
+		blockedEvals:        config.Blocked,
+		logger:              log.New(config.LogOutput, "", log.LstdFlags),
+		config:              config,
 		state:               state,
 		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
@@ -818,7 +843,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	defer old.Close()
 
 	// Create a new state store
-	newState, err := state.NewStateStore(n.logOutput)
+	config := &state.StateStoreConfig{
+		LogOutput: n.config.LogOutput,
+		Region:    n.config.Region,
+	}
+	newState, err := state.NewStateStore(config)
 	if err != nil {
 		return err
 	}

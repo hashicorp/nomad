@@ -40,7 +40,11 @@ func (m *MockSink) Close() error {
 }
 
 func testStateStore(t *testing.T) *state.StateStore {
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -51,10 +55,14 @@ func testStateStore(t *testing.T) *state.StateStore {
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	p, _ := testPeriodicDispatcher()
-	broker := testBroker(t, 0)
-	blocked := NewBlockedEvals(broker)
-	fsm, err := NewFSM(broker, p, blocked, os.Stderr)
+	fsmConfig := &FSMConfig{
+		EvalBroker: testBroker(t, 0),
+		Periodic:   testPeriodicDispatcher(),
+		Blocked:    NewBlockedEvals(broker),
+		LogOutput:  os.Stderr,
+		Region:     "global",
+	}
+	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

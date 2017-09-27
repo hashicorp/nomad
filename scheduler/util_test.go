@@ -290,7 +290,11 @@ func TestDiffSystemAllocs(t *testing.T) {
 }
 
 func TestReadyNodesInDCs(t *testing.T) {
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -374,7 +378,11 @@ func TestRetryMax(t *testing.T) {
 }
 
 func TestTaintedNodes(t *testing.T) {
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

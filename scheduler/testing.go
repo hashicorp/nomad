@@ -56,7 +56,11 @@ type Harness struct {
 
 // NewHarness is used to make a new testing harness
 func NewHarness(t testing.T) *Harness {
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

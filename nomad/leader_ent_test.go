@@ -65,7 +65,11 @@ func TestLeader_ReplicateSentinelPolicies(t *testing.T) {
 func TestLeader_DiffSentinelPolicies(t *testing.T) {
 	t.Parallel()
 
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

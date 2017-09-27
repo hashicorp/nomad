@@ -13,12 +13,17 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 func testStateStore(t *testing.T) *StateStore {
-	state, err := NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

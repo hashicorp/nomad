@@ -19,6 +19,15 @@ type IndexEntry struct {
 	Value uint64
 }
 
+// StateStoreConfig is used to configure a new state store
+type StateStoreConfig struct {
+	// LogOutput is used to configure the output of the state store's logs
+	LogOutput io.Writer
+
+	// Region is the region of the server embedding the state store.
+	Region string
+}
+
 // The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
@@ -30,13 +39,16 @@ type StateStore struct {
 	logger *log.Logger
 	db     *memdb.MemDB
 
+	// config is the passed in configuration
+	config *StateStoreConfig
+
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
 }
 
 // NewStateStore is used to create a new state store
-func NewStateStore(logOutput io.Writer) (*StateStore, error) {
+func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -45,8 +57,9 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(logOutput, "", log.LstdFlags),
+		logger:    log.New(config.LogOutput, "", log.LstdFlags),
 		db:        db,
+		config:    config,
 		abandonCh: make(chan struct{}),
 	}
 	return s, nil
@@ -59,6 +72,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
 			logger: s.logger,
+			config: s.config,
 			db:     s.db.Snapshot(),
 		},
 	}

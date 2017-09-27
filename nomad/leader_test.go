@@ -696,7 +696,11 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 func TestLeader_DiffACLPolicies(t *testing.T) {
 	t.Parallel()
 
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -769,7 +773,11 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 func TestLeader_DiffACLTokens(t *testing.T) {
 	t.Parallel()
 
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

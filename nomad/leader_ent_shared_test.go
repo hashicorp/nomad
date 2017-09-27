@@ -85,7 +85,11 @@ func TestLeader_ReplicateNamespaces(t *testing.T) {
 func TestLeader_DiffNamespaces(t *testing.T) {
 	t.Parallel()
 
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

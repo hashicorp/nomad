@@ -12,7 +12,11 @@ import (
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
-	state, err := state.NewStateStore(os.Stderr)
+	config := &state.StateStoreConfig{
+		LogOutput: os.Stderr,
+		Region:    "global",
+	}
+	state, err := state.NewStateStore(config)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
