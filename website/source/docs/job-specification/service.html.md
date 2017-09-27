@@ -106,6 +106,7 @@ does not automatically enable service discovery.
   behaves the same as `host` unless the driver determines its IP should be used.
   This setting was added in Nomad 0.6 and only supported by the Docker driver.
   It will advertise the container IP if a network plugin is used (e.g. weave).
+  Support was added to the rkt driver in 0.7.
 
 ### `check` Parameters
 

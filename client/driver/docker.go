@@ -744,8 +744,9 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		ip = net.IPAddress
 		ipName = name
 
-		// Don't auto-advertise bridge IPs
-		if name != "bridge" {
+		// Don't auto-advertise IPs for default networks (bridge on
+		// Linux, nat on Windows)
+		if name != "bridge" && name != "nat" {
 			auto = true
 		}
 
