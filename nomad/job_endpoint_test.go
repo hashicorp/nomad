@@ -2711,7 +2711,7 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
 
-	// Create the register request
+	// Create a job and corresponding deployments
 	j := mock.Job()
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
