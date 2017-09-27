@@ -627,6 +627,11 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 		return err
 	}
 
+	// Ensure ACLs are enabled and this call is made with one
+	if acl == nil {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -638,12 +643,17 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 				return err
 			}
 
-			// Check management level permissions or that the secret ID matches the
-			// accessor ID
-			if acl != nil && out != nil {
-				if !acl.IsManagement() && out.SecretID != args.SecretID {
+			if out == nil {
+				// If the token doesn't resolve, only allow management tokens to
+				// block.
+				if !acl.IsManagement() {
 					return structs.ErrPermissionDenied
 				}
+
+				// Check management level permissions or that the secret ID matches the
+				// accessor ID
+			} else if !acl.IsManagement() && out.SecretID != args.SecretID {
+				return structs.ErrPermissionDenied
 			}
 
 			// Setup the output
