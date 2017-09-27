@@ -170,7 +170,10 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	if d.driverConfig.Accelerator != "" {
 		accelerator = d.driverConfig.Accelerator
 	}
-	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
+
+	if task.Resources.MemoryMB <= 0 || task.Resources.MemoryMB > 4000000 {
+		return nil, fmt.Errorf("Qemu memory assignment out of bounds")
+	}
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)
 
 	absPath, err := GetAbsolutePath("qemu-system-x86_64")
