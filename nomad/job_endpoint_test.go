@@ -2525,19 +2525,19 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
 
-	// Create the register request
+	// Create allocations for a job
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.JobID = alloc1.JobID
-	state := s1.fsm.State()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 	err := state.UpsertAllocs(1000,
 		[]*structs.Allocation{alloc1, alloc2})
 	assert.Nil(err)
 
-	// Lookup the jobs
+	// Look up allocations for that job
 	get := &structs.JobSpecificRequest{
 		JobID: alloc1.JobID,
 		QueryOptions: structs.QueryOptions{
@@ -2550,6 +2550,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	var resp structs.JobAllocationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp)
 	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch the response with an invalid token should fail
 	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
@@ -2559,6 +2560,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	var invalidResp structs.JobAllocationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &invalidResp)
 	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch the response with valid management token should succeed
 	get.SecretID = root.SecretID
