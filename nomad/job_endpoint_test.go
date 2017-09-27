@@ -1463,6 +1463,87 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Deregister_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create and register a job
+	job := mock.Job()
+	err := state.UpsertJob(100, job)
+
+	// Deregister and purge
+	req := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.SecretID = invalidToken.SecretID
+
+	var invalidResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Expect success with a valid management token
+	req.SecretID = root.SecretID
+
+	var validResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp)
+	assert.Nil(err)
+	assert.NotEqual(validResp.Index, 0)
+
+	// Expect success with a valid token
+	validToken := CreatePolicyAndToken(t, state, 1005, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	req.SecretID = validToken.SecretID
+
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	assert.Nil(err)
+	assert.NotEqual(validResp2.Index, 0)
+
+	ws := memdb.NewWatchSet()
+
+	// Check for the job in the FSM
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	assert.Nil(err)
+	assert.Nil(out)
+
+	// Lookup the evaluation
+	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	assert.Nil(err)
+	assert.NotNil(eval, nil)
+
+	assert.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	assert.Equal(eval.Priority, structs.JobDefaultPriority)
+	assert.Equal(eval.Type, structs.JobTypeService)
+	assert.Equal(eval.TriggeredBy, structs.EvalTriggerJobDeregister)
+	assert.Equal(eval.JobID, job.ID)
+	assert.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	assert.Equal(eval.Status, structs.EvalStatusPending)
+}
+
 func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
