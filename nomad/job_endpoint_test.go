@@ -2905,6 +2905,73 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 	assert.Equal(d2.ID, resp.Deployment.ID, "latest deployment for job")
 }
 
+func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create a job and deployments
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	d2.CreateIndex = d1.CreateIndex + 100
+	d2.ModifyIndex = d2.CreateIndex + 100
+	assert.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token should fail
+	var resp structs.SingleDeploymentResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token should fail
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.SecretID = invalidToken.SecretID
+	var invalidResp structs.SingleDeploymentResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Fetching latest deployment with a valid management token should succeed
+	get.SecretID = root.SecretID
+	var validResp structs.SingleDeploymentResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &validResp), "RPC")
+	assert.EqualValues(1002, validResp.Index, "response index")
+	assert.NotNil(validResp.Deployment, "want a deployment")
+	assert.Equal(d2.ID, validResp.Deployment.ID, "latest deployment for job")
+
+	// Fetching latest deployment with a valid token should succeed
+	validToken := CreatePolicyAndToken(t, state, 1004, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.SecretID = validToken.SecretID
+	var validResp2 structs.SingleDeploymentResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &validResp2), "RPC")
+	assert.EqualValues(1002, validResp2.Index, "response index")
+	assert.NotNil(validResp2.Deployment, "want a deployment")
+	assert.Equal(d2.ID, validResp2.Deployment.ID, "latest deployment for job")
+}
+
 func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
