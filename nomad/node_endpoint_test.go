@@ -1253,9 +1253,9 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,
-		SecretID:     node.SecretID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
+	get.SecretID = node.SecretID
 	var resp2 structs.NodeClientAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1327,14 +1327,14 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 
 	// Lookup the allocs in a blocking query
 	req := &structs.NodeSpecificRequest{
-		NodeID:   node.ID,
-		SecretID: node.SecretID,
+		NodeID: node.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 50,
 			MaxQueryTime:  time.Second,
 		},
 	}
+	req.SecretID = node.SecretID
 	var resp2 structs.NodeClientAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp2); err != nil {
 		t.Fatalf("err: %v", err)

@@ -1310,11 +1310,11 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 	// be running on the Node to their AllocModifyIndex which is incremented
 	// when the allocation is updated by the servers.
 	req := structs.NodeSpecificRequest{
-		NodeID:   c.NodeID(),
-		SecretID: c.secretNodeID(),
+		NodeID: c.NodeID(),
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
 			AllowStale: true,
+			SecretID:   c.secretNodeID(),
 		},
 	}
 	var resp structs.NodeClientAllocsResponse

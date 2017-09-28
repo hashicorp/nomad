@@ -299,8 +299,7 @@ type NodeEvaluateRequest struct {
 
 // NodeSpecificRequest is used when we just need to specify a target node
 type NodeSpecificRequest struct {
-	NodeID   string
-	SecretID string
+	NodeID string
 	QueryOptions
 }
 
