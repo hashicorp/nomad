@@ -104,8 +104,8 @@ does not automatically enable service discovery.
   and port. `driver` advertises the IP used in the driver (e.g. Docker's internal
   IP) and uses the ports specified in the port map. The default is `auto` which
   behaves the same as `host` unless the driver determines its IP should be used.
-  This setting was added in Nomad 0.6 and only supported by the Docker driver.
-  It will advertise the container IP if a network plugin is used (e.g. weave).
+  This setting supported Docker since Nomad 0.6 and rkt since Nomad 0.7. It
+  will advertise the container IP if a network plugin is used (e.g. weave).
 
 ### `check` Parameters
 
