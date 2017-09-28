@@ -611,17 +611,22 @@ func serviceCheckDiff(old, new *ServiceCheck, contextual bool) *ObjectDiff {
 // occurred.
 func checkHeaderDiff(old, new map[string][]string, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Header"}
+	var oldFlat, newFlat map[string]string
+
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if len(old) == 0 {
 		diff.Type = DiffTypeAdded
+		newFlat = flatmap.Flatten(new, nil, false)
 	} else if len(new) == 0 {
 		diff.Type = DiffTypeDeleted
+		oldFlat = flatmap.Flatten(old, nil, false)
 	} else {
 		diff.Type = DiffTypeEdited
+		oldFlat = flatmap.Flatten(old, nil, false)
+		newFlat = flatmap.Flatten(new, nil, false)
 	}
-	oldFlat := flatmap.Flatten(old, nil, false)
-	newFlat := flatmap.Flatten(new, nil, false)
+
 	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
 	return diff
 }
@@ -631,17 +636,23 @@ func checkHeaderDiff(old, new map[string][]string, contextual bool) *ObjectDiff 
 // no diff occurred.
 func checkRestartDiff(old, new *CheckRestart, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "CheckRestart"}
+	var oldFlat, newFlat map[string]string
+
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if old == nil {
 		diff.Type = DiffTypeAdded
+		newFlat = flatmap.Flatten(new, nil, true)
+		diff.Type = DiffTypeAdded
 	} else if new == nil {
 		diff.Type = DiffTypeDeleted
+		oldFlat = flatmap.Flatten(old, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
+		oldFlat = flatmap.Flatten(old, nil, true)
+		newFlat = flatmap.Flatten(new, nil, true)
 	}
-	oldFlat := flatmap.Flatten(old, nil, false)
-	newFlat := flatmap.Flatten(new, nil, false)
+
 	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
 	return diff
 }
