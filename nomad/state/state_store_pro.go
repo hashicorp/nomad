@@ -160,6 +160,23 @@ func (s *StateStore) Namespaces(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	return iter, nil
 }
 
+// NamespacesByQuota is used to lookup namespaces by quota
+func (s *StateStore) NamespacesByQuota(ws memdb.WatchSet, quota string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	return s.namespacesByQuotaImpl(ws, txn, quota)
+}
+
+// namespacesByQuotaImpl is used to lookup namespaces by quota
+func (s *StateStore) namespacesByQuotaImpl(ws memdb.WatchSet, txn *memdb.Txn, quota string) (memdb.ResultIterator, error) {
+	iter, err := txn.Get(TableNamespaces, "quota", quota)
+	if err != nil {
+		return nil, fmt.Errorf("namespaces lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // NamespaceRestore is used to restore a namespace
 func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
 	if err := r.txn.Insert(TableNamespaces, ns); err != nil {

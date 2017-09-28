@@ -104,7 +104,9 @@ func TestFSM_UpsertQuotaSpecs(t *testing.T) {
 	assert.Nil(err)
 	assert.NotNil(out)
 
-	// TODO assert a quota usage is made
+	usage, err := fsm.State().QuotaUsageByName(ws, spec.Name)
+	assert.Nil(err)
+	assert.NotNil(usage)
 }
 
 func TestFSM_DeleteQuotaSpecs(t *testing.T) {
@@ -130,7 +132,9 @@ func TestFSM_DeleteQuotaSpecs(t *testing.T) {
 	assert.Nil(err)
 	assert.Nil(out)
 
-	// TODO assert a quota usage is deleted
+	usage, err := fsm.State().QuotaUsageByName(ws, spec.Name)
+	assert.Nil(err)
+	assert.Nil(usage)
 }
 
 func TestFSM_SnapshotRestore_QuotaSpec(t *testing.T) {
@@ -142,7 +146,7 @@ func TestFSM_SnapshotRestore_QuotaSpec(t *testing.T) {
 	state := fsm.State()
 	qs1 := mock.QuotaSpec()
 	qs2 := mock.QuotaSpec()
-	state.UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1, qs2})
+	assert.Nil(state.UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1, qs2}))
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -161,9 +165,14 @@ func TestFSM_SnapshotRestore_QuotaUsage(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
+	qs1 := mock.QuotaSpec()
+	qs2 := mock.QuotaSpec()
+	assert.Nil(state.UpsertQuotaSpecs(999, []*structs.QuotaSpec{qs1, qs2}))
 	qu1 := mock.QuotaUsage()
 	qu2 := mock.QuotaUsage()
-	state.UpsertQuotaUsages(1000, []*structs.QuotaUsage{qu1, qu2})
+	qu1.Name = qs1.Name
+	qu2.Name = qs2.Name
+	assert.Nil(state.UpsertQuotaUsages(1000, []*structs.QuotaUsage{qu1, qu2}))
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)

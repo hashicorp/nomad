@@ -3,6 +3,7 @@
 package structs
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -207,4 +208,142 @@ func TestQuotaSpec_SetHash(t *testing.T) {
 	assert.NotNil(qs.Hash)
 	assert.Equal(out2, qs.Hash)
 	assert.NotEqual(out1, out2)
+}
+
+func TestQuotaUsage_Diff(t *testing.T) {
+	cases := []struct {
+		Name   string
+		Usage  *QuotaUsage
+		Spec   *QuotaSpec
+		Create []string
+		Delete []string
+	}{
+		{
+			Name:   "noop",
+			Create: []string{},
+			Delete: []string{},
+		},
+		{
+			Name: "no usage",
+			Spec: &QuotaSpec{
+				Name:        "foo",
+				Description: "limit foo",
+				Limits: []*QuotaLimit{
+					{
+						Region: "global",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x1},
+					},
+					{
+						Region: "foo",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x2},
+					},
+				},
+			},
+			Create: []string{string(0x1), string(0x2)},
+			Delete: []string{},
+		},
+		{
+			Name: "no spec",
+			Usage: &QuotaUsage{
+				Name: "foo",
+				Used: map[string]*QuotaLimit{
+					"\x01": {
+						Region: "global",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x1},
+					},
+					"\x02": {
+						Region: "foo",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x2},
+					},
+				},
+			},
+			Create: []string{},
+			Delete: []string{string(0x1), string(0x2)},
+		},
+		{
+			Name: "both",
+			Spec: &QuotaSpec{
+				Name:        "foo",
+				Description: "limit foo",
+				Limits: []*QuotaLimit{
+					{
+						Region: "global",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x1},
+					},
+					{
+						Region: "foo",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x2},
+					},
+				},
+			},
+			Usage: &QuotaUsage{
+				Name: "foo",
+				Used: map[string]*QuotaLimit{
+					"\x01": {
+						Region: "global",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x1},
+					},
+					"\x03": {
+						Region: "bar",
+						RegionLimit: &Resources{
+							CPU:      5000,
+							MemoryMB: 2000,
+						},
+						Hash: []byte{0x3},
+					},
+				},
+			},
+			Create: []string{string(0x2)},
+			Delete: []string{string(0x3)},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			actCreate, actDelete := c.Usage.DiffLimits(c.Spec)
+			actCreateHashes := make([]string, 0, len(actCreate))
+			actDeleteHashes := make([]string, 0, len(actDelete))
+			for _, c := range actCreate {
+				actCreateHashes = append(actCreateHashes, string(c.Hash))
+			}
+			for _, d := range actDelete {
+				actDeleteHashes = append(actDeleteHashes, string(d.Hash))
+			}
+
+			sort.Strings(actCreateHashes)
+			sort.Strings(actDeleteHashes)
+			sort.Strings(c.Create)
+			sort.Strings(c.Delete)
+			assert.Equal(t, actCreateHashes, c.Create)
+			assert.Equal(t, actDeleteHashes, c.Delete)
+		})
+	}
 }

@@ -266,7 +266,9 @@ type QuotaLimit struct {
 	Region string
 
 	// RegionLimit is the quota limit that applies to any allocation within a
-	// referencing namespace in the region.
+	// referencing namespace in the region. A value of zero is treated as
+	// unlimited and a negative value is treated as fully disallowed. This is
+	// useful for once we support GPUs
 	RegionLimit *Resources
 
 	// Hash is the hash of the object and is used to make replication efficient.
@@ -341,6 +343,44 @@ func QuotaUsageFromSpec(spec *QuotaSpec) *QuotaUsage {
 		Name: spec.Name,
 		Used: make(map[string]*QuotaLimit, len(spec.Limits)),
 	}
+}
+
+// DiffLimits returns the set of quota limits to create and destroy by comparing
+// the hashes of the limits
+func (q *QuotaUsage) DiffLimits(spec *QuotaSpec) (create, delete []*QuotaLimit) {
+	if spec == nil && q == nil {
+		// If both are nil, do nothing
+		return nil, nil
+	} else if q == nil {
+		// If the usage is nil we add everything
+		return spec.Limits, nil
+	} else if spec == nil {
+		// If there is no spec we delete everything
+		delete = make([]*QuotaLimit, 0, len(q.Used))
+		for _, l := range q.Used {
+			delete = append(delete, l)
+		}
+		return nil, delete
+	}
+
+	// Determine what to add
+	lookup := make(map[string]struct{}, len(spec.Limits))
+	for _, l := range spec.Limits {
+		hash := string(l.Hash)
+		lookup[hash] = struct{}{}
+		if _, ok := q.Used[hash]; !ok {
+			create = append(create, l)
+		}
+	}
+
+	// Determine what to delete
+	for hash, used := range q.Used {
+		if _, ok := lookup[hash]; !ok {
+			delete = append(delete, used)
+		}
+	}
+
+	return create, delete
 }
 
 // QuotaSpecListRequest is used to request a list of quota specifications

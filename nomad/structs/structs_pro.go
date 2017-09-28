@@ -40,6 +40,10 @@ type Namespace struct {
 	// Description is a human readable description of the namespace
 	Description string
 
+	// Quota is the quota specification that the namespace should account
+	// against.
+	Quota string
+
 	// Hash is the hash of the namespace which is used to efficiently replicate
 	// cross-regions.
 	Hash []byte
@@ -76,6 +80,7 @@ func (n *Namespace) SetHash() []byte {
 	// Write all the user set fields
 	hash.Write([]byte(n.Name))
 	hash.Write([]byte(n.Description))
+	hash.Write([]byte(n.Quota))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)

@@ -25,7 +25,7 @@ func sentinelPolicyTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableSentinelPolicies,
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -33,7 +33,7 @@ func sentinelPolicyTableSchema() *memdb.TableSchema {
 					Field: "Name",
 				},
 			},
-			"scope": &memdb.IndexSchema{
+			"scope": {
 				Name:         "scope",
 				AllowMissing: false,
 				Unique:       false,
@@ -51,7 +51,7 @@ func quotaSpecTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableQuotaSpec,
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -69,7 +69,7 @@ func quotaUsageTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: TableQuotaUsage,
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,

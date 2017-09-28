@@ -37,8 +37,8 @@ func QuotaSpec() *structs.QuotaSpec {
 			{
 				Region: "europe",
 				RegionLimit: &structs.Resources{
-					CPU:      -1,
-					MemoryMB: -1,
+					CPU:      0,
+					MemoryMB: 0,
 				},
 			},
 		},

@@ -180,17 +180,21 @@ func (s *StateStore) UpsertQuotaSpecs(index uint64, specs []*structs.QuotaSpec) 
 		} else {
 			spec.CreateIndex = index
 			spec.ModifyIndex = index
-
-			// Create the usage object for the new quota spec
-			usage := structs.QuotaUsageFromSpec(spec)
-			if err := s.upsertQuotaUsageImpl(index, txn, usage, true); err != nil {
-				return fmt.Errorf("upserting quota usage for spec %q failed: %v", spec.Name, err)
-			}
 		}
 
 		// Update the quota
 		if err := txn.Insert(TableQuotaSpec, spec); err != nil {
 			return fmt.Errorf("upserting quota specification failed: %v", err)
+		}
+
+		// If we just created the spec, create the associated usage object. This
+		// has to be done after inserting the spec.
+		if spec.CreateIndex == spec.ModifyIndex {
+			// Create the usage object for the new quota spec
+			usage := structs.QuotaUsageFromSpec(spec)
+			if err := s.upsertQuotaUsageImpl(index, txn, usage, true); err != nil {
+				return fmt.Errorf("upserting quota usage for spec %q failed: %v", spec.Name, err)
+			}
 		}
 	}
 
@@ -279,6 +283,8 @@ func (r *StateRestore) QuotaSpecRestore(spec *structs.QuotaSpec) error {
 	return nil
 }
 
+// TODO(alex): Potentially delete the the Upsert/Delete methods for Usages. They
+// should be side effects of other calls.
 // UpsertQuotaUsages is used to create or update a set of quota usages
 func (s *StateStore) UpsertQuotaUsages(index uint64, usages []*structs.QuotaUsage) error {
 	txn := s.db.Txn(true)
@@ -341,7 +347,6 @@ func (s *StateStore) upsertQuotaUsageImpl(index uint64, txn *memdb.Txn, usage *s
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -368,12 +373,88 @@ func (s *StateStore) reconcileQuotaUsage(index uint64, txn *memdb.Txn, opts reco
 		return fmt.Errorf("invalid quota usage reconcile options: %+v", opts)
 	}
 
-	// If all, remove all the existing limits
+	// Grab the variables for easier referencing
+	usage := opts.Usage
+	spec := opts.Spec
+
+	// Update the modify index
+	usage.ModifyIndex = index
+
+	// If all, remove all the existing limits so that when we diff we recreate
+	// all
+	if opts.AllLimits {
+		usage.Used = make(map[string]*structs.QuotaLimit, len(spec.Limits))
+	}
 
 	// Diff the usage and the spec to determine what to add and delete
+	create, remove := usage.DiffLimits(spec)
+
+	// Remove what we don't need
+	for _, rm := range remove {
+		delete(usage.Used, string(rm.Hash))
+	}
 
 	// Filter the additions by if they apply to this region.
+	filteredRegions := create[:0]
+	region := s.config.Region
+	for _, limit := range create {
+		if limit.Region == region {
+			filteredRegions = append(filteredRegions, limit)
+		}
+	}
 
+	// In the future we will need more advanced filtering to determine if the
+	// limit applies per allocation but for for now there should only be one
+	// limit and all allocations from namespaces using the quota apply to it.
+	if len(filteredRegions) == 0 {
+		return nil
+	}
+
+	// Create a copy of the limit from the spec
+	specLimit := filteredRegions[0]
+	usageLimit := &structs.QuotaLimit{
+		Region:      specLimit.Region,
+		RegionLimit: &structs.Resources{},
+		Hash:        specLimit.Hash,
+	}
+
+	// Determine the namespaces using the quota
+	var namespaces []*structs.Namespace
+	iter, err := s.namespacesByQuotaImpl(nil, txn, spec.Name)
+	if err != nil {
+		return err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ns := raw.(*structs.Namespace)
+		namespaces = append(namespaces, ns)
+	}
+
+	for _, ns := range namespaces {
+		allocs, err := s.allocsByNamespaceImpl(nil, txn, ns.Name)
+		if err != nil {
+			return err
+		}
+
+		for {
+			raw := allocs.Next()
+			if raw == nil {
+				break
+			}
+
+			// Allocation counts against quota if not terminal
+			alloc := raw.(*structs.Allocation)
+			if !alloc.TerminalStatus() {
+				usageLimit.RegionLimit.Add(alloc.Resources)
+			}
+		}
+	}
+
+	usage.Used[string(usageLimit.Hash)] = usageLimit
 	return nil
 }
 

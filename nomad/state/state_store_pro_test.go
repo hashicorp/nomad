@@ -207,6 +207,44 @@ func TestStateStore_NamespaceByNamePrefix(t *testing.T) {
 	assert.False(watchFired(ws))
 }
 
+func TestStateStore_NamespaceByQuota(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	ns2.Quota = "foo"
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+
+	// Create a watchset so we can test that getters don't cause it to fire
+	ws := memdb.NewWatchSet()
+	iter, err := state.NamespacesByQuota(ws, ns2.Quota)
+	assert.Nil(err)
+
+	gatherNamespaces := func(iter memdb.ResultIterator) []*structs.Namespace {
+		var namespaces []*structs.Namespace
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			ns := raw.(*structs.Namespace)
+			namespaces = append(namespaces, ns)
+		}
+		return namespaces
+	}
+
+	namespaces := gatherNamespaces(iter)
+	assert.Len(namespaces, 1)
+	assert.Equal(ns2.Name, namespaces[0].Name)
+	assert.False(watchFired(ws))
+
+	iter, err = state.NamespacesByQuota(ws, "bar")
+	assert.Nil(err)
+
+	namespaces = gatherNamespaces(iter)
+	assert.Empty(namespaces)
+}
+
 func TestStateStore_RestoreNamespace(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
