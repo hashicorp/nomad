@@ -322,6 +322,25 @@ func (s *StateStore) DeleteQuotaSpecs(index uint64, names []string) error {
 
 	// Delete the quota specs
 	for _, name := range names {
+		// Ensure that there are no references to the quota spec
+		iter, err := s.namespacesByQuotaImpl(nil, txn, name)
+		if err != nil {
+			return fmt.Errorf("looking up namespaces by quota failed: %v", err)
+		}
+
+		var namespaces []string
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			ns := raw.(*structs.Namespace)
+			namespaces = append(namespaces, ns.Name)
+		}
+		if len(namespaces) != 0 {
+			return fmt.Errorf("Quota can't be removed since it is referenced by the following namespaces: %v", namespaces)
+		}
+
 		if _, err := txn.DeleteAll(TableQuotaSpec, "id", name); err != nil {
 			return fmt.Errorf("deleting quota specification %q failed: %v", name, err)
 		}

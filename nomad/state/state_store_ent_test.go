@@ -650,6 +650,27 @@ func TestStateStore_DeleteQuotaSpecs(t *testing.T) {
 	assert.False(watchFired(ws))
 }
 
+func TestStateStore_DeleteQuotaSpecs_Referenced(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	qs1 := mock.QuotaSpec()
+
+	// Create the quota specs
+	assert.Nil(state.UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1}))
+
+	// Create two namespaces that reference the spec
+	ns1, ns2 := mock.Namespace(), mock.Namespace()
+	ns1.Quota = qs1.Name
+	ns2.Quota = qs1.Name
+	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{ns1, ns2}))
+
+	// Delete the spec
+	err := state.DeleteQuotaSpecs(1002, []string{qs1.Name})
+	assert.NotNil(err)
+	assert.Contains(err.Error(), ns1.Name)
+	assert.Contains(err.Error(), ns2.Name)
+}
+
 func TestStateStore_QuotaSpecsByNamePrefix(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
