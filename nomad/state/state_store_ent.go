@@ -132,6 +132,114 @@ func (r *StateRestore) SentinelPolicyRestore(policy *structs.SentinelPolicy) err
 	return nil
 }
 
+// upsertNamespaceImpl is used to upsert a namespace
+func (s *StateStore) upsertNamespaceImpl(index uint64, txn *memdb.Txn, namespace *structs.Namespace) error {
+	// Ensure the namespace hash is non-nil. This should be done outside the state store
+	// for performance reasons, but we check here for defense in depth.
+	ns := namespace
+	if len(ns.Hash) == 0 {
+		ns.SetHash()
+	}
+
+	// Check if the namespace already exists
+	existing, err := txn.First(TableNamespaces, "id", ns.Name)
+	if err != nil {
+		return fmt.Errorf("namespace lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly and determine which quotas need to be
+	// reconciled
+	var oldQuota string
+	if existing != nil {
+		exist := existing.(*structs.Namespace)
+		ns.CreateIndex = exist.CreateIndex
+		ns.ModifyIndex = index
+
+		// Grab the old quota on the namespace
+		oldQuota = exist.Quota
+	} else {
+		ns.CreateIndex = index
+		ns.ModifyIndex = index
+	}
+
+	// Validate that the quota on the new namespace exists
+	if ns.Quota != "" {
+		exists, err := s.quotaSpecExists(txn, ns.Quota)
+		if err != nil {
+			return fmt.Errorf("looking up namespace quota %q failed: %v", ns.Quota, err)
+		} else if !exists {
+			return fmt.Errorf("namespace %q using non-existent quota %q", ns.Name, ns.Quota)
+		}
+	}
+
+	// Insert the namespace
+	if err := txn.Insert(TableNamespaces, ns); err != nil {
+		return fmt.Errorf("namespace insert failed: %v", err)
+	}
+
+	// Reconcile the quota usages if the namespace has changed the quota object
+	// it is accounting against.
+	//
+	// OPTIMIZATION:
+	// For now lets do the simple and safe thing and reconcile the full
+	// quota. In the future we can optimize it to just scan the allocs in
+	// the effected namespaces.
+
+	// Existing  | New       | Action
+	// "" or "a" | "" or "a" | None
+	// ""        | "a"       | Reconcile "a"
+	// "a"       | ""        | reconcile "a"
+	// "a"       | "b"       | Reconcile "a" and "b"
+	newQuota := ns.Quota
+	var reconcileQuotas []string
+
+	switch {
+	case oldQuota == "" && newQuota == "":
+	case oldQuota == "" && newQuota != "":
+		reconcileQuotas = append(reconcileQuotas, newQuota)
+	case oldQuota != "" && newQuota == "":
+		reconcileQuotas = append(reconcileQuotas, oldQuota)
+	case oldQuota != newQuota:
+		reconcileQuotas = append(reconcileQuotas, oldQuota, newQuota)
+	}
+
+	for _, q := range reconcileQuotas {
+		// Get the spec object
+		spec, err := s.quotaSpecByNameImpl(nil, txn, q)
+		if err != nil {
+			return fmt.Errorf("failed to lookup quota spec %q: %v", q, err)
+		}
+		if spec == nil {
+			return fmt.Errorf("unknown quota spec %q", q)
+		}
+
+		// Get the usage object
+		usage, err := s.quotaUsageByNameImpl(txn, nil, q)
+		if err != nil {
+			return fmt.Errorf("failed to lookup quota usage for spec %q: %v", q, err)
+		}
+		if usage == nil {
+			return fmt.Errorf("nil quota usage for spec %q", q)
+		}
+
+		opts := reconcileQuotaUsageOpts{
+			Usage:     usage,
+			Spec:      spec,
+			AllLimits: true,
+		}
+		if err := s.reconcileQuotaUsage(index, txn, opts); err != nil {
+			return fmt.Errorf("reconciling quota usage for spec %q failed: %v", q, err)
+		}
+
+		// Update the quota after reconciling
+		if err := txn.Insert(TableQuotaUsage, usage); err != nil {
+			return fmt.Errorf("upserting quota usage failed: %v", err)
+		}
+	}
+
+	return nil
+}
+
 // UpsertQuotaSpecs is used to create or update a set of quota specifications
 func (s *StateStore) UpsertQuotaSpecs(index uint64, specs []*structs.QuotaSpec) error {
 	txn := s.db.Txn(true)
@@ -247,6 +355,12 @@ func (s *StateStore) quotaSpecByNameImpl(ws memdb.WatchSet, txn *memdb.Txn, name
 		return existing.(*structs.QuotaSpec), nil
 	}
 	return nil, nil
+}
+
+// quotaSpecExists on returns whether the quota exists
+func (s *StateStore) quotaSpecExists(txn *memdb.Txn, name string) (bool, error) {
+	qs, err := s.quotaSpecByNameImpl(nil, txn, name)
+	return qs != nil, err
 }
 
 // QuotaSpecByNamePrefix is used to lookup quota specifications by prefix

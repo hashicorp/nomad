@@ -228,6 +228,227 @@ func TestStateStore_RestoreSentinelPolicy(t *testing.T) {
 	assert.Equal(t, policy, out)
 }
 
+func TestStateStore_NamespaceByQuota(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	qs := mock.QuotaSpec()
+	assert.Nil(state.UpsertQuotaSpecs(999, []*structs.QuotaSpec{qs}))
+
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	ns2.Quota = qs.Name
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
+
+	// Create a watchset so we can test that getters don't cause it to fire
+	ws := memdb.NewWatchSet()
+	iter, err := state.NamespacesByQuota(ws, ns2.Quota)
+	assert.Nil(err)
+
+	gatherNamespaces := func(iter memdb.ResultIterator) []*structs.Namespace {
+		var namespaces []*structs.Namespace
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			ns := raw.(*structs.Namespace)
+			namespaces = append(namespaces, ns)
+		}
+		return namespaces
+	}
+
+	namespaces := gatherNamespaces(iter)
+	assert.Len(namespaces, 1)
+	assert.Equal(ns2.Name, namespaces[0].Name)
+	assert.False(watchFired(ws))
+
+	iter, err = state.NamespacesByQuota(ws, "bar")
+	assert.Nil(err)
+
+	namespaces = gatherNamespaces(iter)
+	assert.Empty(namespaces)
+}
+
+func TestStateStore_UpsertNamespaces_BadQuota(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+	ns1 := mock.Namespace()
+	ns1.Quota = "foo"
+	assert.NotNil(state.UpsertNamespaces(1000, []*structs.Namespace{ns1}))
+}
+
+func TestStateStore_UpsertNamespaces_NewQuota(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	// 1. Create a namespace
+	ns1 := mock.Namespace()
+	assert.Nil(state.UpsertNamespaces(1000, []*structs.Namespace{ns1}))
+
+	// expected is the expected quota usage
+	expected := &structs.Resources{}
+
+	// 2. Create some allocations in the namespace
+	var allocs []*structs.Allocation
+
+	// Create a pending alloc
+	a1 := mock.Alloc()
+	a1.DesiredStatus = structs.AllocDesiredStatusRun
+	a1.ClientStatus = structs.AllocClientStatusPending
+	a1.Namespace = ns1.Name
+	expected.Add(a1.Resources)
+
+	// Create a running alloc
+	a2 := mock.Alloc()
+	a2.DesiredStatus = structs.AllocDesiredStatusRun
+	a2.ClientStatus = structs.AllocClientStatusRunning
+	a2.Namespace = ns1.Name
+	expected.Add(a2.Resources)
+
+	// Create a run/complete alloc
+	a3 := mock.Alloc()
+	a3.DesiredStatus = structs.AllocDesiredStatusRun
+	a3.ClientStatus = structs.AllocClientStatusComplete
+	a3.Namespace = ns1.Name
+	allocs = append(allocs, a1, a2, a3)
+	assert.Nil(state.UpsertAllocs(1001, allocs))
+
+	// 3. Create a QuotaSpec and attach it to the namespace
+	qs := mock.QuotaSpec()
+	assert.Nil(state.UpsertQuotaSpecs(1002, []*structs.QuotaSpec{qs}))
+	ns2 := mock.Namespace()
+	ns2.Name = ns1.Name
+	ns2.Quota = qs.Name
+	ns2.SetHash()
+	assert.Nil(state.UpsertNamespaces(1003, []*structs.Namespace{ns2}))
+
+	// 4. Assert that the QuotaUsage is updated.
+	usage, err := state.QuotaUsageByName(nil, qs.Name)
+	assert.Nil(err)
+	assert.NotNil(usage)
+	assert.EqualValues(1002, usage.CreateIndex)
+	assert.EqualValues(1003, usage.ModifyIndex)
+	assert.Len(usage.Used, 1)
+
+	// Grab the usage
+	used := usage.Used[string(qs.Limits[0].Hash)]
+	assert.NotNil(used)
+	assert.Equal("global", used.Region)
+	assert.Equal(expected, used.RegionLimit)
+
+}
+
+func TestStateStore_UpsertNamespaces_RemoveQuota(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	// 1. Create a QuotaSpec
+	qs := mock.QuotaSpec()
+	assert.Nil(state.UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs}))
+
+	// 2. Create a namespace
+	ns1 := mock.Namespace()
+	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{ns1}))
+
+	// 3. Create a allocation in the namespace
+	a1 := mock.Alloc()
+	a1.DesiredStatus = structs.AllocDesiredStatusRun
+	a1.ClientStatus = structs.AllocClientStatusPending
+	a1.Namespace = ns1.Name
+	assert.Nil(state.UpsertAllocs(1002, []*structs.Allocation{a1}))
+
+	// 4. Create a QuotaSpec and attach it to the namespace
+	ns2 := mock.Namespace()
+	ns2.Name = ns1.Name
+	ns2.Quota = qs.Name
+	ns2.SetHash()
+	assert.Nil(state.UpsertNamespaces(1003, []*structs.Namespace{ns2}))
+
+	// 5. Remove the spec from the namespace
+	ns3 := mock.Namespace()
+	ns3.Name = ns1.Name
+	ns3.SetHash()
+	assert.Nil(state.UpsertNamespaces(1004, []*structs.Namespace{ns3}))
+
+	// 6. Assert that the QuotaUsage is empty.
+	usage, err := state.QuotaUsageByName(nil, qs.Name)
+	assert.Nil(err)
+	assert.NotNil(usage)
+	assert.EqualValues(1000, usage.CreateIndex)
+	assert.EqualValues(1004, usage.ModifyIndex)
+	assert.Len(usage.Used, 1)
+
+	// Grab the usage
+	used := usage.Used[string(qs.Limits[0].Hash)]
+	assert.NotNil(used)
+	assert.Equal("global", used.Region)
+	assert.Equal(&structs.Resources{}, used.RegionLimit)
+}
+
+func TestStateStore_UpsertNamespaces_ChangeQuota(t *testing.T) {
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	// 1. Create two QuotaSpecs
+	qs1 := mock.QuotaSpec()
+	qs2 := mock.QuotaSpec()
+	assert.Nil(state.UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1, qs2}))
+
+	// 2. Create a namespace
+	ns1 := mock.Namespace()
+	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{ns1}))
+
+	// 3. Create a allocation in the namespace
+	a1 := mock.Alloc()
+	a1.DesiredStatus = structs.AllocDesiredStatusRun
+	a1.ClientStatus = structs.AllocClientStatusPending
+	a1.Namespace = ns1.Name
+	assert.Nil(state.UpsertAllocs(1002, []*structs.Allocation{a1}))
+
+	// 4. Create a QuotaSpec and attach it to the namespace
+	ns2 := mock.Namespace()
+	ns2.Name = ns1.Name
+	ns2.Quota = qs1.Name
+	ns2.SetHash()
+	assert.Nil(state.UpsertNamespaces(1003, []*structs.Namespace{ns2}))
+
+	// 5. Change the spec on the namespace
+	ns3 := mock.Namespace()
+	ns3.Name = ns1.Name
+	ns3.Quota = qs2.Name
+	ns3.SetHash()
+	assert.Nil(state.UpsertNamespaces(1004, []*structs.Namespace{ns3}))
+
+	// 6. Assert that the QuotaUsage for original spec is empty.
+	usage, err := state.QuotaUsageByName(nil, qs1.Name)
+	assert.Nil(err)
+	assert.NotNil(usage)
+	assert.EqualValues(1000, usage.CreateIndex)
+	assert.EqualValues(1004, usage.ModifyIndex)
+	assert.Len(usage.Used, 1)
+
+	// Grab the usage
+	used := usage.Used[string(qs1.Limits[0].Hash)]
+	assert.NotNil(used)
+	assert.Equal("global", used.Region)
+	assert.Equal(&structs.Resources{}, used.RegionLimit)
+
+	// 7. Assert that the QuotaUsage for new spec is populated.
+	usage, err = state.QuotaUsageByName(nil, qs2.Name)
+	assert.Nil(err)
+	assert.NotNil(usage)
+	assert.EqualValues(1000, usage.CreateIndex)
+	assert.EqualValues(1004, usage.ModifyIndex)
+	assert.Len(usage.Used, 1)
+
+	// Grab the usage
+	used = usage.Used[string(qs2.Limits[0].Hash)]
+	assert.NotNil(used)
+	assert.Equal("global", used.Region)
+	assert.Equal(a1.Resources, used.RegionLimit)
+}
+
 func TestStateStore_UpsertQuotaSpec(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
@@ -254,7 +475,7 @@ func TestStateStore_UpsertQuotaSpec(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(qs2, out)
 
-	// Assert there are cooresponding usage objects
+	// Assert there are corresponding usage objects
 	usage, err := state.QuotaUsageByName(ws, qs1.Name)
 	assert.Nil(err)
 	assert.NotNil(usage)
