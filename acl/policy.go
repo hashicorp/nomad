@@ -25,6 +25,7 @@ const (
 	NamespaceCapabilityListJobs         = "list-jobs"
 	NamespaceCapabilityReadJob          = "read-job"
 	NamespaceCapabilitySubmitJob        = "submit-job"
+	NamespaceCapabilityDispatchJob      = "dispatch-job"
 	NamespaceCapabilityReadLogs         = "read-logs"
 	NamespaceCapabilityReadFS           = "read-fs"
 	NamespaceCapabilitySentinelOverride = "sentinel-override"
@@ -76,7 +77,8 @@ func isPolicyValid(policy string) bool {
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
 	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
-		NamespaceCapabilitySubmitJob, NamespaceCapabilityReadLogs, NamespaceCapabilityReadFS:
+		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
+		NamespaceCapabilityReadFS:
 		return true
 	// Seperate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -102,6 +104,7 @@ func expandNamespacePolicy(policy string) []string {
 			NamespaceCapabilityListJobs,
 			NamespaceCapabilityReadJob,
 			NamespaceCapabilitySubmitJob,
+			NamespaceCapabilityDispatchJob,
 			NamespaceCapabilityReadLogs,
 			NamespaceCapabilityReadFS,
 		}

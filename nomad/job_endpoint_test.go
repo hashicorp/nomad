@@ -3275,7 +3275,7 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 
 	// Dispatch with a valid token should succeed
 	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDispatchJob}))
 	req.SecretID = validToken.SecretID
 
 	var validResp2 structs.JobDispatchResponse
