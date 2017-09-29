@@ -12,12 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testInitDefaultNamespace(state *StateStore) error {
-	d := mock.Namespace()
-	d.Name = structs.DefaultNamespace
-	return state.UpsertNamespaces(1, []*structs.Namespace{d})
-}
-
 func TestStateStore_UpsertNamespaces(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)

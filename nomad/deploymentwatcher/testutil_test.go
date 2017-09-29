@@ -25,20 +25,9 @@ type mockBackend struct {
 }
 
 func newMockBackend(t *testing.T) *mockBackend {
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
 	return &mockBackend{
 		index: 10000,
-		state: state,
+		state: state.TestStateStore(t),
 	}
 }
 

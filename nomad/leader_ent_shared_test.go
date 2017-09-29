@@ -3,7 +3,7 @@
 package nomad
 
 import (
-	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -85,21 +85,13 @@ func TestLeader_ReplicateNamespaces(t *testing.T) {
 func TestLeader_DiffNamespaces(t *testing.T) {
 	t.Parallel()
 
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 
 	// Populate the local state
 	ns1 := mock.Namespace()
 	ns2 := mock.Namespace()
 	ns3 := mock.Namespace()
-	err = state.UpsertNamespaces(100, []*structs.Namespace{ns1, ns2, ns3})
-	assert.Nil(t, err)
+	assert.Nil(t, state.UpsertNamespaces(100, []*structs.Namespace{ns1, ns2, ns3}))
 
 	// Simulate a remote list
 	rns2 := ns2.Copy()
@@ -114,9 +106,10 @@ func TestLeader_DiffNamespaces(t *testing.T) {
 		ns4,
 	}
 	delete, update := diffNamespaces(state, 50, remoteList)
+	sort.Strings(delete)
 
 	// ns1 does not exist on the remote side, should delete
-	assert.Equal(t, []string{ns1.Name}, delete)
+	assert.Equal(t, []string{structs.DefaultNamespace, ns1.Name}, delete)
 
 	// ns2 is un-modified - ignore. ns3 modified, ns4 new.
 	assert.Equal(t, []string{ns3.Name, ns4.Name}, update)

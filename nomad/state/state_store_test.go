@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -18,21 +17,7 @@ import (
 )
 
 func testStateStore(t *testing.T) *StateStore {
-	config := &StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
-	if err := testInitState(state); err != nil {
-		t.Fatal(err)
-	}
-	return state
+	return TestStateStore(t)
 }
 
 func TestStateStore_Blocking_Error(t *testing.T) {

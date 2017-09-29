@@ -12,14 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testInitState(state *StateStore) error {
-	if err := testInitDefaultNamespace(state); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func TestStateStore_UpsertSentinelPolicy(t *testing.T) {
 	state := testStateStore(t)
 	policy := mock.SentinelPolicy()

@@ -3,7 +3,6 @@ package nomad
 import (
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -696,21 +695,13 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 func TestLeader_DiffACLPolicies(t *testing.T) {
 	t.Parallel()
 
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 
 	// Populate the local state
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
 	p3 := mock.ACLPolicy()
-	err = state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3})
-	assert.Nil(t, err)
+	assert.Nil(t, state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -773,14 +764,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 func TestLeader_DiffACLTokens(t *testing.T) {
 	t.Parallel()
 
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 
 	// Populate the local state
 	p0 := mock.ACLToken()
@@ -790,8 +774,7 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	p2.Global = true
 	p3 := mock.ACLToken()
 	p3.Global = true
-	err = state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3})
-	assert.Nil(t, err)
+	assert.Nil(t, state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()

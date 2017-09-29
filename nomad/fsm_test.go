@@ -40,18 +40,7 @@ func (m *MockSink) Close() error {
 }
 
 func testStateStore(t *testing.T) *state.StateStore {
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
-	return state
+	return state.TestStateStore(t)
 }
 
 func testFSM(t *testing.T) *nomadFSM {
@@ -71,6 +60,7 @@ func testFSM(t *testing.T) *nomadFSM {
 	if fsm == nil {
 		t.Fatalf("missing fsm")
 	}
+	state.TestInitState(t, fsm.state)
 	return fsm
 }
 

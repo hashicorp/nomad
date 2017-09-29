@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"os"
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -14,12 +13,7 @@ import (
 
 func TestResolveACLToken(t *testing.T) {
 	// Create mock state store and cache
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	assert.Nil(t, err)
+	state := state.TestStateStore(t)
 	cache, err := lru.New2Q(16)
 	assert.Nil(t, err)
 

@@ -3,7 +3,6 @@
 package nomad
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -65,21 +64,13 @@ func TestLeader_ReplicateSentinelPolicies(t *testing.T) {
 func TestLeader_DiffSentinelPolicies(t *testing.T) {
 	t.Parallel()
 
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 
 	// Populate the local state
 	p1 := mock.SentinelPolicy()
 	p2 := mock.SentinelPolicy()
 	p3 := mock.SentinelPolicy()
-	err = state.UpsertSentinelPolicies(100, []*structs.SentinelPolicy{p1, p2, p3})
-	assert.Nil(t, err)
+	assert.Nil(t, state.UpsertSentinelPolicies(100, []*structs.SentinelPolicy{p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()

@@ -12,14 +12,7 @@ import (
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
-	config := &state.StateStoreConfig{
-		LogOutput: os.Stderr,
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 	plan := &structs.Plan{
 		NodeUpdate:     make(map[string][]*structs.Allocation),
 		NodeAllocation: make(map[string][]*structs.Allocation),
