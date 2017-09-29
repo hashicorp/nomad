@@ -3196,6 +3196,9 @@ func TestTaskDiff(t *testing.T) {
 								Protocol: "http",
 								Interval: 1 * time.Second,
 								Timeout:  1 * time.Second,
+								Header: map[string][]string{
+									"Foo": {"bar"},
+								},
 							},
 							{
 								Name:     "bar",
@@ -3245,6 +3248,9 @@ func TestTaskDiff(t *testing.T) {
 								Protocol: "http",
 								Interval: 1 * time.Second,
 								Timeout:  1 * time.Second,
+								Header: map[string][]string{
+									"Eggs": {"spam"},
+								},
 							},
 							{
 								Name:     "bam",
@@ -3276,6 +3282,20 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Type",
 										Old:  "http",
 										New:  "tcp",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Header",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Eggs[0]",
+												Old:  "",
+												New:  "spam",
+											},
+										},
 									},
 								},
 							},
@@ -3384,6 +3404,19 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Type",
 										Old:  "http",
 										New:  "",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Header",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Foo[0]",
+												Old:  "bar",
+											},
+										},
 									},
 								},
 							},
@@ -3563,6 +3596,192 @@ func TestTaskDiff(t *testing.T) {
 												Name: "Foo[1]",
 												Old:  "",
 												New:  "baz",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "CheckRestart edited",
+			Old: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+							{
+								Name:     "bar",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+								CheckRestart: &CheckRestart{
+									Limit: 2,
+									Grace: 2 * time.Second,
+								},
+							},
+							{
+								Name:     "baz",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+								CheckRestart: &CheckRestart{
+									Limit: 3,
+									Grace: 3 * time.Second,
+								},
+							},
+						},
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+								CheckRestart: &CheckRestart{
+									Limit: 1,
+									Grace: 1 * time.Second,
+								},
+							},
+							{
+								Name:     "bar",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+							{
+								Name:     "baz",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+								CheckRestart: &CheckRestart{
+									Limit: 4,
+									Grace: 4 * time.Second,
+								},
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Check",
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "CheckRestart",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeEdited,
+												Name: "Grace",
+												Old:  "3000000000",
+												New:  "4000000000",
+											},
+											{
+												Type: DiffTypeEdited,
+												Name: "Limit",
+												Old:  "3",
+												New:  "4",
+											},
+										},
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Check",
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "CheckRestart",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Grace",
+												New:  "1000000000",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "IgnoreWarnings",
+												New:  "false",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "Limit",
+												New:  "1",
+											},
+										},
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Check",
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "CheckRestart",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Grace",
+												Old:  "2000000000",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "IgnoreWarnings",
+												Old:  "false",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "Limit",
+												Old:  "2",
 											},
 										},
 									},
