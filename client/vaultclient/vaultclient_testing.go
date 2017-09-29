@@ -1,6 +1,7 @@
 package vaultclient
 
 import (
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vaultapi "github.com/hashicorp/vault/api"
 )
@@ -44,7 +45,7 @@ func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (m
 			}
 		}
 
-		tokens[task] = structs.GenerateUUID()
+		tokens[task] = uuid.Generate()
 	}
 
 	return tokens, nil

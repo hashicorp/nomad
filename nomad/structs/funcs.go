@@ -1,7 +1,6 @@
 package structs
 
 import (
-	crand "crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -192,21 +191,6 @@ func ScoreFit(node *Node, util *Resources) float64 {
 		score = 0
 	}
 	return score
-}
-
-// GenerateUUID is used to generate a random UUID
-func GenerateUUID() string {
-	buf := make([]byte, 16)
-	if _, err := crand.Read(buf); err != nil {
-		panic(fmt.Errorf("failed to read random bytes: %v", err))
-	}
-
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
-		buf[0:4],
-		buf[4:6],
-		buf[6:8],
-		buf[8:10],
-		buf[10:16])
 }
 
 func CopySliceConstraints(s []*Constraint) []*Constraint {

@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -201,7 +202,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
@@ -531,7 +532,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       job.Priority,
 		Type:           job.Type,
@@ -610,7 +611,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// priority even if the job was. The scheduler itself also doesn't matter,
 	// since all should be able to handle deregistration in the same way.
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       structs.JobDefaultPriority,
 		Type:           structs.JobTypeService,
@@ -1062,7 +1063,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
@@ -1296,7 +1297,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
 		eval := &structs.Evaluation{
-			ID:             structs.GenerateUUID(),
+			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
 			Priority:       dispatchJob.Priority,
 			Type:           dispatchJob.Type,

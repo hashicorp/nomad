@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -317,7 +317,7 @@ func TestClient_NodeClient(t *testing.T) {
 	http := "testdomain:4646"
 	tlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
 		return &Node{
-			ID:         structs.GenerateUUID(),
+			ID:         uuid.Generate(),
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: true,
@@ -325,7 +325,7 @@ func TestClient_NodeClient(t *testing.T) {
 	}
 	noTlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
 		return &Node{
-			ID:         structs.GenerateUUID(),
+			ID:         uuid.Generate(),
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: false,

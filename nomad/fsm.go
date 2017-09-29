@@ -10,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -1095,7 +1096,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 		// Create an eval and mark it as requiring annotations and insert that as well
 		eval := &structs.Evaluation{
-			ID:             structs.GenerateUUID(),
+			ID:             uuid.Generate(),
 			Namespace:      job.Namespace,
 			Priority:       job.Priority,
 			Type:           job.Type,

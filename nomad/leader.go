@@ -13,6 +13,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -406,7 +407,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 // coreJobEval returns an evaluation for a core job
 func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation {
 	return &structs.Evaluation{
-		ID:          structs.GenerateUUID(),
+		ID:          uuid.Generate(),
 		Namespace:   "-",
 		Priority:    structs.CoreJobPriority,
 		Type:        structs.JobTypeCore,

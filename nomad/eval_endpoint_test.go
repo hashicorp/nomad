@@ -9,6 +9,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -44,7 +45,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	}
 
 	// Lookup non-existing node
-	get.EvalID = structs.GenerateUUID()
+	get.EvalID = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}

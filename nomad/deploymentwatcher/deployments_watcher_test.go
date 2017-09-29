@@ -7,6 +7,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -83,13 +84,13 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	w.SetEnabled(true, m.state)
 
 	// The expected error is that it should be an unknown deployment
-	dID := structs.GenerateUUID()
+	dID := uuid.Generate()
 	expected := fmt.Sprintf("unknown deployment %q", dID)
 
 	// Request setting the health against an unknown deployment
 	req := &structs.DeploymentAllocHealthRequest{
 		DeploymentID:         dID,
-		HealthyAllocationIDs: []string{structs.GenerateUUID()},
+		HealthyAllocationIDs: []string{uuid.Generate()},
 	}
 	var resp structs.DeploymentUpdateResponse
 	err := w.SetAllocHealth(req, &resp)

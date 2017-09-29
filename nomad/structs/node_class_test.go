@@ -3,11 +3,13 @@ package structs
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 func testNode() *Node {
 	return &Node{
-		ID:         GenerateUUID(),
+		ID:         uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
