@@ -21,12 +21,7 @@
         opacity: 0;
       }
 
-      $color-sequence: $orange,
-        $yellow,
-        $green,
-        $turquoise,
-        $blue,
-        $purple,
+      $color-sequence: $orange, $yellow, $green, $turquoise, $blue, $purple,
         $red;
 
       @for $i from 1 through length($color-sequence) {
@@ -69,7 +64,8 @@
         // Ensure two columns, but don't use the full width
         width: 35%;
 
-        .label, .value {
+        .label,
+        .value {
           display: inline;
           font-weight: $weight-normal;
         }
@@ -88,9 +84,5 @@
         }
       }
     }
-  }
-
-  &.is-narrow .bar {
-    transform: translateY(-50%);
   }
 }
