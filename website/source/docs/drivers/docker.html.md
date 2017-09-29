@@ -122,18 +122,15 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
-* `load` - (Optional) A list of paths to image archive files. If
-  this key is not specified, Nomad assumes the `image` is hosted on a repository
-  and attempts to pull the image. The `artifact` blocks can be specified to
-  download each of the archive files. The equivalent of `docker load -i path`
-  would be run on each of the archive files.
+* `load` - (Optional) Load an image from a `tar` archive file instead of from a
+  remote repository. Equivalent to the `docker load -i <filename>` command.
 
     ```hcl
     artifact {
       source = "http://path.to/redis.tar"
     }
     config {
-      load = ["redis.tar"]
+      load = "redis.tar"
       image = "redis"
     }
     ```
