@@ -1,3 +1,4 @@
+import { fillIn, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
@@ -22,14 +23,18 @@ test('the token form sets the token in session storage', function(assert) {
     assert.ok(window.sessionStorage.nomadTokenSecret == null, 'No token secret set');
     assert.ok(window.sessionStorage.nomadTokenAccessor == null, 'No token accessor set');
 
-    fillIn('.token-secret', secret);
+    andThen(() => {
+      fillIn('.token-secret', secret);
+    });
 
     andThen(() => {
       assert.equal(window.sessionStorage.nomadTokenSecret, secret, 'Token secret was set');
       assert.ok(window.sessionStorage.nomadTokenAccessor == null, 'Token accessor was not set');
     });
 
-    fillIn('.token-accessor', accessor);
+    andThen(() => {
+      fillIn('.token-accessor', accessor);
+    });
 
     andThen(() => {
       assert.equal(window.sessionStorage.nomadTokenAccessor, accessor, 'Token accessor was set');
@@ -55,7 +60,9 @@ test('the X-Nomad-Token header gets sent with requests once it is set', function
   });
 
   visit('/settings/tokens');
-  fillIn('.token-secret', secret);
+  andThen(() => {
+    fillIn('.token-secret', secret);
+  });
 
   visit(`/jobs/${job.id}`);
   visit(`/nodes/${node.id}`);

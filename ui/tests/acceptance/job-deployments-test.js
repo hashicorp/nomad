@@ -1,9 +1,10 @@
+import { click, findAll, find, visit } from 'ember-native-dom-helpers';
 import Ember from 'ember';
 import { test } from 'qunit';
 import moment from 'moment';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
-const { get } = Ember;
+const { get, $ } = Ember;
 const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
 let job;
@@ -32,7 +33,7 @@ test('/jobs/:id/deployments should list all job deployments', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
   andThen(() => {
     assert.ok(
-      find('.timeline-object').length,
+      findAll('.timeline-object').length,
       deployments.length,
       'Each deployment gets a row in the timeline'
     );
@@ -50,7 +51,7 @@ test('each deployment mentions the deployment shortId, status, version, and time
       jobId: deployment.jobId,
       version: deployment.versionNumber,
     });
-    const deploymentRow = find('.timeline-object:eq(0)');
+    const deploymentRow = $(findAll('.timeline-object')[0]);
 
     assert.ok(deploymentRow.text().includes(deployment.id.split('-')[0]), 'Short ID');
     assert.equal(deploymentRow.find('.tag').text(), deployment.status, 'Status');
@@ -89,7 +90,7 @@ test('when the deployment is running and needs promotion, the deployment item sa
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {
-    const deploymentRow = find('.timeline-object:eq(0)');
+    const deploymentRow = $(findAll('.timeline-object')[0]);
     assert.ok(
       deploymentRow.find('.badge:contains("Requires Promotion")').length,
       'Requires Promotion badge found'
@@ -103,11 +104,11 @@ test('each deployment item can be opened to show details', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {
-    deploymentRow = find('.timeline-object:eq(0)');
+    deploymentRow = $(findAll('.timeline-object')[0]);
 
     assert.ok(deploymentRow.find('.boxed-section-body').length === 0, 'No deployment body');
 
-    click(deploymentRow.find('button'));
+    click(deploymentRow.find('button').get(0));
 
     andThen(() => {
       assert.ok(deploymentRow.find('.boxed-section-body').length, 'Deployment body found');
@@ -120,18 +121,18 @@ test('when open, a deployment shows the deployment metrics', function(assert) {
 
   andThen(() => {
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = find('.timeline-object:eq(0)');
+    const deploymentRow = $(findAll('.timeline-object')[0]);
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
-    click(deploymentRow.find('button'));
+    click(deploymentRow.find('button').get(0));
 
     andThen(() => {
       assert.equal(
-        find('.deployment-metrics .label:contains("Canaries") + .value')
-          .text()
-          .trim(),
+        $('.deployment-metrics .label:contains("Canaries") + .value')
+          .get(0)
+          .textContent.trim(),
         `${sum(taskGroupSummaries, 'placedCanaries')} / ${sum(
           taskGroupSummaries,
           'desiredCanaries'
@@ -140,41 +141,39 @@ test('when open, a deployment shows the deployment metrics', function(assert) {
       );
 
       assert.equal(
-        find('.deployment-metrics .label:contains("Placed") + .value')
-          .text()
-          .trim(),
+        $('.deployment-metrics .label:contains("Placed") + .value')
+          .get(0)
+          .textContent.trim(),
         sum(taskGroupSummaries, 'placedAllocs'),
         'Placed allocs aggregates across task groups'
       );
 
       assert.equal(
-        find('.deployment-metrics .label:contains("Desired") + .value')
-          .text()
-          .trim(),
+        $('.deployment-metrics .label:contains("Desired") + .value')
+          .get(0)
+          .textContent.trim(),
         sum(taskGroupSummaries, 'desiredTotal'),
         'Desired allocs aggregates across task groups'
       );
 
       assert.equal(
-        find('.deployment-metrics .label:contains("Healthy") + .value')
-          .text()
-          .trim(),
+        $('.deployment-metrics .label:contains("Healthy") + .value')
+          .get(0)
+          .textContent.trim(),
         sum(taskGroupSummaries, 'healthyAllocs'),
         'Healthy allocs aggregates across task groups'
       );
 
       assert.equal(
-        find('.deployment-metrics .label:contains("Unhealthy") + .value')
-          .text()
-          .trim(),
+        $('.deployment-metrics .label:contains("Unhealthy") + .value')
+          .get(0)
+          .textContent.trim(),
         sum(taskGroupSummaries, 'unhealthyAllocs'),
         'Unhealthy allocs aggregates across task groups'
       );
 
       assert.equal(
-        find('.deployment-metrics .notification')
-          .text()
-          .trim(),
+        find('.deployment-metrics .notification').textContent.trim(),
         deployment.statusDescription,
         'Status description is in the metrics block'
       );
@@ -189,12 +188,12 @@ test('when open, a deployment shows a list of all task groups and their respecti
 
   andThen(() => {
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = find('.timeline-object:eq(0)');
+    const deploymentRow = $(findAll('.timeline-object')[0]);
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
-    click(deploymentRow.find('button'));
+    click(deploymentRow.find('button').get(0));
 
     andThen(() => {
       assert.ok(
@@ -282,13 +281,13 @@ test('when open, a deployment shows a list of all allocations for the deployment
 
   andThen(() => {
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = find('.timeline-object:eq(0)');
+    const deploymentRow = $(findAll('.timeline-object')[0]);
 
     // TODO: Make this less brittle. This logic is copied from the mirage config,
     // since there is no reference to allocations on the deployment model.
     const allocations = server.db.allocations.where({ jobId: deployment.jobId }).slice(0, 3);
 
-    click(deploymentRow.find('button'));
+    click(deploymentRow.find('button').get(0));
 
     andThen(() => {
       assert.ok(
