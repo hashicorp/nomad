@@ -29,6 +29,9 @@ func testStateStore(t *testing.T) *StateStore {
 	if state == nil {
 		t.Fatalf("missing state")
 	}
+	if err := testInitState(state); err != nil {
+		t.Fatal(err)
+	}
 	return state
 }
 
@@ -2319,12 +2322,24 @@ func TestStateStore_Indexes(t *testing.T) {
 		out = append(out, raw.(*IndexEntry))
 	}
 
-	expect := []*IndexEntry{
-		{"nodes", 1000},
+	expect := &IndexEntry{"nodes", 1000}
+	if l := len(out); l != 1 && l != 2 {
+		t.Fatalf("unexpected number of index entries: %v", out)
 	}
 
-	if !reflect.DeepEqual(expect, out) {
-		t.Fatalf("bad: %#v %#v", expect, out)
+	found := false
+	for _, index := range out {
+		if index.Key != expect.Key {
+			continue
+		}
+		if index.Value != expect.Value {
+			t.Fatalf("bad index; got %d; want %d", index.Value, expect.Value)
+		}
+		found = true
+	}
+
+	if !found {
+		t.Fatal("did not find expected index entry")
 	}
 }
 

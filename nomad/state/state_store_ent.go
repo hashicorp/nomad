@@ -132,6 +132,87 @@ func (r *StateRestore) SentinelPolicyRestore(policy *structs.SentinelPolicy) err
 	return nil
 }
 
+// updateEntWithAlloc is used to update enterprise objects when an allocation is
+// added/modified/deleted
+func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.Allocation, txn *memdb.Txn) error {
+	if err := s.updateQuotaWithAlloc(index, new, existing, txn); err != nil {
+		return fmt.Errorf("updating quota usage failed: %v", err)
+	}
+	return nil
+}
+
+// updateQuotaWithAlloc is used to update quotas when an allocation is
+// added/modified/deleted
+func (s *StateStore) updateQuotaWithAlloc(index uint64, new, existing *structs.Allocation, txn *memdb.Txn) error {
+	// This could only mean the allocation is being deleted and it should first
+	// be set to a terminal status which means we would have already deducted
+	// its resources.
+	if new == nil {
+		return nil
+	}
+
+	// Check if the namespace of the allocation has an attached quota.
+	ns, err := s.namespaceByNameImpl(nil, txn, new.Namespace)
+	if err != nil {
+		return err
+	} else if ns == nil {
+		return fmt.Errorf("allocation %q is in non-existent namespace %q", new.ID, new.Namespace)
+	} else if ns.Quota == "" {
+		// Nothing to do
+		return nil
+	}
+
+	// Get the quota usage object
+	usage, err := s.quotaUsageByNameImpl(txn, nil, ns.Quota)
+	if err != nil {
+		return err
+	} else if usage == nil {
+		return fmt.Errorf("non-existent quota usage for spec %q", ns.Quota)
+	}
+
+	// Determine if we need to update the quota usage based on the allocation
+	// change.
+	var updated *structs.QuotaUsage
+	if existing == nil {
+		if new.TerminalStatus() {
+			return nil
+		}
+
+		// We are just adding an allocation, so account for its resources
+		updated = usage.Copy()
+		for _, limit := range updated.Used {
+			if limit.Region != s.config.Region {
+				continue
+			}
+			limit.Add(new)
+			break
+		}
+
+	} else if !existing.TerminalStatus() && new.TerminalStatus() {
+		// Allocation is now terminal, so discount its resources
+		updated = usage.Copy()
+		for _, limit := range updated.Used {
+			if limit.Region != s.config.Region {
+				continue
+			}
+			limit.Subtract(new)
+			break
+		}
+	}
+
+	// No change so nothing to do
+	if updated == nil {
+		return nil
+	}
+
+	// Insert the updated quota usage
+	if err := s.upsertQuotaUsageImpl(index, txn, updated, false); err != nil {
+		return fmt.Errorf("upserting quota usage for spec %q failed: %v", usage.Name, err)
+	}
+
+	return nil
+}
+
 // upsertNamespaceImpl is used to upsert a namespace
 func (s *StateStore) upsertNamespaceImpl(index uint64, txn *memdb.Txn, namespace *structs.Namespace) error {
 	// Ensure the namespace hash is non-nil. This should be done outside the state store
@@ -453,21 +534,23 @@ func (s *StateStore) upsertQuotaUsageImpl(index uint64, txn *memdb.Txn, usage *s
 		usage.ModifyIndex = index
 	}
 
-	// Retrieve the specification
-	spec, err := s.quotaSpecByNameImpl(nil, txn, usage.Name)
-	if err != nil {
-		return fmt.Errorf("error retrieving quota specification %q: %v", usage.Name, err)
-	} else if spec == nil {
-		return fmt.Errorf("unknown quota specification %q", usage.Name)
-	}
+	if reconcile {
+		// Retrieve the specification
+		spec, err := s.quotaSpecByNameImpl(nil, txn, usage.Name)
+		if err != nil {
+			return fmt.Errorf("error retrieving quota specification %q: %v", usage.Name, err)
+		} else if spec == nil {
+			return fmt.Errorf("unknown quota specification %q", usage.Name)
+		}
 
-	opts := reconcileQuotaUsageOpts{
-		Usage:     usage,
-		Spec:      spec,
-		AllLimits: true,
-	}
-	if err := s.reconcileQuotaUsage(index, txn, opts); err != nil {
-		return fmt.Errorf("reconciling quota usage for spec %q failed: %v", spec.Name, err)
+		opts := reconcileQuotaUsageOpts{
+			Usage:     usage,
+			Spec:      spec,
+			AllLimits: true,
+		}
+		if err := s.reconcileQuotaUsage(index, txn, opts); err != nil {
+			return fmt.Errorf("reconciling quota usage for spec %q failed: %v", spec.Name, err)
+		}
 	}
 
 	// Update the quota
@@ -582,7 +665,7 @@ func (s *StateStore) reconcileQuotaUsage(index uint64, txn *memdb.Txn, opts reco
 			// Allocation counts against quota if not terminal
 			alloc := raw.(*structs.Allocation)
 			if !alloc.TerminalStatus() {
-				usageLimit.RegionLimit.Add(alloc.Resources)
+				usageLimit.Add(alloc)
 			}
 		}
 	}

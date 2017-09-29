@@ -9,6 +9,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// updateEntWithAlloc is used to update Nomad Pro objects when an allocation is
+// added/modified/deleted
+func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.Allocation, txn *memdb.Txn) error {
+	return nil
+}
+
 // upsertNamespaceImpl is used to upsert a namespace
 func (s *StateStore) upsertNamespaceImpl(index uint64, txn *memdb.Txn, namespace *structs.Namespace) error {
 	// Ensure the namespace hash is non-nil. This should be done outside the state store

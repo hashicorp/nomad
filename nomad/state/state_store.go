@@ -1491,14 +1491,14 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	}
 
 	for _, alloc := range allocs {
-		existing, err := txn.First("allocs", "id", alloc)
+		raw, err := txn.First("allocs", "id", alloc)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
-		if existing == nil {
+		if raw == nil {
 			continue
 		}
-		if err := txn.Delete("allocs", existing); err != nil {
+		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
 	}
@@ -1704,6 +1704,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 		return fmt.Errorf("error updating job summary: %v", err)
 	}
 
+	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return err
+	}
+
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
@@ -1796,12 +1800,20 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.Namespace = structs.DefaultNamespace
 		}
 
+		// OPTIMIZATION:
+		// These should be given a map of new to old allocation and the updates
+		// should be one on all changes. The current implementation causes O(n)
+		// lookups/copies/insertions rather than O(1)
 		if err := s.updateDeploymentWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
 
 		if err := s.updateSummaryWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
+		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
+			return err
 		}
 
 		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.

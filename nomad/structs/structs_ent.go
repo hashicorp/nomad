@@ -321,6 +321,33 @@ func (q *QuotaLimit) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Copy returns a copy of the QuotaLimit
+func (q *QuotaLimit) Copy() *QuotaLimit {
+	nq := new(QuotaLimit)
+	*nq = *q
+
+	// Copy the limit
+	nq.RegionLimit = q.RegionLimit.Copy()
+
+	// Copy the hash
+	nq.Hash = make([]byte, 0, len(q.Hash))
+	copy(nq.Hash, q.Hash)
+
+	return nq
+}
+
+// Add adds the resources of the allocation to the QuotaLimit
+func (q *QuotaLimit) Add(alloc *Allocation) {
+	q.RegionLimit.CPU += alloc.Resources.CPU
+	q.RegionLimit.MemoryMB += alloc.Resources.MemoryMB
+}
+
+// Subtract removes the resources of the allocation to the QuotaLimit
+func (q *QuotaLimit) Subtract(alloc *Allocation) {
+	q.RegionLimit.CPU -= alloc.Resources.CPU
+	q.RegionLimit.MemoryMB -= alloc.Resources.MemoryMB
+}
+
 // QuotaUsage is local to a region and is used to track current
 // resource usage for the quota object.
 type QuotaUsage struct {
@@ -381,6 +408,20 @@ func (q *QuotaUsage) DiffLimits(spec *QuotaSpec) (create, delete []*QuotaLimit) 
 	}
 
 	return create, delete
+}
+
+// Copy returns a copy of the QuotaUsage
+func (q *QuotaUsage) Copy() *QuotaUsage {
+	nq := new(QuotaUsage)
+	*nq = *q
+
+	// Copy the usages
+	nq.Used = make(map[string]*QuotaLimit, len(q.Used))
+	for k, v := range q.Used {
+		nq.Used[k] = v.Copy()
+	}
+
+	return nq
 }
 
 // QuotaSpecListRequest is used to request a list of quota specifications
