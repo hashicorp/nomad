@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import { findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
@@ -41,4 +41,20 @@ test('the active server should be denoted in the table', function(assert) {
     agent.name,
     'Active server matches current route'
   );
+});
+
+test('when the server is not found, an error message is shown, but the URL persists', function(
+  assert
+) {
+  visit('/servers/not-a-real-server');
+
+  andThen(() => {
+    assert.equal(currentURL(), '/servers/not-a-real-server', 'The URL persists');
+    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.equal(
+      find('.error-message .title').textContent,
+      'Not Found',
+      'Error message is for 404'
+    );
+  });
 });

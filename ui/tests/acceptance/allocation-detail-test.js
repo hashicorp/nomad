@@ -183,3 +183,24 @@ test('each recent event should list the time, type, and description of the event
     'Event message'
   );
 });
+
+test('when the allocation is not found, an error message is shown, but the URL persists', function(
+  assert
+) {
+  visit('/allocations/not-a-real-allocation');
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/allocation/not-a-real-allocation',
+      'A request to the non-existent allocation is made'
+    );
+    assert.equal(currentURL(), '/allocations/not-a-real-allocation', 'The URL persists');
+    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.equal(
+      find('.error-message .title').textContent,
+      'Not Found',
+      'Error message is for 404'
+    );
+  });
+});
