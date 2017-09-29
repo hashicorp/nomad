@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -122,7 +123,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	task.Config["start_error"] = "test error"
 
 	// Make the alloc be part of a deployment
-	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.DeploymentID = uuid.Generate()
 	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
 	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
@@ -171,7 +172,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	task.Config["run_for"] = "10s"
 
 	// Make the alloc be part of a deployment
-	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.DeploymentID = uuid.Generate()
 	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
 	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
@@ -224,7 +225,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	task2.Config["start_block_for"] = "500ms"
 
 	// Make the alloc be part of a deployment
-	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.DeploymentID = uuid.Generate()
 	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
 	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
@@ -272,14 +273,14 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	task2.Services = nil
 
 	// Make the alloc be part of a deployment
-	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.DeploymentID = uuid.Generate()
 	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_Checks
 	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
 	ar.alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
 
 	checkHealthy := &api.AgentCheck{
-		CheckID: structs.GenerateUUID(),
+		CheckID: uuid.Generate(),
 		Status:  api.HealthPassing,
 	}
 	checkUnhealthy := &api.AgentCheck{
@@ -359,7 +360,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	task.Config["run_for"] = "10s"
 
 	// Make the alloc be part of a deployment
-	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.DeploymentID = uuid.Generate()
 	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_Checks
 	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
@@ -367,7 +368,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	ar.alloc.Job.TaskGroups[0].Update.HealthyDeadline = 1 * time.Second
 
 	checkUnhealthy := &api.AgentCheck{
-		CheckID: structs.GenerateUUID(),
+		CheckID: uuid.Generate(),
 		Status:  api.HealthWarning,
 	}
 
@@ -428,7 +429,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	task.Config["run_for"] = "30s"
 
 	// Make the alloc be part of a deployment
-	ar.alloc.DeploymentID = structs.GenerateUUID()
+	ar.alloc.DeploymentID = uuid.Generate()
 	ar.alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	ar.alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
 	ar.alloc.Job.TaskGroups[0].Update.MaxParallel = 1
@@ -455,7 +456,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	// Mimick an update to a new deployment id
 	oldCount, last := upd.Last()
 	last.DeploymentStatus = nil
-	last.DeploymentID = structs.GenerateUUID()
+	last.DeploymentID = uuid.Generate()
 	ar.Update(last)
 
 	testutil.WaitForResult(func() (bool, error) {

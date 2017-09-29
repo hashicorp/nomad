@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 )
@@ -64,7 +65,7 @@ func TestJob_Validate(t *testing.T) {
 
 	j = &Job{
 		Region:      "global",
-		ID:          GenerateUUID(),
+		ID:          uuid.Generate(),
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
@@ -530,7 +531,7 @@ func TestJob_SpecChanged(t *testing.T) {
 func testJob() *Job {
 	return &Job{
 		Region:      "global",
-		ID:          GenerateUUID(),
+		ID:          uuid.Generate(),
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
@@ -2329,7 +2330,7 @@ func TestACLTokenValidate(t *testing.T) {
 	}
 
 	// Name too long policices
-	tk.Name = GenerateUUID() + GenerateUUID()
+	tk.Name = uuid.Generate() + uuid.Generate()
 	tk.Policies = nil
 	err = tk.Validate()
 	assert.NotNil(t, err)

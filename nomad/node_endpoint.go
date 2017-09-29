@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -909,7 +910,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 
 		// Create a new eval
 		eval := &structs.Evaluation{
-			ID:              structs.GenerateUUID(),
+			ID:              uuid.Generate(),
 			Namespace:       alloc.Namespace,
 			Priority:        alloc.Job.Priority,
 			Type:            alloc.Job.Type,
@@ -933,7 +934,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 
 		// Create a new eval
 		eval := &structs.Evaluation{
-			ID:              structs.GenerateUUID(),
+			ID:              uuid.Generate(),
 			Namespace:       job.Namespace,
 			Priority:        job.Priority,
 			Type:            job.Type,

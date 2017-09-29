@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -61,7 +62,7 @@ func TestDiffAllocs(t *testing.T) {
 	allocs := []*structs.Allocation{
 		// Update the 1st
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
@@ -69,7 +70,7 @@ func TestDiffAllocs(t *testing.T) {
 
 		// Ignore the 2rd
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[1]",
 			Job:    job,
@@ -77,7 +78,7 @@ func TestDiffAllocs(t *testing.T) {
 
 		// Evict 11th
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[10]",
 			Job:    oldJob,
@@ -85,14 +86,14 @@ func TestDiffAllocs(t *testing.T) {
 
 		// Migrate the 3rd
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
 		},
 		// Mark the 4th lost
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "dead",
 			Name:   "my-job.web[3]",
 			Job:    oldJob,
@@ -102,19 +103,19 @@ func TestDiffAllocs(t *testing.T) {
 	// Have three terminal allocs
 	terminalAllocs := map[string]*structs.Allocation{
 		"my-job.web[4]": {
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[4]",
 			Job:    job,
 		},
 		"my-job.web[5]": {
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[5]",
 			Job:    job,
 		},
 		"my-job.web[6]": {
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[6]",
 			Job:    job,
@@ -198,7 +199,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	allocs := []*structs.Allocation{
 		// Update allocation on baz
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "baz",
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
@@ -206,7 +207,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 		// Ignore allocation on bar
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "bar",
 			Name:   "my-job.web[0]",
 			Job:    job,
@@ -214,14 +215,14 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 		// Stop allocation on draining node.
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 		// Mark as lost on a dead node
 		{
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: deadNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
@@ -231,7 +232,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	// Have three terminal allocs
 	terminalAllocs := map[string]*structs.Allocation{
 		"my-job.web[0]": {
-			ID:     structs.GenerateUUID(),
+			ID:     uuid.Generate(),
 			NodeID: "pipe",
 			Name:   "my-job.web[0]",
 			Job:    job,
@@ -576,10 +577,10 @@ func TestTasksUpdated(t *testing.T) {
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
 	diff := &diffResult{}
 
@@ -600,10 +601,10 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
 	diff := &diffResult{}
 
@@ -706,7 +707,7 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	h = NewHarness(t)
-	dID := structs.GenerateUUID()
+	dID := uuid.Generate()
 	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
@@ -732,7 +733,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	// Register an alloc
 	alloc := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,
 		JobID:     job.ID,
@@ -781,7 +782,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Register an alloc
 	alloc := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,
 		JobID:     job.ID,
@@ -829,7 +830,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Register an alloc
 	alloc := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,
 		JobID:     job.ID,
@@ -922,10 +923,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
 	diff := &diffResult{}
 
@@ -1012,7 +1013,7 @@ func TestProgressMade(t *testing.T) {
 	deployment := &structs.PlanResult{Deployment: mock.Deployment()}
 	deploymentUpdates := &structs.PlanResult{
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
-			{DeploymentID: structs.GenerateUUID()},
+			{DeploymentID: uuid.Generate()},
 		},
 	}
 	if !(progressMade(both) && progressMade(update) && progressMade(alloc) &&

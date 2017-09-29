@@ -7,6 +7,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -488,7 +489,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			if option != nil {
 				// Create an allocation for this
 				alloc := &structs.Allocation{
-					ID:            structs.GenerateUUID(),
+					ID:            uuid.Generate(),
 					Namespace:     s.job.Namespace,
 					EvalID:        s.eval.ID,
 					Name:          missing.Name(),

@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
 
@@ -2419,7 +2420,7 @@ func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 // DispatchedID returns an ID appropriate for a job dispatched against a
 // particular parameterized job
 func DispatchedID(templateID string, t time.Time) string {
-	u := GenerateUUID()[:8]
+	u := uuid.Generate()[:8]
 	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffix, t.Unix(), u)
 }
 
@@ -4351,7 +4352,7 @@ type Deployment struct {
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
-		ID:                GenerateUUID(),
+		ID:                uuid.Generate(),
 		Namespace:         job.Namespace,
 		JobID:             job.ID,
 		JobVersion:        job.Version,
@@ -5140,7 +5141,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 // NextRollingEval creates an evaluation to followup this eval for rolling updates
 func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
-		ID:             GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
@@ -5158,7 +5159,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // ineligible and whether the job has escaped computed node classes.
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
 	return &Evaluation{
-		ID:                   GenerateUUID(),
+		ID:                   uuid.Generate(),
 		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
@@ -5177,7 +5178,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 // be retried by the eval_broker.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
-		ID:             GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,

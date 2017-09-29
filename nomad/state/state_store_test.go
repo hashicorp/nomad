@@ -12,6 +12,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -205,7 +206,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 
 	// Update the allocs to be part of a new deployment
 	d2 := d.Copy()
-	d2.ID = structs.GenerateUUID()
+	d2.ID = uuid.Generate()
 
 	allocNew := alloc.Copy()
 	allocNew.DeploymentID = d2.ID
@@ -4904,7 +4905,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonExistent(t *testing.T) {
 	// Update the non-existent deployment
 	req := &structs.DeploymentStatusUpdateRequest{
 		DeploymentUpdate: &structs.DeploymentStatusUpdate{
-			DeploymentID: structs.GenerateUUID(),
+			DeploymentID: uuid.Generate(),
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
@@ -5114,7 +5115,7 @@ func TestStateStore_UpsertDeploymentPromotion_NonExistent(t *testing.T) {
 	// Promote the non-existent deployment
 	req := &structs.ApplyDeploymentPromoteRequest{
 		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
-			DeploymentID: structs.GenerateUUID(),
+			DeploymentID: uuid.Generate(),
 			All:          true,
 		},
 	}
@@ -5431,8 +5432,8 @@ func TestStateStore_UpsertDeploymentAllocHealth_NonExistent(t *testing.T) {
 	// Set health against the non-existent deployment
 	req := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
-			DeploymentID:         structs.GenerateUUID(),
-			HealthyAllocationIDs: []string{structs.GenerateUUID()},
+			DeploymentID:         uuid.Generate(),
+			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
 	err := state.UpdateDeploymentAllocHealth(2, req)
@@ -5457,7 +5458,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 	req := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
 			DeploymentID:         d.ID,
-			HealthyAllocationIDs: []string{structs.GenerateUUID()},
+			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
 	err := state.UpdateDeploymentAllocHealth(2, req)
@@ -5480,7 +5481,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_NonExistent(t *testing.
 	req := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
 			DeploymentID:         d.ID,
-			HealthyAllocationIDs: []string{structs.GenerateUUID()},
+			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
 	err := state.UpdateDeploymentAllocHealth(2, req)

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -267,7 +268,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	tr := true
 	config := s1.config
 	config.VaultConfig.Enabled = &tr
-	config.VaultConfig.Token = structs.GenerateUUID()
+	config.VaultConfig.Token = uuid.Generate()
 
 	if err := s1.Reload(config); err != nil {
 		t.Fatalf("Reload failed: %v", err)

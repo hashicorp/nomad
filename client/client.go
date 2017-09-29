@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -733,12 +734,12 @@ func (c *Client) nodeID() (id, secret string, err error) {
 	if hostID == "" {
 		// Generate a random hostID if no constant ID is available on
 		// this platform.
-		hostID = structs.GenerateUUID()
+		hostID = uuid.Generate()
 	}
 
 	// Do not persist in dev mode
 	if c.config.DevMode {
-		return hostID, structs.GenerateUUID(), nil
+		return hostID, uuid.Generate(), nil
 	}
 
 	// Attempt to read existing ID
@@ -771,7 +772,7 @@ func (c *Client) nodeID() (id, secret string, err error) {
 		secret = string(secretBuf)
 	} else {
 		// Generate new ID
-		secret = structs.GenerateUUID()
+		secret = uuid.Generate()
 
 		// Persist the ID
 		if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {

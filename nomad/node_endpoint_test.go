@@ -10,6 +10,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -128,7 +129,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	}
 
 	// Update the nodes SecretID
-	node.SecretID = structs.GenerateUUID()
+	node.SecretID = uuid.Generate()
 	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	if err == nil || !strings.Contains(err.Error(), "Not registering") {
 		t.Fatalf("Expecting error regarding mismatching secret id: %v", err)
@@ -1277,7 +1278,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	}
 
 	// Lookup non-existing node
-	get.NodeID = structs.GenerateUUID()
+	get.NodeID = uuid.Generate()
 	var resp4 structs.NodeClientAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4); err != nil {
 		t.Fatalf("err: %v", err)
@@ -2179,7 +2180,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	req := &structs.DeriveVaultTokenRequest{
 		NodeID:   node.ID,
-		SecretID: structs.GenerateUUID(),
+		SecretID: uuid.Generate(),
 		AllocID:  alloc.ID,
 		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{
@@ -2270,8 +2271,8 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	}
 
 	// Return a secret for the task
-	token := structs.GenerateUUID()
-	accessor := structs.GenerateUUID()
+	token := uuid.Generate()
+	accessor := uuid.Generate()
 	ttl := 10
 	secret := &vapi.Secret{
 		WrapInfo: &vapi.SecretWrapInfo{

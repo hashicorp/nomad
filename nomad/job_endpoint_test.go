@@ -11,6 +11,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -735,19 +736,19 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	// not and one that returns an error
 	policy := "foo"
 
-	badToken := structs.GenerateUUID()
+	badToken := uuid.Generate()
 	badPolicies := []string{"a", "b", "c"}
 	tvc.SetLookupTokenAllowedPolicies(badToken, badPolicies)
 
-	goodToken := structs.GenerateUUID()
+	goodToken := uuid.Generate()
 	goodPolicies := []string{"foo", "bar", "baz"}
 	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
 
-	rootToken := structs.GenerateUUID()
+	rootToken := uuid.Generate()
 	rootPolicies := []string{"root"}
 	tvc.SetLookupTokenAllowedPolicies(rootToken, rootPolicies)
 
-	errToken := structs.GenerateUUID()
+	errToken := uuid.Generate()
 	expectedErr := fmt.Errorf("return errors from vault")
 	tvc.SetLookupTokenError(errToken, expectedErr)
 
@@ -3471,7 +3472,7 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	s1.vault = tvc
 
 	policy := "foo"
-	goodToken := structs.GenerateUUID()
+	goodToken := uuid.Generate()
 	goodPolicies := []string{"foo", "bar", "baz"}
 	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
 
