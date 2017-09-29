@@ -2312,7 +2312,6 @@ func TestStateStore_Indexes(t *testing.T) {
 		t.Fatalf("unexpected number of index entries: %v", out)
 	}
 
-	found := false
 	for _, index := range out {
 		if index.Key != expect.Key {
 			continue
@@ -2320,12 +2319,12 @@ func TestStateStore_Indexes(t *testing.T) {
 		if index.Value != expect.Value {
 			t.Fatalf("bad index; got %d; want %d", index.Value, expect.Value)
 		}
-		found = true
+
+		// We matched
+		return
 	}
 
-	if !found {
-		t.Fatal("did not find expected index entry")
-	}
+	t.Fatal("did not find expected index entry")
 }
 
 func TestStateStore_LatestIndex(t *testing.T) {

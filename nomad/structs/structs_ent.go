@@ -323,6 +323,10 @@ func (q *QuotaLimit) Validate() error {
 
 // Copy returns a copy of the QuotaLimit
 func (q *QuotaLimit) Copy() *QuotaLimit {
+	if q == nil {
+		return nil
+	}
+
 	nq := new(QuotaLimit)
 	*nq = *q
 
@@ -412,6 +416,10 @@ func (q *QuotaUsage) DiffLimits(spec *QuotaSpec) (create, delete []*QuotaLimit) 
 
 // Copy returns a copy of the QuotaUsage
 func (q *QuotaUsage) Copy() *QuotaUsage {
+	if q == nil {
+		return nil
+	}
+
 	nq := new(QuotaUsage)
 	*nq = *q
 
