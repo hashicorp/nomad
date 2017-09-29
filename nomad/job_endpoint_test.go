@@ -1152,6 +1152,73 @@ func TestJobEndpoint_Stable(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Stable_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register the job
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	assert.Nil(err)
+
+	// Create stability request
+	stableReq := &structs.JobStabilityRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the token without a token
+	var stableResp structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &stableResp)
+	assert.NotNil(err)
+	assert.Contains("Permission denied", err.Error())
+
+	// Expect failure for request with an invalid token
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	stableReq.SecretID = invalidToken.SecretID
+	var invalidStableResp structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &invalidStableResp)
+	assert.NotNil(err)
+	assert.Contains("Permission denied", err.Error())
+
+	// Attempt to fetch with a management token
+	stableReq.SecretID = root.SecretID
+	var validStableResp structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp)
+	assert.Nil(err)
+
+	// Attempt to fetch with a valid token
+	validToken := CreatePolicyAndToken(t, state, 1005, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+	stableReq.SecretID = validToken.SecretID
+	var validStableResp2 structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp2)
+	assert.Nil(err)
+
+	// Check that the job is marked stable
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	assert.Nil(err)
+	assert.NotNil(job)
+	assert.Equal(true, out.Stable)
+}
+
 func TestJobEndpoint_Evaluate(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
