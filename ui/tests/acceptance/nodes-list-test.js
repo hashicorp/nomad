@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import { click, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
@@ -72,6 +72,35 @@ test('each client should link to the client detail page', function(assert) {
 
   andThen(() => {
     assert.equal(currentURL(), `/nodes/${node.id}`);
+  });
+});
+
+test('when there are no clients, there is an empty message', function(assert) {
+  server.createList('agent', 1);
+
+  visit('/nodes');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Clients');
+  });
+});
+
+test('when there are clients, but no matches for a search term, there is an empty message', function(
+  assert
+) {
+  server.createList('agent', 1);
+  server.create('node', { name: 'node' });
+
+  visit('/nodes');
+
+  andThen(() => {
+    fillIn('.search-box input', 'client');
+  });
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
   });
 });
 
