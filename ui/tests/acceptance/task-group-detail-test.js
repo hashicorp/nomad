@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import { click, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { click, find, findAll, fillIn, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
@@ -39,6 +39,11 @@ moduleForAcceptance('Acceptance | task group detail', {
     server.createList('allocation', 3, {
       jobId: job.id,
       taskGroup: taskGroups[1].name,
+    });
+
+    // Set a static name to make the search test deterministic
+    server.db.allocations.forEach(alloc => {
+      alloc.name = 'aaaaa';
     });
 
     visit(`/jobs/${job.id}/${taskGroup.name}`);
@@ -211,4 +216,13 @@ test('each allocation should show stats about the allocation, retrieved directly
     server.pretender.handledRequests.some(req => req.url === nodeStatsUrl),
     `Requests ${nodeStatsUrl}`
   );
+});
+
+test('when the allocation search has no matches, there is an empty message', function(assert) {
+  fillIn('.search-box input', 'zzzzzz');
+
+  andThen(() => {
+    assert.ok(find('.allocations .empty-message'));
+    assert.equal(find('.allocations .empty-message-headline').textContent, 'No Matches');
+  });
 });
