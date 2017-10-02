@@ -594,6 +594,71 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 }
 
+func TestEvalEndpoint_List_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	eval2 := mock.Eval()
+	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{eval1, eval2}))
+
+	// Create ACL tokens
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	// Try without a token and expect permission denied
+	{
+		var resp structs.EvalListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect permission denied
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.EvalListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// List evals with a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.EvalListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Lenf(resp.Evaluations, 2, "bad: %#v", resp.Evaluations)
+	}
+
+	// List evals with a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.EvalListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Lenf(resp.Evaluations, 2, "bad: %#v", resp.Evaluations)
+	}
+}
+
 func TestEvalEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
