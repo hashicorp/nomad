@@ -9,11 +9,13 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEvalEndpoint_GetEval(t *testing.T) {
@@ -54,6 +56,66 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 	}
 	if resp.Eval != nil {
 		t.Fatalf("unexpected eval")
+	}
+}
+
+func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	eval1 := mock.Eval()
+	state := s1.fsm.State()
+	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+
+	// Create ACL tokens
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.EvalSpecificRequest{
+		EvalID:       eval1.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect permission denied
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.SingleEvalResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Lookup the eval using a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.SingleEvalResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Equal(eval1, resp.Eval)
+	}
+
+	// Lookup the eval using a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.SingleEvalResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Equal(eval1, resp.Eval)
 	}
 }
 
