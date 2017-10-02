@@ -190,6 +190,55 @@ func TestNamespaceEndpoint_GetNamespaces(t *testing.T) {
 	assert.Contains(resp.Namespaces, ns2.Name)
 }
 
+func TestNamespaceEndpoint_GetNamespaces_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	state := s1.fsm.State()
+	state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create the policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
+		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Lookup the namespace
+	get := &structs.NamespaceSetRequest{
+		Namespaces:   []string{ns1.Name, ns2.Name},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Lookup the namespaces without a token and expect a failure
+	{
+		var resp structs.NamespaceSetResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", get, &resp))
+	}
+
+	// Try with an non-management token
+	get.SecretID = validToken.SecretID
+	{
+		var resp structs.NamespaceSetResponse
+		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", get, &resp))
+	}
+
+	// Try with a root token
+	get.SecretID = root.SecretID
+	{
+		var resp structs.NamespaceSetResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", get, &resp))
+		assert.EqualValues(1000, resp.Index)
+		assert.Len(resp.Namespaces, 2)
+		assert.Contains(resp.Namespaces, ns1.Name)
+		assert.Contains(resp.Namespaces, ns2.Name)
+	}
+}
+
 func TestNamespaceEndpoint_GetNamespaces_Blocking(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()

@@ -464,8 +464,8 @@ func (s *StateStore) quotaSpecExists(txn *memdb.Txn, name string) (bool, error) 
 	return qs != nil, err
 }
 
-// QuotaSpecByNamePrefix is used to lookup quota specifications by prefix
-func (s *StateStore) QuotaSpecByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+// QuotaSpecsByNamePrefix is used to lookup quota specifications by prefix
+func (s *StateStore) QuotaSpecsByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get(TableQuotaSpec, "id_prefix", prefix)
@@ -724,8 +724,8 @@ func (s *StateStore) quotaUsageByNameImpl(txn *memdb.Txn, ws memdb.WatchSet, nam
 	return nil, nil
 }
 
-// QuotaUsageByNamePrefix is used to lookup quota usages by prefix
-func (s *StateStore) QuotaUsageByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+// QuotaUsagesByNamePrefix is used to lookup quota usages by prefix
+func (s *StateStore) QuotaUsagesByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get(TableQuotaUsage, "id_prefix", prefix)
