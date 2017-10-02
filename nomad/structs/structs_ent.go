@@ -3,6 +3,7 @@
 package structs
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/hashicorp/errwrap"
@@ -186,4 +187,317 @@ type SentinelPolicyDeleteRequest struct {
 type SentinelPolicyUpsertRequest struct {
 	Policies []*SentinelPolicy
 	WriteRequest
+}
+
+// QuotaSpec specifies the allowed resource usage across regions.
+type QuotaSpec struct {
+	// Name is the name for the quota object
+	Name string
+
+	// Description is an optional description for the quota object
+	Description string
+
+	// Limits is the set of quota limits encapsulated by this quota object. Each
+	// limit applies quota in a particular region and in the future over a
+	// particular priority range and datacenter set.
+	Limits []*QuotaLimit
+
+	// Hash is the hash of the object and is used to make replication efficient.
+	Hash []byte
+
+	// Raft indexes to track creation and modification
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the QuotaSpec
+func (q *QuotaSpec) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(q.Name))
+	hash.Write([]byte(q.Description))
+
+	for _, l := range q.Limits {
+		hash.Write(l.SetHash())
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	q.Hash = hashVal
+	return hashVal
+}
+
+func (q *QuotaSpec) Validate() error {
+	var mErr multierror.Error
+	if !validPolicyName.MatchString(q.Name) {
+		err := fmt.Errorf("invalid name %q", q.Name)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(q.Description) > maxPolicyDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	if len(q.Limits) == 0 {
+		err := fmt.Errorf("must provide at least one quota limit")
+		mErr.Errors = append(mErr.Errors, err)
+	} else {
+		for i, l := range q.Limits {
+			if err := l.Validate(); err != nil {
+				wrapped := fmt.Errorf("invalid quota limit %d: %v", i, err)
+				mErr.Errors = append(mErr.Errors, wrapped)
+			}
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// QuotaLimit describes the resource limit in a particular region.
+type QuotaLimit struct {
+	// Region is the region in which this limit has affect
+	Region string
+
+	// RegionLimit is the quota limit that applies to any allocation within a
+	// referencing namespace in the region. A value of zero is treated as
+	// unlimited and a negative value is treated as fully disallowed. This is
+	// useful for once we support GPUs
+	RegionLimit *Resources
+
+	// Hash is the hash of the object and is used to make replication efficient.
+	Hash []byte
+}
+
+// SetHash is used to compute and set the hash of the QuotaLimit
+func (q *QuotaLimit) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(q.Region))
+
+	if q.RegionLimit != nil {
+		binary.Write(hash, binary.LittleEndian, q.RegionLimit.CPU)
+		binary.Write(hash, binary.LittleEndian, q.RegionLimit.MemoryMB)
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+	q.Hash = hashVal
+	return hashVal
+}
+
+// Validate validates the QuotaLimit
+func (q *QuotaLimit) Validate() error {
+	var mErr multierror.Error
+
+	if q.Region == "" {
+		err := fmt.Errorf("must provide a region")
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	if q.RegionLimit == nil {
+		err := fmt.Errorf("must provide a region limit")
+		mErr.Errors = append(mErr.Errors, err)
+	} else {
+		if q.RegionLimit.DiskMB > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("quota can not limit disk"))
+		}
+		if len(q.RegionLimit.Networks) > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("quota can not limit networks"))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// Copy returns a copy of the QuotaLimit
+func (q *QuotaLimit) Copy() *QuotaLimit {
+	if q == nil {
+		return nil
+	}
+
+	nq := new(QuotaLimit)
+	*nq = *q
+
+	// Copy the limit
+	nq.RegionLimit = q.RegionLimit.Copy()
+
+	// Copy the hash
+	nq.Hash = make([]byte, 0, len(q.Hash))
+	copy(nq.Hash, q.Hash)
+
+	return nq
+}
+
+// Add adds the resources of the allocation to the QuotaLimit
+func (q *QuotaLimit) Add(alloc *Allocation) {
+	q.RegionLimit.CPU += alloc.Resources.CPU
+	q.RegionLimit.MemoryMB += alloc.Resources.MemoryMB
+}
+
+// Subtract removes the resources of the allocation to the QuotaLimit
+func (q *QuotaLimit) Subtract(alloc *Allocation) {
+	q.RegionLimit.CPU -= alloc.Resources.CPU
+	q.RegionLimit.MemoryMB -= alloc.Resources.MemoryMB
+}
+
+// QuotaUsage is local to a region and is used to track current
+// resource usage for the quota object.
+type QuotaUsage struct {
+	// Name is a uniquely identifying name that is shared with the spec
+	Name string
+
+	// Used is the currently used resources for each quota limit. The map is
+	// keyed by the QuotaLimit hash.
+	Used map[string]*QuotaLimit
+
+	// Raft indexes to track creation and modification
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// QuotaUsageFromSpec initializes a quota specification that can be used to
+// track the usage for the specification.
+func QuotaUsageFromSpec(spec *QuotaSpec) *QuotaUsage {
+	return &QuotaUsage{
+		Name: spec.Name,
+		Used: make(map[string]*QuotaLimit, len(spec.Limits)),
+	}
+}
+
+// DiffLimits returns the set of quota limits to create and destroy by comparing
+// the hashes of the limits
+func (q *QuotaUsage) DiffLimits(spec *QuotaSpec) (create, delete []*QuotaLimit) {
+	if spec == nil && q == nil {
+		// If both are nil, do nothing
+		return nil, nil
+	} else if q == nil {
+		// If the usage is nil we add everything
+		return spec.Limits, nil
+	} else if spec == nil {
+		// If there is no spec we delete everything
+		delete = make([]*QuotaLimit, 0, len(q.Used))
+		for _, l := range q.Used {
+			delete = append(delete, l)
+		}
+		return nil, delete
+	}
+
+	// Determine what to add
+	lookup := make(map[string]struct{}, len(spec.Limits))
+	for _, l := range spec.Limits {
+		hash := string(l.Hash)
+		lookup[hash] = struct{}{}
+		if _, ok := q.Used[hash]; !ok {
+			create = append(create, l)
+		}
+	}
+
+	// Determine what to delete
+	for hash, used := range q.Used {
+		if _, ok := lookup[hash]; !ok {
+			delete = append(delete, used)
+		}
+	}
+
+	return create, delete
+}
+
+// Copy returns a copy of the QuotaUsage
+func (q *QuotaUsage) Copy() *QuotaUsage {
+	if q == nil {
+		return nil
+	}
+
+	nq := new(QuotaUsage)
+	*nq = *q
+
+	// Copy the usages
+	nq.Used = make(map[string]*QuotaLimit, len(q.Used))
+	for k, v := range q.Used {
+		nq.Used[k] = v.Copy()
+	}
+
+	return nq
+}
+
+// QuotaSpecListRequest is used to request a list of quota specifications
+type QuotaSpecListRequest struct {
+	QueryOptions
+}
+
+// QuotaSpecSpecificRequest is used to query a specific quota specification
+type QuotaSpecSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// QuotaSpecSetRequest is used to query a set of quota specs
+type QuotaSpecSetRequest struct {
+	Names []string
+	QueryOptions
+}
+
+// QuotaSpecListResponse is used for a list request
+type QuotaSpecListResponse struct {
+	Quotas []*QuotaSpec
+	QueryMeta
+}
+
+// SingleQuotaSpecResponse is used to return a single quota specification
+type SingleQuotaSpecResponse struct {
+	Quota *QuotaSpec
+	QueryMeta
+}
+
+// QuotaSpecSetResponse is used to return a set of quota specifications
+type QuotaSpecSetResponse struct {
+	Quotas map[string]*QuotaSpec
+	QueryMeta
+}
+
+// QuotaSpecDeleteRequest is used to delete a set of quota specifications
+type QuotaSpecDeleteRequest struct {
+	Names []string
+	WriteRequest
+}
+
+// QuotaSpecUpsertRequest is used to upsert a set of quota specifications
+type QuotaSpecUpsertRequest struct {
+	Quotas []*QuotaSpec
+	WriteRequest
+}
+
+// QuotaUsageListRequest is used to request a list of quota usages
+type QuotaUsageListRequest struct {
+	QueryOptions
+}
+
+// QuotaUsageSpecificRequest is used to query a specific quota usage
+type QuotaUsageSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// QuotaUsageListResponse is used for a list request
+type QuotaUsageListResponse struct {
+	Usages []*QuotaUsage
+	QueryMeta
+}
+
+// SingleQuotaUsageResponse is used to return a single quota usage
+type SingleQuotaUsageResponse struct {
+	Usage *QuotaUsage
+	QueryMeta
 }

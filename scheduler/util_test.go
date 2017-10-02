@@ -290,11 +290,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 }
 
 func TestReadyNodesInDCs(t *testing.T) {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
 	node2.Datacenter = "dc2"
@@ -374,11 +370,7 @@ func TestRetryMax(t *testing.T) {
 }
 
 func TestTaintedNodes(t *testing.T) {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
 	node2.Datacenter = "dc2"

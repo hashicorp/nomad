@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -18,14 +17,7 @@ import (
 )
 
 func testStateStore(t *testing.T) *StateStore {
-	state, err := NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
-	return state
+	return TestStateStore(t)
 }
 
 func TestStateStore_Blocking_Error(t *testing.T) {
@@ -2315,13 +2307,24 @@ func TestStateStore_Indexes(t *testing.T) {
 		out = append(out, raw.(*IndexEntry))
 	}
 
-	expect := []*IndexEntry{
-		{"nodes", 1000},
+	expect := &IndexEntry{"nodes", 1000}
+	if l := len(out); l != 1 && l != 2 {
+		t.Fatalf("unexpected number of index entries: %v", out)
 	}
 
-	if !reflect.DeepEqual(expect, out) {
-		t.Fatalf("bad: %#v %#v", expect, out)
+	for _, index := range out {
+		if index.Key != expect.Key {
+			continue
+		}
+		if index.Value != expect.Value {
+			t.Fatalf("bad index; got %d; want %d", index.Value, expect.Value)
+		}
+
+		// We matched
+		return
 	}
+
+	t.Fatal("did not find expected index entry")
 }
 
 func TestStateStore_LatestIndex(t *testing.T) {

@@ -21,3 +21,50 @@ func SentinelPolicy() *structs.SentinelPolicy {
 	sp.SetHash()
 	return sp
 }
+
+func QuotaSpec() *structs.QuotaSpec {
+	qs := &structs.QuotaSpec{
+		Name:        fmt.Sprintf("quota-spec-%s", structs.GenerateUUID()),
+		Description: "Super cool quota!",
+		Limits: []*structs.QuotaLimit{
+			{
+				Region: "global",
+				RegionLimit: &structs.Resources{
+					CPU:      20000,
+					MemoryMB: 20000,
+				},
+			},
+			{
+				Region: "europe",
+				RegionLimit: &structs.Resources{
+					CPU:      0,
+					MemoryMB: 0,
+				},
+			},
+		},
+	}
+	qs.SetHash()
+	return qs
+}
+
+func QuotaUsage() *structs.QuotaUsage {
+	qs := QuotaSpec()
+	l1 := qs.Limits[0]
+	l2 := qs.Limits[1]
+
+	l1.RegionLimit.CPU = 4000
+	l1.RegionLimit.MemoryMB = 5000
+	l2.RegionLimit.CPU = 40000
+	l2.RegionLimit.MemoryMB = 50000
+	qs.SetHash()
+
+	qu := &structs.QuotaUsage{
+		Name: fmt.Sprintf("quota-usage-%s", structs.GenerateUUID()),
+		Used: map[string]*structs.QuotaLimit{
+			string(l1.Hash): l1,
+			string(l2.Hash): l2,
+		},
+	}
+
+	return qu
+}
