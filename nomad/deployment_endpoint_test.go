@@ -196,6 +196,81 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 	assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
 }
 
+func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Mark the deployment as failed
+	req := &structs.DeploymentFailRequest{
+		DeploymentID: d.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		req.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token
+	{
+		req.SecretID = validToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp), "RPC")
+		assert.NotEqual(resp.Index, uint64(0), "bad response index")
+
+		// Lookup the evaluation
+		ws := memdb.NewWatchSet()
+		eval, err := state.EvalByID(ws, resp.EvalID)
+		assert.Nil(err, "EvalByID failed")
+		assert.NotNil(eval, "Expect eval")
+		assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+		assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+		assert.Equal(eval.JobID, d.JobID, "eval job id")
+		assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+		assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+		// Lookup the deployment
+		dout, err := state.DeploymentByID(ws, d.ID)
+		assert.Nil(err, "DeploymentByID failed")
+		assert.Equal(dout.Status, structs.DeploymentStatusFailed, "wrong status")
+		assert.Equal(dout.StatusDescription, structs.DeploymentStatusDescriptionFailedByUser, "wrong status description")
+		assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
+	}
+}
+
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
