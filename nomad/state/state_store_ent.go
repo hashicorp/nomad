@@ -174,6 +174,7 @@ func (s *StateStore) updateQuotaWithAlloc(index uint64, new, existing *structs.A
 	// change.
 	var updated *structs.QuotaUsage
 	if existing == nil {
+		// This is an unexpected case, just guarding ourselves
 		if new.TerminalStatus() {
 			return nil
 		}
