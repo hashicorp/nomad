@@ -205,6 +205,13 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "set_alloc_health"}, time.Now())
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.DeploymentID == "" {
 		return fmt.Errorf("missing deployment ID")
