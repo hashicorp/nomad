@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/armon/go-metrics"
@@ -640,6 +641,15 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
+func generateMigrateToken(allocID, nodeSecretID string) (string, error) {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(allocID))
+	return string(h.Sum(nil)), nil
+}
+
 // GetClientAllocs is used to request a lightweight list of alloc modify indexes
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
@@ -687,10 +697,19 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			}
 
 			reply.Allocs = make(map[string]uint64)
+			reply.MigrateTokens = make(map[string]string)
 			// Setup the output
 			if len(allocs) != 0 {
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
+
+					allocNode, err := state.NodeByID(ws, args.NodeID)
+					token, err := generateMigrateToken(alloc.ID, allocNode.SecretID)
+					if err != nil {
+						return err
+					}
+					reply.MigrateTokens[alloc.ID] = token
+
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
 			} else {

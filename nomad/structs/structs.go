@@ -817,6 +817,10 @@ type NodeAllocsResponse struct {
 // NodeClientAllocsResponse is used to return allocs meta data for a single node
 type NodeClientAllocsResponse struct {
 	Allocs map[string]uint64
+
+	// MigrateTokens are used when ACLs are enabled to verify volume access
+	MigrateTokens map[string]string
+
 	QueryMeta
 }
 

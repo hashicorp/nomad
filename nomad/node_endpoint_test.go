@@ -1384,6 +1384,60 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetClientAllocs_WIthMigrateTokens(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	assert.Nil(err)
+
+	// Lookup the allocs
+	get := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		SecretID:     node.SecretID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+
+	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2)
+	assert.Nil(err)
+
+	assert.Equal(resp2.Index, uint64(100))
+	assert.Equal(len(resp2.Allocs), 1)
+	assert.Equal(resp2.Allocs[alloc.ID], uint64(100))
+
+	// verify the correct migrate token was generated
+	expectedToken, err := generateMigrateToken(alloc.ID, node.SecretID)
+	assert.Nil(err)
+
+	assert.Equal(resp2.MigrateTokens[alloc.ID], expectedToken)
+}
+
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
