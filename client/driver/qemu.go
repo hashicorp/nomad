@@ -171,7 +171,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		accelerator = d.driverConfig.Accelerator
 	}
 
-	if task.Resources.MemoryMB <= 0 || task.Resources.MemoryMB > 4000000 {
+	if task.Resources.MemoryMB < 128 || task.Resources.MemoryMB > 4000000 {
 		return nil, fmt.Errorf("Qemu memory assignment out of bounds")
 	}
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)
