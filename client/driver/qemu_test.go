@@ -72,7 +72,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 			CPU:      500,
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
 				},
 			},
@@ -121,7 +121,7 @@ func TestQemuDriverUser(t *testing.T) {
 		t.Parallel()
 	}
 	ctestutils.QemuCompatible(t)
-	tasks := []*structs.Task{&structs.Task{
+	tasks := []*structs.Task{{
 		Name:   "linux",
 		Driver: "qemu",
 		User:   "alice",
@@ -143,13 +143,13 @@ func TestQemuDriverUser(t *testing.T) {
 			CPU:      500,
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
 				},
 			},
 		},
 	},
-		&structs.Task{
+		{
 			Name:   "linux",
 			Driver: "qemu",
 			User:   "alice",
@@ -171,7 +171,7 @@ func TestQemuDriverUser(t *testing.T) {
 				CPU:      500,
 				MemoryMB: -1,
 				Networks: []*structs.NetworkResource{
-					&structs.NetworkResource{
+					{
 						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
 					},
 				},

@@ -74,17 +74,17 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"image_path": &fields.FieldSchema{
+			"image_path": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"accelerator": &fields.FieldSchema{
+			"accelerator": {
 				Type: fields.TypeString,
 			},
-			"port_map": &fields.FieldSchema{
+			"port_map": {
 				Type: fields.TypeArray,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},
