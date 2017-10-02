@@ -8,6 +8,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -25,13 +26,12 @@ func (q *Quota) UpsertQuotaSpecs(args *structs.QuotaSpecUpsertRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "upsert_quota_specs"}, time.Now())
 
-	// TODO
-	// Check management permissions
-	//if aclObj, err := q.srv.resolveToken(args.SecretID); err != nil {
-	//return err
-	//} else if aclObj != nil && !aclObj.IsManagement() {
-	//return structs.ErrPermissionDenied
-	//}
+	// Check quota write permissions
+	if aclObj, err := q.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowQuotaWrite() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate there is at least one quota
 	if len(args.Quotas) == 0 {
@@ -70,13 +70,12 @@ func (q *Quota) DeleteQuotaSpecs(args *structs.QuotaSpecDeleteRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "delete_quota_specs"}, time.Now())
 
-	// TODO
-	// Check management permissions
-	//if aclObj, err := q.srv.resolveToken(args.SecretID); err != nil {
-	//return err
-	//} else if aclObj != nil && !aclObj.IsManagement() {
-	//return structs.ErrPermissionDenied
-	//}
+	// Check quota write permissions
+	if aclObj, err := q.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowQuotaWrite() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate at least one quota
 	if len(args.Names) == 0 {
@@ -106,12 +105,11 @@ func (q *Quota) ListQuotaSpecs(args *structs.QuotaSpecListRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "list_quota_specs"}, time.Now())
 
-	// TODO
-	// Resolve token to acl to filter namespace list
-	//aclObj, err := n.srv.resolveToken(args.SecretID)
-	//if err != nil {
-	//return err
-	//}
+	// Resolve token to ACL to filter quota specs
+	aclObj, err := q.srv.resolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -137,13 +135,13 @@ func (q *Quota) ListQuotaSpecs(args *structs.QuotaSpecListRequest, reply *struct
 					break
 				}
 				qs := raw.(*structs.QuotaSpec)
-				reply.Quotas = append(reply.Quotas, qs)
 
-				// TODO
-				// Only return namespaces allowed by acl
-				//if aclObj == nil || aclObj.AllowNamespace(ns.Name) {
-				//reply.Namespaces = append(reply.Namespaces, ns)
-				//}
+				// Only return quota allowed by acl
+				if allowed, err := q.quotaReadAllowed(qs.Name, s, ws, aclObj); err != nil {
+					return err
+				} else if allowed {
+					reply.Quotas = append(reply.Quotas, qs)
+				}
 			}
 
 			// Use the last index that affected the namespace table
@@ -170,19 +168,24 @@ func (q *Quota) GetQuotaSpec(args *structs.QuotaSpecSpecificRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "get_quota_spec"}, time.Now())
 
-	// TODO
-	// Check capabilities for the given namespace permissions
-	//if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
-	//return err
-	//} else if aclObj != nil && !aclObj.AllowNamespace(args.Name) {
-	//return structs.ErrPermissionDenied
-	//}
+	// Resolve token to ACL
+	aclObj, err := q.srv.resolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
+			// Only return quota if allowed by acl
+			if allowed, err := q.quotaReadAllowed(args.Name, s, ws, aclObj); err != nil {
+				return err
+			} else if !allowed {
+				return structs.ErrPermissionDenied
+			}
+
 			// Look for the spec
 			out, err := s.QuotaSpecByName(ws, args.Name)
 			if err != nil {
@@ -219,7 +222,6 @@ func (q *Quota) GetQuotaSpecs(args *structs.QuotaSpecSetRequest, reply *structs.
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "get_quota_specs"}, time.Now())
 
-	// TODO
 	// Check management level permissions
 	if acl, err := q.srv.resolveToken(args.SecretID); err != nil {
 		return err
@@ -270,12 +272,11 @@ func (q *Quota) ListQuotaUsages(args *structs.QuotaUsageListRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "list_quota_usages"}, time.Now())
 
-	// TODO
-	// Resolve token to acl to filter namespace list
-	//aclObj, err := n.srv.resolveToken(args.SecretID)
-	//if err != nil {
-	//return err
-	//}
+	// Resolve token to ACL to filter quota usages
+	aclObj, err := q.srv.resolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -301,13 +302,13 @@ func (q *Quota) ListQuotaUsages(args *structs.QuotaUsageListRequest, reply *stru
 					break
 				}
 				qu := raw.(*structs.QuotaUsage)
-				reply.Usages = append(reply.Usages, qu)
 
-				// TODO
-				// Only return namespaces allowed by acl
-				//if aclObj == nil || aclObj.AllowNamespace(ns.Name) {
-				//reply.Namespaces = append(reply.Namespaces, ns)
-				//}
+				// Only return quota allowed by acl
+				if allowed, err := q.quotaReadAllowed(qu.Name, s, ws, aclObj); err != nil {
+					return err
+				} else if allowed {
+					reply.Usages = append(reply.Usages, qu)
+				}
 			}
 
 			// Use the last index that affected the namespace table
@@ -324,6 +325,7 @@ func (q *Quota) ListQuotaUsages(args *structs.QuotaUsageListRequest, reply *stru
 			reply.Index = index
 			return nil
 		}}
+
 	return q.srv.blockingRPC(&opts)
 }
 
@@ -334,19 +336,24 @@ func (q *Quota) GetQuotaUsage(args *structs.QuotaUsageSpecificRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "quota", "get_quota_usage"}, time.Now())
 
-	// TODO
-	// Check capabilities for the given namespace permissions
-	//if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
-	//return err
-	//} else if aclObj != nil && !aclObj.AllowNamespace(args.Name) {
-	//return structs.ErrPermissionDenied
-	//}
+	// Check quota read permissions
+	aclObj, err := q.srv.resolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
+			// Only return quota allowed by acl
+			if allowed, err := q.quotaReadAllowed(args.Name, s, ws, aclObj); err != nil {
+				return err
+			} else if !allowed {
+				return structs.ErrPermissionDenied
+			}
+
 			// Look for the usage
 			out, err := s.QuotaUsageByName(ws, args.Name)
 			if err != nil {
@@ -374,4 +381,56 @@ func (q *Quota) GetQuotaUsage(args *structs.QuotaUsageSpecificRequest, reply *st
 			return nil
 		}}
 	return q.srv.blockingRPC(&opts)
+}
+
+// quotaReadAllowed checks whether the passed ACL token has permission to read
+// the given quota object. Its behavior is as follows:
+// * If the ACL object is nil, reads are allowed since ACLs are not enabled
+// * Reads are allowed if QuotaRead permissions exist on the ACL object
+// * Reads are allowed on non-existent quotas to allow blocking queries
+// * Reads are allowed if the ACL has any non-deny capability on a namespace
+//   using the quota object.
+func (q *Quota) quotaReadAllowed(quota string, state *state.StateStore,
+	ws memdb.WatchSet, acl *acl.ACL) (bool, error) {
+
+	// ACLs not enabled, so allow the read
+	if acl == nil {
+		return true, nil
+	}
+
+	// Check if they have global read permissions.
+	if acl.AllowQuotaRead() {
+		return true, nil
+	}
+
+	// Check if the quota object exists
+	spec, err := state.QuotaSpecByName(ws, quota)
+	if err != nil {
+		return false, err
+	}
+	if spec == nil {
+		return true, nil
+	}
+
+	// Check if the quota spec is attached to a namespace that they have access
+	// to.
+	iter, err := state.NamespacesByQuota(ws, quota)
+	if err != nil {
+		return false, err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Check if the ACL gives access to the namespace
+		ns := raw.(*structs.Namespace)
+		if acl.AllowNamespace(ns.Name) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

@@ -249,7 +249,7 @@ func (a *ACL) AllowOperatorWrite() bool {
 	}
 }
 
-// AllowQuotaRead checks if read operations are allowed for a quota
+// AllowQuotaRead checks if read operations are allowed for all quotas
 func (a *ACL) AllowQuotaRead() bool {
 	switch {
 	case a.management:
@@ -263,7 +263,7 @@ func (a *ACL) AllowQuotaRead() bool {
 	}
 }
 
-// AllowQuotaWrite checks if write operations are allowed for a quota
+// AllowQuotaWrite checks if write operations are allowed for quotas
 func (a *ACL) AllowQuotaWrite() bool {
 	switch {
 	case a.management:
