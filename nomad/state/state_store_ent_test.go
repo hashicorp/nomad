@@ -336,7 +336,19 @@ func TestStateStore_UpsertAllocs_Quota_UpdateAlloc(t *testing.T) {
 	allocs := []*structs.Allocation{a1, a2}
 	assert.Nil(state.UpsertAllocs(1002, allocs))
 
-	// 4. Update the allocs
+	// 4. Get the QuotaUsage
+	usageOriginal, err := state.QuotaUsageByName(nil, qs.Name)
+	assert.Nil(err)
+	assert.NotNil(usageOriginal)
+	assert.EqualValues(1000, usageOriginal.CreateIndex)
+	assert.EqualValues(1002, usageOriginal.ModifyIndex)
+	assert.Len(usageOriginal.Used, 1)
+
+	// Grab the usage
+	usedOriginal := usageOriginal.Used[string(qs.Limits[0].Hash)]
+	assert.NotNil(usedOriginal)
+
+	// 5. Update the allocs
 	j := mock.Alloc().Job
 	j.Meta = map[string]string{"foo": "bar"}
 	a3 := a1.Copy()
@@ -346,27 +358,20 @@ func TestStateStore_UpsertAllocs_Quota_UpdateAlloc(t *testing.T) {
 	allocs = []*structs.Allocation{a3, a4}
 	assert.Nil(state.UpsertAllocs(1003, allocs))
 
-	// 5. Assert that the QuotaUsage is updated.
-	usage, err := state.QuotaUsageByName(nil, qs.Name)
+	// 6. Assert that the QuotaUsage is not updated.
+	usageUpdated, err := state.QuotaUsageByName(nil, qs.Name)
 	assert.Nil(err)
-	assert.NotNil(usage)
-	assert.EqualValues(1000, usage.CreateIndex)
-	assert.EqualValues(1002, usage.ModifyIndex)
-	assert.Len(usage.Used, 1)
+	assert.NotNil(usageUpdated)
+	assert.EqualValues(1000, usageUpdated.CreateIndex)
+	assert.EqualValues(1002, usageUpdated.ModifyIndex)
+	assert.Len(usageUpdated.Used, 1)
 
 	// Grab the usage
-	used := usage.Used[string(qs.Limits[0].Hash)]
-	assert.NotNil(used)
-	assert.Equal("global", used.Region)
+	usedUpdated := usageUpdated.Used[string(qs.Limits[0].Hash)]
+	assert.NotNil(usedUpdated)
+	assert.Equal("global", usedUpdated.Region)
 
-	expected := &structs.Resources{}
-	r := mock.Alloc().Resources
-	expected.Add(r)
-	expected.Add(r)
-	expected.Networks = nil
-	expected.DiskMB = 0
-	expected.IOPS = 0
-	assert.Equal(expected, used.RegionLimit)
+	assert.Equal(usedOriginal.RegionLimit, usedUpdated.RegionLimit)
 }
 
 func TestStateStore_UpsertAllocs_Quota_StopAlloc(t *testing.T) {
@@ -436,7 +441,19 @@ func TestStateStore_UpdateAllocsFromClient_Quota_UpdateAlloc(t *testing.T) {
 	allocs := []*structs.Allocation{a1, a2}
 	assert.Nil(state.UpsertAllocs(1002, allocs))
 
-	// 4. Update the allocs
+	// 4. Get the QuotaUsage
+	usageOriginal, err := state.QuotaUsageByName(nil, qs.Name)
+	assert.Nil(err)
+	assert.NotNil(usageOriginal)
+	assert.EqualValues(1000, usageOriginal.CreateIndex)
+	assert.EqualValues(1002, usageOriginal.ModifyIndex)
+	assert.Len(usageOriginal.Used, 1)
+
+	// Grab the usage
+	usedOriginal := usageOriginal.Used[string(qs.Limits[0].Hash)]
+	assert.NotNil(usedOriginal)
+
+	// 5. Update the allocs
 	a3 := a1.Copy()
 	a4 := a2.Copy()
 	a3.ClientStatus = structs.AllocClientStatusRunning
@@ -444,27 +461,20 @@ func TestStateStore_UpdateAllocsFromClient_Quota_UpdateAlloc(t *testing.T) {
 	allocs = []*structs.Allocation{a3, a4}
 	assert.Nil(state.UpdateAllocsFromClient(1003, allocs))
 
-	// 5. Assert that the QuotaUsage is updated.
-	usage, err := state.QuotaUsageByName(nil, qs.Name)
+	// 6. Assert that the QuotaUsage is not updated.
+	usageUpdated, err := state.QuotaUsageByName(nil, qs.Name)
 	assert.Nil(err)
-	assert.NotNil(usage)
-	assert.EqualValues(1000, usage.CreateIndex)
-	assert.EqualValues(1002, usage.ModifyIndex)
-	assert.Len(usage.Used, 1)
+	assert.NotNil(usageUpdated)
+	assert.EqualValues(1000, usageUpdated.CreateIndex)
+	assert.EqualValues(1002, usageUpdated.ModifyIndex)
+	assert.Len(usageUpdated.Used, 1)
 
 	// Grab the usage
-	used := usage.Used[string(qs.Limits[0].Hash)]
-	assert.NotNil(used)
-	assert.Equal("global", used.Region)
+	usedUpdated := usageUpdated.Used[string(qs.Limits[0].Hash)]
+	assert.NotNil(usedUpdated)
+	assert.Equal("global", usedUpdated.Region)
 
-	expected := &structs.Resources{}
-	r := mock.Alloc().Resources
-	expected.Add(r)
-	expected.Add(r)
-	expected.Networks = nil
-	expected.DiskMB = 0
-	expected.IOPS = 0
-	assert.Equal(expected, used.RegionLimit)
+	assert.Equal(usedOriginal.RegionLimit, usedUpdated.RegionLimit)
 }
 
 func TestStateStore_UpdateAllocsFromClient_Quota_StopAlloc(t *testing.T) {
