@@ -47,6 +47,7 @@ type ACL struct {
 	agent    string
 	node     string
 	operator string
+	quota    string
 }
 
 // maxPrivilege returns the policy which grants the most privilege
@@ -114,6 +115,9 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 		if policy.Operator != nil {
 			acl.operator = maxPrivilege(acl.operator, policy.Operator.Policy)
+		}
+		if policy.Quota != nil {
+			acl.quota = maxPrivilege(acl.quota, policy.Quota.Policy)
 		}
 	}
 
@@ -239,6 +243,32 @@ func (a *ACL) AllowOperatorWrite() bool {
 	case a.management:
 		return true
 	case a.operator == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowQuotaRead checks if read operations are allowed for a quota
+func (a *ACL) AllowQuotaRead() bool {
+	switch {
+	case a.management:
+		return true
+	case a.quota == PolicyWrite:
+		return true
+	case a.quota == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowQuotaWrite checks if write operations are allowed for a quota
+func (a *ACL) AllowQuotaWrite() bool {
+	switch {
+	case a.management:
+		return true
+	case a.quota == PolicyWrite:
 		return true
 	default:
 		return false

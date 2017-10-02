@@ -55,6 +55,9 @@ func TestParse(t *testing.T) {
 			operator {
 				policy = "deny"
 			}
+			quota {
+				policy = "read"
+			}
 			`,
 			"",
 			&Policy{
@@ -94,6 +97,9 @@ func TestParse(t *testing.T) {
 				},
 				Operator: &OperatorPolicy{
 					Policy: PolicyDeny,
+				},
+				Quota: &QuotaPolicy{
+					Policy: PolicyRead,
 				},
 			},
 		},
@@ -140,6 +146,15 @@ func TestParse(t *testing.T) {
 			}
 			`,
 			"Invalid operator policy",
+			nil,
+		},
+		{
+			`
+			quota {
+				policy = "foo"
+			}
+			`,
+			"Invalid quota policy",
 			nil,
 		},
 		{
