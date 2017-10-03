@@ -225,7 +225,7 @@ func (q *Quota) GetQuotaSpecs(args *structs.QuotaSpecSetRequest, reply *structs.
 	// Check management level permissions
 	if acl, err := q.srv.resolveToken(args.SecretID); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl != nil && !acl.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
