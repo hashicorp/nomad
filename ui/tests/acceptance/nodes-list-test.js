@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import { click, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
@@ -75,6 +75,35 @@ test('each client should link to the client detail page', function(assert) {
   });
 });
 
+test('when there are no clients, there is an empty message', function(assert) {
+  server.createList('agent', 1);
+
+  visit('/nodes');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Clients');
+  });
+});
+
+test('when there are clients, but no matches for a search term, there is an empty message', function(
+  assert
+) {
+  server.createList('agent', 1);
+  server.create('node', { name: 'node' });
+
+  visit('/nodes');
+
+  andThen(() => {
+    fillIn('.search-box input', 'client');
+  });
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
+  });
+});
+
 test('/servers should list all servers', function(assert) {
   const agentsCount = 10;
   const pageSize = 8;
@@ -139,5 +168,26 @@ test('each server should link to the server detail page', function(assert) {
 
   andThen(() => {
     assert.equal(currentURL(), `/servers/${agent.name}`);
+  });
+});
+
+test('when the API returns no agents, show an empty message', function(assert) {
+  minimumSetup();
+
+  // Override the members handler to act as if server-side permissions
+  // are preventing a qualified response.
+  server.pretender.get('/v1/agent/members', () => [
+    200,
+    {},
+    JSON.stringify({
+      Members: [],
+    }),
+  ]);
+
+  visit('/servers');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'Invalid Permissions');
   });
 });

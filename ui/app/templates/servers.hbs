@@ -1,6 +1,6 @@
 <div class="page-layout">
   {{#global-header class="page-header"}}
-    Nodes
+    Servers
   {{/global-header}}
   {{#gutter-menu class="page-body"}}
     <section class="section">
@@ -34,6 +34,17 @@
             {{#p.next class="pagination-next"}} &gt; {{/p.next}}
             <ul class="pagination-list"></ul>
           </nav>
+        </div>
+      {{else}}
+        <div class="empty-message">
+          <h3 class="empty-message-headline">Invalid Permissions</h3>
+          <p class="empty-message-body">
+            {{#if token.secret}}
+              Your ACL token does not grant access to see servers.
+            {{else}}
+              You have no ACL token set. {{#link-to "settings.tokens"}}Provide a token{{/link-to}} with the appropriate permissions to see servers.
+            {{/if}}
+          </p>
         </div>
       {{/list-pagination}}
       {{outlet}}

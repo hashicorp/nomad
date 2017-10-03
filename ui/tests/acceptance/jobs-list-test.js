@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import { click, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { click, find, findAll, currentURL, visit, fillIn } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
@@ -78,5 +78,32 @@ test('each job row should link to the corresponding job', function(assert) {
 
   andThen(() => {
     assert.equal(currentURL(), `/jobs/${job.id}`);
+  });
+});
+
+test('when there are no jobs, there is an empty message', function(assert) {
+  visit('/jobs');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Jobs');
+  });
+});
+
+test('when there are jobs, but no matches for a search result, there is an empty message', function(
+  assert
+) {
+  server.create('job', { name: 'cat 1' });
+  server.create('job', { name: 'cat 2' });
+
+  visit('/jobs');
+
+  andThen(() => {
+    fillIn('.search-box input', 'dog');
+  });
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
   });
 });

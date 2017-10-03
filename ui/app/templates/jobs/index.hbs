@@ -3,9 +3,11 @@
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
-    <div class="content">
-      <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
-    </div>
+    {{#if model.length}}
+      <div class="content">
+        <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
+      </div>
+    {{/if}}
     {{#list-pagination
       source=sortedJobs
       size=pageSize
@@ -36,6 +38,18 @@
           {{#p.next class="pagination-next"}} &gt; {{/p.next}}
           <ul class="pagination-list"></ul>
         </nav>
+      </div>
+    {{else}}
+      <div class="empty-message">
+        {{#if (eq model.length 0)}}
+          <h3 class="empty-message-headline">No Jobs</h3>
+          <p class="empty-message-body">
+            There are currently no visible jobs in the cluster. It could be that the cluster is empty. It could also mean {{#link-to "settings.tokens"}}you don't have access to see any jobs{{/link-to}}.
+          </p>
+        {{else if searchTerm}}
+          <h3 class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
+        {{/if}}
       </div>
     {{/list-pagination}}
   </section>
