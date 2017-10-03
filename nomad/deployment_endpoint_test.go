@@ -903,6 +903,74 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	assert.Equal(resp2.Deployments[0].ID, d.ID, "Deployment ID")
 }
 
+func TestDeploymentEndpoint_List_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.DeploymentListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Lookup the deployments with a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.DeploymentListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "Wrong Index")
+		assert.Len(resp.Deployments, 1, "Deployments")
+		assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
+	}
+
+	// Lookup the deployments with a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.DeploymentListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "Wrong Index")
+		assert.Len(resp.Deployments, 1, "Deployments")
+		assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
+	}
+}
+
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)

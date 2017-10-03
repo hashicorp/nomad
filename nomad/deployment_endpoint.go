@@ -251,6 +251,13 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "list"}, time.Now())
 
+	// Check namespace read-job permissions
+	if aclObj, err := d.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
