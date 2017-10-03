@@ -19,10 +19,16 @@ func (s *Server) establishEnterpriseLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	// Start replication of Sentinel Policies if ACLs are enabled,
-	// and we are not the authoritative region.
-	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
-		go s.replicateSentinelPolicies(stopCh)
+	// If we are not the authoritative region, start replicating.
+	if s.config.Region != s.config.AuthoritativeRegion {
+		// Start replication of Sentinel Policies if ACLs are enabled,
+		// and we are not the authoritative region.
+		if s.config.ACLEnabled {
+			go s.replicateSentinelPolicies(stopCh)
+		}
+
+		// Start replciating quota specifications.
+		go s.replicateQuotaSpecs(stopCh)
 	}
 	return nil
 }
@@ -152,6 +158,147 @@ func diffSentinelPolicies(state *state.StateStore, minIndex uint64, remoteList [
 		}
 		policy := raw.(*structs.SentinelPolicy)
 		local[policy.Name] = policy.Hash
+	}
+
+	// Iterate over the remote policies
+	for _, rp := range remoteList {
+		remote[rp.Name] = struct{}{}
+
+		// Check if the policy is missing locally
+		if localHash, ok := local[rp.Name]; !ok {
+			update = append(update, rp.Name)
+
+			// Check if policy is newer remotely and there is a hash mis-match.
+		} else if rp.ModifyIndex > minIndex && !bytes.Equal(localHash, rp.Hash) {
+			update = append(update, rp.Name)
+		}
+	}
+
+	// Check if policy should be deleted
+	for lp := range local {
+		if _, ok := remote[lp]; !ok {
+			delete = append(delete, lp)
+		}
+	}
+	return
+}
+
+// replicateQuotaSpecs is used to replicate quota specifications from
+// the authoritative region to this region.
+func (s *Server) replicateQuotaSpecs(stopCh chan struct{}) {
+	req := structs.QuotaSpecListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
+		},
+	}
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Printf("[DEBUG] nomad: starting quota specification replication from authoritative region %q", req.Region)
+
+START:
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+			// Rate limit how often we attempt replication
+			limiter.Wait(context.Background())
+
+			// Fetch the list of quotas
+			var resp structs.QuotaSpecListResponse
+			req.SecretID = s.ReplicationToken()
+			err := s.forwardRegion(s.config.AuthoritativeRegion,
+				"Quota.ListQuotaSpecs", &req, &resp)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
+				goto ERR_WAIT
+			}
+
+			// Perform a two-way diff
+			delete, update := diffQuotaSpecs(s.State(), req.MinQueryIndex, resp.Quotas)
+
+			// Delete policies that should not exist
+			if len(delete) > 0 {
+				args := &structs.QuotaSpecDeleteRequest{
+					Names: delete,
+				}
+				_, _, err := s.raftApply(structs.QuotaSpecDeleteRequestType, args)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to delete quota specs: %v", err)
+					goto ERR_WAIT
+				}
+			}
+
+			// Fetch any outdated quota specs
+			var fetched []*structs.QuotaSpec
+			if len(update) > 0 {
+				req := structs.QuotaSpecSetRequest{
+					Names: update,
+					QueryOptions: structs.QueryOptions{
+						Region:        s.config.AuthoritativeRegion,
+						SecretID:      s.ReplicationToken(),
+						AllowStale:    true,
+						MinQueryIndex: resp.Index - 1,
+					},
+				}
+				var reply structs.QuotaSpecSetResponse
+				if err := s.forwardRegion(s.config.AuthoritativeRegion,
+					"Quota.GetQuotaSpecs", &req, &reply); err != nil {
+					s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
+					goto ERR_WAIT
+				}
+				for _, quota := range reply.Quotas {
+					fetched = append(fetched, quota)
+				}
+			}
+
+			// Update local policies
+			if len(fetched) > 0 {
+				args := &structs.QuotaSpecUpsertRequest{
+					Quotas: fetched,
+				}
+				_, _, err := s.raftApply(structs.QuotaSpecUpsertRequestType, args)
+				if err != nil {
+					s.logger.Printf("[ERR] nomad: failed to update quota specs: %v", err)
+					goto ERR_WAIT
+				}
+			}
+
+			// Update the minimum query index, blocks until there
+			// is a change.
+			req.MinQueryIndex = resp.Index
+		}
+	}
+
+ERR_WAIT:
+	select {
+	case <-time.After(s.config.ReplicationBackoff):
+		goto START
+	case <-stopCh:
+		return
+	}
+}
+
+// diffQuotaSpecs is used to perform a two-way diff between the local quota
+// specifications and the remote quota specifications to determine which
+// specs need to be deleted or updated.
+func diffQuotaSpecs(state *state.StateStore, minIndex uint64, remoteList []*structs.QuotaSpec) (delete []string, update []string) {
+	// Construct a set of the local and remote policies
+	local := make(map[string][]byte)
+	remote := make(map[string]struct{})
+
+	// Add all the local policies
+	iter, err := state.QuotaSpecs(nil)
+	if err != nil {
+		panic("failed to iterate local quota specifications")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		spec := raw.(*structs.QuotaSpec)
+		local[spec.Name] = spec.Hash
 	}
 
 	// Iterate over the remote policies
