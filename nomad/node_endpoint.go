@@ -704,6 +704,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
 
 					allocNode, err := state.NodeByID(ws, args.NodeID)
+					if err != nil {
+						return err
+					}
 					token, err := generateMigrateToken(alloc.ID, allocNode.SecretID)
 					if err != nil {
 						return err

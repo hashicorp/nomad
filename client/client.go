@@ -33,6 +33,7 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 	"github.com/shirou/gopsutil/host"
+	"golang.org/x/crypto/blake2b"
 )
 
 const (
@@ -523,6 +524,20 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 // HostStats returns all the stats related to a Nomad client
 func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
+}
+
+func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
+	if !c.config.ACLEnabled {
+		return true
+	}
+
+	h, err := blake2b.New512([]byte(c.secretNodeID()))
+	if err != nil {
+		return false
+	}
+	h.Write([]byte(allocID))
+	expectedMigrateToken := string(h.Sum(nil))
+	return expectedMigrateToken == migrateToken
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -1303,6 +1318,10 @@ type allocUpdates struct {
 	// filtered is the set of allocations that were not pulled because their
 	// AllocModifyIndex didn't change.
 	filtered map[string]struct{}
+
+	// migrateTokens are a list of tokens necessary for when clients pull data
+	// from authorized volumes
+	migrateTokens map[string]string
 }
 
 // watchAllocations is used to scan for updates to allocations
@@ -1460,8 +1479,9 @@ OUTER:
 
 		// Push the updates.
 		update := &allocUpdates{
-			filtered: filtered,
-			pulled:   pulledAllocs,
+			filtered:      filtered,
+			pulled:        pulledAllocs,
+			migrateTokens: resp.MigrateTokens,
 		}
 		select {
 		case updates <- update:
@@ -1530,7 +1550,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Start the new allocations
 	for _, add := range diff.added {
-		if err := c.addAlloc(add); err != nil {
+		migrateToken := update.migrateTokens[add.ID]
+		if err := c.addAlloc(add, migrateToken); err != nil {
 			c.logger.Printf("[ERR] client: failed to add alloc '%s': %v",
 				add.ID, err)
 		}
@@ -1572,7 +1593,7 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 }
 
 // addAlloc is invoked when we should add an allocation
-func (c *Client) addAlloc(alloc *structs.Allocation) error {
+func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error {
 	// Check if we already have an alloc runner
 	c.allocLock.Lock()
 	if _, ok := c.allocs[alloc.ID]; ok {
@@ -1589,7 +1610,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation) error {
 	}
 
 	c.configLock.RLock()
-	prevAlloc := newAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger)
+	prevAlloc := newAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
 
 	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
 	c.configLock.RUnlock()

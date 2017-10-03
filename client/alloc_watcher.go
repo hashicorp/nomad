@@ -51,7 +51,7 @@ type prevAllocWatcher interface {
 // newAllocWatcher creates a prevAllocWatcher appropriate for whether this
 // alloc's previous allocation was local or remote. If this alloc has no
 // previous alloc then a noop implementation is returned.
-func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger) prevAllocWatcher {
+func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) prevAllocWatcher {
 	if alloc.PreviousAllocation == "" {
 		// No previous allocation, use noop transitioner
 		return noopPrevAlloc{}
@@ -75,13 +75,14 @@ func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, 
 	}
 
 	return &remotePrevAlloc{
-		allocID:     alloc.ID,
-		prevAllocID: alloc.PreviousAllocation,
-		tasks:       tg.Tasks,
-		config:      config,
-		migrate:     tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate,
-		rpc:         rpc,
-		logger:      l,
+		allocID:      alloc.ID,
+		prevAllocID:  alloc.PreviousAllocation,
+		tasks:        tg.Tasks,
+		config:       config,
+		migrate:      tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate,
+		rpc:          rpc,
+		logger:       l,
+		migrateToken: migrateToken,
 	}
 }
 
@@ -236,6 +237,10 @@ type remotePrevAlloc struct {
 	waitingLock sync.RWMutex
 
 	logger *log.Logger
+
+	// migrateToken allows a client to migrate data in an ACL-protected remote
+	// volume
+	migrateToken string
 }
 
 // IsWaiting returns true if there's a concurrent call inside Wait
@@ -423,7 +428,8 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	}
 
 	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", p.prevAllocID)
-	resp, err := apiClient.Raw().Response(url, nil)
+	qo := &nomadapi.QueryOptions{SecretID: p.migrateToken}
+	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()
 		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %v", p.prevAllocID, err)

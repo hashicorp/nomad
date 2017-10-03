@@ -88,11 +88,12 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(404, resourceNotFoundErr)
 	}
 	allocID := tokens[0]
+	migrateToken := req.Header.Get("X-Nomad-Token")
 	switch tokens[1] {
 	case "stats":
 		return s.allocStats(allocID, resp, req)
 	case "snapshot":
-		return s.allocSnapshot(allocID, resp, req)
+		return s.allocSnapshot(allocID, migrateToken, resp, req)
 	case "gc":
 		return s.allocGC(allocID, resp, req)
 	}
@@ -134,7 +135,11 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 	return nil, s.agent.Client().CollectAllocation(allocID)
 }
 
-func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) allocSnapshot(allocID, migrateToken string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if !s.agent.Client().ValidateMigrateToken(allocID, migrateToken) {
+		return nil, fmt.Errorf("invalid migrate token for allocation %q", allocID)
+	}
+
 	allocFS, err := s.agent.Client().GetAllocFS(allocID)
 	if err != nil {
 		return nil, fmt.Errorf(allocNotFoundErr)
