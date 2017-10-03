@@ -763,6 +763,70 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 	}
 }
 
+func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.EvalID = alloc1.EvalID
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	assert.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
+
+	// Create ACL tokens
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.EvalSpecificRequest{
+		EvalID:       alloc1.EvalID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.EvalAllocationsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect permission denied
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.EvalAllocationsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Lookup the eval with a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.EvalAllocationsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Lenf(resp.Allocations, 2, "bad: %#v", resp.Allocations)
+	}
+
+	// Lookup the eval with a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.EvalAllocationsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp))
+		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
+		assert.Lenf(resp.Allocations, 2, "bad: %#v", resp.Allocations)
+	}
+}
+
 func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
