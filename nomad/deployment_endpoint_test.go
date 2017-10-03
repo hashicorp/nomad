@@ -1065,6 +1065,80 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	assert.Equal(a.ID, resp.Allocations[0].ID, "Allocation ID")
 }
 
+func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	a := mock.Alloc()
+	a.DeploymentID = d.ID
+	summary := mock.JobSummary(a.JobID)
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
+	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.DeploymentSpecificRequest{
+		DeploymentID: d.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Lookup the allocations with a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.AllocListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
+		assert.EqualValues(1001, resp.Index, "Wrong Index")
+		assert.Len(resp.Allocations, 1, "Allocations")
+		assert.Equal(a.ID, resp.Allocations[0].ID, "Allocation ID")
+	}
+
+	// Lookup the allocations with a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.AllocListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
+		assert.EqualValues(1001, resp.Index, "Wrong Index")
+		assert.Len(resp.Allocations, 1, "Allocations")
+		assert.Equal(a.ID, resp.Allocations[0].ID, "Allocation ID")
+	}
+}
+
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
