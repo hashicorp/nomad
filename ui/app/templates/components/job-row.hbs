@@ -4,7 +4,13 @@
 </td>
 <td>{{job.type}}</td>
 <td>{{job.priority}}</td>
-<td>{{job.taskGroups.length}}</td>
+<td>
+  {{#if job.isReloading}}
+    ...
+  {{else}}
+    {{job.taskGroups.length}}
+  {{/if}}
+</td>
 <td>
   <div class="inline-chart">{{allocation-status-bar allocationContainer=job isNarrow=true}}</div>
 </td>
