@@ -15,11 +15,13 @@
     <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
   </td>
 {{/if}}
-<td>
+<td class="has-text-centered">
   {{#if allocation.stats.isPending}}
     ...
   {{else if allocation.stats.isRejected}}
-    !!!
+    <span class="tooltip text-center" aria-label="Couldn't connect to client">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
   {{else}}
     <div class="inline-chart">
       <progress
@@ -31,11 +33,13 @@
     </div>
   {{/if}}
 </td>
-<td>
+<td class="has-text-centered">
   {{#if allocation.stats.isPending}}
     ...
   {{else if allocation.stats.isRejected}}
-    !!!
+    <span class="tooltip text-center" aria-label="Couldn't connect to client">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
   {{else}}
     <div class="inline-chart">
       <progress
