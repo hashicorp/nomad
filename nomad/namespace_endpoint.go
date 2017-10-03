@@ -219,6 +219,13 @@ func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespaces"}, time.Now())
 
+	// Check management permissions
+	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,

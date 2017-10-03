@@ -953,7 +953,7 @@ func TestStateStore_QuotaSpecsByNamePrefix(t *testing.T) {
 	}
 
 	// Scan by prefix
-	iter, err := state.QuotaSpecByNamePrefix(nil, "foo")
+	iter, err := state.QuotaSpecsByNamePrefix(nil, "foo")
 	assert.Nil(err)
 
 	// Ensure we see both policies
@@ -1118,7 +1118,7 @@ func TestStateStore_QuotaUsagesByNamePrefix(t *testing.T) {
 	}
 
 	// Scan by prefix
-	iter, err := state.QuotaUsageByNamePrefix(nil, "foo")
+	iter, err := state.QuotaUsagesByNamePrefix(nil, "foo")
 	assert.Nil(err)
 
 	// Ensure we see both policies
