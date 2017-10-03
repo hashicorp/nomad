@@ -1,7 +1,7 @@
 .chart {
   position: relative;
 
-  .tooltip {
+  .chart-tooltip {
     position: absolute;
     top: 0;
     display: none;
@@ -28,7 +28,7 @@
       transform: translateX(-7px);
       left: 50%;
       bottom: -8px;
-      z-index: 2;
+      z-index: $z-tooltip;
     }
 
     &::after {
@@ -44,7 +44,7 @@
       transform: translateX(-6px);
       left: 50%;
       bottom: -6px;
-      z-index: 2;
+      z-index: $z-tooltip;
     }
 
     &.active {
