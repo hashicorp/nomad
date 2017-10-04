@@ -28,13 +28,15 @@ or updated.
 
 ## Apply Options
 
+* `-quota` : An optional quota to apply to the namespace.
+
 * `-description` : An optional human readable description for the namespace.
 
 ## Examples
 
-Create a namespace
+Create a namespace with a quota
 
 ```
-$ nomad namespace apply -description "Prod API servers" api-prod 
+$ nomad namespace apply -description "Prod API servers" -quota prod api-prod 
 Successfully applied namespace "api-prod"!
 ```

@@ -26,7 +26,7 @@ General Options:
 Apply Options:
 
   -quota
-    The quota to attach to the namespace
+    The quota to attach to the namespace.
 
   -description
     An optional description for the namespace.
