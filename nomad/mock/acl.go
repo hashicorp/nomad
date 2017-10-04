@@ -1,14 +1,19 @@
-package nomad
+package mock
 
 import (
 	"fmt"
-	"testing"
 
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/assert"
 )
+
+// StateStore defines the methods required from state.StateStore but avoids a
+// circular dependency.
+type StateStore interface {
+	UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error
+	UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error
+}
 
 // NamespacePolicy is a helper for generating the policy hcl for a given
 // namepsace. Either policy or capabilities may be nil but not both.
@@ -30,7 +35,7 @@ func NodePolicy(policy string) string {
 }
 
 // CreatePolicy creates a policy with the given name and rule.
-func CreatePolicy(t *testing.T, state *state.StateStore, index uint64, name, rule string) {
+func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string) {
 	t.Helper()
 
 	// Create the ACLPolicy
@@ -43,11 +48,11 @@ func CreatePolicy(t *testing.T, state *state.StateStore, index uint64, name, rul
 }
 
 // CreateToken creates a local, client token for the given policies
-func CreateToken(t *testing.T, state *state.StateStore, index uint64, policies []string) *structs.ACLToken {
+func CreateToken(t testing.T, state StateStore, index uint64, policies []string) *structs.ACLToken {
 	t.Helper()
 
 	// Create the ACLToken
-	token := mock.ACLToken()
+	token := ACLToken()
 	token.Policies = policies
 	token.SetHash()
 	assert.Nil(t, state.UpsertACLTokens(index, []*structs.ACLToken{token}))
@@ -56,7 +61,7 @@ func CreateToken(t *testing.T, state *state.StateStore, index uint64, policies [
 
 // CreatePolicyAndToken creates a policy and then returns a token configured for
 // just that policy. CreatePolicyAndToken uses the given index and index+1.
-func CreatePolicyAndToken(t *testing.T, state *state.StateStore, index uint64, name, rule string) *structs.ACLToken {
+func CreatePolicyAndToken(t testing.T, state StateStore, index uint64, name, rule string) *structs.ACLToken {
 	CreatePolicy(t, state, index, name, rule)
 	return CreateToken(t, state, index+1, []string{name})
 }

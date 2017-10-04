@@ -73,10 +73,10 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
 
 	// Create ACL tokens
-	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get := &structs.EvalSpecificRequest{
 		EvalID:       eval1.ID,
@@ -611,10 +611,10 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{eval1, eval2}))
 
 	// Create ACL tokens
-	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get := &structs.EvalListRequest{
 		QueryOptions: structs.QueryOptions{
@@ -781,10 +781,10 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Create ACL tokens
-	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get := &structs.EvalSpecificRequest{
 		EvalID:       alloc1.EvalID,
