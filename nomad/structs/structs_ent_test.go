@@ -347,3 +347,24 @@ func TestQuotaUsage_Diff(t *testing.T) {
 		})
 	}
 }
+
+func TestQuotaLimit_Superset(t *testing.T) {
+	l1 := &QuotaLimit{
+		Region: "foo",
+		RegionLimit: &Resources{
+			CPU:      1000,
+			MemoryMB: 1000,
+		},
+	}
+	l2 := l1.Copy()
+	l3 := l1.Copy()
+	l3.RegionLimit.CPU++
+	l3.RegionLimit.MemoryMB++
+
+	superset, _ := l1.Superset(l2)
+	assert.True(t, superset)
+
+	superset, dimensions := l1.Superset(l3)
+	assert.False(t, superset)
+	assert.Len(t, dimensions, 2)
+}
