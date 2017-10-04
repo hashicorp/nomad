@@ -4,6 +4,8 @@ import ApplicationAdapter from './application';
 const { RSVP } = Ember;
 
 export default ApplicationAdapter.extend({
+  shouldReloadAll: () => true,
+
   findRecord(store, { modelName }, id, snapshot) {
     // To make a findRecord response reflect the findMany response, the JobSummary
     // from /summary needs to be stitched into the response.
