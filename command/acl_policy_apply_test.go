@@ -23,7 +23,7 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	defer srv.Shutdown()
 
 	// Bootstrap an initial ACL token
-	token := srv.Token
+	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
 	ui := new(cli.MockUi)
