@@ -60,73 +60,74 @@ START:
 		case <-stopCh:
 			return
 		default:
-			// Rate limit how often we attempt replication
-			limiter.Wait(context.Background())
+		}
 
-			// Fetch the list of policies
-			var resp structs.SentinelPolicyListResponse
-			req.SecretID = s.ReplicationToken()
-			err := s.forwardRegion(s.config.AuthoritativeRegion,
-				"Sentinel.ListPolicies", &req, &resp)
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		// Fetch the list of policies
+		var resp structs.SentinelPolicyListResponse
+		req.SecretID = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion,
+			"Sentinel.ListPolicies", &req, &resp)
+		if err != nil {
+			s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
+			goto ERR_WAIT
+		}
+
+		// Perform a two-way diff
+		delete, update := diffSentinelPolicies(s.State(), req.MinQueryIndex, resp.Policies)
+
+		// Delete policies that should not exist
+		if len(delete) > 0 {
+			args := &structs.SentinelPolicyDeleteRequest{
+				Names: delete,
+			}
+			_, _, err := s.raftApply(structs.SentinelPolicyDeleteRequestType, args)
 			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to delete policies: %v", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Fetch any outdated policies
+		var fetched []*structs.SentinelPolicy
+		if len(update) > 0 {
+			req := structs.SentinelPolicySetRequest{
+				Names: update,
+				QueryOptions: structs.QueryOptions{
+					Region:        s.config.AuthoritativeRegion,
+					SecretID:      s.ReplicationToken(),
+					AllowStale:    true,
+					MinQueryIndex: resp.Index - 1,
+				},
+			}
+			var reply structs.SentinelPolicySetResponse
+			if err := s.forwardRegion(s.config.AuthoritativeRegion,
+				"Sentinel.GetPolicies", &req, &reply); err != nil {
 				s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
 				goto ERR_WAIT
 			}
-
-			// Perform a two-way diff
-			delete, update := diffSentinelPolicies(s.State(), req.MinQueryIndex, resp.Policies)
-
-			// Delete policies that should not exist
-			if len(delete) > 0 {
-				args := &structs.SentinelPolicyDeleteRequest{
-					Names: delete,
-				}
-				_, _, err := s.raftApply(structs.SentinelPolicyDeleteRequestType, args)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to delete policies: %v", err)
-					goto ERR_WAIT
-				}
+			for _, policy := range reply.Policies {
+				fetched = append(fetched, policy)
 			}
-
-			// Fetch any outdated policies
-			var fetched []*structs.SentinelPolicy
-			if len(update) > 0 {
-				req := structs.SentinelPolicySetRequest{
-					Names: update,
-					QueryOptions: structs.QueryOptions{
-						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
-						AllowStale:    true,
-						MinQueryIndex: resp.Index - 1,
-					},
-				}
-				var reply structs.SentinelPolicySetResponse
-				if err := s.forwardRegion(s.config.AuthoritativeRegion,
-					"Sentinel.GetPolicies", &req, &reply); err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
-					goto ERR_WAIT
-				}
-				for _, policy := range reply.Policies {
-					fetched = append(fetched, policy)
-				}
-			}
-
-			// Update local policies
-			if len(fetched) > 0 {
-				args := &structs.SentinelPolicyUpsertRequest{
-					Policies: fetched,
-				}
-				_, _, err := s.raftApply(structs.SentinelPolicyUpsertRequestType, args)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to update policies: %v", err)
-					goto ERR_WAIT
-				}
-			}
-
-			// Update the minimum query index, blocks until there
-			// is a change.
-			req.MinQueryIndex = resp.Index
 		}
+
+		// Update local policies
+		if len(fetched) > 0 {
+			args := &structs.SentinelPolicyUpsertRequest{
+				Policies: fetched,
+			}
+			_, _, err := s.raftApply(structs.SentinelPolicyUpsertRequestType, args)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to update policies: %v", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Update the minimum query index, blocks until there
+		// is a change.
+		req.MinQueryIndex = resp.Index
 	}
 
 ERR_WAIT:
@@ -201,73 +202,74 @@ START:
 		case <-stopCh:
 			return
 		default:
-			// Rate limit how often we attempt replication
-			limiter.Wait(context.Background())
+		}
 
-			// Fetch the list of quotas
-			var resp structs.QuotaSpecListResponse
-			req.SecretID = s.ReplicationToken()
-			err := s.forwardRegion(s.config.AuthoritativeRegion,
-				"Quota.ListQuotaSpecs", &req, &resp)
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		// Fetch the list of quotas
+		var resp structs.QuotaSpecListResponse
+		req.SecretID = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion,
+			"Quota.ListQuotaSpecs", &req, &resp)
+		if err != nil {
+			s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
+			goto ERR_WAIT
+		}
+
+		// Perform a two-way diff
+		delete, update := diffQuotaSpecs(s.State(), req.MinQueryIndex, resp.Quotas)
+
+		// Delete policies that should not exist
+		if len(delete) > 0 {
+			args := &structs.QuotaSpecDeleteRequest{
+				Names: delete,
+			}
+			_, _, err := s.raftApply(structs.QuotaSpecDeleteRequestType, args)
 			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to delete quota specs: %v", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Fetch any outdated quota specs
+		var fetched []*structs.QuotaSpec
+		if len(update) > 0 {
+			req := structs.QuotaSpecSetRequest{
+				Names: update,
+				QueryOptions: structs.QueryOptions{
+					Region:        s.config.AuthoritativeRegion,
+					SecretID:      s.ReplicationToken(),
+					AllowStale:    true,
+					MinQueryIndex: resp.Index - 1,
+				},
+			}
+			var reply structs.QuotaSpecSetResponse
+			if err := s.forwardRegion(s.config.AuthoritativeRegion,
+				"Quota.GetQuotaSpecs", &req, &reply); err != nil {
 				s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
 				goto ERR_WAIT
 			}
-
-			// Perform a two-way diff
-			delete, update := diffQuotaSpecs(s.State(), req.MinQueryIndex, resp.Quotas)
-
-			// Delete policies that should not exist
-			if len(delete) > 0 {
-				args := &structs.QuotaSpecDeleteRequest{
-					Names: delete,
-				}
-				_, _, err := s.raftApply(structs.QuotaSpecDeleteRequestType, args)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to delete quota specs: %v", err)
-					goto ERR_WAIT
-				}
+			for _, quota := range reply.Quotas {
+				fetched = append(fetched, quota)
 			}
-
-			// Fetch any outdated quota specs
-			var fetched []*structs.QuotaSpec
-			if len(update) > 0 {
-				req := structs.QuotaSpecSetRequest{
-					Names: update,
-					QueryOptions: structs.QueryOptions{
-						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
-						AllowStale:    true,
-						MinQueryIndex: resp.Index - 1,
-					},
-				}
-				var reply structs.QuotaSpecSetResponse
-				if err := s.forwardRegion(s.config.AuthoritativeRegion,
-					"Quota.GetQuotaSpecs", &req, &reply); err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
-					goto ERR_WAIT
-				}
-				for _, quota := range reply.Quotas {
-					fetched = append(fetched, quota)
-				}
-			}
-
-			// Update local policies
-			if len(fetched) > 0 {
-				args := &structs.QuotaSpecUpsertRequest{
-					Quotas: fetched,
-				}
-				_, _, err := s.raftApply(structs.QuotaSpecUpsertRequestType, args)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to update quota specs: %v", err)
-					goto ERR_WAIT
-				}
-			}
-
-			// Update the minimum query index, blocks until there
-			// is a change.
-			req.MinQueryIndex = resp.Index
 		}
+
+		// Update local policies
+		if len(fetched) > 0 {
+			args := &structs.QuotaSpecUpsertRequest{
+				Quotas: fetched,
+			}
+			_, _, err := s.raftApply(structs.QuotaSpecUpsertRequestType, args)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to update quota specs: %v", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Update the minimum query index, blocks until there
+		// is a change.
+		req.MinQueryIndex = resp.Index
 	}
 
 ERR_WAIT:
