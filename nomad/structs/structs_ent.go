@@ -3,7 +3,9 @@
 package structs
 
 import (
+	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/errwrap"
@@ -276,7 +278,7 @@ func (q *QuotaSpec) Copy() *QuotaSpec {
 	}
 
 	// Copy the hash
-	nq.Hash = make([]byte, 0, len(q.Hash))
+	nq.Hash = make([]byte, len(q.Hash))
 	copy(nq.Hash, q.Hash)
 
 	return nq
@@ -356,7 +358,7 @@ func (q *QuotaLimit) Copy() *QuotaLimit {
 	nq.RegionLimit = q.RegionLimit.Copy()
 
 	// Copy the hash
-	nq.Hash = make([]byte, 0, len(q.Hash))
+	nq.Hash = make([]byte, len(q.Hash))
 	copy(nq.Hash, q.Hash)
 
 	return nq
@@ -387,6 +389,26 @@ type QuotaUsage struct {
 	// Raft indexes to track creation and modification
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+func (q *QuotaUsage) MarshalJSON() ([]byte, error) {
+	// Convert the raw string version of the hash into a base64 version. This
+	// makes the map key match the hash when using JSON
+	convertedMap := make(map[string]*QuotaLimit, len(q.Used))
+	for _, limit := range q.Used {
+		encoded := base64.StdEncoding.EncodeToString(limit.Hash)
+		convertedMap[encoded] = limit
+	}
+
+	// The type alias allows us to only override the Used field
+	type alias QuotaUsage
+	return json.Marshal(&struct {
+		Used map[string]*QuotaLimit
+		*alias
+	}{
+		Used:  convertedMap,
+		alias: (*alias)(q),
+	})
 }
 
 // QuotaUsageFromSpec initializes a quota specification that can be used to

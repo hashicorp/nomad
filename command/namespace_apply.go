@@ -25,6 +25,9 @@ General Options:
 
 Apply Options:
 
+  -quota
+    The quota to attach to the namespace
+
   -description
     An optional description for the namespace.
 `
@@ -35,6 +38,7 @@ func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-description": complete.PredictAnything,
+			"-quota":       complete.PredictAnything,
 		})
 }
 
@@ -47,11 +51,12 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 }
 
 func (c *NamespaceApplyCommand) Run(args []string) int {
-	var description string
+	var description, quota string
 
 	flags := c.Meta.FlagSet("namespace apply", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
+	flags.StringVar(&quota, "quota", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -83,6 +88,7 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 	ns := &api.Namespace{
 		Name:        name,
 		Description: description,
+		Quota:       quota,
 	}
 
 	_, err = client.Namespaces().Register(ns, nil)
