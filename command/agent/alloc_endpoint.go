@@ -103,6 +103,17 @@ func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request
 	if s.agent.client == nil {
 		return nil, clientNotRunning
 	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check node write permissions
+	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	return nil, s.agent.Client().CollectAllAllocs()
 }
 
