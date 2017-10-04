@@ -95,70 +95,71 @@ START:
 		case <-stopCh:
 			return
 		default:
-			// Rate limit how often we attempt replication
-			limiter.Wait(context.Background())
+		}
 
-			// Fetch the list of namespaces
-			var resp structs.NamespaceListResponse
-			req.SecretID = s.ReplicationToken()
-			err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		// Fetch the list of namespaces
+		var resp structs.NamespaceListResponse
+		req.SecretID = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
+		if err != nil {
+			s.logger.Printf("[ERR] nomad: failed to fetch namespaces from authoritative region: %v", err)
+			goto ERR_WAIT
+		}
+
+		// Perform a two-way diff
+		delete, update := diffNamespaces(s.State(), req.MinQueryIndex, resp.Namespaces)
+
+		// Delete namespaces that should not exist
+		if len(delete) > 0 {
+			args := &structs.NamespaceDeleteRequest{
+				Namespaces: delete,
+			}
+			_, _, err := s.raftApply(structs.NamespaceDeleteRequestType, args)
 			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to delete namespaces: %v", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Fetch any outdated namespaces
+		var fetched []*structs.Namespace
+		if len(update) > 0 {
+			req := structs.NamespaceSetRequest{
+				Namespaces: update,
+				QueryOptions: structs.QueryOptions{
+					Region:        s.config.AuthoritativeRegion,
+					SecretID:      s.ReplicationToken(),
+					AllowStale:    true,
+					MinQueryIndex: resp.Index - 1,
+				},
+			}
+			var reply structs.NamespaceSetResponse
+			if err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.GetNamespaces", &req, &reply); err != nil {
 				s.logger.Printf("[ERR] nomad: failed to fetch namespaces from authoritative region: %v", err)
 				goto ERR_WAIT
 			}
-
-			// Perform a two-way diff
-			delete, update := diffNamespaces(s.State(), req.MinQueryIndex, resp.Namespaces)
-
-			// Delete namespaces that should not exist
-			if len(delete) > 0 {
-				args := &structs.NamespaceDeleteRequest{
-					Namespaces: delete,
-				}
-				_, _, err := s.raftApply(structs.NamespaceDeleteRequestType, args)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to delete namespaces: %v", err)
-					goto ERR_WAIT
-				}
+			for _, namespace := range reply.Namespaces {
+				fetched = append(fetched, namespace)
 			}
-
-			// Fetch any outdated namespaces
-			var fetched []*structs.Namespace
-			if len(update) > 0 {
-				req := structs.NamespaceSetRequest{
-					Namespaces: update,
-					QueryOptions: structs.QueryOptions{
-						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
-						AllowStale:    true,
-						MinQueryIndex: resp.Index - 1,
-					},
-				}
-				var reply structs.NamespaceSetResponse
-				if err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.GetNamespaces", &req, &reply); err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch namespaces from authoritative region: %v", err)
-					goto ERR_WAIT
-				}
-				for _, namespace := range reply.Namespaces {
-					fetched = append(fetched, namespace)
-				}
-			}
-
-			// Update local namespaces
-			if len(fetched) > 0 {
-				args := &structs.NamespaceUpsertRequest{
-					Namespaces: fetched,
-				}
-				_, _, err := s.raftApply(structs.NamespaceUpsertRequestType, args)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to update namespaces: %v", err)
-					goto ERR_WAIT
-				}
-			}
-
-			// Update the minimum query index, blocks until there is a change.
-			req.MinQueryIndex = resp.Index
 		}
+
+		// Update local namespaces
+		if len(fetched) > 0 {
+			args := &structs.NamespaceUpsertRequest{
+				Namespaces: fetched,
+			}
+			_, _, err := s.raftApply(structs.NamespaceUpsertRequestType, args)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to update namespaces: %v", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Update the minimum query index, blocks until there is a change.
+		req.MinQueryIndex = resp.Index
 	}
 
 ERR_WAIT:

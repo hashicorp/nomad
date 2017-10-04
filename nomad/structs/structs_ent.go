@@ -260,6 +260,28 @@ func (q *QuotaSpec) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Copy returns a copy of the QuotaSpec
+func (q *QuotaSpec) Copy() *QuotaSpec {
+	if q == nil {
+		return nil
+	}
+
+	nq := new(QuotaSpec)
+	*nq = *q
+
+	// Copy the limits
+	nq.Limits = make([]*QuotaLimit, 0, len(q.Limits))
+	for _, limit := range q.Limits {
+		nq.Limits = append(nq.Limits, limit.Copy())
+	}
+
+	// Copy the hash
+	nq.Hash = make([]byte, 0, len(q.Hash))
+	copy(nq.Hash, q.Hash)
+
+	return nq
+}
+
 // QuotaLimit describes the resource limit in a particular region.
 type QuotaLimit struct {
 	// Region is the region in which this limit has affect
