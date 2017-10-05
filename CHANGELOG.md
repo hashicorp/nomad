@@ -12,6 +12,7 @@ IMPROVEMENTS:
  * core/enterprise: Namespace support allowing jobs and their associated
    objects to be isolated from each other and other users of the cluster.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
+ * cli: Consul config option flags for nomad agent command [GH-3327]
  * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
  * driver/rkt: Enable rkt driver to use address_mode = 'driver' [GH-3256]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
