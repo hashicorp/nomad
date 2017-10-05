@@ -94,7 +94,7 @@ func (s *HTTPServer) namespaceUpdate(resp http.ResponseWriter, req *http.Request
 	args := structs.NamespaceUpsertRequest{
 		Namespaces: []*structs.Namespace{&namespace},
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("Namespace.UpsertNamespaces", &args, &out); err != nil {
@@ -110,7 +110,7 @@ func (s *HTTPServer) namespaceDelete(resp http.ResponseWriter, req *http.Request
 	args := structs.NamespaceDeleteRequest{
 		Namespaces: []string{namespaceName},
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.GenericResponse
 	if err := s.agent.RPC("Namespace.DeleteNamespaces", &args, &out); err != nil {
