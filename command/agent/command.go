@@ -65,6 +65,7 @@ func (c *Command) readConfig() *Config {
 	cmdConfig := &Config{
 		Atlas:  &AtlasConfig{},
 		Client: &ClientConfig{},
+		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
 		Server: &ServerConfig{},
 		Vault:  &config.VaultConfig{},
@@ -109,6 +110,39 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
 	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
 	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
+
+	// Consul options
+	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.AutoAdvertise = &b
+		return nil
+	}), "consul-auto-advertise", "")
+	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
+	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.ChecksUseAdvertise = &b
+		return nil
+	}), "consul-checks-use-advertise", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.ClientAutoJoin = &b
+		return nil
+	}), "consul-client-auto-join", "")
+	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.ServerAutoJoin = &b
+		return nil
+	}), "consul-server-auto-join", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.EnableSSL = &b
+		return nil
+	}), "consul-ssl", "")
+	flags.StringVar(&cmdConfig.Consul.Token, "consul-token", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.VerifySSL = &b
+		return nil
+	}), "consul-verify-ssl", "")
 
 	// Vault options
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
@@ -949,6 +983,67 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+Consul Options:
+
+  -consul-address=<addr>
+    Specifies the address to the local Consul agent, given in the format host:port.
+    Supports Unix sockets with the format: unix:///tmp/consul/consul.sock
+
+  -consul-auth=<auth>
+    Specifies the HTTP Basic Authentication information to use for access to the
+    Consul Agent, given in the format username:password.
+
+  -consul-auto-advertise
+    Specifies if Nomad should advertise its services in Consul. The services
+    are named according to server_service_name and client_service_name. Nomad
+    servers and clients advertise their respective services, each tagged
+    appropriately with either http or rpc tag. Nomad servers also advertise a
+    serf tagged service.
+
+  -consul-ca-file=<path>
+    Specifies an optional path to the CA certificate used for Consul communication.
+    This defaults to the system bundle if unspecified.
+
+  -consul-cert-file=<path>
+    Specifies the path to the certificate used for Consul communication. If this
+    is set then you need to also set key_file.
+
+  -consul-checks-use-advertise
+    Specifies if Consul heath checks should bind to the advertise address. By
+    default, this is the bind address.
+
+  -consul-client-auto-join
+    Specifies if the Nomad clients should automatically discover servers in the
+    same region by searching for the Consul service name defined in the
+    server_service_name option.
+
+  -consul-client-service-name=<name>
+    Specifies the name of the service in Consul for the Nomad clients.
+
+  -consul-key-file=<path>
+    Specifies the path to the private key used for Consul communication. If this
+    is set then you need to also set cert_file.
+
+  -consul-server-service-name=<name>
+    Specifies the name of the service in Consul for the Nomad servers.
+
+  -consul-server-auto-join
+    Specifies if the Nomad servers should automatically discover and join other
+    Nomad servers by searching for the Consul service name defined in the
+    server_service_name option. This search only happens if the server does not
+    have a leader.
+
+  -consul-ssl
+    Specifies if the transport scheme should use HTTPS to communicate with the
+    Consul agent.
+
+  -consul-token=<token>
+    Specifies the token used to provide a per-request ACL token.
+
+  -consul-verify-ssl
+    Specifies if SSL peer verification should be used when communicating to the
+    Consul API client over HTTPS.
 
 Vault Options:
 
