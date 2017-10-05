@@ -181,3 +181,24 @@ test('each allocation should link to the job the allocation belongs to', functio
 test('/nodes/:id should list all attributes for the node', function(assert) {
   assert.ok(find('.attributes-table'), 'Attributes table is on the page');
 });
+
+test('when the node is not found, an error message is shown, but the URL persists', function(
+  assert
+) {
+  visit('/nodes/not-a-real-node');
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/node/not-a-real-node',
+      'A request to the non-existent node is made'
+    );
+    assert.equal(currentURL(), '/nodes/not-a-real-node', 'The URL persists');
+    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.equal(
+      find('.error-message .title').textContent,
+      'Not Found',
+      'Error message is for 404'
+    );
+  });
+});
