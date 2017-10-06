@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// QuotaIterator is used to enforce resource quotas. When below the quota limit,
+// the iterator acts as a pass through and above it will deny all nodes
 type QuotaIterator struct {
 	ctx           Context
 	source        FeasibleIterator
@@ -20,6 +22,7 @@ type QuotaIterator struct {
 	proposedUsage *structs.QuotaUsage
 }
 
+// NewQuotaIterator returns a new quota iterator reading from the passed source.
 func NewQuotaIterator(ctx Context, source FeasibleIterator) FeasibleIterator {
 	return &QuotaIterator{
 		ctx:    ctx,
@@ -39,6 +42,10 @@ func (iter *QuotaIterator) SetJob(job *structs.Job) {
 	namespace, err := state.NamespaceByName(nil, job.Namespace)
 	if err != nil {
 		iter.buildErr = fmt.Errorf("failed to lookup job %q namespace %q: %v", job.ID, job.Namespace, err)
+		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		return
+	} else if namespace == nil {
+		iter.buildErr = fmt.Errorf("unknown namespace %q referenced by job %q", job.Namespace, job.ID)
 		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
 		return
 	}
@@ -135,9 +142,10 @@ func (iter *QuotaIterator) Reset() {
 	// Gather the set of proposed stops.
 	for _, stops := range iter.ctx.Plan().NodeUpdate {
 		for _, stop := range stops {
-			// TODO optimize the resources
-			r := iter.job.LookupTaskGroup(stop.TaskGroup).CombinedResources()
-			iter.ctx.Logger().Printf("subtracting resources from alloc %q: %+v", stop.ID, r)
+			r := &structs.Resources{}
+			for _, v := range stop.TaskResources {
+				r.Add(v)
+			}
 			limit.SubtractResource(r)
 		}
 	}
@@ -145,14 +153,18 @@ func (iter *QuotaIterator) Reset() {
 	// Gather the proposed allocations
 	for _, placements := range iter.ctx.Plan().NodeAllocation {
 		for _, place := range placements {
-			// Shouldn't happen, just guarding
 			if place.TerminalStatus() {
-				iter.ctx.Logger().Printf("skipping adding resources from alloc %q", place.ID)
+				// Shouldn't happen, just guarding
+				continue
+			} else if place.CreateIndex != 0 {
+				// The allocation already exists and is thus accounted for
 				continue
 			}
 
-			r := iter.job.LookupTaskGroup(place.TaskGroup).CombinedResources()
-			iter.ctx.Logger().Printf("adding resources from alloc %q: %+v", place.ID, r)
+			r := &structs.Resources{}
+			for _, v := range place.TaskResources {
+				r.Add(v)
+			}
 			limit.AddResource(r)
 		}
 	}

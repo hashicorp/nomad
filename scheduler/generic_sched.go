@@ -149,6 +149,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	// If the current evaluation is a blocked evaluation and we didn't place
 	// everything, do not update the status to complete.
 	if s.eval.Status == structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 {
+		// TODO Need to think about this
 		e := s.ctx.Eligibility()
 		newEval := s.eval.Copy()
 		newEval.EscapedComputedClass = e.HasEscaped()
@@ -165,6 +166,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 // createBlockedEval creates a blocked eval and submits it to the planner. If
 // failure is set to true, the eval's trigger reason reflects that.
 func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
+	// TODO Need to think about this
 	e := s.ctx.Eligibility()
 	escaped := e.HasEscaped()
 
