@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,6 +54,62 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		self = obj.(agentSelf)
 		if self.Config.Vault.Token != "<redacted>" {
 			t.Fatalf("bad: %#v", self)
+		}
+	})
+}
+
+func TestHTTP_AgentSelf_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentSelfRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentSelfRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			obj, err := s.Server.AgentSelfRequest(respW, req)
+			assert.Nil(err)
+
+			self := obj.(agentSelf)
+			assert.NotNil(self.Config)
+			assert.NotNil(self.Stats)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			obj, err := s.Server.AgentSelfRequest(respW, req)
+			assert.Nil(err)
+
+			self := obj.(agentSelf)
+			assert.NotNil(self.Config)
+			assert.NotNil(self.Stats)
 		}
 	})
 }
@@ -113,6 +171,60 @@ func TestHTTP_AgentMembers(t *testing.T) {
 	})
 }
 
+func TestHTTP_AgentMembers_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentMembersRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentMembersRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			obj, err := s.Server.AgentMembersRequest(respW, req)
+			assert.Nil(err)
+
+			members := obj.(structs.ServerMembersResponse)
+			assert.Len(members.Members, 1)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			obj, err := s.Server.AgentMembersRequest(respW, req)
+			assert.Nil(err)
+
+			members := obj.(structs.ServerMembersResponse)
+			assert.Len(members.Members, 1)
+		}
+	})
+}
+
 func TestHTTP_AgentForceLeave(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -127,6 +239,56 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 		_, err = s.Server.AgentForceLeaveRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %v", err)
+		}
+	})
+}
+
+func TestHTTP_AgentForceLeave_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
 		}
 	})
 }
@@ -173,6 +335,128 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 	})
 }
 
+func TestHTTP_AgentSetServers_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentServersRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+		}
+	})
+}
+
+func TestHTTP_AgentListServers_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Set some servers
+		{
+			req, err := http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err = s.Server.AgentServersRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Create list request
+		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
+		assert.Nil(err)
+
+		expected := []string{
+			"127.0.0.1:4647",
+			"127.0.0.2:4647",
+			"127.0.0.3:4647",
+		}
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentServersRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyRead))
+			setToken(req, token)
+			out, err := s.Server.AgentServersRequest(respW, req)
+			assert.Nil(err)
+			servers := out.([]string)
+			assert.Len(servers, len(expected))
+			assert.Equal(expected, servers)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			out, err := s.Server.AgentServersRequest(respW, req)
+			assert.Nil(err)
+			servers := out.([]string)
+			assert.Len(servers, len(expected))
+			assert.Equal(expected, servers)
+		}
+	})
+}
+
 func TestHTTP_AgentListKeys(t *testing.T) {
 	t.Parallel()
 
@@ -194,6 +478,66 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 		kresp := out.(structs.KeyringResponse)
 		if len(kresp.Keys) != 1 {
 			t.Fatalf("bad: %v", kresp)
+		}
+	})
+}
+
+func TestHTTP_AgentListKeys_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+
+	cb := func(c *Config) {
+		c.Server.EncryptKey = key1
+	}
+
+	httpACLTest(t, cb, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.KeyringOperationRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.AgentPolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.KeyringOperationRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			out, err := s.Server.KeyringOperationRequest(respW, req)
+			assert.Nil(err)
+			kresp := out.(structs.KeyringResponse)
+			assert.Len(kresp.Keys, 1)
+			assert.Contains(kresp.Keys, key1)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			out, err := s.Server.KeyringOperationRequest(respW, req)
+			assert.Nil(err)
+			kresp := out.(structs.KeyringResponse)
+			assert.Len(kresp.Keys, 1)
+			assert.Contains(kresp.Keys, key1)
 		}
 	})
 }
