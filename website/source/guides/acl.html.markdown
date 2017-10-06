@@ -347,3 +347,140 @@ Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset inde
 This is because the reset file is in place, but with the incorrect index.
 The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
+## Vault Integration
+Hashicorp Vault has a secret backend for generating short lived Nomad tokens. As Vault has a number of
+authentication backends, it could provide a workflow where a user or orchestration system authenticates
+using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc. ...) in order to obtain a short-lived
+Nomad token.
+
+~> Hashicorp Vault is a standalone product with it's own set of deployment and configuration best
+practices. Please review Vault's documentation before deploying it in production.
+
+For evaluation purposes, a Vault server in "dev" mode can be used.
+
+```
+$ vault server -dev
+==> Vault server configuration:
+
+                     Cgo: disabled
+         Cluster Address: https://127.0.0.1:8201
+              Listener 1: tcp (addr: "127.0.0.1:8200", cluster address: "127.0.0.1:8201", tls: "disabled")
+               Log Level: info
+                   Mlock: supported: false, enabled: false
+        Redirect Address: http://127.0.0.1:8200
+                 Storage: inmem
+                 Version: Vault v0.8.3
+             Version Sha: a393b20cb6d96c73e52eb5af776c892b8107a45d
+
+==> WARNING: Dev mode is enabled!
+
+In this mode, Vault is completely in-memory and unsealed.
+Vault is configured to only have a single unseal key. The root
+token has already been authenticated with the CLI, so you can
+immediately begin using the Vault CLI.
+
+The only step you need to take is to set the following
+environment variables:
+
+    export VAULT_ADDR='http://127.0.0.1:8200'
+
+The unseal key and root token are reproduced below in case you
+want to seal/unseal the Vault or play with authentication.
+
+Unseal Key: YzFfPgnLl9R1f6bLU7tGqi/PIDhDaAV/tlNDMV5Rrq0=
+Root Token: f84b587e-5882-bba1-a3f0-d1a3d90ca105
+
+```
+
+### Pre-requisites
+- Nomad ACL system bootstrapped.
+- A management token (the bootstrap token can be used, but for production systems it's recommended to
+have a separate token)
+- A set of policies created in Nomad
+- An unsealed Vault server
+
+### Configuration
+Mount the "nomad" secret backend in Vault
+
+```
+$ vault mount nomad
+Successfully mounted 'nomad' at 'nomad'!
+```
+
+Configure access with the right address and management token
+```
+$ vault write nomad/config/access \
+    address=http://127.0.0.1:4646 \
+    token=adf4238a-882b-9ddc-4a9d-5b6758e4159e
+Success! Data written to: nomad/config/access
+```
+
+Vault secret backends have the concept of roles, configuration unit that group one or more policies
+to a potential identity based on Vault's policy. The name of the role is specified on the path, while
+the mapping to Nomad policies is done by naming them in a comma separated list, for example:
+
+```
+$ vault write nomad/roles/role-name policy=policyone,policytwo
+Success! Data written to: nomad/roles/role-name
+```
+
+Alternatively, to create management tokens, or global tokens:
+
+```
+$ vault write nomad/roles/role-name token_type=management global=true
+Success! Data written to: nomad/roles/role-name
+```
+
+A Vault policy is required to allow different identities to get tokens associated with a particular
+role:
+
+```
+$ echo 'path "nomad/creds/role-name" {
+  capabilities = ["read"]
+}' | vault policy-write nomad-user-policy -
+Policy 'nomad-user-policy' written.
+```
+
+If you have an existing authentication backend (like LDAP), follow the relevant instructions to create
+a role available on the [Authentication backends page](https://www.vaultproject.io/docs/auth/index.html).
+Otherwise, for testing purposes, a token can be generated associated with the policy:
+
+```
+$ vault token-create -policy=nomad-user-policy
+Key             Value
+---             -----
+token           deedfa83-99b5-34a1-278d-e8fb76809a5b
+token_accessor  fd185371-7d80-8011-4f45-1bb3af2c2733
+token_duration  768h0m0s
+token_renewable true
+token_policies  [nomad-user-policy]
+```
+
+Finally obtain a Nomad Token using the existing Vault Token:
+
+```
+$ vault read nomad/creds/role-name
+Key             Value
+---             -----
+lease_id        nomad/creds/test/6fb22e25-0cd1-b4c9-494e-aba330c317b9
+lease_duration  768h0m0s
+lease_renewable true
+accessor_id     10b8fb49-7024-2126-8683-ab355b581db2
+secret_id       8898d19c-e5b3-35e4-649e-4153d63fbea9
+```
+
+Verify that the token is created correctly in Nomad, referring to it by its accessor:
+
+
+```
+$ nomad acl token info 10b8fb49-7024-2126-8683-ab355b581db2
+Accessor ID  = 10b8fb49-7024-2126-8683-ab355b581db2
+Secret ID    = 8898d19c-e5b3-35e4-649e-4153d63fbea9
+Name         = Vault test root 1507307164169530060
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-10-06 16:26:04.170633207 +0000 UTC
+Create Index = 228
+Modify Index = 228
+```
