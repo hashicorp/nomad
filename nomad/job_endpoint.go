@@ -1237,6 +1237,13 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
 
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityDispatchJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Lookup the parameterized job
 	if args.JobID == "" {
 		return fmt.Errorf("missing parameterized job ID")

@@ -3817,6 +3817,85 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	assert.Equal("", validResp.Warnings)
 }
 
+func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create a parameterized job
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	err := state.UpsertJob(400, job)
+	assert.Nil(err)
+
+	req := &structs.JobDispatchRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token should fail
+	var resp structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &resp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token should fail
+	invalidToken := CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.SecretID = invalidToken.SecretID
+
+	var invalidResp structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &invalidResp)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Permission denied")
+
+	// Dispatch with a valid management token should succeed
+	req.SecretID = root.SecretID
+
+	var validResp structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &validResp)
+	assert.Nil(err)
+	assert.NotNil(validResp.EvalID)
+	assert.NotNil(validResp.DispatchedJobID)
+	assert.NotEqual(validResp.DispatchedJobID, "")
+
+	// Dispatch with a valid token should succeed
+	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid",
+		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDispatchJob}))
+	req.SecretID = validToken.SecretID
+
+	var validResp2 structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &validResp2)
+	assert.Nil(err)
+	assert.NotNil(validResp2.EvalID)
+	assert.NotNil(validResp2.DispatchedJobID)
+	assert.NotEqual(validResp2.DispatchedJobID, "")
+
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, validResp2.DispatchedJobID)
+	assert.Nil(err)
+	assert.NotNil(out)
+	assert.Equal(out.ParentID, job.ID)
+
+	// Look up the evaluation
+	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	assert.Nil(err)
+	assert.NotNil(eval)
+	assert.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+}
+
 func TestJobEndpoint_Dispatch(t *testing.T) {
 	t.Parallel()
 
