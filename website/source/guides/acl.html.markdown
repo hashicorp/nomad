@@ -400,14 +400,15 @@ have a separate token)
 - An unsealed Vault server
 
 ### Configuration
-Mount the "nomad" secret backend in Vault
+Mount the "nomad" secret backend in Vault:
 
 ```
 $ vault mount nomad
 Successfully mounted 'nomad' at 'nomad'!
 ```
 
-Configure access with the right address and management token
+Configure access with the right address and management token:
+
 ```
 $ vault write nomad/config/access \
     address=http://127.0.0.1:4646 \
