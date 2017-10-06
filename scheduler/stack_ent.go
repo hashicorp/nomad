@@ -107,7 +107,7 @@ func (iter *QuotaIterator) Next() *structs.Node {
 		proposedLimit = l
 	}
 
-	// Add the resources of the propsed task group
+	// Add the resources of the proposed task group
 	proposedLimit.AddResource(iter.tg.CombinedResources())
 
 	// Get the actual limit
@@ -132,40 +132,5 @@ func (iter *QuotaIterator) Reset() {
 
 	// Populate the quota usage with proposed allocations
 	iter.proposedUsage = iter.actUsage.Copy()
-
-	// As of now there can only be one limit that applies to us
-	var limit *structs.QuotaLimit
-	for _, l := range iter.proposedUsage.Used {
-		limit = l
-	}
-
-	// Gather the set of proposed stops.
-	for _, stops := range iter.ctx.Plan().NodeUpdate {
-		for _, stop := range stops {
-			r := &structs.Resources{}
-			for _, v := range stop.TaskResources {
-				r.Add(v)
-			}
-			limit.SubtractResource(r)
-		}
-	}
-
-	// Gather the proposed allocations
-	for _, placements := range iter.ctx.Plan().NodeAllocation {
-		for _, place := range placements {
-			if place.TerminalStatus() {
-				// Shouldn't happen, just guarding
-				continue
-			} else if place.CreateIndex != 0 {
-				// The allocation already exists and is thus accounted for
-				continue
-			}
-
-			r := &structs.Resources{}
-			for _, v := range place.TaskResources {
-				r.Add(v)
-			}
-			limit.AddResource(r)
-		}
-	}
+	structs.UpdateUsageFromPlan(iter.proposedUsage, iter.ctx.Plan())
 }
