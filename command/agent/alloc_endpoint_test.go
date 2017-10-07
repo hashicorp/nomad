@@ -320,6 +320,11 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 
 func createMigrateTokenForClientAndAlloc(allocID, clientSecret string) (string, error) {
 	h, err := blake2b.New512([]byte(clientSecret))
+
+	if err != nil {
+		return "", err
+	}
+
 	h.Write([]byte(allocID))
 	validMigrateToken, err := string(h.Sum(nil)), nil
 	return validMigrateToken, err
