@@ -58,6 +58,9 @@ export default function() {
 
   this.get('/allocation/:id');
 
+  this.get('/namespaces');
+  this.get('/namespace/:id');
+
   this.get('/agent/members', function({ agents }) {
     return {
       Members: this.serialize(agents.all()),
