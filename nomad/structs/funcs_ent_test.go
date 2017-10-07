@@ -15,7 +15,7 @@ func TestUpdateUsageFromPlan(t *testing.T) {
 	usage := &QuotaUsage{
 		Name: "test quota",
 		Used: map[string]*QuotaLimit{
-			"foo": &QuotaLimit{
+			"foo": {
 				Region: "global",
 				RegionLimit: &Resources{
 					CPU:      2000,
@@ -36,11 +36,11 @@ func TestUpdateUsageFromPlan(t *testing.T) {
 	// Create an allocation - Should add
 	add := &Allocation{
 		TaskResources: map[string]*Resources{
-			"web": &Resources{
+			"web": {
 				CPU:      101,
 				MemoryMB: 202,
 			},
-			"web 2": &Resources{
+			"web 2": {
 				CPU:      303,
 				MemoryMB: 404,
 			},
@@ -52,11 +52,11 @@ func TestUpdateUsageFromPlan(t *testing.T) {
 	ignore := &Allocation{
 		CreateIndex: 100,
 		TaskResources: map[string]*Resources{
-			"web": &Resources{
+			"web": {
 				CPU:      111,
 				MemoryMB: 222,
 			},
-			"web 2": &Resources{
+			"web 2": {
 				CPU:      333,
 				MemoryMB: 444,
 			},
@@ -67,11 +67,11 @@ func TestUpdateUsageFromPlan(t *testing.T) {
 	// Remove an allocation - Should be discounted
 	rm := &Allocation{
 		TaskResources: map[string]*Resources{
-			"web": &Resources{
+			"web": {
 				CPU:      110,
 				MemoryMB: 220,
 			},
-			"web 2": &Resources{
+			"web 2": {
 				CPU:      330,
 				MemoryMB: 440,
 			},
