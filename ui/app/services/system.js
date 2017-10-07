@@ -1,14 +1,18 @@
 import Ember from 'ember';
-import fetch from 'fetch';
 import PromiseObject from '../utils/classes/promise-object';
 import { namespace } from '../adapters/application';
 
-const { Service, computed } = Ember;
+const { Service, computed, inject } = Ember;
 
 export default Service.extend({
+  token: inject.service(),
+
   leader: computed(function() {
+    const token = this.get('token');
+
     return PromiseObject.create({
-      promise: fetch(`/${namespace}/status/leader`)
+      promise: token
+        .authorizedRequest(`/${namespace}/status/leader`)
         .then(res => res.json())
         .then(rpcAddr => ({ rpcAddr }))
         .then(leader => {
