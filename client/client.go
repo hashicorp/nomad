@@ -526,6 +526,9 @@ func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
 }
 
+// ValidateMigrateToken verifies that a token is for a specific client and
+// allocation, and has been created by a trusted party that has privilaged
+// knowledge of the client's secret identifier
 func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
 	if !c.config.ACLEnabled {
 		return true

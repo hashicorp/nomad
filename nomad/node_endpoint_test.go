@@ -1384,7 +1384,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_GetClientAllocs_WIthMigrateTokens(t *testing.T) {
+func TestClientEndpoint_GetClientAllocs_WithMigrateTokens(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
