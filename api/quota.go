@@ -1,5 +1,102 @@
 package api
 
+import (
+	"fmt"
+	"sort"
+)
+
+// Quotas is used to query the quotas endpoints.
+type Quotas struct {
+	client *Client
+}
+
+// Quotas returns a new handle on the quotas.
+func (c *Client) Quotas() *Quotas {
+	return &Quotas{client: c}
+}
+
+// List is used to dump all of the quota specs
+func (q *Quotas) List(qo *QueryOptions) ([]*QuotaSpec, *QueryMeta, error) {
+	var resp []*QuotaSpec
+	qm, err := q.client.query("/v1/quotas", &resp, qo)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(QuotaSpecIndexSort(resp))
+	return resp, qm, nil
+}
+
+// PrefixList is used to do a PrefixList search over quota specs
+func (q *Quotas) PrefixList(prefix string, qo *QueryOptions) ([]*QuotaSpec, *QueryMeta, error) {
+	if qo == nil {
+		qo = &QueryOptions{Prefix: prefix}
+	} else {
+		qo.Prefix = prefix
+	}
+
+	return q.List(qo)
+}
+
+// ListUsage is used to dump all of the quota usages
+func (q *Quotas) ListUsage(qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) {
+	var resp []*QuotaUsage
+	qm, err := q.client.query("/v1/quota_usages", &resp, qo)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(QuotaUsageIndexSort(resp))
+	return resp, qm, nil
+}
+
+// PrefixList is used to do a PrefixList search over quota usages
+func (q *Quotas) PrefixListUsage(prefix string, qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) {
+	if qo == nil {
+		qo = &QueryOptions{Prefix: prefix}
+	} else {
+		qo.Prefix = prefix
+	}
+
+	return q.ListUsage(qo)
+}
+
+// Info is used to query a single quota spec by its name.
+func (q *Quotas) Info(name string, qo *QueryOptions) (*QuotaSpec, *QueryMeta, error) {
+	var resp QuotaSpec
+	qm, err := q.client.query("/v1/quota/"+name, &resp, qo)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// Usage is used to query a single quota usage by its name.
+func (q *Quotas) Usage(name string, qo *QueryOptions) (*QuotaUsage, *QueryMeta, error) {
+	var resp QuotaUsage
+	qm, err := q.client.query("/v1/quota/usage/"+name, &resp, qo)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// Register is used to register a quota spec.
+func (q *Quotas) Register(spec *QuotaSpec, qo *WriteOptions) (*WriteMeta, error) {
+	wm, err := q.client.write("/v1/quota", spec, nil, qo)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// Delete is used to delete a quota spec
+func (q *Quotas) Delete(quota string, qo *WriteOptions) (*WriteMeta, error) {
+	wm, err := q.client.delete(fmt.Sprintf("/v1/quota/%s", quota), nil, qo)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
 // QuotaSpec specifies the allowed resource usage across regions.
 type QuotaSpec struct {
 	// Name is the name for the quota object
@@ -39,4 +136,36 @@ type QuotaUsage struct {
 	Used        map[string]*QuotaLimit
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// QuotaSpecIndexSort is a wrapper to sort QuotaSpecs by CreateIndex. We
+// reverse the test so that we get the highest index first.
+type QuotaSpecIndexSort []*QuotaSpec
+
+func (q QuotaSpecIndexSort) Len() int {
+	return len(q)
+}
+
+func (q QuotaSpecIndexSort) Less(i, j int) bool {
+	return q[i].CreateIndex > q[j].CreateIndex
+}
+
+func (q QuotaSpecIndexSort) Swap(i, j int) {
+	q[i], q[j] = q[j], q[i]
+}
+
+// QuotaUsageIndexSort is a wrapper to sort QuotaUsages by CreateIndex. We
+// reverse the test so that we get the highest index first.
+type QuotaUsageIndexSort []*QuotaUsage
+
+func (q QuotaUsageIndexSort) Len() int {
+	return len(q)
+}
+
+func (q QuotaUsageIndexSort) Less(i, j int) bool {
+	return q[i].CreateIndex > q[j].CreateIndex
+}
+
+func (q QuotaUsageIndexSort) Swap(i, j int) {
+	q[i], q[j] = q[j], q[i]
 }
