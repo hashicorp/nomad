@@ -16,6 +16,11 @@ var (
 	allContexts = ossContexts
 )
 
+// contextToIndex returns the index name to lookup in the state store.
+func contextToIndex(ctx structs.Context) string {
+	return string(ctx)
+}
+
 // getEnterpriseMatch is a no-op in oss since there are no enterprise objects.
 func getEnterpriseMatch(match interface{}) (id string, ok bool) {
 	return "", false

@@ -156,7 +156,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 			// will be used as the index of the response. Otherwise, the
 			// maximum index from all resources will be used.
 			for _, ctx := range contexts {
-				index, err := state.Index(string(ctx))
+				index, err := state.Index(contextToIndex(ctx))
 				if err != nil {
 					return err
 				}
