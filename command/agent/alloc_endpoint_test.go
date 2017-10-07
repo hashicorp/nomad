@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/blake2b"
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
@@ -320,14 +321,34 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
-		// TODO add an allocation, assert it is returned
-
 		// Request without a token succeeds
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
 		assert.Nil(err)
 
 		// Make the unauthorized request
 		respW := httptest.NewRecorder()
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), "invalid migrate token")
+
+		// Create an allocation
+		state := s.Agent.server.State()
+		alloc := mock.Alloc()
+		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+
+		// Set up data to create an authenticated request
+		h, err := blake2b.New512([]byte(s.Agent.Client().Node().SecretID))
+		h.Write([]byte(alloc.ID))
+		validMigrateToken, err := string(h.Sum(nil)), nil
+		assert.Nil(err)
+
+		// Request with a token succeeds
+		req.Header.Set("X-Nomad-Token", validMigrateToken)
+		req, err = http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
+		assert.Nil(err)
+
+		// Make the unauthorized request
+		respW = httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
 		assert.NotNil(err)
 		assert.Contains(err.Error(), "invalid migrate token")
