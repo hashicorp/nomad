@@ -560,3 +560,28 @@ $ curl \
   "ModTime": "2016-03-15T15:40:56.822238153-07:00"
 }
 ```
+
+## GC Allocation
+
+This endpoint forces a garbage collection of all stopped allocations on a node.
+The API endpoint is hosted by the Nomad client and requests have to be made to
+the Nomad client whose allocations should be garbage collected.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET`  | `/client/gc`                 | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `node:write` |
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/client/gc
+```
