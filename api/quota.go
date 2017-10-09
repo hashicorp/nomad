@@ -169,3 +169,18 @@ func (q QuotaUsageIndexSort) Less(i, j int) bool {
 func (q QuotaUsageIndexSort) Swap(i, j int) {
 	q[i], q[j] = q[j], q[i]
 }
+
+// QuotaLimitSort is a wrapper to sort QuotaLimits
+type QuotaLimitSort []*QuotaLimit
+
+func (q QuotaLimitSort) Len() int {
+	return len(q)
+}
+
+func (q QuotaLimitSort) Less(i, j int) bool {
+	return q[i].Region < q[j].Region
+}
+
+func (q QuotaLimitSort) Swap(i, j int) {
+	q[i], q[j] = q[j], q[i]
+}

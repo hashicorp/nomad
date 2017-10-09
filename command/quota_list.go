@@ -9,15 +9,15 @@ import (
 	"github.com/posener/complete"
 )
 
-type NamespaceListCommand struct {
+type QuotaListCommand struct {
 	Meta
 }
 
-func (c *NamespaceListCommand) Help() string {
+func (c *QuotaListCommand) Help() string {
 	helpText := `
-Usage: nomad namespace list [options]
+Usage: nomad quota list [options]
 
-List is used to list available namespaces.
+List is used to list available quotas.
 
 General Options:
 
@@ -34,7 +34,7 @@ List Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *NamespaceListCommand) AutocompleteFlags() complete.Flags {
+func (c *QuotaListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-json": complete.PredictNothing,
@@ -42,19 +42,19 @@ func (c *NamespaceListCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *NamespaceListCommand) AutocompleteArgs() complete.Predictor {
+func (c *QuotaListCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
-func (c *NamespaceListCommand) Synopsis() string {
-	return "List namespaces"
+func (c *QuotaListCommand) Synopsis() string {
+	return "List quotas"
 }
 
-func (c *NamespaceListCommand) Run(args []string) int {
+func (c *QuotaListCommand) Run(args []string) int {
 	var json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("namespace list", FlagSetClient)
+	flags := c.Meta.FlagSet("quota list", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
@@ -77,14 +77,14 @@ func (c *NamespaceListCommand) Run(args []string) int {
 		return 1
 	}
 
-	namespaces, _, err := client.Namespaces().List(nil)
+	quotas, _, err := client.Quotas().List(nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error retrieving namespaces: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving quotas: %s", err))
 		return 1
 	}
 
 	if json || len(tmpl) > 0 {
-		out, err := Format(json, tmpl, namespaces)
+		out, err := Format(json, tmpl, quotas)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
@@ -94,24 +94,24 @@ func (c *NamespaceListCommand) Run(args []string) int {
 		return 0
 	}
 
-	c.Ui.Output(formatNamespaces(namespaces))
+	c.Ui.Output(formatQuotaSpecs(quotas))
 	return 0
 }
 
-func formatNamespaces(namespaces []*api.Namespace) string {
-	if len(namespaces) == 0 {
-		return "No namespaces found"
+func formatQuotaSpecs(quotas []*api.QuotaSpec) string {
+	if len(quotas) == 0 {
+		return "No quotas found"
 	}
 
-	// Sort the output by namespace name
-	sort.Slice(namespaces, func(i, j int) bool { return namespaces[i].Name < namespaces[j].Name })
+	// Sort the output by quota name
+	sort.Slice(quotas, func(i, j int) bool { return quotas[i].Name < quotas[j].Name })
 
-	rows := make([]string, len(namespaces)+1)
+	rows := make([]string, len(quotas)+1)
 	rows[0] = "Name|Description"
-	for i, ns := range namespaces {
+	for i, qs := range quotas {
 		rows[i+1] = fmt.Sprintf("%s|%s",
-			ns.Name,
-			ns.Description)
+			qs.Name,
+			qs.Description)
 	}
 	return formatList(rows)
 }

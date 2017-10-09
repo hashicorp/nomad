@@ -279,6 +279,42 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"quota": func() (cli.Command, error) {
+			return &command.QuotaCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota apply": func() (cli.Command, error) {
+			return &command.QuotaApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota delete": func() (cli.Command, error) {
+			return &command.QuotaDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota inspect": func() (cli.Command, error) {
+			return &command.QuotaInspectCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota list": func() (cli.Command, error) {
+			return &command.QuotaListCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota status": func() (cli.Command, error) {
+			return &command.QuotaStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"run": func() (cli.Command, error) {
 			return &command.RunCommand{
 				Meta: meta,
