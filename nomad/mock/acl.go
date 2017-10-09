@@ -29,6 +29,11 @@ func NamespacePolicy(namespace string, policy string, capabilities []string) str
 	return policyHCL
 }
 
+// AgentPolicy is a helper for generating the hcl for a given agent policy.
+func AgentPolicy(policy string) string {
+	return fmt.Sprintf("agent {\n\tpolicy = %q\n}\n", policy)
+}
+
 // NodePolicy is a helper for generating the hcl for a given node policy.
 func NodePolicy(policy string) string {
 	return fmt.Sprintf("node {\n\tpolicy = %q\n}\n", policy)
