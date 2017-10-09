@@ -227,13 +227,21 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
-	// For client typed tokens, allow them to query any policies associated with that token.
-	// This is used by clients which are resolving the policies to enforce. Any associated
-	// policies need to be fetched so that the client can determine what to allow.
-	token, err := a.srv.State().ACLTokenBySecretID(nil, args.SecretID)
-	if err != nil {
-		return err
+	var token *structs.ACLToken
+	var err error
+	if args.SecretID == "" {
+		// No need to look up the anonymous token
+		token = structs.AnonymousACLToken
+	} else {
+		// For client typed tokens, allow them to query any policies associated with that token.
+		// This is used by clients which are resolving the policies to enforce. Any associated
+		// policies need to be fetched so that the client can determine what to allow.
+		token, err = a.srv.State().ACLTokenBySecretID(nil, args.SecretID)
+		if err != nil {
+			return err
+		}
 	}
+
 	if token == nil {
 		return structs.ErrTokenNotFound
 	}

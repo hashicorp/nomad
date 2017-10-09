@@ -8,8 +8,10 @@ import (
 	"testing"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
@@ -291,6 +293,56 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 		_, err = s.Server.ClientGCRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %v", err)
+		}
+	})
+
+}
+
+func TestHTTP_AllocAllGC_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/client/gc", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a management token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
 		}
 	})
 

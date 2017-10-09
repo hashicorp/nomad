@@ -1130,10 +1130,10 @@
 			"revisionTime": "2017-03-09T13:30:38Z"
 		},
 		{
-			"checksumSHA1": "NRba2rT64faub6rtxKVj7xM+QAo=",
+			"checksumSHA1": "bDdhmDk8q6utWrccBhEOa6IoGkE=",
 			"path": "github.com/mitchellh/go-testing-interface",
-			"revision": "e1449340a7b207d8ca90d41466272ece75cbb5b5",
-			"revisionTime": "2017-07-25T22:03:13Z"
+			"revision": "a61a99592b77c9ba629d254a693acffaeb4b7e28",
+			"revisionTime": "2017-10-04T22:19:16Z"
 		},
 		{
 			"path": "github.com/mitchellh/hashstructure",

@@ -200,7 +200,7 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.JobsRequest(respW, req)

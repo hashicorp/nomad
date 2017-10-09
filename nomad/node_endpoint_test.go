@@ -674,8 +674,8 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
 
 	// Update the status without a token and expect failure
 	dereg := &structs.NodeUpdateDrainRequest{
@@ -925,8 +925,8 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyDeny))
 
 	// Lookup the node without a token and expect failure
 	req := &structs.NodeSpecificRequest{
@@ -1158,11 +1158,11 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(5, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
-	validDefaultToken := CreatePolicyAndToken(t, state, 1001, "test-default-valid", NodePolicy(acl.PolicyRead)+
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	validNoNSToken := CreatePolicyAndToken(t, state, 1003, "test-alt-valid", NodePolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1004, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validNoNSToken := mock.CreatePolicyAndToken(t, state, 1003, "test-alt-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1004, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Lookup the node without a token and expect failure
 	req := &structs.NodeSpecificRequest{
@@ -1861,8 +1861,8 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
 
 	// Re-evaluate without a token and expect failure
 	req := &structs.NodeEvaluateRequest{
@@ -1975,8 +1975,8 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyDeny))
 
 	// Lookup the node without a token and expect failure
 	req := &structs.NodeListRequest{
