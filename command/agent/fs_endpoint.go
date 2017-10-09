@@ -77,32 +77,41 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	var namespace string
 	parseNamespace(req, &namespace)
 
-	requireReadFS := func(f func(http.ResponseWriter, *http.Request) (interface{}, error)) (interface{}, error) {
-		if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
-			return nil, err
-		} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
-		return f(resp, req)
+	aclObj, err := s.agent.Client().ResolveToken(secret)
+	if err != nil {
+		return nil, err
 	}
 
 	path := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/")
 	switch {
 	case strings.HasPrefix(path, "ls/"):
-		return requireReadFS(s.DirectoryListRequest)
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
+		return s.DirectoryListRequest(resp, req)
 	case strings.HasPrefix(path, "stat/"):
-		return requireReadFS(s.FileStatRequest)
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
+		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
-		return requireReadFS(s.FileReadAtRequest)
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
+		return s.FileReadAtRequest(resp, req)
 	case strings.HasPrefix(path, "cat/"):
-		return requireReadFS(s.FileCatRequest)
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
+		return s.FileCatRequest(resp, req)
 	case strings.HasPrefix(path, "stream/"):
-		return requireReadFS(s.Stream)
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
+		return s.Stream(resp, req)
 	case strings.HasPrefix(path, "logs/"):
 		// Logs can be accessed with ReadFS or ReadLogs caps
-		if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
-			return nil, err
-		} else if aclObj != nil {
+		if aclObj != nil {
 			readfs := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS)
 			logs := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadLogs)
 			if !readfs && !logs {
