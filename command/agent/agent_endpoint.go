@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -49,18 +50,26 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	var secret string
 	s.parseToken(req, &secret)
 
-	// Check agent read permissions
-	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
-		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
-		return nil, structs.ErrPermissionDenied
-	}
+	var aclObj *acl.ACL
+	var err error
 
 	// Get the member as a server
 	var member serf.Member
-	srv := s.agent.Server()
-	if srv != nil {
+	if srv := s.agent.Server(); srv != nil {
 		member = srv.LocalMember()
+		aclObj, err = srv.ResolveToken(secret)
+	} else {
+		// Not a Server; use the Client for token resolution
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Check agent read permissions
+	if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	self := agentSelf{
@@ -113,10 +122,21 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	var secret string
 	s.parseToken(req, &secret)
 
-	// Check node read permissions
-	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+	var aclObj *acl.ACL
+	var err error
+
+	if client := s.agent.Client(); client != nil {
+		aclObj, err = client.ResolveToken(secret)
+	} else {
+		aclObj, err = s.agent.Server().ResolveToken(secret)
+	}
+
+	if err != nil {
 		return nil, err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	}
+
+	// Check node read permissions
+	if aclObj != nil && !aclObj.AllowNodeRead() {
 		return nil, structs.ErrPermissionDenied
 	}
 
@@ -237,7 +257,7 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+	if aclObj, err := srv.ResolveToken(secret); err != nil {
 		return nil, err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
 		return nil, structs.ErrPermissionDenied
