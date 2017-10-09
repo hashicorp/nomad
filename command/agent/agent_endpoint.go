@@ -142,7 +142,7 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
 		return nil, err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
 		return nil, structs.ErrPermissionDenied

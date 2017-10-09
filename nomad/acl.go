@@ -10,9 +10,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// resolveToken is used to translate an ACL Token Secret ID into
+// ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
-func (s *Server) resolveToken(secretID string) (*acl.ACL, error) {
+func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 	// Fast-path if ACLs are disabled
 	if !s.config.ACLEnabled {
 		return nil, nil
