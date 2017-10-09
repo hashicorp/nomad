@@ -250,3 +250,51 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert.Equal(1, len(res))
 	assert.Equal(nodeID, res[0])
 }
+
+func TestNodeStatusCommand_Run_WithACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	config := func(c *agent.Config) {
+		c.ACL.Enabled = true
+		c.NodeName = "mynode"
+	}
+	// Start in dev mode so we get a node registration
+	srv, client, url := testServer(t, true, config)
+
+	defer srv.Shutdown()
+
+	token := srv.Token
+	assert.NotNil(token, "failed to bootstrap ACL token")
+
+	ui := new(cli.MockUi)
+	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
+
+	// Wait for a node to appear
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		nodeID = nodes[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Without a valid token should fail
+	code := cmd.Run([]string{"-address=" + url, nodeID})
+	assert.NotEqual(code, 0)
+
+	code = cmd.Run([]string{"--token=" + token.SecretID, "-address=" + url, nodeID})
+	assert.NotEqual(code, 0)
+
+	out := ui.OutputWriter.String()
+	assert.Contains(out, "mynode")
+	assert.NotContains(out, "No allocations placed")
+}
+
