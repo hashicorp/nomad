@@ -40,7 +40,7 @@ func (q *Quotas) PrefixList(prefix string, qo *QueryOptions) ([]*QuotaSpec, *Que
 // ListUsage is used to dump all of the quota usages
 func (q *Quotas) ListUsage(qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) {
 	var resp []*QuotaUsage
-	qm, err := q.client.query("/v1/quota_usages", &resp, qo)
+	qm, err := q.client.query("/v1/quota-usages", &resp, qo)
 	if err != nil {
 		return nil, nil, err
 	}

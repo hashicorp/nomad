@@ -31,9 +31,9 @@ func contextToIndex(ctx structs.Context) string {
 // getEnterpriseMatch is used to match on an object only defined in Nomad Pro or
 // Premium
 func getEnterpriseMatch(match interface{}) (id string, ok bool) {
-	switch match.(type) {
+	switch m := match.(type) {
 	case *structs.QuotaSpec:
-		return match.(*structs.QuotaSpec).Name, true
+		return m.Name, true
 	default:
 		return getProMatch(match)
 	}

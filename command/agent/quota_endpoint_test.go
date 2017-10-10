@@ -44,7 +44,7 @@ func TestHTTP_QuotaSpecAndUsages_List(t *testing.T) {
 		assert.Len(obj.([]*structs.QuotaSpec), 3)
 
 		// Make the HTTP request for quota usages
-		req, err = http.NewRequest("GET", "/v1/quota_usages", nil)
+		req, err = http.NewRequest("GET", "/v1/quota-usages", nil)
 		assert.Nil(err)
 		respW = httptest.NewRecorder()
 
