@@ -5,6 +5,20 @@
         Workload
       </p>
       <ul class="menu-list">
+        <li>
+          <select
+            class="menu-item"
+            onchange={{action (queue
+              (action (mut system.activeNamespace))
+              (action onNamespaceChange)
+            ) value="target.value"}}>
+            {{#each system.namespaces as |namespace|}}
+              <option value="{{namespace.name}}" selected={{eq namespace system.activeNamespace}}>
+                {{namespace.name}}
+              </option>
+            {{/each}}
+          </select>
+        </li>
         <li>{{#link-to "jobs" activeClass="is-active"}}Jobs{{/link-to}}</li>
       </ul>
       <p class="menu-label">
