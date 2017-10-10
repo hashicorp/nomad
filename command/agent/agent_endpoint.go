@@ -119,28 +119,11 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var secret string
-	s.parseToken(req, &secret)
-
-	var aclObj *acl.ACL
-	var err error
-
-	if client := s.agent.Client(); client != nil {
-		aclObj, err = client.ResolveToken(secret)
-	} else {
-		aclObj, err = s.agent.Server().ResolveToken(secret)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Check node read permissions
-	if aclObj != nil && !aclObj.AllowNodeRead() {
-		return nil, structs.ErrPermissionDenied
-	}
-
 	args := &structs.GenericRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
 	var out structs.ServerMembersResponse
 	if err := s.agent.RPC("Status.Members", args, &out); err != nil {
 		return nil, err
