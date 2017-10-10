@@ -151,7 +151,7 @@ func TestQuotas_List(t *testing.T) {
 	resp, qm, err := quotas.List(nil)
 	assert.Nil(err)
 	assertQueryMeta(t, qm)
-	assert.Len(resp, 3)
+	assert.Len(resp, 2)
 
 	// Query the quotas using a prefix
 	resp, qm, err = quotas.PrefixList("foo", nil)
@@ -191,7 +191,7 @@ func TestQuotas_ListUsages(t *testing.T) {
 	resp, qm, err := quotas.ListUsage(nil)
 	assert.Nil(err)
 	assertQueryMeta(t, qm)
-	assert.Len(resp, 3)
+	assert.Len(resp, 2)
 
 	// Query the quotas using a prefix
 	resp, qm, err = quotas.PrefixListUsage("foo", nil)
