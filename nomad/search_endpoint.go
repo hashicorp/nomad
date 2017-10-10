@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -107,8 +108,36 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
-func (s *Search) PrefixSearch(args *structs.SearchRequest,
-	reply *structs.SearchResponse) error {
+func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
+	aclObj, err := s.srv.ResolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
+
+	// Require either node:read or namespace:read-job
+	nodeRead := true
+	jobRead := true
+	if aclObj != nil {
+		nodeRead = aclObj.AllowNodeRead()
+		jobRead = aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+		if !nodeRead && !jobRead {
+			return structs.ErrPermissionDenied
+		}
+
+		// Reject requests that explicitly specify a disallowed context. This
+		// should give the user better feedback then simply filtering out all
+		// results and returning an empty list.
+		if !nodeRead && args.Context == structs.Nodes {
+			return structs.ErrPermissionDenied
+		}
+		if !jobRead {
+			switch args.Context {
+			case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
+				return structs.ErrPermissionDenied
+			}
+		}
+	}
+
 	reply.Matches = make(map[structs.Context][]string)
 	reply.Truncations = make(map[structs.Context]bool)
 
@@ -126,6 +155,19 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 			}
 
 			for _, ctx := range contexts {
+				if ctx == structs.Nodes && !nodeRead {
+					// Not allowed to search nodes
+					continue
+				}
+
+				if !jobRead {
+					switch ctx {
+					case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
+						// Not allowed to read jobs
+						continue
+					}
+				}
+
 				iter, err := getResourceIter(ctx, args.RequestNamespace(), roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 
 				if err != nil {

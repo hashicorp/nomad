@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -57,6 +58,117 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
 	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
+}
+
+func TestSearch_PrefixSearch_ACL(t *testing.T) {
+	assert := assert.New(t)
+	jobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
+
+	t.Parallel()
+	s, root := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+	state := s.fsm.State()
+
+	job := registerAndVerifyJob(s, t, jobID, 0)
+	assert.Nil(state.UpsertNode(1001, mock.Node()))
+
+	req := &structs.SearchRequest{
+		Prefix:  "",
+		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Try without a token and expect failure
+	{
+		var resp structs.SearchResponse
+		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect failure
+	{
+		invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+		req.SecretID = invalidToken.SecretID
+		var resp structs.SearchResponse
+		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a node:read token and expect failure due to Jobs being the context
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
+		req.SecretID = validToken.SecretID
+		var resp structs.SearchResponse
+		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a node:read token and expect success due to All context
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
+		req.Context = structs.All
+		req.SecretID = validToken.SecretID
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Nodes], 1)
+
+		// Jobs filtered out since token only has access to node:read
+		assert.Len(resp.Matches[structs.Jobs], 0)
+	}
+
+	// Try with a valid token for namespace:read-job
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1009, "test-valid2",
+			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+		req.SecretID = validToken.SecretID
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Jobs], 1)
+		assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+
+		// Nodes filtered out since token only has access to namespace:read-job
+		assert.Len(resp.Matches[structs.Nodes], 0)
+	}
+
+	// Try with a valid token for node:read and namespace:read-job
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1011, "test-valid3", strings.Join([]string{
+			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			mock.NodePolicy(acl.PolicyRead),
+		}, "\n"))
+		req.SecretID = validToken.SecretID
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Jobs], 1)
+		assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+		assert.Len(resp.Matches[structs.Nodes], 1)
+	}
+
+	// Try with a management token
+	{
+		req.SecretID = root.SecretID
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Jobs], 1)
+		assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+		assert.Len(resp.Matches[structs.Nodes], 1)
+	}
 }
 
 func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
