@@ -6,6 +6,7 @@ const { Service, computed, inject } = Ember;
 
 export default Service.extend({
   token: inject.service(),
+  store: inject.service(),
 
   leader: computed(function() {
     const token = this.get('token');
@@ -21,5 +22,24 @@ export default Service.extend({
           return leader;
         }),
     });
+  }),
+
+  namespaces: computed(function() {
+    return this.get('store').findAll('namespace');
+  }),
+
+  activeNamespace: computed('namespaces.[]', {
+    get() {
+      const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
+      return this.get('namespaces').findBy('id', namespaceId);
+    },
+    set(key, value) {
+      if (value == null) {
+        window.localStorage.removeItem('nomadActiveNamespace');
+      } else {
+        window.localStorage.nomadActiveNamespace = value;
+      }
+      return this.get('namespaces').findBy('id', value);
+    },
   }),
 });
