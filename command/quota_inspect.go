@@ -49,7 +49,7 @@ func (c *QuotaInspectCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *QuotaInspectCommand) Synopsis() string {
-	return "Inspect a quota"
+	return "Inspect a quota specification"
 }
 
 func (c *QuotaInspectCommand) Run(args []string) int {

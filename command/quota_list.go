@@ -47,7 +47,7 @@ func (c *QuotaListCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *QuotaListCommand) Synopsis() string {
-	return "List quotas"
+	return "List quota specifications"
 }
 
 func (c *QuotaListCommand) Run(args []string) int {

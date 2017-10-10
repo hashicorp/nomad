@@ -33,7 +33,7 @@ func (c *QuotaDeleteCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *QuotaDeleteCommand) Synopsis() string {
-	return "Delete a quota"
+	return "Delete a quota specification"
 }
 
 func (c *QuotaDeleteCommand) Run(args []string) int {

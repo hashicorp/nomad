@@ -37,7 +37,7 @@ func (c *QuotaStatusCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *QuotaStatusCommand) Synopsis() string {
-	return "Display quota status"
+	return "Display a quota's status and current usage"
 }
 
 func (c *QuotaStatusCommand) Run(args []string) int {

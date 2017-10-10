@@ -297,6 +297,12 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"quota init": func() (cli.Command, error) {
+			return &command.QuotaInitCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"quota inspect": func() (cli.Command, error) {
 			return &command.QuotaInspectCommand{
 				Meta: meta,
