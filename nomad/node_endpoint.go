@@ -389,7 +389,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -451,7 +451,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	defer metrics.MeasureSince([]string{"nomad", "client", "evaluate"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -506,7 +506,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
@@ -560,7 +560,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
 	// Check node read and namespace job read permissions
-	aclObj, err := n.srv.resolveToken(args.SecretID)
+	aclObj, err := n.srv.ResolveToken(args.SecretID)
 	if err != nil {
 		return err
 	}
@@ -817,7 +817,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
