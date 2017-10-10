@@ -19,9 +19,9 @@
     <div class="boxed-section job-stats">
       <div class="boxed-section-body">
         <span><strong>Type:</strong> {{model.type}} | </span>
-        <span><strong>Priority:</strong> {{model.priority}} | </span>
+        <span><strong>Priority:</strong> {{model.priority}} </span>
         {{#if model.namespace}}
-          <span><strong>Namespace:</strong> {{model.namespace.name}}</span>
+          <span> | <strong>Namespace:</strong> {{model.namespace.name}}</span>
         {{/if}}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
 
 const { copy } = Ember;
@@ -60,8 +61,23 @@ export default function() {
 
   this.get('/allocation/:id');
 
-  this.get('/namespaces');
-  this.get('/namespace/:id');
+  this.get('/namespaces', function({ namespaces }) {
+    const records = namespaces.all();
+
+    if (records.length) {
+      return this.serialize(records);
+    }
+
+    return new Response(501, {}, null);
+  });
+
+  this.get('/namespace/:id', function({ namespaces }, { params }) {
+    if (namespaces.all().length) {
+      return this.serialize(namespaces.find(params.id));
+    }
+
+    return new Response(501, {}, null);
+  });
 
   this.get('/agent/members', function({ agents }) {
     return {

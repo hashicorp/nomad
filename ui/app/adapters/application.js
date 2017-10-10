@@ -19,6 +19,18 @@ export default RESTAdapter.extend({
     );
   }),
 
+  findAll() {
+    return this._super(...arguments).catch(error => {
+      if (error.code === '501' || (error.errors && error.errors.findBy('status', '501'))) {
+        // Feature is not implemented in this version of Nomad
+        return [];
+      }
+
+      // Rethrow to be handled downstream
+      throw error;
+    });
+  },
+
   // Single record requests deviate from REST practice by using
   // the singular form of the resource name.
   //
