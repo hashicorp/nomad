@@ -20,6 +20,18 @@ export default ApplicationAdapter.extend({
     }
   },
 
+  findAll() {
+    const namespace = this.get('system.activeNamespace');
+    console.log('setting ns to', namespace.get('id'));
+    return this._super(...arguments).then(data => {
+      data.forEach(job => {
+        job.NamespaceID = namespace.get('id');
+        console.log(job);
+      });
+      return data;
+    });
+  },
+
   findRecord(store, { modelName }, id, snapshot) {
     // To make a findRecord response reflect the findMany response, the JobSummary
     // from /summary needs to be stitched into the response.

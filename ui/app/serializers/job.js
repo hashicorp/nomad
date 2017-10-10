@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import ApplicationSerializer from './application';
 
-const { get } = Ember;
+const { get, assign } = Ember;
 
 export default ApplicationSerializer.extend({
   attrs: {
@@ -39,7 +39,7 @@ export default ApplicationSerializer.extend({
       .adapterFor(modelName)
       .buildURL(modelName, this.extractId(modelClass, hash), hash, 'findRecord');
 
-    return {
+    return assign(this._super(...arguments), {
       allocations: {
         links: {
           related: `${jobURL}/allocations`,
@@ -55,6 +55,6 @@ export default ApplicationSerializer.extend({
           related: `${jobURL}/deployments`,
         },
       },
-    };
+    });
   },
 });
