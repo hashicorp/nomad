@@ -1,10 +1,24 @@
 import Ember from 'ember';
 import ApplicationAdapter from './application';
 
-const { RSVP } = Ember;
+const { RSVP, inject } = Ember;
 
 export default ApplicationAdapter.extend({
+  system: inject.service(),
+
   shouldReloadAll: () => true,
+
+  buildQuery(snapshot) {
+    const namespace = this.get('system.activeNamespace');
+
+    // SnapshotRecordArray isn't exported, so the best we can do is duck-type.
+    const isSnapshotRecordArray = snapshot && snapshot._recordArray;
+    if ((!snapshot || isSnapshotRecordArray) && namespace) {
+      return {
+        namespace: namespace.get('name'),
+      };
+    }
+  },
 
   findRecord(store, { modelName }, id, snapshot) {
     // To make a findRecord response reflect the findMany response, the JobSummary
