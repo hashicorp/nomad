@@ -352,20 +352,6 @@ OUTER:
 	return result, mErr.ErrorOrNil()
 }
 
-// refreshIndex returns the index the scheduler should refresh to as the maximum
-// of both the allocation and node tables.
-func refreshIndex(snap *state.StateSnapshot) (uint64, error) {
-	allocIndex, err := snap.Index("allocs")
-	if err != nil {
-		return 0, err
-	}
-	nodeIndex, err := snap.Index("nodes")
-	if err != nil {
-		return 0, err
-	}
-	return maxUint64(nodeIndex, allocIndex), nil
-}
-
 // correctDeploymentCanaries ensures that the deployment object doesn't list any
 // canaries as placed if they didn't actually get placed. This could happen if
 // the plan had a partial commit.
