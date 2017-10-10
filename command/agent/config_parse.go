@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -99,7 +100,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"acl",
 		"sentinel",
 	}
-	if err := checkHCLKeys(list, valid); err != nil {
+	if err := helper.CheckHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")
 	}
 
@@ -244,7 +245,7 @@ func parsePorts(result **Ports, list *ast.ObjectList) error {
 		"rpc",
 		"serf",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -276,7 +277,7 @@ func parseAddresses(result **Addresses, list *ast.ObjectList) error {
 		"rpc",
 		"serf",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -308,7 +309,7 @@ func parseAdvertise(result **AdvertiseAddrs, list *ast.ObjectList) error {
 		"rpc",
 		"serf",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -367,7 +368,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_max_allocs",
 		"no_host_uuid",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -473,7 +474,7 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 		"iops",
 		"reserved_ports",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -534,7 +535,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"encrypt",
 		"authoritative_region",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -584,7 +585,7 @@ func parseACL(result **ACLConfig, list *ast.ObjectList) error {
 		"policy_ttl",
 		"replication_token",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -646,7 +647,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"disable_tagged_metrics",
 		"backwards_compatible_metrics",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -686,7 +687,7 @@ func parseAtlas(result **AtlasConfig, list *ast.ObjectList) error {
 		"join",
 		"endpoint",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -731,7 +732,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		"verify_ssl",
 	}
 
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -776,7 +777,7 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"verify_https_client",
 	}
 
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -818,7 +819,7 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 		"token",
 	}
 
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -865,7 +866,7 @@ func parseSentinel(result **config.SentinelConfig, list *ast.ObjectList) error {
 	valid := []string{
 		"import",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -876,32 +877,4 @@ func parseSentinel(result **config.SentinelConfig, list *ast.ObjectList) error {
 
 	*result = &config
 	return nil
-}
-
-func checkHCLKeys(node ast.Node, valid []string) error {
-	var list *ast.ObjectList
-	switch n := node.(type) {
-	case *ast.ObjectList:
-		list = n
-	case *ast.ObjectType:
-		list = n.List
-	default:
-		return fmt.Errorf("cannot check HCL keys of type %T", n)
-	}
-
-	validMap := make(map[string]struct{}, len(valid))
-	for _, v := range valid {
-		validMap[v] = struct{}{}
-	}
-
-	var result error
-	for _, item := range list.Items {
-		key := item.Keys[0].Token.Value().(string)
-		if _, ok := validMap[key]; !ok {
-			result = multierror.Append(result, fmt.Errorf(
-				"invalid key: %s", key))
-		}
-	}
-
-	return result
 }
