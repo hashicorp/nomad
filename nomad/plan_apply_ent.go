@@ -10,7 +10,7 @@ import (
 )
 
 // refreshIndex returns the index the scheduler should refresh to as the maximum
-// of both the allocation and node tables.
+// of the allocation, node, and quota tables.
 func refreshIndex(snap *state.StateSnapshot) (uint64, error) {
 	allocIndex, err := snap.Index("allocs")
 	if err != nil {

@@ -213,6 +213,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 			return nil, err
 		}
 
+		logger.Printf("[DEBUG] nomad.planner: plan for evaluation %q exceeds quota limit. Forcing refresh to %d", plan.EvalID, index)
 		return &structs.PlanResult{RefreshIndex: index}, nil
 	}
 
