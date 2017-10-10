@@ -19,6 +19,9 @@ export default Model.extend({
   resources: fragment('resources'),
   modifyIndex: attr('number'),
 
+  // TEMPORARY: https://github.com/emberjs/data/issues/5209
+  originalJobId: attr('string'),
+
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
 
