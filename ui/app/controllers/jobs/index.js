@@ -34,5 +34,9 @@ export default Controller.extend(Sortable, Searchable, {
     gotoJob(job) {
       this.transitionToRoute('jobs.job', job);
     },
+
+    refresh() {
+      this.send('refreshRoute');
+    },
   },
 });

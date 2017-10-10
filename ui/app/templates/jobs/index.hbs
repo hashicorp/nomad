@@ -1,7 +1,7 @@
 {{#global-header class="page-header"}}
   Jobs
 {{/global-header}}
-{{#gutter-menu class="page-body"}}
+{{#gutter-menu class="page-body" onNamespaceChange=(action "refresh")}}
   <section class="section">
     {{#if model.length}}
       <div class="content">
