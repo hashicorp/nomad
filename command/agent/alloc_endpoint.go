@@ -138,7 +138,7 @@ func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req
 	var secret string
 	s.parseToken(req, &secret)
 	if !s.agent.Client().ValidateMigrateToken(allocID, secret) {
-		return nil, fmt.Errorf("invalid migrate token for allocation %q", allocID)
+		return nil, structs.ErrPermissionDenied
 	}
 
 	allocFS, err := s.agent.Client().GetAllocFS(allocID)

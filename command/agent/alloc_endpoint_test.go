@@ -334,7 +334,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
-		// Request without a token succeeds
+		// Request without a token fails
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
 		assert.Nil(err)
 
@@ -345,9 +345,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		assert.Contains(err.Error(), "invalid migrate token")
 
 		// Create an allocation
-		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
 
 		validMigrateToken, err := createMigrateTokenForClientAndAlloc(alloc.ID, s.Agent.Client().Node().SecretID)
 		assert.Nil(err)

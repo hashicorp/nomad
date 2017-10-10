@@ -1384,7 +1384,9 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_GetClientAllocs_WithMigrateTokens(t *testing.T) {
+// A MigrateToken should not be created if an allocation shares the same node
+// with its previous allocation
+func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
@@ -1409,11 +1411,15 @@ func TestClientEndpoint_GetClientAllocs_WithMigrateTokens(t *testing.T) {
 	node.ModifyIndex = resp.Index
 
 	// Inject fake evaluations
+	prevAlloc := mock.Alloc()
+	prevAlloc.NodeID = node.ID
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	alloc.PreviousAllocation = prevAlloc.ID
+	alloc.DesiredStatus = structs.AllocClientStatusComplete
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(100, []*structs.Allocation{prevAlloc, alloc})
 	assert.Nil(err)
 
 	// Lookup the allocs
@@ -1427,15 +1433,10 @@ func TestClientEndpoint_GetClientAllocs_WithMigrateTokens(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2)
 	assert.Nil(err)
 
-	assert.Equal(resp2.Index, uint64(100))
-	assert.Equal(len(resp2.Allocs), 1)
-	assert.Equal(resp2.Allocs[alloc.ID], uint64(100))
-
-	// verify the correct migrate token was generated
-	expectedToken, err := generateMigrateToken(alloc.ID, node.SecretID)
-	assert.Nil(err)
-
-	assert.Equal(resp2.MigrateTokens[alloc.ID], expectedToken)
+	assert.Equal(uint64(100), resp2.Index)
+	assert.Equal(2, len(resp2.Allocs))
+	assert.Equal(uint64(100), resp2.Allocs[alloc.ID])
+	assert.Equal(0, len(resp2.MigrateTokens))
 }
 
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {

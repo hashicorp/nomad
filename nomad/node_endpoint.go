@@ -641,6 +641,8 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
+// generateMigrateToken will create a token for a client to access an
+// authenticated volume of another client to migrate data for sticky volumes.
 func generateMigrateToken(allocID, nodeSecretID string) (string, error) {
 	h, err := blake2b.New512([]byte(nodeSecretID))
 	if err != nil {
@@ -703,15 +705,27 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
 
-					allocNode, err := state.NodeByID(ws, args.NodeID)
-					if err != nil {
-						return err
+					// used to create a migrate token for an authenticated volume, using
+					// the client's secret identifier for authentication.
+					if alloc.ShouldMigrate() {
+						prevAllocation, err := state.AllocByID(ws, alloc.PreviousAllocation)
+						if err != nil {
+							return err
+						}
+
+						if prevAllocation.NodeID != alloc.NodeID {
+							allocNode, err := state.NodeByID(ws, prevAllocation.NodeID)
+
+							if err != nil {
+								return err
+							}
+							token, err := generateMigrateToken(prevAllocation.ID, allocNode.SecretID)
+							if err != nil {
+								return err
+							}
+							reply.MigrateTokens[alloc.ID] = token
+						}
 					}
-					token, err := generateMigrateToken(alloc.ID, allocNode.SecretID)
-					if err != nil {
-						return err
-					}
-					reply.MigrateTokens[alloc.ID] = token
 
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}

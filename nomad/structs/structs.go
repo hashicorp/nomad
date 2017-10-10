@@ -818,7 +818,8 @@ type NodeAllocsResponse struct {
 type NodeClientAllocsResponse struct {
 	Allocs map[string]uint64
 
-	// MigrateTokens are used when ACLs are enabled to verify volume access
+	// MigrateTokens are used when ACLs are enabled to allow cross node,
+	// authenticated access to sticky volumes
 	MigrateTokens map[string]string
 
 	QueryMeta
