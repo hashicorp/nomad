@@ -3,5 +3,5 @@
 package scheduler
 
 func NewQuotaIterator(ctx Context, source FeasibleIterator) FeasibleIterator {
-	return PassThroughIterator{source}
+	return source
 }

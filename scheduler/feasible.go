@@ -36,12 +36,6 @@ type FeasibilityChecker interface {
 	Feasible(*structs.Node) bool
 }
 
-// PassThroughIterator is used to pass through all calls to the wrapped
-// FeasibleIterator
-type PassThroughIterator struct {
-	FeasibleIterator
-}
-
 // StaticIterator is a FeasibleIterator which returns nodes
 // in a static order. This is used at the base of the iterator
 // chain only for testing due to deterministic behavior.

@@ -50,3 +50,14 @@ func UpdateUsageFromPlan(usage *QuotaUsage, plan *Plan) []*QuotaLimit {
 
 	return []*QuotaLimit{limit}
 }
+
+// FindRegionLimit takes a set of QuotaLimits and returns the one matching the
+// given region.
+func FindRegionLimit(limits map[string]*QuotaLimit, region string) *QuotaLimit {
+	for _, l := range limits {
+		if l.Region == region {
+			return l
+		}
+	}
+	return nil
+}

@@ -181,23 +181,16 @@ func (s *StateStore) updateQuotaWithAlloc(index uint64, new, existing *structs.A
 
 		// We are just adding an allocation, so account for its resources
 		updated = usage.Copy()
-		for _, limit := range updated.Used {
-			if limit.Region != s.config.Region {
-				continue
-			}
+		limit := structs.FindRegionLimit(updated.Used, s.config.Region)
+		if limit != nil {
 			limit.Add(new)
-			break
 		}
-
 	} else if !existing.TerminalStatus() && new.TerminalStatus() {
 		// Allocation is now terminal, so discount its resources
 		updated = usage.Copy()
-		for _, limit := range updated.Used {
-			if limit.Region != s.config.Region {
-				continue
-			}
+		limit := structs.FindRegionLimit(updated.Used, s.config.Region)
+		if limit != nil {
 			limit.Subtract(new)
-			break
 		}
 	}
 
@@ -276,7 +269,8 @@ func (s *StateStore) upsertNamespaceImpl(index uint64, txn *memdb.Txn, namespace
 	var reconcileQuotas []string
 
 	switch {
-	case oldQuota == "" && newQuota == "":
+	case oldQuota == newQuota:
+		// Do nothing
 	case oldQuota == "" && newQuota != "":
 		reconcileQuotas = append(reconcileQuotas, newQuota)
 	case oldQuota != "" && newQuota == "":
@@ -578,9 +572,7 @@ type reconcileQuotaUsageOpts struct {
 	// will be reconciled.
 	AllLimits bool
 
-	// Spec is the specification that the quota usage object should reflect. If
-	// not given, it is looked up by the usage Name. If the call site has the
-	// spec, this should be passed.
+	// Spec is the specification that the quota usage object should reflect.
 	Spec *structs.QuotaSpec
 }
 

@@ -20,6 +20,10 @@ type QuotaIterator struct {
 	quotaLimits   map[string]*structs.QuotaLimit
 	actUsage      *structs.QuotaUsage
 	proposedUsage *structs.QuotaUsage
+
+	// proposedLimit is the limit that applies to this job. At this point there
+	// can only be a single quota limit per region so there can only be one.
+	proposedLimit *structs.QuotaLimit
 }
 
 // NewQuotaIterator returns a new quota iterator reading from the passed source.
@@ -101,19 +105,13 @@ func (iter *QuotaIterator) Next() *structs.Node {
 		return option
 	}
 
-	// At this point there will be only one limit and it will apply.
-	var proposedLimit *structs.QuotaLimit
-	for _, l := range iter.proposedUsage.Used {
-		proposedLimit = l
-	}
-
 	// Add the resources of the proposed task group
-	proposedLimit.AddResource(iter.tg.CombinedResources())
+	iter.proposedLimit.AddResource(iter.tg.CombinedResources())
 
 	// Get the actual limit
-	quotaLimit := iter.quotaLimits[string(proposedLimit.Hash)]
+	quotaLimit := iter.quotaLimits[string(iter.proposedLimit.Hash)]
 
-	superset, dimensions := quotaLimit.Superset(proposedLimit)
+	superset, dimensions := quotaLimit.Superset(iter.proposedLimit)
 	if superset {
 		return option
 	}
@@ -133,4 +131,9 @@ func (iter *QuotaIterator) Reset() {
 	// Populate the quota usage with proposed allocations
 	iter.proposedUsage = iter.actUsage.Copy()
 	structs.UpdateUsageFromPlan(iter.proposedUsage, iter.ctx.Plan())
+
+	// At this point there will be only one limit and it will apply.
+	for _, l := range iter.proposedUsage.Used {
+		iter.proposedLimit = l
+	}
 }
