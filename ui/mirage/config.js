@@ -13,9 +13,11 @@ export default function() {
 
   this.namespace = 'v1';
 
-  this.get('/jobs', function({ jobs }) {
+  this.get('/jobs', function({ jobs }, { queryParams }) {
     const json = this.serialize(jobs.all());
-    return json.map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+    return json
+      .filter(job => (queryParams.namespace ? job.NamespaceID === queryParams.namespace : true))
+      .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
   });
 
   this.get('/job/:id');

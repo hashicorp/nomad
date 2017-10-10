@@ -22,11 +22,9 @@ export default ApplicationAdapter.extend({
 
   findAll() {
     const namespace = this.get('system.activeNamespace');
-    console.log('setting ns to', namespace.get('id'));
     return this._super(...arguments).then(data => {
       data.forEach(job => {
-        job.NamespaceID = namespace.get('id');
-        console.log(job);
+        job.NamespaceID = namespace && namespace.get('id');
       });
       return data;
     });

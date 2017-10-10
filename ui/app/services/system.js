@@ -36,10 +36,12 @@ export default Service.extend({
     set(key, value) {
       if (value == null) {
         window.localStorage.removeItem('nomadActiveNamespace');
-      } else {
+      } else if (typeof value === 'string') {
         window.localStorage.nomadActiveNamespace = value;
+        return this.get('namespaces').findBy('id', value);
       }
-      return this.get('namespaces').findBy('id', value);
+      window.localStorage.nomadActiveNamespace = value.get('name');
+      return value;
     },
   }),
 });

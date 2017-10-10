@@ -5,20 +5,28 @@
         Workload
       </p>
       <ul class="menu-list">
-        <li>
-          <select
-            class="menu-item"
-            onchange={{action (queue
-              (action (mut system.activeNamespace))
-              (action onNamespaceChange)
-            ) value="target.value"}}>
-            {{#each system.namespaces as |namespace|}}
-              <option value="{{namespace.name}}" selected={{eq namespace system.activeNamespace}}>
-                {{namespace.name}}
-              </option>
-            {{/each}}
-          </select>
-        </li>
+        {{#if system.namespaces.length}}
+          <li>
+            <div class="menu-item">
+              {{#power-select
+                options=system.namespaces
+                selected=system.activeNamespace
+                searchField="name"
+                searchEnabled=(gt system.namespaces.length 10)
+                onchange=(action (queue
+                  (action (mut system.activeNamespace))
+                  (action onNamespaceChange)
+                ))
+                as |namespace|}}
+                {{#if (eq namespace.name "default")}}
+                  Default Namespace
+                {{else}}
+                  {{namespace.name}}
+                {{/if}}
+              {{/power-select}}
+            </div>
+          </li>
+        {{/if}}
         <li>{{#link-to "jobs" activeClass="is-active"}}Jobs{{/link-to}}</li>
       </ul>
       <p class="menu-label">
