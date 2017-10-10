@@ -33,7 +33,7 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient), nil)
+	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
 func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
