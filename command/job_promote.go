@@ -18,14 +18,14 @@ func (c *JobPromoteCommand) Help() string {
 	helpText := `
 Usage: nomad job promote [options] <job id>
 
-Promote is used to promote task groups in the most recent deployment for the
-given job. Promotion should occur when the deployment has placed canaries for a
-task group and those canaries have been deemed healthy. When a task group is
-promoted, the rolling upgrade of the remaining allocations is unblocked. If the
-canaries are found to be unhealthy, the deployment may either be failed using
-the "nomad deployment fail" command, the job can be failed forward by submitting
-a new version or failed backwards by reverting to an older version using the
-"nomad job revert" command.
+  Promote is used to promote task groups in the most recent deployment for the
+  given job. Promotion should occur when the deployment has placed canaries for a
+  task group and those canaries have been deemed healthy. When a task group is
+  promoted, the rolling upgrade of the remaining allocations is unblocked. If the
+  canaries are found to be unhealthy, the deployment may either be failed using
+  the "nomad deployment fail" command, the job can be failed forward by submitting
+  a new version or failed backwards by reverting to an older version using the
+  "nomad job revert" command.
 
 General Options:
 

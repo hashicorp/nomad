@@ -16,8 +16,8 @@ func (c *DeploymentPauseCommand) Help() string {
 	helpText := `
 Usage: nomad deployment pause [options] <deployment id>
 
-Pause is used to pause a deployment. Pausing a deployment will pause the
-placement of new allocations as part of rolling deployment.
+  Pause is used to pause a deployment. Pausing a deployment will pause the
+  placement of new allocations as part of rolling deployment.
 
 General Options:
 

@@ -16,8 +16,8 @@ func (c *JobRevertCommand) Help() string {
 	helpText := `
 Usage: nomad job revert [options] <job> <version>
 
-Revert is used to revert a job to a prior version of the job. The available
-versions to revert to can be found using "nomad job history" command.
+  Revert is used to revert a job to a prior version of the job. The available
+  versions to revert to can be found using "nomad job history" command.
 
 General Options:
 

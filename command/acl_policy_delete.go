@@ -15,7 +15,7 @@ func (c *ACLPolicyDeleteCommand) Help() string {
 	helpText := `
 Usage: nomad acl policy delete <name>
 
-Delete is used to delete an existing ACL policy.
+  Delete is used to delete an existing ACL policy.
 
 General Options:
 

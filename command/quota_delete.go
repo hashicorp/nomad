@@ -15,7 +15,7 @@ func (c *QuotaDeleteCommand) Help() string {
 	helpText := `
 Usage: nomad quota delete [options] <quota>
 
-Delete is used to remove a quota.
+  Delete is used to remove a quota.
 
 General Options:
 

@@ -15,7 +15,7 @@ func (c *SentinelListCommand) Help() string {
 	helpText := `
 Usage: nomad sentinel list [options]
 
-List is used to display all the installed Sentinel policies.
+  List is used to display all the installed Sentinel policies.
 
 General Options:
 

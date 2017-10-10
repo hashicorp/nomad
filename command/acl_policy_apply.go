@@ -18,8 +18,8 @@ func (c *ACLPolicyApplyCommand) Help() string {
 	helpText := `
 Usage: nomad acl policy apply [options] <name> <path>
 
-Apply is used to create or update an ACL policy. The policy is
-sourced from <path> or from stdin if path is "-".
+  Apply is used to create or update an ACL policy. The policy is
+  sourced from <path> or from stdin if path is "-".
 
 General Options:
 

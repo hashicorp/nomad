@@ -22,7 +22,7 @@ func (c *QuotaInspectCommand) Help() string {
 	helpText := `
 Usage: nomad quota inspect [options] <quota>
 
-Inspect is used to view raw information about a particular quota.
+  Inspect is used to view raw information about a particular quota.
 
 General Options:
 

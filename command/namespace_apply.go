@@ -16,8 +16,8 @@ func (c *NamespaceApplyCommand) Help() string {
 	helpText := `
 Usage: nomad namespace apply [options] <namespace>
 
-Apply is used to create or update a namespace. It takes the namespace name to
-create or update as its only argument.
+  Apply is used to create or update a namespace. It takes the namespace name to
+  create or update as its only argument.
 
 General Options:
 

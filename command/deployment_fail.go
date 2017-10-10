@@ -16,10 +16,10 @@ func (c *DeploymentFailCommand) Help() string {
 	helpText := `
 Usage: nomad deployment fail [options] <deployment id>
 
-Fail is used to mark a deployment as failed. Failing a deployment will
-stop the placement of new allocations as part of rolling deployment and
-if the job is configured to auto revert, the job will attempt to roll back to a
-stable version.
+  Fail is used to mark a deployment as failed. Failing a deployment will
+  stop the placement of new allocations as part of rolling deployment and
+  if the job is configured to auto revert, the job will attempt to roll back to a
+  stable version.
 
 General Options:
 
