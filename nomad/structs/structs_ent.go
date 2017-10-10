@@ -262,6 +262,15 @@ func (q *QuotaSpec) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// LimitsMap returns a lookup map of the quotas limits based on the limits hash
+func (q *QuotaSpec) LimitsMap() map[string]*QuotaLimit {
+	m := make(map[string]*QuotaLimit, len(q.Limits))
+	for _, l := range q.Limits {
+		m[string(l.Hash)] = l
+	}
+	return m
+}
+
 // Copy returns a copy of the QuotaSpec
 func (q *QuotaSpec) Copy() *QuotaSpec {
 	if q == nil {
@@ -366,14 +375,39 @@ func (q *QuotaLimit) Copy() *QuotaLimit {
 
 // Add adds the resources of the allocation to the QuotaLimit
 func (q *QuotaLimit) Add(alloc *Allocation) {
-	q.RegionLimit.CPU += alloc.Resources.CPU
-	q.RegionLimit.MemoryMB += alloc.Resources.MemoryMB
+	q.AddResource(alloc.Resources)
 }
 
 // Subtract removes the resources of the allocation to the QuotaLimit
 func (q *QuotaLimit) Subtract(alloc *Allocation) {
-	q.RegionLimit.CPU -= alloc.Resources.CPU
-	q.RegionLimit.MemoryMB -= alloc.Resources.MemoryMB
+	q.SubtractResource(alloc.Resources)
+}
+
+// AddResource adds the resources to the QuotaLimit
+func (q *QuotaLimit) AddResource(r *Resources) {
+	q.RegionLimit.CPU += r.CPU
+	q.RegionLimit.MemoryMB += r.MemoryMB
+}
+
+// SubtractResource removes the resources to the QuotaLimit
+func (q *QuotaLimit) SubtractResource(r *Resources) {
+	q.RegionLimit.CPU -= r.CPU
+	q.RegionLimit.MemoryMB -= r.MemoryMB
+}
+
+func (q *QuotaLimit) Superset(other *QuotaLimit) (bool, []string) {
+	var exhausted []string
+	r := q.RegionLimit
+	or := other.RegionLimit
+
+	if r.CPU < or.CPU {
+		exhausted = append(exhausted, fmt.Sprintf("cpu exhausted (%d needed > %d limit)", or.CPU, r.CPU))
+	}
+	if r.MemoryMB < or.MemoryMB {
+		exhausted = append(exhausted, fmt.Sprintf("memory exhausted (%d needed > %d limit)", or.MemoryMB, r.MemoryMB))
+	}
+
+	return len(exhausted) == 0, exhausted
 }
 
 // QuotaUsage is local to a region and is used to track current

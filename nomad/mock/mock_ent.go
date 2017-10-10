@@ -30,8 +30,8 @@ func QuotaSpec() *structs.QuotaSpec {
 			{
 				Region: "global",
 				RegionLimit: &structs.Resources{
-					CPU:      20000,
-					MemoryMB: 20000,
+					CPU:      2000,
+					MemoryMB: 2000,
 				},
 			},
 			{

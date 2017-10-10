@@ -65,6 +65,11 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	return s, nil
 }
 
+// Config returns the state store configuration.
+func (s *StateStore) Config() *StateStoreConfig {
+	return s.config
+}
+
 // Snapshot is used to create a point in time snapshot. Because
 // we use MemDB, we just need to snapshot the state of the underlying
 // database.
