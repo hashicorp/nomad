@@ -9,13 +9,13 @@ export function findLeader(schema) {
 }
 
 export default function() {
-  this.timing = 200; // delay for each request, automatically set to 0 during testing
+  this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
 
   this.get('/jobs', function({ jobs }) {
     const json = this.serialize(jobs.all());
-    return json.map(job => filterKeys(job, 'TaskGroups'));
+    return json.map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
   });
 
   this.get('/job/:id');
