@@ -194,8 +194,13 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	}
 
 	// Mark the job as tracked.
-	b.stats.TotalBlocked++
 	b.jobs[eval.JobID] = eval.ID
+	b.stats.TotalBlocked++
+
+	// Track that the evaluation is being added due to reaching the quota limit
+	if eval.QuotaLimitReached != "" {
+		b.stats.TotalQuotaLimit++
+	}
 
 	// Wrap the evaluation, capturing its token.
 	wrapped := wrappedEval{
@@ -211,11 +216,6 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 		b.escaped[eval.ID] = wrapped
 		b.stats.TotalEscaped++
 		return
-	}
-
-	// Track that the evaluation is being added due to reaching the quota limit
-	if eval.QuotaLimitReached != "" {
-		b.stats.TotalQuotaLimit++
 	}
 
 	// Add the eval to the set of blocked evals whose jobs constraints are
@@ -302,7 +302,6 @@ func (b *BlockedEvals) Untrack(jobID string) {
 		delete(b.jobs, w.eval.JobID)
 		delete(b.captured, evalID)
 		b.stats.TotalBlocked--
-
 		if w.eval.QuotaLimitReached != "" {
 			b.stats.TotalQuotaLimit--
 		}
@@ -313,6 +312,9 @@ func (b *BlockedEvals) Untrack(jobID string) {
 		delete(b.escaped, evalID)
 		b.stats.TotalEscaped--
 		b.stats.TotalBlocked--
+		if w.eval.QuotaLimitReached != "" {
+			b.stats.TotalQuotaLimit--
+		}
 	}
 }
 
@@ -350,6 +352,11 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 // UnblockQuota causes any evaluation that could potentially make progress on a
 // capacity change on the passed quota to be enqueued into the eval broker.
 func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
+	// Nothing to do
+	if quota == "" {
+		return
+	}
+
 	b.l.Lock()
 
 	// Do nothing if not enabled
@@ -385,18 +392,12 @@ func (b *BlockedEvals) watchCapacity() {
 		case <-b.stopCh:
 			return
 		case update := <-b.capacityChangeCh:
-			if update.computedClass != "" {
-				b.unblockFromClass(update.computedClass, update.index)
-			} else {
-				b.unblockFromQuota(update.quotaChange, update.index)
-			}
+			b.unblock(update.computedClass, update.quotaChange, update.index)
 		}
 	}
 }
 
-// unblockFromClass unblocks all blocked evals that could run on the passed computed node
-// class.
-func (b *BlockedEvals) unblockFromClass(computedClass string, index uint64) {
+func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -408,12 +409,18 @@ func (b *BlockedEvals) unblockFromClass(computedClass string, index uint64) {
 	// Every eval that has escaped computed node class has to be unblocked
 	// because any node could potentially be feasible.
 	numEscaped := len(b.escaped)
+	numQuotaLimit := 0
 	unblocked := make(map[*structs.Evaluation]string, lib.MaxInt(numEscaped, 4))
-	if numEscaped != 0 {
+
+	if numEscaped != 0 && computedClass != "" {
 		for id, wrapped := range b.escaped {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
 			delete(b.jobs, wrapped.eval.JobID)
+
+			if wrapped.eval.QuotaLimitReached != "" {
+				numQuotaLimit++
+			}
 		}
 	}
 
@@ -423,57 +430,31 @@ func (b *BlockedEvals) unblockFromClass(computedClass string, index uint64) {
 	// never saw a node with the given computed class and thus needs to be
 	// unblocked for correctness.
 	for id, wrapped := range b.captured {
-		if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
+		if quota != "" && wrapped.eval.QuotaLimitReached != quota {
+			// We are unblocking based on quota and this eval doesn't match
+			continue
+		} else if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
 			// Can skip because the eval has explicitly marked the node class
 			// as ineligible.
 			continue
 		}
 
-		// The computed node class has never been seen by the eval so we unblock
-		// it.
+		// Unblock the evaluation because it is either for the matching quota,
+		// is eligible based on the computed node class, or never seen the
+		// computed node class.
 		unblocked[wrapped.eval] = wrapped.token
 		delete(b.jobs, wrapped.eval.JobID)
 		delete(b.captured, id)
+		if wrapped.eval.QuotaLimitReached != "" {
+			numQuotaLimit++
+		}
 	}
 
 	if l := len(unblocked); l != 0 {
 		// Update the counters
 		b.stats.TotalEscaped = 0
 		b.stats.TotalBlocked -= l
-
-		// Enqueue all the unblocked evals into the broker.
-		b.evalBroker.EnqueueAll(unblocked)
-	}
-}
-
-// unblockFromQuota unblocks all blocked evals that could run on the passed
-// quota
-func (b *BlockedEvals) unblockFromQuota(quota string, index uint64) {
-	b.l.Lock()
-	defer b.l.Unlock()
-
-	// Protect against the case of a flush.
-	if !b.enabled {
-		return
-	}
-
-	// We unblock any eval that is blocked by the given quota.
-	unblocked := make(map[*structs.Evaluation]string)
-	for id, wrapped := range b.captured {
-		// Not a match
-		if wrapped.eval.QuotaLimitReached != quota {
-			continue
-		}
-
-		// Matched, so unblock the eval
-		unblocked[wrapped.eval] = wrapped.token
-		delete(b.jobs, wrapped.eval.JobID)
-		delete(b.captured, id)
-	}
-
-	if l := len(unblocked); l != 0 {
-		// Update the counters
-		b.stats.TotalQuotaLimit -= l
+		b.stats.TotalQuotaLimit -= numQuotaLimit
 
 		// Enqueue all the unblocked evals into the broker.
 		b.evalBroker.EnqueueAll(unblocked)
@@ -498,7 +479,6 @@ func (b *BlockedEvals) UnblockFailed() {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.captured, id)
 			delete(b.jobs, wrapped.eval.JobID)
-
 			if wrapped.eval.QuotaLimitReached != "" {
 				quotaLimit++
 			}
@@ -511,6 +491,9 @@ func (b *BlockedEvals) UnblockFailed() {
 			delete(b.escaped, id)
 			delete(b.jobs, wrapped.eval.JobID)
 			b.stats.TotalEscaped -= 1
+			if wrapped.eval.QuotaLimitReached != "" {
+				quotaLimit++
+			}
 		}
 	}
 

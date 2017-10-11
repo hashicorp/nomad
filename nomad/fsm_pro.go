@@ -42,16 +42,9 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// TODO test
-	snap, err := n.state.Snapshot()
-	if err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: state snapshot failed: %v", err)
-		return err
-	}
-
 	var trigger []string
 	for _, ns := range req.Namespaces {
-		old, err := snap.NamespaceByName(nil, ns.Name)
+		old, err := n.state.NamespaceByName(nil, ns.Name)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: namespace lookup failed: %v", err)
 			return err

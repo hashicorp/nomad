@@ -75,6 +75,11 @@ func TestQuotaIterator_AboveQuota(t *testing.T) {
 	// Check that it marks the dimension that is exhausted
 	assert.Len(ctx.Metrics().QuotaExhausted, 1)
 	assert.Contains(ctx.Metrics().QuotaExhausted[0], "cpu")
+
+	// Check it marks the quota limit being reached
+	elig := ctx.Eligibility()
+	assert.NotNil(elig)
+	assert.Equal(qs.Name, elig.QuotaLimitReached())
 }
 
 func TestQuotaIterator_BelowQuota_PlannedAdditions(t *testing.T) {
@@ -148,6 +153,11 @@ func TestQuotaIterator_AboveQuota_PlannedAdditions(t *testing.T) {
 	contextual.SetTaskGroup(job.TaskGroups[0])
 	quota.Reset()
 	assert.Len(collectFeasible(quota), 0)
+
+	// Check it marks the quota limit being reached
+	elig := ctx.Eligibility()
+	assert.NotNil(elig)
+	assert.Equal(qs.Name, elig.QuotaLimitReached())
 }
 
 func TestQuotaIterator_BelowQuota_DiscountStopping(t *testing.T) {

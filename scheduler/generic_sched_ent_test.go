@@ -110,6 +110,10 @@ func TestServiceSched_JobModify_IncrCount_QuotaLimit(t *testing.T) {
 	// Ensure the eval has spawned blocked eval
 	assert.Len(h.CreateEvals, 1)
 
+	// Ensure that eval says that it was because of a quota limit
+	blocked := h.CreateEvals[0]
+	assert.Equal(qs.Name, blocked.QuotaLimitReached)
+
 	// Lookup the allocations by JobID and make sure we have the right amount of
 	// each type
 	ws := memdb.NewWatchSet()

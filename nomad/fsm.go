@@ -592,7 +592,17 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 				return err
 
 			}
+
 			n.blockedEvals.Unblock(node.ComputedClass, index)
+
+			// Unblock any associated quota
+			quota, err := n.allocQuota(alloc.ID)
+			if err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: looking up quota associated with alloc %q failed: %v", alloc.ID, err)
+				return err
+			}
+
+			n.blockedEvals.UnblockQuota(quota, index)
 		}
 	}
 

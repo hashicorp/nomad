@@ -72,7 +72,6 @@ func (n *nomadFSM) applyQuotaSpecUpsert(buf []byte, index uint64) interface{} {
 		return err
 	}
 
-	// TODO Test
 	// Unblock the quotas. This will be a no-op if there are no evals blocked on
 	// the quota.
 	for _, q := range req.Quotas {
@@ -95,6 +94,24 @@ func (n *nomadFSM) applyQuotaSpecDelete(buf []byte, index uint64) interface{} {
 		return err
 	}
 	return nil
+}
+
+// allocQuota returns the quota object associated with the allocation.
+func (n *nomadFSM) allocQuota(allocID string) (string, error) {
+	alloc, err := n.state.AllocByID(nil, allocID)
+	if err != nil {
+		return "", err
+	}
+
+	ns, err := n.state.NamespaceByName(nil, alloc.Namespace)
+	if err != nil {
+		return "", err
+	}
+	if ns == nil {
+		return "", fmt.Errorf("unknown namespace %q attached to alloc %q", alloc.Namespace, alloc.ID)
+	}
+
+	return ns.Quota, nil
 }
 
 // restoreSentinelPolicy is used to restore a sentinel policy
