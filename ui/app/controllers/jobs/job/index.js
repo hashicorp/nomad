@@ -8,7 +8,6 @@ export default Controller.extend(Sortable, {
 
   queryParams: {
     currentPage: 'page',
-    searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
   },
