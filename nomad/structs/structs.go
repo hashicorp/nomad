@@ -5045,6 +5045,10 @@ type Evaluation struct {
 	// marked as eligible or ineligible.
 	ClassEligibility map[string]bool
 
+	// QuotaLimitReached marks whether a quota limit was reached for the
+	// evaluation.
+	QuotaLimitReached string
+
 	// EscapedComputedClass marks whether the job has constraints that are not
 	// captured by computed node classes.
 	EscapedComputedClass bool
@@ -5179,8 +5183,11 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 
 // CreateBlockedEval creates a blocked evaluation to followup this eval to place any
 // failed allocations. It takes the classes marked explicitly eligible or
-// ineligible and whether the job has escaped computed node classes.
-func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
+// ineligible, whether the job has escaped computed node classes and whether the
+// quota limit was reached.
+func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
+	escaped bool, quotaReached string) *Evaluation {
+
 	return &Evaluation{
 		ID:                   GenerateUUID(),
 		Namespace:            e.Namespace,
@@ -5193,6 +5200,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 		PreviousEval:         e.ID,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
+		QuotaLimitReached:    quotaReached,
 	}
 }
 

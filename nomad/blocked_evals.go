@@ -14,6 +14,13 @@ const (
 	// should be large to ensure that the FSM doesn't block when calling Unblock
 	// as this would apply back-pressure on Raft.
 	unblockBuffer = 8096
+
+	// unblockOldIndexCutoff is the age cutoff between the latest index and the
+	// oldest allowed to continued to be tracked in the unblock map. For example
+	// if the latest index was 15000, the map could track unblock IDs for
+	// indexes in the range [10000, 15000]. This is used to prune the unblock
+	// map.
+	unblockOldIndexCutoff = 5000
 )
 
 // BlockedEvals is used to track evaluations that shouldn't be queued until a
@@ -42,10 +49,10 @@ type BlockedEvals struct {
 	// blocked eval exists for each job. The value is the blocked evaluation ID.
 	jobs map[string]string
 
-	// unblockIndexes maps computed node classes to the index in which they were
-	// unblocked. This is used to check if an evaluation could have been
-	// unblocked between the time they were in the scheduler and the time they
-	// are being blocked.
+	// unblockIndexes maps computed node classes or quota name to the index in
+	// which they were unblocked. This is used to check if an evaluation could
+	// have been unblocked between the time they were in the scheduler and the
+	// time they are being blocked.
 	unblockIndexes map[string]uint64
 
 	// duplicates is the set of evaluations for jobs that had pre-existing
@@ -65,6 +72,7 @@ type BlockedEvals struct {
 // capacityUpdate stores unblock data.
 type capacityUpdate struct {
 	computedClass string
+	quotaChange   string
 	index         uint64
 }
 
@@ -82,6 +90,10 @@ type BlockedStats struct {
 
 	// TotalBlocked is the total number of blocked evaluations.
 	TotalBlocked int
+
+	// TotalQuotaLimit is the total number of blocked evaluations that are due
+	// to the quota limit being reached.
+	TotalQuotaLimit int
 }
 
 // NewBlockedEvals creates a new blocked eval tracker that will enqueue
@@ -201,6 +213,11 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 		return
 	}
 
+	// Track that the evaluation is being added due to reaching the quota limit
+	if eval.QuotaLimitReached != "" {
+		b.stats.TotalQuotaLimit++
+	}
+
 	// Add the eval to the set of blocked evals whose jobs constraints are
 	// captured by computed node class.
 	b.captured[eval.ID] = wrapped
@@ -213,13 +230,30 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 // the lock held.
 func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 	var max uint64 = 0
-	for class, index := range b.unblockIndexes {
+	for id, index := range b.unblockIndexes {
 		// Calculate the max unblock index
 		if max < index {
 			max = index
 		}
 
-		elig, ok := eval.ClassEligibility[class]
+		// The evaluation is blocked because it has hit a quota limit not class
+		// eligibility
+		if eval.QuotaLimitReached != "" {
+			if eval.QuotaLimitReached == id {
+				// The evaluation was processed before the quota specification was
+				// updated, so unblock the evaluation.
+				if eval.SnapshotIndex < index {
+					return true
+				}
+
+				return false
+			}
+
+			// Not a match
+			continue
+		}
+
+		elig, ok := eval.ClassEligibility[id]
 		if !ok && eval.SnapshotIndex < index {
 			// The evaluation was processed and did not encounter this class
 			// because it was added after it was processed. Thus for correctness
@@ -268,6 +302,10 @@ func (b *BlockedEvals) Untrack(jobID string) {
 		delete(b.jobs, w.eval.JobID)
 		delete(b.captured, evalID)
 		b.stats.TotalBlocked--
+
+		if w.eval.QuotaLimitReached != "" {
+			b.stats.TotalQuotaLimit--
+		}
 	}
 
 	if w, ok := b.escaped[evalID]; ok {
@@ -294,11 +332,48 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[computedClass] = index
+
+	// Prune the map. We don't do this every time to mitigate the iteration
+	// cost.
+	if index%20 == 0 {
+		b.pruneUnblockIndexes(index)
+	}
+
 	b.l.Unlock()
 
 	b.capacityChangeCh <- &capacityUpdate{
 		computedClass: computedClass,
 		index:         index,
+	}
+}
+
+// UnblockQuota causes any evaluation that could potentially make progress on a
+// capacity change on the passed quota to be enqueued into the eval broker.
+func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
+	b.l.Lock()
+
+	// Do nothing if not enabled
+	if !b.enabled {
+		b.l.Unlock()
+		return
+	}
+
+	// Store the index in which the unblock happened. We use this on subsequent
+	// block calls in case the evaluation was in the scheduler when a trigger
+	// occurred.
+	b.unblockIndexes[quota] = index
+
+	// Prune the map. We don't do this every time to mitigate the iteration
+	// cost.
+	if index%20 == 0 {
+		b.pruneUnblockIndexes(index)
+	}
+
+	b.l.Unlock()
+
+	b.capacityChangeCh <- &capacityUpdate{
+		quotaChange: quota,
+		index:       index,
 	}
 }
 
@@ -310,14 +385,18 @@ func (b *BlockedEvals) watchCapacity() {
 		case <-b.stopCh:
 			return
 		case update := <-b.capacityChangeCh:
-			b.unblock(update.computedClass, update.index)
+			if update.computedClass != "" {
+				b.unblockFromClass(update.computedClass, update.index)
+			} else {
+				b.unblockFromQuota(update.quotaChange, update.index)
+			}
 		}
 	}
 }
 
-// unblock unblocks all blocked evals that could run on the passed computed node
+// unblockFromClass unblocks all blocked evals that could run on the passed computed node
 // class.
-func (b *BlockedEvals) unblock(computedClass string, index uint64) {
+func (b *BlockedEvals) unblockFromClass(computedClass string, index uint64) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -367,6 +446,40 @@ func (b *BlockedEvals) unblock(computedClass string, index uint64) {
 	}
 }
 
+// unblockFromQuota unblocks all blocked evals that could run on the passed
+// quota
+func (b *BlockedEvals) unblockFromQuota(quota string, index uint64) {
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Protect against the case of a flush.
+	if !b.enabled {
+		return
+	}
+
+	// We unblock any eval that is blocked by the given quota.
+	unblocked := make(map[*structs.Evaluation]string)
+	for id, wrapped := range b.captured {
+		// Not a match
+		if wrapped.eval.QuotaLimitReached != quota {
+			continue
+		}
+
+		// Matched, so unblock the eval
+		unblocked[wrapped.eval] = wrapped.token
+		delete(b.jobs, wrapped.eval.JobID)
+		delete(b.captured, id)
+	}
+
+	if l := len(unblocked); l != 0 {
+		// Update the counters
+		b.stats.TotalQuotaLimit -= l
+
+		// Enqueue all the unblocked evals into the broker.
+		b.evalBroker.EnqueueAll(unblocked)
+	}
+}
+
 // UnblockFailed unblocks all blocked evaluation that were due to scheduler
 // failure.
 func (b *BlockedEvals) UnblockFailed() {
@@ -378,12 +491,17 @@ func (b *BlockedEvals) UnblockFailed() {
 		return
 	}
 
+	quotaLimit := 0
 	unblocked := make(map[*structs.Evaluation]string, 4)
 	for id, wrapped := range b.captured {
 		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.captured, id)
 			delete(b.jobs, wrapped.eval.JobID)
+
+			if wrapped.eval.QuotaLimitReached != "" {
+				quotaLimit++
+			}
 		}
 	}
 
@@ -398,6 +516,7 @@ func (b *BlockedEvals) UnblockFailed() {
 
 	if l := len(unblocked); l > 0 {
 		b.stats.TotalBlocked -= l
+		b.stats.TotalQuotaLimit -= quotaLimit
 		b.evalBroker.EnqueueAll(unblocked)
 	}
 }
@@ -442,6 +561,7 @@ func (b *BlockedEvals) Flush() {
 	// Reset the blocked eval tracker.
 	b.stats.TotalEscaped = 0
 	b.stats.TotalBlocked = 0
+	b.stats.TotalQuotaLimit = 0
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
 	b.jobs = make(map[string]string)
@@ -462,6 +582,7 @@ func (b *BlockedEvals) Stats() *BlockedStats {
 	// Copy all the stats
 	stats.TotalEscaped = b.stats.TotalEscaped
 	stats.TotalBlocked = b.stats.TotalBlocked
+	stats.TotalQuotaLimit = b.stats.TotalQuotaLimit
 	return stats
 }
 
@@ -471,10 +592,22 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh chan struct{}) {
 		select {
 		case <-time.After(period):
 			stats := b.Stats()
+			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_quota_limit"}, float32(stats.TotalQuotaLimit))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_escaped"}, float32(stats.TotalEscaped))
 		case <-stopCh:
 			return
+		}
+	}
+}
+
+// pruneUnblockIndexes is used to prune any tracked entry that is excessively
+// old compared to the newly inserted index. This protects againsts unbounded
+// growth of the map. This should be called with the lock held.
+func (b *BlockedEvals) pruneUnblockIndexes(maxIndex uint64) {
+	for key, index := range b.unblockIndexes {
+		if index+unblockOldIndexCutoff < maxIndex {
+			delete(b.unblockIndexes, key)
 		}
 	}
 }

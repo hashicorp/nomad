@@ -116,7 +116,13 @@ func (iter *QuotaIterator) Next() *structs.Node {
 		return option
 	}
 
+	// Mark the dimensions that caused the quota to be exhausted
 	iter.ctx.Metrics().ExhaustQuota(dimensions)
+
+	// Store the fact that the option was rejected because the quota limit was
+	// reached.
+	iter.ctx.Eligibility().SetQuotaLimitReached(iter.quota.Name)
+
 	return nil
 }
 

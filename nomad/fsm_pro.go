@@ -42,9 +42,36 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// TODO test
+	snap, err := n.state.Snapshot()
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: state snapshot failed: %v", err)
+		return err
+	}
+
+	var trigger []string
+	for _, ns := range req.Namespaces {
+		old, err := snap.NamespaceByName(nil, ns.Name)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: namespace lookup failed: %v", err)
+			return err
+		}
+
+		// If we are changing the quota on a namespace trigger evals for the
+		// older quota.
+		if old != nil && old.Quota != "" && old.Quota != ns.Quota {
+			trigger = append(trigger, old.Quota)
+		}
+	}
+
 	if err := n.state.UpsertNamespaces(index, req.Namespaces); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertNamespaces failed: %v", err)
 		return err
+	}
+
+	// Send the unblocks
+	for _, quota := range trigger {
+		n.blockedEvals.UnblockQuota(quota, index)
 	}
 
 	return nil

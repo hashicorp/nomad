@@ -38,7 +38,7 @@ func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-description": complete.PredictAnything,
-			"-quota":       complete.PredictAnything,
+			"-quota":       QuotaPredictor(c.Meta.Client),
 		})
 }
 

@@ -71,6 +71,14 @@ func (n *nomadFSM) applyQuotaSpecUpsert(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertQuotaSpecs failed: %v", err)
 		return err
 	}
+
+	// TODO Test
+	// Unblock the quotas. This will be a no-op if there are no evals blocked on
+	// the quota.
+	for _, q := range req.Quotas {
+		n.blockedEvals.UnblockQuota(q.Name, index)
+	}
+
 	return nil
 }
 
