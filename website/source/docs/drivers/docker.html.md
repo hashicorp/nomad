@@ -346,7 +346,17 @@ Example docker-config, using two helper scripts in $PATH,
 }
 ```
 
+Example agent configuration, using a helper script "docker-credential-ecr" in
+$PATH
 
+```hcl
+client {
+  enabled = true
+  options {
+    "docker.auth.helper" = "ecr"
+  }
+}
+```
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
 
@@ -492,7 +502,8 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify
   a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
   -like script on $PATH to lookup authentication information from external
-  sources.
+  sources. The script's name must begin with `docker-credential-` and this
+  option should include only the basename of the script, not the path.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
