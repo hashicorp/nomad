@@ -137,6 +137,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Enable the blocked eval tracker, since we are now the leader
 	s.blockedEvals.SetEnabled(true)
+	s.blockedEvals.SetTimetable(s.fsm.TimeTable())
 
 	// Enable the deployment watcher, since we are now the leader
 	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {

@@ -15,12 +15,12 @@ const (
 	// as this would apply back-pressure on Raft.
 	unblockBuffer = 8096
 
-	// unblockOldIndexCutoff is the age cutoff between the latest index and the
-	// oldest allowed to continued to be tracked in the unblock map. For example
-	// if the latest index was 15000, the map could track unblock IDs for
-	// indexes in the range [10000, 15000]. This is used to prune the unblock
-	// map.
-	unblockOldIndexCutoff = 5000
+	// pruneInterval is the interval at which we prune objects from the
+	// BlockedEvals tracker
+	pruneInterval = 5 * time.Minute
+
+	// pruneThreshold is the threshold after which objects will be pruned.
+	pruneThreshold = 15 * time.Minute
 )
 
 // BlockedEvals is used to track evaluations that shouldn't be queued until a
@@ -64,6 +64,10 @@ type BlockedEvals struct {
 	// duplicate set. It can be used to unblock waiting callers looking for
 	// duplicates.
 	duplicateCh chan struct{}
+
+	// timetable is used to coorelate indexes with their insertion time. This
+	// allows us to prune based on time.
+	timetable *TimeTable
 
 	// stopCh is used to stop any created goroutines.
 	stopCh chan struct{}
@@ -129,6 +133,7 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 		return
 	} else if enabled {
 		go b.watchCapacity()
+		go b.prune()
 	} else {
 		close(b.stopCh)
 	}
@@ -137,6 +142,12 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 	if !enabled {
 		b.Flush()
 	}
+}
+
+func (b *BlockedEvals) SetTimetable(timetable *TimeTable) {
+	b.l.Lock()
+	b.timetable = timetable
+	b.l.Unlock()
 }
 
 // Block tracks the passed evaluation and enqueues it into the eval broker when
@@ -239,18 +250,17 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 		// The evaluation is blocked because it has hit a quota limit not class
 		// eligibility
 		if eval.QuotaLimitReached != "" {
-			if eval.QuotaLimitReached == id {
+			if eval.QuotaLimitReached != id {
+				// Not a match
+				continue
+			} else if eval.SnapshotIndex < index {
 				// The evaluation was processed before the quota specification was
 				// updated, so unblock the evaluation.
-				if eval.SnapshotIndex < index {
-					return true
-				}
-
-				return false
+				return true
 			}
 
-			// Not a match
-			continue
+			// The evaluation was processed having seen all changes to the quota
+			return false
 		}
 
 		elig, ok := eval.ClassEligibility[id]
@@ -334,13 +344,6 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[computedClass] = index
-
-	// Prune the map. We don't do this every time to mitigate the iteration
-	// cost.
-	if index%20 == 0 {
-		b.pruneUnblockIndexes(index)
-	}
-
 	b.l.Unlock()
 
 	b.capacityChangeCh <- &capacityUpdate{
@@ -369,18 +372,39 @@ func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
 	b.unblockIndexes[quota] = index
-
-	// Prune the map. We don't do this every time to mitigate the iteration
-	// cost.
-	if index%20 == 0 {
-		b.pruneUnblockIndexes(index)
-	}
-
 	b.l.Unlock()
 
 	b.capacityChangeCh <- &capacityUpdate{
 		quotaChange: quota,
 		index:       index,
+	}
+}
+
+// UnblockClassAndQuota causes any evaluation that could potentially make
+// progress on a capacity change on the passed computed node class or quota to
+// be enqueued into the eval broker.
+func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
+	b.l.Lock()
+
+	// Do nothing if not enabled
+	if !b.enabled {
+		b.l.Unlock()
+		return
+	}
+
+	// Store the index in which the unblock happened. We use this on subsequent
+	// block calls in case the evaluation was in the scheduler when a trigger
+	// occurred.
+	if quota != "" {
+		b.unblockIndexes[quota] = index
+	}
+	b.unblockIndexes[class] = index
+	b.l.Unlock()
+
+	b.capacityChangeCh <- &capacityUpdate{
+		computedClass: class,
+		quotaChange:   quota,
+		index:         index,
 	}
 }
 
@@ -548,6 +572,8 @@ func (b *BlockedEvals) Flush() {
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
 	b.jobs = make(map[string]string)
+	b.unblockIndexes = make(map[string]uint64)
+	b.timetable = nil
 	b.duplicates = nil
 	b.capacityChangeCh = make(chan *capacityUpdate, unblockBuffer)
 	b.stopCh = make(chan struct{})
@@ -584,12 +610,36 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh chan struct{}) {
 	}
 }
 
+// prune is a long lived function that prunes unnecessary objects on a timer.
+func (b *BlockedEvals) prune() {
+	ticker := time.NewTicker(pruneInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-b.stopCh:
+			return
+		case <-ticker.C:
+			b.pruneUnblockIndexes()
+		}
+	}
+}
+
 // pruneUnblockIndexes is used to prune any tracked entry that is excessively
-// old compared to the newly inserted index. This protects againsts unbounded
-// growth of the map. This should be called with the lock held.
-func (b *BlockedEvals) pruneUnblockIndexes(maxIndex uint64) {
+// old. This protects againsts unbounded growth of the map.
+func (b *BlockedEvals) pruneUnblockIndexes() {
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	if b.timetable == nil {
+		return
+	}
+
+	cutoff := time.Now().UTC().Add(-1 * pruneThreshold)
+	oldThreshold := b.timetable.NearestIndex(cutoff)
+
 	for key, index := range b.unblockIndexes {
-		if index+unblockOldIndexCutoff < maxIndex {
+		if index < oldThreshold {
 			delete(b.unblockIndexes, key)
 		}
 	}

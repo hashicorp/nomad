@@ -593,8 +593,6 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 
 			}
 
-			n.blockedEvals.Unblock(node.ComputedClass, index)
-
 			// Unblock any associated quota
 			quota, err := n.allocQuota(alloc.ID)
 			if err != nil {
@@ -602,7 +600,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 				return err
 			}
 
-			n.blockedEvals.UnblockQuota(quota, index)
+			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
 		}
 	}
 
