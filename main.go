@@ -33,7 +33,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 			"deployment resume", "deployment fail", "deployment promote":
 		case "fs ls", "fs cat", "fs stat":
 		case "job deployments", "job dispatch", "job history", "job promote", "job revert":
-		case "namespace list", "namespace delete", "namespace apply", "namespace status":
+		case "namespace list", "namespace delete", "namespace apply", "namespace inspect", "namespace status":
 		case "quota list", "quota delete", "quota apply", "quota status", "quota inspect", "quota init":
 		case "operator raft", "operator raft list-peers", "operator raft remove-peer":
 		case "acl policy", "acl policy apply", "acl token", "acl token create":

@@ -233,8 +233,18 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"namespace inspect": func() (cli.Command, error) {
+			return &command.NamespaceInspectCommand{
+				Meta: meta,
+			}, nil
+		},
 		"namespace list": func() (cli.Command, error) {
 			return &command.NamespaceListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"namespace status": func() (cli.Command, error) {
+			return &command.NamespaceStatusCommand{
 				Meta: meta,
 			}, nil
 		},
