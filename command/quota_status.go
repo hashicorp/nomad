@@ -64,10 +64,16 @@ func (c *QuotaStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Do a prefix lookup
 	quotas := client.Quotas()
-	spec, _, err := quotas.Info(name, nil)
+	spec, possible, err := getQuota(quotas, name)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error retrieving quota spec: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving quota: %s", err))
+		return 1
+	}
+
+	if len(possible) != 0 {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple quotas\n\n%s", formatQuotaSpecs(possible)))
 		return 1
 	}
 
@@ -193,4 +199,22 @@ func formatQuotaLimitInt(value *int) string {
 	}
 
 	return strconv.Itoa(v)
+}
+
+func getQuota(client *api.Quotas, quota string) (match *api.QuotaSpec, possible []*api.QuotaSpec, err error) {
+	// Do a prefix lookup
+	quotas, _, err := client.PrefixList(quota, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	l := len(quotas)
+	switch {
+	case l == 0:
+		return nil, nil, fmt.Errorf("Quota %q matched no quotas", quota)
+	case l == 1:
+		return quotas[0], nil, nil
+	default:
+		return nil, quotas, nil
+	}
 }

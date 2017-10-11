@@ -61,9 +61,15 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	ns, _, err := client.Namespaces().Info(name, nil)
+	// Do a prefix lookup
+	ns, possible, err := getNamespace(client.Namespaces(), name)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error retrieving namespace: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving namespaces: %s", err))
+		return 1
+	}
+
+	if len(possible) != 0 {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
 		return 1
 	}
 
@@ -106,4 +112,22 @@ func formatNamespaceBasics(ns *api.Namespace) string {
 	}
 
 	return formatKV(basic)
+}
+
+func getNamespace(client *api.Namespaces, ns string) (match *api.Namespace, possible []*api.Namespace, err error) {
+	// Do a prefix lookup
+	namespaces, _, err := client.PrefixList(ns, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	l := len(namespaces)
+	switch {
+	case l == 0:
+		return nil, nil, fmt.Errorf("Namespace %q matched no namespaces", ns)
+	case l == 1:
+		return namespaces[0], nil, nil
+	default:
+		return nil, namespaces, nil
+	}
 }

@@ -78,10 +78,16 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Do a prefix lookup
 	quotas := client.Quotas()
-	spec, _, err := quotas.Info(name, nil)
+	spec, possible, err := getQuota(quotas, name)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error retrieving quota spec: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving quota: %s", err))
+		return 1
+	}
+
+	if len(possible) != 0 {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple quotas\n\n%s", formatQuotaSpecs(possible)))
 		return 1
 	}
 
