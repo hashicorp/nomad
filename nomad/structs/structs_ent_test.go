@@ -367,4 +367,10 @@ func TestQuotaLimit_Superset(t *testing.T) {
 	superset, dimensions := l1.Superset(l3)
 	assert.False(t, superset)
 	assert.Len(t, dimensions, 2)
+
+	l4 := l1.Copy()
+	l4.RegionLimit.MemoryMB = 0
+	l4.RegionLimit.CPU = 0
+	superset, _ = l4.Superset(l3)
+	assert.True(t, superset)
 }

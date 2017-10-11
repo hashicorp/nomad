@@ -343,7 +343,7 @@ func (q *QuotaLimit) Validate() error {
 		err := fmt.Errorf("must provide a region limit")
 		mErr.Errors = append(mErr.Errors, err)
 	} else {
-		if q.RegionLimit.DiskMB > 0 {
+		if q.RegionLimit.DiskMB != 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("quota can not limit disk"))
 		}
 		if len(q.RegionLimit.Networks) > 0 {
@@ -395,15 +395,25 @@ func (q *QuotaLimit) SubtractResource(r *Resources) {
 	q.RegionLimit.MemoryMB -= r.MemoryMB
 }
 
+// Superset returns if this quota is a super set of another. This is typically
+// called where the method is called on the quota specication and the other
+// object is the quota usage. The superset handles a limit being specified as -1
+// to mean no usage allowed, zero meaning infinite usage allowed and anything
+// greater to be the actual limit.
 func (q *QuotaLimit) Superset(other *QuotaLimit) (bool, []string) {
 	var exhausted []string
 	r := q.RegionLimit
 	or := other.RegionLimit
 
-	if r.CPU < or.CPU {
+	if r.CPU < 0 && or.CPU > 0 {
+		exhausted = append(exhausted, fmt.Sprintf("cpu exhausted (%d needed > 0 limit)", or.CPU))
+	} else if r.CPU != 0 && r.CPU < or.CPU {
 		exhausted = append(exhausted, fmt.Sprintf("cpu exhausted (%d needed > %d limit)", or.CPU, r.CPU))
 	}
-	if r.MemoryMB < or.MemoryMB {
+
+	if r.MemoryMB < 0 && or.MemoryMB > 0 {
+		exhausted = append(exhausted, fmt.Sprintf("memory exhausted (%d needed > 0 limit)", or.MemoryMB))
+	} else if r.MemoryMB != 0 && r.MemoryMB < or.MemoryMB {
 		exhausted = append(exhausted, fmt.Sprintf("memory exhausted (%d needed > %d limit)", or.MemoryMB, r.MemoryMB))
 	}
 
