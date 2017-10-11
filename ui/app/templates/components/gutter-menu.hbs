@@ -9,14 +9,16 @@
           <li>
             <div class="menu-item">
               {{#power-select
-                options=system.namespaces
+                options=sortedNamespaces
                 selected=system.activeNamespace
                 searchField="name"
-                searchEnabled=(gt system.namespaces.length 10)
+                searchEnabled=(gt sortedNamespaces.length 10)
                 onchange=(action (queue
                   (action (mut system.activeNamespace))
                   (action onNamespaceChange)
                 ))
+                tagName="div"
+                class="namespace-switcher"
                 as |namespace|}}
                 {{#if (eq namespace.name "default")}}
                   Default Namespace
