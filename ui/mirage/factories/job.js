@@ -50,8 +50,13 @@ export default Factory.extend({
     job.update({
       taskGroupIds: groups.mapBy('id'),
       task_group_ids: groups.mapBy('id'),
-      namespaceId: server.db.namespaces.length ? pickOne(server.db.namespaces).id : null,
     });
+
+    if (!job.namespaceId) {
+      job.update({
+        namespaceId: server.db.namespaces.length ? pickOne(server.db.namespaces).id : null,
+      });
+    }
 
     const jobSummary = server.create('job-summary', {
       groupNames: groups.mapBy('name'),

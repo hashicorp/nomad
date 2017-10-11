@@ -107,3 +107,26 @@ test('when there are jobs, but no matches for a search result, there is an empty
     assert.equal(find('.empty-message-headline').textContent, 'No Matches');
   });
 });
+
+test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', function(
+  assert
+) {
+  server.createList('namespace', 2);
+  const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
+  const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
+
+  visit('/jobs');
+
+  andThen(() => {
+    assert.equal(findAll('.job-row').length, 1, 'One job in the default namespace');
+    assert.equal(find('.job-row td').textContent, job1.name, 'The correct job is shown');
+  });
+
+  const secondNamespace = server.db.namespaces[1];
+  visit(`/jobs?namespace=${secondNamespace.id}`);
+
+  andThen(() => {
+    assert.equal(findAll('.job-row').length, 1, `One job in the ${secondNamespace.name} namespace`);
+    assert.equal(find('.job-row td').textContent, job2.name, 'The correct job is shown');
+  });
+});
