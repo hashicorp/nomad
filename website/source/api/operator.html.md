@@ -34,7 +34,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `management` |
 
 ### Parameters
 
@@ -104,7 +104,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `management` |
 
 ### Parameters
 
