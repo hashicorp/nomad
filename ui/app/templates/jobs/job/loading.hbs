@@ -1,0 +1,9 @@
+{{#global-header class="page-header"}}
+  {{#each breadcrumbs as |breadcrumb|}}
+    <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+  {{/each}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "jobs/job/subnav"}}
+  <section class="section has-text-centered">{{partial "partials/loading-spinner"}}</section>
+{{/gutter-menu}}

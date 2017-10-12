@@ -9,6 +9,9 @@ module.exports = function(defaults) {
     addons: {
       blacklist: isProd ? ['ember-freestyle'] : [],
     },
+    svg: {
+      paths: ['public/images/icons'],
+    },
   });
 
   // Use `app.import` to add additional libraries to the generated

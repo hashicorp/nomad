@@ -175,6 +175,8 @@ check: ## Lint the source code
 		--enable gas \
 		--enable gofmt \
 		./...
+	@echo "==> Spell checking website..."
+	@misspell -error -source=text website/source/
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts

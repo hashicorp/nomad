@@ -90,6 +90,13 @@
               {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
             </ul>
           </nav>
+        {{else}}
+          <div class="boxed-section-body">
+            <div class="empty-message">
+              <h3 class="empty-message-headline">No Matches</h3>
+              <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+            </div>
+          </div>
         {{/list-pagination}}
       </div>
     </div>

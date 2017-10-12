@@ -10,6 +10,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -128,7 +129,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	}
 
 	// Update the nodes SecretID
-	node.SecretID = structs.GenerateUUID()
+	node.SecretID = uuid.Generate()
 	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	if err == nil || !strings.Contains(err.Error(), "Not registering") {
 		t.Fatalf("Expecting error regarding mismatching secret id: %v", err)
@@ -673,8 +674,8 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
 
 	// Update the status without a token and expect failure
 	dereg := &structs.NodeUpdateDrainRequest{
@@ -924,8 +925,8 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyDeny))
 
 	// Lookup the node without a token and expect failure
 	req := &structs.NodeSpecificRequest{
@@ -1129,6 +1130,95 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the node
+	allocDefaultNS := mock.Alloc()
+	allocAltNS := mock.Alloc()
+	allocAltNS.Namespace = "altnamespace"
+	allocOtherNS := mock.Alloc()
+	allocOtherNS.Namespace = "should-only-be-displayed-for-root-ns"
+
+	node := mock.Node()
+	allocDefaultNS.NodeID = node.ID
+	allocAltNS.NodeID = node.ID
+	allocOtherNS.NodeID = node.ID
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
+	assert.Nil(state.UpsertJobSummary(3, mock.JobSummary(allocAltNS.JobID)), "UpsertJobSummary")
+	assert.Nil(state.UpsertJobSummary(4, mock.JobSummary(allocOtherNS.JobID)), "UpsertJobSummary")
+	allocs := []*structs.Allocation{allocDefaultNS, allocAltNS, allocOtherNS}
+	assert.Nil(state.UpsertAllocs(5, allocs), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validNoNSToken := mock.CreatePolicyAndToken(t, state, 1003, "test-alt-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1004, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Lookup the node without a token and expect failure
+	req := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	{
+		var resp structs.NodeAllocsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token for the default namespace
+	req.SecretID = validDefaultToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Len(resp.Allocs, 1)
+		assert.Equal(allocDefaultNS.ID, resp.Allocs[0].ID)
+	}
+
+	// Try with a valid token for a namespace with no allocs on this node
+	req.SecretID = validNoNSToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Len(resp.Allocs, 0)
+	}
+
+	// Try with a invalid token
+	req.SecretID = invalidToken.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	req.SecretID = root.SecretID
+	{
+		var resp structs.NodeAllocsResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
+		assert.Len(resp.Allocs, 3)
+		for _, alloc := range resp.Allocs {
+			switch alloc.ID {
+			case allocDefaultNS.ID, allocAltNS.ID, allocOtherNS.ID:
+				// expected
+			default:
+				t.Errorf("unexpected alloc %q for namespace %q", alloc.ID, alloc.Namespace)
+			}
+		}
+	}
+}
+
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
@@ -1188,7 +1278,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	}
 
 	// Lookup non-existing node
-	get.NodeID = structs.GenerateUUID()
+	get.NodeID = uuid.Generate()
 	var resp4 structs.NodeClientAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp4); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1292,6 +1382,61 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	if len(resp3.Allocs) != 1 || resp3.Allocs[alloc.ID] != 200 {
 		t.Fatalf("bad: %#v", resp3.Allocs)
 	}
+}
+
+// A MigrateToken should not be created if an allocation shares the same node
+// with its previous allocation
+func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations
+	prevAlloc := mock.Alloc()
+	prevAlloc.NodeID = node.ID
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.PreviousAllocation = prevAlloc.ID
+	alloc.DesiredStatus = structs.AllocClientStatusComplete
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	err := state.UpsertAllocs(100, []*structs.Allocation{prevAlloc, alloc})
+	assert.Nil(err)
+
+	// Lookup the allocs
+	get := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		SecretID:     node.SecretID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+
+	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2)
+	assert.Nil(err)
+
+	assert.Equal(uint64(100), resp2.Index)
+	assert.Equal(2, len(resp2.Allocs))
+	assert.Equal(uint64(100), resp2.Allocs[alloc.ID])
+	assert.Equal(0, len(resp2.MigrateTokens))
 }
 
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
@@ -1771,8 +1916,8 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyWrite))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyRead))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
 
 	// Re-evaluate without a token and expect failure
 	req := &structs.NodeEvaluateRequest{
@@ -1885,8 +2030,8 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid", NodePolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid", NodePolicy(acl.PolicyDeny))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyDeny))
 
 	// Lookup the node without a token and expect failure
 	req := &structs.NodeListRequest{
@@ -2090,7 +2235,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	req := &structs.DeriveVaultTokenRequest{
 		NodeID:   node.ID,
-		SecretID: structs.GenerateUUID(),
+		SecretID: uuid.Generate(),
 		AllocID:  alloc.ID,
 		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{
@@ -2181,8 +2326,8 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	}
 
 	// Return a secret for the task
-	token := structs.GenerateUUID()
-	accessor := structs.GenerateUUID()
+	token := uuid.Generate()
+	accessor := uuid.Generate()
 	ttl := 10
 	secret := &vapi.Secret{
 		WrapInfo: &vapi.SecretWrapInfo{

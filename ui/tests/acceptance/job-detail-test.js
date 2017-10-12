@@ -1,9 +1,10 @@
+import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import Ember from 'ember';
 import moment from 'moment';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
-const { get } = Ember;
+const { get, $ } = Ember;
 const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
 let job;
@@ -22,39 +23,28 @@ test('visiting /jobs/:job_id', function(assert) {
 });
 
 test('breadcrumbs includes job name and link back to the jobs list', function(assert) {
-  assert.equal(find('.breadcrumb:eq(0)').text(), 'Jobs', 'First breadcrumb says jobs');
-  assert.equal(find('.breadcrumb:eq(1)').text(), job.name, 'Second breadcrumb says the job name');
+  assert.equal(findAll('.breadcrumb')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
+  assert.equal(
+    findAll('.breadcrumb')[1].textContent,
+    job.name,
+    'Second breadcrumb says the job name'
+  );
 
-  click('.breadcrumb:eq(0)');
+  click(findAll('.breadcrumb')[0]);
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 });
 
 test('the job detail page should contain basic information about the job', function(assert) {
-  assert.ok(
-    find('.title .tag:eq(0)')
-      .text()
-      .includes(job.status),
-    'Status'
-  );
-  assert.ok(
-    find('.job-stats span:eq(0)')
-      .text()
-      .includes(job.type),
-    'Type'
-  );
-  assert.ok(
-    find('.job-stats span:eq(1)')
-      .text()
-      .includes(job.priority),
-    'Priority'
-  );
+  assert.ok(findAll('.title .tag')[0].textContent.includes(job.status), 'Status');
+  assert.ok(findAll('.job-stats span')[0].textContent.includes(job.type), 'Type');
+  assert.ok(findAll('.job-stats span')[1].textContent.includes(job.priority), 'Priority');
 });
 
 test('the job detail page should list all task groups', function(assert) {
   assert.equal(
-    find('.task-group-row').length,
+    findAll('.task-group-row').length,
     server.db.taskGroups.where({ jobId: job.id }).length
   );
 });
@@ -63,7 +53,7 @@ test('each row in the task group table should show basic information about the t
   assert
 ) {
   const taskGroup = job.taskGroupIds.map(id => server.db.taskGroups.find(id)).sortBy('name')[0];
-  const taskGroupRow = find('.task-group-row:eq(0)');
+  const taskGroupRow = $(findAll('.task-group-row')[0]);
   const tasks = server.db.tasks.where({ taskGroupId: taskGroup.id });
   const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
@@ -104,37 +94,37 @@ test('the allocations diagram lists all allocation status figures', function(ass
   );
 
   assert.equal(
-    legend.find('li.queued .value').text(),
+    legend.querySelector('li.queued .value').textContent,
     statusCounts.queued,
     `${statusCounts.queued} are queued`
   );
 
   assert.equal(
-    legend.find('li.starting .value').text(),
+    legend.querySelector('li.starting .value').textContent,
     statusCounts.starting,
     `${statusCounts.starting} are starting`
   );
 
   assert.equal(
-    legend.find('li.running .value').text(),
+    legend.querySelector('li.running .value').textContent,
     statusCounts.running,
     `${statusCounts.running} are running`
   );
 
   assert.equal(
-    legend.find('li.complete .value').text(),
+    legend.querySelector('li.complete .value').textContent,
     statusCounts.complete,
     `${statusCounts.complete} are complete`
   );
 
   assert.equal(
-    legend.find('li.failed .value').text(),
+    legend.querySelector('li.failed .value').textContent,
     statusCounts.failed,
     `${statusCounts.failed} are failed`
   );
 
   assert.equal(
-    legend.find('li.lost .value').text(),
+    legend.querySelector('li.lost .value').textContent,
     statusCounts.lost,
     `${statusCounts.lost} are lost`
   );
@@ -149,7 +139,7 @@ test('there is no active deployment section when the job has no active deploymen
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(find('.active-deployment').length === 0, 'No active deployment');
+    assert.ok(findAll('.active-deployment').length === 0, 'No active deployment');
   });
 });
 
@@ -168,27 +158,27 @@ test('the active deployment section shows up for the currently running deploymen
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(find('.active-deployment').length === 1, 'Active deployment');
+    assert.ok(findAll('.active-deployment').length === 1, 'Active deployment');
     assert.equal(
-      find('.active-deployment > .boxed-section-head .badge')
-        .text()
-        .trim(),
+      $('.active-deployment > .boxed-section-head .badge')
+        .get(0)
+        .textContent.trim(),
       deployment.id.split('-')[0],
       'The active deployment is the most recent running deployment'
     );
 
     assert.equal(
-      find('.active-deployment > .boxed-section-head .submit-time')
-        .text()
-        .trim(),
+      $('.active-deployment > .boxed-section-head .submit-time')
+        .get(0)
+        .textContent.trim(),
       moment(version.submitTime / 1000000).fromNow(),
       'Time since the job was submitted is in the active deployment header'
     );
 
     assert.equal(
-      find('.deployment-metrics .label:contains("Canaries") + .value')
-        .text()
-        .trim(),
+      $('.deployment-metrics .label:contains("Canaries") + .value')
+        .get(0)
+        .textContent.trim(),
       `${sum(taskGroupSummaries, 'placedCanaries')} / ${sum(
         taskGroupSummaries,
         'desiredCanaries'
@@ -197,41 +187,41 @@ test('the active deployment section shows up for the currently running deploymen
     );
 
     assert.equal(
-      find('.deployment-metrics .label:contains("Placed") + .value')
-        .text()
-        .trim(),
+      $('.deployment-metrics .label:contains("Placed") + .value')
+        .get(0)
+        .textContent.trim(),
       sum(taskGroupSummaries, 'placedAllocs'),
       'Placed allocs aggregates across task groups'
     );
 
     assert.equal(
-      find('.deployment-metrics .label:contains("Desired") + .value')
-        .text()
-        .trim(),
+      $('.deployment-metrics .label:contains("Desired") + .value')
+        .get(0)
+        .textContent.trim(),
       sum(taskGroupSummaries, 'desiredTotal'),
       'Desired allocs aggregates across task groups'
     );
 
     assert.equal(
-      find('.deployment-metrics .label:contains("Healthy") + .value')
-        .text()
-        .trim(),
+      $('.deployment-metrics .label:contains("Healthy") + .value')
+        .get(0)
+        .textContent.trim(),
       sum(taskGroupSummaries, 'healthyAllocs'),
       'Healthy allocs aggregates across task groups'
     );
 
     assert.equal(
-      find('.deployment-metrics .label:contains("Unhealthy") + .value')
-        .text()
-        .trim(),
+      $('.deployment-metrics .label:contains("Unhealthy") + .value')
+        .get(0)
+        .textContent.trim(),
       sum(taskGroupSummaries, 'unhealthyAllocs'),
       'Unhealthy allocs aggregates across task groups'
     );
 
     assert.equal(
-      find('.deployment-metrics .notification')
-        .text()
-        .trim(),
+      $('.deployment-metrics .notification')
+        .get(0)
+        .textContent.trim(),
       deployment.statusDescription,
       'Status description is in the metrics block'
     );
@@ -246,25 +236,48 @@ test('the active deployment section can be expanded to show task groups and allo
 
   andThen(() => {
     assert.ok(
-      find('.active-deployment .boxed-section-head:contains("Task Groups")').length === 0,
+      $('.active-deployment .boxed-section-head:contains("Task Groups")').length === 0,
       'Task groups not found'
     );
     assert.ok(
-      find('.active-deployment .boxed-section-head:contains("Allocations")').length === 0,
+      $('.active-deployment .boxed-section-head:contains("Allocations")').length === 0,
       'Allocations not found'
     );
   });
 
-  click('.active-deployment-details-toggle');
+  andThen(() => {
+    click('.active-deployment-details-toggle');
+  });
 
   andThen(() => {
     assert.ok(
-      find('.active-deployment .boxed-section-head:contains("Task Groups")').length === 1,
+      $('.active-deployment .boxed-section-head:contains("Task Groups")').length === 1,
       'Task groups found'
     );
     assert.ok(
-      find('.active-deployment .boxed-section-head:contains("Allocations")').length === 1,
+      $('.active-deployment .boxed-section-head:contains("Allocations")').length === 1,
       'Allocations found'
+    );
+  });
+});
+
+test('when the job is not found, an error message is shown, but the URL persists', function(
+  assert
+) {
+  visit('/jobs/not-a-real-job');
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/job/not-a-real-job',
+      'A request to the non-existent job is made'
+    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
+    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.equal(
+      find('.error-message .title').textContent,
+      'Not Found',
+      'Error message is for 404'
     );
   });
 });

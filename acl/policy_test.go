@@ -77,6 +77,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilitySubmitJob,
+							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
 						},

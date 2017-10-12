@@ -153,7 +153,7 @@ fail the deployment.
 ### Promoting the Deployment
 
 After deploying the new image along side the old version we have determined it
-is functioning properly and we want to transistion fully to the new version.
+is functioning properly and we want to transition fully to the new version.
 Doing so is as simple as promoting the deployment:
 
 ```text

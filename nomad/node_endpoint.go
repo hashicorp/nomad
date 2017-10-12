@@ -7,12 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -388,7 +390,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -450,7 +452,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	defer metrics.MeasureSince([]string{"nomad", "client", "evaluate"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -505,7 +507,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
@@ -559,7 +561,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
 	// Check node read and namespace job read permissions
-	aclObj, err := n.srv.resolveToken(args.SecretID)
+	aclObj, err := n.srv.ResolveToken(args.SecretID)
 	if err != nil {
 		return err
 	}
@@ -639,6 +641,17 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
+// generateMigrateToken will create a token for a client to access an
+// authenticated volume of another client to migrate data for sticky volumes.
+func generateMigrateToken(allocID, nodeSecretID string) (string, error) {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(allocID))
+	return string(h.Sum(nil)), nil
+}
+
 // GetClientAllocs is used to request a lightweight list of alloc modify indexes
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
@@ -686,10 +699,40 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			}
 
 			reply.Allocs = make(map[string]uint64)
+			reply.MigrateTokens = make(map[string]string)
+
 			// Setup the output
 			if len(allocs) != 0 {
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
+
+					// If the allocation is going to do a migration, create a
+					// migration token so that the client can authenticate with
+					// the node hosting the previous allocation.
+					if alloc.ShouldMigrate() {
+						prevAllocation, err := state.AllocByID(ws, alloc.PreviousAllocation)
+						if err != nil {
+							return err
+						}
+
+						if prevAllocation != nil && prevAllocation.NodeID != alloc.NodeID {
+							allocNode, err := state.NodeByID(ws, prevAllocation.NodeID)
+							if err != nil {
+								return err
+							}
+							if allocNode == nil {
+								// Node must have been GC'd so skip the token
+								continue
+							}
+
+							token, err := generateMigrateToken(prevAllocation.ID, allocNode.SecretID)
+							if err != nil {
+								return err
+							}
+							reply.MigrateTokens[alloc.ID] = token
+						}
+					}
+
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
 			} else {
@@ -816,7 +859,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
@@ -909,7 +952,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 
 		// Create a new eval
 		eval := &structs.Evaluation{
-			ID:              structs.GenerateUUID(),
+			ID:              uuid.Generate(),
 			Namespace:       alloc.Namespace,
 			Priority:        alloc.Job.Priority,
 			Type:            alloc.Job.Type,
@@ -933,7 +976,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 
 		// Create a new eval
 		eval := &structs.Evaluation{
-			ID:              structs.GenerateUUID(),
+			ID:              uuid.Generate(),
 			Namespace:       job.Namespace,
 			Priority:        job.Priority,
 			Type:            job.Type,

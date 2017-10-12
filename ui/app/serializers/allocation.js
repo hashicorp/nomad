@@ -20,6 +20,9 @@ export default ApplicationSerializer.extend({
       return summary;
     });
 
+    // TEMPORARY: https://github.com/emberjs/data/issues/5209
+    hash.OriginalJobId = hash.JobID;
+
     return this._super(typeHash, hash);
   },
 });

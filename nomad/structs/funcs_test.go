@@ -2,10 +2,10 @@ package structs
 
 import (
 	"fmt"
-	"regexp"
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -257,28 +257,12 @@ func TestScoreFit(t *testing.T) {
 	}
 }
 
-func TestGenerateUUID(t *testing.T) {
-	prev := GenerateUUID()
-	for i := 0; i < 100; i++ {
-		id := GenerateUUID()
-		if prev == id {
-			t.Fatalf("Should get a new ID!")
-		}
-
-		matched, err := regexp.MatchString(
-			"[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}", id)
-		if !matched || err != nil {
-			t.Fatalf("expected match %s %v %s", id, matched, err)
-		}
-	}
-}
-
 func TestACLPolicyListHash(t *testing.T) {
 	h1 := ACLPolicyListHash(nil)
 	assert.NotEqual(t, "", h1)
 
 	p1 := &ACLPolicy{
-		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
@@ -302,7 +286,7 @@ func TestACLPolicyListHash(t *testing.T) {
 	// Create P2 as copy of P1 with new name
 	p2 := &ACLPolicy{}
 	*p2 = *p1
-	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	h3 := ACLPolicyListHash([]*ACLPolicy{p1, p2})
 	assert.NotEqual(t, "", h3)
@@ -321,7 +305,7 @@ func TestACLPolicyListHash(t *testing.T) {
 
 func TestCompileACLObject(t *testing.T) {
 	p1 := &ACLPolicy{
-		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
@@ -341,7 +325,7 @@ func TestCompileACLObject(t *testing.T) {
 	// Create P2 as copy of P1 with new name
 	p2 := &ACLPolicy{}
 	*p2 = *p1
-	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	// Create a small cache
 	cache, err := lru.New2Q(16)

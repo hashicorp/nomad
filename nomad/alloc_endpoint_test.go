@@ -101,10 +101,10 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 	stubAllocs[0].ModifyIndex = 1000
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	// Lookup the allocs without a token and expect failure
 	get := &structs.AllocListRequest{
@@ -262,10 +262,10 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	// Lookup the alloc without a token and expect failure
 	get := &structs.AllocSpecificRequest{

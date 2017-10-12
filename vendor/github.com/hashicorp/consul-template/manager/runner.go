@@ -42,7 +42,8 @@ type Runner struct {
 	dry, once bool
 
 	// outStream and errStream are the io.Writer streams where the runner will
-	// write information.
+	// write information. These can be modified by calling SetOutStream and
+        // SetErrStream accordingly.
 
 	// inStream is the ioReader where the runner will read information.
 	outStream, errStream io.Writer
@@ -951,7 +952,13 @@ func (r *Runner) allTemplatesRendered() bool {
 
 	for _, tmpl := range r.templates {
 		event, rendered := r.renderEvents[tmpl.ID()]
-		if !rendered || !event.DidRender {
+		if !rendered {
+			return false
+		}
+
+		// The template might already exist on disk with the exact contents, but
+		// we still want to count that as "rendered" [GH-1000].
+		if !event.DidRender && !event.WouldRender {
 			return false
 		}
 	}
@@ -1060,6 +1067,16 @@ func (r *Runner) deletePid() error {
 		return fmt.Errorf("runner: could not remove pid file: %s", err)
 	}
 	return nil
+}
+
+// SetOutStream modifies runner output stream. Defaults to stdout.
+func (r *Runner) SetOutStream(out io.Writer) {
+	r.outStream = out
+}
+
+// SetErrStream modifies runner error stream. Defaults to stderr.
+func (r *Runner) SetErrStream(err io.Writer) {
+	r.errStream = err
 }
 
 // spawnChildInput is used as input to spawn a child process.

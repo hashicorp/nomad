@@ -1,5 +1,9 @@
+import Ember from 'ember';
+import { click, find, findAll, currentURL, visit, fillIn } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+
+const { $ } = Ember;
 
 moduleForAcceptance('Acceptance | jobs list', {
   beforeEach() {
@@ -25,10 +29,10 @@ test('/jobs should list the first page of jobs sorted by modify index', function
 
   andThen(() => {
     const sortedJobs = server.db.jobs.sortBy('modifyIndex').reverse();
-    assert.equal(find('.job-row').length, pageSize);
+    assert.equal(findAll('.job-row').length, pageSize);
     for (var jobNumber = 0; jobNumber < pageSize; jobNumber++) {
       assert.equal(
-        find(`.job-row:eq(${jobNumber}) td:eq(0)`).text(),
+        $(`.job-row:eq(${jobNumber}) td:eq(0)`).text(),
         sortedJobs[jobNumber].name,
         'Jobs are ordered'
       );
@@ -44,11 +48,18 @@ test('each job row should contain information about the job', function(assert) {
   visit('/jobs');
 
   andThen(() => {
-    const jobRow = find('.job-row:eq(0)');
+    const jobRow = $(findAll('.job-row')[0]);
 
     assert.equal(jobRow.find('td:eq(0)').text(), job.name, 'Name');
     assert.equal(jobRow.find('td:eq(0) a').attr('href'), `/ui/jobs/${job.id}`, 'Detail Link');
-    assert.equal(jobRow.find('td:eq(1)').text().trim(), job.status, 'Status');
+    assert.equal(
+      jobRow
+        .find('td:eq(1)')
+        .text()
+        .trim(),
+      job.status,
+      'Status'
+    );
     assert.equal(jobRow.find('td:eq(2)').text(), job.type, 'Type');
     assert.equal(jobRow.find('td:eq(3)').text(), job.priority, 'Priority');
     assert.equal(jobRow.find('td:eq(4)').text(), taskGroups.length, '# Groups');
@@ -60,9 +71,39 @@ test('each job row should link to the corresponding job', function(assert) {
   const job = server.db.jobs[0];
 
   visit('/jobs');
-  click('.job-row:eq(0) td:eq(0) a');
+
+  andThen(() => {
+    click($('.job-row:eq(0) td:eq(0) a').get(0));
+  });
 
   andThen(() => {
     assert.equal(currentURL(), `/jobs/${job.id}`);
+  });
+});
+
+test('when there are no jobs, there is an empty message', function(assert) {
+  visit('/jobs');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Jobs');
+  });
+});
+
+test('when there are jobs, but no matches for a search result, there is an empty message', function(
+  assert
+) {
+  server.create('job', { name: 'cat 1' });
+  server.create('job', { name: 'cat 2' });
+
+  visit('/jobs');
+
+  andThen(() => {
+    fillIn('.search-box input', 'dog');
+  });
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
   });
 });

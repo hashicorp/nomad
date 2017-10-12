@@ -1,8 +1,11 @@
 import Ember from 'ember';
+import { lazyClick } from '../helpers/lazy-click';
 
-const { Component } = Ember;
+const { Component, inject } = Ember;
 
 export default Component.extend({
+  store: inject.service(),
+
   tagName: 'tr',
 
   classNames: ['allocation-row', 'is-interactive'],
@@ -15,6 +18,39 @@ export default Component.extend({
   onClick() {},
 
   click(event) {
-    this.get('onClick')(event);
+    lazyClick([this.get('onClick'), event]);
+  },
+
+  didReceiveAttrs() {
+    // TODO: Use this code again once the temporary workaround below
+    // is resolved.
+
+    // If the job for this allocation is incomplete, reload it to get
+    // detailed information.
+    // const allocation = this.get('allocation');
+    // if (
+    //   allocation &&
+    //   allocation.get('job') &&
+    //   !allocation.get('job.isPending') &&
+    //   !allocation.get('taskGroup')
+    // ) {
+    //   const job = allocation.get('job.content');
+    //   job && job.reload();
+    // }
+
+    // TEMPORARY: https://github.com/emberjs/data/issues/5209
+    // Ember Data doesn't like it when relationships aren't reflective,
+    // which means the allocation's job will be null if it hasn't been
+    // resolved through the allocation (allocation.get('job')) before
+    // being resolved through the store (store.findAll('job')). The
+    // workaround is to persist the jobID as a string on the allocation
+    // and manually re-link the two records here.
+
+    const allocation = this.get('allocation');
+    this.get('store')
+      .findRecord('job', allocation.get('originalJobId'))
+      .then(job => {
+        allocation.set('job', job);
+      });
   },
 });

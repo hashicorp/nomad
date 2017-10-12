@@ -1,5 +1,10 @@
 ## 0.7 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * driver/rkt: Nomad now requires at least rkt version `1.27.0` for the rkt
+   driver to function. Please update your version of rkt to at least this
+   version.
+
 IMPROVEMENTS:
  * core: Capability based ACL system with authoratative region, providing
    federated ACLs.
@@ -7,7 +12,9 @@ IMPROVEMENTS:
  * core/enterprise: Namespace support allowing jobs and their associated
    objects to be isolated from each other and other users of the cluster.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
+ * cli: Consul config option flags for nomad agent command [GH-3327]
  * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
+ * driver/rkt: Enable rkt driver to use address_mode = 'driver' [GH-3256]
  * telemetry: Add support for tagged metrics for Nomad clients [GH-3147]
  * telemetry: Add basic Prometheus configuration for a Nomad cluster [GH-3186]
 
@@ -31,6 +38,8 @@ BUG FIXES:
  * driver/docker: Fix docker user specified syslogging [GH-3184]
  * driver/docker: Fix issue where CPU usage statistics were artificially high
    [GH-3229]
+ * client/template: Fix issue in which secrets would be renewed too aggressively
+   [GH-3360]
 
 ## 0.6.3 (September 11, 2017)
 

@@ -111,7 +111,7 @@ The table below shows this endpoint's support for
   current job is at.
 
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overriden. This allows a job to be registered when it would be denied
+  will be overridden. This allows a job to be registered when it would be denied
   by policy.
 
 ### Sample Payload
@@ -236,9 +236,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -450,9 +450,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -622,9 +622,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -778,9 +778,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -839,9 +839,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -924,9 +924,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -1057,7 +1057,7 @@ The table below shows this endpoint's support for
   current job is at.
 
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overriden. This allows a job to be registered when it would be denied
+  will be overridden. This allows a job to be registered when it would be denied
   by policy.
 
 ### Sample Payload
@@ -1103,9 +1103,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                   |
+| ---------------- | ------------------------------ |
+| `NO`             | `namespace:dispatch-job`       |
 
 ### Parameters
 
@@ -1218,9 +1218,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:submit-job`       |
 
 ### Parameters
 
@@ -1273,9 +1273,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `NO`             | `namespace:read-job`       |
 
 ### Parameters
 
@@ -1328,7 +1328,7 @@ The table below shows this endpoint's support for
   response.
 
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overriden. This allows a job to be registered when it would be denied
+  will be overridden. This allows a job to be registered when it would be denied
   by policy.
 
 ### Sample Payload
@@ -1533,9 +1533,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 
@@ -1571,9 +1571,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:submit-job`       |
 
 ### Parameters
 

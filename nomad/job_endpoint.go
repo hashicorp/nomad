@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -73,7 +74,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Check job submission permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil {
 		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
@@ -201,7 +202,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
@@ -312,7 +313,7 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job_summary", "get_job_summary"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -354,7 +355,7 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -394,7 +395,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	defer metrics.MeasureSince([]string{"nomad", "job", "revert"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
@@ -458,6 +459,13 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "stable"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.JobID == "" {
 		return fmt.Errorf("missing job ID for marking job as stable")
@@ -497,6 +505,13 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluate"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.JobID == "" {
 		return fmt.Errorf("missing job ID for evaluation")
@@ -524,7 +539,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       job.Priority,
 		Type:           job.Type,
@@ -559,6 +574,13 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "deregister"}, time.Now())
+
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate the arguments
 	if args.JobID == "" {
@@ -596,7 +618,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// priority even if the job was. The scheduler itself also doesn't matter,
 	// since all should be able to handle deregistration in the same way.
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       structs.JobDefaultPriority,
 		Type:           structs.JobTypeService,
@@ -631,6 +653,13 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -670,6 +699,13 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job_versions"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -723,7 +759,7 @@ func (j *Job) List(args *structs.JobListRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
 	// Check for list-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) {
 		return structs.ErrPermissionDenied
@@ -783,6 +819,13 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "allocations"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -825,6 +868,13 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluations"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -860,6 +910,13 @@ func (j *Job) Deployments(args *structs.JobSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "deployments"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -894,6 +951,13 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "latest_deployment"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -956,7 +1020,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Check job submission permissions, which we assume is the same for plan
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil {
 		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
@@ -1013,7 +1077,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Create an eval and mark it as requiring annotations and insert that as well
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
 		Priority:       args.Job.Priority,
 		Type:           args.Job.Type,
@@ -1173,6 +1237,13 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
 
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityDispatchJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Lookup the parameterized job
 	if args.JobID == "" {
 		return fmt.Errorf("missing parameterized job ID")
@@ -1247,7 +1318,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
 		eval := &structs.Evaluation{
-			ID:             structs.GenerateUUID(),
+			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
 			Priority:       dispatchJob.Priority,
 			Type:           dispatchJob.Type,

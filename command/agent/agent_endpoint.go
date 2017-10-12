@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -46,11 +47,29 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	var secret string
+	s.parseToken(req, &secret)
+
+	var aclObj *acl.ACL
+	var err error
+
 	// Get the member as a server
 	var member serf.Member
-	srv := s.agent.Server()
-	if srv != nil {
+	if srv := s.agent.Server(); srv != nil {
 		member = srv.LocalMember()
+		aclObj, err = srv.ResolveToken(secret)
+	} else {
+		// Not a Server; use the Client for token resolution
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Check agent read permissions
+	if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	self := agentSelf{
@@ -99,7 +118,12 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
+
 	args := &structs.GenericRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
 	var out structs.ServerMembersResponse
 	if err := s.agent.RPC("Status.Members", args, &out); err != nil {
 		return nil, err
@@ -115,6 +139,16 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent write permissions
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	// Get the node to eject
@@ -148,6 +182,16 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	peers := s.agent.client.GetServers()
 	sort.Strings(peers)
 	return peers, nil
@@ -165,6 +209,16 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 		return nil, CodedError(400, "missing server address")
 	}
 
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent write permissions
+	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	// Set the servers list into the client
 	s.agent.logger.Printf("[TRACE] Adding servers %+q to the client's primary server list", servers)
 	if err := client.SetServers(servers); err != nil {
@@ -180,6 +234,16 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent write permissions
+	if aclObj, err := srv.ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	kmgr := srv.KeyManager()

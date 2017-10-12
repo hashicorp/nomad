@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 )
@@ -64,7 +65,7 @@ func TestJob_Validate(t *testing.T) {
 
 	j = &Job{
 		Region:      "global",
-		ID:          GenerateUUID(),
+		ID:          uuid.Generate(),
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
@@ -530,7 +531,7 @@ func TestJob_SpecChanged(t *testing.T) {
 func testJob() *Job {
 	return &Job{
 		Region:      "global",
-		ID:          GenerateUUID(),
+		ID:          uuid.Generate(),
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
@@ -2044,7 +2045,8 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 
 func TestAllocation_ShouldMigrate(t *testing.T) {
 	alloc := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2063,7 +2065,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc1 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2079,7 +2082,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc2 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2098,7 +2102,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc3 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2110,6 +2115,26 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 
 	if alloc3.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
+	}
+
+	// No previous
+	alloc4 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc4.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc4)
 	}
 }
 
@@ -2329,7 +2354,7 @@ func TestACLTokenValidate(t *testing.T) {
 	}
 
 	// Name too long policices
-	tk.Name = GenerateUUID() + GenerateUUID()
+	tk.Name = uuid.Generate() + uuid.Generate()
 	tk.Policies = nil
 	err = tk.Validate()
 	assert.NotNil(t, err)

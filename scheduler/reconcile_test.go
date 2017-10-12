@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -360,7 +361,7 @@ func TestReconciler_Place_Existing(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -398,7 +399,7 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -437,7 +438,7 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -476,7 +477,7 @@ func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%2))
 		allocs = append(allocs, alloc)
 		expectedStopped = append(expectedStopped, i%2)
@@ -512,7 +513,7 @@ func TestReconciler_Inplace(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -550,7 +551,7 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -590,7 +591,7 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -627,7 +628,7 @@ func TestReconciler_Destructive(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -663,7 +664,7 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -702,7 +703,7 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -738,7 +739,7 @@ func TestReconciler_LostNode(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -788,7 +789,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -838,7 +839,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -883,7 +884,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -933,7 +934,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -984,7 +985,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -1032,7 +1033,7 @@ func TestReconciler_RemovedTG(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -1097,7 +1098,7 @@ func TestReconciler_JobStopped(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = c.job
 				alloc.JobID = c.jobID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
 				alloc.TaskGroup = c.taskGroup
 				allocs = append(allocs, alloc)
@@ -1138,7 +1139,7 @@ func TestReconciler_MultiTG(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -1225,7 +1226,7 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = c.job
 				alloc.JobID = c.jobID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
 				alloc.TaskGroup = c.taskGroup
 				allocs = append(allocs, alloc)
@@ -1302,7 +1303,7 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -1351,7 +1352,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1392,7 +1393,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1432,7 +1433,7 @@ func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1498,7 +1499,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -1508,7 +1509,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 			canary := mock.Alloc()
 			canary.Job = job
 			canary.JobID = job.ID
-			canary.NodeID = structs.GenerateUUID()
+			canary.NodeID = uuid.Generate()
 			canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)
 			canary.TaskGroup = job.TaskGroups[0].Name
 			canary.DeploymentID = d.ID
@@ -1575,7 +1576,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -1638,7 +1639,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -1648,7 +1649,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 			newAlloc := mock.Alloc()
 			newAlloc.Job = job
 			newAlloc.JobID = job.ID
-			newAlloc.NodeID = structs.GenerateUUID()
+			newAlloc.NodeID = uuid.Generate()
 			newAlloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)
 			newAlloc.TaskGroup = job.TaskGroups[0].Name
 			newAlloc.DeploymentID = d.ID
@@ -1726,7 +1727,7 @@ func TestReconciler_PausedOrFailedDeployment_Migrations(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				alloc.DeploymentID = d.ID
@@ -1785,7 +1786,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1798,7 +1799,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		canary.DeploymentID = d.ID
@@ -1857,7 +1858,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1870,7 +1871,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -1933,7 +1934,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1945,7 +1946,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2000,7 +2001,7 @@ func TestReconciler_NewCanaries(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2049,7 +2050,7 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
-			alloc.NodeID = structs.GenerateUUID()
+			alloc.NodeID = uuid.Generate()
 			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
 			alloc.TaskGroup = job.TaskGroups[j].Name
 			allocs = append(allocs, alloc)
@@ -2103,7 +2104,7 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2151,7 +2152,7 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2214,7 +2215,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2226,7 +2227,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2277,7 +2278,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2290,7 +2291,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2350,7 +2351,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2363,7 +2364,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2449,7 +2450,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -2461,7 +2462,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 				new := mock.Alloc()
 				new.Job = job
 				new.JobID = job.ID
-				new.NodeID = structs.GenerateUUID()
+				new.NodeID = uuid.Generate()
 				new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				new.TaskGroup = job.TaskGroups[0].Name
 				new.DeploymentID = d.ID
@@ -2518,7 +2519,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2530,7 +2531,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
-		new.NodeID = structs.GenerateUUID()
+		new.NodeID = uuid.Generate()
 		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
@@ -2603,7 +2604,7 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2615,7 +2616,7 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
-		new.NodeID = structs.GenerateUUID()
+		new.NodeID = uuid.Generate()
 		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
@@ -2686,7 +2687,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		alloc.DeploymentID = d.ID
@@ -2756,7 +2757,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 			new := mock.Alloc()
 			new.Job = job
 			new.JobID = job.ID
-			new.NodeID = structs.GenerateUUID()
+			new.NodeID = uuid.Generate()
 			new.Name = structs.AllocName(job.ID, job.TaskGroups[group].Name, uint(i))
 			new.TaskGroup = job.TaskGroups[group].Name
 			new.DeploymentID = d.ID
@@ -2775,7 +2776,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
-			alloc.NodeID = structs.GenerateUUID()
+			alloc.NodeID = uuid.Generate()
 			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[group].Name, uint(i))
 			alloc.TaskGroup = job.TaskGroups[group].Name
 			allocs = append(allocs, alloc)
@@ -2827,7 +2828,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2838,7 +2839,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
-		new.NodeID = structs.GenerateUUID()
+		new.NodeID = uuid.Generate()
 		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
@@ -2895,7 +2896,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		alloc.DeploymentID = d.ID
@@ -2948,7 +2949,7 @@ func TestReconciler_TaintedNode_MultiGroups(t *testing.T) {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
-			alloc.NodeID = structs.GenerateUUID()
+			alloc.NodeID = uuid.Generate()
 			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
 			alloc.TaskGroup = job.TaskGroups[j].Name
 			allocs = append(allocs, alloc)
@@ -3019,7 +3020,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -3032,7 +3033,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.DeploymentID = d.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -3069,7 +3070,7 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)

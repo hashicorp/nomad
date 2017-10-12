@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -1234,7 +1235,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 	}
 
 	// Build alloc and task directory structure
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, structs.GenerateUUID()))
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, uuid.Generate()))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("failed to build alloc dir: %v", err)
 	}

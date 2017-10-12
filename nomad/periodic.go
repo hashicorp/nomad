@@ -11,6 +11,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -62,7 +63,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      job.Namespace,
 		Priority:       job.Priority,
 		Type:           job.Type,

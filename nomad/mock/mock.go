@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func Node() *structs.Node {
 	node := &structs.Node{
-		ID:         structs.GenerateUUID(),
-		SecretID:   structs.GenerateUUID(),
+		ID:         uuid.Generate(),
+		SecretID:   uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
@@ -63,7 +64,7 @@ func Node() *structs.Node {
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
-		ID:          structs.GenerateUUID(),
+		ID:          uuid.Generate(),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
@@ -161,7 +162,7 @@ func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		Namespace:   structs.DefaultNamespace,
-		ID:          structs.GenerateUUID(),
+		ID:          uuid.Generate(),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
 		Priority:    100,
@@ -233,11 +234,11 @@ func PeriodicJob() *structs.Job {
 
 func Eval() *structs.Evaluation {
 	eval := &structs.Evaluation{
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		Namespace: structs.DefaultNamespace,
 		Priority:  50,
 		Type:      structs.JobTypeService,
-		JobID:     structs.GenerateUUID(),
+		JobID:     uuid.Generate(),
 		Status:    structs.EvalStatusPending,
 	}
 	return eval
@@ -259,8 +260,8 @@ func JobSummary(jobID string) *structs.JobSummary {
 
 func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
@@ -306,9 +307,9 @@ func Alloc() *structs.Allocation {
 
 func VaultAccessor() *structs.VaultAccessor {
 	return &structs.VaultAccessor{
-		Accessor:    structs.GenerateUUID(),
-		NodeID:      structs.GenerateUUID(),
-		AllocID:     structs.GenerateUUID(),
+		Accessor:    uuid.Generate(),
+		NodeID:      uuid.Generate(),
+		AllocID:     uuid.Generate(),
 		CreationTTL: 86400,
 		Task:        "foo",
 	}
@@ -316,8 +317,8 @@ func VaultAccessor() *structs.VaultAccessor {
 
 func Deployment() *structs.Deployment {
 	return &structs.Deployment{
-		ID:             structs.GenerateUUID(),
-		JobID:          structs.GenerateUUID(),
+		ID:             uuid.Generate(),
+		JobID:          uuid.Generate(),
 		Namespace:      structs.DefaultNamespace,
 		JobVersion:     2,
 		JobModifyIndex: 20,
@@ -346,7 +347,7 @@ func PlanResult() *structs.PlanResult {
 
 func ACLPolicy() *structs.ACLPolicy {
 	ap := &structs.ACLPolicy{
-		Name:        fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
@@ -368,9 +369,9 @@ func ACLPolicy() *structs.ACLPolicy {
 
 func ACLToken() *structs.ACLToken {
 	tk := &structs.ACLToken{
-		AccessorID:  structs.GenerateUUID(),
-		SecretID:    structs.GenerateUUID(),
-		Name:        "my cool token " + structs.GenerateUUID(),
+		AccessorID:  uuid.Generate(),
+		SecretID:    uuid.Generate(),
+		Name:        "my cool token " + uuid.Generate(),
 		Type:        "client",
 		Policies:    []string{"foo", "bar"},
 		Global:      false,
@@ -384,9 +385,9 @@ func ACLToken() *structs.ACLToken {
 
 func ACLManagementToken() *structs.ACLToken {
 	return &structs.ACLToken{
-		AccessorID:  structs.GenerateUUID(),
-		SecretID:    structs.GenerateUUID(),
-		Name:        "management " + structs.GenerateUUID(),
+		AccessorID:  uuid.Generate(),
+		SecretID:    uuid.Generate(),
+		Name:        "management " + uuid.Generate(),
 		Type:        "management",
 		Global:      true,
 		CreateTime:  time.Now().UTC(),

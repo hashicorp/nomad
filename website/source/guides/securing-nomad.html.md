@@ -203,7 +203,7 @@ tls {
 }
 ```
 
-The file lines should point to whereever you placed the certificate files on
+The file lines should point to wherever you placed the certificate files on
 the node. This guide assumes they are in Nomad's current directory.
 
 ```hcl

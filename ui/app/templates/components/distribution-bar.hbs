@@ -12,7 +12,7 @@
     activeDatum=activeDatum
   )}}
 {{else}}
-  <div class="tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
+  <div class="chart-tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
     <ol>
       {{#each _data as |datum index|}}
         <li class="{{if (eq datum.index activeDatum.index) "active"}}">

@@ -69,8 +69,8 @@ type TestAgent struct {
 	// It is valid after Start().
 	*Agent
 
-	// Token is auto-bootstrapped if ACLs are enabled
-	Token *structs.ACLToken
+	// RootToken is auto-bootstrapped if ACLs are enabled
+	RootToken *structs.ACLToken
 }
 
 // NewTestAgent returns a started agent with the given name and
@@ -174,9 +174,9 @@ func (a *TestAgent) Start() *TestAgent {
 	// to do a bypass of this step. This is so we can test bootstrap
 	// without having to pass down a special flag.
 	if a.Config.ACL.Enabled && a.Config.Server.Enabled && a.Config.ACL.PolicyTTL != 0 {
-		a.Token = mock.ACLManagementToken()
+		a.RootToken = mock.ACLManagementToken()
 		state := a.Agent.server.State()
-		if err := state.BootstrapACLTokens(1, 0, a.Token); err != nil {
+		if err := state.BootstrapACLTokens(1, 0, a.RootToken); err != nil {
 			panic(fmt.Sprintf("token bootstrap failed: %v", err))
 		}
 	}

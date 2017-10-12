@@ -20,7 +20,7 @@ func TestHTTP_ACLPolicyList(t *testing.T) {
 			Policies: []*structs.ACLPolicy{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{
 				Region:   "global",
-				SecretID: s.Token.SecretID,
+				SecretID: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -34,7 +34,7 @@ func TestHTTP_ACLPolicyList(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLPoliciesRequest(respW, req)
@@ -69,7 +69,7 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 			Policies: []*structs.ACLPolicy{p1},
 			WriteRequest: structs.WriteRequest{
 				Region:   "global",
-				SecretID: s.Token.SecretID,
+				SecretID: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -83,7 +83,7 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLPolicySpecificRequest(respW, req)
@@ -121,7 +121,7 @@ func TestHTTP_ACLPolicyCreate(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLPolicySpecificRequest(respW, req)
@@ -153,7 +153,7 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 			Policies: []*structs.ACLPolicy{p1},
 			WriteRequest: structs.WriteRequest{
 				Region:   "global",
-				SecretID: s.Token.SecretID,
+				SecretID: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -167,7 +167,7 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLPolicySpecificRequest(respW, req)
@@ -232,7 +232,7 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 			Tokens: []*structs.ACLToken{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{
 				Region:   "global",
-				SecretID: s.Token.SecretID,
+				SecretID: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.ACLTokenUpsertResponse
@@ -246,7 +246,7 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLTokensRequest(respW, req)
@@ -282,7 +282,7 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 			Tokens: []*structs.ACLToken{p1},
 			WriteRequest: structs.WriteRequest{
 				Region:   "global",
-				SecretID: s.Token.SecretID,
+				SecretID: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.ACLTokenUpsertResponse
@@ -297,7 +297,7 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
@@ -334,7 +334,7 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
@@ -365,7 +365,7 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 			Tokens: []*structs.ACLToken{p1},
 			WriteRequest: structs.WriteRequest{
 				Region:   "global",
-				SecretID: s.Token.SecretID,
+				SecretID: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.ACLTokenUpsertResponse
@@ -380,7 +380,7 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)

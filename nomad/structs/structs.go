@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
 
@@ -817,6 +818,11 @@ type NodeAllocsResponse struct {
 // NodeClientAllocsResponse is used to return allocs meta data for a single node
 type NodeClientAllocsResponse struct {
 	Allocs map[string]uint64
+
+	// MigrateTokens are used when ACLs are enabled to allow cross node,
+	// authenticated access to sticky volumes
+	MigrateTokens map[string]string
+
 	QueryMeta
 }
 
@@ -2420,7 +2426,7 @@ func (d *ParameterizedJobConfig) Copy() *ParameterizedJobConfig {
 // DispatchedID returns an ID appropriate for a job dispatched against a
 // particular parameterized job
 func DispatchedID(templateID string, t time.Time) string {
-	u := GenerateUUID()[:8]
+	u := uuid.Generate()[:8]
 	return fmt.Sprintf("%s%s%d-%s", templateID, DispatchLaunchSuffix, t.Unix(), u)
 }
 
@@ -4363,7 +4369,7 @@ type Deployment struct {
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
-		ID:                GenerateUUID(),
+		ID:                uuid.Generate(),
 		Namespace:         job.Namespace,
 		JobID:             job.ID,
 		JobVersion:        job.Version,
@@ -4696,6 +4702,10 @@ func (a *Allocation) RanSuccessfully() bool {
 
 // ShouldMigrate returns if the allocation needs data migration
 func (a *Allocation) ShouldMigrate() bool {
+	if a.PreviousAllocation == "" {
+		return false
+	}
+
 	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
 		return false
 	}
@@ -5168,7 +5178,7 @@ func (e *Evaluation) MakePlan(j *Job) *Plan {
 // NextRollingEval creates an evaluation to followup this eval for rolling updates
 func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
-		ID:             GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,
@@ -5189,7 +5199,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 	escaped bool, quotaReached string) *Evaluation {
 
 	return &Evaluation{
-		ID:                   GenerateUUID(),
+		ID:                   uuid.Generate(),
 		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
@@ -5209,7 +5219,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 // be retried by the eval_broker.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
-		ID:             GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      e.Namespace,
 		Priority:       e.Priority,
 		Type:           e.Type,

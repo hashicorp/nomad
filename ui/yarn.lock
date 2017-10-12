@@ -1881,6 +1881,12 @@ circular-json@^0.3.1:
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/circular-json/-/circular-json-0.3.3.tgz#815c99ea84f6809529d2f45791bdf82711352d66"
 
+clap@^1.0.9:
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/clap/-/clap-1.2.3.tgz#4f36745b32008492557f46412d66d50cb99bce51"
+  dependencies:
+    chalk "^1.1.3"
+
 clean-base-url@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/clean-base-url/-/clean-base-url-1.0.0.tgz#c901cf0a20b972435b0eccd52d056824a4351b7b"
@@ -1970,6 +1976,12 @@ co@^4.6.0:
   version "4.6.0"
   resolved "https://registry.yarnpkg.com/co/-/co-4.6.0.tgz#6ea6bdf3d853ae54ccb8e47bfa0bf3f9031fb184"
 
+coa@~1.0.1:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/coa/-/coa-1.0.4.tgz#a9ef153660d6a86a8bdec0289a5c684d217432fd"
+  dependencies:
+    q "^1.1.2"
+
 code-point-at@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
@@ -1988,7 +2000,7 @@ colors@1.0.3:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/colors/-/colors-1.0.3.tgz#0433f44d809680fdeb60ed260f1b0c262e82a40b"
 
-colors@^1.1.2:
+colors@^1.1.2, colors@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/colors/-/colors-1.1.2.tgz#168a4701756b6a7f51a12ce0c97bfa28c084ed63"
 
@@ -2260,6 +2272,13 @@ crypto-browserify@^3.0.0:
 crypto-random-string@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/crypto-random-string/-/crypto-random-string-1.0.0.tgz#a230f64f568310e1498009940790ec99545bca7e"
+
+csso@~2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/csso/-/csso-2.0.0.tgz#178b43a44621221c27756086f531e02f42900ee8"
+  dependencies:
+    clap "^1.0.9"
+    source-map "^0.5.3"
 
 currently-unhandled@^0.4.1:
   version "0.4.1"
@@ -3069,6 +3088,22 @@ ember-inflector@^2.0.0:
   dependencies:
     ember-cli-babel "^6.0.0"
 
+ember-inline-svg@^0.1.11:
+  version "0.1.11"
+  resolved "https://registry.yarnpkg.com/ember-inline-svg/-/ember-inline-svg-0.1.11.tgz#bb5af24cef1db3ab2e1a8aec543bee262a368c37"
+  dependencies:
+    broccoli-caching-writer "^3.0.3"
+    broccoli-flatiron "0.0.0"
+    broccoli-funnel "^1.0.1"
+    broccoli-merge-trees "^2.0.0"
+    ember-cli-babel "^5.1.6"
+    merge "^1.2.0"
+    mkdirp "^0.5.1"
+    promise-map-series "^0.2.1"
+    rsvp "^3.2.1"
+    svgo "^0.6.3"
+    walk-sync "^0.3.1"
+
 ember-load-initializers@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/ember-load-initializers/-/ember-load-initializers-1.0.0.tgz#4919eaf06f6dfeca7e134633d8c05a6c9921e6e7"
@@ -3102,6 +3137,13 @@ ember-moment@^7.3.1:
     ember-cli-babel "^6.6.0"
     ember-getowner-polyfill "^2.0.1"
     ember-macro-helpers "^0.15.1"
+
+ember-native-dom-helpers@^0.5.4:
+  version "0.5.4"
+  resolved "https://registry.yarnpkg.com/ember-native-dom-helpers/-/ember-native-dom-helpers-0.5.4.tgz#0bc1506a643fb7adc0abf1d09c44a7914459296b"
+  dependencies:
+    broccoli-funnel "^1.1.0"
+    ember-cli-babel "^6.6.0"
 
 ember-qunit@^2.1.3:
   version "2.2.0"
@@ -4710,6 +4752,13 @@ js-yaml@^3.2.5, js-yaml@^3.2.7, js-yaml@^3.4.3, js-yaml@^3.5.1, js-yaml@^3.6.1, 
     argparse "^1.0.7"
     esprima "^4.0.0"
 
+js-yaml@~3.6.0:
+  version "3.6.1"
+  resolved "https://registry.yarnpkg.com/js-yaml/-/js-yaml-3.6.1.tgz#6e5fe67d8b205ce4d22fad05b7781e8dadcc4b30"
+  dependencies:
+    argparse "^1.0.7"
+    esprima "^2.6.0"
+
 jsbn@~0.1.0:
   version "0.1.1"
   resolved "https://registry.yarnpkg.com/jsbn/-/jsbn-0.1.1.tgz#a5e654c2e5a2deb5f201d96cefbca80c0ef2f513"
@@ -5662,7 +5711,7 @@ minimist@^1.1.0, minimist@^1.1.1, minimist@^1.1.3, minimist@^1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/minimist/-/minimist-1.2.0.tgz#a35008b20f41383eec1fb914f4cd5df79a264284"
 
-mkdirp@0.5.x, "mkdirp@>=0.5 0", mkdirp@^0.5.0, mkdirp@^0.5.1, mkdirp@~0.5.0:
+mkdirp@0.5.x, "mkdirp@>=0.5 0", mkdirp@^0.5.0, mkdirp@^0.5.1, mkdirp@~0.5.0, mkdirp@~0.5.1:
   version "0.5.1"
   resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-0.5.1.tgz#30057438eac6cf7f8c4767f38648d6697d75c903"
   dependencies:
@@ -6823,6 +6872,10 @@ sass-graph@^2.1.1:
     scss-tokenizer "^0.2.3"
     yargs "^7.0.0"
 
+sax@~1.2.1:
+  version "1.2.4"
+  resolved "https://registry.yarnpkg.com/sax/-/sax-1.2.4.tgz#2816234e2378bddc4e5354fab5caa895df7100d9"
+
 scss-tokenizer@^0.2.3:
   version "0.2.3"
   resolved "https://registry.yarnpkg.com/scss-tokenizer/-/scss-tokenizer-0.2.3.tgz#8eb06db9a9723333824d3f5530641149847ce5d1"
@@ -7070,7 +7123,7 @@ source-map@0.4.x, source-map@^0.4.2, source-map@^0.4.4:
   dependencies:
     amdefine ">=0.0.4"
 
-source-map@^0.5.0, source-map@^0.5.6, source-map@~0.5.0, source-map@~0.5.1, source-map@~0.5.3:
+source-map@^0.5.0, source-map@^0.5.3, source-map@^0.5.6, source-map@~0.5.0, source-map@~0.5.1, source-map@~0.5.3:
   version "0.5.7"
   resolved "https://registry.yarnpkg.com/source-map/-/source-map-0.5.7.tgz#8a039d2d1021d22d1ea14c80d8ea468ba2ef3fcc"
 
@@ -7299,6 +7352,18 @@ supports-color@^4.0.0:
   resolved "https://registry.yarnpkg.com/supports-color/-/supports-color-4.2.1.tgz#65a4bb2631e90e02420dba5554c375a4754bb836"
   dependencies:
     has-flag "^2.0.0"
+
+svgo@^0.6.3:
+  version "0.6.6"
+  resolved "https://registry.yarnpkg.com/svgo/-/svgo-0.6.6.tgz#b340889036f20f9b447543077d0f5573ed044c08"
+  dependencies:
+    coa "~1.0.1"
+    colors "~1.1.2"
+    csso "~2.0.0"
+    js-yaml "~3.6.0"
+    mkdirp "~0.5.1"
+    sax "~1.2.1"
+    whet.extend "~0.9.9"
 
 symbol-observable@^1.0.1:
   version "1.0.4"
@@ -7753,6 +7818,10 @@ websocket-extensions@>=0.1.1:
 whatwg-fetch@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/whatwg-fetch/-/whatwg-fetch-2.0.3.tgz#9c84ec2dcf68187ff00bc64e1274b442176e1c84"
+
+whet.extend@~0.9.9:
+  version "0.9.9"
+  resolved "https://registry.yarnpkg.com/whet.extend/-/whet.extend-0.9.9.tgz#f877d5bf648c97e5aa542fadc16d6a259b9c11a1"
 
 which-module@^1.0.0:
   version "1.0.0"

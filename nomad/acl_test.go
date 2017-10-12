@@ -5,6 +5,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,7 +40,7 @@ func TestResolveACLToken(t *testing.T) {
 	assert.NotNil(t, aclObj)
 
 	// Attempt resolution of unknown token. Should fail.
-	randID := structs.GenerateUUID()
+	randID := uuid.Generate()
 	aclObj, err = resolveTokenFromSnapshotCache(snap, cache, randID)
 	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, aclObj)

@@ -15,7 +15,7 @@ insights about a cluster. It is easy to get lost in a sea of logs!
 
 This guide explains how to set up configuration for Prometheus and Grafana to
 integrate with a Nomad cluster. While this introduces the basics to get a
-dashboard up and running, Nomad exposes a wide vareity of metrics, which can be
+dashboard up and running, Nomad exposes a wide variety of metrics, which can be
 explored via both Grafana and Prometheus.
 
 ## What metrics tools can be integrated with Nomad?

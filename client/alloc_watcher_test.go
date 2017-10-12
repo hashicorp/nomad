@@ -29,7 +29,7 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config["run_for"] = "500ms"
 
-	waiter := newAllocWatcher(newAlloc, prevAR, nil, nil, testLogger())
+	waiter := newAllocWatcher(newAlloc, prevAR, nil, nil, testLogger(), "")
 
 	// Wait in a goroutine with a context to make sure it exits at the right time
 	ctx, cancel := context.WithCancel(context.Background())

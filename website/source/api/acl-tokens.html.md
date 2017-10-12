@@ -241,7 +241,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
-| `YES`            | `all`             | `management` |
+| `YES`            | `all`             | `management` or a SecretID matching the AccessorID |
 
 ### Sample Request
 

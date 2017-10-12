@@ -63,10 +63,10 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	// Lookup the deployments without a token and expect failure
 	get := &structs.DeploymentSpecificRequest{
@@ -196,6 +196,81 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 	assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
 }
 
+func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Mark the deployment as failed
+	req := &structs.DeploymentFailRequest{
+		DeploymentID: d.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		req.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token
+	{
+		req.SecretID = validToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp), "RPC")
+		assert.NotEqual(resp.Index, uint64(0), "bad response index")
+
+		// Lookup the evaluation
+		ws := memdb.NewWatchSet()
+		eval, err := state.EvalByID(ws, resp.EvalID)
+		assert.Nil(err, "EvalByID failed")
+		assert.NotNil(eval, "Expect eval")
+		assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+		assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+		assert.Equal(eval.JobID, d.JobID, "eval job id")
+		assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+		assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+		// Lookup the deployment
+		dout, err := state.DeploymentByID(ws, d.ID)
+		assert.Nil(err, "DeploymentByID failed")
+		assert.Equal(dout.Status, structs.DeploymentStatusFailed, "wrong status")
+		assert.Equal(dout.StatusDescription, structs.DeploymentStatusDescriptionFailedByUser, "wrong status description")
+		assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
+	}
+}
+
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
@@ -313,6 +388,74 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 	assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
 }
 
+func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Mark the deployment as failed
+	req := &structs.DeploymentPauseRequest{
+		DeploymentID: d.ID,
+		Pause:        true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		req.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Fetch the response with a valid token
+	{
+		req.SecretID = validToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp), "RPC")
+		assert.NotEqual(resp.Index, uint64(0), "bad response index")
+		assert.Zero(resp.EvalCreateIndex, "Shouldn't create eval")
+		assert.Zero(resp.EvalID, "Shouldn't create eval")
+
+		// Lookup the deployment
+		ws := memdb.NewWatchSet()
+		dout, err := state.DeploymentByID(ws, d.ID)
+		assert.Nil(err, "DeploymentByID failed")
+		assert.Equal(dout.Status, structs.DeploymentStatusPaused, "wrong status")
+		assert.Equal(dout.StatusDescription, structs.DeploymentStatusDescriptionPaused, "wrong status description")
+		assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
+	}
+}
+
 func TestDeploymentEndpoint_Promote(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
@@ -375,6 +518,96 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	assert.Len(dout.TaskGroups, 1, "should have one group")
 	assert.Contains(dout.TaskGroups, "web", "should have web group")
 	assert.True(dout.TaskGroups["web"].Promoted, "web group should be promoted")
+}
+
+func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment, job and canary
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.Canary = 2
+	d := mock.Deployment()
+	d.TaskGroups["web"].DesiredCanaries = 2
+	d.JobID = j.ID
+	a := mock.Alloc()
+	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
+	a.DeploymentID = d.ID
+	a.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Promote the deployment
+	req := &structs.DeploymentPromoteRequest{
+		DeploymentID: d.ID,
+		All:          true,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		req.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Fetch the response with a valid token
+	{
+		req.SecretID = validToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp), "RPC")
+		assert.NotEqual(resp.Index, uint64(0), "bad response index")
+
+		// Lookup the evaluation
+		ws := memdb.NewWatchSet()
+		eval, err := state.EvalByID(ws, resp.EvalID)
+		assert.Nil(err, "EvalByID failed")
+		assert.NotNil(eval, "Expect eval")
+		assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+		assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+		assert.Equal(eval.JobID, d.JobID, "eval job id")
+		assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+		assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+		// Lookup the deployment
+		dout, err := state.DeploymentByID(ws, d.ID)
+		assert.Nil(err, "DeploymentByID failed")
+		assert.Equal(dout.Status, structs.DeploymentStatusRunning, "wrong status")
+		assert.Equal(dout.StatusDescription, structs.DeploymentStatusDescriptionRunning, "wrong status description")
+		assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
+		assert.Len(dout.TaskGroups, 1, "should have one group")
+		assert.Contains(dout.TaskGroups, "web", "should have web group")
+		assert.True(dout.TaskGroups["web"].Promoted, "web group should be promoted")
+	}
 }
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
@@ -442,6 +675,99 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
 	assert.NotNil(aout.DeploymentStatus.Healthy, "alloc deployment healthy")
 	assert.True(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+}
+
+func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment, job and canary
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	d := mock.Deployment()
+	d.JobID = j.ID
+	a := mock.Alloc()
+	a.JobID = j.ID
+	a.DeploymentID = d.ID
+
+	state := s1.fsm.State()
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	// Set the alloc as healthy
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:         d.ID,
+		HealthyAllocationIDs: []string{a.ID},
+		WriteRequest:         structs.WriteRequest{Region: "global"},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		req.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Fetch the response with a valid token
+	{
+		req.SecretID = validToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp), "RPC")
+		assert.NotZero(resp.Index, "bad response index")
+
+		// Lookup the evaluation
+		ws := memdb.NewWatchSet()
+		eval, err := state.EvalByID(ws, resp.EvalID)
+		assert.Nil(err, "EvalByID failed")
+		assert.NotNil(eval, "Expect eval")
+		assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+		assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+		assert.Equal(eval.JobID, d.JobID, "eval job id")
+		assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+		assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+		// Lookup the deployment
+		dout, err := state.DeploymentByID(ws, d.ID)
+		assert.Nil(err, "DeploymentByID failed")
+		assert.Equal(dout.Status, structs.DeploymentStatusRunning, "wrong status")
+		assert.Equal(dout.StatusDescription, structs.DeploymentStatusDescriptionRunning, "wrong status description")
+		assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
+		assert.Len(dout.TaskGroups, 1, "should have one group")
+		assert.Contains(dout.TaskGroups, "web", "should have web group")
+		assert.Equal(1, dout.TaskGroups["web"].HealthyAllocs, "should have one healthy")
+
+		// Lookup the allocation
+		aout, err := state.AllocByID(ws, a.ID)
+		assert.Nil(err, "AllocByID")
+		assert.NotNil(aout, "alloc")
+		assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
+		assert.NotNil(aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+		assert.True(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+	}
 }
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
@@ -577,6 +903,74 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	assert.Equal(resp2.Deployments[0].ID, d.ID, "Deployment ID")
 }
 
+func TestDeploymentEndpoint_List_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.DeploymentListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Lookup the deployments with a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.DeploymentListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "Wrong Index")
+		assert.Len(resp.Deployments, 1, "Deployments")
+		assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
+	}
+
+	// Lookup the deployments with a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.DeploymentListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "Wrong Index")
+		assert.Len(resp.Deployments, 1, "Deployments")
+		assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
+	}
+}
+
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
@@ -669,6 +1063,80 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	assert.EqualValues(1001, resp.Index, "Wrong Index")
 	assert.Len(resp.Allocations, 1, "Allocations")
 	assert.Equal(a.ID, resp.Allocations[0].ID, "Allocation ID")
+}
+
+func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	a := mock.Alloc()
+	a.DeploymentID = d.ID
+	summary := mock.JobSummary(a.JobID)
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
+	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.DeploymentSpecificRequest{
+		DeploymentID: d.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	// Try with no token and expect permission denied
+	{
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token
+	{
+		get.SecretID = invalidToken.SecretID
+		var resp structs.DeploymentUpdateResponse
+		err := msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Lookup the allocations with a valid token
+	{
+		get.SecretID = validToken.SecretID
+		var resp structs.AllocListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
+		assert.EqualValues(1001, resp.Index, "Wrong Index")
+		assert.Len(resp.Allocations, 1, "Allocations")
+		assert.Equal(a.ID, resp.Allocations[0].ID, "Allocation ID")
+	}
+
+	// Lookup the allocations with a root token
+	{
+		get.SecretID = root.SecretID
+		var resp structs.AllocListResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
+		assert.EqualValues(1001, resp.Index, "Wrong Index")
+		assert.Len(resp.Allocations, 1, "Allocations")
+		assert.Equal(a.ID, resp.Allocations[0].ID, "Allocation ID")
+	}
 }
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {

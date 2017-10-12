@@ -7,6 +7,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -29,6 +30,13 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "get_eval"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := e.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -317,6 +325,13 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "list"}, time.Now())
 
+	// Check for read-job permissions
+	if aclObj, err := e.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -366,6 +381,13 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "allocations"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := e.srv.ResolveToken(args.SecretID); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{

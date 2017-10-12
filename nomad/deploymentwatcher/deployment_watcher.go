@@ -10,6 +10,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -445,7 +446,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 // getEval returns an evaluation suitable for the deployment
 func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	return &structs.Evaluation{
-		ID:           structs.GenerateUUID(),
+		ID:           uuid.Generate(),
 		Namespace:    w.j.Namespace,
 		Priority:     w.j.Priority,
 		Type:         w.j.Type,

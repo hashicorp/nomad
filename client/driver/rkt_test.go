@@ -1,3 +1,5 @@
+// +build linux
+
 package driver
 
 import (
@@ -449,7 +451,6 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 		Driver: "rkt",
 		Config: map[string]interface{}{
 			"image": "docker://redis:latest",
-			"args":  []string{"--version"},
 			"port_map": []map[string]string{
 				{
 					"main": "6379-tcp",
@@ -483,6 +484,9 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+	if resp.Network == nil {
+		t.Fatalf("Expected driver to set a DriverNetwork, but it did not!")
 	}
 
 	failCh := make(chan error, 1)

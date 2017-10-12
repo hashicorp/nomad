@@ -10,6 +10,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -43,7 +44,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	assert.Equal(t, policy, resp.Policy)
 
 	// Lookup non-existing policy
-	get.Name = structs.GenerateUUID()
+	get.Name = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -160,7 +161,7 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 	assert.Equal(t, policy2, resp.Policies[policy2.Name])
 
 	// Lookup non-existing policy
-	get.Names = []string{structs.GenerateUUID()}
+	get.Names = []string{uuid.Generate()}
 	resp = structs.ACLPolicySetResponse{}
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
@@ -503,12 +504,22 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 	assert.Equal(t, token, resp.Token)
 
 	// Lookup non-existing token
-	get.AccessorID = structs.GenerateUUID()
+	get.AccessorID = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetToken", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, uint64(1000), resp.Index)
 	assert.Nil(t, resp.Token)
+
+	// Lookup the token by accessor id using the tokens secret ID
+	get.AccessorID = token.AccessorID
+	get.SecretID = token.SecretID
+	var resp2 structs.SingleACLTokenResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetToken", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp2.Index)
+	assert.Equal(t, token, resp2.Token)
 }
 
 func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
@@ -619,7 +630,7 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 	assert.Equal(t, token, resp.Tokens[token.AccessorID])
 
 	// Lookup non-existing token
-	get.AccessorIDS = []string{structs.GenerateUUID()}
+	get.AccessorIDS = []string{uuid.Generate()}
 	resp = structs.ACLTokenSetResponse{}
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetTokens", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1060,7 +1071,7 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 	assert.Equal(t, token, resp.Token)
 
 	// Lookup non-existing token
-	get.SecretID = structs.GenerateUUID()
+	get.SecretID = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}

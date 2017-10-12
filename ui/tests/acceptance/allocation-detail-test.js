@@ -1,6 +1,10 @@
+import Ember from 'ember';
+import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
+
+const { $ } = Ember;
 
 let job;
 let node;
@@ -23,32 +27,27 @@ moduleForAcceptance('Acceptance | allocation detail', {
 test('/allocation/:id should name the allocation and link to the corresponding job and node', function(
   assert
 ) {
+  assert.ok(find('h1').textContent.includes(allocation.name), 'Allocation name is in the heading');
+  assert.ok(find('h3').textContent.includes(job.name), 'Job name is in the subheading');
   assert.ok(
-    find('h1')
-      .text()
-      .includes(allocation.name),
-    'Allocation name is in the heading'
-  );
-  assert.ok(
-    find('h3')
-      .text()
-      .includes(job.name),
-    'Job name is in the subheading'
-  );
-  assert.ok(
-    find('h3')
-      .text()
-      .includes(node.id.split('-')[0]),
+    find('h3').textContent.includes(node.id.split('-')[0]),
     'Node short id is in the subheading'
   );
 
-  click('h3 a:eq(0)');
+  andThen(() => {
+    click(findAll('h3 a')[0]);
+  });
+
   andThen(() => {
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job link navigates to the job');
   });
 
   visit(`/allocations/${allocation.id}`);
-  click('h3 a:eq(1)');
+
+  andThen(() => {
+    click(findAll('h3 a')[1]);
+  });
+
   andThen(() => {
     assert.equal(currentURL(), `/nodes/${node.id}`, 'Node link navigates to the node');
   });
@@ -56,7 +55,7 @@ test('/allocation/:id should name the allocation and link to the corresponding j
 
 test('/allocation/:id should list all tasks for the allocation', function(assert) {
   assert.equal(
-    find('.tasks tbody tr').length,
+    findAll('.tasks tbody tr').length,
     server.db.taskStates.where({ allocationId: allocation.id }).length,
     'Table lists all tasks'
   );
@@ -68,7 +67,7 @@ test('each task row should list high-level information for the task', function(a
     .map(id => server.db.taskResources.find(id))
     .sortBy('name')[0];
   const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-  const taskRow = find('.tasks tbody tr:eq(0)');
+  const taskRow = $(findAll('.tasks tbody tr')[0]);
   const events = server.db.taskEvents.where({ taskStateId: task.id });
   const event = events[events.length - 1];
 
@@ -117,7 +116,7 @@ test('each task row should list high-level information for the task', function(a
 test('/allocation/:id should list recent events for each task', function(assert) {
   const tasks = server.db.taskStates.where({ allocationId: allocation.id });
   assert.equal(
-    find('.task-state-events').length,
+    findAll('.task-state-events').length,
     tasks.length,
     'A task state event block per task'
   );
@@ -127,7 +126,7 @@ test('each recent events list should include the name, state, and time info for 
   assert
 ) {
   const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
-  const recentEventsSection = find('.task-state-events:eq(0)');
+  const recentEventsSection = $(findAll('.task-state-events')[0]);
   const heading = recentEventsSection
     .find('.message-header')
     .text()
@@ -146,7 +145,7 @@ test('each recent events list should list all recent events for the task', funct
   const events = server.db.taskEvents.where({ taskStateId: task.id });
 
   assert.equal(
-    find('.task-state-events:eq(0) .task-events tbody tr').length,
+    findAll('.task-state-events')[0].querySelectorAll('.task-events tbody tr').length,
     events.length,
     `Lists ${events.length} events`
   );
@@ -157,7 +156,7 @@ test('each recent event should list the time, type, and description of the event
 ) {
   const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
   const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
-  const recentEvent = find('.task-state-events:eq(0) .task-events tbody tr:last');
+  const recentEvent = $('.task-state-events:eq(0) .task-events tbody tr:last');
 
   assert.equal(
     recentEvent
@@ -183,4 +182,25 @@ test('each recent event should list the time, type, and description of the event
     event.message,
     'Event message'
   );
+});
+
+test('when the allocation is not found, an error message is shown, but the URL persists', function(
+  assert
+) {
+  visit('/allocations/not-a-real-allocation');
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/allocation/not-a-real-allocation',
+      'A request to the non-existent allocation is made'
+    );
+    assert.equal(currentURL(), '/allocations/not-a-real-allocation', 'The URL persists');
+    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.equal(
+      find('.error-message .title').textContent,
+      'Not Found',
+      'Error message is for 404'
+    );
+  });
 });

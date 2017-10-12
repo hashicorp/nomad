@@ -35,6 +35,8 @@ Router.map(function() {
   if (config.environment === 'development') {
     this.route('freestyle');
   }
+
+  this.route('not-found', { path: '/*' });
 });
 
 export default Router;

@@ -12,7 +12,7 @@ export default Component.extend({
   // Used to throttle sets to searchTerm
   debounce: 150,
 
-  classNames: ['field', 'has-addons'],
+  classNames: ['search-box', 'field', 'has-addons'],
 
   actions: {
     setSearchTerm(e) {

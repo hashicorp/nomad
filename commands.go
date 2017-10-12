@@ -386,6 +386,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"ui": func() (cli.Command, error) {
+			return &command.UiCommand{
+				Meta: meta,
+			}, nil
+		},
 		"validate": func() (cli.Command, error) {
 			return &command.ValidateCommand{
 				Meta: meta,

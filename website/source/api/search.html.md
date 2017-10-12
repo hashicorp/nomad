@@ -20,9 +20,14 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                     |
+| ---------------- | -------------------------------- |
+| `NO`             | `node:read, namespace:read-jobs` |
+
+When ACLs are enabled, requests must have a token valid for `node:read` or
+`namespace:read-jobs` roles. If the token is only valid for `node:read`, then
+job related results will not be returned. If the token is only valid for
+`namespace:read-jobs`, then node results will not be returned.
 
 ### Parameters
 

@@ -325,6 +325,11 @@ func NewClient(config *Config) (*Client, error) {
 	return client, nil
 }
 
+// Address return the address of the Nomad agent
+func (c *Client) Address() string {
+	return c.config.Address
+}
+
 // SetRegion sets the region to forward API requests to.
 func (c *Client) SetRegion(region string) {
 	c.config.Region = region

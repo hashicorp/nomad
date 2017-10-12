@@ -3,6 +3,7 @@ package scheduler
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -105,7 +106,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -115,7 +116,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -181,7 +182,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -191,7 +192,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -205,8 +206,8 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	j1, j2 := mock.Job(), mock.Job()
 	alloc1 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
@@ -220,8 +221,8 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	}
 	alloc2 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
@@ -270,7 +271,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -280,7 +281,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 				Resources: &structs.Resources{
 					CPU:      2048,
 					MemoryMB: 2048,
@@ -294,8 +295,8 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	j1, j2 := mock.Job(), mock.Job()
 	alloc1 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
@@ -309,8 +310,8 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	}
 	alloc2 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
@@ -366,12 +367,12 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 			},
 		},
 		{
 			Node: &structs.Node{
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 			},
 		},
 	}
@@ -381,11 +382,11 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
 		{
-			ID:    structs.GenerateUUID(),
+			ID:    uuid.Generate(),
 			JobID: "foo",
 		},
 		{
-			ID:    structs.GenerateUUID(),
+			ID:    uuid.Generate(),
 			JobID: "foo",
 		},
 	}

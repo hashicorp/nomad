@@ -223,15 +223,16 @@ Namespace rules are keyed by the namespace name they apply to. When no namespace
 * `list-jobs` - Allows listing the jobs and seeing coarse grain status.
 * `read-job` - Allows inspecting a job and seeing fine grain status.
 * `submit-job` - Allows jobs to be submitted or modified.
+* `dispatch-job` - Allows jobs to be dispatched
 * `read-logs` - Allows the logs associated with a job to be viewed.
 * `read-fs` - Allows the filesystem of allocations associated to be viewed.
-* `sentinel-override` - Allows soft mandatory policies to be overriden.
+* `sentinel-override` - Allows soft mandatory policies to be overridden.
 
 The coarse grained policy dispositions are shorthand for the fine grained capabilities:
 
 * `deny` policy - ["deny"]
 * `read` policy - ["list-jobs", "read-job"]
-* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs"]
+* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs", "dispatch-job"]
 
 When both the policy short hand and a capabilities list are provided, the capabilities are merged:
 

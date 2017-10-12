@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -23,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/blake2b"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
@@ -908,7 +910,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 
 	// Add a new chained alloc
 	alloc2 := alloc.Copy()
-	alloc2.ID = structs.GenerateUUID()
+	alloc2.ID = uuid.Generate()
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	alloc2.PreviousAllocation = alloc.ID
@@ -960,4 +962,49 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	for _, ar := range c1.getAllocRunners() {
 		<-ar.WaitCh()
 	}
+}
+
+func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	c := testClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+	})
+	defer c.Shutdown()
+
+	alloc := mock.Alloc()
+	h, err := blake2b.New512([]byte(c.secretNodeID()))
+	assert.Nil(err)
+
+	h.Write([]byte(alloc.ID))
+	validToken := string(h.Sum(nil))
+
+	assert.Equal(c.ValidateMigrateToken(alloc.ID, validToken), true)
+}
+
+func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	c := testClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+	})
+	defer c.Shutdown()
+
+	assert.Equal(c.ValidateMigrateToken("", ""), false)
+
+	alloc := mock.Alloc()
+	assert.Equal(c.ValidateMigrateToken(alloc.ID, alloc.ID), false)
+	assert.Equal(c.ValidateMigrateToken(alloc.ID, ""), false)
+}
+
+func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	c := testClient(t, func(c *config.Config) {})
+	defer c.Shutdown()
+
+	assert.Equal(c.ValidateMigrateToken("", ""), true)
 }

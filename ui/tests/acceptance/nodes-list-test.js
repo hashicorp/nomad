@@ -1,7 +1,11 @@
+import Ember from 'ember';
+import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
 import ipParts from 'nomad-ui/utils/ip-parts';
+
+const { $ } = Ember;
 
 function minimumSetup() {
   server.createList('node', 1);
@@ -21,14 +25,14 @@ test('/nodes should list one page of clients', function(assert) {
   visit('/nodes');
 
   andThen(() => {
-    assert.equal(find('.client-node-row').length, pageSize);
-    assert.ok(find('.pagination').length, 'Pagination found on the page');
+    assert.equal(findAll('.client-node-row').length, pageSize);
+    assert.ok(findAll('.pagination').length, 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
 
     for (var nodeNumber = 0; nodeNumber < pageSize; nodeNumber++) {
       assert.equal(
-        find(`.client-node-row:eq(${nodeNumber}) td:eq(0)`).text(),
+        $(`.client-node-row:eq(${nodeNumber}) td:eq(0)`).text(),
         sortedNodes[nodeNumber].id.split('-')[0],
         'Nodes are ordered'
       );
@@ -43,7 +47,7 @@ test('each client record should show high-level info of the client', function(as
   visit('/nodes');
 
   andThen(() => {
-    const nodeRow = find('.client-node-row:eq(0)');
+    const nodeRow = $(findAll('.client-node-row')[0]);
     const allocations = server.db.allocations.where({ nodeId: node.id });
     const { address, port } = ipParts(node.httpAddr);
 
@@ -62,10 +66,41 @@ test('each client should link to the client detail page', function(assert) {
   const node = server.db.nodes[0];
 
   visit('/nodes');
-  click('.client-node-row:eq(0)');
+  andThen(() => {
+    click(findAll('.client-node-row')[0]);
+  });
 
   andThen(() => {
     assert.equal(currentURL(), `/nodes/${node.id}`);
+  });
+});
+
+test('when there are no clients, there is an empty message', function(assert) {
+  server.createList('agent', 1);
+
+  visit('/nodes');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Clients');
+  });
+});
+
+test('when there are clients, but no matches for a search term, there is an empty message', function(
+  assert
+) {
+  server.createList('agent', 1);
+  server.create('node', { name: 'node' });
+
+  visit('/nodes');
+
+  andThen(() => {
+    fillIn('.search-box input', 'client');
+  });
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
   });
 });
 
@@ -81,7 +116,7 @@ test('/servers should list all servers', function(assert) {
   visit('/servers');
 
   andThen(() => {
-    assert.equal(find('.server-agent-row').length, pageSize);
+    assert.equal(findAll('.server-agent-row').length, pageSize);
 
     const sortedAgents = server.db.agents
       .sort((a, b) => {
@@ -96,7 +131,7 @@ test('/servers should list all servers', function(assert) {
 
     for (var agentNumber = 0; agentNumber < 8; agentNumber++) {
       assert.equal(
-        find(`.server-agent-row:eq(${agentNumber}) td:eq(0)`).text(),
+        $(`.server-agent-row:eq(${agentNumber}) td:eq(0)`).text(),
         sortedAgents[agentNumber].name,
         'Clients are ordered'
       );
@@ -111,7 +146,7 @@ test('each server should show high-level info of the server', function(assert) {
   visit('/servers');
 
   andThen(() => {
-    const agentRow = find('.server-agent-row:eq(0)');
+    const agentRow = $(findAll('.server-agent-row')[0]);
 
     assert.equal(agentRow.find('td:eq(0)').text(), agent.name, 'Name');
     assert.equal(agentRow.find('td:eq(1)').text(), agent.status, 'Status');
@@ -127,9 +162,32 @@ test('each server should link to the server detail page', function(assert) {
   const agent = server.db.agents[0];
 
   visit('/servers');
-  click('.server-agent-row:eq(0)');
+  andThen(() => {
+    click(findAll('.server-agent-row')[0]);
+  });
 
   andThen(() => {
     assert.equal(currentURL(), `/servers/${agent.name}`);
+  });
+});
+
+test('when the API returns no agents, show an empty message', function(assert) {
+  minimumSetup();
+
+  // Override the members handler to act as if server-side permissions
+  // are preventing a qualified response.
+  server.pretender.get('/v1/agent/members', () => [
+    200,
+    {},
+    JSON.stringify({
+      Members: [],
+    }),
+  ]);
+
+  visit('/servers');
+
+  andThen(() => {
+    assert.ok(find('.empty-message'));
+    assert.equal(find('.empty-message-headline').textContent, 'Invalid Permissions');
   });
 });

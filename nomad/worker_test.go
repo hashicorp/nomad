@@ -9,6 +9,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -317,7 +318,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval, structs.GenerateUUID())
+	err := w.invokeScheduler(eval, uuid.Generate())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

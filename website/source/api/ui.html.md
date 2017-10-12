@@ -20,6 +20,23 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 | ---------- | ----------- |
 | `/ui/jobs` | `text/html` |
 
+### Parameters
+
+- `namespace` `(string: "")` - Specifies the namespace all jobs should be a member
+  of. This is specified as a querystring parameter. Namespaces are an enterprise feature.
+
+- `sort` `(string: "")` - Specifies the property the list of jobs should be sorted by.
+  This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
+- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+  visible jobs. This is specified as a querystring parameter.
+
+- `page` `(int: 0)` - Specifies the page in the jobs list that should be visible. This
+  is specified as a querystring parameter.
+
 
 ## Job Detail
 
@@ -30,6 +47,17 @@ deployment for the job, it will be shown on the overview.
 | Path               | Produces    |
 | ------------------ | ----------- |
 | `/ui/jobs/:job_id` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of task groups should be
+  sorted by. This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
+- `page` `(int: 0)` - Specifies the page in the task groups list that should be visible. This
+  is specified as a querystring parameter.
 
 
 ### Job Definition
@@ -79,6 +107,20 @@ allocations.
 | ----------------------------------- | ----------- |
 | `/ui/jobs/:job_id/:task_group_name` | `text/html` |
 
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of allocations should be sorted by.
+  This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
+- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+  visible allocations. This is specified as a querystring parameter.
+
+- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+  is specified as a querystring parameter.
+
 
 ## Allocation Detail
 
@@ -92,6 +134,14 @@ description of the event.
 | --------------------------- | ----------- |
 | `/ui/allocations/:alloc_id` | `text/html` |
 
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of tasks should be sorted by.
+  This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
 
 ## Nodes List
 
@@ -102,6 +152,20 @@ table.
 | ----------- | ----------- |
 | `/ui/nodes` | `text/html` |
 
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of client nodes should be sorted by.
+  This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
+- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+  visible client nodes. This is specified as a querystring parameter.
+
+- `page` `(int: 0)` - Specifies the page in the client nodes list that should be visible. This
+  is specified as a querystring parameter.
+
 
 ## Node Detail
 
@@ -111,6 +175,20 @@ address, port, datacenter, allocations, and attributes.
 | Path                 | Produces    |
 | -------------------- | ----------- |
 | `/ui/nodes/:node_id` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of allocations should be sorted by.
+  This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
+- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+  visible allocations. This is specified as a querystring parameter.
+
+- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+  is specified as a querystring parameter.
 
 
 ## Servers List
@@ -123,10 +201,21 @@ the leader.
 | ------------- | ----------- |
 | `/ui/servers` | `text/html` |
 
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of server agents should be sorted by.
+  This is specified as a querystring parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a querystring parameter.
+
+- `page` `(int: 0)` - Specifies the page in the server agents list that should be visible. This
+  is specified as a querystring parameter.
+
 
 ## Server Detail
 
-This page lists all tags assocaited with a server.
+This page lists all tags associated with a server.
 
 | Path                     | Produces    |
 | ------------------------ | ----------- |

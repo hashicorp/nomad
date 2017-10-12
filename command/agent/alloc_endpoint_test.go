@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -8,8 +9,11 @@ import (
 	"testing"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/blake2b"
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
@@ -241,6 +245,61 @@ func TestHTTP_AllocStats(t *testing.T) {
 	})
 }
 
+func TestHTTP_AllocStats_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/client/allocation/123/stats", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		// Still returns an error because the alloc does not exist
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+			setToken(req, token)
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Contains(err.Error(), "unknown allocation ID")
+		}
+
+		// Try request with a management token
+		// Still returns an error because the alloc does not exist
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Contains(err.Error(), "unknown allocation ID")
+		}
+	})
+}
+
 func TestHTTP_AllocSnapshot(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -256,6 +315,52 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 		if !strings.Contains(err.Error(), allocNotFoundErr) {
 			t.Fatalf("err: %v", err)
 		}
+	})
+}
+
+func createMigrateTokenForClientAndAlloc(allocID, clientSecret string) (string, error) {
+	h, err := blake2b.New512([]byte(clientSecret))
+
+	if err != nil {
+		return "", err
+	}
+
+	h.Write([]byte(allocID))
+	validMigrateToken, err := string(h.Sum(nil)), nil
+	return validMigrateToken, err
+}
+
+func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		// Request without a token fails
+		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
+		assert.Nil(err)
+
+		// Make the unauthorized request
+		respW := httptest.NewRecorder()
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		assert.NotNil(err)
+		assert.EqualError(err, structs.ErrPermissionDenied.Error())
+
+		// Create an allocation
+		alloc := mock.Alloc()
+
+		validMigrateToken, err := createMigrateTokenForClientAndAlloc(alloc.ID, s.Agent.Client().Node().SecretID)
+		assert.Nil(err)
+
+		// Request with a token succeeds
+		url := fmt.Sprintf("/v1/client/allocation/%s/snapshot", alloc.ID)
+		req, err = http.NewRequest("GET", url, nil)
+		assert.Nil(err)
+
+		req.Header.Set("X-Nomad-Token", validMigrateToken)
+
+		// Make the unauthorized request
+		respW = httptest.NewRecorder()
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		assert.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
 	})
 }
 
@@ -277,6 +382,61 @@ func TestHTTP_AllocGC(t *testing.T) {
 	})
 }
 
+func TestHTTP_AllocGC_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		// Still returns an error because the alloc does not exist
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+			setToken(req, token)
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Contains(err.Error(), "not present")
+		}
+
+		// Try request with a management token
+		// Still returns an error because the alloc does not exist
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.ClientAllocRequest(respW, req)
+			assert.NotNil(err)
+			assert.Contains(err.Error(), "not present")
+		}
+	})
+}
+
 func TestHTTP_AllocAllGC(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -291,6 +451,56 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 		_, err = s.Server.ClientGCRequest(respW, req)
 		if err != nil {
 			t.Fatalf("err: %v", err)
+		}
+	})
+
+}
+
+func TestHTTP_AllocAllGC_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/client/gc", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a management token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.ClientGCRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
 		}
 	})
 
