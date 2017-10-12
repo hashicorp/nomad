@@ -136,9 +136,11 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 		req.SecretID = validToken.SecretID
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		assert.Equal(uint64(1001), resp.Index)
 		assert.Len(resp.Matches[structs.Jobs], 1)
 		assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+
+		// Index of job - not node - because node context is filtered out
+		assert.Equal(uint64(1000), resp.Index)
 
 		// Nodes filtered out since token only has access to namespace:read-job
 		assert.Len(resp.Matches[structs.Nodes], 0)
@@ -153,10 +155,10 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 		req.SecretID = validToken.SecretID
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		assert.Equal(uint64(1001), resp.Index)
 		assert.Len(resp.Matches[structs.Jobs], 1)
 		assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 		assert.Len(resp.Matches[structs.Nodes], 1)
+		assert.Equal(uint64(1001), resp.Index)
 	}
 
 	// Try with a management token

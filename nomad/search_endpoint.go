@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -18,8 +17,13 @@ const (
 var (
 	// ossContexts are the oss contexts which are searched to find matches
 	// for a given prefix
-	ossContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
-		structs.Evals, structs.Deployments}
+	ossContexts = []structs.Context{
+		structs.Allocs,
+		structs.Jobs,
+		structs.Nodes,
+		structs.Evals,
+		structs.Deployments,
+	}
 )
 
 // Search endpoint is used to look up matches for a given prefix and context
@@ -114,28 +118,11 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 		return err
 	}
 
-	// Require either node:read or namespace:read-job
-	nodeRead := true
-	jobRead := true
-	if aclObj != nil {
-		nodeRead = aclObj.AllowNodeRead()
-		jobRead = aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
-		if !nodeRead && !jobRead {
-			return structs.ErrPermissionDenied
-		}
+	namespace := args.RequestNamespace()
 
-		// Reject requests that explicitly specify a disallowed context. This
-		// should give the user better feedback then simply filtering out all
-		// results and returning an empty list.
-		if !nodeRead && args.Context == structs.Nodes {
-			return structs.ErrPermissionDenied
-		}
-		if !jobRead {
-			switch args.Context {
-			case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
-				return structs.ErrPermissionDenied
-			}
-		}
+	// Require either node:read or namespace:read-job
+	if !anySearchPerms(aclObj, namespace, args.Context) {
+		return structs.ErrPermissionDenied
 	}
 
 	reply.Matches = make(map[structs.Context][]string)
@@ -149,27 +136,10 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 
 			iters := make(map[structs.Context]memdb.ResultIterator)
 
-			contexts := allContexts
-			if args.Context != structs.All {
-				contexts = []structs.Context{args.Context}
-			}
+			contexts := searchContexts(aclObj, namespace, args.Context)
 
 			for _, ctx := range contexts {
-				if ctx == structs.Nodes && !nodeRead {
-					// Not allowed to search nodes
-					continue
-				}
-
-				if !jobRead {
-					switch ctx {
-					case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
-						// Not allowed to read jobs
-						continue
-					}
-				}
-
-				iter, err := getResourceIter(ctx, args.RequestNamespace(), roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
-
+				iter, err := getResourceIter(ctx, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 				if err != nil {
 					e := err.Error()
 					switch {
