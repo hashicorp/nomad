@@ -2045,7 +2045,8 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 
 func TestAllocation_ShouldMigrate(t *testing.T) {
 	alloc := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2064,7 +2065,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc1 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2080,7 +2082,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc2 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2099,7 +2102,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc3 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -2111,6 +2115,26 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 
 	if alloc3.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
+	}
+
+	// No previous
+	alloc4 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc4.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc4)
 	}
 }
 

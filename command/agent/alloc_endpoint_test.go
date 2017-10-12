@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/blake2b"
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
@@ -313,6 +315,52 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 		if !strings.Contains(err.Error(), allocNotFoundErr) {
 			t.Fatalf("err: %v", err)
 		}
+	})
+}
+
+func createMigrateTokenForClientAndAlloc(allocID, clientSecret string) (string, error) {
+	h, err := blake2b.New512([]byte(clientSecret))
+
+	if err != nil {
+		return "", err
+	}
+
+	h.Write([]byte(allocID))
+	validMigrateToken, err := string(h.Sum(nil)), nil
+	return validMigrateToken, err
+}
+
+func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		// Request without a token fails
+		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
+		assert.Nil(err)
+
+		// Make the unauthorized request
+		respW := httptest.NewRecorder()
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		assert.NotNil(err)
+		assert.EqualError(err, structs.ErrPermissionDenied.Error())
+
+		// Create an allocation
+		alloc := mock.Alloc()
+
+		validMigrateToken, err := createMigrateTokenForClientAndAlloc(alloc.ID, s.Agent.Client().Node().SecretID)
+		assert.Nil(err)
+
+		// Request with a token succeeds
+		url := fmt.Sprintf("/v1/client/allocation/%s/snapshot", alloc.ID)
+		req, err = http.NewRequest("GET", url, nil)
+		assert.Nil(err)
+
+		req.Header.Set("X-Nomad-Token", validMigrateToken)
+
+		// Make the unauthorized request
+		respW = httptest.NewRecorder()
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		assert.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
 	})
 }
 

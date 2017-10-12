@@ -749,7 +749,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("----- ar2:  ")
 	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
-	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2)
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2, "")
 	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
 		alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
@@ -844,7 +844,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("ar2: ")
 	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
-	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2)
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2, "")
 	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
 		alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
@@ -959,7 +959,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("ar2: ")
 	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
-	prevAlloc := newAllocWatcher(alloc2, ar, nil, origConfig, l2)
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, origConfig, l2, "")
 	ar2 := NewAllocRunner(l2, origConfig, ar.stateDB, upd.Update, alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
 	if err != nil {
@@ -1413,7 +1413,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	upd2, ar2 := testAllocRunnerFromAlloc(alloc2, false)
 
 	// Set prevAlloc like Client does
-	ar2.prevAlloc = newAllocWatcher(alloc2, ar, nil, ar2.config, ar2.logger)
+	ar2.prevAlloc = newAllocWatcher(alloc2, ar, nil, ar2.config, ar2.logger, "")
 
 	go ar2.Run()
 	defer ar2.Destroy()

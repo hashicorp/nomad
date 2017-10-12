@@ -135,6 +135,12 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+	if !s.agent.Client().ValidateMigrateToken(allocID, secret) {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	allocFS, err := s.agent.Client().GetAllocFS(allocID)
 	if err != nil {
 		return nil, fmt.Errorf(allocNotFoundErr)

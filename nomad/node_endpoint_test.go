@@ -1384,6 +1384,61 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	}
 }
 
+// A MigrateToken should not be created if an allocation shares the same node
+// with its previous allocation
+func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake evaluations
+	prevAlloc := mock.Alloc()
+	prevAlloc.NodeID = node.ID
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.PreviousAllocation = prevAlloc.ID
+	alloc.DesiredStatus = structs.AllocClientStatusComplete
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	err := state.UpsertAllocs(100, []*structs.Allocation{prevAlloc, alloc})
+	assert.Nil(err)
+
+	// Lookup the allocs
+	get := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		SecretID:     node.SecretID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+
+	err = msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2)
+	assert.Nil(err)
+
+	assert.Equal(uint64(100), resp2.Index)
+	assert.Equal(2, len(resp2.Allocs))
+	assert.Equal(uint64(100), resp2.Allocs[alloc.ID])
+	assert.Equal(0, len(resp2.MigrateTokens))
+}
+
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)

@@ -817,6 +817,11 @@ type NodeAllocsResponse struct {
 // NodeClientAllocsResponse is used to return allocs meta data for a single node
 type NodeClientAllocsResponse struct {
 	Allocs map[string]uint64
+
+	// MigrateTokens are used when ACLs are enabled to allow cross node,
+	// authenticated access to sticky volumes
+	MigrateTokens map[string]string
+
 	QueryMeta
 }
 
@@ -4685,6 +4690,10 @@ func (a *Allocation) RanSuccessfully() bool {
 
 // ShouldMigrate returns if the allocation needs data migration
 func (a *Allocation) ShouldMigrate() bool {
+	if a.PreviousAllocation == "" {
+		return false
+	}
+
 	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
 		return false
 	}
