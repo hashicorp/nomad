@@ -10,6 +10,9 @@
       {{else if is404}}
         <h1 class="title is-spaced">Not Found</h1>
         <p class="subtitle">What you're looking for couldn't be found. It either doesn't exist or you are not authorized to see it.</p>
+      {{else}}
+        <h1 class="title is-spaced">Error</h1>
+        <p class="subtitle">Something went wrong.</p>
       {{/if}}
       {{#if (eq config.environment "development")}}
         <pre class="error-stack-trace"><code>{{errorStr}}</code></pre>
