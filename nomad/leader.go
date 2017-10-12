@@ -721,7 +721,7 @@ START:
 
 			// Fetch the list of policies
 			var resp structs.ACLPolicyListResponse
-			req.SecretID = s.ReplicationToken()
+			req.AuthToken = s.ReplicationToken()
 			err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"ACL.ListPolicies", &req, &resp)
 			if err != nil {
@@ -751,7 +751,7 @@ START:
 					Names: update,
 					QueryOptions: structs.QueryOptions{
 						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
+						AuthToken:     s.ReplicationToken(),
 						AllowStale:    true,
 						MinQueryIndex: resp.Index - 1,
 					},
@@ -863,7 +863,7 @@ START:
 
 			// Fetch the list of tokens
 			var resp structs.ACLTokenListResponse
-			req.SecretID = s.ReplicationToken()
+			req.AuthToken = s.ReplicationToken()
 			err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"ACL.ListTokens", &req, &resp)
 			if err != nil {
@@ -893,7 +893,7 @@ START:
 					AccessorIDS: update,
 					QueryOptions: structs.QueryOptions{
 						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
+						AuthToken:     s.ReplicationToken(),
 						AllowStale:    true,
 						MinQueryIndex: resp.Index - 1,
 					},

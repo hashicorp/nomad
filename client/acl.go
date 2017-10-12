@@ -190,7 +190,7 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 		Names: fetch,
 		QueryOptions: structs.QueryOptions{
 			Region:     c.Region(),
-			SecretID:   secretID,
+			AuthToken:  secretID,
 			AllowStale: true,
 		},
 	}

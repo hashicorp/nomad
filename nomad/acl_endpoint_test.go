@@ -32,8 +32,8 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	get := &structs.ACLPolicySpecificRequest{
 		Name: policy.Name,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SingleACLPolicyResponse
@@ -86,7 +86,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.SingleACLPolicyResponse
@@ -147,8 +147,8 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 	get := &structs.ACLPolicySetRequest{
 		Names: []string{policy.Name, policy2.Name},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
@@ -190,8 +190,8 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	get := &structs.ACLPolicySetRequest{
 		Names: []string{policy.Name},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: token.SecretID,
+			Region:    "global",
+			AuthToken: token.SecretID,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
@@ -244,7 +244,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
@@ -307,8 +307,8 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	// Lookup the policies
 	get := &structs.ACLPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLPolicyListResponse
@@ -321,9 +321,9 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	// Lookup the policies by prefix
 	get = &structs.ACLPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			Prefix:   "aaaabb",
-			SecretID: root.SecretID,
+			Region:    "global",
+			Prefix:    "aaaabb",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp2 structs.ACLPolicyListResponse
@@ -356,7 +356,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 1,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	start := time.Now()
@@ -409,8 +409,8 @@ func TestACLEndpoint_DeletePolicies(t *testing.T) {
 	req := &structs.ACLPolicyDeleteRequest{
 		Names: []string{p1.Name},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -434,8 +434,8 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 	req := &structs.ACLPolicyUpsertRequest{
 		Policies: []*structs.ACLPolicy{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -465,8 +465,8 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	req := &structs.ACLPolicyUpsertRequest{
 		Policies: []*structs.ACLPolicy{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -492,8 +492,8 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 	get := &structs.ACLTokenSpecificRequest{
 		AccessorID: token.AccessorID,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SingleACLTokenResponse
@@ -513,7 +513,7 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 
 	// Lookup the token by accessor id using the tokens secret ID
 	get.AccessorID = token.AccessorID
-	get.SecretID = token.SecretID
+	get.AuthToken = token.SecretID
 	var resp2 structs.SingleACLTokenResponse
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetToken", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
@@ -556,7 +556,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.SingleACLTokenResponse
@@ -617,8 +617,8 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 	get := &structs.ACLTokenSetRequest{
 		AccessorIDS: []string{token.AccessorID, token2.AccessorID},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenSetResponse
@@ -673,7 +673,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenSetResponse
@@ -737,8 +737,8 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	// Lookup the tokens
 	get := &structs.ACLTokenListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenListResponse
@@ -751,9 +751,9 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	// Lookup the tokens by prefix
 	get = &structs.ACLTokenListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			Prefix:   "aaaabb",
-			SecretID: root.SecretID,
+			Region:    "global",
+			Prefix:    "aaaabb",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp2 structs.ACLTokenListResponse
@@ -767,8 +767,8 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	get = &structs.ACLTokenListRequest{
 		GlobalOnly: true,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp3 structs.ACLTokenListResponse
@@ -801,7 +801,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 2,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	start := time.Now()
@@ -854,8 +854,8 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	req := &structs.ACLTokenDeleteRequest{
 		AccessorIDs: []string{p1.AccessorID},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -979,8 +979,8 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	req := &structs.ACLTokenUpsertRequest{
 		Tokens: []*structs.ACLToken{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenUpsertResponse
@@ -1035,8 +1035,8 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 	req := &structs.ACLTokenUpsertRequest{
 		Tokens: []*structs.ACLToken{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse

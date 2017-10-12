@@ -453,7 +453,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 // parse is a convenience method for endpoints that need to parse multiple flags
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
-	s.parseToken(req, &b.SecretID)
+	s.parseToken(req, &b.AuthToken)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
@@ -464,6 +464,6 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
 	parseNamespace(req, &w.Namespace)
-	s.parseToken(req, &w.SecretID)
+	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
 }

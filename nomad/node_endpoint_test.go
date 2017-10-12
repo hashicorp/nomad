@@ -691,14 +691,14 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	dereg.SecretID = validToken.SecretID
+	dereg.AuthToken = validToken.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
 	}
 
 	// Try with a invalid token
-	dereg.SecretID = invalidToken.SecretID
+	dereg.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
@@ -707,7 +707,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	dereg.SecretID = root.SecretID
+	dereg.AuthToken = root.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
@@ -1932,14 +1932,14 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 	{
 		var resp structs.NodeUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp), "RPC")
 	}
 
 	// Try with a invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.NodeUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp)
@@ -1948,7 +1948,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		var resp structs.NodeUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Evaluate", req, &resp), "RPC")
@@ -2045,7 +2045,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 	{
 		var resp structs.NodeListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp), "RPC")
@@ -2053,7 +2053,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	}
 
 	// Try with a invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.NodeListResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp)
@@ -2062,7 +2062,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		var resp structs.NodeListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp), "RPC")

@@ -21,7 +21,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	}
 
 	// Check management permissions
-	if aclObj, err := op.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -77,7 +77,7 @@ func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressReque
 	}
 
 	// Check management permissions
-	if aclObj, err := op.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied

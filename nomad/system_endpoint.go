@@ -19,7 +19,7 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 	}
 
 	// Check management level permissions
-	if acl, err := s.srv.ResolveToken(args.SecretID); err != nil {
+	if acl, err := s.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl != nil && !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -43,7 +43,7 @@ func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *stru
 	}
 
 	// Check management level permissions
-	if acl, err := s.srv.ResolveToken(args.SecretID); err != nil {
+	if acl, err := s.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl != nil && !acl.IsManagement() {
 		return structs.ErrPermissionDenied

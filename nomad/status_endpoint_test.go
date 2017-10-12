@@ -146,7 +146,7 @@ func TestStatusMembers_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect failure
 	{
-		arg.SecretID = invalidToken.SecretID
+		arg.AuthToken = invalidToken.SecretID
 		var out structs.ServerMembersResponse
 		err := msgpackrpc.CallWithCodec(codec, "Status.Members", arg, &out)
 		assert.NotNil(err)
@@ -155,7 +155,7 @@ func TestStatusMembers_ACL(t *testing.T) {
 
 	// Try with a valid token
 	{
-		arg.SecretID = validToken.SecretID
+		arg.AuthToken = validToken.SecretID
 		var out structs.ServerMembersResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Status.Members", arg, &out))
 		assert.Len(out.Members, 1)
@@ -163,7 +163,7 @@ func TestStatusMembers_ACL(t *testing.T) {
 
 	// Try with a management token
 	{
-		arg.SecretID = root.SecretID
+		arg.AuthToken = root.SecretID
 		var out structs.ServerMembersResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Status.Members", arg, &out))
 		assert.Len(out.Members, 1)

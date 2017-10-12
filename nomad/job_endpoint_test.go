@@ -121,7 +121,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	}
 
 	// Try with a token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1067,14 +1067,14 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	revertReq.SecretID = invalidToken.SecretID
+	revertReq.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Fetch the response with a valid management token
-	revertReq.SecretID = root.SecretID
+	revertReq.AuthToken = root.SecretID
 	var validResp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp)
 	assert.Nil(err)
@@ -1083,7 +1083,7 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 
-	revertReq.SecretID = validToken.SecretID
+	revertReq.AuthToken = validToken.SecretID
 	var validResp2 structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
 	assert.Nil(err)
@@ -1190,14 +1190,14 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	stableReq.SecretID = invalidToken.SecretID
+	stableReq.AuthToken = invalidToken.SecretID
 	var invalidStableResp structs.JobStabilityResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &invalidStableResp)
 	assert.NotNil(err)
 	assert.Contains("Permission denied", err.Error())
 
 	// Attempt to fetch with a management token
-	stableReq.SecretID = root.SecretID
+	stableReq.AuthToken = root.SecretID
 	var validStableResp structs.JobStabilityResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp)
 	assert.Nil(err)
@@ -1206,7 +1206,7 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 
-	stableReq.SecretID = validToken.SecretID
+	stableReq.AuthToken = validToken.SecretID
 	var validStableResp2 structs.JobStabilityResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp2)
 	assert.Nil(err)
@@ -1334,14 +1334,14 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	reEval.SecretID = invalidToken.SecretID
+	reEval.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Fetch the response with a valid management token
-	reEval.SecretID = root.SecretID
+	reEval.AuthToken = root.SecretID
 	var validResp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp)
 	assert.Nil(err)
@@ -1350,7 +1350,7 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	reEval.SecretID = validToken.SecretID
+	reEval.AuthToken = validToken.SecretID
 	var validResp2 structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp2)
 	assert.Nil(err)
@@ -1638,7 +1638,7 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	// Expect failure for request with an invalid token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 
 	var invalidResp structs.JobDeregisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidResp)
@@ -1646,7 +1646,7 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Expect success with a valid management token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 
 	var validResp structs.JobDeregisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp)
@@ -1656,7 +1656,7 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	// Expect success with a valid token
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 
 	var validResp2 structs.JobDeregisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
@@ -1973,14 +1973,14 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	var invalidResp structs.SingleJobResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Looking up the job with a management token should succeed
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var validResp structs.SingleJobResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &validResp)
 	assert.Nil(err)
@@ -1990,7 +1990,7 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	var validResp2 structs.SingleJobResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &validResp2)
 	assert.Nil(err)
@@ -2184,14 +2184,14 @@ func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobVersionsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Expect success for request with a valid management token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var validResp structs.JobVersionsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &validResp)
 	assert.Nil(err)
@@ -2200,7 +2200,7 @@ func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	var validResp2 structs.JobVersionsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &validResp2)
 	assert.Nil(err)
@@ -2474,7 +2474,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 			Namespace: job.Namespace,
 		},
 	}
-	reg.SecretID = root.SecretID
+	reg.AuthToken = root.SecretID
 
 	var err error
 
@@ -2512,7 +2512,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 	}
 
 	// Expect success when using a management token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	var mgmtResp structs.JobSummaryResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &mgmtResp)
 	assert.Nil(err)
@@ -2525,7 +2525,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobSummaryResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &invalidResp)
 	assert.NotNil(err)
@@ -2534,7 +2534,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 	var authResp structs.JobSummaryResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &authResp)
 	assert.Nil(err)
@@ -2728,7 +2728,7 @@ func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
 
 	// Expect success for request with a management token
 	var mgmtResp structs.JobListResponse
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &mgmtResp)
 	assert.Nil(err)
 	assert.Equal(1, len(mgmtResp.Jobs))
@@ -2738,7 +2738,7 @@ func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobListResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &invalidResp)
 	assert.NotNil(err)
@@ -2747,7 +2747,7 @@ func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 	var validResp structs.JobListResponse
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 
 	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &validResp)
 	assert.Nil(err)
@@ -2901,14 +2901,14 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobAllocationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch the response with valid management token should succeed
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var validResp structs.JobAllocationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &validResp)
 	assert.Nil(err)
@@ -2917,7 +2917,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	var validResp2 structs.JobAllocationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &validResp2)
 	assert.Nil(err)
@@ -3058,14 +3058,14 @@ func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobEvaluationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Attempt to fetch with valid management token should succeed
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var validResp structs.JobEvaluationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &validResp)
 	assert.Nil(err)
@@ -3075,7 +3075,7 @@ func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	var validResp2 structs.JobEvaluationsResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &validResp2)
 	assert.Nil(err)
@@ -3208,14 +3208,14 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	var invalidResp structs.DeploymentListResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Lookup with valid management token should succeed
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var validResp structs.DeploymentListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &validResp), "RPC")
 	assert.EqualValues(1002, validResp.Index, "response index")
@@ -3225,7 +3225,7 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	var validResp2 structs.DeploymentListResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &validResp2), "RPC")
 	assert.EqualValues(1002, validResp2.Index, "response index")
@@ -3355,14 +3355,14 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	var invalidResp structs.SingleDeploymentResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &invalidResp)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Fetching latest deployment with a valid management token should succeed
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var validResp structs.SingleDeploymentResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &validResp), "RPC")
 	assert.EqualValues(1002, validResp.Index, "response index")
@@ -3373,7 +3373,7 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 	validToken := mock.CreatePolicyAndToken(t, state, 1004, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	var validResp2 structs.SingleDeploymentResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &validResp2), "RPC")
 	assert.EqualValues(1002, validResp2.Index, "response index")
@@ -3454,7 +3454,7 @@ func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	}
 
 	// Try with a token
-	planReq.SecretID = root.SecretID
+	planReq.AuthToken = root.SecretID
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3808,7 +3808,7 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	assert.NotNil(err)
 
 	// Update with a valid token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	var validResp structs.JobValidateResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &validResp)
 	assert.Nil(err)
@@ -3854,7 +3854,7 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 	// Attempt to fetch the response with an invalid token should fail
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 
 	var invalidResp structs.JobDispatchResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &invalidResp)
@@ -3862,7 +3862,7 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 	assert.Contains(err.Error(), "Permission denied")
 
 	// Dispatch with a valid management token should succeed
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 
 	var validResp structs.JobDispatchResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &validResp)
@@ -3874,7 +3874,7 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 	// Dispatch with a valid token should succeed
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDispatchJob}))
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 
 	var validResp2 structs.JobDispatchResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &validResp2)

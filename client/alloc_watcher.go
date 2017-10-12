@@ -428,7 +428,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	}
 
 	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", p.prevAllocID)
-	qo := &nomadapi.QueryOptions{SecretID: p.migrateToken}
+	qo := &nomadapi.QueryOptions{AuthToken: p.migrateToken}
 	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()

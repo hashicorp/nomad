@@ -93,7 +93,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.SingleEvalResponse
 		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
 		assert.NotNil(err)
@@ -102,7 +102,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 	// Lookup the eval using a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.SingleEvalResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -111,7 +111,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 	// Lookup the eval using a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.SingleEvalResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -633,7 +633,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.EvalListResponse
 		err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
 		assert.NotNil(err)
@@ -642,7 +642,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 	// List evals with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.EvalListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -651,7 +651,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 	// List evals with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.EvalListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -801,7 +801,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.EvalAllocationsResponse
 		err := msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp)
 		assert.NotNil(err)
@@ -810,7 +810,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the eval with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.EvalAllocationsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -819,7 +819,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the eval with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.EvalAllocationsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)

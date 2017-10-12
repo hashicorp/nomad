@@ -19,8 +19,8 @@ func TestHTTP_ACLPolicyList(t *testing.T) {
 		args := structs.ACLPolicyUpsertRequest{
 			Policies: []*structs.ACLPolicy{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.RootToken.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -68,8 +68,8 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 		args := structs.ACLPolicyUpsertRequest{
 			Policies: []*structs.ACLPolicy{p1},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.RootToken.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -152,8 +152,8 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 		args := structs.ACLPolicyUpsertRequest{
 			Policies: []*structs.ACLPolicy{p1},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.RootToken.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -231,8 +231,8 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 		args := structs.ACLTokenUpsertRequest{
 			Tokens: []*structs.ACLToken{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.RootToken.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.ACLTokenUpsertResponse
@@ -281,8 +281,8 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 		args := structs.ACLTokenUpsertRequest{
 			Tokens: []*structs.ACLToken{p1},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.RootToken.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.ACLTokenUpsertResponse
@@ -364,8 +364,8 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 		args := structs.ACLTokenUpsertRequest{
 			Tokens: []*structs.ACLToken{p1},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.RootToken.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.ACLTokenUpsertResponse
