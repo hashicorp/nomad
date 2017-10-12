@@ -38,6 +38,8 @@ BUG FIXES:
  * driver/docker: Fix docker user specified syslogging [GH-3184]
  * driver/docker: Fix issue where CPU usage statistics were artificially high
    [GH-3229]
+ * client/template: Fix issue in which secrets would be renewed too aggressively
+   [GH-3360]
 
 ## 0.6.3 (September 11, 2017)
 

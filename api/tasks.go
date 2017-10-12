@@ -485,7 +485,7 @@ func (tmpl *Template) Canonicalize() {
 		tmpl.Envvars = helper.BoolToPtr(false)
 	}
 	if tmpl.VaultGrace == nil {
-		tmpl.VaultGrace = helper.TimeToPtr(5 * time.Minute)
+		tmpl.VaultGrace = helper.TimeToPtr(15 * time.Second)
 	}
 }
 

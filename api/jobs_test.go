@@ -396,7 +396,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    helper.StringToPtr("{{"),
 										RightDelim:   helper.StringToPtr("}}"),
 										Envvars:      helper.BoolToPtr(false),
-										VaultGrace:   helper.TimeToPtr(5 * time.Minute),
+										VaultGrace:   helper.TimeToPtr(15 * time.Second),
 									},
 									{
 										SourcePath:   helper.StringToPtr(""),
