@@ -69,6 +69,7 @@ func (c *Command) readConfig() *Config {
 		Ports:  &Ports{},
 		Server: &ServerConfig{},
 		Vault:  &config.VaultConfig{},
+		ACL:    &ACLConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -165,6 +166,10 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "vault-tls-skip-verify", "")
 	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
+
+	// ACL options
+	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
+	flags.StringVar(&cmdConfig.ACL.ReplicationToken, "acl-replication-token", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -983,6 +988,16 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+ACL Options:
+
+  -acl-enabled
+    Specifies whether the agent should enable ACLs.
+
+  -acl-replication-token
+	The replication token for servers to use when replicating from the
+	authoratative region. The token must be a valid management token from the
+	authoratative region.
 
 Consul Options:
 
