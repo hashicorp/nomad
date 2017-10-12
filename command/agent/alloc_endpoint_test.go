@@ -342,7 +342,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		respW := httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
 		assert.NotNil(err)
-		assert.Contains(err.Error(), "invalid migrate token")
+		assert.EqualError(err, structs.ErrPermissionDenied.Error())
 
 		// Create an allocation
 		alloc := mock.Alloc()
@@ -360,7 +360,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		// Make the unauthorized request
 		respW = httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
-		assert.NotContains(err.Error(), "invalid migrate token")
+		assert.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
 	})
 }
 

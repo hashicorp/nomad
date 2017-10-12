@@ -700,25 +700,31 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			reply.Allocs = make(map[string]uint64)
 			reply.MigrateTokens = make(map[string]string)
+
 			// Setup the output
 			if len(allocs) != 0 {
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
 
-					// used to create a migrate token for an authenticated volume, using
-					// the client's secret identifier for authentication.
+					// If the allocation is going to do a migration, create a
+					// migration token so that the client can authenticate with
+					// the node hosting the previous allocation.
 					if alloc.ShouldMigrate() {
 						prevAllocation, err := state.AllocByID(ws, alloc.PreviousAllocation)
 						if err != nil {
 							return err
 						}
 
-						if prevAllocation.NodeID != alloc.NodeID {
+						if prevAllocation != nil && prevAllocation.NodeID != alloc.NodeID {
 							allocNode, err := state.NodeByID(ws, prevAllocation.NodeID)
-
 							if err != nil {
 								return err
 							}
+							if allocNode == nil {
+								// Node must have been GC'd so skip the token
+								continue
+							}
+
 							token, err := generateMigrateToken(prevAllocation.ID, allocNode.SecretID)
 							if err != nil {
 								return err

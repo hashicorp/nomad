@@ -4690,6 +4690,10 @@ func (a *Allocation) RanSuccessfully() bool {
 
 // ShouldMigrate returns if the allocation needs data migration
 func (a *Allocation) ShouldMigrate() bool {
+	if a.PreviousAllocation == "" {
+		return false
+	}
+
 	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
 		return false
 	}
