@@ -8,7 +8,7 @@ description: |-
 
 # Sentinel Policies
 
-Nomad integrates with Sentinel for fine grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
+Nomad integrates with [HashiCorp Sentinel](https://docs.hashicorp.com/sentinel) for fine grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
 
 ~> **Enterprise Only!** This functionality only exists in Nomad Enterprise.
 This is not present in the open source version of Nomad.
