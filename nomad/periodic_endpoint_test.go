@@ -100,7 +100,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	// Try with an invalid token and expect permission denied
 	{
 		invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "invalid", mock.NodePolicy(acl.PolicyWrite))
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.PeriodicForceResponse
 		err := msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp)
 		assert.NotNil(err)
@@ -111,7 +111,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	{
 		policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
 		token := mock.CreatePolicyAndToken(t, state, 1005, "valid", policy)
-		req.SecretID = token.SecretID
+		req.AuthToken = token.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
 		assert.NotEqual(0, resp.Index)
@@ -126,7 +126,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 
 	// Fetch the response with management token
 	{
-		req.SecretID = root.SecretID
+		req.AuthToken = root.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
 		assert.NotEqual(0, resp.Index)

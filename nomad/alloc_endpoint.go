@@ -23,7 +23,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
 	// Check namespace read-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -80,7 +80,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
 	// Check namespace read-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied

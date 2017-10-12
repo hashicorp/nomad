@@ -117,19 +117,19 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
 
 	// Try with a valid token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(stubAllocs, resp.Allocations, "Returned alloc list not equal")
 
 	// Try with a invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
 	assert.NotNil(err, "RPC")
 	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(stubAllocs, resp.Allocations, "Returned alloc list not equal")
@@ -276,19 +276,19 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
 
 	// Try with a valid token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(alloc, resp.Alloc, "Returned alloc not equal")
 
 	// Try with a invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp)
 	assert.NotNil(err, "RPC")
 	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	var resp2 structs.SingleAllocResponse
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp2), "RPC")
 	assert.EqualValues(resp2.Index, 1000, "resp.Index")

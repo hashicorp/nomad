@@ -23,7 +23,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	defer metrics.MeasureSince([]string{"nomad", "periodic", "force"}, time.Now())
 
 	// Check for write-job permissions
-	if aclObj, err := p.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
