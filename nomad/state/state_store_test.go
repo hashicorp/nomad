@@ -573,6 +573,15 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	out2, err := state.NodeBySecretID(ws, node.SecretID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(node, out2) {
+		t.Fatalf("bad: %#v %#v", node, out2)
+	}
+
 	if !reflect.DeepEqual(node, out) {
 		t.Fatalf("bad: %#v %#v", node, out)
 	}
