@@ -25,6 +25,8 @@ BUG FIXES:
    be stored [GH-3372]
  * core: Fix issue where node-drain with complete batch allocation would create
    replacement [GH-3217]
+ * core: Allow batch jobs that have been purged to be rerun without a job
+   specification change [GH-3375]
  * core: Fix issue in which batch allocations from previous job versions may not
    have been stopped properly. [GH-3217]
  * core: Fix issue in which allocations with the same name during a scale
