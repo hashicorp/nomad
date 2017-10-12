@@ -1,3 +1,9 @@
+## 0.6.4 (October 12, 2017)
+
+BUG FIXES:
+ * client: Fix lock contention that could cause a node to miss a heartbeat and
+   be marked as down [GH-3195]
+
 ## 0.6.3 (September 11, 2017)
 
 BUG FIXES:
