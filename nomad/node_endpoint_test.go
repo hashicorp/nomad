@@ -941,7 +941,15 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
+	{
+		var resp structs.SingleNodeResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")
+		assert.Equal(node.ID, resp.Node.ID)
+	}
+
+	// Try with a Node.SecretID
+	req.AuthToken = node.SecretID
 	{
 		var resp structs.SingleNodeResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")
@@ -949,7 +957,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	}
 
 	// Try with a invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.SingleNodeResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp)
@@ -958,7 +966,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		var resp structs.SingleNodeResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp), "RPC")

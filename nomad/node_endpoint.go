@@ -507,8 +507,26 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
-		return err
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		// If ResolveToken had an unexpected error return that
+		if err != structs.ErrTokenNotFound {
+			return err
+		}
+
+		// Attempt to lookup AuthToken as a Node.SecretID since nodes
+		// call this endpoint and don't have an ACL token.
+		node, stateErr := n.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
+		if stateErr != nil {
+			// Return the original ResolveToken error with this err
+			var merr multierror.Error
+			merr.Errors = append(merr.Errors, err, stateErr)
+			return merr.ErrorOrNil()
+		}
+
+		// Not a node or a valid ACL token
+		if node == nil {
+			return structs.ErrTokenNotFound
+		}
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
