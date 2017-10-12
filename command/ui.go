@@ -24,7 +24,7 @@ func (c *UiCommand) Help() string {
 Usage: nomad ui [options] <identifier>
 
 Open the Nomad Web UI in the default browser. An optional identifier may be
-provided in which case the UI will be opened to view the details for that
+provided, in which case the UI will be opened to view the details for that
 object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
