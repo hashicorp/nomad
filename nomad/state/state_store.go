@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -1017,10 +1018,10 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespac
 		all = append(all, j)
 	}
 
-	// Reverse so that highest versions first
-	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
-		all[i], all[j] = all[j], all[i]
-	}
+	// Sort in reverse order so that the highest version is first
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version > all[j].Version
+	})
 
 	return all, nil
 }
