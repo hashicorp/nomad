@@ -11,6 +11,7 @@ export default Route.extend({
 
   actions: {
     didTransition() {
+      this.controllerFor('application').set('error', null);
       window.scrollTo(0, 0);
     },
 
