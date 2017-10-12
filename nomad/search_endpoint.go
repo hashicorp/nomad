@@ -17,8 +17,13 @@ const (
 var (
 	// ossContexts are the oss contexts which are searched to find matches
 	// for a given prefix
-	ossContexts = []structs.Context{structs.Allocs, structs.Jobs, structs.Nodes,
-		structs.Evals, structs.Deployments}
+	ossContexts = []structs.Context{
+		structs.Allocs,
+		structs.Jobs,
+		structs.Nodes,
+		structs.Evals,
+		structs.Deployments,
+	}
 )
 
 // Search endpoint is used to look up matches for a given prefix and context
@@ -107,8 +112,19 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
-func (s *Search) PrefixSearch(args *structs.SearchRequest,
-	reply *structs.SearchResponse) error {
+func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
+	aclObj, err := s.srv.ResolveToken(args.SecretID)
+	if err != nil {
+		return err
+	}
+
+	namespace := args.RequestNamespace()
+
+	// Require either node:read or namespace:read-job
+	if !anySearchPerms(aclObj, namespace, args.Context) {
+		return structs.ErrPermissionDenied
+	}
+
 	reply.Matches = make(map[structs.Context][]string)
 	reply.Truncations = make(map[structs.Context]bool)
 
@@ -120,14 +136,10 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest,
 
 			iters := make(map[structs.Context]memdb.ResultIterator)
 
-			contexts := allContexts
-			if args.Context != structs.All {
-				contexts = []structs.Context{args.Context}
-			}
+			contexts := searchContexts(aclObj, namespace, args.Context)
 
 			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, args.RequestNamespace(), roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
-
+				iter, err := getResourceIter(ctx, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 				if err != nil {
 					e := err.Error()
 					switch {
