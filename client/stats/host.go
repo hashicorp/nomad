@@ -92,6 +92,8 @@ func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollec
 
 // Collect collects stats related to resource usage of a host
 func (h *HostStatsCollector) Collect() error {
+	h.hostStatsLock.Lock()
+	defer h.hostStatsLock.Unlock()
 	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
 
 	// Determine up-time
@@ -131,9 +133,7 @@ func (h *HostStatsCollector) Collect() error {
 	hs.AllocDirStats = h.toDiskStats(usage, nil)
 
 	// Update the collected status object.
-	h.hostStatsLock.Lock()
 	h.hostStats = hs
-	h.hostStatsLock.Unlock()
 
 	return nil
 }
