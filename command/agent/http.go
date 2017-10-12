@@ -301,9 +301,13 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			code := 500
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
-			} else if err.Error() == structs.ErrPermissionDenied.Error() {
-				code = 403
+			} else {
+				switch err.Error() {
+				case structs.ErrPermissionDenied.Error(), structs.ErrTokenNotFound.Error():
+					code = 403
+				}
 			}
+
 			resp.WriteHeader(code)
 			resp.Write([]byte(err.Error()))
 			return

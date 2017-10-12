@@ -236,6 +236,23 @@ func TestPermissionDenied(t *testing.T) {
 	assert.Equal(t, resp.Code, 403)
 }
 
+func TestTokenNotFound(t *testing.T) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return nil, structs.ErrTokenNotFound
+	}
+
+	urlStr := "/v1/job/foo"
+	req, _ := http.NewRequest("GET", urlStr, nil)
+	s.Server.wrap(handler)(resp, req)
+	assert.Equal(t, resp.Code, 403)
+}
+
 func TestParseWait(t *testing.T) {
 	t.Parallel()
 	resp := httptest.NewRecorder()
