@@ -8,6 +8,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -37,7 +38,7 @@ func TestQuotaEndpoint_GetQuotaSpec(t *testing.T) {
 	assert.Equal(qs, resp.Quota)
 
 	// Lookup non-existing quota
-	get.Name = structs.GenerateUUID()
+	get.Name = uuid.Generate()
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaSpec", get, &resp))
 	assert.EqualValues(1000, resp.Index)
 	assert.Nil(resp.Quota)
@@ -57,10 +58,10 @@ func TestQuotaEndpoint_GetQuotaSpec_ACL(t *testing.T) {
 	s1.fsm.State().UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1})
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
-		QuotaPolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NodePolicy(acl.PolicyRead))
+	validToken := mock.CreatePolicyAndToken(t, state, 1002, "test-valid",
+		mock.QuotaPolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NodePolicy(acl.PolicyRead))
 
 	// Lookup the QuotaSpec
 	get := &structs.QuotaSpecSpecificRequest{
@@ -184,8 +185,8 @@ func TestQuotaEndpoint_GetQuotaSpecs(t *testing.T) {
 	}
 
 	// Create the policy and tokens
-	invalidToken := CreatePolicyAndToken(t, state, 1002, "test-invalid",
-		NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1002, "test-invalid",
+		mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Lookup with a random token
 	get.SecretID = invalidToken.SecretID
@@ -328,11 +329,11 @@ func TestQuotaEndpoint_ListQuotaSpecs_ACL(t *testing.T) {
 	ns1.Quota = qs1.Name
 	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{ns1}))
 
-	validQuotaToken := CreatePolicyAndToken(t, state, 1002, "test-quota-valid", QuotaPolicy(acl.PolicyRead))
-	validNamespaceToken := CreatePolicyAndToken(t, state, 1004, "test-namespace-valid",
-		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1006, "test-invalid",
-		NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
+	validQuotaToken := mock.CreatePolicyAndToken(t, state, 1002, "test-quota-valid", mock.QuotaPolicy(acl.PolicyRead))
+	validNamespaceToken := mock.CreatePolicyAndToken(t, state, 1004, "test-namespace-valid",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1006, "test-invalid",
+		mock.NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
 
 	get := &structs.QuotaSpecListRequest{
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -471,9 +472,9 @@ func TestQuotaEndpoint_DeleteQuotaSpecs_ACL(t *testing.T) {
 	s1.fsm.State().UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1, qs2})
 
 	// Create the policy and tokens
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid", QuotaPolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid", mock.QuotaPolicy(acl.PolicyWrite))
 
 	req := &structs.QuotaSpecDeleteRequest{
 		Names:        []string{qs1.Name},
@@ -573,9 +574,9 @@ func TestQuotaEndpoint_UpsertQuotaSpecs_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	// Create the policy and tokens
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	validToken := CreatePolicyAndToken(t, state, 1003, "test-valid", QuotaPolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid", mock.QuotaPolicy(acl.PolicyWrite))
 
 	// Create the register request
 	req := &structs.QuotaSpecUpsertRequest{
@@ -698,11 +699,11 @@ func TestQuotaEndpoint_ListQuotaUsages_ACL(t *testing.T) {
 	ns1.Quota = qs1.Name
 	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{ns1}))
 
-	validQuotaToken := CreatePolicyAndToken(t, state, 1002, "test-quota-valid", QuotaPolicy(acl.PolicyRead))
-	validNamespaceToken := CreatePolicyAndToken(t, state, 1004, "test-namespace-valid",
-		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1006, "test-invalid",
-		NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
+	validQuotaToken := mock.CreatePolicyAndToken(t, state, 1002, "test-quota-valid", mock.QuotaPolicy(acl.PolicyRead))
+	validNamespaceToken := mock.CreatePolicyAndToken(t, state, 1004, "test-namespace-valid",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1006, "test-invalid",
+		mock.NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
 
 	get := &structs.QuotaUsageListRequest{
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -827,7 +828,7 @@ func TestQuotaEndpoint_GetQuotaUsage(t *testing.T) {
 	assert.Equal(qs.Name, resp.Usage.Name)
 
 	// Lookup non-existing quota
-	get.Name = structs.GenerateUUID()
+	get.Name = uuid.Generate()
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaUsage", get, &resp))
 	assert.EqualValues(1000, resp.Index)
 	assert.Nil(resp.Usage)
@@ -847,10 +848,10 @@ func TestQuotaEndpoint_GetQuotaUsage_ACL(t *testing.T) {
 	s1.fsm.State().UpsertQuotaSpecs(1000, []*structs.QuotaSpec{qs1})
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
-		QuotaPolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NodePolicy(acl.PolicyRead))
+	validToken := mock.CreatePolicyAndToken(t, state, 1002, "test-valid",
+		mock.QuotaPolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NodePolicy(acl.PolicyRead))
 
 	// Lookup the QuotaUsage
 	get := &structs.QuotaUsageSpecificRequest{

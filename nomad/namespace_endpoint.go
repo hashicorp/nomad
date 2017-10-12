@@ -26,7 +26,7 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
 	// Check management permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -70,7 +70,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespaces"}, time.Now())
 
 	// Check management permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -111,7 +111,7 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "list_namespace"}, time.Now())
 
 	// Resolve token to acl to filter namespace list
-	aclObj, err := n.srv.resolveToken(args.SecretID)
+	aclObj, err := n.srv.ResolveToken(args.SecretID)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespace"}, time.Now())
 
 	// Check capabilities for the given namespace permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNamespace(args.Name) {
 		return structs.ErrPermissionDenied
@@ -220,7 +220,7 @@ func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *stru
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespaces"}, time.Now())
 
 	// Check management permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.SecretID); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied

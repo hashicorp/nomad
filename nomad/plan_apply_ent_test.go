@@ -5,6 +5,7 @@ package nomad
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -122,7 +123,7 @@ func TestPlanApply_EvalPlan_AboveQuota(t *testing.T) {
 		Deployment: mock.Deployment(),
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
 			{
-				DeploymentID:      structs.GenerateUUID(),
+				DeploymentID:      uuid.Generate(),
 				Status:            "foo",
 				StatusDescription: "bar",
 			},

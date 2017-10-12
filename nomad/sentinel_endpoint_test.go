@@ -8,6 +8,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -41,7 +42,7 @@ func TestSentinelEndpoint_GetPolicy(t *testing.T) {
 	assert.Equal(t, policy, resp.Policy)
 
 	// Lookup non-existing policy
-	get.Name = structs.GenerateUUID()
+	get.Name = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "Sentinel.GetPolicy", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -158,7 +159,7 @@ func TestSentinelEndpoint_GetPolicies(t *testing.T) {
 	assert.Equal(t, policy2, resp.Policies[policy2.Name])
 
 	// Lookup non-existing policy
-	get.Names = []string{structs.GenerateUUID()}
+	get.Names = []string{uuid.Generate()}
 	resp = structs.SentinelPolicySetResponse{}
 	if err := msgpackrpc.CallWithCodec(codec, "Sentinel.GetPolicies", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)

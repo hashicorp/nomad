@@ -5,12 +5,13 @@ package mock
 import (
 	"fmt"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func SentinelPolicy() *structs.SentinelPolicy {
 	sp := &structs.SentinelPolicy{
-		Name:             fmt.Sprintf("sent-policy-%s", structs.GenerateUUID()),
+		Name:             fmt.Sprintf("sent-policy-%s", uuid.Generate()),
 		Description:      "Super cool policy!",
 		EnforcementLevel: "advisory",
 		Scope:            "submit-job",
@@ -24,7 +25,7 @@ func SentinelPolicy() *structs.SentinelPolicy {
 
 func QuotaSpec() *structs.QuotaSpec {
 	qs := &structs.QuotaSpec{
-		Name:        fmt.Sprintf("quota-spec-%s", structs.GenerateUUID()),
+		Name:        fmt.Sprintf("quota-spec-%s", uuid.Generate()),
 		Description: "Super cool quota!",
 		Limits: []*structs.QuotaLimit{
 			{
@@ -59,7 +60,7 @@ func QuotaUsage() *structs.QuotaUsage {
 	qs.SetHash()
 
 	qu := &structs.QuotaUsage{
-		Name: fmt.Sprintf("quota-usage-%s", structs.GenerateUUID()),
+		Name: fmt.Sprintf("quota-usage-%s", uuid.Generate()),
 		Used: map[string]*structs.QuotaLimit{
 			string(l1.Hash): l1,
 			string(l2.Hash): l2,
