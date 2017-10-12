@@ -8,7 +8,7 @@ export default Route.extend({
 
   model({ job_id }) {
     return this.get('store')
-      .find('job', job_id)
+      .findRecord('job', job_id, { reload: true })
       .then(job => {
         return job.get('allocations').then(() => job);
       })

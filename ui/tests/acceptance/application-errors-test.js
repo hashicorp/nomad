@@ -11,7 +11,7 @@ moduleForAcceptance('Acceptance | application errors ', {
 });
 
 test('transitioning away from an error page resets the global error', function(assert) {
-  server.pretender.get('/v1/nodes', () => [403, {}, null]);
+  server.pretender.get('/v1/nodes', () => [500, {}, null]);
 
   visit('/nodes');
 
@@ -23,5 +23,34 @@ test('transitioning away from an error page resets the global error', function(a
 
   andThen(() => {
     assert.notOk(find('.error-message'), 'Application is no longer in an error state');
+  });
+});
+
+test('the 403 error page links to the ACL tokens page', function(assert) {
+  const job = server.db.jobs[0];
+
+  server.pretender.get(`/v1/job/${job.id}`, () => [403, {}, null]);
+
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.equal(
+      find('.error-message .title').textContent,
+      'Not Authorized',
+      'Error message is for 403'
+    );
+  });
+
+  andThen(() => {
+    click('.error-message a');
+  });
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Error message contains a link to the tokens page'
+    );
   });
 });

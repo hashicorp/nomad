@@ -27,6 +27,10 @@ export default Controller.extend({
       .map(code => '' + code);
   }),
 
+  is403: computed('errorCodes.[]', function() {
+    return this.get('errorCodes').includes('403');
+  }),
+
   is404: computed('errorCodes.[]', function() {
     return this.get('errorCodes').includes('404');
   }),
