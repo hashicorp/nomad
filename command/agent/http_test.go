@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/ugorji/go/codec"
 )
 
@@ -216,6 +217,23 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	if !bytes.Equal(expected.Bytes(), actual) {
 		t.Fatalf("bad:\nexpected:\t%q\nactual:\t\t%q", expected.String(), string(actual))
 	}
+}
+
+func TestPermissionDenied(t *testing.T) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	urlStr := "/v1/job/foo"
+	req, _ := http.NewRequest("GET", urlStr, nil)
+	s.Server.wrap(handler)(resp, req)
+	assert.Equal(t, resp.Code, 403)
 }
 
 func TestParseWait(t *testing.T) {

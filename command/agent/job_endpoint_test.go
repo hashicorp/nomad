@@ -211,6 +211,37 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 	})
 }
 
+// Test that permission denied gets a 403
+func TestHTTP_JobsRegister_ACL_Bad(t *testing.T) {
+	t.Parallel()
+	httpACLTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := api.MockJob()
+		args := api.JobRegisterRequest{
+			Job: job,
+			WriteRequest: api.WriteRequest{
+				Region: "global",
+			},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		assert.Nil(t, obj)
+		assert.Contains(t, err.Error(), "403")
+	})
+}
+
 func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
