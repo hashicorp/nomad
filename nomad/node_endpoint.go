@@ -579,7 +579,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
 	// Check node read and namespace job read permissions
-	aclObj, err := n.srv.ResolveToken(args.SecretID)
+	aclObj, err := n.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
