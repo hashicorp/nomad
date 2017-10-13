@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"strings"
@@ -1007,4 +1008,26 @@ func TestEvalEndpoint_Reblock(t *testing.T) {
 	if bStats.TotalBlocked+bStats.TotalEscaped == 0 {
 		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker")
 	}
+}
+
+// TestGenerateMigrateToken asserts the migrate token is valid for use in HTTP
+// headers and CompareMigrateToken works as expected.
+func TestGenerateMigrateToken(t *testing.T) {
+	assert := assert.New(t)
+	allocID := uuid.Generate()
+	nodeSecret := uuid.Generate()
+	token, err := GenerateMigrateToken(allocID, nodeSecret)
+	assert.Nil(err)
+	_, err = base64.URLEncoding.DecodeString(token)
+	assert.Nil(err)
+
+	assert.True(CompareMigrateToken(allocID, nodeSecret, token))
+	assert.False(CompareMigrateToken("x", nodeSecret, token))
+	assert.False(CompareMigrateToken(allocID, "x", token))
+	assert.False(CompareMigrateToken(allocID, nodeSecret, "x"))
+
+	token2, err := GenerateMigrateToken("x", nodeSecret)
+	assert.Nil(err)
+	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
+	assert.True(CompareMigrateToken("x", nodeSecret, token2))
 }
