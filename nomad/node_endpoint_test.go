@@ -1172,11 +1172,14 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1004, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	// Lookup the node without a token and expect failure
 	req := &structs.NodeSpecificRequest{
-		NodeID:       node.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		NodeID: node.ID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
 	}
+
+	// Lookup the node without a token and expect failure
 	{
 		var resp structs.NodeAllocsResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
@@ -1185,7 +1188,7 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for the default namespace
-	req.SecretID = validDefaultToken.SecretID
+	req.AuthToken = validDefaultToken.SecretID
 	{
 		var resp structs.NodeAllocsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
@@ -1194,7 +1197,7 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for a namespace with no allocs on this node
-	req.SecretID = validNoNSToken.SecretID
+	req.AuthToken = validNoNSToken.SecretID
 	{
 		var resp structs.NodeAllocsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
@@ -1202,7 +1205,7 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	}
 
 	// Try with a invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.NodeAllocsResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp)
@@ -1211,7 +1214,7 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		var resp structs.NodeAllocsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
