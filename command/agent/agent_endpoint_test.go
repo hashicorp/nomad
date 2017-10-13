@@ -632,3 +632,173 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_AgentHealth_Ok(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	// Enable ACLs to ensure they're not enforced
+	httpACLTest(t, nil, func(s *TestAgent) {
+		// No ?type=
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Client)
+			assert.True(health.Client.Ok)
+			assert.Equal("ok", health.Client.Message)
+			assert.NotNil(health.Server)
+			assert.True(health.Server.Ok)
+			assert.Equal("ok", health.Server.Message)
+		}
+
+		// type=client
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=client", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Client)
+			assert.True(health.Client.Ok)
+			assert.Equal("ok", health.Client.Message)
+			assert.Nil(health.Server)
+		}
+
+		// type=server
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Server)
+			assert.True(health.Server.Ok)
+			assert.Equal("ok", health.Server.Message)
+			assert.Nil(health.Client)
+		}
+
+		// type=client&type=server
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=client&type=server", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Client)
+			assert.True(health.Client.Ok)
+			assert.Equal("ok", health.Client.Message)
+			assert.NotNil(health.Server)
+			assert.True(health.Server.Ok)
+			assert.Equal("ok", health.Server.Message)
+		}
+	})
+}
+
+func TestHTTP_AgentHealth_BadServer(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	// Enable ACLs to ensure they're not enforced
+	httpACLTest(t, nil, func(s *TestAgent) {
+
+		// Set s.Agent.server=nil to make server unhealthy if requested
+		s.Agent.server = nil
+
+		// No ?type= means server is just skipped
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Client)
+			assert.True(health.Client.Ok)
+			assert.Equal("ok", health.Client.Message)
+			assert.Nil(health.Server)
+		}
+
+		// type=server means server is considered unhealthy
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(500, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Server)
+			assert.False(health.Server.Ok)
+			assert.Equal("server not enabled", health.Server.Message)
+		}
+	})
+}
+
+func TestHTTP_AgentHealth_BadClient(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	// Enable ACLs to ensure they're not enforced
+	httpACLTest(t, nil, func(s *TestAgent) {
+
+		// Set s.Agent.client=nil to make server unhealthy if requested
+		s.Agent.client = nil
+
+		// No ?type= means client is just skipped
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(http.StatusOK, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Server)
+			assert.True(health.Server.Ok)
+			assert.Equal("ok", health.Server.Message)
+			assert.Nil(health.Client)
+		}
+
+		// type=client means client is considered unhealthy
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=client", nil)
+			assert.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			assert.Nil(err)
+			assert.Equal(500, respW.Code)
+			assert.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			assert.NotNil(health.Client)
+			assert.False(health.Client.Ok)
+			assert.Equal("client not enabled", health.Client.Message)
+		}
+	})
+}
