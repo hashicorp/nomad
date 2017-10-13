@@ -248,6 +248,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -300,6 +301,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	d.TaskGroups["web"].PlacedCanaries = []string{alloc.ID, alloc2.ID}
 
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID:  {alloc},
 			node2.ID: {alloc2},
@@ -352,6 +354,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
 	alloc2.Resources = node2.Resources
 	plan := &structs.Plan{
+		Job:       alloc.Job,
 		AllAtOnce: true, // Require all to make progress
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID:  {alloc},
@@ -398,6 +401,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -425,6 +429,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -452,6 +457,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -477,6 +483,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	nodeID := "12345678-abcd-efab-cdef-123456789abc"
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			nodeID: {alloc},
 		},
@@ -512,6 +519,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 
 	snap, _ := state.Snapshot()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
 		},
@@ -542,6 +550,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -576,6 +585,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
 		},
@@ -611,6 +621,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
 		},
@@ -645,6 +656,7 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	*allocEvict = *alloc
 	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	plan := &structs.Plan{
+		Job: alloc.Job,
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
 		},

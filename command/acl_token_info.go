@@ -15,7 +15,7 @@ func (c *ACLTokenInfoCommand) Help() string {
 	helpText := `
 Usage: nomad acl token info <token_accessor_id>
 
-Info is used to fetch information on an existing ACL tokens. Requires a management token.
+  Info is used to fetch information on an existing ACL tokens. Requires a management token.
 
 General Options:
 

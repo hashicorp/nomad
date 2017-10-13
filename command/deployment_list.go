@@ -16,7 +16,7 @@ func (c *DeploymentListCommand) Help() string {
 	helpText := `
 Usage: nomad deployment list [options]
 
-List is used to list the set of deployments tracked by Nomad.
+  List is used to list the set of deployments tracked by Nomad.
 
 General Options:
 

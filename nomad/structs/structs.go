@@ -128,6 +128,7 @@ const (
 	Jobs        Context = "jobs"
 	Nodes       Context = "nodes"
 	Namespaces  Context = "namespaces"
+	Quotas      Context = "quotas"
 	All         Context = "all"
 )
 
@@ -2768,6 +2769,17 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
+// CombinedResources returns the combined resources for the task group
+func (tg *TaskGroup) CombinedResources() *Resources {
+	r := &Resources{
+		DiskMB: tg.EphemeralDisk.SizeMB,
+	}
+	for _, task := range tg.Tasks {
+		r.Add(task.Resources)
+	}
+	return r
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
@@ -4786,6 +4798,9 @@ type AllocMetric struct {
 	// DimensionExhausted provides the count by dimension or reason
 	DimensionExhausted map[string]int
 
+	// QuotaExhausted provides the exhausted dimensions
+	QuotaExhausted []string
+
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
 	Scores map[string]float64
@@ -4812,6 +4827,7 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	na.ConstraintFiltered = helper.CopyMapStringInt(na.ConstraintFiltered)
 	na.ClassExhausted = helper.CopyMapStringInt(na.ClassExhausted)
 	na.DimensionExhausted = helper.CopyMapStringInt(na.DimensionExhausted)
+	na.QuotaExhausted = helper.CopySliceString(na.QuotaExhausted)
 	na.Scores = helper.CopyMapStringFloat64(na.Scores)
 	return na
 }
@@ -4850,6 +4866,14 @@ func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
 		}
 		a.DimensionExhausted[dimension] += 1
 	}
+}
+
+func (a *AllocMetric) ExhaustQuota(dimensions []string) {
+	if a.QuotaExhausted == nil {
+		a.QuotaExhausted = make([]string, 0, len(dimensions))
+	}
+
+	a.QuotaExhausted = append(a.QuotaExhausted, dimensions...)
 }
 
 func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
@@ -5031,6 +5055,10 @@ type Evaluation struct {
 	// marked as eligible or ineligible.
 	ClassEligibility map[string]bool
 
+	// QuotaLimitReached marks whether a quota limit was reached for the
+	// evaluation.
+	QuotaLimitReached string
+
 	// EscapedComputedClass marks whether the job has constraints that are not
 	// captured by computed node classes.
 	EscapedComputedClass bool
@@ -5165,8 +5193,11 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 
 // CreateBlockedEval creates a blocked evaluation to followup this eval to place any
 // failed allocations. It takes the classes marked explicitly eligible or
-// ineligible and whether the job has escaped computed node classes.
-func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped bool) *Evaluation {
+// ineligible, whether the job has escaped computed node classes and whether the
+// quota limit was reached.
+func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
+	escaped bool, quotaReached string) *Evaluation {
+
 	return &Evaluation{
 		ID:                   uuid.Generate(),
 		Namespace:            e.Namespace,
@@ -5179,6 +5210,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool, escaped
 		PreviousEval:         e.ID,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
+		QuotaLimitReached:    quotaReached,
 	}
 }
 

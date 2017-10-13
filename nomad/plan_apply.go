@@ -74,7 +74,7 @@ func (s *Server) planApply() {
 		if waitCh == nil || snap == nil {
 			snap, err = s.fsm.State().Snapshot()
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to snapshot state: %v", err)
+				s.logger.Printf("[ERR] nomad.planner: failed to snapshot state: %v", err)
 				pending.respond(nil, err)
 				continue
 			}
@@ -83,7 +83,7 @@ func (s *Server) planApply() {
 		// Evaluate the plan
 		result, err := evaluatePlan(pool, snap, pending.plan, s.logger)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to evaluate plan: %v", err)
+			s.logger.Printf("[ERR] nomad.planner: failed to evaluate plan: %v", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -100,7 +100,7 @@ func (s *Server) planApply() {
 			<-waitCh
 			snap, err = s.fsm.State().Snapshot()
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to snapshot state: %v", err)
+				s.logger.Printf("[ERR] nomad.planner: failed to snapshot state: %v", err)
 				pending.respond(nil, err)
 				continue
 			}
@@ -109,7 +109,7 @@ func (s *Server) planApply() {
 		// Dispatch the Raft transaction for the plan
 		future, err := s.applyPlan(pending.plan, result, snap)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
+			s.logger.Printf("[ERR] nomad.planner: failed to submit plan: %v", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -176,7 +176,7 @@ func (s *Server) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to apply plan: %v", err)
+		s.logger.Printf("[ERR] nomad.planner: failed to apply plan: %v", err)
 		pending.respond(nil, err)
 		return
 	}
@@ -200,6 +200,30 @@ func (s *Server) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger *log.Logger) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
+	// Check if the plan exceeds quota
+	overQuota, err := evaluatePlanQuota(snap, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	// Reject the plan and force the scheduler to refresh
+	if overQuota {
+		index, err := refreshIndex(snap)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Printf("[DEBUG] nomad.planner: plan for evaluation %q exceeds quota limit. Forcing refresh to %d", plan.EvalID, index)
+		return &structs.PlanResult{RefreshIndex: index}, nil
+	}
+
+	return evaluatePlanPlacements(pool, snap, plan, logger)
+}
+
+// evaluatePlanPlacements is used to determine what portions of a plan can be
+// applied if any, looking for node over commitment. Returns if there should be
+// a plan application which may be partial or if there was an error
+func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger *log.Logger) (*structs.PlanResult, error) {
 	// Create a result holder for the plan
 	result := &structs.PlanResult{
 		NodeUpdate:        make(map[string][]*structs.Allocation),
@@ -239,7 +263,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 		if !fit {
 			// Log the reason why the node's allocations could not be made
 			if reason != "" {
-				logger.Printf("[DEBUG] nomad: plan for node %q rejected because: %v", nodeID, reason)
+				logger.Printf("[DEBUG] nomad.planner: plan for node %q rejected because: %v", nodeID, reason)
 			}
 			// Set that this is a partial commit
 			partialCommit = true
@@ -310,18 +334,14 @@ OUTER:
 	// a minimum refresh index to force the scheduler to work on a more
 	// up-to-date state to avoid the failures.
 	if partialCommit {
-		allocIndex, err := snap.Index("allocs")
+		index, err := refreshIndex(snap)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		nodeIndex, err := snap.Index("nodes")
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-		result.RefreshIndex = maxUint64(nodeIndex, allocIndex)
+		result.RefreshIndex = index
 
 		if result.RefreshIndex == 0 {
-			err := fmt.Errorf("partialCommit with RefreshIndex of 0 (%d node, %d alloc)", nodeIndex, allocIndex)
+			err := fmt.Errorf("partialCommit with RefreshIndex of 0")
 			mErr.Errors = append(mErr.Errors, err)
 		}
 

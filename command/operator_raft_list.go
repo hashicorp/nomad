@@ -17,7 +17,7 @@ func (c *OperatorRaftListCommand) Help() string {
 	helpText := `
 Usage: nomad operator raft list-peers [options]
 
-Displays the current Raft peer configuration.
+  Displays the current Raft peer configuration.
 
 General Options:
 

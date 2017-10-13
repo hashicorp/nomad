@@ -15,6 +15,58 @@ type KeyringCommand struct {
 	Meta
 }
 
+func (c *KeyringCommand) Help() string {
+	helpText := `
+Usage: nomad keyring [options]
+
+  Manages encryption keys used for gossip messages between Nomad servers. Gossip
+  encryption is optional. When enabled, this command may be used to examine
+  active encryption keys in the cluster, add new keys, and remove old ones. When
+  combined, this functionality provides the ability to perform key rotation
+  cluster-wide, without disrupting the cluster.
+
+  All operations performed by this command can only be run against server nodes.
+
+  All variations of the keyring command return 0 if all nodes reply and there
+  are no errors. If any node fails to reply or reports failure, the exit code
+  will be 1.
+
+General Options:
+
+  ` + generalOptionsUsage() + `
+
+Keyring Options:
+
+  -install=<key>            Install a new encryption key. This will broadcast
+                            the new key to all members in the cluster.
+  -list                     List all keys currently in use within the cluster.
+  -remove=<key>             Remove the given key from the cluster. This
+                            operation may only be performed on keys which are
+                            not currently the primary key.
+  -use=<key>                Change the primary encryption key, which is used to
+                            encrypt messages. The key must already be installed
+                            before this operation can succeed.
+`
+	return strings.TrimSpace(helpText)
+}
+
+func (c *KeyringCommand) Synopsis() string {
+	return "Manages gossip layer encryption keys"
+}
+
+func (c *KeyringCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-install": complete.PredictAnything,
+			"-list":    complete.PredictNothing,
+			"-remove":  complete.PredictAnything,
+			"-use":     complete.PredictAnything,
+		})
+}
+func (c *KeyringCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func (c *KeyringCommand) Run(args []string) int {
 	var installKey, useKey, removeKey, token string
 	var listKeys bool
@@ -116,56 +168,4 @@ func (c *KeyringCommand) handleKeyResponse(resp *api.KeyringResponse) {
 		i = i + 1
 	}
 	c.Ui.Output(formatList(out))
-}
-
-func (c *KeyringCommand) Help() string {
-	helpText := `
-Usage: nomad keyring [options]
-
-  Manages encryption keys used for gossip messages between Nomad servers. Gossip
-  encryption is optional. When enabled, this command may be used to examine
-  active encryption keys in the cluster, add new keys, and remove old ones. When
-  combined, this functionality provides the ability to perform key rotation
-  cluster-wide, without disrupting the cluster.
-
-  All operations performed by this command can only be run against server nodes.
-
-  All variations of the keyring command return 0 if all nodes reply and there
-  are no errors. If any node fails to reply or reports failure, the exit code
-  will be 1.
-
-General Options:
-
-  ` + generalOptionsUsage() + `
-
-Keyring Options:
-
-  -install=<key>            Install a new encryption key. This will broadcast
-                            the new key to all members in the cluster.
-  -list                     List all keys currently in use within the cluster.
-  -remove=<key>             Remove the given key from the cluster. This
-                            operation may only be performed on keys which are
-                            not currently the primary key.
-  -use=<key>                Change the primary encryption key, which is used to
-                            encrypt messages. The key must already be installed
-                            before this operation can succeed.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *KeyringCommand) Synopsis() string {
-	return "Manages gossip layer encryption keys"
-}
-
-func (c *KeyringCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			"-install": complete.PredictAnything,
-			"-list":    complete.PredictNothing,
-			"-remove":  complete.PredictAnything,
-			"-use":     complete.PredictAnything,
-		})
-}
-func (c *KeyringCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
 }

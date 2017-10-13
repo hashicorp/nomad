@@ -17,7 +17,7 @@ func (c *NamespaceListCommand) Help() string {
 	helpText := `
 Usage: nomad namespace list [options]
 
-List is used to list available namespaces.
+  List is used to list available namespaces.
 
 General Options:
 

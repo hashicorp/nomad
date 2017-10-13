@@ -16,8 +16,8 @@ func (c *DeploymentResumeCommand) Help() string {
 	helpText := `
 Usage: nomad deployment resume [options] <deployment id>
 
-Resume is used to unpause a paused deployment. Resuming a deployment will
-resume the placement of new allocations as part of rolling deployment.
+  Resume is used to unpause a paused deployment. Resuming a deployment will
+  resume the placement of new allocations as part of rolling deployment.
 
 General Options:
 

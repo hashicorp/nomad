@@ -35,6 +35,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	plan := mock.Plan()
 	plan.EvalID = eval1.ID
 	plan.EvalToken = token
+	plan.Job = mock.Job()
 	req := &structs.PlanRequest{
 		Plan:         plan,
 		WriteRequest: structs.WriteRequest{Region: "global"},

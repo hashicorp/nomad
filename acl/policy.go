@@ -41,6 +41,7 @@ type Policy struct {
 	Agent      *AgentPolicy       `hcl:"agent"`
 	Node       *NodePolicy        `hcl:"node"`
 	Operator   *OperatorPolicy    `hcl:"operator"`
+	Quota      *QuotaPolicy       `hcl:"quota"`
 	Raw        string             `hcl:"-"`
 }
 
@@ -60,6 +61,10 @@ type NodePolicy struct {
 }
 
 type OperatorPolicy struct {
+	Policy string
+}
+
+type QuotaPolicy struct {
 	Policy string
 }
 
@@ -161,6 +166,10 @@ func Parse(rules string) (*Policy, error) {
 
 	if p.Operator != nil && !isPolicyValid(p.Operator.Policy) {
 		return nil, fmt.Errorf("Invalid operator policy: %#v", p.Operator)
+	}
+
+	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {
+		return nil, fmt.Errorf("Invalid quota policy: %#v", p.Quota)
 	}
 	return p, nil
 }

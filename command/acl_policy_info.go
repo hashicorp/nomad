@@ -15,7 +15,7 @@ func (c *ACLPolicyInfoCommand) Help() string {
 	helpText := `
 Usage: nomad acl policy info <name>
 
-Info is used to fetch information on an existing ACL policy.
+  Info is used to fetch information on an existing ACL policy.
 
 General Options:
 

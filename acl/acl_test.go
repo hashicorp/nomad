@@ -60,95 +60,111 @@ func TestMaxPrivilege(t *testing.T) {
 }
 
 func TestACLManagement(t *testing.T) {
+	assert := assert.New(t)
+
 	// Create management ACL
 	acl, err := NewACL(true, nil)
-	assert.Nil(t, err)
+	assert.Nil(err)
 
 	// Check default namespace rights
-	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
-	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.True(acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
+	assert.True(acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.True(acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
-	assert.Equal(t, true, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.True(acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.True(acl.AllowNamespace("foo"))
 
 	// Check the other simpler operations
-	assert.Equal(t, true, acl.IsManagement())
-	assert.Equal(t, true, acl.AllowAgentRead())
-	assert.Equal(t, true, acl.AllowAgentWrite())
-	assert.Equal(t, true, acl.AllowNodeRead())
-	assert.Equal(t, true, acl.AllowNodeWrite())
-	assert.Equal(t, true, acl.AllowOperatorRead())
-	assert.Equal(t, true, acl.AllowOperatorWrite())
+	assert.True(acl.IsManagement())
+	assert.True(acl.AllowAgentRead())
+	assert.True(acl.AllowAgentWrite())
+	assert.True(acl.AllowNodeRead())
+	assert.True(acl.AllowNodeWrite())
+	assert.True(acl.AllowOperatorRead())
+	assert.True(acl.AllowOperatorWrite())
+	assert.True(acl.AllowQuotaRead())
+	assert.True(acl.AllowQuotaWrite())
 }
 
 func TestACLMerge(t *testing.T) {
+	assert := assert.New(t)
+
 	// Merge read + write policy
 	p1, err := Parse(readAll)
-	assert.Nil(t, err)
+	assert.Nil(err)
 	p2, err := Parse(writeAll)
-	assert.Nil(t, err)
+	assert.Nil(err)
 	acl, err := NewACL(false, []*Policy{p1, p2})
-	assert.Nil(t, err)
+	assert.Nil(err)
 
 	// Check default namespace rights
-	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
-	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.True(acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
+	assert.True(acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.True(acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
-	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.False(acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.False(acl.AllowNamespace("foo"))
 
 	// Check the other simpler operations
-	assert.Equal(t, false, acl.IsManagement())
-	assert.Equal(t, true, acl.AllowAgentRead())
-	assert.Equal(t, true, acl.AllowAgentWrite())
-	assert.Equal(t, true, acl.AllowNodeRead())
-	assert.Equal(t, true, acl.AllowNodeWrite())
-	assert.Equal(t, true, acl.AllowOperatorRead())
-	assert.Equal(t, true, acl.AllowOperatorWrite())
+	assert.False(acl.IsManagement())
+	assert.True(acl.AllowAgentRead())
+	assert.True(acl.AllowAgentWrite())
+	assert.True(acl.AllowNodeRead())
+	assert.True(acl.AllowNodeWrite())
+	assert.True(acl.AllowOperatorRead())
+	assert.True(acl.AllowOperatorWrite())
+	assert.True(acl.AllowQuotaRead())
+	assert.True(acl.AllowQuotaWrite())
 
 	// Merge read + blank
 	p3, err := Parse("")
-	assert.Nil(t, err)
+	assert.Nil(err)
 	acl, err = NewACL(false, []*Policy{p1, p3})
-	assert.Nil(t, err)
+	assert.Nil(err)
 
 	// Check default namespace rights
-	assert.Equal(t, true, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
-	assert.Equal(t, false, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.True(acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
+	assert.False(acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
 
 	// Check non-specified namespace
-	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.False(acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
 
 	// Check the other simpler operations
-	assert.Equal(t, false, acl.IsManagement())
-	assert.Equal(t, true, acl.AllowAgentRead())
-	assert.Equal(t, false, acl.AllowAgentWrite())
-	assert.Equal(t, true, acl.AllowNodeRead())
-	assert.Equal(t, false, acl.AllowNodeWrite())
-	assert.Equal(t, true, acl.AllowOperatorRead())
-	assert.Equal(t, false, acl.AllowOperatorWrite())
+	assert.False(acl.IsManagement())
+	assert.True(acl.AllowAgentRead())
+	assert.False(acl.AllowAgentWrite())
+	assert.True(acl.AllowNodeRead())
+	assert.False(acl.AllowNodeWrite())
+	assert.True(acl.AllowOperatorRead())
+	assert.False(acl.AllowOperatorWrite())
+	assert.True(acl.AllowQuotaRead())
+	assert.False(acl.AllowQuotaWrite())
 
 	// Merge read + deny
 	p4, err := Parse(denyAll)
-	assert.Nil(t, err)
+	assert.Nil(err)
 	acl, err = NewACL(false, []*Policy{p1, p4})
-	assert.Nil(t, err)
+	assert.Nil(err)
 
 	// Check default namespace rights
-	assert.Equal(t, false, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
-	assert.Equal(t, false, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	assert.False(acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
+	assert.False(acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
 
 	// Check non-specified namespace
-	assert.Equal(t, false, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	assert.False(acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
 
 	// Check the other simpler operations
-	assert.Equal(t, false, acl.IsManagement())
-	assert.Equal(t, false, acl.AllowAgentRead())
-	assert.Equal(t, false, acl.AllowAgentWrite())
-	assert.Equal(t, false, acl.AllowNodeRead())
-	assert.Equal(t, false, acl.AllowNodeWrite())
-	assert.Equal(t, false, acl.AllowOperatorRead())
-	assert.Equal(t, false, acl.AllowOperatorWrite())
+	assert.False(acl.IsManagement())
+	assert.False(acl.AllowAgentRead())
+	assert.False(acl.AllowAgentWrite())
+	assert.False(acl.AllowNodeRead())
+	assert.False(acl.AllowNodeWrite())
+	assert.False(acl.AllowOperatorRead())
+	assert.False(acl.AllowOperatorWrite())
+	assert.False(acl.AllowQuotaRead())
+	assert.False(acl.AllowQuotaWrite())
 }
 
 var readAll = `
@@ -162,6 +178,9 @@ node {
 	policy = "read"
 }
 operator {
+	policy = "read"
+}
+quota {
 	policy = "read"
 }
 `
@@ -179,6 +198,9 @@ node {
 operator {
 	policy = "write"
 }
+quota {
+	policy = "write"
+}
 `
 
 var denyAll = `
@@ -194,4 +216,49 @@ node {
 operator {
 	policy = "deny"
 }
+quota {
+	policy = "deny"
+}
 `
+
+func TestAllowNamespace(t *testing.T) {
+	tests := []struct {
+		Policy string
+		Allow  bool
+	}{
+		{
+			Policy: `namespace "foo" {}`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { policy = "deny" }`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { capabilities = ["deny"] }`,
+			Allow:  false,
+		},
+		{
+			Policy: `namespace "foo" { capabilities = ["list-jobs"] }`,
+			Allow:  true,
+		},
+		{
+			Policy: `namespace "foo" { policy = "read" }`,
+			Allow:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.Nil(err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			assert.Equal(tc.Allow, acl.AllowNamespace("foo"))
+		})
+	}
+}

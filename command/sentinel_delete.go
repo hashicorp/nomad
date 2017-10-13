@@ -15,7 +15,7 @@ func (c *SentinelDeleteCommand) Help() string {
 	helpText := `
 Usage: nomad sentinel delete [options] <name>
 
-Delete is used to delete an existing Sentinel policy.
+  Delete is used to delete an existing Sentinel policy.
 
 General Options:
 
