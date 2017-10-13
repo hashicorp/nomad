@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/blake2b"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
@@ -974,11 +973,8 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 	defer c.Shutdown()
 
 	alloc := mock.Alloc()
-	h, err := blake2b.New512([]byte(c.secretNodeID()))
+	validToken, err := nomad.GenerateMigrateToken(alloc.ID, c.secretNodeID())
 	assert.Nil(err)
-
-	h.Write([]byte(alloc.ID))
-	validToken := string(h.Sum(nil))
 
 	assert.Equal(c.ValidateMigrateToken(alloc.ID, validToken), true)
 }
