@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -76,7 +77,7 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
-func getResourceIter(context structs.Context, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
 	switch context {
 	case structs.Jobs:
 		return state.JobsByIDPrefix(ws, namespace, prefix)
@@ -89,7 +90,7 @@ func getResourceIter(context structs.Context, namespace, prefix string, ws memdb
 	case structs.Deployments:
 		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
 	default:
-		return getEnterpriseResourceIter(context, namespace, prefix, ws, state)
+		return getEnterpriseResourceIter(context, aclObj, namespace, prefix, ws, state)
 	}
 }
 
@@ -139,7 +140,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 			contexts := searchContexts(aclObj, namespace, args.Context)
 
 			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
+				iter, err := getResourceIter(ctx, aclObj, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 				if err != nil {
 					e := err.Error()
 					switch {

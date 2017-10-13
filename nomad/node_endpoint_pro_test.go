@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
+func TestClientEndpoint_GetAllocs_ACL_Pro(t *testing.T) {
 	t.Parallel()
 	s1, root := testACLServer(t, nil)
 	defer s1.Shutdown()
@@ -48,11 +48,11 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(6, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
-	validDefaultToken := CreatePolicyAndToken(t, state, 1001, "test-default-valid", NodePolicy(acl.PolicyRead)+
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	validNoNSToken := CreatePolicyAndToken(t, state, 1003, "test-alt-valid", NodePolicy(acl.PolicyRead))
-	invalidToken := CreatePolicyAndToken(t, state, 1004, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validNoNSToken := mock.CreatePolicyAndToken(t, state, 1003, "test-alt-valid", mock.NodePolicy(acl.PolicyRead))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1004, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Lookup the node without a token and expect failure
 	req := &structs.NodeSpecificRequest{

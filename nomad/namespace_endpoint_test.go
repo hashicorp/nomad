@@ -9,6 +9,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -38,7 +39,7 @@ func TestNamespaceEndpoint_GetNamespace(t *testing.T) {
 	assert.Equal(ns, resp.Namespace)
 
 	// Lookup non-existing namespace
-	get.Name = structs.GenerateUUID()
+	get.Name = uuid.Generate()
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
 	assert.EqualValues(1000, resp.Index)
 	assert.Nil(resp.Namespace)
@@ -59,10 +60,10 @@ func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
 	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
-		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(ns2.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1002, "test-valid",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(ns2.Name, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	get := &structs.NamespaceSpecificRequest{
 		Name:         ns1.Name,
@@ -205,8 +206,8 @@ func TestNamespaceEndpoint_GetNamespaces_ACL(t *testing.T) {
 	state.UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
 
 	// Create the policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1002, "test-valid",
-		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1002, "test-valid",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Lookup the namespace
 	get := &structs.NamespaceSetRequest{
@@ -353,13 +354,13 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 	ns2.Name = "bbbbbbbb-3350-4b4b-d185-0e1992ed43e9"
 	assert.Nil(s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2}))
 
-	validDefToken := CreatePolicyAndToken(t, state, 1001, "test-def-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS}))
-	validMultiToken := CreatePolicyAndToken(t, state, 1002, "test-multi-valid", fmt.Sprintf("%s\n%s",
-		NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}),
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
+	validDefToken := mock.CreatePolicyAndToken(t, state, 1001, "test-def-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS}))
+	validMultiToken := mock.CreatePolicyAndToken(t, state, 1002, "test-multi-valid", fmt.Sprintf("%s\n%s",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}),
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy("invalid-namespace", "", []string{acl.NamespaceCapabilityReadJob}))
 
 	get := &structs.NamespaceListRequest{
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -497,8 +498,8 @@ func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
 
 	// Create the policy and tokens
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	req := &structs.NamespaceDeleteRequest{
 		Namespaces:   []string{ns1.Name, ns2.Name},
@@ -619,8 +620,8 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	// Create the policy and tokens
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Create the register request
 	req := &structs.NamespaceUpsertRequest{
