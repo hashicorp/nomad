@@ -75,14 +75,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if len(args.Node.Attributes) == 0 {
 		return fmt.Errorf("missing attributes for client registration")
 	}
-
-	// COMPAT: Remove after 0.6
-	// Need to check if this node is <0.4.x since SecretID is new in 0.5
-	pre, err := nodePreSecretID(args.Node)
-	if err != nil {
-		return err
-	}
-	if args.Node.SecretID == "" && !pre {
+	if args.Node.SecretID == "" {
 		return fmt.Errorf("missing node secret ID for client registration")
 	}
 
@@ -115,7 +108,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	// Check if the SecretID has been tampered with
-	if !pre && originalNode != nil {
+	if originalNode != nil {
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
@@ -170,22 +163,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	return nil
-}
-
-// nodePreSecretID is a helper that returns whether the node is on a version
-// that is before SecretIDs were introduced
-func nodePreSecretID(node *structs.Node) (bool, error) {
-	a := node.Attributes
-	if a == nil {
-		return false, fmt.Errorf("node doesn't have attributes set")
-	}
-
-	v, ok := a["nomad.version"]
-	if !ok {
-		return false, fmt.Errorf("missing Nomad version in attributes")
-	}
-
-	return !strings.HasPrefix(v, "0.5"), nil
 }
 
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
@@ -715,14 +692,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			var allocs []*structs.Allocation
 			if node != nil {
-				// COMPAT: Remove in 0.6
-				// Check if the node should have a SecretID set
 				if args.SecretID == "" {
-					if pre, err := nodePreSecretID(node); err != nil {
-						return err
-					} else if !pre {
-						return fmt.Errorf("missing node secret ID for client status update")
-					}
+					return fmt.Errorf("missing node secret ID for client status update")
 				} else if args.SecretID != node.SecretID {
 					return fmt.Errorf("node secret ID does not match")
 				}

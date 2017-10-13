@@ -59,55 +59,6 @@ func TestClientEndpoint_Register(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_Register_NoSecret(t *testing.T) {
-	t.Parallel()
-	s1 := testServer(t, nil)
-	defer s1.Shutdown()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	node := mock.Node()
-	node.SecretID = ""
-	req := &structs.NodeRegisterRequest{
-		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	// Fetch the response
-	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "secret") {
-		t.Fatalf("Expecting error regarding missing secret id: %v", err)
-	}
-
-	// Update the node to be pre-0.5
-	node.Attributes["nomad.version"] = "0.4.1"
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
-		t.Fatalf("Not expecting err: %v", err)
-	}
-	if resp.Index == 0 {
-		t.Fatalf("bad index: %d", resp.Index)
-	}
-
-	// Check for the node in the FSM
-	state := s1.fsm.State()
-	ws := memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("expected node")
-	}
-	if out.CreateIndex != resp.Index {
-		t.Fatalf("index mis-match")
-	}
-	if out.ComputedClass == "" {
-		t.Fatal("ComputedClass not set")
-	}
-}
-
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
