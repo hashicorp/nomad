@@ -15,7 +15,7 @@ func (c *ACLTokenSelfCommand) Help() string {
 	helpText := `
 Usage: nomad acl token self
 
-Self is used to fetch information about the currently set ACL token.
+  Self is used to fetch information about the currently set ACL token.
 
 General Options:
 
