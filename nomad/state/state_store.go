@@ -639,6 +639,22 @@ func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.Re
 	return iter, nil
 }
 
+// NodeBySecretID is used to lookup a node by SecretID
+func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*structs.Node, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup by SecretID failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Node), nil
+	}
+	return nil, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
