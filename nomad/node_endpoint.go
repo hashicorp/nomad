@@ -2,6 +2,8 @@ package nomad
 
 import (
 	"context"
+	"crypto/subtle"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -659,15 +661,31 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
-// generateMigrateToken will create a token for a client to access an
+// GenerateMigrateToken will create a token for a client to access an
 // authenticated volume of another client to migrate data for sticky volumes.
-func generateMigrateToken(allocID, nodeSecretID string) (string, error) {
+func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
 	h, err := blake2b.New512([]byte(nodeSecretID))
 	if err != nil {
 		return "", err
 	}
 	h.Write([]byte(allocID))
-	return string(h.Sum(nil)), nil
+	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// CompareMigrateToken returns true if two migration tokens can be computed and
+// are equal.
+func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return false
+	}
+	h.Write([]byte(allocID))
+
+	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
 }
 
 // GetClientAllocs is used to request a lightweight list of alloc modify indexes
@@ -743,7 +761,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 								continue
 							}
 
-							token, err := generateMigrateToken(prevAllocation.ID, allocNode.SecretID)
+							token, err := GenerateMigrateToken(prevAllocation.ID, allocNode.SecretID)
 							if err != nil {
 								return err
 							}
