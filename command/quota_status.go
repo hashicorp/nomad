@@ -19,7 +19,7 @@ func (c *QuotaStatusCommand) Help() string {
 	helpText := `
 Usage: nomad quota status [options] <quota>
 
-  Status is used to view the status of a particular quota.
+  Status is used to view the status of a particular quota specification.
 
 General Options:
 

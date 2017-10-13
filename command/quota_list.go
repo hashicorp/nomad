@@ -17,7 +17,7 @@ func (c *QuotaListCommand) Help() string {
 	helpText := `
 Usage: nomad quota list [options]
 
-  List is used to list available quotas.
+  List is used to list available quota specifications.
 
 General Options:
 
