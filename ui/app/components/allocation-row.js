@@ -47,10 +47,15 @@ export default Component.extend({
     // and manually re-link the two records here.
 
     const allocation = this.get('allocation');
-    this.get('store')
-      .findRecord('job', allocation.get('originalJobId'))
-      .then(job => {
-        allocation.set('job', job);
-      });
+    const job = this.get('store').peekRecord('job', allocation.get('originalJobId'));
+    if (job) {
+      allocation.set('job', job);
+    } else {
+      this.get('store')
+        .findRecord('job', allocation.get('originalJobId'))
+        .then(job => {
+          allocation.set('job', job);
+        });
+    }
   },
 });

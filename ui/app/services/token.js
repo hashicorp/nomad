@@ -1,6 +1,7 @@
 import Ember from 'ember';
+import fetch from 'fetch';
 
-const { Service, computed } = Ember;
+const { Service, computed, assign } = Ember;
 
 export default Service.extend({
   accessor: computed({
@@ -31,4 +32,15 @@ export default Service.extend({
       return value;
     },
   }),
+
+  authorizedRequest(url, options = {}) {
+    const headers = {};
+    const token = this.get('secret');
+
+    if (token) {
+      headers['X-Nomad-Token'] = token;
+    }
+
+    return fetch(url, assign(options, { headers }));
+  },
 });

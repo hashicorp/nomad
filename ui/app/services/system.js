@@ -1,14 +1,19 @@
 import Ember from 'ember';
-import fetch from 'fetch';
 import PromiseObject from '../utils/classes/promise-object';
 import { namespace } from '../adapters/application';
 
-const { Service, computed } = Ember;
+const { Service, computed, inject } = Ember;
 
 export default Service.extend({
+  token: inject.service(),
+  store: inject.service(),
+
   leader: computed(function() {
+    const token = this.get('token');
+
     return PromiseObject.create({
-      promise: fetch(`/${namespace}/status/leader`)
+      promise: token
+        .authorizedRequest(`/${namespace}/status/leader`)
         .then(res => res.json())
         .then(rpcAddr => ({ rpcAddr }))
         .then(leader => {
@@ -17,5 +22,26 @@ export default Service.extend({
           return leader;
         }),
     });
+  }),
+
+  namespaces: computed(function() {
+    return this.get('store').findAll('namespace');
+  }),
+
+  activeNamespace: computed('namespaces.[]', {
+    get() {
+      const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
+      return this.get('namespaces').findBy('id', namespaceId);
+    },
+    set(key, value) {
+      if (value == null) {
+        window.localStorage.removeItem('nomadActiveNamespace');
+      } else if (typeof value === 'string') {
+        window.localStorage.nomadActiveNamespace = value;
+        return this.get('namespaces').findBy('id', value);
+      }
+      window.localStorage.nomadActiveNamespace = value.get('name');
+      return value;
+    },
   }),
 });

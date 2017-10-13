@@ -1,8 +1,10 @@
 import Ember from 'ember';
 
-const { Controller, computed } = Ember;
+const { Controller, computed, inject, run, observer } = Ember;
 
 export default Controller.extend({
+  config: inject.service(),
+
   error: null,
 
   errorStr: computed('error', function() {
@@ -31,5 +33,13 @@ export default Controller.extend({
 
   is500: computed('errorCodes.[]', function() {
     return this.get('errorCodes').includes('500');
+  }),
+
+  throwError: observer('error', function() {
+    if (this.get('config.isDev')) {
+      run.next(() => {
+        throw this.get('error');
+      });
+    }
   }),
 });

@@ -3,7 +3,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 moduleFor('adapter:job', 'Unit | Adapter | Job', {
   unit: true,
-  needs: ['service:token'],
+  needs: ['service:token', 'service:system', 'model:namespace', 'adapter:application'],
   beforeEach() {
     window.sessionStorage.clear();
 
@@ -24,8 +24,8 @@ test('The job summary is stitched into the job request', function(assert) {
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    [`/v1/job/${jobId}`, `/v1/job/${jobId}/summary`],
-    'The two requests made are /job/:id and /job/:id/summary'
+    ['/v1/namespaces', `/v1/job/${jobId}`, `/v1/job/${jobId}/summary`],
+    'The three requests made are /namespaces, /job/:id, and /job/:id/summary'
   );
 });
 

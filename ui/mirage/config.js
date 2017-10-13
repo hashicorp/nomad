@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
 
 const { copy } = Ember;
@@ -9,13 +10,15 @@ export function findLeader(schema) {
 }
 
 export default function() {
-  this.timing = 200; // delay for each request, automatically set to 0 during testing
+  this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
 
-  this.get('/jobs', function({ jobs }) {
+  this.get('/jobs', function({ jobs }, { queryParams }) {
     const json = this.serialize(jobs.all());
-    return json.map(job => filterKeys(job, 'TaskGroups'));
+    return json
+      .filter(job => (queryParams.namespace ? job.NamespaceID === queryParams.namespace : true))
+      .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
   });
 
   this.get('/job/:id');
@@ -57,6 +60,24 @@ export default function() {
   });
 
   this.get('/allocation/:id');
+
+  this.get('/namespaces', function({ namespaces }) {
+    const records = namespaces.all();
+
+    if (records.length) {
+      return this.serialize(records);
+    }
+
+    return new Response(501, {}, null);
+  });
+
+  this.get('/namespace/:id', function({ namespaces }, { params }) {
+    if (namespaces.all().length) {
+      return this.serialize(namespaces.find(params.id));
+    }
+
+    return new Response(501, {}, null);
+  });
 
   this.get('/agent/members', function({ agents }) {
     return {
