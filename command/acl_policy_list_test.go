@@ -52,4 +52,14 @@ func TestACLPolicyListCommand(t *testing.T) {
 	if !strings.Contains(out, policy.Name) {
 		t.Fatalf("bad: %v", out)
 	}
+
+	// List json
+	if code := cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-json"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "CreateIndex") {
+		t.Fatalf("expected json output, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
 }

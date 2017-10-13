@@ -16,17 +16,30 @@ func (c *ACLPolicyListCommand) Help() string {
 	helpText := `
 Usage: nomad acl policy list
 
-List is used to list available ACL policies.
+  List is used to list available ACL policies.
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+List Options:
+
+  -json
+    Output the ACL policies in a JSON format.
+
+  -t
+    Format and display the ACL policies using a Go template.
+`
 
 	return strings.TrimSpace(helpText)
 }
 
 func (c *ACLPolicyListCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
+		})
 }
 
 func (c *ACLPolicyListCommand) AutocompleteArgs() complete.Predictor {
@@ -38,8 +51,14 @@ func (c *ACLPolicyListCommand) Synopsis() string {
 }
 
 func (c *ACLPolicyListCommand) Run(args []string) int {
+	var json bool
+	var tmpl string
+
 	flags := c.Meta.FlagSet("acl policy list", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -63,6 +82,17 @@ func (c *ACLPolicyListCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error listing ACL policies: %s", err))
 		return 1
+	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, policies)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
 	}
 
 	c.Ui.Output(formatPolicies(policies))
