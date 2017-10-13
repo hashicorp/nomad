@@ -56,6 +56,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl policy list": func() (cli.Command, error) {
+			return &command.ACLPolicyListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl token": func() (cli.Command, error) {
 			return &command.ACLTokenCommand{
 				Meta: meta,
@@ -78,6 +83,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 		"acl token info": func() (cli.Command, error) {
 			return &command.ACLTokenInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl token self": func() (cli.Command, error) {
+			return &command.ACLTokenSelfCommand{
 				Meta: meta,
 			}, nil
 		},
