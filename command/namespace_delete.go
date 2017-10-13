@@ -15,7 +15,7 @@ func (c *NamespaceDeleteCommand) Help() string {
 	helpText := `
 Usage: nomad namespace delete [options] <namespace>
 
-Delete is used to remove a namespace.
+  Delete is used to remove a namespace.
 
 General Options:
 

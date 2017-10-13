@@ -140,9 +140,20 @@ func shuffleStrings(list []string) {
 }
 
 // maxUint64 returns the maximum value
-func maxUint64(a, b uint64) uint64 {
-	if a >= b {
-		return a
+func maxUint64(inputs ...uint64) uint64 {
+	l := len(inputs)
+	if l == 0 {
+		return 0
+	} else if l == 1 {
+		return inputs[0]
 	}
-	return b
+
+	max := inputs[0]
+	for i := 1; i < l; i++ {
+		cur := inputs[i]
+		if cur > max {
+			max = cur
+		}
+	}
+	return max
 }

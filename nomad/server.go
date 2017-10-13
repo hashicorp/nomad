@@ -806,8 +806,15 @@ func (s *Server) setupRaft() error {
 	}()
 
 	// Create the FSM
+	fsmConfig := &FSMConfig{
+		EvalBroker: s.evalBroker,
+		Periodic:   s.periodicDispatcher,
+		Blocked:    s.blockedEvals,
+		LogOutput:  s.config.LogOutput,
+		Region:     s.Region(),
+	}
 	var err error
-	s.fsm, err = NewFSM(s.evalBroker, s.periodicDispatcher, s.blockedEvals, s.config.LogOutput)
+	s.fsm, err = NewFSM(fsmConfig)
 	if err != nil {
 		return err
 	}
@@ -897,7 +904,7 @@ func (s *Server) setupRaft() error {
 			if err != nil {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
-			tmpFsm, err := NewFSM(s.evalBroker, s.periodicDispatcher, s.blockedEvals, s.config.LogOutput)
+			tmpFsm, err := NewFSM(fsmConfig)
 			if err != nil {
 				return fmt.Errorf("recovery failed to make temp FSM: %v", err)
 			}

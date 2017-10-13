@@ -16,7 +16,7 @@ func (c *ACLBootstrapCommand) Help() string {
 	helpText := `
 Usage: nomad acl bootstrap [options]
 
-Bootstrap is used to bootstrap the ACL system and get an initial token.
+  Bootstrap is used to bootstrap the ACL system and get an initial token.
 
 General Options:
 

@@ -15,7 +15,7 @@ func (c *SentinelReadCommand) Help() string {
 	helpText := `
 Usage: nomad sentinel read [options] <name>
 
-Read is used to inspect a Sentinel policy.
+  Read is used to inspect a Sentinel policy.
 
 General Options:
 

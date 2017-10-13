@@ -154,6 +154,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		newEval := s.eval.Copy()
 		newEval.EscapedComputedClass = e.HasEscaped()
 		newEval.ClassEligibility = e.GetClasses()
+		newEval.QuotaLimitReached = e.QuotaLimitReached()
 		return s.planner.ReblockEval(newEval)
 	}
 
@@ -175,7 +176,7 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 		classEligibility = e.GetClasses()
 	}
 
-	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped)
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached())
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = blockedEvalMaxPlanDesc

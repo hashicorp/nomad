@@ -107,6 +107,7 @@ type AllocationMetric struct {
 	NodesExhausted     int
 	ClassExhausted     map[string]int
 	DimensionExhausted map[string]int
+	QuotaExhausted     []string
 	Scores             map[string]float64
 	AllocationTime     time.Duration
 	CoalescedFailures  int

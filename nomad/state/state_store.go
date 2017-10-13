@@ -20,6 +20,15 @@ type IndexEntry struct {
 	Value uint64
 }
 
+// StateStoreConfig is used to configure a new state store
+type StateStoreConfig struct {
+	// LogOutput is used to configure the output of the state store's logs
+	LogOutput io.Writer
+
+	// Region is the region of the server embedding the state store.
+	Region string
+}
+
 // The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
@@ -31,13 +40,16 @@ type StateStore struct {
 	logger *log.Logger
 	db     *memdb.MemDB
 
+	// config is the passed in configuration
+	config *StateStoreConfig
+
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
 }
 
 // NewStateStore is used to create a new state store
-func NewStateStore(logOutput io.Writer) (*StateStore, error) {
+func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -46,11 +58,17 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(logOutput, "", log.LstdFlags),
+		logger:    log.New(config.LogOutput, "", log.LstdFlags),
 		db:        db,
+		config:    config,
 		abandonCh: make(chan struct{}),
 	}
 	return s, nil
+}
+
+// Config returns the state store configuration.
+func (s *StateStore) Config() *StateStoreConfig {
+	return s.config
 }
 
 // Snapshot is used to create a point in time snapshot. Because
@@ -60,6 +78,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
 			logger: s.logger,
+			config: s.config,
 			db:     s.db.Snapshot(),
 		},
 	}
@@ -1494,14 +1513,14 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	}
 
 	for _, alloc := range allocs {
-		existing, err := txn.First("allocs", "id", alloc)
+		raw, err := txn.First("allocs", "id", alloc)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
-		if existing == nil {
+		if raw == nil {
 			continue
 		}
-		if err := txn.Delete("allocs", existing); err != nil {
+		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
 	}
@@ -1707,6 +1726,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 		return fmt.Errorf("error updating job summary: %v", err)
 	}
 
+	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return err
+	}
+
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
@@ -1799,12 +1822,20 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.Namespace = structs.DefaultNamespace
 		}
 
+		// OPTIMIZATION:
+		// These should be given a map of new to old allocation and the updates
+		// should be one on all changes. The current implementation causes O(n)
+		// lookups/copies/insertions rather than O(1)
 		if err := s.updateDeploymentWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
 
 		if err := s.updateSummaryWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
+		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
+			return err
 		}
 
 		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -2047,7 +2078,12 @@ func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 // namespace
 func (s *StateStore) AllocsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
+	return s.allocsByNamespaceImpl(ws, txn, namespace)
+}
 
+// allocsByNamespaceImpl returns an iterator over all the allocations in the
+// namespace
+func (s *StateStore) allocsByNamespaceImpl(ws memdb.WatchSet, txn *memdb.Txn, namespace string) (memdb.ResultIterator, error) {
 	// Walk the entire table
 	iter, err := txn.Get("allocs", "namespace", namespace)
 	if err != nil {

@@ -25,16 +25,9 @@ type mockBackend struct {
 }
 
 func newMockBackend(t *testing.T) *mockBackend {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
 	return &mockBackend{
 		index: 10000,
-		state: state,
+		state: state.TestStateStore(t),
 	}
 }
 

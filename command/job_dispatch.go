@@ -19,14 +19,14 @@ func (c *JobDispatchCommand) Help() string {
 	helpText := `
 Usage: nomad job dispatch [options] <parameterized job> [input source]
 
-Dispatch creates an instance of a parameterized job. A data payload to the
-dispatched instance can be provided via stdin by using "-" or by specifying a
-path to a file. Metadata can be supplied by using the meta flag one or more
-times. 
+  Dispatch creates an instance of a parameterized job. A data payload to the
+  dispatched instance can be provided via stdin by using "-" or by specifying a
+  path to a file. Metadata can be supplied by using the meta flag one or more
+  times. 
 
-Upon successful creation, the dispatched job ID will be printed and the
-triggered evaluation will be monitored. This can be disabled by supplying the
-detach flag.
+  Upon successful creation, the dispatched job ID will be printed and the
+  triggered evaluation will be monitored. This can be disabled by supplying the
+  detach flag.
 
 General Options:
 
