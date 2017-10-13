@@ -71,9 +71,6 @@ type ExecutorContext struct {
 	// Task is the task whose executor is being launched
 	Task *structs.Task
 
-	// AllocID is the allocation id to which the task belongs
-	AllocID string
-
 	// TaskDir is the host path to the task's root
 	TaskDir string
 
