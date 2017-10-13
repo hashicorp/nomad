@@ -598,7 +598,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: rktEnv,
 		Driver:  "rkt",
-		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
