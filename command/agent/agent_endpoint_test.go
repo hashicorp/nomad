@@ -746,14 +746,12 @@ func TestHTTP_AgentHealth_BadServer(t *testing.T) {
 			assert.Nil(err)
 
 			respW := httptest.NewRecorder()
-			healthI, err := s.Server.HealthRequest(respW, req)
-			assert.Nil(err)
-			assert.Equal(500, respW.Code)
-			assert.NotNil(healthI)
-			health := healthI.(*healthResponse)
-			assert.NotNil(health.Server)
-			assert.False(health.Server.Ok)
-			assert.Equal("server not enabled", health.Server.Message)
+			_, err = s.Server.HealthRequest(respW, req)
+			assert.NotNil(err)
+			httpErr, ok := err.(HTTPCodedError)
+			assert.True(ok)
+			assert.Equal(500, httpErr.Code())
+			assert.Equal(`{"server":{"ok":false,"message":"server not enabled"}}`, err.Error())
 		}
 	})
 }
@@ -791,14 +789,12 @@ func TestHTTP_AgentHealth_BadClient(t *testing.T) {
 			assert.Nil(err)
 
 			respW := httptest.NewRecorder()
-			healthI, err := s.Server.HealthRequest(respW, req)
-			assert.Nil(err)
-			assert.Equal(500, respW.Code)
-			assert.NotNil(healthI)
-			health := healthI.(*healthResponse)
-			assert.NotNil(health.Client)
-			assert.False(health.Client.Ok)
-			assert.Equal("client not enabled", health.Client.Message)
+			_, err = s.Server.HealthRequest(respW, req)
+			assert.NotNil(err)
+			httpErr, ok := err.(HTTPCodedError)
+			assert.True(ok)
+			assert.Equal(500, httpErr.Code())
+			assert.Equal(`{"client":{"ok":false,"message":"client not enabled"}}`, err.Error())
 		}
 	})
 }

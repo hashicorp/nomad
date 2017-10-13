@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
 	"sort"
@@ -338,9 +339,16 @@ func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) 
 
 	// If we should check the client and it exists assume it's healthy
 	if client := s.agent.Client(); getClient && client != nil {
-		health.Client = &healthResponseAgent{
-			Ok:      true,
-			Message: "ok",
+		if len(client.GetServers()) == 0 {
+			health.Client = &healthResponseAgent{
+				Ok:      false,
+				Message: "no known servers",
+			}
+		} else {
+			health.Client = &healthResponseAgent{
+				Ok:      true,
+				Message: "ok",
+			}
 		}
 	}
 
@@ -361,11 +369,15 @@ func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) 
 		}
 	}
 
-	if !health.ok() {
-		// At least one not-ok response, set failing status code
-		resp.WriteHeader(500)
+	if health.ok() {
+		return &health, nil
 	}
-	return &health, nil
+
+	jsonResp, err := json.Marshal(&health)
+	if err != nil {
+		return nil, err
+	}
+	return nil, CodedError(500, string(jsonResp))
 }
 
 type healthResponse struct {
