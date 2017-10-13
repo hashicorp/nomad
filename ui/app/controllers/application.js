@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import codesForError from '../utils/codes-for-error';
 
 const { Controller, computed, inject, run, observer } = Ember;
 
@@ -12,19 +13,7 @@ export default Controller.extend({
   }),
 
   errorCodes: computed('error', function() {
-    const error = this.get('error');
-    const codes = [error.code];
-
-    if (error.errors) {
-      error.errors.forEach(err => {
-        codes.push(err.status);
-      });
-    }
-
-    return codes
-      .compact()
-      .uniq()
-      .map(code => '' + code);
+    return codesForError(this.get('error'));
   }),
 
   is403: computed('errorCodes.[]', function() {
