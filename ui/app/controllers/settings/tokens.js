@@ -1,13 +1,12 @@
 import Ember from 'ember';
 
-const { Controller, inject, computed } = Ember;
+const { Controller, inject, computed, getOwner } = Ember;
 
 export default Controller.extend({
   token: inject.service(),
 
   tokenRecord: null,
   secret: computed.reads('token.secret'),
-  accessor: computed.reads('token.accessor'),
 
   tokenIsValid: false,
   tokenIsInvalid: false,
@@ -21,33 +20,33 @@ export default Controller.extend({
       this.setProperties({
         tokenIsValid: false,
         tokenIsInvalid: false,
+        tokenRecord: null,
       });
     },
 
     verifyToken() {
-      const { secret, accessor } = this.getProperties('secret', 'accessor');
+      const { secret } = this.getProperties('secret', 'accessor');
+      const TokenAdapter = getOwner(this).lookup('adapter:token');
 
       this.set('token.secret', secret);
-      this.get('store')
-        .findRecord('token', accessor)
-        .then(
-          token => {
-            this.set('token.accessor', accessor);
-            this.setProperties({
-              tokenIsValid: true,
-              tokenIsInvalid: false,
-              tokenRecord: token,
-            });
-          },
-          () => {
-            this.set('token.secret', null);
-            this.setProperties({
-              tokenIsInvalid: true,
-              tokenIsValid: false,
-              tokenRecord: null,
-            });
-          }
-        );
+
+      TokenAdapter.findSelf().then(
+        token => {
+          this.setProperties({
+            tokenIsValid: true,
+            tokenIsInvalid: false,
+            tokenRecord: token,
+          });
+        },
+        () => {
+          this.set('token.secret', null);
+          this.setProperties({
+            tokenIsInvalid: true,
+            tokenIsValid: false,
+            tokenRecord: null,
+          });
+        }
+      );
     },
   },
 });

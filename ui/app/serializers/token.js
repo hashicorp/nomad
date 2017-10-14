@@ -7,7 +7,6 @@ export default ApplicationSerializer.extend({
   primaryKey: 'AccessorID',
 
   attrs: {
-    taskGroupName: 'TaskGroup',
     secret: 'SecretID',
   },
 

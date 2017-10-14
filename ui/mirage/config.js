@@ -89,6 +89,19 @@ export default function() {
     return JSON.stringify(findLeader(schema));
   });
 
+  this.get('/acl/token/self', function({ tokens }, req) {
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the token if it exists
+    if (tokenForSecret) {
+      return this.serialize(tokenForSecret);
+    }
+
+    // Client error if it doesn't
+    return new Response(400, {}, null);
+  });
+
   this.get('/acl/token/:id', function({ tokens }, req) {
     const token = tokens.find(req.params.id);
     const secret = req.requestHeaders['X-Nomad-Token'];

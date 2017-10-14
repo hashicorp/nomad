@@ -21,27 +21,24 @@ moduleForAcceptance('Acceptance | tokens', {
 });
 
 test('the token form sets the token in session storage', function(assert) {
-  const { secretId, accessorId } = managementToken;
+  const { secretId } = managementToken;
 
   visit('/settings/tokens');
 
   andThen(() => {
     assert.ok(window.sessionStorage.nomadTokenSecret == null, 'No token secret set');
-    assert.ok(window.sessionStorage.nomadTokenAccessor == null, 'No token accessor set');
 
     fillIn('.token-secret', secretId);
-    fillIn('.token-accessor', accessorId);
     click('.token-submit');
 
     andThen(() => {
       assert.equal(window.sessionStorage.nomadTokenSecret, secretId, 'Token secret was set');
-      assert.equal(window.sessionStorage.nomadTokenAccessor, accessorId, 'Token accessor was set');
     });
   });
 });
 
 test('the X-Nomad-Token header gets sent with requests once it is set', function(assert) {
-  const { secretId, accessorId } = managementToken;
+  const { secretId } = managementToken;
   let requestPosition = 0;
 
   visit(`/jobs/${job.id}`);
@@ -60,7 +57,6 @@ test('the X-Nomad-Token header gets sent with requests once it is set', function
   visit('/settings/tokens');
   andThen(() => {
     fillIn('.token-secret', secretId);
-    fillIn('.token-accessor', accessorId);
     click('.token-submit');
   });
 
@@ -78,7 +74,7 @@ test('the X-Nomad-Token header gets sent with requests once it is set', function
 });
 
 test('an error message is shown when authenticating a token fails', function(assert) {
-  const { secretId, accessorId } = managementToken;
+  const { secretId } = managementToken;
   const bogusSecret = 'this-is-not-the-secret';
   assert.notEqual(
     secretId,
@@ -90,17 +86,12 @@ test('an error message is shown when authenticating a token fails', function(ass
 
   andThen(() => {
     fillIn('.token-secret', bogusSecret);
-    fillIn('.token-accessor', accessorId);
     click('.token-submit');
 
     andThen(() => {
       assert.ok(
         window.sessionStorage.nomadTokenSecret == null,
         'Token secret is discarded on failure'
-      );
-      assert.ok(
-        window.sessionStorage.nomadTokenAccessor == null,
-        'Token accessor is discarded on failure'
       );
       assert.ok(find('.token-error'), 'Token error message is shown');
       assert.notOk(find('.token-success'), 'Token success message is not shown');
@@ -112,13 +103,12 @@ test('an error message is shown when authenticating a token fails', function(ass
 test('a success message and a special management token message are shown when authenticating succeeds', function(
   assert
 ) {
-  const { secretId, accessorId } = managementToken;
+  const { secretId } = managementToken;
 
   visit('/settings/tokens');
 
   andThen(() => {
     fillIn('.token-secret', secretId);
-    fillIn('.token-accessor', accessorId);
     click('.token-submit');
 
     andThen(() => {
@@ -133,7 +123,7 @@ test('a success message and a special management token message are shown when au
 test('a success message and associated policies are shown when authenticating succeeds', function(
   assert
 ) {
-  const { secretId, accessorId } = clientToken;
+  const { secretId } = clientToken;
   const policy = clientToken.policies.models[0];
   policy.update('description', 'Make sure there is a description');
 
@@ -141,7 +131,6 @@ test('a success message and associated policies are shown when authenticating su
 
   andThen(() => {
     fillIn('.token-secret', secretId);
-    fillIn('.token-accessor', accessorId);
     click('.token-submit');
 
     andThen(() => {

@@ -25,13 +25,6 @@
           <p class="help">Sent with every request to determine authorization</p>
         </div>
 
-        <div class="field">
-          <label class="label">Accessor ID</label>
-          <div class="control">
-            <input class="input token-accessor" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.accessor}} oninput={{action (mut accessor) value="target.value"}}>
-          </div>
-          <p class="help">Used to look up authorized policies</p>
-        </div>
         <p class="content"><button class="button is-primary token-submit" {{action "verifyToken"}}>Set Token</button></p>
       {{/if}}
 
@@ -51,7 +44,7 @@
           <div class="columns">
             <div class="column">
               <h3 class="title is-4">Token Failed to Authenticate</h3>
-              <p>The token secret and accessor you have provided do not match.</p>
+              <p>The token secret you have provided does not match an existing token.</p>
             </div>
           </div>
         </div>
