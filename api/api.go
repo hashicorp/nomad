@@ -776,6 +776,9 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 		var buf bytes.Buffer
 		io.Copy(&buf, resp.Body)
 		resp.Body.Close()
+		if resp.StatusCode == 403 {
+			return d, nil, fmt.Errorf("Unauthorized request.\n\n%s\n\nProvide an ACL Token with export NOMAD_TOKEN=<token secret>", buf.Bytes())
+		}
 		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
 	}
 	return d, resp, nil
