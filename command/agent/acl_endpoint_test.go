@@ -322,6 +322,55 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 	})
 }
 
+func TestHTTP_ACLTokenSelf(t *testing.T) {
+	t.Parallel()
+	httpACLTest(t, nil, func(s *TestAgent) {
+		p1 := mock.ACLToken()
+		p1.AccessorID = ""
+		args := structs.ACLTokenUpsertRequest{
+			Tokens: []*structs.ACLToken{p1},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
+			},
+		}
+		var resp structs.ACLTokenUpsertResponse
+		if err := s.Agent.RPC("ACL.UpsertTokens", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		out := resp.Tokens[0]
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/acl/token/self", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+		setToken(req, out)
+
+		// Make the request
+		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("missing known leader")
+		}
+		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("missing last contact")
+		}
+
+		// Check the output
+		n := obj.(*structs.ACLToken)
+		assert.Equal(t, out, n)
+	})
+}
+
 func TestHTTP_ACLTokenCreate(t *testing.T) {
 	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {

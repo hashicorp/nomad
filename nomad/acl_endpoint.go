@@ -121,10 +121,34 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If it is not a management token determine the policies that may be listed
+	mgt := acl.IsManagement()
+	var policies map[string]struct{}
+	if !mgt {
+		snap, err := a.srv.fsm.State().Snapshot()
+		if err != nil {
+			return err
+		}
+
+		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if token == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		policies = make(map[string]struct{}, len(token.Policies))
+		for _, p := range token.Policies {
+			policies[p] = struct{}{}
+		}
 	}
 
 	// Setup the blocking query
@@ -152,7 +176,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 					break
 				}
 				policy := raw.(*structs.ACLPolicy)
-				reply.Policies = append(reply.Policies, policy.Stub())
+				if _, ok := policies[policy.Name]; ok || mgt {
+					reply.Policies = append(reply.Policies, policy.Stub())
+				}
 			}
 
 			// Use the last index that affected the policy table
@@ -183,10 +209,40 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policy"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If it is not a management token determine if it can get this policy
+	mgt := acl.IsManagement()
+	if !mgt {
+		snap, err := a.srv.fsm.State().Snapshot()
+		if err != nil {
+			return err
+		}
+
+		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if token == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		found := false
+		for _, p := range token.Policies {
+			if p == args.Name {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Setup the blocking query
