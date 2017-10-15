@@ -1,25 +1,25 @@
 ---
 layout: api
-page_title: Namespace - HTTP API
-sidebar_current: api-namespaces
+page_title: Quotas - HTTP API
+sidebar_current: api-quotas
 description: |-
-  The /namespace endpoints are used to query for and interact with namespaces.
+  The /quota endpoints are used to query for and interact with quotas.
 ---
 
-# Namespace HTTP API
+# Quota HTTP API
 
-The `/namespace` endpoints are used to query for and interact with namespaces.
+The `/quota` endpoints are used to query for and interact with quotas.
 
 ~> **Enterprise Only!** This API endpoint and functionality only exists in
 Nomad Enterprise. This is not present in the open source version of Nomad.
 
-## List Namespaces
+## List Quota Specifications
 
-This endpoint lists all namespaces.
+This endpoint lists all quota specifications.
 
 | Method | Path              | Produces           |
 | ------ | ----------------- | ------------------ |
-| `GET`  | `/v1/namespaces`  | `application/json` |
+| `GET`  | `/v1/quotas`  | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -27,51 +27,59 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required  |
 | ---------------- | ------------- |
-| `YES`            | `namespace:*`<br>Any capability on the namespace authorizes the endpoint |
+| `YES`            | `quota:read`<br>`namespace:*` if namespace has quota attached|
 
 ### Parameters
 
-- `prefix` `(string: "")`- Specifies a string to filter namespaces on based on
-  an index prefix. This is specified as a querystring parameter.
+- `prefix` `(string: "")`- Specifies a string to filter quota specifications on
+  based on an index prefix. This is specified as a querystring parameter.
 
 ### Sample Request
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/namespaces
+    https://nomad.rocks/v1/quotas
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/namespaces?prefix=prod
+    https://nomad.rocks/v1/quotas?prefix=sha
 ```
 
 ### Sample Response
 
 ```json
 [
-    {
-        "CreateIndex": 31,
-        "Description": "Production API Servers",
-        "ModifyIndex": 31,
-        "Name": "api-prod"
-    },
-    {
-        "CreateIndex": 5,
-        "Description": "Default shared namespace",
-        "ModifyIndex": 5,
-        "Name": "default"
-    }
+  {
+    "CreateIndex": 8,
+    "Description": "Limit the shared default namespace",
+    "Hash": "SgDCH7L5ZDqNSi2NmJlqdvczt/Q6mjyVwVJC0XjWglQ=",
+    "Limits": [
+      {
+        "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+        "Region": "global",
+        "RegionLimit": {
+          "CPU": 2500,
+          "DiskMB": 0,
+          "IOPS": 0,
+          "MemoryMB": 2000,
+          "Networks": null
+        }
+      }
+    ],
+    "ModifyIndex": 56,
+    "Name": "shared-quota"
+  }
 ]
 ```
 
-## Read Namespace
+## Read Quota Specification
 
-This endpoint reads information about a specific namespace.
+This endpoint reads information about a specific quota specification.
 
-| Method | Path                        | Produces                   |
-| ------ | --------------------------- | -------------------------- |
-| `GET`  | `/v1/namespace/:namespace`  | `application/json`         |
+| Method | Path                | Produces                   |
+| ------ | ------------------- | -------------------------- |
+| `GET`  | `/v1/quota/:quota`  | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -79,7 +87,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
-| `YES`            | `namespace:*`<br>Any capability on the namespace authorizes the endpoint |
+| `YES`            | `quota:read`<br>`namespace:*` if namespace has quota attached|
 
 ### Parameters
 
@@ -89,28 +97,41 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/namespace/api-prod
+    https://nomad.rocks/v1/quota/shared-quota
 ```
 
 ### Sample Response
 
 ```json
 {
-    "CreateIndex": 31,
-    "Description": "Production API Servers",
-    "Hash": "N8WvePwqkp6J354eLJMKyhvsFdPELAos0VuBfMoVKoU=",
-    "ModifyIndex": 31,
-    "Name": "api-prod"
+  "CreateIndex": 8,
+  "Description": "Limit the shared default namespace",
+  "Hash": "SgDCH7L5ZDqNSi2NmJlqdvczt/Q6mjyVwVJC0XjWglQ=",
+  "Limits": [
+    {
+      "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+      "Region": "global",
+      "RegionLimit": {
+        "CPU": 2500,
+        "DiskMB": 0,
+        "IOPS": 0,
+        "MemoryMB": 2000,
+        "Networks": null
+      }
+    }
+  ],
+  "ModifyIndex": 56,
+  "Name": "shared-quota"
 }
 ```
 
-## Create or Update Namespace
+## Create or Update Quota Specification
 
-This endpoint is used to create or update a namespace.
+This endpoint is used to create or update a quota specification.
 
-| Method  | Path                                            | Produces                   |
-| ------- | ----------------------------------------------- | -------------------------- |
-| `POST`  | `/v1/namespace/:namespace` <br> `/v1/namespace` | `application/json`         |
+| Method  | Path                                | Produces                   |
+| ------- | ----------------------------------- | -------------------------- |
+| `POST`  | `/v1/quota/:quota` <br> `/v1/quota` | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -118,7 +139,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `management` |
+| `NO`             | `quota:write` |
 
 ### Parameters
 
