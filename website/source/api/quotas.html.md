@@ -91,7 +91,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:namespace` `(string: <required>)`- Specifies the namespace to query.
+- `:quota` `(string: <required>)`- Specifies the quota specification to query.
 
 ### Sample Request
 
@@ -141,20 +141,27 @@ The table below shows this endpoint's support for
 | ---------------- | ------------ |
 | `NO`             | `quota:write` |
 
-### Parameters
+### Body
 
-- `Namespace` `(string: <required>)`- Specifies the namespace to create or
-  update.
-
-- `Description` `(string: "")` - Specifies an optional human-readable
-  description of the namespace.
+The request body contains a valid, JSON quota specification. View the api
+package to see the definition of a [`QuotaSpec`
+object](https://github.com/hashicorp/nomad/blob/master/api/quota.go#L100-L131).
 
 ### Sample Payload
 
 ```javascript
 {
-  "Namespace": "api-prod",
-  "Description": "Production API Servers"
+  "Name": "shared-quota",
+  "Description": "Limit the shared default namespace",
+  "Limits": [
+    {
+      "Region": "global",
+      "RegionLimit": {
+        "CPU": 2500,
+        "MemoryMB": 1000
+      }
+    }
+  ]
 }
 ```      
 
@@ -163,24 +170,24 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --data @namespace.json \
-    https://nomad.rocks/v1/namespace/api-prod
+    --data @spec.json \
+    https://nomad.rocks/v1/quota/shared-quota
 ```
 
 ```text
 $ curl \
     --request POST \
-    --data @namespace.json \
-    https://nomad.rocks/v1/namespace
+    --data @spec.json \
+    https://nomad.rocks/v1/quota
 ```
 
-## Delete Namespace
+## Delete Quota Specification
 
-This endpoint is used to delete a namespace.
+This endpoint is used to delete a quota specification.
 
 | Method   | Path                       | Produces                   |
 | -------  | -------------------------- | -------------------------- |
-| `DELETE` | `/v1/namespace/:namespace` | `application/json`         |
+| `DELETE` | `/v1/quota/:quota` | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -188,16 +195,124 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `management` |
+| `NO`             | `quota:write` |
 
 ### Parameters
 
-- `:namespace` `(string: <required>)`- Specifies the namespace to delete.
+- `:quota` `(string: <required>)`- Specifies the quota specification to delete.
 
 ### Sample Request
 
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/namespace/api-prod
+    https://nomad.rocks/v1/quota/shared-quota
+```
+
+## List Quota Usages
+
+This endpoint lists all quota usages.
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `GET`  | `/v1/quota-usages`  | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required  |
+| ---------------- | ------------- |
+| `YES`            | `quota:read`<br>`namespace:*` if namespace has quota attached|
+
+### Parameters
+
+- `prefix` `(string: "")`- Specifies a string to filter quota specifications on
+  based on an index prefix. This is specified as a querystring parameter.
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/quota-usages
+```
+
+```text
+$ curl \
+    https://nomad.rocks/v1/quota-usages?prefix=sha
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Used": {
+      "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=": {
+        "Region": "global",
+        "RegionLimit": {
+          "CPU": 500,
+          "MemoryMB": 256,
+          "DiskMB": 0,
+          "IOPS": 0,
+          "Networks": null
+        },
+        "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="
+      }
+    },
+    "Name": "default",
+    "CreateIndex": 8,
+    "ModifyIndex": 56
+  }
+]
+```
+
+## Read Quota Usage
+
+This endpoint reads information about a specific quota usage.
+
+| Method | Path                | Produces                   |
+| ------ | ------------------- | -------------------------- |
+| `GET`  | `/v1/quota/usage/:quota`  | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `quota:read`<br>`namespace:*` if namespace has quota attached|
+
+### Parameters
+
+- `:quota` `(string: <required>)`- Specifies the quota specification to query.
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/quota/shared-quota
+```
+
+### Sample Response
+
+```json
+{
+  "Used": {
+    "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=": {
+      "Region": "global",
+      "RegionLimit": {
+        "CPU": 500,
+        "MemoryMB": 256,
+        "DiskMB": 0,
+        "IOPS": 0,
+        "Networks": null
+      },
+      "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="
+    }
+  },
+  "Name": "default",
+  "CreateIndex": 8,
+  "ModifyIndex": 56
+}
 ```
