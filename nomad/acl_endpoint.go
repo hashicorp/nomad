@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -578,12 +579,14 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	// Determine if we are deleting local or global tokens
 	hasGlobal := false
 	allGlobal := true
+	nonexistentTokens := make([]string, 0)
 	for _, accessor := range args.AccessorIDs {
 		token, err := state.ACLTokenByAccessorID(nil, accessor)
 		if err != nil {
 			return fmt.Errorf("token lookup failed: %v", err)
 		}
-		if token == nil {
+		if token == nil { // why continue if the token is nil???
+			nonexistentTokens = append(nonexistentTokens, accessor)
 			continue
 		}
 		if token.Global {
@@ -591,6 +594,10 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 		} else {
 			allGlobal = false
 		}
+	}
+
+	if len(nonexistentTokens) != 0 {
+		return fmt.Errorf("Cannot delete nonexistant tokens: %v", strings.Join(nonexistentTokens, ", "))
 	}
 
 	// Disallow mixed requests with global and non-global tokens since we forward
