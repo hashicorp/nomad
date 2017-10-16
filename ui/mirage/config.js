@@ -89,6 +89,53 @@ export default function() {
     return JSON.stringify(findLeader(schema));
   });
 
+  this.get('/acl/token/self', function({ tokens }, req) {
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the token if it exists
+    if (tokenForSecret) {
+      return this.serialize(tokenForSecret);
+    }
+
+    // Client error if it doesn't
+    return new Response(400, {}, null);
+  });
+
+  this.get('/acl/token/:id', function({ tokens }, req) {
+    const token = tokens.find(req.params.id);
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the token only if the request header matches the token
+    // or the token is of type management
+    if (token.secretId === secret || (tokenForSecret && tokenForSecret.type === 'management')) {
+      return this.serialize(token);
+    }
+
+    // Return not authorized otherwise
+    return new Response(403, {}, null);
+  });
+
+  this.get('/acl/policy/:id', function({ policies, tokens }, req) {
+    const policy = policies.find(req.params.id);
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the policy only if the token that matches the request header
+    // includes the policy or if the token that matches the request header
+    // is of type management
+    if (
+      tokenForSecret &&
+      (tokenForSecret.policies.includes(policy) || tokenForSecret.type === 'management')
+    ) {
+      return this.serialize(policy);
+    }
+
+    // Return not authorized otherwise
+    return new Response(403, {}, null);
+  });
+
   // TODO: in the future, this hack may be replaceable with dynamic host name
   // support in pretender: https://github.com/pretenderjs/pretender/issues/210
   HOSTS.forEach(host => {
