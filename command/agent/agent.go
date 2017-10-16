@@ -534,7 +534,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	check := structs.ServiceCheck{
 		Name:      "Nomad Client HTTP Check",
 		Type:      "http",
-		Path:      "/v1/agent/servers",
+		Path:      "/v1/agent/health?type=client",
 		Protocol:  "http",
 		Interval:  agentHttpCheckInterval,
 		Timeout:   agentHttpCheckTimeout,
@@ -543,7 +543,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Switch to endpoint that doesn't require a leader for servers
 	if server {
 		check.Name = "Nomad Server HTTP Check"
-		check.Path = "/v1/status/peers"
+		check.Path = "/v1/agent/health?type=server"
 	}
 	if !a.config.TLSConfig.EnableHTTP {
 		// No HTTPS, return a plain http check
