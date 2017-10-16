@@ -5,11 +5,11 @@ const { Controller, inject, computed, getOwner } = Ember;
 export default Controller.extend({
   token: inject.service(),
 
-  tokenRecord: null,
   secret: computed.reads('token.secret'),
 
   tokenIsValid: false,
   tokenIsInvalid: false,
+  tokenRecord: null,
 
   actions: {
     clearTokenProperties() {
@@ -41,8 +41,8 @@ export default Controller.extend({
         () => {
           this.set('token.secret', null);
           this.setProperties({
-            tokenIsInvalid: true,
             tokenIsValid: false,
+            tokenIsInvalid: true,
             tokenRecord: null,
           });
         }
