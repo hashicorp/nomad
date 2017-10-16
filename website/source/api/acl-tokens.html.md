@@ -289,7 +289,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4"
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
     https://nomad.rocks/v1/acl/token/self
 ```
 
