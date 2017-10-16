@@ -19,7 +19,7 @@ This is not present in the open source version of Nomad.
 
 When many teams or users are sharing Nomad clusters, there is the concern that a
 single user could use more than their fair share of resources. Resource quotas
-provide a mechansim for cluster administrators to restrict the resources that a
+provide a mechanism for cluster administrators to restrict the resources that a
 [namespace](/guides/namespace.html) has access to.
 
 ## Quotas Objects
@@ -193,7 +193,7 @@ When specifying resource limits the following enforcement behaviors are defined:
 
 * `limit == 0`: A limit of zero allows unlimited access to the resource.
 
-* `limit > 0`: A limit greater than zero enforces that the consumation is less
+* `limit > 0`: A limit greater than zero enforces that the consumption is less
   than or equal to the given limit.
 
 ## Federation
