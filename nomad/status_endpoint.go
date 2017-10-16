@@ -73,7 +73,7 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
 	// Check node read permissions
-	if aclObj, err := s.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied

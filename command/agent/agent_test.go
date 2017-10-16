@@ -371,7 +371,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		if check.Type != "http" {
 			t.Errorf("expected http check not: %q", check.Type)
 		}
-		if expected := "/v1/agent/servers"; check.Path != expected {
+		if expected := "/v1/agent/health?type=client"; check.Path != expected {
 			t.Errorf("expected %q path not: %q", expected, check.Path)
 		}
 		if check.Protocol != "http" {
@@ -554,23 +554,23 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		a.logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
-	// Assert server check uses /v1/status/peers
+	// Assert server check uses /v1/agent/health?type=server
 	isServer := true
 	check := a.agentHTTPCheck(isServer)
 	if expected := "Nomad Server HTTP Check"; check.Name != expected {
 		t.Errorf("expected server check name to be %q but found %q", expected, check.Name)
 	}
-	if expected := "/v1/status/peers"; check.Path != expected {
+	if expected := "/v1/agent/health?type=server"; check.Path != expected {
 		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
 	}
 
-	// Assert client check uses /v1/agent/servers
+	// Assert client check uses /v1/agent/health?type=client
 	isServer = false
 	check = a.agentHTTPCheck(isServer)
 	if expected := "Nomad Client HTTP Check"; check.Name != expected {
 		t.Errorf("expected client check name to be %q but found %q", expected, check.Name)
 	}
-	if expected := "/v1/agent/servers"; check.Path != expected {
+	if expected := "/v1/agent/health?type=client"; check.Path != expected {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
 }

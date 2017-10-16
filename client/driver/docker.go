@@ -614,7 +614,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		TaskEnv:        ctx.TaskEnv,
 		Task:           task,
 		Driver:         "docker",
-		AllocID:        d.DriverContext.allocID,
 		LogDir:         ctx.TaskDir.LogDir,
 		TaskDir:        ctx.TaskDir.Dir,
 		PortLowerBound: d.config.ClientMinPort,

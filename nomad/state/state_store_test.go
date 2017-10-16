@@ -565,6 +565,15 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	out2, err := state.NodeBySecretID(ws, node.SecretID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(node, out2) {
+		t.Fatalf("bad: %#v %#v", node, out2)
+	}
+
 	if !reflect.DeepEqual(node, out) {
 		t.Fatalf("bad: %#v %#v", node, out)
 	}
@@ -1218,7 +1227,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	// Create a job and mark it as stable
 	job := mock.Job()
 	job.Stable = true
-	job.Priority = 0
+	job.Name = "0"
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
@@ -1236,10 +1245,10 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	}
 
 	var finalJob *structs.Job
-	for i := 1; i < 20; i++ {
+	for i := 1; i < 300; i++ {
 		finalJob = mock.Job()
 		finalJob.ID = job.ID
-		finalJob.Priority = i
+		finalJob.Name = fmt.Sprintf("%d", i)
 		err = state.UpsertJob(uint64(1000+i), finalJob)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -1259,10 +1268,10 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	if out.CreateIndex != 1000 {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.ModifyIndex != 1019 {
+	if out.ModifyIndex != 1299 {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.Version != 19 {
+	if out.Version != 299 {
 		t.Fatalf("bad: %#v", out)
 	}
 
@@ -1270,7 +1279,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1019 {
+	if index != 1299 {
 		t.Fatalf("bad: %d", index)
 	}
 
@@ -1280,19 +1289,19 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if len(allVersions) != structs.JobTrackedVersions {
-		t.Fatalf("got %d; want 1", len(allVersions))
+		t.Fatalf("got %d; want %d", len(allVersions), structs.JobTrackedVersions)
 	}
 
-	if a := allVersions[0]; a.ID != job.ID || a.Version != 19 || a.Priority != 19 {
+	if a := allVersions[0]; a.ID != job.ID || a.Version != 299 || a.Name != "299" {
 		t.Fatalf("bad: %+v", a)
 	}
-	if a := allVersions[1]; a.ID != job.ID || a.Version != 18 || a.Priority != 18 {
+	if a := allVersions[1]; a.ID != job.ID || a.Version != 298 || a.Name != "298" {
 		t.Fatalf("bad: %+v", a)
 	}
 
 	// Ensure we didn't delete the stable job
 	if a := allVersions[structs.JobTrackedVersions-1]; a.ID != job.ID ||
-		a.Version != 0 || a.Priority != 0 || !a.Stable {
+		a.Version != 0 || a.Name != "0" || !a.Stable {
 		t.Fatalf("bad: %+v", a)
 	}
 

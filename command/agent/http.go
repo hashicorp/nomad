@@ -188,6 +188,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
+	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
 
@@ -301,7 +302,13 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			code := 500
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
+			} else {
+				switch err.Error() {
+				case structs.ErrPermissionDenied.Error(), structs.ErrTokenNotFound.Error():
+					code = 403
+				}
 			}
+
 			resp.WriteHeader(code)
 			resp.Write([]byte(err.Error()))
 			return
@@ -447,7 +454,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 // parse is a convenience method for endpoints that need to parse multiple flags
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
-	s.parseToken(req, &b.SecretID)
+	s.parseToken(req, &b.AuthToken)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
@@ -458,6 +465,6 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
 	parseNamespace(req, &w.Namespace)
-	s.parseToken(req, &w.SecretID)
+	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
 }

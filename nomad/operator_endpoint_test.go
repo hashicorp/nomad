@@ -85,7 +85,7 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		arg.SecretID = invalidToken.SecretID
+		arg.AuthToken = invalidToken.SecretID
 		var reply structs.RaftConfigurationResponse
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftGetConfiguration", &arg, &reply)
 		assert.NotNil(err)
@@ -94,7 +94,7 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 
 	// Use management token
 	{
-		arg.SecretID = root.SecretID
+		arg.AuthToken = root.SecretID
 		var reply structs.RaftConfigurationResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Operator.RaftGetConfiguration", &arg, &reply))
 
@@ -209,7 +209,7 @@ func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		arg.SecretID = invalidToken.SecretID
+		arg.AuthToken = invalidToken.SecretID
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply)
 		assert.NotNil(err)
 		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
@@ -217,7 +217,7 @@ func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 
 	// Try with a management token
 	{
-		arg.SecretID = root.SecretID
+		arg.AuthToken = root.SecretID
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply)
 		assert.Nil(err)
 	}

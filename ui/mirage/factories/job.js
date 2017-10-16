@@ -1,5 +1,5 @@
 import { Factory, faker } from 'ember-cli-mirage';
-import { provide, provider } from '../utils';
+import { provide, provider, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
@@ -51,6 +51,12 @@ export default Factory.extend({
       taskGroupIds: groups.mapBy('id'),
       task_group_ids: groups.mapBy('id'),
     });
+
+    if (!job.namespaceId) {
+      job.update({
+        namespaceId: server.db.namespaces.length ? pickOne(server.db.namespaces).id : null,
+      });
+    }
 
     const jobSummary = server.create('job-summary', {
       groupNames: groups.mapBy('name'),

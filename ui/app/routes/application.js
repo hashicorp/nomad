@@ -14,6 +14,10 @@ export default Route.extend({
       window.scrollTo(0, 0);
     },
 
+    willTransition() {
+      this.controllerFor('application').set('error', null);
+    },
+
     error(error) {
       this.controllerFor('application').set('error', error);
     },

@@ -99,6 +99,14 @@ func nodeTableSchema() *memdb.TableSchema {
 					Field: "ID",
 				},
 			},
+			"secret_id": {
+				Name:         "secret_id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SecretID",
+				},
+			},
 		},
 	}
 }

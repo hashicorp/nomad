@@ -11,7 +11,10 @@ export default JSONSerializer.extend({
   },
 
   keyForRelationship(attr, relationshipType) {
-    const key = `${attr.camelize().capitalize()}ID`;
+    const key = `${attr
+      .singularize()
+      .camelize()
+      .capitalize()}ID`;
     return relationshipType === 'hasMany' ? key.pluralize() : key;
   },
 

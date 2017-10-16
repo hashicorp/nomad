@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
 	"sort"
@@ -298,4 +299,104 @@ type agentSelf struct {
 type joinResult struct {
 	NumJoined int    `json:"num_joined"`
 	Error     string `json:"error"`
+}
+
+func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var args structs.GenericRequest
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	health := healthResponse{}
+	getClient := true
+	getServer := true
+
+	// See if we're checking a specific agent type and default to failing
+	if healthType, ok := req.URL.Query()["type"]; ok {
+		getClient = false
+		getServer = false
+		for _, ht := range healthType {
+			switch ht {
+			case "client":
+				getClient = true
+				health.Client = &healthResponseAgent{
+					Ok:      false,
+					Message: "client not enabled",
+				}
+			case "server":
+				getServer = true
+				health.Server = &healthResponseAgent{
+					Ok:      false,
+					Message: "server not enabled",
+				}
+			}
+		}
+	}
+
+	// If we should check the client and it exists assume it's healthy
+	if client := s.agent.Client(); getClient && client != nil {
+		if len(client.GetServers()) == 0 {
+			health.Client = &healthResponseAgent{
+				Ok:      false,
+				Message: "no known servers",
+			}
+		} else {
+			health.Client = &healthResponseAgent{
+				Ok:      true,
+				Message: "ok",
+			}
+		}
+	}
+
+	// If we should check the server and it exists, see if there's a leader
+	if server := s.agent.Server(); getServer && server != nil {
+		health.Server = &healthResponseAgent{
+			Ok:      true,
+			Message: "ok",
+		}
+
+		leader := ""
+		if err := s.agent.RPC("Status.Leader", &args, &leader); err != nil {
+			health.Server.Ok = false
+			health.Server.Message = err.Error()
+		} else if leader == "" {
+			health.Server.Ok = false
+			health.Server.Message = "no leader"
+		}
+	}
+
+	if health.ok() {
+		return &health, nil
+	}
+
+	jsonResp, err := json.Marshal(&health)
+	if err != nil {
+		return nil, err
+	}
+	return nil, CodedError(500, string(jsonResp))
+}
+
+type healthResponse struct {
+	Client *healthResponseAgent `json:"client,omitempty"`
+	Server *healthResponseAgent `json:"server,omitempty"`
+}
+
+// ok returns true as long as neither Client nor Server have Ok=false.
+func (h healthResponse) ok() bool {
+	if h.Client != nil && !h.Client.Ok {
+		return false
+	}
+	if h.Server != nil && !h.Server.Ok {
+		return false
+	}
+	return true
+}
+
+type healthResponseAgent struct {
+	Ok      bool   `json:"ok"`
+	Message string `json:"message,omitempty"`
 }

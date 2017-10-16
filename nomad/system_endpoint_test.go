@@ -93,7 +93,7 @@ func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect failure
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp)
 		assert.NotNil(err)
@@ -102,7 +102,7 @@ func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
 
 	// Try with a management token
 	{
-		req.SecretID = root.SecretID
+		req.AuthToken = root.SecretID
 		var resp structs.GenericResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp))
 	}
@@ -199,7 +199,7 @@ func TestSystemEndpoint_ReconcileJobSummaries_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect failure
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "System.ReconcileJobSummaries", req, &resp)
 		assert.NotNil(err)
@@ -208,7 +208,7 @@ func TestSystemEndpoint_ReconcileJobSummaries_ACL(t *testing.T) {
 
 	// Try with a management token
 	{
-		req.SecretID = root.SecretID
+		req.AuthToken = root.SecretID
 		var resp structs.GenericResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "System.ReconcileJobSummaries", req, &resp))
 	}

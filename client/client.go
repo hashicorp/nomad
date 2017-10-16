@@ -33,7 +33,6 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 	"github.com/shirou/gopsutil/host"
-	"golang.org/x/crypto/blake2b"
 )
 
 const (
@@ -534,13 +533,7 @@ func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
 		return true
 	}
 
-	h, err := blake2b.New512([]byte(c.secretNodeID()))
-	if err != nil {
-		return false
-	}
-	h.Write([]byte(allocID))
-	expectedMigrateToken := string(h.Sum(nil))
-	return expectedMigrateToken == migrateToken
+	return nomad.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation

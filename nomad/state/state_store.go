@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -657,6 +658,22 @@ func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.Re
 	return iter, nil
 }
 
+// NodeBySecretID is used to lookup a node by SecretID
+func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*structs.Node, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup by SecretID failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Node), nil
+	}
+	return nil, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1036,10 +1053,10 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespac
 		all = append(all, j)
 	}
 
-	// Reverse so that highest versions first
-	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
-		all[i], all[j] = all[j], all[i]
-	}
+	// Sort in reverse order so that the highest version is first
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version > all[j].Version
+	})
 
 	return all, nil
 }

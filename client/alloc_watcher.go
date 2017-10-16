@@ -215,7 +215,7 @@ type remotePrevAlloc struct {
 	// tasks on the new alloc
 	tasks []*structs.Task
 
-	// config for the Client to get AllocDir and Region
+	// config for the Client to get AllocDir, Region, and Node.SecretID
 	config *config.Config
 
 	// migrate is true if data should be moved between nodes
@@ -276,6 +276,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		QueryOptions: structs.QueryOptions{
 			Region:     p.config.Region,
 			AllowStale: true,
+			AuthToken:  p.config.Node.SecretID,
 		},
 	}
 
@@ -375,6 +376,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 		QueryOptions: structs.QueryOptions{
 			Region:     p.config.Region,
 			AllowStale: true,
+			AuthToken:  p.config.Node.SecretID,
 		},
 	}
 
@@ -428,7 +430,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	}
 
 	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", p.prevAllocID)
-	qo := &nomadapi.QueryOptions{SecretID: p.migrateToken}
+	qo := &nomadapi.QueryOptions{AuthToken: p.migrateToken}
 	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()

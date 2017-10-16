@@ -26,7 +26,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
-| `YES`            | `all`             | `management` |
+| `YES`            | `all`             | `management` for all policies.<br>Output when given a non-management token will be limited to the policies on the token itself |
 
 
 ### Sample Request
@@ -110,7 +110,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
-| `YES`            | `all`             | `management` |
+| `YES`            | `all`             | `management` or token with access to policy |
 
 ### Sample Request
 

@@ -114,7 +114,7 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
 func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
-	aclObj, err := s.srv.ResolveToken(args.SecretID)
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"strings"
@@ -93,7 +94,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.SingleEvalResponse
 		err := msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp)
 		assert.NotNil(err)
@@ -102,7 +103,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 	// Lookup the eval using a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.SingleEvalResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -111,7 +112,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 	// Lookup the eval using a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.SingleEvalResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.GetEval", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -633,7 +634,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.EvalListResponse
 		err := msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp)
 		assert.NotNil(err)
@@ -642,7 +643,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 	// List evals with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.EvalListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -651,7 +652,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 	// List evals with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.EvalListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.List", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -801,7 +802,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Try with an invalid token and expect permission denied
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.EvalAllocationsResponse
 		err := msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp)
 		assert.NotNil(err)
@@ -810,7 +811,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the eval with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.EvalAllocationsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -819,7 +820,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the eval with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.EvalAllocationsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Eval.Allocations", get, &resp))
 		assert.Equal(uint64(1000), resp.Index, "Bad index: %d %d", resp.Index, 1000)
@@ -1007,4 +1008,26 @@ func TestEvalEndpoint_Reblock(t *testing.T) {
 	if bStats.TotalBlocked+bStats.TotalEscaped == 0 {
 		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker")
 	}
+}
+
+// TestGenerateMigrateToken asserts the migrate token is valid for use in HTTP
+// headers and CompareMigrateToken works as expected.
+func TestGenerateMigrateToken(t *testing.T) {
+	assert := assert.New(t)
+	allocID := uuid.Generate()
+	nodeSecret := uuid.Generate()
+	token, err := GenerateMigrateToken(allocID, nodeSecret)
+	assert.Nil(err)
+	_, err = base64.URLEncoding.DecodeString(token)
+	assert.Nil(err)
+
+	assert.True(CompareMigrateToken(allocID, nodeSecret, token))
+	assert.False(CompareMigrateToken("x", nodeSecret, token))
+	assert.False(CompareMigrateToken(allocID, "x", token))
+	assert.False(CompareMigrateToken(allocID, nodeSecret, "x"))
+
+	token2, err := GenerateMigrateToken("x", nodeSecret)
+	assert.Nil(err)
+	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
+	assert.True(CompareMigrateToken("x", nodeSecret, token2))
 }

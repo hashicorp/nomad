@@ -120,7 +120,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: ctx.TaskEnv,
 		Driver:  "exec",
-		AllocID: d.DriverContext.allocID,
 		LogDir:  ctx.TaskDir.LogDir,
 		TaskDir: ctx.TaskDir.Dir,
 		Task:    task,

@@ -1,5 +1,6 @@
 import Ember from 'ember';
 import RESTAdapter from 'ember-data/adapters/rest';
+import codesForError from '../utils/codes-for-error';
 
 const { get, computed, inject } = Ember;
 
@@ -18,6 +19,22 @@ export default RESTAdapter.extend({
       }
     );
   }),
+
+  findAll() {
+    return this._super(...arguments).catch(error => {
+      const errorCodes = codesForError(error);
+
+      const isNotAuthorized = errorCodes.includes('403');
+      const isNotImplemented = errorCodes.includes('501');
+
+      if (isNotAuthorized || isNotImplemented) {
+        return [];
+      }
+
+      // Rethrow to be handled downstream
+      throw error;
+    });
+  },
 
   // Single record requests deviate from REST practice by using
   // the singular form of the resource name.

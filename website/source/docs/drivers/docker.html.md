@@ -523,10 +523,11 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
-* `docker.cleanup.image.delay` A time duration that defaults to `3m`. The delay
-  controls how long Nomad will wait between an image being unused and deleting
-  it. If a tasks is received that uses the same image within the delay, the
-  image will be reused.
+* `docker.cleanup.image.delay` A time duration, as [defined
+  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
+  delay controls how long Nomad will wait between an image being unused and
+  deleting it. If a tasks is received that uses the same image within the delay,
+  the image will be reused.
 
 * `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container and use volume drivers (`volume_driver`).

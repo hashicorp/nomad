@@ -167,8 +167,8 @@ type QueryOptions struct {
 	// If set, used as prefix for resource list searches
 	Prefix string
 
-	// SecretID is secret portion of the ACL token used for the request
-	SecretID string
+	// AuthToken is secret portion of the ACL token used for the request
+	AuthToken string
 }
 
 func (q QueryOptions) RequestRegion() string {
@@ -198,8 +198,8 @@ type WriteRequest struct {
 	// Namespace is the target namespace for the write.
 	Namespace string
 
-	// SecretID is secret portion of the ACL token used for the request
-	SecretID string
+	// AuthToken is secret portion of the ACL token used for the request
+	AuthToken string
 }
 
 func (w WriteRequest) RequestRegion() string {

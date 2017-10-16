@@ -80,19 +80,19 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 
 	// Try with a good token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
 
 	// Try with a bad token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	err := msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp)
 	assert.NotNil(err, "RPC")
 	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
@@ -237,7 +237,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp)
 		assert.NotNil(err)
@@ -246,7 +246,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 	// Try with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp), "RPC")
 		assert.NotEqual(resp.Index, uint64(0), "bad response index")
@@ -430,7 +430,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp)
 		assert.NotNil(err)
@@ -439,7 +439,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp), "RPC")
 		assert.NotEqual(resp.Index, uint64(0), "bad response index")
@@ -573,7 +573,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp)
 		assert.NotNil(err)
@@ -582,7 +582,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp), "RPC")
 		assert.NotEqual(resp.Index, uint64(0), "bad response index")
@@ -725,7 +725,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp)
 		assert.NotNil(err)
@@ -734,7 +734,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp), "RPC")
 		assert.NotZero(resp.Index, "bad response index")
@@ -943,7 +943,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
 		assert.NotNil(err)
@@ -952,7 +952,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 	// Lookup the deployments with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.DeploymentListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "Wrong Index")
@@ -962,7 +962,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 	// Lookup the deployments with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.DeploymentListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "Wrong Index")
@@ -1111,7 +1111,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp)
 		assert.NotNil(err)
@@ -1120,7 +1120,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the allocations with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.AllocListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
 		assert.EqualValues(1001, resp.Index, "Wrong Index")
@@ -1130,7 +1130,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the allocations with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.AllocListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
 		assert.EqualValues(1001, resp.Index, "Wrong Index")
