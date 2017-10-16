@@ -26,10 +26,10 @@ General Options:
 List Options:
 
   -json
-    Output the namespaces in a JSON format.
+    Output the quota specifications in a JSON format.
 
   -t
-    Format and display the namespaces using a Go template.
+    Format and display the quota specifications using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
