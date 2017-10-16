@@ -150,6 +150,7 @@ deps: ## Install build and development dependencies
 	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/hashicorp/vault
 	go get -u github.com/a8m/tree/cmd/tree
+	go get -u github.com/hashicorp/consul/test/porter/cmd/porter
 
 .PHONY: check
 check: ## Lint the source code
