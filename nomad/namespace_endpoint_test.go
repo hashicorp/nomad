@@ -79,7 +79,7 @@ func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.SingleNamespaceResponse
 		err := msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp)
@@ -88,7 +88,7 @@ func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	{
 		var resp structs.SingleNamespaceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
@@ -97,7 +97,7 @@ func TestNamespaceEndpoint_GetNamespace_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.SingleNamespaceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespace", get, &resp))
@@ -222,14 +222,14 @@ func TestNamespaceEndpoint_GetNamespaces_ACL(t *testing.T) {
 	}
 
 	// Try with an non-management token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	{
 		var resp structs.NamespaceSetResponse
 		assert.NotNil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", get, &resp))
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.NamespaceSetResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.GetNamespaces", get, &resp))
@@ -375,7 +375,7 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.NamespaceListResponse
 		err := msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp)
@@ -384,7 +384,7 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for one
-	get.SecretID = validDefToken.SecretID
+	get.AuthToken = validDefToken.SecretID
 	{
 		var resp structs.NamespaceListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
@@ -393,7 +393,7 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for two
-	get.SecretID = validMultiToken.SecretID
+	get.AuthToken = validMultiToken.SecretID
 	{
 		var resp structs.NamespaceListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
@@ -402,7 +402,7 @@ func TestNamespaceEndpoint_List_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.NamespaceListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.ListNamespaces", get, &resp))
@@ -524,7 +524,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
@@ -542,7 +542,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		var resp structs.GenericResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp))
@@ -647,7 +647,7 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
@@ -665,7 +665,7 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		var resp structs.GenericResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp))

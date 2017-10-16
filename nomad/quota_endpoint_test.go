@@ -78,7 +78,7 @@ func TestQuotaEndpoint_GetQuotaSpec_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.SingleQuotaSpecResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaSpec", get, &resp)
@@ -87,7 +87,7 @@ func TestQuotaEndpoint_GetQuotaSpec_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	{
 		var resp structs.SingleQuotaSpecResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaSpec", get, &resp))
@@ -96,7 +96,7 @@ func TestQuotaEndpoint_GetQuotaSpec_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.SingleQuotaSpecResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaSpec", get, &resp))
@@ -189,7 +189,7 @@ func TestQuotaEndpoint_GetQuotaSpecs(t *testing.T) {
 		mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Lookup with a random token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.QuotaSpecSetResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaSpecs", get, &resp)
@@ -198,7 +198,7 @@ func TestQuotaEndpoint_GetQuotaSpecs(t *testing.T) {
 	}
 
 	// Lookup with management token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.QuotaSpecSetResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaSpecs", get, &resp))
@@ -238,7 +238,7 @@ func TestQuotaEndpoint_GetQuotaSpecs_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.QuotaSpecSetResponse
@@ -348,7 +348,7 @@ func TestQuotaEndpoint_ListQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.QuotaSpecListResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaSpecs", get, &resp)
@@ -357,7 +357,7 @@ func TestQuotaEndpoint_ListQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for one
-	get.SecretID = validNamespaceToken.SecretID
+	get.AuthToken = validNamespaceToken.SecretID
 	{
 		var resp structs.QuotaSpecListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaSpecs", get, &resp))
@@ -367,7 +367,7 @@ func TestQuotaEndpoint_ListQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for all
-	get.SecretID = validQuotaToken.SecretID
+	get.AuthToken = validQuotaToken.SecretID
 	{
 		var resp structs.QuotaSpecListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaSpecs", get, &resp))
@@ -376,7 +376,7 @@ func TestQuotaEndpoint_ListQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.QuotaSpecListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaSpecs", get, &resp))
@@ -495,7 +495,7 @@ func TestQuotaEndpoint_DeleteQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.DeleteQuotaSpecs", req, &resp)
@@ -504,7 +504,7 @@ func TestQuotaEndpoint_DeleteQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 	{
 		var resp structs.GenericResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.DeleteQuotaSpecs", req, &resp))
@@ -517,7 +517,7 @@ func TestQuotaEndpoint_DeleteQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		req.Names = []string{qs2.Name}
 		var resp structs.GenericResponse
@@ -598,7 +598,7 @@ func TestQuotaEndpoint_UpsertQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	req.SecretID = invalidToken.SecretID
+	req.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.UpsertQuotaSpecs", req, &resp)
@@ -612,7 +612,7 @@ func TestQuotaEndpoint_UpsertQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	req.SecretID = validToken.SecretID
+	req.AuthToken = validToken.SecretID
 	{
 		var resp structs.GenericResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.UpsertQuotaSpecs", req, &resp))
@@ -625,7 +625,7 @@ func TestQuotaEndpoint_UpsertQuotaSpecs_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	req.SecretID = root.SecretID
+	req.AuthToken = root.SecretID
 	{
 		req.Quotas = []*structs.QuotaSpec{qs2}
 		var resp structs.GenericResponse
@@ -718,7 +718,7 @@ func TestQuotaEndpoint_ListQuotaUsages_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.QuotaUsageListResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaUsages", get, &resp)
@@ -727,7 +727,7 @@ func TestQuotaEndpoint_ListQuotaUsages_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for one
-	get.SecretID = validNamespaceToken.SecretID
+	get.AuthToken = validNamespaceToken.SecretID
 	{
 		var resp structs.QuotaUsageListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaUsages", get, &resp))
@@ -737,7 +737,7 @@ func TestQuotaEndpoint_ListQuotaUsages_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token for all
-	get.SecretID = validQuotaToken.SecretID
+	get.AuthToken = validQuotaToken.SecretID
 	{
 		var resp structs.QuotaUsageListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaUsages", get, &resp))
@@ -746,7 +746,7 @@ func TestQuotaEndpoint_ListQuotaUsages_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.QuotaUsageListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.ListQuotaUsages", get, &resp))
@@ -868,7 +868,7 @@ func TestQuotaEndpoint_GetQuotaUsage_ACL(t *testing.T) {
 	}
 
 	// Try with an invalid token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	{
 		var resp structs.SingleQuotaUsageResponse
 		err := msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaUsage", get, &resp)
@@ -877,7 +877,7 @@ func TestQuotaEndpoint_GetQuotaUsage_ACL(t *testing.T) {
 	}
 
 	// Try with a valid token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	{
 		var resp structs.SingleQuotaUsageResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaUsage", get, &resp))
@@ -886,7 +886,7 @@ func TestQuotaEndpoint_GetQuotaUsage_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	{
 		var resp structs.SingleQuotaUsageResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Quota.GetQuotaUsage", get, &resp))

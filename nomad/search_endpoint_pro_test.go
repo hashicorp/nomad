@@ -94,7 +94,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 	{
 		invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
 		assert.NotNil(err)
@@ -105,7 +105,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
 		req.Context = structs.Namespaces
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
 		assert.NotNil(err)
@@ -116,7 +116,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
 		req.Context = structs.All
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 		assert.Equal(uint64(1001), resp.Index)
@@ -131,7 +131,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 		validToken := mock.CreatePolicyAndToken(t, state, 1009, "test-valid2",
 			mock.NamespacePolicy(job2.Namespace, "", []string{acl.NamespaceCapabilityReadJob}))
 		req.Context = structs.All
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		req.Namespace = job2.Namespace
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
@@ -153,7 +153,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.Context = structs.All
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		req.Namespace = structs.DefaultNamespace
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
@@ -167,7 +167,7 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 	// Try with a management token
 	{
 		req.Context = structs.All
-		req.SecretID = root.SecretID
+		req.AuthToken = root.SecretID
 		req.Namespace = structs.DefaultNamespace
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))

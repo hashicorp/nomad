@@ -67,7 +67,7 @@ START:
 
 		// Fetch the list of policies
 		var resp structs.SentinelPolicyListResponse
-		req.SecretID = s.ReplicationToken()
+		req.AuthToken = s.ReplicationToken()
 		err := s.forwardRegion(s.config.AuthoritativeRegion,
 			"Sentinel.ListPolicies", &req, &resp)
 		if err != nil {
@@ -97,7 +97,7 @@ START:
 				Names: update,
 				QueryOptions: structs.QueryOptions{
 					Region:        s.config.AuthoritativeRegion,
-					SecretID:      s.ReplicationToken(),
+					AuthToken:     s.ReplicationToken(),
 					AllowStale:    true,
 					MinQueryIndex: resp.Index - 1,
 				},
@@ -209,7 +209,7 @@ START:
 
 		// Fetch the list of quotas
 		var resp structs.QuotaSpecListResponse
-		req.SecretID = s.ReplicationToken()
+		req.AuthToken = s.ReplicationToken()
 		err := s.forwardRegion(s.config.AuthoritativeRegion,
 			"Quota.ListQuotaSpecs", &req, &resp)
 		if err != nil {
@@ -239,7 +239,7 @@ START:
 				Names: update,
 				QueryOptions: structs.QueryOptions{
 					Region:        s.config.AuthoritativeRegion,
-					SecretID:      s.ReplicationToken(),
+					AuthToken:     s.ReplicationToken(),
 					AllowStale:    true,
 					MinQueryIndex: resp.Index - 1,
 				},

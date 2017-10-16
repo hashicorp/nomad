@@ -98,7 +98,7 @@ func TestSearch_PrefixSearch_Quota_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid", mock.QuotaPolicy(acl.PolicyRead))
 		req.Context = structs.All
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 		assert.Equal(uint64(490), resp.Index)
@@ -115,7 +115,7 @@ func TestSearch_PrefixSearch_Quota_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, state, 1009, "test-valid2",
 			mock.NamespacePolicy(job2.Namespace, "", []string{acl.NamespaceCapabilityReadJob}))
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		req.Namespace = job2.Namespace
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
@@ -138,7 +138,7 @@ func TestSearch_PrefixSearch_Quota_ACL(t *testing.T) {
 			mock.NodePolicy(acl.PolicyRead),
 			mock.QuotaPolicy(acl.PolicyRead),
 		}, "\n"))
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		req.Namespace = structs.DefaultNamespace
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
@@ -152,7 +152,7 @@ func TestSearch_PrefixSearch_Quota_ACL(t *testing.T) {
 
 	// Try with a management token
 	{
-		req.SecretID = root.SecretID
+		req.AuthToken = root.SecretID
 		var resp structs.SearchResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 		assert.Equal(uint64(1001), resp.Index)
