@@ -30,8 +30,8 @@ func TestSentinelEndpoint_GetPolicy(t *testing.T) {
 	get := &structs.SentinelPolicySpecificRequest{
 		Name: policy.Name,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SingleSentinelPolicyResponse
@@ -84,7 +84,7 @@ func TestSentinelEndpoint_GetPolicy_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.SingleSentinelPolicyResponse
@@ -145,8 +145,8 @@ func TestSentinelEndpoint_GetPolicies(t *testing.T) {
 	get := &structs.SentinelPolicySetRequest{
 		Names: []string{policy.Name, policy2.Name},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SentinelPolicySetResponse
@@ -202,7 +202,7 @@ func TestSentinelEndpoint_GetPolicies_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.SentinelPolicySetResponse
@@ -265,8 +265,8 @@ func TestSentinelEndpoint_ListPolicies(t *testing.T) {
 	// Lookup the policies
 	get := &structs.SentinelPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SentinelPolicyListResponse
@@ -279,9 +279,9 @@ func TestSentinelEndpoint_ListPolicies(t *testing.T) {
 	// Lookup the policies by prefix
 	get = &structs.SentinelPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			Prefix:   "aaaabb",
-			SecretID: root.SecretID,
+			Region:    "global",
+			Prefix:    "aaaabb",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp2 structs.SentinelPolicyListResponse
@@ -314,7 +314,7 @@ func TestSentinelEndpoint_ListPolicies_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 1,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	start := time.Now()
@@ -367,8 +367,8 @@ func TestSentinelEndpoint_DeletePolicies(t *testing.T) {
 	req := &structs.SentinelPolicyDeleteRequest{
 		Names: []string{p1.Name},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -392,8 +392,8 @@ func TestSentinelEndpoint_UpsertPolicies(t *testing.T) {
 	req := &structs.SentinelPolicyUpsertRequest{
 		Policies: []*structs.SentinelPolicy{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -423,8 +423,8 @@ func TestSentinelEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	req := &structs.SentinelPolicyUpsertRequest{
 		Policies: []*structs.SentinelPolicy{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse

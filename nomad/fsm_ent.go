@@ -103,6 +103,11 @@ func (n *nomadFSM) allocQuota(allocID string) (string, error) {
 		return "", err
 	}
 
+	// Guard against the client updating a non-existent allocation.
+	if alloc == nil {
+		return "", nil
+	}
+
 	ns, err := n.state.NamespaceByName(nil, alloc.Namespace)
 	if err != nil {
 		return "", err

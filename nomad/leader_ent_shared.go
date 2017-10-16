@@ -102,7 +102,7 @@ START:
 
 		// Fetch the list of namespaces
 		var resp structs.NamespaceListResponse
-		req.SecretID = s.ReplicationToken()
+		req.AuthToken = s.ReplicationToken()
 		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
 		if err != nil {
 			s.logger.Printf("[ERR] nomad: failed to fetch namespaces from authoritative region: %v", err)
@@ -131,7 +131,7 @@ START:
 				Namespaces: update,
 				QueryOptions: structs.QueryOptions{
 					Region:        s.config.AuthoritativeRegion,
-					SecretID:      s.ReplicationToken(),
+					AuthToken:     s.ReplicationToken(),
 					AllowStale:    true,
 					MinQueryIndex: resp.Index - 1,
 				},

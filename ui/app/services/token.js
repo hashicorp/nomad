@@ -1,22 +1,9 @@
 import Ember from 'ember';
+import fetch from 'fetch';
 
-const { Service, computed } = Ember;
+const { Service, computed, assign } = Ember;
 
 export default Service.extend({
-  accessor: computed({
-    get() {
-      return window.sessionStorage.nomadTokenAccessor;
-    },
-    set(key, value) {
-      if (value == null) {
-        window.sessionStorage.removeItem('nomadTokenAccessor');
-      } else {
-        window.sessionStorage.nomadTokenAccessor = value;
-      }
-      return value;
-    },
-  }),
-
   secret: computed({
     get() {
       return window.sessionStorage.nomadTokenSecret;
@@ -31,4 +18,15 @@ export default Service.extend({
       return value;
     },
   }),
+
+  authorizedRequest(url, options = {}) {
+    const headers = {};
+    const token = this.get('secret');
+
+    if (token) {
+      headers['X-Nomad-Token'] = token;
+    }
+
+    return fetch(url, assign(options, { headers }));
+  },
 });

@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
 
 const { copy } = Ember;
@@ -9,13 +10,15 @@ export function findLeader(schema) {
 }
 
 export default function() {
-  this.timing = 200; // delay for each request, automatically set to 0 during testing
+  this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
 
-  this.get('/jobs', function({ jobs }) {
+  this.get('/jobs', function({ jobs }, { queryParams }) {
     const json = this.serialize(jobs.all());
-    return json.map(job => filterKeys(job, 'TaskGroups'));
+    return json
+      .filter(job => (queryParams.namespace ? job.NamespaceID === queryParams.namespace : true))
+      .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
   });
 
   this.get('/job/:id');
@@ -58,6 +61,24 @@ export default function() {
 
   this.get('/allocation/:id');
 
+  this.get('/namespaces', function({ namespaces }) {
+    const records = namespaces.all();
+
+    if (records.length) {
+      return this.serialize(records);
+    }
+
+    return new Response(501, {}, null);
+  });
+
+  this.get('/namespace/:id', function({ namespaces }, { params }) {
+    if (namespaces.all().length) {
+      return this.serialize(namespaces.find(params.id));
+    }
+
+    return new Response(501, {}, null);
+  });
+
   this.get('/agent/members', function({ agents }) {
     return {
       Members: this.serialize(agents.all()),
@@ -66,6 +87,53 @@ export default function() {
 
   this.get('/status/leader', function(schema) {
     return JSON.stringify(findLeader(schema));
+  });
+
+  this.get('/acl/token/self', function({ tokens }, req) {
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the token if it exists
+    if (tokenForSecret) {
+      return this.serialize(tokenForSecret);
+    }
+
+    // Client error if it doesn't
+    return new Response(400, {}, null);
+  });
+
+  this.get('/acl/token/:id', function({ tokens }, req) {
+    const token = tokens.find(req.params.id);
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the token only if the request header matches the token
+    // or the token is of type management
+    if (token.secretId === secret || (tokenForSecret && tokenForSecret.type === 'management')) {
+      return this.serialize(token);
+    }
+
+    // Return not authorized otherwise
+    return new Response(403, {}, null);
+  });
+
+  this.get('/acl/policy/:id', function({ policies, tokens }, req) {
+    const policy = policies.find(req.params.id);
+    const secret = req.requestHeaders['X-Nomad-Token'];
+    const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    // Return the policy only if the token that matches the request header
+    // includes the policy or if the token that matches the request header
+    // is of type management
+    if (
+      tokenForSecret &&
+      (tokenForSecret.policies.includes(policy) || tokenForSecret.type === 'management')
+    ) {
+      return this.serialize(policy);
+    }
+
+    // Return not authorized otherwise
+    return new Response(403, {}, null);
   });
 
   // TODO: in the future, this hack may be replaceable with dynamic host name

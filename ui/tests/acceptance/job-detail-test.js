@@ -40,6 +40,7 @@ test('the job detail page should contain basic information about the job', funct
   assert.ok(findAll('.title .tag')[0].textContent.includes(job.status), 'Status');
   assert.ok(findAll('.job-stats span')[0].textContent.includes(job.type), 'Type');
   assert.ok(findAll('.job-stats span')[1].textContent.includes(job.priority), 'Priority');
+  assert.notOk(findAll('.job-stats span')[2], 'Namespace is not included');
 });
 
 test('the job detail page should list all task groups', function(assert) {
@@ -278,6 +279,23 @@ test('when the job is not found, an error message is shown, but the URL persists
       find('.error-message .title').textContent,
       'Not Found',
       'Error message is for 404'
+    );
+  });
+});
+
+test('when there are namespaces, the job detail page states the namespace for the job', function(
+  assert
+) {
+  server.createList('namespace', 2);
+  job = server.create('job');
+  const namespace = server.db.namespaces.find(job.namespaceId);
+
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    assert.ok(
+      findAll('.job-stats span')[2].textContent.includes(namespace.name),
+      'Namespace included in stats'
     );
   });
 });

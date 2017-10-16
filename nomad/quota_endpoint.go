@@ -27,7 +27,7 @@ func (q *Quota) UpsertQuotaSpecs(args *structs.QuotaSpecUpsertRequest,
 	defer metrics.MeasureSince([]string{"nomad", "quota", "upsert_quota_specs"}, time.Now())
 
 	// Check quota write permissions
-	if aclObj, err := q.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := q.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowQuotaWrite() {
 		return structs.ErrPermissionDenied
@@ -71,7 +71,7 @@ func (q *Quota) DeleteQuotaSpecs(args *structs.QuotaSpecDeleteRequest, reply *st
 	defer metrics.MeasureSince([]string{"nomad", "quota", "delete_quota_specs"}, time.Now())
 
 	// Check quota write permissions
-	if aclObj, err := q.srv.ResolveToken(args.SecretID); err != nil {
+	if aclObj, err := q.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowQuotaWrite() {
 		return structs.ErrPermissionDenied
@@ -106,7 +106,7 @@ func (q *Quota) ListQuotaSpecs(args *structs.QuotaSpecListRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "quota", "list_quota_specs"}, time.Now())
 
 	// Resolve token to ACL to filter quota specs
-	aclObj, err := q.srv.ResolveToken(args.SecretID)
+	aclObj, err := q.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (q *Quota) GetQuotaSpec(args *structs.QuotaSpecSpecificRequest, reply *stru
 	defer metrics.MeasureSince([]string{"nomad", "quota", "get_quota_spec"}, time.Now())
 
 	// Resolve token to ACL
-	aclObj, err := q.srv.ResolveToken(args.SecretID)
+	aclObj, err := q.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (q *Quota) GetQuotaSpecs(args *structs.QuotaSpecSetRequest, reply *structs.
 	defer metrics.MeasureSince([]string{"nomad", "quota", "get_quota_specs"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := q.srv.ResolveToken(args.SecretID); err != nil {
+	if acl, err := q.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl != nil && !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -273,7 +273,7 @@ func (q *Quota) ListQuotaUsages(args *structs.QuotaUsageListRequest, reply *stru
 	defer metrics.MeasureSince([]string{"nomad", "quota", "list_quota_usages"}, time.Now())
 
 	// Resolve token to ACL to filter quota usages
-	aclObj, err := q.srv.ResolveToken(args.SecretID)
+	aclObj, err := q.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -337,7 +337,7 @@ func (q *Quota) GetQuotaUsage(args *structs.QuotaUsageSpecificRequest, reply *st
 	defer metrics.MeasureSince([]string{"nomad", "quota", "get_quota_usage"}, time.Now())
 
 	// Check quota read permissions
-	aclObj, err := q.srv.ResolveToken(args.SecretID)
+	aclObj, err := q.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}

@@ -32,8 +32,8 @@ func TestJobEndpoint_Register_Sentinel(t *testing.T) {
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 
@@ -98,8 +98,8 @@ func TestJobEndpoint_Register_Sentinel_DriverForce(t *testing.T) {
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 
@@ -160,7 +160,7 @@ func TestJobEndpoint_Plan_Sentinel(t *testing.T) {
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
-			SecretID:  root.SecretID,
+			AuthToken: root.SecretID,
 		},
 	}
 

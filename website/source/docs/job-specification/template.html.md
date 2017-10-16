@@ -94,7 +94,7 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   prevent a thundering herd problem where all task instances restart at the same
   time.
 
--   `vault_grace` `(string: "5m")` - Specifies the grace period between lease
+-   `vault_grace` `(string: "15s")` - Specifies the grace period between lease
     renewal and secret re-acquisition. When renewing a secret, if the remaining
     lease is less than or equal to the configured grace, the template will request
     a new credential. This prevents Vault from revoking the secret at its

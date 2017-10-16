@@ -500,7 +500,8 @@ func (a *allocReconciler) batchFiltration(all allocSet) (filtered, ignore allocS
 
 	// Ignore terminal batch jobs from older versions
 	for id, alloc := range filtered {
-		if alloc.Job.Version < a.job.Version && alloc.TerminalStatus() {
+		older := alloc.Job.Version < a.job.Version || alloc.Job.CreateIndex < a.job.CreateIndex
+		if older && alloc.TerminalStatus() {
 			delete(filtered, id)
 			ignored[id] = alloc
 		}

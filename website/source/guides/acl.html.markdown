@@ -48,6 +48,7 @@ The following table summarizes the ACL Rules that are available for constructing
 | [agent](#agent-rules) | Utility operations in the Agent API          |
 | [node](#node-rules) | Node-level catalog operations                |
 | [operator](#operator-rules) | Cluster-level operations in the Operator API |
+| [quota](#quota-rules) | Quota specification related operations |
 
 Constructing rules from these policies is covered in detail in the Rule Specification section below.
 
@@ -178,6 +179,10 @@ agent {
 node {
     policy = "read"
 }
+
+quota {
+    policy = "read"
+}
 ```
 
 This is equivalent to the following JSON input:
@@ -196,6 +201,9 @@ This is equivalent to the following JSON input:
         "policy": "read"
     },
     "node": {
+        "policy": "read"
+    },
+    "quota": {
         "policy": "read"
     }
 }
@@ -283,6 +291,19 @@ operator {
 ```
 
 There's only one operator policy allowed per rule set, and its value is set to one of the policy dispositions. In the example above, the token could be used to query the operator endpoints for diagnostic purposes but not make any changes.
+
+### Quota Rules
+
+The `quota` policy controls access to the quota specification operations in the [Quota API](/api/quotas.html), such as quota creation and deletion.
+Quota rules are specified for all quotas using the `quota` key:
+
+```
+agent {
+    policy = "write"
+}
+```
+
+There's only one quota policy allowed per rule set, and its value is set to one of the policy dispositions.
 
 # Advanced Topics
 

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestACLPolicyListCommand(t *testing.T) {
+func TestACLPolicyInfoCommand(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
 	config := func(c *agent.Config) {
