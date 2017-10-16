@@ -91,7 +91,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:quota` `(string: <required>)`- Specifies the quota specification to query.
+- `:quota` `(string: <required>)`- Specifies the quota specification to query
+  where the identifier is the quota's name.
 
 ### Sample Request
 
@@ -199,7 +200,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:quota` `(string: <required>)`- Specifies the quota specification to delete.
+- `:quota` `(string: <required>)`- Specifies the quota specification to delete
+  where the identifier is the quota's name.
 
 ### Sample Request
 
@@ -285,7 +287,8 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:quota` `(string: <required>)`- Specifies the quota specification to query.
+- `:quota` `(string: <required>)`- Specifies the quota specification to query
+  where the identifier is the quota's name.
 
 ### Sample Request
 

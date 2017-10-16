@@ -181,6 +181,10 @@ quota {
 }
 ```
 
+Creating or modifying quotas should typically be guarded by ACLs such that users
+can not bypass enforcement by simply increasing or removing the quota
+specification.
+
 ## Resource Limits
 
 When specifying resource limits the following enforcement behaviors are defined:
