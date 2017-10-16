@@ -21,8 +21,8 @@ func TestHTTP_SentinelPolicyList(t *testing.T) {
 		args := structs.SentinelPolicyUpsertRequest{
 			Policies: []*structs.SentinelPolicy{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.Token.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -36,7 +36,7 @@ func TestHTTP_SentinelPolicyList(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.SentinelPoliciesRequest(respW, req)
@@ -70,8 +70,8 @@ func TestHTTP_SentinelPolicyQuery(t *testing.T) {
 		args := structs.SentinelPolicyUpsertRequest{
 			Policies: []*structs.SentinelPolicy{p1},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.Token.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -85,7 +85,7 @@ func TestHTTP_SentinelPolicyQuery(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.SentinelPolicySpecificRequest(respW, req)
@@ -123,7 +123,7 @@ func TestHTTP_SentinelPolicyCreate(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.SentinelPolicySpecificRequest(respW, req)
@@ -154,8 +154,8 @@ func TestHTTP_SentinelPolicyDelete(t *testing.T) {
 		args := structs.SentinelPolicyUpsertRequest{
 			Policies: []*structs.SentinelPolicy{p1},
 			WriteRequest: structs.WriteRequest{
-				Region:   "global",
-				SecretID: s.Token.SecretID,
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
 			},
 		}
 		var resp structs.GenericResponse
@@ -169,7 +169,7 @@ func TestHTTP_SentinelPolicyDelete(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.SentinelPolicySpecificRequest(respW, req)

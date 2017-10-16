@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -77,7 +78,7 @@ func TestServiceSched_JobModify_IncrCount_QuotaLimit(t *testing.T) {
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
 		Namespace:   ns.Name,
-		ID:          structs.GenerateUUID(),
+		ID:          uuid.Generate(),
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
