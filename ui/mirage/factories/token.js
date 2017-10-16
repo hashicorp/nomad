@@ -13,7 +13,8 @@ export default Factory.extend({
   afterCreate(token, server) {
     const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
       .fill(0)
-      .map(() => faker.hacker.verb());
+      .map(() => faker.hacker.verb())
+      .uniq();
 
     policyIds.forEach(policy => {
       const dbPolicy = server.db.policies.find(policy);
