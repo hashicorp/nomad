@@ -585,7 +585,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 		if err != nil {
 			return fmt.Errorf("token lookup failed: %v", err)
 		}
-		if token == nil { // why continue if the token is nil???
+		if token == nil {
 			nonexistentTokens = append(nonexistentTokens, accessor)
 			continue
 		}
@@ -597,7 +597,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	}
 
 	if len(nonexistentTokens) != 0 {
-		return fmt.Errorf("Cannot delete nonexistant tokens: %v", strings.Join(nonexistentTokens, ", "))
+		return fmt.Errorf("Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
 	}
 
 	// Disallow mixed requests with global and non-global tokens since we forward

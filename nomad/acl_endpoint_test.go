@@ -930,7 +930,7 @@ func TestACLEndpoint_DeleteTokens_WithNonexistantToken(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "ACL.DeleteTokens", req, &resp)
 
 	assert.NotNil(err)
-	expectedError := fmt.Sprintf("Cannot delete nonexistant tokens: %s", nonExistentToken.AccessorID)
+	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonExistentToken.AccessorID)
 	assert.Contains(expectedError, err.Error())
 }
 
