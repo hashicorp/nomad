@@ -1089,7 +1089,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
+func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	t.Parallel()
 	s1, root := testACLServer(t, nil)
 	defer s1.Shutdown()
@@ -1099,27 +1099,17 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 
 	// Create the node
 	allocDefaultNS := mock.Alloc()
-	allocAltNS := mock.Alloc()
-	allocAltNS.Namespace = "altnamespace"
-	allocOtherNS := mock.Alloc()
-	allocOtherNS.Namespace = "should-only-be-displayed-for-root-ns"
-
 	node := mock.Node()
 	allocDefaultNS.NodeID = node.ID
-	allocAltNS.NodeID = node.ID
-	allocOtherNS.NodeID = node.ID
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
-	assert.Nil(state.UpsertJobSummary(3, mock.JobSummary(allocAltNS.JobID)), "UpsertJobSummary")
-	assert.Nil(state.UpsertJobSummary(4, mock.JobSummary(allocOtherNS.JobID)), "UpsertJobSummary")
-	allocs := []*structs.Allocation{allocDefaultNS, allocAltNS, allocOtherNS}
+	allocs := []*structs.Allocation{allocDefaultNS}
 	assert.Nil(state.UpsertAllocs(5, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	validNoNSToken := mock.CreatePolicyAndToken(t, state, 1003, "test-alt-valid", mock.NodePolicy(acl.PolicyRead))
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1004, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
@@ -1147,14 +1137,6 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 		assert.Equal(allocDefaultNS.ID, resp.Allocs[0].ID)
 	}
 
-	// Try with a valid token for a namespace with no allocs on this node
-	req.AuthToken = validNoNSToken.SecretID
-	{
-		var resp structs.NodeAllocsResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
-		assert.Len(resp.Allocs, 0)
-	}
-
 	// Try with a invalid token
 	req.AuthToken = invalidToken.SecretID
 	{
@@ -1169,10 +1151,10 @@ func TestClientEndpoint_GetAllocs_ACL(t *testing.T) {
 	{
 		var resp structs.NodeAllocsResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", req, &resp), "RPC")
-		assert.Len(resp.Allocs, 3)
+		assert.Len(resp.Allocs, 1)
 		for _, alloc := range resp.Allocs {
 			switch alloc.ID {
-			case allocDefaultNS.ID, allocAltNS.ID, allocOtherNS.ID:
+			case allocDefaultNS.ID:
 				// expected
 			default:
 				t.Errorf("unexpected alloc %q for namespace %q", alloc.ID, alloc.Namespace)
