@@ -11,6 +11,7 @@ IMPROVEMENTS:
  * core/enterprise: Sentinel integration for fine grain policy enforcement.
  * core/enterprise: Namespace support allowing jobs and their associated
    objects to be isolated from each other and other users of the cluster.
+ * api: New `/v1/agent/health` endpoint for health checks.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * cli: Consul config option flags for nomad agent command [GH-3327]
  * discovery: Allow restarting unhealthy tasks with `check_restart` [GH-3105]
@@ -25,6 +26,8 @@ BUG FIXES:
    be stored [GH-3372]
  * core: Fix issue where node-drain with complete batch allocation would create
    replacement [GH-3217]
+ * core: Allow batch jobs that have been purged to be rerun without a job
+   specification change [GH-3375]
  * core: Fix issue in which batch allocations from previous job versions may not
    have been stopped properly. [GH-3217]
  * core: Fix issue in which allocations with the same name during a scale
