@@ -9,7 +9,8 @@ description: |-
 # Search HTTP API
 
 The `/search` endpoint returns matches for a given prefix and context, where a
-context can be jobs, allocations, evaluations, nodes, or deployments.
+context can be jobs, allocations, evaluations, nodes, or deployments. When using
+Nomad Enterprise, the allowed contexts include quotas and namespaces.
 Additionally, a prefix can be searched for within every context.
 
 | Method  | Path                         | Produces                   |
