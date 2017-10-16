@@ -322,17 +322,23 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
+	minVersion, _ := version.NewVersion(minRktVersion)
+	currentVersion, _ := version.NewVersion(rktMatches[1])
+	if currentVersion.LessThan(minVersion) {
+		// Do not allow ancient rkt versions
+		if d.fingerprintSuccess == nil {
+			// Only log on first failure
+			d.logger.Printf("[WARN] driver.rkt: unsupported rkt version %s; please upgrade to >= %s",
+				currentVersion, minVersion)
+		}
+		delete(node.Attributes, rktDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
+		return false, nil
+	}
+
 	node.Attributes[rktDriverAttr] = "1"
 	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
-
-	minVersion, _ := version.NewVersion(minRktVersion)
-	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
-	if currentVersion.LessThan(minVersion) {
-		// Do not allow ancient rkt versions
-		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
-		node.Attributes[rktDriverAttr] = "0"
-	}
 
 	// Advertise if this node supports rkt volumes
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
