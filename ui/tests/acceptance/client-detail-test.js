@@ -2,6 +2,7 @@ import Ember from 'ember';
 import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 
 const { $ } = Ember;
 
@@ -106,6 +107,8 @@ test('each allocation should have high-level details for the allocation', functi
   });
 
   const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
+  const cpuUsed = tasks.reduce((sum, task) => sum + task.Resources.CPU, 0);
+  const memoryUsed = tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0);
 
   visit(`/nodes/${node.id}`);
 
@@ -158,13 +161,22 @@ test('each allocation should have high-level details for the allocation', functi
       'CPU %'
     );
     assert.equal(
+      allocationRow.find('td:eq(4) .tooltip').attr('aria-label'),
+      `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
+      'Detailed CPU information is in a tooltip'
+    );
+    assert.equal(
       allocationRow
         .find('td:eq(5)')
         .text()
         .trim(),
-      allocStats.resourceUsage.MemoryStats.Cache /
-        tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0),
+      allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
       'Memory used'
+    );
+    assert.equal(
+      allocationRow.find('td:eq(5) .tooltip').attr('aria-label'),
+      `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
+      'Detailed memory information is in a tooltip'
     );
   });
 });

@@ -45,6 +45,16 @@ type Policy struct {
 	Raw        string             `hcl:"-"`
 }
 
+// IsEmpty checks to make sure that at least one policy has been set and is not
+// comprised of only a raw policy.
+func (p *Policy) IsEmpty() bool {
+	return len(p.Namespaces) == 0 &&
+		p.Agent == nil &&
+		p.Node == nil &&
+		p.Operator == nil &&
+		p.Quota == nil
+}
+
 // NamespacePolicy is the policy for a specific namespace
 type NamespacePolicy struct {
 	Name         string `hcl:",key"`
@@ -132,6 +142,12 @@ func Parse(rules string) (*Policy, error) {
 	// Attempt to parse
 	if err := hcl.Decode(p, rules); err != nil {
 		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
+	}
+
+	// At least one valid policy must be specified, we don't want to store only
+	// raw data
+	if p.IsEmpty() {
+		return nil, fmt.Errorf("Invalid policy: %s", p.Raw)
 	}
 
 	// Validate the policy

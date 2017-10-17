@@ -160,6 +160,17 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			{
+				"Name": "my-policy",
+				"Description": "This is a great policy",
+				"Rules": "anything"
+			}
+			`,
+			"Invalid policy",
+			nil,
+		},
+		{
+			`
 			namespace "has a space"{
 				policy = "read"
 			}
