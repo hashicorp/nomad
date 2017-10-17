@@ -484,6 +484,97 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 	assert.NotEqual(uint64(0), resp.Index)
 }
 
+func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create a job in one
+	j := mock.Job()
+	j.Namespace = ns1.Name
+	assert.Nil(s1.fsm.State().UpsertJob(1001, j))
+
+	// Lookup the namespaces
+	req := &structs.NamespaceDeleteRequest{
+		Namespaces:   []string{ns1.Name, ns2.Name},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+	if assert.NotNil(err) {
+		assert.Contains(err.Error(), "has non-terminal jobs")
+	}
+}
+
+func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s1, root := testACLServer(t, func(c *Config) {
+		c.Region = "region1"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+	})
+	defer s1.Shutdown()
+	s2, _ := testACLServer(t, func(c *Config) {
+		c.Region = "region2"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+		c.ReplicationBackoff = 20 * time.Millisecond
+		c.ReplicationToken = root.SecretID
+	})
+	defer s2.Shutdown()
+	testJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+	codec := rpcClient(t, s1)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1})
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := s2.State()
+		out, err := state.NamespaceByName(nil, ns1.Name)
+		return out != nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate namespace")
+	})
+
+	// Create a job in the namespace on the non-authority
+	j := mock.Job()
+	j.Namespace = ns1.Name
+	assert.Nil(s2.fsm.State().UpsertJob(1001, j))
+
+	// Delete the namespaces without the correct permissions
+	req := &structs.NamespaceDeleteRequest{
+		Namespaces: []string{ns1.Name},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+	if assert.NotNil(err) {
+		assert.EqualError(err, structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a auth token
+	req.AuthToken = root.SecretID
+	var resp2 structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp2)
+	if assert.NotNil(err) {
+		assert.Contains(err.Error(), "has non-terminal jobs")
+	}
+}
+
 func TestNamespaceEndpoint_DeleteNamespaces_ACL(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
