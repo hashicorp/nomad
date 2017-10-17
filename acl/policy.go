@@ -134,6 +134,12 @@ func Parse(rules string) (*Policy, error) {
 		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
 	}
 
+	// At least one valid policy must be specified, we don't want to store only
+	// raw data
+	if len(p.Namespaces) < 1 && p.Agent == nil && p.Node == nil && p.Operator == nil && p.Quota == nil {
+		return nil, fmt.Errorf("Invalid rule set due to missing namespace name: %s", p.Raw)
+	}
+
 	// Validate the policy
 	for _, ns := range p.Namespaces {
 		if !validNamespace.MatchString(ns.Name) {
