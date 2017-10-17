@@ -107,7 +107,6 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 
 // ListNamespaces is used to list the namespaces
 func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *structs.NamespaceListResponse) error {
-	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.ListNamespaces", args, args, reply); done {
 		return err
 	}
@@ -169,7 +168,6 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 
 // GetNamespace is used to get a specific namespace
 func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *structs.SingleNamespaceResponse) error {
-	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.GetNamespace", args, args, reply); done {
 		return err
 	}
@@ -218,7 +216,6 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 
 // GetNamespaces is used to get a set of namespaces
 func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *structs.NamespaceSetResponse) error {
-	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.GetNamespaces", args, args, reply); done {
 		return err
 	}
