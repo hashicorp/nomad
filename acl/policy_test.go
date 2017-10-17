@@ -166,7 +166,7 @@ func TestParse(t *testing.T) {
 				"Rules": "anything"
 			}
 			`,
-			"Invalid rule set due to missing namespace name",
+			"Invalid policy",
 			nil,
 		},
 		{

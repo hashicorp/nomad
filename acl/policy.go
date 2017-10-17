@@ -137,7 +137,7 @@ func Parse(rules string) (*Policy, error) {
 	// At least one valid policy must be specified, we don't want to store only
 	// raw data
 	if len(p.Namespaces) < 1 && p.Agent == nil && p.Node == nil && p.Operator == nil && p.Quota == nil {
-		return nil, fmt.Errorf("Invalid rule set due to missing namespace name: %s", p.Raw)
+		return nil, fmt.Errorf("Invalid policy: %s", p.Raw)
 	}
 
 	// Validate the policy
