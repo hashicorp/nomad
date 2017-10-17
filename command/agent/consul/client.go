@@ -1064,6 +1064,8 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
+		// As of Consul 1.0.0 setting TTL and Interval is a 400
+		chkReg.Interval = ""
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
