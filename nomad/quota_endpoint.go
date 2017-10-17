@@ -21,6 +21,7 @@ type Quota struct {
 // UpsertQuotaSpecs is used to upsert a set of quota specifications
 func (q *Quota) UpsertQuotaSpecs(args *structs.QuotaSpecUpsertRequest,
 	reply *structs.GenericResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.UpsertQuotaSpecs", args, args, reply); done {
 		return err
 	}
@@ -65,6 +66,7 @@ func (q *Quota) UpsertQuotaSpecs(args *structs.QuotaSpecUpsertRequest,
 
 // DeleteQuotaSpecs is used to delete a set of quota specifications
 func (q *Quota) DeleteQuotaSpecs(args *structs.QuotaSpecDeleteRequest, reply *structs.GenericResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.DeleteQuotaSpecs", args, args, reply); done {
 		return err
 	}
@@ -100,6 +102,7 @@ func (q *Quota) DeleteQuotaSpecs(args *structs.QuotaSpecDeleteRequest, reply *st
 
 // ListQuotaSpecs is used to list the quota specifications
 func (q *Quota) ListQuotaSpecs(args *structs.QuotaSpecListRequest, reply *structs.QuotaSpecListResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.ListQuotaSpecs", args, args, reply); done {
 		return err
 	}
@@ -163,6 +166,7 @@ func (q *Quota) ListQuotaSpecs(args *structs.QuotaSpecListRequest, reply *struct
 
 // GetQuotaSpec is used to get a specific quota spec
 func (q *Quota) GetQuotaSpec(args *structs.QuotaSpecSpecificRequest, reply *structs.SingleQuotaSpecResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.GetQuotaSpec", args, args, reply); done {
 		return err
 	}
@@ -217,6 +221,7 @@ func (q *Quota) GetQuotaSpec(args *structs.QuotaSpecSpecificRequest, reply *stru
 
 // GetQuotaSpecs is used to get a set of quota specs
 func (q *Quota) GetQuotaSpecs(args *structs.QuotaSpecSetRequest, reply *structs.QuotaSpecSetResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.GetQuotaSpecs", args, args, reply); done {
 		return err
 	}
@@ -267,6 +272,7 @@ func (q *Quota) GetQuotaSpecs(args *structs.QuotaSpecSetRequest, reply *structs.
 
 // ListQuotaUsages is used to list the quota usages
 func (q *Quota) ListQuotaUsages(args *structs.QuotaUsageListRequest, reply *structs.QuotaUsageListResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.ListQuotaUsages", args, args, reply); done {
 		return err
 	}
@@ -331,6 +337,7 @@ func (q *Quota) ListQuotaUsages(args *structs.QuotaUsageListRequest, reply *stru
 
 // GetQuotaUsage is used to get a specific quota usage
 func (q *Quota) GetQuotaUsage(args *structs.QuotaUsageSpecificRequest, reply *structs.SingleQuotaUsageResponse) error {
+	args.Region = q.srv.config.AuthoritativeRegion
 	if done, err := q.srv.forward("Quota.GetQuotaUsage", args, args, reply); done {
 		return err
 	}
