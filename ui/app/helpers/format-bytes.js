@@ -14,12 +14,12 @@ const UNITS = ['Bytes', 'KiB', 'MiB'];
  */
 export function formatBytes([bytes]) {
   let unitIndex = 0;
-  while (bytes >= 1024 && unitIndex < UNITS.length) {
+  while (bytes >= 1024 && unitIndex < UNITS.length - 1) {
     bytes /= 1024;
     unitIndex++;
   }
 
-  return `${Math.ceil(bytes)} ${UNITS[unitIndex]}`;
+  return `${Math.floor(bytes)} ${UNITS[unitIndex]}`;
 }
 
 export default Helper.helper(formatBytes);
