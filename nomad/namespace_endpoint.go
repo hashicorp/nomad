@@ -8,6 +8,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -89,6 +90,22 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		}
 	}
 
+	// Check that the deleting namespaces do not have non-terminal jobs in both
+	// this region and all federated regions
+	var mErr multierror.Error
+	for _, ns := range args.Namespaces {
+		nonTerminal, err := n.nonTerminalNamespaces(args.AuthToken, ns)
+		if err != nil {
+			multierror.Append(&mErr, err)
+		} else if len(nonTerminal) != 0 {
+			multierror.Append(&mErr, fmt.Errorf("namespace %q has non-terminal jobs in regions: %v", ns, nonTerminal))
+		}
+	}
+
+	if err := mErr.ErrorOrNil(); err != nil {
+		return err
+	}
+
 	// Update via Raft
 	out, index, err := n.srv.raftApply(structs.NamespaceDeleteRequestType, args)
 	if err != nil {
@@ -103,6 +120,97 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	// Update the index
 	reply.Index = index
 	return nil
+}
+
+// nonTerminalNamespaces returns whether the set of regions in which the
+// namespaces contains non-terminal jobs, checking all federated regions
+// including this one.
+func (n *Namespace) nonTerminalNamespaces(authToken, namespace string) ([]string, error) {
+	regions := n.srv.Regions()
+	thisRegion := n.srv.Region()
+	terminal := make([]string, 0, len(regions))
+
+	// Check if this region is terminal
+	localTerminal, err := n.namespaceTerminalLocally(namespace)
+	if err != nil {
+		return nil, err
+	}
+	if !localTerminal {
+		terminal = append(terminal, thisRegion)
+	}
+
+	for _, region := range regions {
+		if region == thisRegion {
+			continue
+		}
+
+		remoteTerminal, err := n.namespaceTerminalInRegion(authToken, namespace, region)
+		if err != nil {
+			return nil, err
+		}
+		if !remoteTerminal {
+			terminal = append(terminal, region)
+		}
+	}
+
+	return terminal, nil
+}
+
+// namespaceTerminalLocally returns if the namespace contains only terminal jobs
+// in the local region .
+func (n *Namespace) namespaceTerminalLocally(namespace string) (bool, error) {
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return false, err
+	}
+
+	iter, err := snap.JobsByNamespace(nil, namespace)
+	if err != nil {
+		return false, err
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		job := raw.(*structs.Job)
+		if job.Status != structs.JobStatusDead {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// namespaceTerminalInRegion returns if the namespace contains only terminal
+// jobs in the given region .
+func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region string) (bool, error) {
+	req := &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     region,
+			Namespace:  namespace,
+			AllowStale: false,
+			AuthToken:  authToken,
+		},
+	}
+
+	var resp structs.JobListResponse
+	done, err := n.srv.forward("Job.List", req, req, &resp)
+	if !done {
+		return false, fmt.Errorf("unexpectedly did not forward Job.List to region %q", region)
+	} else if err != nil {
+		return false, err
+	}
+
+	for _, job := range resp.Jobs {
+		if job.Status != structs.JobStatusDead {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // ListNamespaces is used to list the namespaces
