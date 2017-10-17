@@ -235,7 +235,7 @@ see how the enforcement applies across federated clusters.
 $ nomad quota apply spec.hcl
 Successfully applied quota specification "federated-example"!
 
-$ nomad quota status federated example
+$ nomad quota status federated-example
 Name        = federated-example
 Description = A single quota spec effecting multiple regions
 Limits      = 2
