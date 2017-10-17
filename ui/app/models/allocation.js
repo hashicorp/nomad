@@ -30,18 +30,19 @@ export default Model.extend({
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
   }),
 
-  percentMemory: computed(
-    'taskGroup.reservedMemory',
-    'stats.ResourceUsage.MemoryStats.Cache',
-    function() {
-      const used = this.get('stats.ResourceUsage.MemoryStats.Cache');
-      const total = this.get('taskGroup.reservedMemory');
-      if (!total || !used) {
-        return 0;
-      }
-      return used / total;
+  memoryUsed: computed.readOnly('stats.ResourceUsage.MemoryStats.RSS'),
+  cpuUsed: computed('stats.ResourceUsage.CpuStats.TotalTicks', function() {
+    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks'));
+  }),
+
+  percentMemory: computed('taskGroup.reservedMemory', 'memoryUsed', function() {
+    const used = this.get('memoryUsed') / 1024 / 1024;
+    const total = this.get('taskGroup.reservedMemory');
+    if (!total || !used) {
+      return 0;
     }
-  ),
+    return used / total;
+  }),
 
   percentCPU: computed('stats.ResourceUsage.CpuStats.Percent', function() {
     return this.get('stats.ResourceUsage.CpuStats.Percent') || 0;
