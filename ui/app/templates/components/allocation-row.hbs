@@ -27,7 +27,7 @@
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart">
+    <div class="inline-chart tooltip" aria-label="{{allocation.cpuUsed}} / {{allocation.taskGroup.reservedCPU}} MHz">
       <progress
         class="progress is-info is-small"
         value="{{allocation.percentCPU}}"
@@ -45,7 +45,7 @@
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart">
+    <div class="inline-chart tooltip" aria-label="{{format-bytes allocation.memoryUsed}} / {{allocation.taskGroup.reservedMemory}} MiB">
       <progress
         class="progress is-danger is-small"
         value="{{allocation.percentMemory}}"
