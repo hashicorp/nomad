@@ -298,7 +298,7 @@ The `quota` policy controls access to the quota specification operations in the 
 Quota rules are specified for all quotas using the `quota` key:
 
 ```
-agent {
+quota {
     policy = "write"
 }
 ```
@@ -337,7 +337,8 @@ $ nomad acl bootstrap
 Error bootstrapping: Unexpected response code: 500 (ACL bootstrap already done (reset index: 7))
 ```
 
-Here we can see the `reset index`. To reset the ACL system, we create the `acl-bootstrap-reset` file in the data directory:
+Here we can see the `reset index`. To reset the ACL system, we create the
+`acl-bootstrap-reset` file in the data directory of the **leader** node:
 
 ```
 $ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset
