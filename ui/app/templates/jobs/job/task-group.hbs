@@ -67,6 +67,7 @@
             sortDescending=sortDescending as |t|}}
             {{#t.head}}
               {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+              {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
               {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
               {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
               {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
