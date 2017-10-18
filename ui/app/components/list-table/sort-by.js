@@ -5,6 +5,8 @@ const { Component, computed } = Ember;
 export default Component.extend({
   tagName: 'th',
 
+  attributeBindings: ['title'],
+
   // The prop that the table is currently sorted by
   currentProp: '',
 

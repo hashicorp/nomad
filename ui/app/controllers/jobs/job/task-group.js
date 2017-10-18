@@ -17,8 +17,8 @@ export default Controller.extend(Sortable, Searchable, {
   currentPage: 1,
   pageSize: 10,
 
-  sortProperty: 'name',
-  sortDescending: false,
+  sortProperty: 'modifyIndex',
+  sortDescending: true,
 
   searchProps: computed(() => ['id', 'name']),
 
