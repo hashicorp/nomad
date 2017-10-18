@@ -20,7 +20,7 @@ export default Controller.extend(Sortable, Searchable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  searchProps: computed(() => ['id', 'name']),
+  searchProps: computed(() => ['shortId', 'name']),
 
   allocations: computed('model.allocations.[]', function() {
     return this.get('model.allocations') || [];

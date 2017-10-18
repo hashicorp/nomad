@@ -14,8 +14,7 @@ const { Mixin, computed, get } = Ember;
     - listToSearch: the list of objects to search
 
   Properties provided:
-    - listSearched: a subset of listToSearch of items that meet the search criteria,
-                    ordered by relevance.
+    - listSearched: a subset of listToSearch of items that meet the search criteria
 */
 export default Mixin.create({
   searchTerm: '',
@@ -40,20 +39,16 @@ export default Mixin.create({
   listSearched: computed('fuse', 'searchTerm', function() {
     const { fuse, searchTerm } = this.getProperties('fuse', 'searchTerm');
     if (searchTerm && searchTerm.length) {
-      if (searchTerm.startsWith('/')) {
-        return regexSearch(searchTerm, fuse);
-      }
-      return fuse.search(searchTerm);
+      return regexSearch(searchTerm, fuse);
     }
     return this.get('listToSearch');
   }),
 });
 
 function regexSearch(term, { list, options: { keys } }) {
-  const regexStr = term.slice(1);
-  if (regexStr.length) {
+  if (term.length) {
     try {
-      const regex = new RegExp(regexStr, 'i');
+      const regex = new RegExp(term, 'i');
       // Test the value of each key for each object against the regex
       // All that match are returned.
       return list.filter(item => keys.some(key => regex.test(get(item, key))));
