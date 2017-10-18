@@ -1555,6 +1555,10 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 		return fmt.Errorf("Failed to determine signal number")
 	}
 
+	// TODO When we expose signals we will need a mapping layer that converts
+	// MacOS signals to the correct signal number for docker. Or we change the
+	// interface to take a signal string and leave it up to driver to map?
+
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
 		ID:     h.containerID,

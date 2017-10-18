@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -106,6 +107,7 @@ func testDockerDriverContexts(t *testing.T, task *structs.Task) *testContext {
 }
 
 func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Client) (*docker.Client, DriverHandle, func()) {
+	t.Helper()
 	tctx := testDockerDriverContexts(t, task)
 	//tctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	driver := NewDockerDriver(tctx.DriverCtx)
@@ -146,6 +148,7 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 }
 
 func newTestDockerClient(t *testing.T) *docker.Client {
+	t.Helper()
 	if !testutil.DockerIsConnected(t) {
 		t.SkipNow()
 	}
@@ -191,6 +194,9 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("requires Docker")
 	}
+	if runtime.GOOS != "linux" {
+		t.Skip("expect only on linux")
+	}
 
 	// This seems fragile, so we might need to reconsider this test if it
 	// proves flaky
@@ -202,7 +208,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 		t.Fatalf("unable to get ip for docker bridge")
 	}
 
-	conf := testConfig()
+	conf := testConfig(t)
 	conf.Node = mock.Node()
 	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
 	ok, err := dd.Fingerprint(conf, conf.Node)
@@ -328,9 +334,10 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 		Config: map[string]interface{}{
 			"image":   "busybox",
 			"load":    "busybox.tar",
-			"command": "/bin/echo",
+			"command": "/bin/sh",
 			"args": []string{
-				"hello",
+				"-c",
+				"echo hello > $NOMAD_TASK_DIR/output",
 			},
 		},
 		LogConfig: &structs.LogConfig{
@@ -371,7 +378,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "busybox-demo.stdout.0")
+	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LocalDir, "output")
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -1270,7 +1277,7 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	cfg := testConfig()
+	cfg := testConfig(t)
 	cfg.Options = map[string]string{
 		dockerVolumesConfigOption: "false",
 		"docker.cleanup.image":    "false",
@@ -1343,11 +1350,17 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	cfg := testConfig()
+	cfg := testConfig(t)
 
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	if err != nil {
 		t.Fatalf("error creating temporary dir: %v", err)
+	}
+
+	// Evaluate symlinks so it works on MacOS
+	tmpvol, err = filepath.EvalSymlinks(tmpvol)
+	if err != nil {
+		t.Fatalf("error evaluating symlinks: %v", err)
 	}
 
 	task, driver, execCtx, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)

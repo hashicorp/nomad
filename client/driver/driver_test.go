@@ -2,6 +2,7 @@ package driver
 
 import (
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -70,10 +71,31 @@ func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
-func testConfig() *config.Config {
+func testConfig(t *testing.T) *config.Config {
 	conf := config.DefaultConfig()
-	conf.StateDir = os.TempDir()
-	conf.AllocDir = os.TempDir()
+
+	// Evaluate the symlinks so that the temp directory resolves correctly on
+	// Mac OS.
+	d1, err := ioutil.TempDir("", "TestStateDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d2, err := ioutil.TempDir("", "TestAllocDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p1, err := filepath.EvalSymlinks(d1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2, err := filepath.EvalSymlinks(d2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conf.StateDir = p1
+	conf.AllocDir = p2
 	conf.MaxKillTimeout = 10 * time.Second
 	conf.Region = "global"
 	conf.Node = mock.Node()
@@ -91,7 +113,7 @@ type testContext struct {
 //
 // It is up to the caller to call AllocDir.Destroy to cleanup.
 func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
-	cfg := testConfig()
+	cfg := testConfig(t)
 	cfg.Node = mock.Node()
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, uuid.Generate()))
 	if err := allocDir.Build(); err != nil {
@@ -158,7 +180,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	alloc.Job.TaskGroups[0].Tasks[0] = task
 	alloc.Name = "Bar"
 	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
-	conf := testConfig()
+	conf := testConfig(t)
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
 	taskDir := allocDir.NewTaskDir(task.Name)
 	eb := env.NewBuilder(conf.Node, alloc, task, conf.Region)
