@@ -127,12 +127,20 @@ test('each allocation should have high-level details for the allocation', functi
         .find('td:eq(1)')
         .text()
         .trim(),
+      allocation.modifyIndex,
+      'Allocation modify index'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(2)')
+        .text()
+        .trim(),
       allocation.name,
       'Allocation name'
     );
     assert.equal(
       allocationRow
-        .find('td:eq(2)')
+        .find('td:eq(3)')
         .text()
         .trim(),
       allocation.clientStatus,
@@ -140,41 +148,41 @@ test('each allocation should have high-level details for the allocation', functi
     );
     assert.ok(
       allocationRow
-        .find('td:eq(3)')
+        .find('td:eq(4)')
         .text()
         .includes(server.db.jobs.find(allocation.jobId).name),
       'Job name'
     );
     assert.ok(
       allocationRow
-        .find('td:eq(3) .is-faded')
+        .find('td:eq(4) .is-faded')
         .text()
         .includes(allocation.taskGroup),
       'Task group name'
     );
     assert.equal(
       allocationRow
-        .find('td:eq(4)')
+        .find('td:eq(5)')
         .text()
         .trim(),
       allocStats.resourceUsage.CpuStats.Percent,
       'CPU %'
     );
     assert.equal(
-      allocationRow.find('td:eq(4) .tooltip').attr('aria-label'),
+      allocationRow.find('td:eq(5) .tooltip').attr('aria-label'),
       `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
       'Detailed CPU information is in a tooltip'
     );
     assert.equal(
       allocationRow
-        .find('td:eq(5)')
+        .find('td:eq(6)')
         .text()
         .trim(),
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
       'Memory used'
     );
     assert.equal(
-      allocationRow.find('td:eq(5) .tooltip').attr('aria-label'),
+      allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
       `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
       'Detailed memory information is in a tooltip'
     );
@@ -209,14 +217,14 @@ test('each allocation should show job information even if the job is incomplete 
 
     assert.ok(
       allocationRow
-        .find('td:eq(3)')
+        .find('td:eq(4)')
         .text()
         .includes(server.db.jobs.find(allocation.jobId).name),
       'Job name'
     );
     assert.ok(
       allocationRow
-        .find('td:eq(3) .is-faded')
+        .find('td:eq(4) .is-faded')
         .text()
         .includes(allocation.taskGroup),
       'Task group name'
@@ -252,7 +260,7 @@ test('each allocation should link to the job the allocation belongs to', functio
   const job = server.db.jobs.find(allocation.jobId);
 
   andThen(() => {
-    click($('.allocations tbody tr:eq(0) td:eq(3) a').get(0));
+    click($('.allocations tbody tr:eq(0) td:eq(4) a').get(0));
   });
 
   andThen(() => {

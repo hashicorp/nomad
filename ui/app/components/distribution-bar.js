@@ -125,7 +125,7 @@ export default Component.extend(WindowResizable, {
         .attr('y', () => isNarrow ? '50%' : 0)
         .attr('clip-path', `url(#${this.get('maskId')})`)
         .attr('height', () => isNarrow ? '6px' : '100%')
-        .attr('transform', () => isNarrow && 'translate(0, -3)')
+        .attr('transform', () => isNarrow ? 'translate(0, -3)' : '')
       .merge(layers)
         .attr('class', (d, i) => `bar layer-${i}`)
       .transition()

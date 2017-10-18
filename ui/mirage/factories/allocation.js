@@ -9,6 +9,8 @@ const DESIRED_STATUSES = ['run', 'stop', 'evict'];
 export default Factory.extend({
   id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
+  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
+
   clientStatus: faker.list.random(...CLIENT_STATUSES),
   desiredStatus: faker.list.random(...DESIRED_STATUSES),
 
