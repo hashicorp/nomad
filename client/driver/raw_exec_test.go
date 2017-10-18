@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -257,45 +255,6 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		}
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
-	}
-}
-
-func TestRawExecDriverUser(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
-	task := &structs.Task{
-		Name:   "sleep",
-		Driver: "raw_exec",
-		User:   "alice",
-		Config: map[string]interface{}{
-			"command": testtask.Path(),
-			"args":    []string{"sleep", "45s"},
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-		Resources: basicResources,
-	}
-	testtask.SetTaskEnv(task)
-
-	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
-	d := NewRawExecDriver(ctx.DriverCtx)
-
-	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("prestart err: %v", err)
-	}
-	resp, err := d.Start(ctx.ExecCtx, task)
-	if err == nil {
-		resp.Handle.Kill()
-		t.Fatalf("Should've failed")
-	}
-	msg := "unknown user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
 	}
 }
 

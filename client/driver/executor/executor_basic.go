@@ -1,4 +1,4 @@
-// +build darwin dragonfly freebsd netbsd openbsd solaris windows
+// +build !linux
 
 package executor
 
@@ -14,10 +14,6 @@ func (e *UniversalExecutor) configureChroot() error {
 }
 
 func (e *UniversalExecutor) removeChrootMounts() error {
-	return nil
-}
-
-func (e *UniversalExecutor) runAs(userid string) error {
 	return nil
 }
 

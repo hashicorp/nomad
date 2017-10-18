@@ -1,49 +1,60 @@
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+// +build !windows
 
 package executor
 
 import (
 	"fmt"
-	"io"
-
-	syslog "github.com/RackSec/srslog"
-
-	"github.com/hashicorp/nomad/client/driver/logging"
+	"os/user"
+	"strconv"
+	"syscall"
 )
 
-func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
-	// Ensure the context has been set first
-	if e.ctx == nil {
-		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
-	}
-
-	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
-	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
+// runAs takes a user id as a string and looks up the user, and sets the command
+// to execute as that user.
+func (e *UniversalExecutor) runAs(userid string) error {
+	u, err := user.Lookup(userid)
 	if err != nil {
-		return nil, err
-	}
-	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
-	if err := e.configureLoggers(); err != nil {
-		return nil, err
+		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
 	}
 
-	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
-	go e.syslogServer.Start()
-	go e.collectLogs(e.lre, e.lro)
-	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
-	return &SyslogServerState{Addr: syslogAddr}, nil
-}
+	// Get the groups the user is a part of
+	gidStrings, err := u.GroupIds()
+	if err != nil {
+		return fmt.Errorf("Unable to lookup user's group membership: %v", err)
+	}
 
-func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
-	for logParts := range e.syslogChan {
-		// If the severity of the log line is err then we write to stderr
-		// otherwise all messages go to stdout
-		if logParts.Severity == syslog.LOG_ERR {
-			e.lre.Write(logParts.Message)
-			e.lre.Write([]byte{'\n'})
-		} else {
-			e.lro.Write(logParts.Message)
-			e.lro.Write([]byte{'\n'})
+	gids := make([]uint32, len(gidStrings))
+	for _, gidString := range gidStrings {
+		u, err := strconv.Atoi(gidString)
+		if err != nil {
+			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
 		}
+
+		gids = append(gids, uint32(u))
 	}
+
+	// Convert the uid and gid
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
+	}
+	gid, err := strconv.ParseUint(u.Gid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
+	}
+
+	// Set the command to run as that user and group.
+	if e.cmd.SysProcAttr == nil {
+		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	if e.cmd.SysProcAttr.Credential == nil {
+		e.cmd.SysProcAttr.Credential = &syscall.Credential{}
+	}
+	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
+	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
+	e.cmd.SysProcAttr.Credential.Groups = gids
+
+	e.logger.Printf("[DEBUG] executor: running as user:group %d:%d with group membership in %v", uid, gid, gids)
+
+	return nil
 }
