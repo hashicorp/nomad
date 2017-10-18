@@ -9,9 +9,6 @@ export default Route.extend({
   model({ job_id }) {
     return this.get('store')
       .findRecord('job', job_id, { reload: true })
-      .then(job => {
-        return job.get('allocations').then(() => job);
-      })
       .catch(notifyError(this));
   },
 });

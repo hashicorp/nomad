@@ -22,7 +22,9 @@ export default Mixin.create({
   listToSort: computed(() => []),
 
   listSorted: computed('listToSort.[]', 'sortProperty', 'sortDescending', function() {
-    const sorted = this.get('listToSort').sortBy(this.get('sortProperty'));
+    const sorted = this.get('listToSort')
+      .compact()
+      .sortBy(this.get('sortProperty'));
     if (this.get('sortDescending')) {
       return sorted.reverse();
     }

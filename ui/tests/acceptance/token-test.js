@@ -67,7 +67,8 @@ test('the X-Nomad-Token header gets sent with requests once it is set', function
     const newRequests = server.pretender.handledRequests.slice(requestPosition);
     assert.ok(newRequests.length > 1, 'New requests have been made');
 
-    newRequests.forEach(req => {
+    // Cross-origin requests can't have a token
+    newRequests.filter(req => !req.url.startsWith('//')).forEach(req => {
       assert.equal(req.requestHeaders['X-Nomad-Token'], secretId, `Token set for ${req.url}`);
     });
   });
@@ -168,4 +169,33 @@ test('a success message and associated policies are shown when authenticating su
       );
     });
   });
+});
+
+test('setting a token clears the store', function(assert) {
+  const { secretId } = clientToken;
+
+  visit('/jobs');
+
+  andThen(() => {
+    assert.ok(find('.job-row'), 'Jobs found');
+  });
+
+  visit('/settings/tokens');
+
+  andThen(() => {
+    fillIn('.token-secret', secretId);
+    click('.token-submit');
+  });
+
+  // Don't return jobs from the API the second time around
+  andThen(() => {
+    server.pretender.get('/v1/jobs', function() {
+      return [200, {}, '[]'];
+    });
+  });
+
+  visit('/jobs');
+
+  // If jobs are lingering in the store, they would show up
+  assert.notOk(find('.job-row'), 'No jobs found');
 });
