@@ -70,7 +70,8 @@
     "json-formatter-js": "^2.2.0",
     "lint-staged": "^3.6.1",
     "loader.js": "^4.2.3",
-    "prettier": "^1.4.4"
+    "prettier": "^1.4.4",
+    "query-string": "^5.0.0"
   },
   "engines": {
     "node": ">= 4"
