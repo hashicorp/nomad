@@ -8,12 +8,10 @@ export default ApplicationAdapter.extend({
 
   shouldReloadAll: () => true,
 
-  buildQuery(snapshot) {
+  buildQuery() {
     const namespace = this.get('system.activeNamespace');
 
-    // SnapshotRecordArray isn't exported, so the best we can do is duck-type.
-    const isSnapshotRecordArray = snapshot && snapshot._recordArray;
-    if ((!snapshot || isSnapshotRecordArray) && namespace) {
+    if (namespace) {
       return {
         namespace: namespace.get('name'),
       };
@@ -24,7 +22,7 @@ export default ApplicationAdapter.extend({
     const namespace = this.get('system.activeNamespace');
     return this._super(...arguments).then(data => {
       data.forEach(job => {
-        job.NamespaceID = namespace && namespace.get('id');
+        job.Namespace = namespace && namespace.get('id');
       });
       return data;
     });
@@ -35,7 +33,9 @@ export default ApplicationAdapter.extend({
     // from /summary needs to be stitched into the response.
     return RSVP.hash({
       job: this._super(...arguments),
-      summary: this.ajax(`${this.buildURL(modelName, id, snapshot, 'findRecord')}/summary`),
+      summary: this.ajax(`${this.buildURL(modelName, id, snapshot, 'findRecord')}/summary`, 'GET', {
+        data: this.buildQuery(),
+      }),
     }).then(({ job, summary }) => {
       job.JobSummary = summary;
       return job;
@@ -44,7 +44,7 @@ export default ApplicationAdapter.extend({
 
   findAllocations(job) {
     const url = `${this.buildURL('job', job.get('id'), job, 'findRecord')}/allocations`;
-    return this.ajax(url, 'GET').then(allocs => {
+    return this.ajax(url, 'GET', { data: this.buildQuery() }).then(allocs => {
       return this.store.pushPayload('allocation', {
         allocations: allocs,
       });
@@ -53,6 +53,6 @@ export default ApplicationAdapter.extend({
 
   fetchRawDefinition(job) {
     const url = this.buildURL('job', job.get('id'), job, 'findRecord');
-    return this.ajax(url, 'GET');
+    return this.ajax(url, 'GET', { data: this.buildQuery() });
   },
 });
