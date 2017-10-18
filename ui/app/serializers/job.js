@@ -1,5 +1,6 @@
 import Ember from 'ember';
 import ApplicationSerializer from './application';
+import queryString from 'npm:query-string';
 
 const { get, assign } = Ember;
 
@@ -9,6 +10,8 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(typeHash, hash) {
+    hash.NamespaceID = hash.Namespace;
+
     // Transform the map-based JobSummary object into an array-based
     // JobSummary fragment list
     hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary')).map(key => {
@@ -34,6 +37,8 @@ export default ApplicationSerializer.extend({
   },
 
   extractRelationships(modelClass, hash) {
+    const namespace =
+      !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
     const jobURL = this.store
       .adapterFor(modelName)
@@ -42,19 +47,27 @@ export default ApplicationSerializer.extend({
     return assign(this._super(...arguments), {
       allocations: {
         links: {
-          related: `${jobURL}/allocations`,
+          related: buildURL(`${jobURL}/allocations`, { namespace: namespace }),
         },
       },
       versions: {
         links: {
-          related: `${jobURL}/versions?diffs=true`,
+          related: buildURL(`${jobURL}/versions`, { namespace: namespace, diffs: true }),
         },
       },
       deployments: {
         links: {
-          related: `${jobURL}/deployments`,
+          related: buildURL(`${jobURL}/deployments`, { namespace: namespace }),
         },
       },
     });
   },
 });
+
+function buildURL(path, queryParams) {
+  const qpString = queryString.stringify(queryParams);
+  if (qpString) {
+    return `${path}?${qpString}`;
+  }
+  return path;
+}
