@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import { lazyClick } from '../helpers/lazy-click';
 
-const { Component, inject } = Ember;
+const { Component, inject, run } = Ember;
 
 export default Component.extend({
   store: inject.service(),
@@ -46,16 +46,18 @@ export default Component.extend({
     // workaround is to persist the jobID as a string on the allocation
     // and manually re-link the two records here.
 
-    const allocation = this.get('allocation');
-    const job = this.get('store').peekRecord('job', allocation.get('originalJobId'));
-    if (job) {
-      allocation.set('job', job);
-    } else {
-      this.get('store')
-        .findRecord('job', allocation.get('originalJobId'))
-        .then(job => {
-          allocation.set('job', job);
-        });
-    }
+    run.next(() => {
+      const allocation = this.get('allocation');
+      const job = this.get('store').peekRecord('job', allocation.get('originalJobId'));
+      if (job) {
+        allocation.set('job', job);
+      } else {
+        this.get('store')
+          .findRecord('job', allocation.get('originalJobId'))
+          .then(job => {
+            allocation.set('job', job);
+          });
+      }
+    });
   },
 });
