@@ -14,6 +14,14 @@ import (
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
+func generateString(length int) string {
+	var newString string
+	for i := 0; i < length; i++ {
+		newString = newString + "x"
+	}
+	return string(newString)
+}
+
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	if !testutil.IsTravis() {
@@ -39,11 +47,14 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	if !apply {
 		t.Fatalf("should apply")
 	}
-	if node.Attributes["driver.qemu"] == "" {
+	if node.Attributes[qemuDriverAttr] == "" {
 		t.Fatalf("Missing Qemu driver")
 	}
-	if node.Attributes["driver.qemu.version"] == "" {
+	if node.Attributes[qemuDriverVersionAttr] == "" {
 		t.Fatalf("Missing Qemu driver version")
+	}
+	if node.Attributes[qemuDriverLongMonitorPathAttr] == "" {
+		t.Fatalf("Missing Qemu long monitor socket path support flag")
 	}
 }
 
@@ -56,8 +67,9 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 		Name:   "linux",
 		Driver: "qemu",
 		Config: map[string]interface{}{
-			"image_path":  "linux-0.2.img",
-			"accelerator": "tcg",
+			"image_path":        "linux-0.2.img",
+			"accelerator":       "tcg",
+			"graceful_shutdown": true,
 			"port_map": []map[string]int{{
 				"main": 22,
 				"web":  8080,
@@ -85,10 +97,11 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 
 	// Copy the test image into the task's directory
 	dst := ctx.ExecCtx.TaskDir.Dir
+
 	copyFile("./test-resources/qemu/linux-0.2.img", filepath.Join(dst, "linux-0.2.img"), t)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("Prestart faild: %v", err)
+		t.Fatalf("Prestart failed: %v", err)
 	}
 
 	resp, err := d.Start(ctx.ExecCtx, task)
@@ -121,34 +134,36 @@ func TestQemuDriverUser(t *testing.T) {
 		t.Parallel()
 	}
 	ctestutils.QemuCompatible(t)
-	tasks := []*structs.Task{{
-		Name:   "linux",
-		Driver: "qemu",
-		User:   "alice",
-		Config: map[string]interface{}{
-			"image_path":  "linux-0.2.img",
-			"accelerator": "tcg",
-			"port_map": []map[string]int{{
-				"main": 22,
-				"web":  8080,
-			}},
-			"args": []string{"-nodefconfig", "-nodefaults"},
-			"msg":  "unknown user alice",
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 512,
-			Networks: []*structs.NetworkResource{
-				{
-					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
+	tasks := []*structs.Task{
+		{
+			Name:   "linux",
+			Driver: "qemu",
+			User:   "alice",
+			Config: map[string]interface{}{
+				"image_path":        "linux-0.2.img",
+				"accelerator":       "tcg",
+				"graceful_shutdown": false,
+				"port_map": []map[string]int{{
+					"main": 22,
+					"web":  8080,
+				}},
+				"args": []string{"-nodefconfig", "-nodefaults"},
+				"msg":  "unknown user alice",
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: &structs.Resources{
+				CPU:      500,
+				MemoryMB: 512,
+				Networks: []*structs.NetworkResource{
+					{
+						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
+					},
 				},
 			},
 		},
-	},
 		{
 			Name:   "linux",
 			Driver: "qemu",
@@ -193,9 +208,34 @@ func TestQemuDriverUser(t *testing.T) {
 			resp.Handle.Kill()
 			t.Fatalf("Should've failed")
 		}
+
 		msg := task.Config["msg"].(string)
 		if !strings.Contains(err.Error(), msg) {
 			t.Fatalf("Expecting '%v' in '%v'", msg, err)
 		}
+	}
+}
+
+func TestQemuDriverGetMonitorPath(t *testing.T) {
+	shortPath := generateString(10)
+	_, err := getMonitorPath(shortPath, "0")
+	if err != nil {
+		t.Fatal("Should not have returned an error")
+	}
+
+	longPath := generateString(legacyMaxMonitorPathLen + 100)
+	_, err = getMonitorPath(longPath, "0")
+	if err == nil {
+		t.Fatal("Should have returned an error")
+	}
+	_, err = getMonitorPath(longPath, "1")
+	if err != nil {
+		t.Fatal("Should not have returned an error")
+	}
+
+	maxLengthPath := generateString(legacyMaxMonitorPathLen)
+	_, err = getMonitorPath(maxLengthPath, "0")
+	if err != nil {
+		t.Fatal("Should not have returned an error")
 	}
 }
