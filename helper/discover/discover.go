@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Checks the current executable, then $GOPATH/bin, and finally the CWD, in that
@@ -55,4 +56,11 @@ func NomadExecutable() (string, error) {
 	}
 
 	return "", fmt.Errorf("Could not find Nomad executable (%v)", nomadExe)
+}
+
+func isNomad(path, nomadExe string) bool {
+	if strings.HasSuffix(path, ".test") || strings.HasSuffix(path, ".test.exe") {
+		return false
+	}
+	return true
 }
