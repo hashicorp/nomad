@@ -9,6 +9,7 @@
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
 {{#if (eq context "job")}}
+  <td>{{allocation.jobVersion}}</td>
   <td><a href="{{href-to "nodes.node" allocation.node}}">{{allocation.node.shortId}}</a></td>
 {{else if (eq context "node")}}
   <td>
@@ -19,6 +20,7 @@
       <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
     {{/if}}
   </td>
+  <td>{{allocation.jobVersion}}</td>
 {{/if}}
 <td class="has-text-centered">
   {{#if allocation.stats.isPending}}

@@ -181,12 +181,20 @@ test('each allocation should show basic information about the allocation', funct
         .find('td:eq(4)')
         .text()
         .trim(),
+      allocation.jobVersion,
+      'Job Version'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(5)')
+        .text()
+        .trim(),
       server.db.nodes.find(allocation.nodeId).id.split('-')[0],
       'Node ID'
     );
   });
 
-  click(allocationRow.find('td:eq(4) a').get(0));
+  click(allocationRow.find('td:eq(5) a').get(0));
 
   andThen(() => {
     assert.equal(currentURL(), `/nodes/${allocation.nodeId}`, 'Node links to node page');
@@ -206,7 +214,7 @@ test('each allocation should show stats about the allocation, retrieved directly
 
   assert.equal(
     allocationRow
-      .find('td:eq(5)')
+      .find('td:eq(6)')
       .text()
       .trim(),
     allocStats.resourceUsage.CpuStats.Percent,
@@ -214,14 +222,14 @@ test('each allocation should show stats about the allocation, retrieved directly
   );
 
   assert.equal(
-    allocationRow.find('td:eq(5) .tooltip').attr('aria-label'),
+    allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
     `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
     'Detailed CPU information is in a tooltip'
   );
 
   assert.equal(
     allocationRow
-      .find('td:eq(6)')
+      .find('td:eq(7)')
       .text()
       .trim(),
     allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
@@ -229,7 +237,7 @@ test('each allocation should show stats about the allocation, retrieved directly
   );
 
   assert.equal(
-    allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
+    allocationRow.find('td:eq(7) .tooltip').attr('aria-label'),
     `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
     'Detailed memory information is in a tooltip'
   );
