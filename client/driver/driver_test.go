@@ -94,6 +94,14 @@ func testConfig(t *testing.T) *config.Config {
 		t.Fatal(err)
 	}
 
+	// Give the directories access to everyone
+	if err := os.Chmod(p1, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(p2, 0777); err != nil {
+		t.Fatal(err)
+	}
+
 	conf.StateDir = p1
 	conf.AllocDir = p2
 	conf.MaxKillTimeout = 10 * time.Second
