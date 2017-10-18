@@ -10,6 +10,14 @@ import shortUUIDProperty from '../utils/properties/short-uuid';
 
 const { computed, RSVP } = Ember;
 
+const STATUS_ORDER = {
+  pending: 1,
+  running: 2,
+  complete: 3,
+  failed: 4,
+  lost: 5,
+};
+
 export default Model.extend({
   shortId: shortUUIDProperty('id'),
   job: belongsTo('job'),
@@ -24,6 +32,9 @@ export default Model.extend({
 
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
+  statusIndex: computed('clientStatus', function() {
+    return STATUS_ORDER[this.get('clientStatus')] || 100;
+  }),
 
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
