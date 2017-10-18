@@ -45,19 +45,25 @@ export default Component.extend({
     // being resolved through the store (store.findAll('job')). The
     // workaround is to persist the jobID as a string on the allocation
     // and manually re-link the two records here.
-
-    run.next(() => {
-      const allocation = this.get('allocation');
-      const job = this.get('store').peekRecord('job', allocation.get('originalJobId'));
-      if (job) {
-        allocation.set('job', job);
-      } else {
-        this.get('store')
-          .findRecord('job', allocation.get('originalJobId'))
-          .then(job => {
-            allocation.set('job', job);
-          });
-      }
-    });
+    run.scheduleOnce('afterRender', this, qualifyJob);
   },
 });
+
+function qualifyJob() {
+  const allocation = this.get('allocation');
+  if (allocation.get('originalJobId')) {
+    const job = this.get('store').peekRecord('job', allocation.get('originalJobId'));
+    if (job) {
+      allocation.setProperties({
+        job,
+        originalJobId: null,
+      });
+    } else {
+      this.get('store')
+        .findRecord('job', allocation.get('originalJobId'))
+        .then(job => {
+          allocation.set('job', job);
+        });
+    }
+  }
+}
