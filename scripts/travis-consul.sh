@@ -15,8 +15,8 @@ function install_consul() {
 	wget -q -O /tmp/consul.zip ${DOWNLOAD}
 
 	unzip -d /tmp /tmp/consul.zip
-	mv /tmp/consul /usr/bin/consul
-	chmod +x /usr/bin/consul
+	mv /tmp/consul /usr/local/bin/consul
+	chmod +x /usr/local/bin/consul
 }
 
 install_consul

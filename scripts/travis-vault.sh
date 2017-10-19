@@ -15,8 +15,8 @@ function install_vault() {
 	wget -q -O /tmp/vault.zip ${DOWNLOAD}
 
 	unzip -d /tmp /tmp/vault.zip
-	mv /tmp/vault /usr/bin/vault
-	chmod +x /usr/bin/vault
+	mv /tmp/vault /usr/local/bin/vault
+	chmod +x /usr/local/bin/vault
 }
 
 install_vault
