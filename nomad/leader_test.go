@@ -40,17 +40,30 @@ func TestLeader_LeftServer(t *testing.T) {
 	}
 
 	// Kill any server
-	servers[0].Shutdown()
+	var peer *Server
+	for _, s := range servers {
+		if !s.IsLeader() {
+			peer = s
+			break
+		}
+	}
+	if peer == nil {
+		t.Fatalf("Should have a non-leader")
+	}
+	peer.Shutdown()
+	name := fmt.Sprintf("%s.%s", peer.config.NodeName, peer.config.Region)
 
 	testutil.WaitForResult(func() (bool, error) {
-		// Force remove the non-leader (transition to left state)
-		name := fmt.Sprintf("%s.%s",
-			servers[0].config.NodeName, servers[0].config.Region)
-		if err := servers[1].RemoveFailedNode(name); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		for _, s := range servers {
+			if s == peer {
+				continue
+			}
 
-		for _, s := range servers[1:] {
+			// Force remove the non-leader (transition to left state)
+			if err := s.RemoveFailedNode(name); err != nil {
+				return false, err
+			}
+
 			peers, _ := s.numPeers()
 			return peers == 2, errors.New(fmt.Sprintf("%v", peers))
 		}

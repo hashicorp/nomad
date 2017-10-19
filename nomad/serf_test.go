@@ -97,6 +97,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 	s1 := testServer(t, func(c *Config) {
+		c.NodeName = "node1"
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
@@ -104,6 +105,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 	})
 	defer s1.Shutdown()
 	s2 := testServer(t, func(c *Config) {
+		c.NodeName = "node2"
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
@@ -111,6 +113,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 	})
 	defer s2.Shutdown()
 	s3 := testServer(t, func(c *Config) {
+		c.NodeName = "node3"
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
@@ -120,14 +123,16 @@ func TestNomad_ReapPeer(t *testing.T) {
 	testJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
+		// Retry the join to decrease flakiness
+		testJoin(t, s1, s2, s3)
 		if members := s1.Members(); len(members) != 3 {
-			return false, fmt.Errorf("bad: %#v", members)
+			return false, fmt.Errorf("bad s1: %#v", members)
 		}
 		if members := s2.Members(); len(members) != 3 {
-			return false, fmt.Errorf("bad: %#v", members)
+			return false, fmt.Errorf("bad s2: %#v", members)
 		}
 		if members := s3.Members(); len(members) != 3 {
-			return false, fmt.Errorf("bad: %#v", members)
+			return false, fmt.Errorf("bad s3: %#v", members)
 		}
 		return true, nil
 	}, func(err error) {
@@ -210,6 +215,8 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	testJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
+		// Retry the join to decrease flakiness
+		testJoin(t, s1, s2, s3)
 		peers, err := s1.numPeers()
 		if err != nil {
 			return false, err
@@ -259,14 +266,23 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	// the fourth server.
 	testutil.WaitForLeader(t, s1.RPC)
 	termBefore := s1.raft.Stats()["last_log_term"]
-	addr := fmt.Sprintf("127.0.0.1:%d", s1.config.SerfConfig.MemberlistConfig.BindPort)
-	if _, err := s4.Join([]string{addr}); err != nil {
+
+	var addresses []string
+	for _, s := range []*Server{s1, s2, s3} {
+		addr := fmt.Sprintf("127.0.0.1:%d", s.config.SerfConfig.MemberlistConfig.BindPort)
+		addresses = append(addresses, addr)
+	}
+	if _, err := s4.Join(addresses); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Wait for the new server to see itself added to the cluster.
 	var p4 int
 	testutil.WaitForResult(func() (bool, error) {
+		// Retry join to reduce flakiness
+		if _, err := s4.Join(addresses); err != nil {
+			t.Fatalf("err: %v", err)
+		}
 		p4, _ = s4.numPeers()
 		return p4 == 4, errors.New(fmt.Sprintf("%d", p4))
 	}, func(err error) {
