@@ -8,7 +8,7 @@ PING_LOOP_PID=$!
 trap 'kill ${PING_LOOP_PID}' EXIT HUP INT QUIT TERM
 
 make check
-make checkscripts
+if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make checkscripts ; fi
 make test
 TEST_OUTPUT=$?
 
