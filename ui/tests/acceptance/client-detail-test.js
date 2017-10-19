@@ -160,29 +160,36 @@ test('each allocation should have high-level details for the allocation', functi
         .includes(allocation.taskGroup),
       'Task group name'
     );
-    assert.equal(
+    assert.ok(
       allocationRow
         .find('td:eq(5)')
         .text()
-        .trim(),
-      allocStats.resourceUsage.CpuStats.Percent,
-      'CPU %'
-    );
-    assert.equal(
-      allocationRow.find('td:eq(5) .tooltip').attr('aria-label'),
-      `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
-      'Detailed CPU information is in a tooltip'
+        .includes(allocation.jobVersion),
+      'Job Version'
     );
     assert.equal(
       allocationRow
         .find('td:eq(6)')
         .text()
         .trim(),
+      allocStats.resourceUsage.CpuStats.Percent,
+      'CPU %'
+    );
+    assert.equal(
+      allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
+      `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
+      'Detailed CPU information is in a tooltip'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(7)')
+        .text()
+        .trim(),
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
       'Memory used'
     );
     assert.equal(
-      allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
+      allocationRow.find('td:eq(7) .tooltip').attr('aria-label'),
       `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
       'Detailed memory information is in a tooltip'
     );
