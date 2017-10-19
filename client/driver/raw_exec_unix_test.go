@@ -5,6 +5,7 @@ package driver
 import (
 	"io/ioutil"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -17,6 +18,9 @@ import (
 
 func TestRawExecDriver_User(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
