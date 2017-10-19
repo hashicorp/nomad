@@ -1291,6 +1291,12 @@
 			"revisionTime": "2017-09-20T12:17:54Z"
 		},
 		{
+			"checksumSHA1": "I778b2sbNN/yjwKSdb3y7hz2yUQ=",
+			"path": "github.com/rs/cors",
+			"revision": "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8",
+			"revisionTime": "2017-08-01T07:32:01Z"
+		},
+		{
 			"checksumSHA1": "M57Rrfc8Z966p+IBtQ91QOcUtcg=",
 			"comment": "v2.0.1-8-g983d3a5",
 			"path": "github.com/ryanuber/columnize",
