@@ -4,7 +4,7 @@
     <th>Description</th>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_DIR</tt></td>
+    <td><tt>NOMAD&lowbar;ALLOC&lowbar;DIR</tt></td>
     <td>
 	    The path to the shared <tt>alloc/</tt> directory. See
 	    [here](/docs/runtime/environment.html#task-directories) for more
@@ -12,7 +12,7 @@
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_TASK_DIR</tt></td>
+    <td><tt>NOMAD&lowbar;TASK&lowbar;DIR</tt></td>
     <td>
 	    The path to the task <tt>local/</tt> directory. See
 	    [here](/docs/runtime/environment.html#task-directories) for more
@@ -20,7 +20,7 @@
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_SECRETS_DIR</tt></td>
+    <td><tt>NOMAD&lowbar;SECRETS&lowbar;DIR</tt></td>
     <td>
 	    Path to the task's secrets directory.  See
 	    [here](/docs/runtime/environment.html#task-directories) for more
@@ -28,63 +28,63 @@
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_MEMORY_LIMIT</tt></td>
+    <td><tt>NOMAD&lowbar;MEMORY&lowbar;LIMIT</tt></td>
     <td>Memory limit in MB for the task</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_CPU_LIMIT</tt></td>
+    <td><tt>NOMAD&lowbar;CPU&lowbar;LIMIT</tt></td>
     <td>CPU limit in MHz for the task</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_ID</tt></td>
+    <td><tt>NOMAD&lowbar;ALLOC&lowbar;ID</tt></td>
     <td>Allocation ID of the task</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_NAME</tt></td>
+    <td><tt>NOMAD&lowbar;ALLOC&lowbar;NAME</tt></td>
     <td>Allocation name of the task</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ALLOC_INDEX</tt></td>
+    <td><tt>NOMAD&lowbar;ALLOC&lowbar;INDEX</tt></td>
     <td>Allocation index; useful to distinguish instances of task groups. From 0 to (count - 1).</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_TASK_NAME</tt></td>
+    <td><tt>NOMAD&lowbar;TASK&lowbar;NAME</tt></td>
     <td>Task's name</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_GROUP_NAME</tt></td>
+    <td><tt>NOMAD&lowbar;GROUP&lowbar;NAME</tt></td>
     <td>Group's name</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_JOB_NAME</tt></td>
+    <td><tt>NOMAD&lowbar;JOB&lowbar;NAME</tt></td>
     <td>Job's name</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_DC</tt></td>
+    <td><tt>NOMAD&lowbar;DC</tt></td>
     <td>Datacenter in which the allocation is running</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_REGION</tt></td>
+    <td><tt>NOMAD&lowbar;REGION</tt></td>
     <td>Region in which the allocation is running</td>
   </tr>
   <tr>
-    <td><tt>NOMAD_META_&lt;key&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;META&lowbar;&lt;key&gt;</tt></td>
     <td>The metadata value given by <tt>key</tt> on the task's metadata</td>
   </tr>
   <tr>
-    <td><tt>VAULT_TOKEN</tt></td>
+    <td><tt>VAULT&lowbar;TOKEN</tt></td>
     <td>The task's Vault token. See [Vault Integration](/docs/vault-integration/index.html) for more details</td>
   </tr>
   <tr><th colspan="2">Network-related Variables</th></tr>
   <tr>
-    <td><tt>NOMAD_IP_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;IP&lowbar;&lt;label&gt;</tt></td>
     <td>
       Host IP for the given port <tt>label</tt>. See
       [here](/docs/job-specification/network.html) for more information.
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_PORT_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;PORT&lowbar;&lt;label&gt;</tt></td>
     <td>
       Port for the given port <tt>label</tt>. Driver-specified port when a port
       map is used, otherwise the host's static or dynamic port allocation.
@@ -93,28 +93,28 @@
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ADDR_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;ADDR&lowbar;&lt;label&gt;</tt></td>
     <td>
       Host <tt>IP:Port</tt> pair for the given port <tt>label</tt>.
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_HOST_PORT_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;HOST&lowbar;PORT&lowbar;&lt;label&gt;</tt></td>
     <td>
       Port on the host for the port <tt>label</tt>. See
-      [here](/docs/job-specification/network.html#mapped_ports) for more
+      [here](/docs/job-specification/network.html#mapped&lowbar;ports) for more
       information.
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_IP_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;IP&lowbar;&lt;task&gt;&lowbar;&lt;label&gt;</tt></td>
     <td>
       Host IP for the given port <tt>label</tt> and <tt>task</tt> for tasks in
       the same task group.
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_PORT_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;PORT&lowbar;&lt;task&gt;&lowbar;&lt;label&gt;</tt></td>
     <td>
       Port for the given port <tt>label</tt> and <tt>task</tt> for tasks in
       the same task group. Driver-specified port when a port
@@ -123,14 +123,14 @@
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_ADDR_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;ADDR&lowbar;&lt;task&gt;&lowbar;&lt;label&gt;</tt></td>
     <td>
       Host <tt>IP:Port</tt> pair for the given port <tt>label</tt> and
       <tt>task</tt> for tasks in the same task group.
     </td>
   </tr>
   <tr>
-    <td><tt>NOMAD_HOST_PORT_&lt;task&gt;_&lt;label&gt;</tt></td>
+    <td><tt>NOMAD&lowbar;HOST&lowbar;PORT&lowbar;&lt;task&gt;&lowbar;&lt;label&gt;</tt></td>
     <td>
       Port on the host for the port <tt>label</tt> and <tt>task</tt> for tasks
       in the same task group.
