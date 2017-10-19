@@ -124,7 +124,8 @@ type Client struct {
 	// successfully
 	serversDiscoveredCh chan struct{}
 
-	// allocs is the current set of allocations
+	// allocs maps alloc IDs to their AllocRunner. This map includes all
+	// AllocRunners - running and GC'd - until the server GCs them.
 	allocs    map[string]*AllocRunner
 	allocLock sync.RWMutex
 
@@ -487,14 +488,14 @@ func (c *Client) Stats() map[string]map[string]string {
 }
 
 // CollectAllocation garbage collects a single allocation
-func (c *Client) CollectAllocation(allocID string) error {
-	return c.garbageCollector.Collect(allocID)
+func (c *Client) CollectAllocation(allocID string) {
+	c.garbageCollector.Collect(allocID)
 }
 
 // CollectAllAllocs garbage collects all allocations on a node in the terminal
 // state
-func (c *Client) CollectAllAllocs() error {
-	return c.garbageCollector.CollectAll()
+func (c *Client) CollectAllAllocs() {
+	c.garbageCollector.CollectAll()
 }
 
 // Node returns the locally registered node
@@ -721,11 +722,16 @@ func (c *Client) getAllocRunners() map[string]*AllocRunner {
 	return runners
 }
 
-// NumAllocs returns the number of allocs this client has. Used to
+// NumAllocs returns the number of un-GC'd allocs this client has. Used to
 // fulfill the AllocCounter interface for the GC.
 func (c *Client) NumAllocs() int {
+	n := 0
 	c.allocLock.RLock()
-	n := len(c.allocs)
+	for _, a := range c.allocs {
+		if !a.IsDestroyed() {
+			n++
+		}
+	}
 	c.allocLock.RUnlock()
 	return n
 }
@@ -1205,6 +1211,7 @@ func (c *Client) updateNodeStatus() error {
 	for _, s := range resp.Servers {
 		addr, err := resolveServer(s.RPCAdvertiseAddr)
 		if err != nil {
+			c.logger.Printf("[WARN] client: ignoring invalid server %q: %v", s.RPCAdvertiseAddr, err)
 			continue
 		}
 		e := endpoint{name: s.RPCAdvertiseAddr, addr: addr}
@@ -1234,8 +1241,14 @@ func (c *Client) updateNodeStatus() error {
 // updateAllocStatus is used to update the status of an allocation
 func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	if alloc.Terminated() {
-		// Terminated, mark for GC
-		if ar, ok := c.getAllocRunners()[alloc.ID]; ok {
+		// Terminated, mark for GC if we're still tracking this alloc
+		// runner. If it's not being tracked that means the server has
+		// already GC'd it (see removeAlloc).
+		c.allocLock.RLock()
+		ar, ok := c.allocs[alloc.ID]
+		c.allocLock.RUnlock()
+
+		if ok {
 			c.garbageCollector.MarkForCollection(ar)
 		}
 	}
@@ -1531,9 +1544,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Remove the old allocations
 	for _, remove := range diff.removed {
-		if err := c.removeAlloc(remove); err != nil {
-			c.logger.Printf("[ERR] client: failed to remove alloc '%s': %v", remove.ID, err)
-		}
+		c.removeAlloc(remove)
 	}
 
 	// Update the existing allocations
@@ -1542,6 +1553,11 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			c.logger.Printf("[ERR] client: failed to update alloc %q: %v",
 				update.exist.ID, err)
 		}
+	}
+
+	// Make room for new allocations before running
+	if err := c.garbageCollector.MakeRoomFor(diff.added); err != nil {
+		c.logger.Printf("[ERR] client: error making room for new allocations: %v", err)
 	}
 
 	// Start the new allocations
@@ -1554,24 +1570,27 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	}
 }
 
-// removeAlloc is invoked when we should remove an allocation
-func (c *Client) removeAlloc(alloc *structs.Allocation) error {
+// removeAlloc is invoked when we should remove an allocation because it has
+// been removed by the server.
+func (c *Client) removeAlloc(alloc *structs.Allocation) {
 	c.allocLock.Lock()
 	ar, ok := c.allocs[alloc.ID]
 	if !ok {
 		c.allocLock.Unlock()
 		c.logger.Printf("[WARN] client: missing context for alloc '%s'", alloc.ID)
-		return nil
+		return
 	}
+
+	// Stop tracking alloc runner as it's been GC'd by the server
 	delete(c.allocs, alloc.ID)
 	c.allocLock.Unlock()
 
 	// Ensure the GC has a reference and then collect. Collecting through the GC
 	// applies rate limiting
 	c.garbageCollector.MarkForCollection(ar)
-	go c.garbageCollector.Collect(alloc.ID)
 
-	return nil
+	// GC immediately since the server has GC'd it
+	go c.garbageCollector.Collect(alloc.ID)
 }
 
 // updateAlloc is invoked when we should update an allocation
@@ -1592,9 +1611,9 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error {
 	// Check if we already have an alloc runner
 	c.allocLock.Lock()
+	defer c.allocLock.Unlock()
 	if _, ok := c.allocs[alloc.ID]; ok {
 		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
-		c.allocLock.Unlock()
 		return nil
 	}
 
@@ -1616,14 +1635,6 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	if err := ar.SaveState(); err != nil {
 		c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", alloc.ID, err)
-	}
-
-	// Must release allocLock as GC acquires it to count allocs
-	c.allocLock.Unlock()
-
-	// Make room for the allocation before running it
-	if err := c.garbageCollector.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
-		c.logger.Printf("[ERR] client: error making room for allocation: %v", err)
 	}
 
 	go ar.Run()
