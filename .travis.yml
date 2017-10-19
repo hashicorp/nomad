@@ -35,6 +35,7 @@ cache:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo bash ./scripts/travis-mac.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo bash ./scripts/travis-mac-priv.sh ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo bash ./scripts/travis-linux.sh ; fi
 
 install:
