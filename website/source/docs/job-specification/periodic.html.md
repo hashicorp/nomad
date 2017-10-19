@@ -20,8 +20,7 @@ description: |-
 </table>
 
 The `periodic` stanza allows a job to run at fixed times, dates, or intervals.
-The easiest way to think about the periodic scheduler is "Nomad cron" or
-"distributed cron".
+The easiest way to think about the periodic scheduler is "Nomad cron".
 
 ```hcl
 job "docs" {
