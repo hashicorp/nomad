@@ -172,7 +172,7 @@ test('each allocation should have high-level details for the allocation', functi
         .find('td:eq(6)')
         .text()
         .trim(),
-      allocStats.resourceUsage.CpuStats.Percent,
+      Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
       'CPU %'
     );
     assert.equal(
