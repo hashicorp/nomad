@@ -20,7 +20,6 @@ export default Controller.extend({
     clearTokenProperties() {
       this.get('token').setProperties({
         secret: undefined,
-        accessor: undefined,
       });
       this.setProperties({
         tokenIsValid: false,
@@ -55,7 +54,7 @@ export default Controller.extend({
           });
         },
         () => {
-          this.set('token.secret', null);
+          this.set('token.secret', undefined);
           this.setProperties({
             tokenIsValid: false,
             tokenIsInvalid: true,

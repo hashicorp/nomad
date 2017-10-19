@@ -13,11 +13,11 @@ export default RESTAdapter.extend({
 
   headers: computed('token.secret', function() {
     const token = this.get('token.secret');
-    return (
-      token && {
+    if (token) {
+      return {
         'X-Nomad-Token': token,
-      }
-    );
+      };
+    }
   }),
 
   findAll() {
