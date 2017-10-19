@@ -1,5 +1,4 @@
 import Ember from 'ember';
-import Fuse from 'npm:fuse.js';
 
 const { Mixin, computed, get } = Ember;
 
@@ -21,31 +20,16 @@ export default Mixin.create({
   listToSearch: computed(() => []),
   searchProps: null,
 
-  fuse: computed('listToSearch.[]', 'searchProps.[]', function() {
-    return new Fuse(this.get('listToSearch'), {
-      shouldSort: true,
-      threshold: 0.6,
-      location: 0,
-      distance: 100,
-      maxPatternLength: 32,
-      minMatchCharLength: 1,
-      keys: this.get('searchProps') || [],
-      getFn(item, key) {
-        return get(item, key);
-      },
-    });
-  }),
-
-  listSearched: computed('fuse', 'searchTerm', function() {
-    const { fuse, searchTerm } = this.getProperties('fuse', 'searchTerm');
+  listSearched: computed('searchTerm', 'listToSearch.[]', 'searchProps.[]', function() {
+    const searchTerm = this.get('searchTerm');
     if (searchTerm && searchTerm.length) {
-      return regexSearch(searchTerm, fuse);
+      return regexSearch(searchTerm, this.get('listToSearch'), this.get('searchProps'));
     }
     return this.get('listToSearch');
   }),
 });
 
-function regexSearch(term, { list, options: { keys } }) {
+function regexSearch(term, list, keys) {
   if (term.length) {
     try {
       const regex = new RegExp(term, 'i');
