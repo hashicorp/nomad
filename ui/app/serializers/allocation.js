@@ -20,6 +20,8 @@ export default ApplicationSerializer.extend({
       return summary;
     });
 
+    hash.JobVersion = hash.JobVersion != null ? hash.JobVersion : get(hash, 'Job.Version');
+
     // TEMPORARY: https://github.com/emberjs/data/issues/5209
     hash.OriginalJobId = hash.JobID;
 
