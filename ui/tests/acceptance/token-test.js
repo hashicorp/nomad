@@ -48,7 +48,7 @@ test('the X-Nomad-Token header gets sent with requests once it is set', function
     assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
 
     server.pretender.handledRequests.forEach(req => {
-      assert.notOk(req.requestHeaders['X-Nomad-Token'], `No token for ${req.url}`);
+      assert.notOk(getHeader(req, 'X-Nomad-Token'), `No token for ${req.url}`);
     });
 
     requestPosition = server.pretender.handledRequests.length;
@@ -68,8 +68,8 @@ test('the X-Nomad-Token header gets sent with requests once it is set', function
     assert.ok(newRequests.length > 1, 'New requests have been made');
 
     // Cross-origin requests can't have a token
-    newRequests.filter(req => !req.url.startsWith('//')).forEach(req => {
-      assert.equal(req.requestHeaders['X-Nomad-Token'], secretId, `Token set for ${req.url}`);
+    newRequests.forEach(req => {
+      assert.equal(getHeader(req, 'X-Nomad-Token'), secretId, `Token set for ${req.url}`);
     });
   });
 });
@@ -199,3 +199,10 @@ test('setting a token clears the store', function(assert) {
   // If jobs are lingering in the store, they would show up
   assert.notOk(find('.job-row'), 'No jobs found');
 });
+
+function getHeader({ requestHeaders }, name) {
+  // Headers are case-insensitive, but object property look up is not
+  return (
+    requestHeaders[name] || requestHeaders[name.toLowerCase()] || requestHeaders[name.toUpperCase()]
+  );
+}

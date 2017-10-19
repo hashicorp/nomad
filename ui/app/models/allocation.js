@@ -3,12 +3,11 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import fetch from 'fetch';
 import PromiseObject from '../utils/classes/promise-object';
 import timeout from '../utils/timeout';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
-const { computed, RSVP } = Ember;
+const { computed, RSVP, inject } = Ember;
 
 const STATUS_ORDER = {
   pending: 1,
@@ -19,6 +18,8 @@ const STATUS_ORDER = {
 };
 
 export default Model.extend({
+  token: inject.service(),
+
   shortId: shortUUIDProperty('id'),
   job: belongsTo('job'),
   node: belongsTo('node'),
@@ -74,7 +75,12 @@ export default Model.extend({
 
     const url = `//${this.get('node.httpAddr')}/v1/client/allocation/${this.get('id')}/stats`;
     return PromiseObject.create({
-      promise: RSVP.Promise.race([fetch(url).then(res => res.json()), timeout(2000)]),
+      promise: RSVP.Promise.race([
+        this.get('token')
+          .authorizedRequest(url)
+          .then(res => res.json()),
+        timeout(2000),
+      ]),
     });
   }),
 
