@@ -1,6 +1,3 @@
-sudo: required
-dist: trusty
-
 services:
     - docker
 
@@ -18,20 +15,27 @@ branches:
 
 matrix:
   include:
-    - env:
-    - env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
+    - os: osx
+      osx_image: xcode9.1
+
 
 cache:
   directories:
     - ui/node_modules
 
 before_install:
-    - sudo apt-get update
-    - sudo apt-get install -y liblxc1 lxc-dev lxc shellcheck
-    - sudo apt-get install -y qemu
-    - sudo bash ./scripts/travis-rkt.sh
-    - sudo bash ./scripts/travis-consul.sh
-    - sudo bash ./scripts/travis-vault.sh
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo bash ./scripts/travis-mac.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo bash ./scripts/travis-linux.sh ; fi
 
 install:
   - make bootstrap
