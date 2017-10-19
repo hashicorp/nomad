@@ -217,7 +217,7 @@ test('each allocation should show stats about the allocation, retrieved directly
       .find('td:eq(6)')
       .text()
       .trim(),
-    allocStats.resourceUsage.CpuStats.Percent,
+    Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
     'CPU %'
   );
 

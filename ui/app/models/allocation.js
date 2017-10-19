@@ -57,8 +57,13 @@ export default Model.extend({
     return used / total;
   }),
 
-  percentCPU: computed('stats.ResourceUsage.CpuStats.Percent', function() {
-    return this.get('stats.ResourceUsage.CpuStats.Percent') || 0;
+  percentCPU: computed('cpuUsed', 'taskGroup.reservedCPU', function() {
+    const used = this.get('cpuUsed');
+    const total = this.get('taskGroup.reservedCPU');
+    if (!total || !used) {
+      return 0;
+    }
+    return used / total;
   }),
 
   stats: computed('node.{isPartial,httpAddr}', function() {
