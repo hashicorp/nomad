@@ -27,7 +27,7 @@ When combined with ACLs, the isolation of namespaces can be enforced, only
 allowing designated users access to read or modify the jobs and associated
 objects in a namespace.
 
-When [resource quotas](/guides/qoutas.html) are applied to a namespace they
+When [resource quotas](/guides/quotas.html) are applied to a namespace they
 provide a means to limit resource consumption by the jobs in the namespace. This
 can prevent a single actor from consuming excessive cluster resources and
 negatively impacting other teams and applications sharing the cluster.
