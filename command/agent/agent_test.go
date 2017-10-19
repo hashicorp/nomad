@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -14,20 +13,6 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
 )
-
-func getPort() int {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-	if err != nil {
-		panic(err)
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
-}
 
 func tmpDir(t testing.TB) string {
 	dir, err := ioutil.TempDir("", "nomad")
@@ -39,7 +24,7 @@ func tmpDir(t testing.TB) string {
 
 func TestAgent_RPCPing(t *testing.T) {
 	t.Parallel()
-	agent := NewTestAgent(t.Name(), nil)
+	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
 	var out struct{}

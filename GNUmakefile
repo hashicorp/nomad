@@ -222,7 +222,7 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 
 .PHONY: test-nomad
 test-nomad: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-test-nomad: dev ## Run Nomad test suites
+test-nomad: ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
 		go test \

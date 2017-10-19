@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -27,10 +28,6 @@ import (
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
-
-func getPort() int {
-	return 1030 + int(rand.Int31n(6440))
-}
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken) {
 	server, addr := testServer(t, func(c *nomad.Config) {
@@ -80,10 +77,10 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	for i := 10; i >= 0; i-- {
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
-			Port: getPort(),
+			Port: freeport.Get(t),
 		}
 		config.NodeName = fmt.Sprintf("Node %d", config.RPCAddr.Port)
-		config.SerfConfig.MemberlistConfig.BindPort = getPort()
+		config.SerfConfig.MemberlistConfig.BindPort = freeport.Get(t)
 
 		// Create server
 		server, err := nomad.NewServer(config, catalog, logger)

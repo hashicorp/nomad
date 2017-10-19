@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -23,10 +24,6 @@ import (
 var (
 	nodeNumber uint32 = 0
 )
-
-func getPort() int {
-	return 1030 + int(rand.Int31n(6440))
-}
 
 func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
@@ -101,9 +98,9 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 		// Get random ports
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
-			Port: getPort(),
+			Port: freeport.Get(t),
 		}
-		config.SerfConfig.MemberlistConfig.BindPort = getPort()
+		config.SerfConfig.MemberlistConfig.BindPort = freeport.Get(t)
 
 		// Create server
 		server, err := NewServer(config, catalog, logger)

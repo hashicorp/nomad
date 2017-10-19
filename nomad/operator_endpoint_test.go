@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -128,7 +129,7 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 
 	// Try to remove a peer that's not there.
 	arg := structs.RaftPeerByAddressRequest{
-		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", getPort())),
+		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", freeport.Get(t))),
 	}
 	arg.Region = s1.config.Region
 	var reply struct{}
@@ -188,7 +189,7 @@ func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
 	arg := structs.RaftPeerByAddressRequest{
-		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", getPort())),
+		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", freeport.Get(t))),
 	}
 	arg.Region = s1.config.Region
 
