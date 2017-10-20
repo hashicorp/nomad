@@ -45,7 +45,7 @@ export default Model.extend({
 
   memoryUsed: computed.readOnly('stats.ResourceUsage.MemoryStats.RSS'),
   cpuUsed: computed('stats.ResourceUsage.CpuStats.TotalTicks', function() {
-    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks'));
+    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks') || 0);
   }),
 
   percentMemory: computed('taskGroup.reservedMemory', 'memoryUsed', function() {
