@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,35 +12,25 @@ import (
 )
 
 // requires nomad executable on the path
-func startCluster() (func(), error) {
-	serverCmd := exec.Command("nomad", "agent", "-config", "server.hcl")
-	err := serverCmd.Start()
-	if err != nil {
-		return func() {}, err
+func startCluster(clusterConfig []string) (func(), error) {
+	cmds := make([]*exec.Cmd, 0)
+
+	for _, agentConfig := range clusterConfig {
+		cmd := exec.Command("nomad", "agent", "-config", agentConfig)
+		err := cmd.Start()
+
+		if err != nil {
+			return func() {}, err
+		}
+
+		time.Sleep(10 * time.Second)
+		cmds = append(cmds, cmd)
 	}
-
-	time.Sleep(10 * time.Second)
-
-	clientCmd := exec.Command("nomad", "agent", "-config", "client1.hcl")
-	err = clientCmd.Start()
-	if err != nil {
-		return func() {}, err
-	}
-
-	time.Sleep(10 * time.Second)
-
-	secondClientCmd := exec.Command("nomad", "agent", "-config", "client2.hcl")
-	err = secondClientCmd.Start()
-	if err != nil {
-		return func() {}, err
-	}
-
-	time.Sleep(10 * time.Second)
 
 	f := func() {
-		clientCmd.Process.Kill()
-		secondClientCmd.Process.Kill()
-		serverCmd.Process.Kill()
+		for _, cmd := range cmds {
+			cmd.Process.Kill()
+		}
 	}
 
 	return f, nil
@@ -51,7 +40,8 @@ func TestJobMigrations(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	stopCluster, err := startCluster()
+	clusterConfig := []string{"server.hcl", "client1.hcl", "client2.hcl"}
+	stopCluster, err := startCluster(clusterConfig)
 	assert.Nil(err)
 	defer stopCluster()
 
