@@ -20,7 +20,7 @@ The ACL system is designed to be easy to use and fast to enforce while providing
 
  * **ACL Policies**. No permissions are granted by default, making Nomad a default-deny or whitelist system. Policies allow a set of capabilities or actions to be granted or whitelisted. For example, a "readonly" policy might only grant the ability to list and inspect running jobs, but not to submit new ones.
 
- * **ACL Tokens**. Requests to Nomad are authenticated by using bearer token. Each ACL token has a public Accessor ID which is used to name a token, and a Secret ID which is used to make requests to Nomad. The Secret ID is provided using a request header (`X-Nomad-Token`) and is used to authenticate the caller. Token are either `management` or `client` types. The `management` tokens are effectively "root" in the system, and can perform any operation. The `client` tokens are associated with one or more ACL policies which grant specific capabilities.
+ * **ACL Tokens**. Requests to Nomad are authenticated by using bearer token. Each ACL token has a public Accessor ID which is used to name a token, and a Secret ID which is used to make requests to Nomad. The Secret ID is provided using a request header (`X-Nomad-Token`) and is used to authenticate the caller. Tokens are either `management` or `client` types. The `management` tokens are effectively "root" in the system, and can perform any operation. The `client` tokens are associated with one or more ACL policies which grant specific capabilities.
 
  * **Capabilities**. Capabilties are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilties via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
 
@@ -77,7 +77,7 @@ The APIs needed to manage policies and tokens are not enabled until ACLs are ena
 1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html#enabled).
 1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html#authoritative_region).
 1. For servers outside the authoritative region, set `replication_token` in the [`acl` stanza](/docs/agent/configuration/acl.html#replication_token). Replication tokens should be `management` type tokens which are either created in the authoritative region, or created as Global tokens.
-1. Restarting the Nomad server to pick the new configuration.
+1. Restart the Nomad server to pick up the new configuration.
 
 Please take care to restart the servers one at a time, and ensure each server has joined and is operating correctly before restarting another.
 
