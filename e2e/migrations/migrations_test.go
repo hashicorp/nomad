@@ -7,9 +7,48 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+	"strings"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func isSuccess(execCmd *exec.Cmd, retries int, keyword string) (bool, string) {
+	numAttempts := retries
+	success := false
+	var out bytes.Buffer
+
+	for numAttempts > 0 {
+		time.Sleep(2 * time.Second)
+
+		cmd := *execCmd
+		cmd.Stdout = &out
+
+		err := cmd.Run()
+		if err != nil {
+			return false, ""
+		}
+
+		success = (out.String() != "" && !strings.Contains(out.String(), keyword))
+		if success {
+			return success, out.String()
+		}
+
+		out.Reset()
+		numAttempts -= 1
+	}
+
+	return success, out.String()
+}
+
+func allNomadNodesAreReady(retries int) (bool, string) {
+	cmd := exec.Command("nomad", "node-status")
+	return isSuccess(cmd, retries, "initializing")
+}
+
+func jobIsReady(retries int, jobName string) (bool, string) {
+	cmd := exec.Command("nomad", "job", "status", jobName)
+	return isSuccess(cmd, retries, "pending")
+}
 
 // requires nomad executable on the path
 func startCluster(clusterConfig []string) (func(), error) {
@@ -23,7 +62,6 @@ func startCluster(clusterConfig []string) (func(), error) {
 			return func() {}, err
 		}
 
-		time.Sleep(10 * time.Second)
 		cmds = append(cmds, cmd)
 	}
 
@@ -44,6 +82,9 @@ func TestJobMigrations(t *testing.T) {
 	stopCluster, err := startCluster(clusterConfig)
 	assert.Nil(err)
 	defer stopCluster()
+
+	isReady, _ := allNomadNodesAreReady(10)
+	assert.True(isReady)
 
 	fh, err := ioutil.TempFile("", "nomad-sleep-1")
 	assert.Nil(err)
@@ -80,11 +121,15 @@ func TestJobMigrations(t *testing.T) {
 		}
 	}`)
 
+	assert.Nil(err)
+
 	jobCmd := exec.Command("nomad", "run", fh.Name())
 	err = jobCmd.Run()
 	assert.Nil(err)
 
-	time.Sleep(20 * time.Second)
+	isFirstJobReady, firstJoboutput := jobIsReady(20, "sleep")
+	assert.True(isFirstJobReady)
+	assert.NotContains(firstJoboutput, "failed")
 
 	fh2, err := ioutil.TempFile("", "nomad-sleep-2")
 	assert.Nil(err)
@@ -118,20 +163,14 @@ func TestJobMigrations(t *testing.T) {
 		}
 	}`)
 
+	assert.Nil(err)
+
 	secondJobCmd := exec.Command("nomad", "run", fh2.Name())
 	err = secondJobCmd.Run()
 	assert.Nil(err)
 
-	time.Sleep(20 * time.Second)
-
-	jobStatusCmd := exec.Command("nomad", "job", "status", "sleep")
-	var jobStatusOut bytes.Buffer
-	jobStatusCmd.Stdout = &jobStatusOut
-
-	err = jobStatusCmd.Run()
-	assert.Nil(err)
-
-	jobOutput := jobStatusOut.String()
+	isReady, jobOutput := jobIsReady(20, "sleep")
+	assert.True(isReady)
 	assert.NotContains(jobOutput, "failed")
 	assert.Contains(jobOutput, "complete")
 }
