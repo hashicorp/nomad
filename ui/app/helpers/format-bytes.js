@@ -13,6 +13,7 @@ const UNITS = ['Bytes', 'KiB', 'MiB'];
  * bytes is larger than one.
  */
 export function formatBytes([bytes]) {
+  bytes || (bytes = 0);
   let unitIndex = 0;
   while (bytes >= 1024 && unitIndex < UNITS.length - 1) {
     bytes /= 1024;
