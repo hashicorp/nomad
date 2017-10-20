@@ -69,7 +69,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	}
 
 	state := testStateStore(t)
-	timeout := time.Now().Add(10 * time.Millisecond)
+	timeout := time.Now().Add(100 * time.Millisecond)
 	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
 	defer cancel()
 
@@ -78,10 +78,11 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	})
 
 	resp, idx, err := state.BlockingQuery(queryFn, 10, deadlineCtx)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, count)
-	assert.EqualValues(t, 11, idx)
-	assert.True(t, resp.(bool))
+	if assert.Nil(t, err) {
+		assert.Equal(t, 2, count)
+		assert.EqualValues(t, 11, idx)
+		assert.True(t, resp.(bool))
+	}
 }
 
 // This test checks that:
