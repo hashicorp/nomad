@@ -1,8 +1,8 @@
 <section class="section">
   <h1 class="title">Allocation {{model.name}}</h1>
   <h3 class="subtitle">
-    For job <a href="{{href-to "jobs.job" model.job}}">{{model.job.name}}</a>
-    on node <a href="{{href-to "nodes.node" model.node}}">{{model.node.shortId}}</a>
+    For job {{#link-to "jobs.job" model.job}}{{model.job.name}}{{/link-to}}
+    on node {{#link-to "nodes.node" model.node}}{{model.node.shortId}}{{/link-to}}
   </h3>
 
   <div class="message">

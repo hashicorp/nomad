@@ -1,4 +1,8 @@
-<td><a href="{{href-to "jobs.job.task-group" taskGroup.job taskGroup}}" class="is-primary">{{taskGroup.name}}</a></td>
+<td>
+  {{#link-to "jobs.job.task-group" taskGroup.job taskGroup class="is-primary"}}
+    {{taskGroup.name}}
+  {{/link-to}}
+</td>
 <td>{{taskGroup.count}}</td>
 <td>
   <div class="inline-chart">{{allocation-status-bar allocationContainer=taskGroup.summary isNarrow=true}}</div>

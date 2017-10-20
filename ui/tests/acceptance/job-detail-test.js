@@ -58,8 +58,22 @@ test('each row in the task group table should show basic information about the t
   const tasks = server.db.tasks.where({ taskGroupId: taskGroup.id });
   const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
-  assert.equal(taskGroupRow.find('td:eq(0)').text(), taskGroup.name, 'Name');
-  assert.equal(taskGroupRow.find('td:eq(1)').text(), taskGroup.count, 'Count');
+  assert.equal(
+    taskGroupRow
+      .find('td:eq(0)')
+      .text()
+      .trim(),
+    taskGroup.name,
+    'Name'
+  );
+  assert.equal(
+    taskGroupRow
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    taskGroup.count,
+    'Count'
+  );
   assert.equal(
     taskGroupRow.find('td:eq(3)').text(),
     `${sum(tasks, 'Resources.CPU')} MHz`,
