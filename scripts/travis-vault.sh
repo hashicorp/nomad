@@ -2,8 +2,12 @@
 
 set -o errexit
 
-VERSION=0.7.0
-DOWNLOAD=https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip
+VERSION=0.8.3
+OS="linux"
+if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+    OS="darwin"
+fi
+DOWNLOAD=https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_${OS}_amd64.zip
 
 function install_vault() {
 	if [[ -e /usr/bin/vault ]] ; then

@@ -3,7 +3,11 @@
 set -o errexit
 
 VERSION=1.0.0
-DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_linux_amd64.zip
+OS="linux"
+if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+    OS="darwin"
+fi
+DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_${OS}_amd64.zip
 
 function install_consul() {
 	if [[ -e /usr/bin/consul ]] ; then
