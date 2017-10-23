@@ -117,6 +117,10 @@ WAIT:
 // previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	// Generate a leader ACL token. This will allow the leader to issue work
+	// that requires a valid ACL token.
+	s.setLeaderAcl(uuid.Generate())
+
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
 	if numWorkers := len(s.workers); numWorkers > 1 {
