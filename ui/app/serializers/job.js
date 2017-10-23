@@ -12,9 +12,13 @@ export default ApplicationSerializer.extend({
   normalize(typeHash, hash) {
     hash.NamespaceID = hash.Namespace;
 
+    // ID is a composite of both the job ID and the namespace the job is in
+    hash.PlainId = hash.ID;
+    hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
+
     // Transform the map-based JobSummary object into an array-based
     // JobSummary fragment list
-    hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary')).map(key => {
+    hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary') || {}).map(key => {
       const allocStats = get(hash, `JobSummary.Summary.${key}`);
       const summary = { Name: key };
 
@@ -40,9 +44,10 @@ export default ApplicationSerializer.extend({
     const namespace =
       !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
+
     const jobURL = this.store
       .adapterFor(modelName)
-      .buildURL(modelName, this.extractId(modelClass, hash), hash, 'findRecord');
+      .buildURL(modelName, hash.PlainId, hash, 'findRecord');
 
     return assign(this._super(...arguments), {
       allocations: {
