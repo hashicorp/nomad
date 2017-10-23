@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -75,12 +75,13 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	}
 
 	for i := 10; i >= 0; i-- {
+		ports := freeport.GetT(t, 2)
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
-			Port: freeport.Get(t),
+			Port: ports[0],
 		}
 		config.NodeName = fmt.Sprintf("Node %d", config.RPCAddr.Port)
-		config.SerfConfig.MemberlistConfig.BindPort = freeport.Get(t)
+		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
 		// Create server
 		server, err := nomad.NewServer(config, catalog, logger)

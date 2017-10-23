@@ -761,6 +761,12 @@
 			"revisionTime": "2017-10-16T16:22:40Z"
 		},
 		{
+			"checksumSHA1": "XUc/5Wg49jT0dGHRv7FhzDosj2Q=",
+			"path": "github.com/hashicorp/consul/lib/freeport",
+			"revision": "be18f97531edb0b75a91e61c7e26a66224a46468",
+			"revisionTime": "2017-10-23T23:34:27Z"
+		},
+		{
 			"checksumSHA1": "5XjgqE4UIfwXvkq5VssGNc7uPhQ=",
 			"path": "github.com/hashicorp/consul/test/porter",
 			"revision": "ad9425ca6353b8afcfebd19130a8cf768f7eac30",

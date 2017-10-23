@@ -16,13 +16,13 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/consul/lib/freeport"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -46,8 +46,9 @@ func dockerIsRemote(t *testing.T) bool {
 // Returns a task with a reserved and dynamic port. The ports are returned
 // respectively.
 func dockerTask(t *testing.T) (*structs.Task, int, int) {
-	docker_reserved := freeport.Get(t)
-	docker_dynamic := freeport.Get(t)
+	ports := freeport.GetT(t, 2)
+	docker_reserved := ports[0]
+	docker_dynamic := ports[1]
 	return &structs.Task{
 		Name:   "redis-demo",
 		Driver: "docker",

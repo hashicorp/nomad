@@ -16,9 +16,9 @@ import (
 	"github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -259,9 +259,10 @@ func (a *TestAgent) Client() *api.Client {
 // Instead of relying on one set of ports to be sufficient we retry
 // starting the agent with different ports on port conflict.
 func (a *TestAgent) pickRandomPorts(c *Config) {
-	c.Ports.HTTP = freeport.Get(a.T)
-	c.Ports.RPC = freeport.Get(a.T)
-	c.Ports.Serf = freeport.Get(a.T)
+	ports := freeport.GetT(a.T, 3)
+	c.Ports.HTTP = ports[0]
+	c.Ports.RPC = ports[1]
+	c.Ports.Serf = ports[2]
 
 	if err := c.normalizeAddrs(); err != nil {
 		a.T.Fatalf("error normalizing config: %v", err)
