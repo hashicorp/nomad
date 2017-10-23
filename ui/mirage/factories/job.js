@@ -53,8 +53,10 @@ export default Factory.extend({
     });
 
     if (!job.namespaceId) {
+      const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
       job.update({
-        namespaceId: server.db.namespaces.length ? pickOne(server.db.namespaces).id : null,
+        namespace,
+        namespaceId: namespace,
       });
     }
 
