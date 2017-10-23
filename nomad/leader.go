@@ -418,6 +418,7 @@ func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,
 		JobID:       job,
+		LeaderACL:   s.getLeaderAcl(),
 		Status:      structs.EvalStatusPending,
 		ModifyIndex: modifyIndex,
 	}
