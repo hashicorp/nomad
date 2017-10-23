@@ -1271,9 +1271,6 @@ func TestDockerDriver_Stats(t *testing.T) {
 }
 
 func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*structs.Task, Driver, *ExecContext, string, func()) {
-	if !tu.IsTravis() {
-		t.Parallel()
-	}
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
 	}
