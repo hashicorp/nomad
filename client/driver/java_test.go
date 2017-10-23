@@ -205,6 +205,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
+			"args":     []string{"5"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -229,16 +230,19 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		err := resp.Handle.Kill()
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
 		}
 	}()
 
 	// Task should terminate quickly
 	select {
+	case err := <-errCh:
+		t.Fatalf("err: %v", err)
 	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")
@@ -267,6 +271,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
+			"args":     []string{"5"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -291,16 +296,19 @@ func TestJavaDriver_Signal(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		err := resp.Handle.Signal(syscall.SIGHUP)
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
 		}
 	}()
 
 	// Task should terminate quickly
 	select {
+	case err := <-errCh:
+		t.Fatalf("err: %v", err)
 	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")

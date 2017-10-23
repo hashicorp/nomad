@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -106,6 +107,7 @@ func testDockerDriverContexts(t *testing.T, task *structs.Task) *testContext {
 }
 
 func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Client) (*docker.Client, DriverHandle, func()) {
+	t.Helper()
 	tctx := testDockerDriverContexts(t, task)
 	//tctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	driver := NewDockerDriver(tctx.DriverCtx)
@@ -146,8 +148,9 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 }
 
 func newTestDockerClient(t *testing.T) *docker.Client {
+	t.Helper()
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	client, err := docker.NewClientFromEnv()
@@ -191,6 +194,9 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("requires Docker")
 	}
+	if runtime.GOOS != "linux" {
+		t.Skip("expect only on linux")
+	}
 
 	// This seems fragile, so we might need to reconsider this test if it
 	// proves flaky
@@ -202,7 +208,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 		t.Fatalf("unable to get ip for docker bridge")
 	}
 
-	conf := testConfig()
+	conf := testConfig(t)
 	conf.Node = mock.Node()
 	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
 	ok, err := dd.Fingerprint(conf, conf.Node)
@@ -224,7 +230,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -277,6 +283,9 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
 	task := &structs.Task{
 		Name:   "nc-demo",
 		Driver: "docker",
@@ -320,7 +329,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	task := &structs.Task{
 		Name:   "busybox-demo",
@@ -328,9 +337,10 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 		Config: map[string]interface{}{
 			"image":   "busybox",
 			"load":    "busybox.tar",
-			"command": "/bin/echo",
+			"command": "/bin/sh",
 			"args": []string{
-				"hello",
+				"-c",
+				"echo hello > $NOMAD_TASK_DIR/output",
 			},
 		},
 		LogConfig: &structs.LogConfig{
@@ -371,7 +381,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	}
 
 	// Check that data was written to the shared alloc directory.
-	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "busybox-demo.stdout.0")
+	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LocalDir, "output")
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -389,7 +399,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	task := &structs.Task{
 		Name:   "busybox-demo",
@@ -436,7 +446,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
 	if !testutil.DockerIsConnected(t) || dockerIsRemote(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	exp := []byte{'w', 'i', 'n'}
@@ -505,6 +515,9 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
 	task := &structs.Task{
 		Name:   "nc-demo",
 		Driver: "docker",
@@ -547,7 +560,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task1, _, _ := dockerTask()
@@ -601,7 +614,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task1, _, _ := dockerTask()
@@ -680,6 +693,9 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
 	expected := "host"
 
 	task := &structs.Task{
@@ -722,6 +738,10 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	// Because go-dockerclient doesn't provide api for query network aliases, just check that
 	// a container can be created with a 'network_aliases' property
 
@@ -771,6 +791,10 @@ func TestDockerDriver_Labels(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["labels"] = []map[string]string{
 		{
@@ -802,6 +826,10 @@ func TestDockerDriver_ForcePull_IsInvalidConfig(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["force_pull"] = "nothing"
 
@@ -819,6 +847,10 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["force_pull"] = "true"
 
@@ -837,6 +869,10 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["security_opt"] = []string{"seccomp=unconfined"}
 
@@ -859,6 +895,10 @@ func TestDockerDriver_DNS(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
 	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
@@ -891,6 +931,10 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["mac_address"] = "00:16:3e:00:00:00"
 
@@ -913,6 +957,10 @@ func TestDockerWorkDir(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, _, _ := dockerTask()
 	task.Config["work_dir"] = "/some/path"
 
@@ -942,6 +990,10 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, res, dyn := dockerTask()
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -995,6 +1047,10 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, res, dyn := dockerTask()
 	task.Config["port_map"] = []map[string]string{
 		{
@@ -1056,6 +1112,10 @@ func TestDockerDriver_User(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task := &structs.Task{
 		Name:   "redis-demo",
 		User:   "alice",
@@ -1074,10 +1134,6 @@ func TestDockerDriver_User(t *testing.T) {
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
 		},
-	}
-
-	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
 	}
 
 	ctx := testDockerDriverContexts(t, task)
@@ -1108,6 +1164,10 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task := &structs.Task{
 		Name:   "redis-demo",
 		Driver: "docker",
@@ -1159,6 +1219,10 @@ func TestDockerDriver_Stats(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "docker",
@@ -1207,8 +1271,11 @@ func TestDockerDriver_Stats(t *testing.T) {
 }
 
 func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*structs.Task, Driver, *ExecContext, string, func()) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	randfn := fmt.Sprintf("test-%d", rand.Int())
@@ -1270,7 +1337,11 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	cfg := testConfig()
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	cfg := testConfig(t)
 	cfg.Options = map[string]string{
 		dockerVolumesConfigOption: "false",
 		"docker.cleanup.image":    "false",
@@ -1343,11 +1414,21 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	cfg := testConfig()
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	cfg := testConfig(t)
 
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	if err != nil {
 		t.Fatalf("error creating temporary dir: %v", err)
+	}
+
+	// Evaluate symlinks so it works on MacOS
+	tmpvol, err = filepath.EvalSymlinks(tmpvol)
+	if err != nil {
+		t.Fatalf("error evaluating symlinks: %v", err)
 	}
 
 	task, driver, execCtx, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
@@ -1382,7 +1463,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	goodMount := map[string]interface{}{
@@ -1563,7 +1644,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	imageName := "hello-world:latest"
@@ -1626,6 +1707,10 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	path := "./test-resources/docker/auth.json"
 	cases := []struct {
 		Repo       string
