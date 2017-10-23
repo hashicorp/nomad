@@ -18,7 +18,7 @@ export default Component.extend({
   didReceiveAttrs() {
     // Reload the job in order to get detail information
     const job = this.get('job');
-    if (job) {
+    if (job && !job.get('isLoading')) {
       job.reload();
     }
   },

@@ -1,6 +1,6 @@
 import Ember from 'ember';
 
-const { Controller, inject, observer } = Ember;
+const { Controller, inject, observer, run } = Ember;
 
 export default Controller.extend({
   system: inject.service(),
@@ -22,7 +22,15 @@ export default Controller.extend({
 
     if (currentNamespace !== newNamespace && !bothAreDefault) {
       this.set('system.activeNamespace', newNamespace);
-      this.send('refreshRoute');
+      run.next(() => {
+        this.send('refreshRoute');
+      });
     }
   }),
+
+  actions: {
+    refreshRoute() {
+      return true;
+    },
+  },
 });
