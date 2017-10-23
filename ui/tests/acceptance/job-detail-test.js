@@ -297,14 +297,22 @@ test('when the job is not found, an error message is shown, but the URL persists
   });
 });
 
+moduleForAcceptance('Acceptance | job detail (with namespaces)', {
+  beforeEach() {
+    server.createList('namespace', 2);
+    server.create('node');
+    server.create('job');
+    job = server.db.jobs[0];
+    visit(`/jobs/${job.id}`);
+  },
+});
+
 test('when there are namespaces, the job detail page states the namespace for the job', function(
   assert
 ) {
-  server.createList('namespace', 2);
-  job = server.create('job');
   const namespace = server.db.namespaces.find(job.namespaceId);
 
-  visit(`/jobs/${job.id}`);
+  visit(`/jobs/${job.id}?namespace=${namespace.name}`);
 
   andThen(() => {
     assert.ok(
