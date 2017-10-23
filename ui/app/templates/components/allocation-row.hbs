@@ -16,7 +16,7 @@
     {{#if (or allocation.job.isPending allocation.job.isReloading)}}
       ...
     {{else}}
-      {{#link-to "jobs.job" allocation.job}}{{allocation.job.name}}{{/link-to}}
+      {{#link-to "jobs.job" allocation.job (query-params jobNamespace=allocation.job.namespace.id)}}{{allocation.job.name}}{{/link-to}}
       <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
     {{/if}}
   </td>
