@@ -1,31 +1,33 @@
 ---
 layout: "guides"
-page_title: "Nomad UI"
+page_title: "Web UI"
 sidebar_current: "guides-ui"
 description: |-
-  The Nomad UI is a great companion for both operators and developers.
+  The Nomad Web UI is a great companion for both operators and developers.
   It is an easy to use way to inspect jobs, allocations, and nodes.
 ---
 
-# Nomad UI
+# Web UI
 
-The Nomad UI offers an easy to use web experience for inspecting a Nomad cluster.
+The Nomad Web UI offers an easy to use web experience for inspecting a Nomad cluster.
 Jobs, Deployments, Task Groups, Allocations, Clients, and Servers can all be
-monitored from the Nomad UI. The UI also supports the use of ACL tokens for
-clusters that are using the Nomad Access Control List system.
+monitored from the Web UI. The Web UI also supports the use of ACL tokens for
+clusters that are using the [ACL system](/guides/acl.html).
 
-~> **Beta Feature!** This page covers the Nomad UI, a feature of v0.7 which is still in beta.
+~> **Beta Feature!** This page covers the Web UI, a feature of v0.7 which is still in beta.
 
-## Accessing the UI
+## Accessing the Web UI
 
-The Nomad UI is served on the same address and port as the HTTP API. It is namespaced
+The Web UI is served on the same address and port as the HTTP API. It is namespaced
 under `/ui`, but visiting the root of the Nomad server in your browser will redirect you
-to the UI. If you are unsure what port the Nomad HTTP API is running under, try the default
+to the Web UI. If you are unsure what port the Nomad HTTP API is running under, try the default
 port, `4646`.
+
+For a quick test drive, see our online Web UI demo at [demo.nomadproject.io](https://demo.nomadproject.io). 
 
 ## Reviewing Jobs
 
-The home page of the UI is the jobs list view. This page has a searchable, sortable,
+The home page of the Web UI is the jobs list view. This page has a searchable, sortable,
 paginated table of all jobs in the cluster, regardless of job status.
 
 [![Jobs List][img-jobs-list]][img-jobs-list]
@@ -99,7 +101,7 @@ the allocation, including utilized CPU and memory.
 
 [![Allocation Stats][img-allocation-stats]][img-allocation-stats]
 
-~> **Note.** To collect current CPU and memory statistics, the Nomad UI makes requests directly to the client
+~> **Note.** To collect current CPU and memory statistics, the Web UI makes requests directly to the client
 ~> the allocation is running on. These requests will fail unless the browser session is running in the same
 ~> subnet as the Nomad client.
 
@@ -110,7 +112,7 @@ in the allocation can be seen.
 
 ## Reviewing Clients
 
-Clicking the Clients link in the left-hand menu of the Nomad UI will navigate to the Clients List page. This page
+Clicking the Clients link in the left-hand menu of the Web UI will navigate to the Clients List page. This page
 has a searchable, sortable, paginated table of all clients in the cluster.
 
 Sort property, sort direction, search term, and page number are all stored as query params to make
@@ -131,7 +133,7 @@ itemized.
 
 ## Inspecting Servers
 
-Clicking on the Servers link in the left-hand menu of the Nomad UI will navigate to the Servers List page. This
+Clicking on the Servers link in the left-hand menu of the Web UI will navigate to the Servers List page. This
 page lists all servers, including which one is the current leader.
 
 Clicking on a server in the list will open up a table that lists the Tags for the server.
@@ -140,13 +142,13 @@ Clicking on a server in the list will open up a table that lists the Tags for th
 
 ## Using an ACL Token
 
-When the Nomad ACL system is enabled for the cluster, tokens can be used to gain elevated permissions to see
-otherwise private jobs, nodes, and other details. To register a token with the UI, click ACL Tokens on the
+When the ACL system is enabled for the cluster, tokens can be used to gain elevated permissions to see
+otherwise private jobs, nodes, and other details. To register a token with the Web UI, click ACL Tokens on the
 right-hand side of the top navigation.
 
 The ACL Tokens page has a two field form for providing a token Secret ID and token Accessor ID. The form
 automatically updates as the values change, and once a Secret ID is provided, all future HTTP requests the
-Nomad UI makes will provide the Secret ID as the ACL Token via the `X-Nomad-Token` request header.
+Web UI makes will provide the Secret ID as the ACL Token via the `X-Nomad-Token` request header.
 
 [![ACL Tokens][img-acl-tokens]][img-acl-tokens]
 
