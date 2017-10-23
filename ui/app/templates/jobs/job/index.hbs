@@ -20,7 +20,7 @@
       <div class="boxed-section-body">
         <span><strong>Type:</strong> {{model.type}} | </span>
         <span><strong>Priority:</strong> {{model.priority}} </span>
-        {{#if model.namespace}}
+        {{#if (and model.namespace system.shouldShowNamespaces)}}
           <span> | <strong>Namespace:</strong> {{model.namespace.name}}</span>
         {{/if}}
       </div>

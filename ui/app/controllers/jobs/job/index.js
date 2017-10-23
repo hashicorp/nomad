@@ -4,6 +4,7 @@ import Sortable from 'nomad-ui/mixins/sortable';
 const { Controller, computed, inject } = Ember;
 
 export default Controller.extend(Sortable, {
+  system: inject.service(),
   jobController: inject.controller('jobs.job'),
 
   queryParams: {
