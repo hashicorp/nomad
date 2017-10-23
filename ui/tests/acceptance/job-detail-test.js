@@ -301,9 +301,8 @@ moduleForAcceptance('Acceptance | job detail (with namespaces)', {
   beforeEach() {
     server.createList('namespace', 2);
     server.create('node');
-    server.create('job');
-    job = server.db.jobs[0];
-    visit(`/jobs/${job.id}`);
+    job = server.create('job', { namespaceId: server.db.namespaces[1].name });
+    server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
   },
 });
 
@@ -311,7 +310,6 @@ test('when there are namespaces, the job detail page states the namespace for th
   assert
 ) {
   const namespace = server.db.namespaces.find(job.namespaceId);
-
   visit(`/jobs/${job.id}?namespace=${namespace.name}`);
 
   andThen(() => {
@@ -319,5 +317,38 @@ test('when there are namespaces, the job detail page states the namespace for th
       findAll('.job-stats span')[2].textContent.includes(namespace.name),
       'Namespace included in stats'
     );
+  });
+});
+
+test('when switching namespaces, the app redirects to /jobs with the new namespace', function(
+  assert
+) {
+  const namespace = server.db.namespaces.find(job.namespaceId);
+  const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
+  const label = otherNamespace === 'default' ? 'Default Namespace' : otherNamespace;
+
+  visit(`/jobs/${job.id}?namespace=${namespace.name}`);
+
+  andThen(() => {
+    selectChoose('.namespace-switcher', label);
+  });
+
+  andThen(() => {
+    assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
+    const jobs = server.db.jobs
+      .where({ namespace: otherNamespace })
+      .sortBy('modifyIndex')
+      .reverse();
+    assert.equal(findAll('.job-row').length, jobs.length, 'Shows the right number of jobs');
+    jobs.forEach((job, index) => {
+      assert.equal(
+        $(findAll('.job-row')[index])
+          .find('td:eq(0)')
+          .text()
+          .trim(),
+        job.name,
+        `Job ${index} is right`
+      );
+    });
   });
 });

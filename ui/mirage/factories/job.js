@@ -58,6 +58,10 @@ export default Factory.extend({
         namespace,
         namespaceId: namespace,
       });
+    } else {
+      job.update({
+        namespace: job.namespaceId,
+      });
     }
 
     const jobSummary = server.create('job-summary', {

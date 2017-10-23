@@ -1,10 +1,11 @@
 import Ember from 'ember';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
+import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
 const { Controller, computed, inject } = Ember;
 
-export default Controller.extend(Sortable, Searchable, {
+export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
   jobController: inject.controller('jobs.job'),
 
   queryParams: {
