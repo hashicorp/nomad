@@ -5071,7 +5071,7 @@ type Evaluation struct {
 	// evaluation was processed. The map is keyed by Task Group names.
 	QueuedAllocations map[string]int
 
-	// LeaderACL provides the ACL token to when issueing RPCs back to the
+	// LeaderACL provides the ACL token to when issuing RPCs back to the
 	// leader. This will be a valid management token as long as the leader is
 	// active. This should not ever be exposed via the API.
 	LeaderACL string
