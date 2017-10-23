@@ -150,7 +150,7 @@ func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Clie
 func newTestDockerClient(t *testing.T) *docker.Client {
 	t.Helper()
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	client, err := docker.NewClientFromEnv()
@@ -230,7 +230,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -284,7 +284,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	task := &structs.Task{
 		Name:   "nc-demo",
@@ -329,7 +329,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	task := &structs.Task{
 		Name:   "busybox-demo",
@@ -399,7 +399,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	task := &structs.Task{
 		Name:   "busybox-demo",
@@ -446,7 +446,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	// Because this cannot happen when docker is run remotely, e.g. when running
 	// docker in a VM, we skip this when we detect Docker is being run remotely.
 	if !testutil.DockerIsConnected(t) || dockerIsRemote(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	exp := []byte{'w', 'i', 'n'}
@@ -516,7 +516,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	task := &structs.Task{
 		Name:   "nc-demo",
@@ -560,7 +560,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task1, _, _ := dockerTask()
@@ -614,7 +614,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task1, _, _ := dockerTask()
@@ -694,7 +694,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 	expected := "host"
 
@@ -739,7 +739,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	// Because go-dockerclient doesn't provide api for query network aliases, just check that
@@ -792,7 +792,7 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -827,7 +827,7 @@ func TestDockerDriver_ForcePull_IsInvalidConfig(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -848,7 +848,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -870,7 +870,7 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -896,7 +896,7 @@ func TestDockerDriver_DNS(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -932,7 +932,7 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -958,7 +958,7 @@ func TestDockerWorkDir(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, _, _ := dockerTask()
@@ -991,7 +991,7 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, res, dyn := dockerTask()
@@ -1048,7 +1048,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task, res, dyn := dockerTask()
@@ -1113,7 +1113,7 @@ func TestDockerDriver_User(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -1165,7 +1165,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -1220,7 +1220,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -1271,11 +1271,11 @@ func TestDockerDriver_Stats(t *testing.T) {
 }
 
 func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*structs.Task, Driver, *ExecContext, string, func()) {
-	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+	if !tu.IsTravis() {
+		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	randfn := fmt.Sprintf("test-%d", rand.Int())
@@ -1338,7 +1338,7 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	cfg := testConfig(t)
@@ -1415,7 +1415,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	cfg := testConfig(t)
@@ -1463,7 +1463,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	goodMount := map[string]interface{}{
@@ -1644,7 +1644,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	imageName := "hello-world:latest"
@@ -1708,7 +1708,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	path := "./test-resources/docker/auth.json"

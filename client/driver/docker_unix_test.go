@@ -20,7 +20,7 @@ func TestDockerDriver_Signal(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -88,7 +88,7 @@ done
 			t.Fatalf("should err: %v", res)
 		}
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
-		//t.Fatalf("timeout")
+		t.Fatalf("timeout")
 	}
 
 	// Check the log file to see it exited because of the signal
