@@ -21,7 +21,7 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 
 	// Check if the secret ID is the leader secret ID, in which case treat it as
 	// a management token.
-	if secretID == s.getLeaderAcl() {
+	if leaderAcl := s.getLeaderAcl(); leaderAcl != "" && secretID == leaderAcl {
 		return acl.ManagementACL, nil
 	}
 

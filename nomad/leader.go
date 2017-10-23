@@ -522,6 +522,9 @@ func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	// Clear the leader token since we are no longer the leader.
+	s.setLeaderAcl("")
+
 	// Disable the plan queue, since we are no longer leader
 	s.planQueue.SetEnabled(false)
 
