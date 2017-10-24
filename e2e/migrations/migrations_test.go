@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 
 	"github.com/stretchr/testify/assert"
 )
