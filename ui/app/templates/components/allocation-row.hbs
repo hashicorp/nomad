@@ -1,7 +1,7 @@
 <td>
-  <a href="{{href-to "allocations.allocation" allocation}}" class="is-primary">
+  {{#link-to "allocations.allocation" allocation class="is-primary"}}
     {{allocation.shortId}}
-  </a>
+  {{/link-to}}
 </td>
 <td>{{allocation.modifyIndex}}</td>
 <td>{{allocation.name}}</td>
@@ -10,13 +10,13 @@
 </td>
 {{#if (eq context "job")}}
   <td>{{allocation.jobVersion}}</td>
-  <td><a href="{{href-to "nodes.node" allocation.node}}">{{allocation.node.shortId}}</a></td>
+  <td>{{#link-to "nodes.node" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
 {{else if (eq context "node")}}
   <td>
     {{#if (or allocation.job.isPending allocation.job.isReloading)}}
       ...
     {{else}}
-      <a href="{{href-to "jobs.job" allocation.job}}">{{allocation.job.name}}</a>
+      {{#link-to "jobs.job" allocation.job (query-params jobNamespace=allocation.job.namespace.id)}}{{allocation.job.name}}{{/link-to}}
       <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
     {{/if}}
   </td>

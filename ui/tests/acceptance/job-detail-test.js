@@ -58,8 +58,22 @@ test('each row in the task group table should show basic information about the t
   const tasks = server.db.tasks.where({ taskGroupId: taskGroup.id });
   const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
-  assert.equal(taskGroupRow.find('td:eq(0)').text(), taskGroup.name, 'Name');
-  assert.equal(taskGroupRow.find('td:eq(1)').text(), taskGroup.count, 'Count');
+  assert.equal(
+    taskGroupRow
+      .find('td:eq(0)')
+      .text()
+      .trim(),
+    taskGroup.name,
+    'Name'
+  );
+  assert.equal(
+    taskGroupRow
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    taskGroup.count,
+    'Count'
+  );
   assert.equal(
     taskGroupRow.find('td:eq(3)').text(),
     `${sum(tasks, 'Resources.CPU')} MHz`,
@@ -283,19 +297,58 @@ test('when the job is not found, an error message is shown, but the URL persists
   });
 });
 
+moduleForAcceptance('Acceptance | job detail (with namespaces)', {
+  beforeEach() {
+    server.createList('namespace', 2);
+    server.create('node');
+    job = server.create('job', { namespaceId: server.db.namespaces[1].name });
+    server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
+  },
+});
+
 test('when there are namespaces, the job detail page states the namespace for the job', function(
   assert
 ) {
-  server.createList('namespace', 2);
-  job = server.create('job');
   const namespace = server.db.namespaces.find(job.namespaceId);
-
-  visit(`/jobs/${job.id}`);
+  visit(`/jobs/${job.id}?namespace=${namespace.name}`);
 
   andThen(() => {
     assert.ok(
       findAll('.job-stats span')[2].textContent.includes(namespace.name),
       'Namespace included in stats'
     );
+  });
+});
+
+test('when switching namespaces, the app redirects to /jobs with the new namespace', function(
+  assert
+) {
+  const namespace = server.db.namespaces.find(job.namespaceId);
+  const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
+  const label = otherNamespace === 'default' ? 'Default Namespace' : otherNamespace;
+
+  visit(`/jobs/${job.id}?namespace=${namespace.name}`);
+
+  andThen(() => {
+    selectChoose('.namespace-switcher', label);
+  });
+
+  andThen(() => {
+    assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
+    const jobs = server.db.jobs
+      .where({ namespace: otherNamespace })
+      .sortBy('modifyIndex')
+      .reverse();
+    assert.equal(findAll('.job-row').length, jobs.length, 'Shows the right number of jobs');
+    jobs.forEach((job, index) => {
+      assert.equal(
+        $(findAll('.job-row')[index])
+          .find('td:eq(0)')
+          .text()
+          .trim(),
+        job.name,
+        `Job ${index} is right`
+      );
+    });
   });
 });

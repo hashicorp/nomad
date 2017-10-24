@@ -62,7 +62,16 @@ test('each job row should contain information about the job', function(assert) {
     );
     assert.equal(jobRow.find('td:eq(2)').text(), job.type, 'Type');
     assert.equal(jobRow.find('td:eq(3)').text(), job.priority, 'Priority');
-    assert.equal(jobRow.find('td:eq(4)').text(), taskGroups.length, '# Groups');
+    andThen(() => {
+      assert.equal(
+        jobRow
+          .find('td:eq(4)')
+          .text()
+          .trim(),
+        taskGroups.length,
+        '# Groups'
+      );
+    });
   });
 });
 

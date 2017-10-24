@@ -1,22 +1,18 @@
 import Ember from 'ember';
 import ApplicationAdapter from './application';
 
-const { RSVP, inject } = Ember;
+const { RSVP, inject, assign } = Ember;
 
 export default ApplicationAdapter.extend({
   system: inject.service(),
 
   shouldReloadAll: () => true,
 
-  buildQuery(snapshot) {
-    const namespace = this.get('system.activeNamespace');
+  buildQuery() {
+    const namespace = this.get('system.activeNamespace.id');
 
-    // SnapshotRecordArray isn't exported, so the best we can do is duck-type.
-    const isSnapshotRecordArray = snapshot && snapshot._recordArray;
-    if ((!snapshot || isSnapshotRecordArray) && namespace) {
-      return {
-        namespace: namespace.get('name'),
-      };
+    if (namespace && namespace !== 'default') {
+      return { namespace };
     }
   },
 
@@ -24,7 +20,7 @@ export default ApplicationAdapter.extend({
     const namespace = this.get('system.activeNamespace');
     return this._super(...arguments).then(data => {
       data.forEach(job => {
-        job.NamespaceID = namespace && namespace.get('id');
+        job.Namespace = namespace ? namespace.get('id') : 'default';
       });
       return data;
     });
@@ -33,9 +29,21 @@ export default ApplicationAdapter.extend({
   findRecord(store, { modelName }, id, snapshot) {
     // To make a findRecord response reflect the findMany response, the JobSummary
     // from /summary needs to be stitched into the response.
+
+    // URL is the form of /job/:name?namespace=:namespace with arbitrary additional query params
+    const [name, namespace] = JSON.parse(id);
+    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
     return RSVP.hash({
-      job: this._super(...arguments),
-      summary: this.ajax(`${this.buildURL(modelName, id, snapshot, 'findRecord')}/summary`),
+      job: this.ajax(this.buildURL(modelName, name, snapshot, 'findRecord'), 'GET', {
+        data: assign(this.buildQuery() || {}, namespaceQuery),
+      }),
+      summary: this.ajax(
+        `${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`,
+        'GET',
+        {
+          data: assign(this.buildQuery() || {}, namespaceQuery),
+        }
+      ),
     }).then(({ job, summary }) => {
       job.JobSummary = summary;
       return job;
@@ -44,7 +52,7 @@ export default ApplicationAdapter.extend({
 
   findAllocations(job) {
     const url = `${this.buildURL('job', job.get('id'), job, 'findRecord')}/allocations`;
-    return this.ajax(url, 'GET').then(allocs => {
+    return this.ajax(url, 'GET', { data: this.buildQuery() }).then(allocs => {
       return this.store.pushPayload('allocation', {
         allocations: allocs,
       });
@@ -52,7 +60,9 @@ export default ApplicationAdapter.extend({
   },
 
   fetchRawDefinition(job) {
-    const url = this.buildURL('job', job.get('id'), job, 'findRecord');
-    return this.ajax(url, 'GET');
+    const [name, namespace] = JSON.parse(job.get('id'));
+    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
+    const url = this.buildURL('job', name, job, 'findRecord');
+    return this.ajax(url, 'GET', { data: assign(this.buildQuery() || {}, namespaceQuery) });
   },
 });

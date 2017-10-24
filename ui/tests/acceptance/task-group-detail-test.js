@@ -79,14 +79,14 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
 });
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
-  assert.equal(findAll('.breadcrumb')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
+  assert.equal(findAll('.breadcrumb')[0].textContent.trim(), 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    findAll('.breadcrumb')[1].textContent,
+    findAll('.breadcrumb')[1].textContent.trim(),
     job.name,
     'Second breadcrumb says the job name'
   );
   assert.equal(
-    findAll('.breadcrumb')[2].textContent,
+    findAll('.breadcrumb')[2].textContent.trim(),
     taskGroup.name,
     'Third breadcrumb says the job name'
   );

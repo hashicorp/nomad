@@ -10,6 +10,7 @@ const { computed } = Ember;
 export default Model.extend({
   region: attr('string'),
   name: attr('string'),
+  plainId: attr('string'),
   type: attr('string'),
   priority: attr('number'),
   allAtOnce: attr('boolean'),
