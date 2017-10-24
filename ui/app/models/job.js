@@ -54,6 +54,8 @@ export default Model.extend({
   deployments: hasMany('deployments'),
   namespace: belongsTo('namespace'),
 
+  supportsDeployments: computed.equal('type', 'service'),
+
   runningDeployment: computed('deployments.@each.status', function() {
     return this.get('deployments').findBy('status', 'running');
   }),
