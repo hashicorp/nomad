@@ -3,11 +3,13 @@ package e2e
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -108,15 +110,26 @@ func isSuccess(execCmd *exec.Cmd, retries int, keyword string) (string, error) {
 
 // allNodesAreReady attempts to query the status of a cluster a specific number
 // of times
-func allNodesAreReady(retries int) (string, error) {
-	cmd := exec.Command("nomad", "node-status")
+func allNodesAreReady(retries int, flags string) (string, error) {
+	var cmd *exec.Cmd
+	if flags != "" {
+		cmd = exec.Command("nomad", "node-status", flags)
+	} else {
+		cmd = exec.Command("nomad", "node-status")
+	}
+
 	return isSuccess(cmd, retries, "initializing")
 }
 
 // jobIsReady attempts sto query the status of a specific job a fixed number of
 // times
-func jobIsReady(retries int, jobName string) (string, error) {
-	cmd := exec.Command("nomad", "job", "status", jobName)
+func jobIsReady(retries int, flags, jobName string) (string, error) {
+	var cmd *exec.Cmd
+	if flags != "" {
+		cmd = exec.Command("nomad", "job", "status", flags, jobName)
+	} else {
+		cmd = exec.Command("nomad", "job", "status", jobName)
+	}
 	return isSuccess(cmd, retries, "pending")
 }
 
@@ -146,6 +159,39 @@ func startCluster(clusterConfig []string) (func(), error) {
 	return f, nil
 }
 
+// TODO poll to see when the server is ready
+func startACLServer(serverConfig string) (func(), string, error) {
+	cmd := exec.Command("nomad", "agent", "-config", serverConfig)
+	if err := cmd.Start(); err != nil {
+		return func() {}, "", err
+	}
+
+	f := func() {
+		cmd.Process.Kill()
+	}
+
+	time.Sleep(10 * time.Second)
+
+	var bootstrapOut bytes.Buffer
+
+	bootstrapCmd := exec.Command("nomad", "acl", "bootstrap")
+	bootstrapCmd.Stdout = &bootstrapOut
+
+	if err := bootstrapCmd.Run(); err != nil {
+		return f, "", err
+	}
+
+	parts := strings.Split(bootstrapOut.String(), "\n")
+	if len(parts) < 2 {
+		return f, "", fmt.Errorf("unexpected bootstrap output")
+	}
+
+	secretIDLine := strings.Split(parts[1], " ")
+	secretID := secretIDLine[len(secretIDLine)-1]
+
+	return f, secretID, nil
+}
+
 func TestJobMigrations(t *testing.T) {
 	flag.Parse()
 	if !*integration {
@@ -160,7 +206,7 @@ func TestJobMigrations(t *testing.T) {
 	assert.Nil(err)
 	defer stopCluster()
 
-	_, err = allNodesAreReady(10)
+	_, err = allNodesAreReady(10, "")
 	assert.Nil(err)
 
 	fh, err := ioutil.TempFile("", "nomad-sleep-1")
@@ -175,7 +221,7 @@ func TestJobMigrations(t *testing.T) {
 	err = jobCmd.Run()
 	assert.Nil(err)
 
-	firstJobOutput, err := jobIsReady(20, "sleep")
+	firstJobOutput, err := jobIsReady(20, "", "sleep")
 	assert.Nil(err)
 	assert.NotContains(firstJobOutput, "failed")
 	assert.NotContains(firstJobOutput, "pending")
@@ -185,15 +231,64 @@ func TestJobMigrations(t *testing.T) {
 
 	defer os.Remove(fh2.Name())
 	_, err = fh2.WriteString(sleepJobTwo)
-
 	assert.Nil(err)
 
 	secondJobCmd := exec.Command("nomad", "run", fh2.Name())
 	err = secondJobCmd.Run()
 	assert.Nil(err)
 
-	jobOutput, err := jobIsReady(20, "sleep")
+	jobOutput, err := jobIsReady(20, "", "sleep")
 	assert.Nil(err)
+	assert.NotContains(jobOutput, "failed")
+	assert.Contains(jobOutput, "complete")
+}
+
+func TestMigrations_WithACLs(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	stopServer, secretID, err := startACLServer("server_acl.hcl")
+	assert.Nil(err)
+	defer stopServer()
+
+	clusterConfig := []string{"client1_acl.hcl", "client2_acl.hcl"}
+	stopCluster, err := startCluster(clusterConfig)
+	assert.Nil(err)
+	defer stopCluster()
+
+	_, err = allNodesAreReady(10, "-token="+secretID)
+	assert.Nil(err)
+
+	fh, err := ioutil.TempFile("", "nomad-sleep-1")
+	assert.Nil(err)
+
+	defer os.Remove(fh.Name())
+	_, err = fh.WriteString(sleepJobOne)
+
+	assert.Nil(err)
+
+	jobCmd := exec.Command("nomad", "run", "-token="+secretID, fh.Name())
+	err = jobCmd.Run()
+	assert.Nil(err)
+
+	_, err = jobIsReady(20, "-token="+secretID, "sleep")
+	assert.Nil(err)
+
+	fh2, err := ioutil.TempFile("", "nomad-sleep-2")
+	assert.Nil(err)
+
+	defer os.Remove(fh2.Name())
+	_, err = fh2.WriteString(sleepJobTwo)
+
+	assert.Nil(err)
+
+	secondJobCmd := exec.Command("nomad", "run", "-token="+secretID, fh2.Name())
+	err = secondJobCmd.Run()
+	assert.Nil(err)
+
+	jobOutput, err := jobIsReady(20, "-token="+secretID, "sleep")
+	assert.Nil(err)
+
 	assert.NotContains(jobOutput, "failed")
 	assert.NotContains(jobOutput, "pending")
 	assert.Contains(jobOutput, "complete")
