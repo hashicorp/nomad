@@ -139,3 +139,23 @@ test('when the namespace query param is set, only matching jobs are shown and th
     assert.equal(find('.job-row td').textContent, job2.name, 'The correct job is shown');
   });
 });
+
+test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(
+  assert
+) {
+  server.pretender.get('/v1/jobs', () => [403, {}, null]);
+
+  visit('/jobs');
+
+  andThen(() => {
+    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+  });
+
+  andThen(() => {
+    click('.empty-message-body a');
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/settings/tokens');
+  });
+});
