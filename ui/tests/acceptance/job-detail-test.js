@@ -12,8 +12,7 @@ let job;
 moduleForAcceptance('Acceptance | job detail', {
   beforeEach() {
     server.create('node');
-    server.create('job');
-    job = server.db.jobs[0];
+    job = server.create('job', { type: 'service' });
     visit(`/jobs/${job.id}`);
   },
 });
@@ -33,6 +32,27 @@ test('breadcrumbs includes job name and link back to the jobs list', function(as
   click(findAll('.breadcrumb')[0]);
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
+  });
+});
+
+test('the subnav includes links to definition, versions, and deployments when type = service', function(
+  assert
+) {
+  const subnavLabels = findAll('.tabs.is-subnav a').map(anchor => anchor.textContent);
+  assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
+  assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
+  assert.ok(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
+});
+
+test('the subnav includes links to definition and versions when type != service', function(assert) {
+  job = server.create('job', { type: 'batch' });
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    const subnavLabels = findAll('.tabs.is-subnav a').map(anchor => anchor.textContent);
+    assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
+    assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
+    assert.notOk(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
   });
 });
 
@@ -150,7 +170,7 @@ test('there is no active deployment section when the job has no active deploymen
 ) {
   // TODO: it would be better to not visit two different job pages in one test, but this
   // way is much more convenient.
-  job = server.create('job', { noActiveDeployment: true });
+  job = server.create('job', { noActiveDeployment: true, type: 'service' });
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
@@ -161,7 +181,7 @@ test('there is no active deployment section when the job has no active deploymen
 test('the active deployment section shows up for the currently running deployment', function(
   assert
 ) {
-  job = server.create('job', { activeDeployment: true });
+  job = server.create('job', { activeDeployment: true, type: 'service' });
   const deployment = server.db.deployments.where({ jobId: job.id })[0];
   const taskGroupSummaries = server.db.deploymentTaskGroupSummaries.where({
     deploymentId: deployment.id,
@@ -246,7 +266,7 @@ test('the active deployment section shows up for the currently running deploymen
 test('the active deployment section can be expanded to show task groups and allocations', function(
   assert
 ) {
-  job = server.create('job', { activeDeployment: true });
+  job = server.create('job', { activeDeployment: true, type: 'service' });
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
