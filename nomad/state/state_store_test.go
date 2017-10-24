@@ -22,6 +22,7 @@ func testStateStore(t *testing.T) *StateStore {
 }
 
 func TestStateStore_Blocking_Error(t *testing.T) {
+	t.Parallel()
 	expected := fmt.Errorf("test error")
 	errFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
 		return nil, 0, expected
@@ -34,19 +35,20 @@ func TestStateStore_Blocking_Error(t *testing.T) {
 }
 
 func TestStateStore_Blocking_Timeout(t *testing.T) {
+	t.Parallel()
 	noopFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
 		return nil, 5, nil
 	}
 
 	state := testStateStore(t)
-	timeout := time.Now().Add(50 * time.Millisecond)
+	timeout := time.Now().Add(250 * time.Millisecond)
 	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
 	defer cancel()
 
 	_, idx, err := state.BlockingQuery(noopFn, 10, deadlineCtx)
 	assert.EqualError(t, err, context.DeadlineExceeded.Error())
 	assert.EqualValues(t, 5, idx)
-	assert.WithinDuration(t, timeout, time.Now(), 25*time.Millisecond)
+	assert.WithinDuration(t, timeout, time.Now(), 100*time.Millisecond)
 }
 
 func TestStateStore_Blocking_MinQuery(t *testing.T) {
