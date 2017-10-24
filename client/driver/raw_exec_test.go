@@ -265,7 +265,7 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 		Driver: "raw_exec",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "9000"},
+			"args":    []string{"sleep", "9000s"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -308,6 +308,12 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 	}
 	if expected := "No such file or directory"; !bytes.Contains(out, []byte(expected)) {
 		t.Fatalf("expected output to contain %q but found: %q", expected, out)
+	}
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		t.Fatalf("Shouldn't be exited: %v", res.String())
+	default:
 	}
 
 	if err := resp.Handle.Kill(); err != nil {
