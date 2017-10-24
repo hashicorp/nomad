@@ -193,27 +193,6 @@ test('each server should link to the server detail page', function(assert) {
   });
 });
 
-test('when the API returns no agents, show an empty message', function(assert) {
-  minimumSetup();
-
-  // Override the members handler to act as if server-side permissions
-  // are preventing a qualified response.
-  server.pretender.get('/v1/agent/members', () => [
-    200,
-    {},
-    JSON.stringify({
-      Members: [],
-    }),
-  ]);
-
-  visit('/servers');
-
-  andThen(() => {
-    assert.ok(find('.empty-message'));
-    assert.equal(find('.empty-message-headline').textContent, 'Invalid Permissions');
-  });
-});
-
 test('when accessing servers is forbidden, show a message with a link to the tokens page', function(
   assert
 ) {
