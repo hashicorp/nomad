@@ -19,6 +19,8 @@ export default Controller.extend(Sortable, {
   sortProperty: 'isLeader',
   sortDescending: true,
 
+  isForbidden: false,
+
   listToSort: computed.alias('agents'),
   sortedAgents: computed.alias('listSorted'),
 });

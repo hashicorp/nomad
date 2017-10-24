@@ -6,6 +6,9 @@ const { Controller, computed, inject } = Ember;
 
 export default Controller.extend(Sortable, Searchable, {
   system: inject.service(),
+  jobsController: inject.controller('jobs'),
+
+  isForbidden: computed.alias('jobsController.isForbidden'),
 
   pendingJobs: computed.filterBy('model', 'status', 'pending'),
   runningJobs: computed.filterBy('model', 'status', 'running'),

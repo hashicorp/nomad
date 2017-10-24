@@ -9,6 +9,8 @@ export default Controller.extend({
     jobNamespace: 'namespace',
   },
 
+  isForbidden: false,
+
   jobNamespace: 'default',
 
   // The namespace query param should act as an alias to the system active namespace.
