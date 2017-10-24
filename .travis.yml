@@ -23,8 +23,12 @@ matrix:
       sudo: required
     - os: linux
       dist: trusty
-      sudo: required
+      sudo: false
       env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
+    - os: linux
+      dist: trusty
+      sudo: false
+      env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
     - os: osx
       osx_image: xcode9.1
 
@@ -34,11 +38,12 @@ cache:
     - ui/node_modules
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
 
 install:
-  - make bootstrap
+  - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
+  - if [[ "$RUN_STATIC_CHECKS" ]]; then make lint-deps ; fi
 
 script:
   - sudo -E "PATH=$PATH" make travis

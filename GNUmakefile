@@ -132,24 +132,23 @@ endef
 # Reify the package targets
 $(foreach t,$(ALL_TARGETS),$(eval $(call makePackageTarget,$(t))))
 
-# Only for Travis CI compliance
 .PHONY: bootstrap
-bootstrap: deps
+bootstrap: deps lint-deps # Install all dependencies
 
 .PHONY: deps
-deps: ## Install build and development dependencies
+deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
 	go get -u github.com/kardianos/govendor
-	go get -u golang.org/x/tools/cmd/cover
-	go get -u github.com/axw/gocov/gocov
-	go get -u gopkg.in/matm/v1/gocov-html
 	go get -u github.com/ugorji/go/codec/codecgen
 	go get -u github.com/jteeuwen/go-bindata/...
 	go get -u github.com/elazarl/go-bindata-assetfs/...
-	go get -u github.com/hashicorp/vault
 	go get -u github.com/a8m/tree/cmd/tree
+
+.PHONY: lint-deps
+lint-deps: ## Install linter dependencies
+	@echo "==> Updating linter dependencies..."
+	go get -u github.com/alecthomas/gometalinter
+	gometalinter --install
 
 .PHONY: check
 check: ## Lint the source code
