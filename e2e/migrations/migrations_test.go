@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -159,7 +158,28 @@ func startCluster(clusterConfig []string) (func(), error) {
 	return f, nil
 }
 
-// TODO poll to see when the server is ready
+func bootstrapACL() (string, error) {
+	var bootstrapOut bytes.Buffer
+
+	bootstrapCmd := exec.Command("nomad", "acl", "bootstrap")
+	bootstrapCmd.Stdout = &bootstrapOut
+
+	if err := bootstrapCmd.Run(); err != nil {
+		return "", err
+	}
+
+	parts := strings.Split(bootstrapOut.String(), "\n")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("unexpected bootstrap output")
+	}
+
+	secretIDLine := strings.Split(parts[1], " ")
+	if secretIDLine[0] != "Secret" {
+		return "", fmt.Errorf("unable to find secret id in bootstrap output")
+	}
+	return secretIDLine[len(secretIDLine)-1], nil
+}
+
 func startACLServer(serverConfig string) (func(), string, error) {
 	cmd := exec.Command("nomad", "agent", "-config", serverConfig)
 	if err := cmd.Start(); err != nil {
@@ -170,24 +190,24 @@ func startACLServer(serverConfig string) (func(), string, error) {
 		cmd.Process.Kill()
 	}
 
-	time.Sleep(10 * time.Second)
+	var secretID string
+	var err error
+	testutil.WaitForResultRetries(2000, func() (bool, error) {
 
-	var bootstrapOut bytes.Buffer
+		secretIDOutput, err := bootstrapACL()
+		if err != nil {
+			return false, err
+		}
 
-	bootstrapCmd := exec.Command("nomad", "acl", "bootstrap")
-	bootstrapCmd.Stdout = &bootstrapOut
+		secretID = secretIDOutput
+		return true, nil
+	}, func(cmd_err error) {
+		err = cmd_err
+	})
 
-	if err := bootstrapCmd.Run(); err != nil {
-		return f, "", err
+	if err != nil {
+		return func() {}, "", err
 	}
-
-	parts := strings.Split(bootstrapOut.String(), "\n")
-	if len(parts) < 2 {
-		return f, "", fmt.Errorf("unexpected bootstrap output")
-	}
-
-	secretIDLine := strings.Split(parts[1], " ")
-	secretID := secretIDLine[len(secretIDLine)-1]
 
 	return f, secretID, nil
 }
