@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"flag"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -11,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
+
+var integration = flag.Bool("integration", false, "run integration tests")
 
 const sleepJobOne = `job "sleep" {
 	type = "batch"
@@ -139,6 +142,11 @@ func startCluster(clusterConfig []string) (func(), error) {
 }
 
 func TestJobMigrations(t *testing.T) {
+	flag.Parse()
+	if !*integration {
+		t.Skip("skipping test in non-integration mode.")
+	}
+
 	t.Parallel()
 	assert := assert.New(t)
 
