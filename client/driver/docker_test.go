@@ -47,8 +47,8 @@ func dockerIsRemote(t *testing.T) bool {
 // respectively.
 func dockerTask(t *testing.T) (*structs.Task, int, int) {
 	ports := freeport.GetT(t, 2)
-	docker_reserved := ports[0]
-	docker_dynamic := ports[1]
+	dockerReserved := ports[0]
+	dockerDynamic := ports[1]
 	return &structs.Task{
 		Name:   "redis-demo",
 		Driver: "docker",
@@ -68,12 +68,12 @@ func dockerTask(t *testing.T) (*structs.Task, int, int) {
 			Networks: []*structs.NetworkResource{
 				{
 					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{Label: "main", Value: docker_reserved}},
-					DynamicPorts:  []structs.Port{{Label: "REDIS", Value: docker_dynamic}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: dockerReserved}},
+					DynamicPorts:  []structs.Port{{Label: "REDIS", Value: dockerDynamic}},
 				},
 			},
 		},
-	}, docker_reserved, docker_dynamic
+	}, dockerReserved, dockerDynamic
 }
 
 // dockerSetup does all of the basic setup you need to get a running docker
