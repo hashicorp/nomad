@@ -15,6 +15,6 @@ COPY nomad /bin/nomad
 
 RUN mkdir -p /nomad/data && \
     mkdir -p /etc/nomad && \
-    mkdir -p gopkg/src/migrations
+    mkdir -p gopkg/src/github.com/nomad
 
 RUN go get github.com/stretchr/testify/assert

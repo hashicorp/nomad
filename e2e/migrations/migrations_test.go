@@ -7,45 +7,46 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/hashicorp/nomad/testutil"
 )
 
-func isSuccess(execCmd *exec.Cmd, retries int, keyword string) (bool, string) {
-	numAttempts := retries
-	success := false
-	var out bytes.Buffer
+func isSuccess(execCmd *exec.Cmd, retries int, keyword string) (string, error) {
+	var successOut string
+	var err error
 
-	for numAttempts > 0 {
-		time.Sleep(2 * time.Second)
-
+	testutil.WaitForResultRetries(2000, func() (bool, error) {
+		var out bytes.Buffer
 		cmd := *execCmd
 		cmd.Stdout = &out
-
 		err := cmd.Run()
+
 		if err != nil {
-			return false, ""
+			return false, err
 		}
 
-		success = (out.String() != "" && !strings.Contains(out.String(), keyword))
-		if success {
-			return success, out.String()
+		success := (out.String() != "" && !strings.Contains(out.String(), keyword))
+		if !success {
+			out.Reset()
+			return false, err
 		}
 
-		out.Reset()
-		numAttempts -= 1
-	}
+		successOut = out.String()
+		return true, nil
+	}, func(cmd_err error) {
+		err = cmd_err
+	})
 
-	return success, out.String()
+	return successOut, err
 }
 
-func allNomadNodesAreReady(retries int) (bool, string) {
+func allNomadNodesAreReady(retries int) (string, error) {
 	cmd := exec.Command("nomad", "node-status")
 	return isSuccess(cmd, retries, "initializing")
 }
 
-func jobIsReady(retries int, jobName string) (bool, string) {
+func jobIsReady(retries int, jobName string) (string, error) {
 	cmd := exec.Command("nomad", "job", "status", jobName)
 	return isSuccess(cmd, retries, "pending")
 }
@@ -83,8 +84,8 @@ func TestJobMigrations(t *testing.T) {
 	assert.Nil(err)
 	defer stopCluster()
 
-	isReady, _ := allNomadNodesAreReady(10)
-	assert.True(isReady)
+	_, err = allNomadNodesAreReady(10)
+	assert.Nil(err)
 
 	fh, err := ioutil.TempFile("", "nomad-sleep-1")
 	assert.Nil(err)
@@ -127,8 +128,8 @@ func TestJobMigrations(t *testing.T) {
 	err = jobCmd.Run()
 	assert.Nil(err)
 
-	isFirstJobReady, firstJoboutput := jobIsReady(20, "sleep")
-	assert.True(isFirstJobReady)
+	firstJoboutput, err := jobIsReady(20, "sleep")
+	assert.Nil(err)
 	assert.NotContains(firstJoboutput, "failed")
 
 	fh2, err := ioutil.TempFile("", "nomad-sleep-2")
@@ -169,8 +170,8 @@ func TestJobMigrations(t *testing.T) {
 	err = secondJobCmd.Run()
 	assert.Nil(err)
 
-	isReady, jobOutput := jobIsReady(20, "sleep")
-	assert.True(isReady)
+	jobOutput, err := jobIsReady(20, "sleep")
+	assert.Nil(err)
 	assert.NotContains(jobOutput, "failed")
 	assert.Contains(jobOutput, "complete")
 }
