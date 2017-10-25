@@ -82,7 +82,7 @@ func TestCommand_Args(t *testing.T) {
 // TODO Why is this failing
 func TestRetryJoin(t *testing.T) {
 	t.Parallel()
-	agent := NewTestAgent(t.Name(), nil)
+	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
 	doneCh := make(chan struct{})

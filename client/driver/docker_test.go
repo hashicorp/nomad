@@ -16,6 +16,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/consul/lib/freeport"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -42,17 +43,12 @@ func dockerIsRemote(t *testing.T) bool {
 	return false
 }
 
-// Ports used by tests
-var (
-	docker_reserved = 2000 + int(rand.Int31n(10000))
-	docker_dynamic  = 2000 + int(rand.Int31n(10000))
-)
-
 // Returns a task with a reserved and dynamic port. The ports are returned
 // respectively.
-func dockerTask() (*structs.Task, int, int) {
-	docker_reserved += 1
-	docker_dynamic += 1
+func dockerTask(t *testing.T) (*structs.Task, int, int) {
+	ports := freeport.GetT(t, 2)
+	dockerReserved := ports[0]
+	dockerDynamic := ports[1]
 	return &structs.Task{
 		Name:   "redis-demo",
 		Driver: "docker",
@@ -72,12 +68,12 @@ func dockerTask() (*structs.Task, int, int) {
 			Networks: []*structs.NetworkResource{
 				{
 					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{Label: "main", Value: docker_reserved}},
-					DynamicPorts:  []structs.Port{{Label: "REDIS", Value: docker_dynamic}},
+					ReservedPorts: []structs.Port{{Label: "main", Value: dockerReserved}},
+					DynamicPorts:  []structs.Port{{Label: "REDIS", Value: dockerDynamic}},
 				},
 			},
 		},
-	}, docker_reserved, docker_dynamic
+	}, dockerReserved, dockerDynamic
 }
 
 // dockerSetup does all of the basic setup you need to get a running docker
@@ -563,9 +559,9 @@ func TestDockerDriver_StartN(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task1, _, _ := dockerTask()
-	task2, _, _ := dockerTask()
-	task3, _, _ := dockerTask()
+	task1, _, _ := dockerTask(t)
+	task2, _, _ := dockerTask(t)
+	task3, _, _ := dockerTask(t)
 	taskList := []*structs.Task{task1, task2, task3}
 
 	handles := make([]DriverHandle, len(taskList))
@@ -617,15 +613,15 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task1, _, _ := dockerTask()
+	task1, _, _ := dockerTask(t)
 	task1.Config["image"] = "busybox"
 	task1.Config["load"] = "busybox.tar"
 
-	task2, _, _ := dockerTask()
+	task2, _, _ := dockerTask(t)
 	task2.Config["image"] = "busybox:musl"
 	task2.Config["load"] = "busybox_musl.tar"
 
-	task3, _, _ := dockerTask()
+	task3, _, _ := dockerTask(t)
 	task3.Config["image"] = "busybox:glibc"
 	task3.Config["load"] = "busybox_glibc.tar"
 
@@ -795,7 +791,7 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["labels"] = []map[string]string{
 		{
 			"label1": "value1",
@@ -830,7 +826,7 @@ func TestDockerDriver_ForcePull_IsInvalidConfig(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["force_pull"] = "nothing"
 
 	ctx := testDockerDriverContexts(t, task)
@@ -851,7 +847,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["force_pull"] = "true"
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -873,7 +869,7 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["security_opt"] = []string{"seccomp=unconfined"}
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -899,7 +895,7 @@ func TestDockerDriver_DNS(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["dns_servers"] = []string{"8.8.8.8", "8.8.4.4"}
 	task.Config["dns_search_domains"] = []string{"example.com", "example.org", "example.net"}
 	task.Config["dns_options"] = []string{"ndots:1"}
@@ -935,7 +931,7 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["mac_address"] = "00:16:3e:00:00:00"
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -961,7 +957,7 @@ func TestDockerWorkDir(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	task.Config["work_dir"] = "/some/path"
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -994,7 +990,7 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, res, dyn := dockerTask()
+	task, res, dyn := dockerTask(t)
 
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
@@ -1051,7 +1047,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, res, dyn := dockerTask()
+	task, res, dyn := dockerTask(t)
 	task.Config["port_map"] = []map[string]string{
 		{
 			"main":  "8080",

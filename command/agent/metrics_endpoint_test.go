@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,12 +42,17 @@ func TestHTTP_Metrics(t *testing.T) {
 		assert.Nil(err)
 		respW = httptest.NewRecorder()
 
-		resp, err := s.Server.MetricsRequest(respW, req)
-		assert.Nil(err)
+		testutil.WaitForResult(func() (bool, error) {
+			resp, err := s.Server.MetricsRequest(respW, req)
+			if err != nil {
+				return false, err
+			}
+			respW.Flush()
 
-		res := resp.(metrics.MetricsSummary)
-
-		gauges := res.Gauges
-		assert.NotEqual(0, len(gauges))
+			res := resp.(metrics.MetricsSummary)
+			return len(res.Gauges) != 0, nil
+		}, func(err error) {
+			t.Fatalf("should have metrics: %v", err)
+		})
 	})
 }

@@ -697,15 +697,16 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	}
 	client.SetActive(true)
 	defer client.Stop()
-	client.setLimit(rate.Limit(1.0))
 
 	waitForConnection(client, t)
+
+	client.setLimit(rate.Limit(1.0))
 
 	// Spin up many requests. These should block
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cancels := 0
-	numRequests := 10
+	numRequests := 20
 	unblock := make(chan struct{})
 	for i := 0; i < numRequests; i++ {
 		go func() {
@@ -734,13 +735,13 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 
 	desired := numRequests - 1
 	testutil.WaitForResult(func() (bool, error) {
-		if cancels != desired {
+		if desired-cancels > 2 {
 			return false, fmt.Errorf("Incorrect number of cancels; got %d; want %d", cancels, desired)
 		}
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("Connection not established")
+		t.Fatal(err)
 	})
 }
 

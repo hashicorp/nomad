@@ -221,7 +221,6 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 		fi
 
 .PHONY: test-nomad
-test-nomad: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
@@ -229,7 +228,7 @@ test-nomad: dev ## Run Nomad test suites
 			-cover \
 			-timeout=900s \
 			-tags="nomad_test $(if $(HAS_LXC),lxc)" \
-			$(LOCAL_PACKAGES)
+			./...
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
