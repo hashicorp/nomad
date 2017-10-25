@@ -100,9 +100,11 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 
 	// Enforce TLS if EnableRPC is set
 	if s.config.TLSConfig.EnableRPC && !isTLS && RPCType(buf[0]) != rpcTLS {
-		s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted with RequireTLS set")
-		conn.Close()
-		return
+		if !s.config.TLSConfig.RPCUpgradeMode {
+			s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted with RequireTLS set")
+			conn.Close()
+			return
+		}
 	}
 
 	// Switch on the byte

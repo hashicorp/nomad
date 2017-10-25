@@ -29,6 +29,11 @@ type TLSConfig struct {
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
 
+	// RPCUpgradeMode should be enabled when a cluster ie being upgraded
+	// to TLS. Allows servers to accept both plaintext and TLS connections and
+	// should only be a temporary state.
+	RPCUpgradeMode bool `mapstructure:"rpc_upgrade_mode"`
+
 	// Verify connections to the HTTPS API
 	VerifyHTTPSClient bool `mapstructure:"verify_https_client"`
 }
