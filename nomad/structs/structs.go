@@ -4605,6 +4605,9 @@ type Allocation struct {
 	// CreateTime is the time the allocation has finished scheduling and been
 	// verified by the plan applier.
 	CreateTime int64
+
+	// ModifyTime is the time the allocation was last updated.
+	ModifyTime int64
 }
 
 // Index returns the index of the allocation. If the allocation is from a task
@@ -4746,6 +4749,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
+		ModifyTime:         a.ModifyTime,
 	}
 }
 
@@ -4767,6 +4771,7 @@ type AllocListStub struct {
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
+	ModifyTime         int64
 }
 
 // AllocMetric is used to track various metrics while attempting
