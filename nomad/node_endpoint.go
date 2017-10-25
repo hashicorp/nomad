@@ -822,6 +822,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Add this to the batch
 	n.updatesLock.Lock()
+	now := time.Now().UTC().UnixNano()
+	for _, alloc := range args.Alloc {
+		alloc.ModifyTime = now
+	}
 	n.updates = append(n.updates, args.Alloc...)
 
 	// Start a new batch if none
