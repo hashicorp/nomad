@@ -72,6 +72,11 @@ const sleepJobTwo = `job "sleep" {
 	}
 }`
 
+// isSuccess waits until a given keyword is not present in the output of a
+// command. For example, isSuccess will poll for a given timeperiod as long as
+// the output of the command of "nomad node-status" includes the keyword
+// "initializing." The absence of this keyword means this command has returned
+// successfully.
 func isSuccess(execCmd *exec.Cmd, retries int, keyword string) (string, error) {
 	var successOut string
 	var err error
@@ -189,5 +194,6 @@ func TestJobMigrations(t *testing.T) {
 	jobOutput, err := jobIsReady(20, "sleep")
 	assert.Nil(err)
 	assert.NotContains(jobOutput, "failed")
+	assert.NotContains(jobOutput, "pending")
 	assert.Contains(jobOutput, "complete")
 }
