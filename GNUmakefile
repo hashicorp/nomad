@@ -1,5 +1,11 @@
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-THIS_OS := $(shell uname)
+ifeq ($(OS),Windows_NT)
+THIS_OS := Windows
+BINARY := nomad.exe
+else
+THIS_OS := $(shell uname -s)
+BINARY := nomad
+endif
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
@@ -8,10 +14,6 @@ GO_LDFLAGS := "-X main.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
 default: help
-
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
-$(error Building Nomad is currently only supported on Darwin and Linux.)
-endif
 
 # On Linux we build for Linux, Windows, and potentially Linux+LXC
 ifeq (Linux,$(THIS_OS))
@@ -96,21 +98,21 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 # windows/386 targets:
 #	CC=i686-w64-mingw32-gcc
 #	CXX=i686-w64-mingw32-g++
-pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
+pkg/windows_386/nomad.exe: $(SOURCE_FILES) ## Build Nomad for windows/386
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
-		-o "$@.exe"
+		-o "$@"
 
-pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
+pkg/windows_amd64/nomad.exe: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
-		-o "$@.exe"
+		-o "$@"
 
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
@@ -190,12 +192,12 @@ generate: ## Update generated code
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
-dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
+dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/$(BINARY)
 dev: ## Build for the current development platform
-	@echo "==> Removing old development build..."
+	@echo "==> Removing old development build..." $(DEV_TARGET) $(THIS_OS)
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
-	@rm -f $(PROJECT_ROOT)/bin/nomad
-	@rm -f $(GOPATH)/bin/nomad
+	@rm -f $(PROJECT_ROOT)/bin/$(BINARY)
+	@rm -f $(GOPATH)/bin/$(BINARY)
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
 		GO_TAGS="nomad_test $(NOMAD_UI_TAG)"

@@ -4,6 +4,7 @@
 
 LINUX_BASE_BOX = "bento/ubuntu-16.04"
 FREEBSD_BASE_BOX = "jen20/FreeBSD-11.1-RELEASE"
+WINDOWS_BASE_BOX = "sscc/win2016"
 
 Vagrant.configure(2) do |config|
 	# Compilation and development boxes
@@ -48,6 +49,30 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.provision "shell",
 			privileged: false,
 			path: './scripts/vagrant-freebsd-unpriv-bootstrap.sh'
+	end
+
+	config.vm.define "windows", autostart: false, primary: false do |vmCfg|
+		vmCfg.vm.box = WINDOWS_BASE_BOX
+		vmCfg.vm.hostname = "windows"
+        vmCfg.vm.communicator = "winrm"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores(),
+            memory: 4096
+
+		vmCfg.vm.synced_folder '.',
+            '/Users/vagrant/go/src/github.com/hashicorp/nomad'
+
+		vmCfg.vm.provision "shell",
+			powershell_elevated_interactive: true,
+            path: './scripts/vagrant-windows-choco.ps1'
+
+		vmCfg.vm.provision "shell",
+			powershell_elevated_interactive: true,
+            path: './scripts/vagrant-windows-openssh.ps1'
+
+		vmCfg.vm.provision "shell",
+			powershell_elevated_interactive: true,
+            path: './scripts/vagrant-windows-hyperv.ps1'
 	end
 
 	# Test Cluster (Linux)
