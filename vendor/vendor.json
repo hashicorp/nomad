@@ -315,10 +315,10 @@
 			"revisionTime": "2017-06-13T09:22:38Z"
 		},
 		{
-			"checksumSHA1": "/5cvgU+J4l7EhMXTK76KaCAfOuU=",
+			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
 			"path": "github.com/davecgh/go-spew/spew",
-			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
-			"revisionTime": "2016-10-29T20:57:26Z"
+			"revision": "ecdeabc65495df2dec95d7c4a4c3e021903035e5",
+			"revisionTime": "2017-10-02T20:02:53Z"
 		},
 		{
 			"checksumSHA1": "Gj+xR1VgFKKmFXYOJMnAczC3Znk=",
@@ -761,22 +761,28 @@
 			"revisionTime": "2017-10-16T16:22:40Z"
 		},
 		{
-			"checksumSHA1": "lLvSnIuLwqn3ZbX1H4dVtzKuRdU=",
-			"path": "github.com/hashicorp/consul/test/porter",
-			"revision": "51ea240df8476e02215d53fbfad5838bf0d44d21",
-			"revisionTime": "2017-10-16T16:22:40Z"
+			"checksumSHA1": "hDJiPli3EEGJE4vAezMi05oOC7o=",
+			"path": "github.com/hashicorp/consul/lib/freeport",
+			"revision": "b31cfaaf2ac5ddd6ddee1d2e1041466e939dc097",
+			"revisionTime": "2017-10-25T22:34:43Z"
 		},
 		{
-			"checksumSHA1": "AZh3opzONxPrOi+4Io2+OomdKgM=",
+			"checksumSHA1": "5XjgqE4UIfwXvkq5VssGNc7uPhQ=",
+			"path": "github.com/hashicorp/consul/test/porter",
+			"revision": "ad9425ca6353b8afcfebd19130a8cf768f7eac30",
+			"revisionTime": "2017-10-21T00:05:25Z"
+		},
+		{
+			"checksumSHA1": "+go9ycmyfF4b0W174gc7ej5mnE8=",
 			"path": "github.com/hashicorp/consul/testutil",
-			"revision": "745fd38728f28061c9f5bfe323d68ee25f2cd07b",
-			"revisionTime": "2017-10-16T23:19:35Z"
+			"revision": "350932161d6745836c1b2f39849bddb0f9fb52fd",
+			"revisionTime": "2017-10-20T23:49:17Z"
 		},
 		{
 			"checksumSHA1": "J8TTDc84MvAyXE/FrfgS+xc/b6s=",
 			"path": "github.com/hashicorp/consul/testutil/retry",
-			"revision": "745fd38728f28061c9f5bfe323d68ee25f2cd07b",
-			"revisionTime": "2017-10-16T23:19:35Z"
+			"revision": "350932161d6745836c1b2f39849bddb0f9fb52fd",
+			"revisionTime": "2017-10-20T23:49:17Z"
 		},
 		{
 			"path": "github.com/hashicorp/errwrap",
@@ -1441,6 +1447,12 @@
 			"revisionTime": "2017-09-20T12:17:54Z"
 		},
 		{
+			"checksumSHA1": "I778b2sbNN/yjwKSdb3y7hz2yUQ=",
+			"path": "github.com/rs/cors",
+			"revision": "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8",
+			"revisionTime": "2017-08-01T07:32:01Z"
+		},
+		{
 			"checksumSHA1": "M57Rrfc8Z966p+IBtQ91QOcUtcg=",
 			"comment": "v2.0.1-8-g983d3a5",
 			"path": "github.com/ryanuber/columnize",
@@ -1538,10 +1550,10 @@
 			"revisionTime": "2017-06-01T20:57:54Z"
 		},
 		{
-			"checksumSHA1": "9Zw986fuQM/hCoVd8vmHoSM+8sU=",
+			"checksumSHA1": "8G1zvpE4gTtWQRuP/x2HPVDmflo=",
 			"path": "github.com/ugorji/go/codec",
-			"revision": "5efa3251c7f7d05e5d9704a69a984ec9f1386a40",
-			"revisionTime": "2017-06-20T10:48:52Z"
+			"revision": "0053ebfd9d0ee06ccefbfe17072021e1d4acebee",
+			"revisionTime": "2017-06-20T06:01:02Z"
 		},
 		{
 			"checksumSHA1": "OgParimNuU2CJqr3pcTympeQZUc=",

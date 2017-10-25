@@ -24,18 +24,6 @@ test('the searchable mixin does nothing when there is no search term', function(
   assert.deepEqual(subject.get('listSearched'), subject.get('source'));
 });
 
-test('the searchable mixin allows for fuzzy match search', function(assert) {
-  const subject = this.subject();
-  subject.set('source', [{ id: '1', name: 'hello' }, { id: '2', name: 'world' }]);
-
-  subject.set('searchTerm', 'helo');
-  assert.deepEqual(
-    subject.get('listSearched'),
-    [{ id: '1', name: 'hello' }],
-    'hello matched for the term helo'
-  );
-});
-
 test('the searchable mixin allows for regex search', function(assert) {
   const subject = this.subject();
   subject.set('source', [
@@ -44,7 +32,7 @@ test('the searchable mixin allows for regex search', function(assert) {
     { id: '3', name: 'oranges' },
   ]);
 
-  subject.set('searchTerm', '/.+l+[A-Z]$');
+  subject.set('searchTerm', '.+l+[A-Z]$');
   assert.deepEqual(
     subject.get('listSearched'),
     [{ id: '1', name: 'hello' }, { id: '2', name: 'world' }],
@@ -60,7 +48,7 @@ test('the searchable mixin only searches the declared search props', function(as
     { id: '3', name: 'Mexico', continent: 'North America' },
   ]);
 
-  subject.set('searchTerm', '/America');
+  subject.set('searchTerm', 'America');
   assert.deepEqual(
     subject.get('listSearched'),
     [{ id: '1', name: 'United States of America', continent: 'North America' }],

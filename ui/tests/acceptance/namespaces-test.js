@@ -101,8 +101,8 @@ test('changing the namespace refreshes the jobs list when on the jobs page', fun
     assert.equal(requests.length, 1, 'First request to jobs');
     assert.equal(
       requests[0].queryParams.namespace,
-      'default',
-      'Namespace query param is defaulted to "default"'
+      undefined,
+      'Namespace query param is defaulted to "default"/undefined'
     );
   });
 

@@ -14,6 +14,14 @@ export default ApplicationSerializer.extend({
       return assign({ Name: key }, deploymentStats);
     });
 
+    hash.PlainJobId = hash.JobID;
+    hash.Namespace =
+      hash.Namespace ||
+      get(hash, 'Job.Namespace') ||
+      this.get('system.activeNamespace.id') ||
+      'default';
+    hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
+
     return this._super(typeHash, hash);
   },
 

@@ -1,8 +1,10 @@
 import Ember from 'ember';
 
-const { Route } = Ember;
+const { Route, inject } = Ember;
 
 export default Route.extend({
+  config: inject.service(),
+
   resetController(controller, isExiting) {
     if (isExiting) {
       controller.set('error', null);
@@ -11,7 +13,9 @@ export default Route.extend({
 
   actions: {
     didTransition() {
-      window.scrollTo(0, 0);
+      if (!this.get('config.isTest')) {
+        window.scrollTo(0, 0);
+      }
     },
 
     willTransition() {

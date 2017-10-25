@@ -196,9 +196,6 @@ func (d *cborDecDriver) uncacheRead() {
 }
 
 func (d *cborDecDriver) ContainerType() (vt valueType) {
-	if !d.bdRead {
-		d.readNextBd()
-	}
 	if d.bd == cborBdNil {
 		return valueTypeNil
 	} else if d.bd == cborBdIndefiniteBytes || (d.bd >= cborBaseBytes && d.bd < cborBaseString) {
@@ -354,9 +351,6 @@ func (d *cborDecDriver) DecodeBool() (b bool) {
 }
 
 func (d *cborDecDriver) ReadMapStart() (length int) {
-	if !d.bdRead {
-		d.readNextBd()
-	}
 	d.bdRead = false
 	if d.bd == cborBdIndefiniteMap {
 		return -1
@@ -365,9 +359,6 @@ func (d *cborDecDriver) ReadMapStart() (length int) {
 }
 
 func (d *cborDecDriver) ReadArrayStart() (length int) {
-	if !d.bdRead {
-		d.readNextBd()
-	}
 	d.bdRead = false
 	if d.bd == cborBdIndefiniteArray {
 		return -1

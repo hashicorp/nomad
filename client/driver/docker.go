@@ -413,7 +413,14 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 				break
 			}
 
-			node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+			if n.IPAM.Config[0].Gateway != "" {
+				node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+			} else if d.fingerprintSuccess == nil {
+				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
+				// See https://github.com/moby/moby/issues/32648
+				d.logger.Printf("[DEBUG] driver.docker: bridge_ip could not be discovered")
+			}
+			break
 		}
 	}
 
@@ -1547,6 +1554,10 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 	if !ok {
 		return fmt.Errorf("Failed to determine signal number")
 	}
+
+	// TODO When we expose signals we will need a mapping layer that converts
+	// MacOS signals to the correct signal number for docker. Or we change the
+	// interface to take a signal string and leave it up to driver to map?
 
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{

@@ -16,12 +16,29 @@ export default function() {
 
   this.get('/jobs', function({ jobs }, { queryParams }) {
     const json = this.serialize(jobs.all());
+    const namespace = queryParams.namespace || 'default';
     return json
-      .filter(job => (queryParams.namespace ? job.NamespaceID === queryParams.namespace : true))
+      .filter(
+        job =>
+          namespace === 'default'
+            ? !job.NamespaceID || job.NamespaceID === namespace
+            : job.NamespaceID === namespace
+      )
       .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
   });
 
-  this.get('/job/:id');
+  this.get('/job/:id', function({ jobs }, { params, queryParams }) {
+    const job = jobs.all().models.find(job => {
+      const jobIsDefault = !job.namespaceId || job.namespaceId === 'default';
+      const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
+      return (
+        job.id === params.id &&
+        (job.namespaceId === queryParams.namespace || (jobIsDefault && qpIsDefault))
+      );
+    });
+
+    return job ? this.serialize(job) : new Response(404, {}, null);
+  });
 
   this.get('/job/:id/summary', function({ jobSummaries }, { params }) {
     return this.serialize(jobSummaries.findBy({ jobId: params.id }));

@@ -17,6 +17,7 @@ import (
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/rs/cors"
 	"github.com/ugorji/go/codec"
 )
 
@@ -41,6 +42,13 @@ var (
 
 	// Overridden if the ui build tag isn't enabled
 	stubHTML = ""
+
+	// allowCORS sets permissive CORS headers for a handler
+	allowCORS = cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"HEAD", "GET"},
+		AllowedHeaders: []string{"*"},
+	})
 )
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
@@ -178,9 +186,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/token/", s.wrap(s.ACLTokenSpecificRequest))
 
 	s.mux.HandleFunc("/v1/client/fs/", s.wrap(s.FsRequest))
-	s.mux.HandleFunc("/v1/client/stats", s.wrap(s.ClientStatsRequest))
-	s.mux.HandleFunc("/v1/client/allocation/", s.wrap(s.ClientAllocRequest))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
+	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
+	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
@@ -467,4 +475,9 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 	parseNamespace(req, &w.Namespace)
 	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
+}
+
+// wrapCORS wraps a HandlerFunc in allowCORS and returns a http.Handler
+func wrapCORS(f func(http.ResponseWriter, *http.Request)) http.Handler {
+	return allowCORS.Handler(http.HandlerFunc(f))
 }

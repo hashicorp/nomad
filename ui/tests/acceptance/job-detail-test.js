@@ -12,8 +12,7 @@ let job;
 moduleForAcceptance('Acceptance | job detail', {
   beforeEach() {
     server.create('node');
-    server.create('job');
-    job = server.db.jobs[0];
+    job = server.create('job', { type: 'service' });
     visit(`/jobs/${job.id}`);
   },
 });
@@ -33,6 +32,27 @@ test('breadcrumbs includes job name and link back to the jobs list', function(as
   click(findAll('.breadcrumb')[0]);
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
+  });
+});
+
+test('the subnav includes links to definition, versions, and deployments when type = service', function(
+  assert
+) {
+  const subnavLabels = findAll('.tabs.is-subnav a').map(anchor => anchor.textContent);
+  assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
+  assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
+  assert.ok(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
+});
+
+test('the subnav includes links to definition and versions when type != service', function(assert) {
+  job = server.create('job', { type: 'batch' });
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    const subnavLabels = findAll('.tabs.is-subnav a').map(anchor => anchor.textContent);
+    assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
+    assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
+    assert.notOk(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
   });
 });
 
@@ -58,8 +78,22 @@ test('each row in the task group table should show basic information about the t
   const tasks = server.db.tasks.where({ taskGroupId: taskGroup.id });
   const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
-  assert.equal(taskGroupRow.find('td:eq(0)').text(), taskGroup.name, 'Name');
-  assert.equal(taskGroupRow.find('td:eq(1)').text(), taskGroup.count, 'Count');
+  assert.equal(
+    taskGroupRow
+      .find('td:eq(0)')
+      .text()
+      .trim(),
+    taskGroup.name,
+    'Name'
+  );
+  assert.equal(
+    taskGroupRow
+      .find('td:eq(1)')
+      .text()
+      .trim(),
+    taskGroup.count,
+    'Count'
+  );
   assert.equal(
     taskGroupRow.find('td:eq(3)').text(),
     `${sum(tasks, 'Resources.CPU')} MHz`,
@@ -136,7 +170,7 @@ test('there is no active deployment section when the job has no active deploymen
 ) {
   // TODO: it would be better to not visit two different job pages in one test, but this
   // way is much more convenient.
-  job = server.create('job', { noActiveDeployment: true });
+  job = server.create('job', { noActiveDeployment: true, type: 'service' });
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
@@ -147,7 +181,7 @@ test('there is no active deployment section when the job has no active deploymen
 test('the active deployment section shows up for the currently running deployment', function(
   assert
 ) {
-  job = server.create('job', { activeDeployment: true });
+  job = server.create('job', { activeDeployment: true, type: 'service' });
   const deployment = server.db.deployments.where({ jobId: job.id })[0];
   const taskGroupSummaries = server.db.deploymentTaskGroupSummaries.where({
     deploymentId: deployment.id,
@@ -232,7 +266,7 @@ test('the active deployment section shows up for the currently running deploymen
 test('the active deployment section can be expanded to show task groups and allocations', function(
   assert
 ) {
-  job = server.create('job', { activeDeployment: true });
+  job = server.create('job', { activeDeployment: true, type: 'service' });
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
@@ -283,19 +317,58 @@ test('when the job is not found, an error message is shown, but the URL persists
   });
 });
 
+moduleForAcceptance('Acceptance | job detail (with namespaces)', {
+  beforeEach() {
+    server.createList('namespace', 2);
+    server.create('node');
+    job = server.create('job', { namespaceId: server.db.namespaces[1].name });
+    server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
+  },
+});
+
 test('when there are namespaces, the job detail page states the namespace for the job', function(
   assert
 ) {
-  server.createList('namespace', 2);
-  job = server.create('job');
   const namespace = server.db.namespaces.find(job.namespaceId);
-
-  visit(`/jobs/${job.id}`);
+  visit(`/jobs/${job.id}?namespace=${namespace.name}`);
 
   andThen(() => {
     assert.ok(
       findAll('.job-stats span')[2].textContent.includes(namespace.name),
       'Namespace included in stats'
     );
+  });
+});
+
+test('when switching namespaces, the app redirects to /jobs with the new namespace', function(
+  assert
+) {
+  const namespace = server.db.namespaces.find(job.namespaceId);
+  const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
+  const label = otherNamespace === 'default' ? 'Default Namespace' : otherNamespace;
+
+  visit(`/jobs/${job.id}?namespace=${namespace.name}`);
+
+  andThen(() => {
+    selectChoose('.namespace-switcher', label);
+  });
+
+  andThen(() => {
+    assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
+    const jobs = server.db.jobs
+      .where({ namespace: otherNamespace })
+      .sortBy('modifyIndex')
+      .reverse();
+    assert.equal(findAll('.job-row').length, jobs.length, 'Shows the right number of jobs');
+    jobs.forEach((job, index) => {
+      assert.equal(
+        $(findAll('.job-row')[index])
+          .find('td:eq(0)')
+          .text()
+          .trim(),
+        job.name,
+        `Job ${index} is right`
+      );
+    });
   });
 });

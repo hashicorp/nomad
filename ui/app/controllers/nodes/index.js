@@ -2,9 +2,11 @@ import Ember from 'ember';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-const { Controller, computed } = Ember;
+const { Controller, computed, inject } = Ember;
 
 export default Controller.extend(Sortable, Searchable, {
+  nodesController: inject.controller('nodes'),
+
   nodes: computed.alias('model.nodes'),
   agents: computed.alias('model.agents'),
 
@@ -26,6 +28,8 @@ export default Controller.extend(Sortable, Searchable, {
   listToSort: computed.alias('nodes'),
   listToSearch: computed.alias('listSorted'),
   sortedNodes: computed.alias('listSearched'),
+
+  isForbidden: computed.alias('nodesController.isForbidden'),
 
   actions: {
     gotoNode(node) {

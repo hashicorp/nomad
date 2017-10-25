@@ -10,6 +10,7 @@ const { computed } = Ember;
 export default Model.extend({
   region: attr('string'),
   name: attr('string'),
+  plainId: attr('string'),
   type: attr('string'),
   priority: attr('number'),
   allAtOnce: attr('boolean'),
@@ -53,6 +54,8 @@ export default Model.extend({
   allocations: hasMany('allocations'),
   deployments: hasMany('deployments'),
   namespace: belongsTo('namespace'),
+
+  supportsDeployments: computed.equal('type', 'service'),
 
   runningDeployment: computed('deployments.@each.status', function() {
     return this.get('deployments').findBy('status', 'running');

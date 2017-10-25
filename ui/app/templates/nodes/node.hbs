@@ -1,5 +1,5 @@
 {{#global-header class="page-header"}}
-  <a href="{{href-to "nodes"}}" class="breadcrumb">Nodes</a>
+  {{#link-to "nodes" class="breadcrumb"}}Nodes{{/link-to}}
   <span class="breadcrumb">{{model.shortId}}</span>
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
@@ -40,9 +40,11 @@
             class="allocations with-foot" as |t|}}
             {{#t.head}}
               {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+              {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
               {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-              {{#t.sort-by prop="clientStatus"}}Status{{/t.sort-by}}
+              {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
               {{#t.sort-by prop="job.name"}}Job{{/t.sort-by}}
+              {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
               <th>CPU</th>
               <th>Memory</th>
             {{/t.head}}

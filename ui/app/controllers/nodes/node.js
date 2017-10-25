@@ -18,7 +18,7 @@ export default Controller.extend(Sortable, Searchable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  searchProps: computed(() => ['id', 'name']),
+  searchProps: computed(() => ['shortId', 'name']),
 
   listToSort: computed.alias('model.allocations'),
   listToSearch: computed.alias('listSorted'),

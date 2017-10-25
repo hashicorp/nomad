@@ -12,12 +12,12 @@
           </tr>
         </thead>
         <tbody>
-          {{#each-in model.tags as |name value|}}
+          {{#each sortedTags as |tag|}}
             <tr>
-              <td>{{name}}</td>
-              <td>{{value}}</td>
+              <td>{{tag.name}}</td>
+              <td>{{tag.value}}</td>
             </tr>
-          {{/each-in}}
+          {{/each}}
         </tbody>
       </table>
     </div>

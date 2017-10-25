@@ -1,5 +1,4 @@
 import Ember from 'ember';
-import Fuse from 'npm:fuse.js';
 
 const { Mixin, computed, get } = Ember;
 
@@ -14,46 +13,26 @@ const { Mixin, computed, get } = Ember;
     - listToSearch: the list of objects to search
 
   Properties provided:
-    - listSearched: a subset of listToSearch of items that meet the search criteria,
-                    ordered by relevance.
+    - listSearched: a subset of listToSearch of items that meet the search criteria
 */
 export default Mixin.create({
   searchTerm: '',
   listToSearch: computed(() => []),
   searchProps: null,
 
-  fuse: computed('listToSearch.[]', 'searchProps.[]', function() {
-    return new Fuse(this.get('listToSearch'), {
-      shouldSort: true,
-      threshold: 0.6,
-      location: 0,
-      distance: 100,
-      maxPatternLength: 32,
-      minMatchCharLength: 1,
-      keys: this.get('searchProps') || [],
-      getFn(item, key) {
-        return get(item, key);
-      },
-    });
-  }),
-
-  listSearched: computed('fuse', 'searchTerm', function() {
-    const { fuse, searchTerm } = this.getProperties('fuse', 'searchTerm');
+  listSearched: computed('searchTerm', 'listToSearch.[]', 'searchProps.[]', function() {
+    const searchTerm = this.get('searchTerm');
     if (searchTerm && searchTerm.length) {
-      if (searchTerm.startsWith('/')) {
-        return regexSearch(searchTerm, fuse);
-      }
-      return fuse.search(searchTerm);
+      return regexSearch(searchTerm, this.get('listToSearch'), this.get('searchProps'));
     }
     return this.get('listToSearch');
   }),
 });
 
-function regexSearch(term, { list, options: { keys } }) {
-  const regexStr = term.slice(1);
-  if (regexStr.length) {
+function regexSearch(term, list, keys) {
+  if (term.length) {
     try {
-      const regex = new RegExp(regexStr, 'i');
+      const regex = new RegExp(term, 'i');
       // Test the value of each key for each object against the regex
       // All that match are returned.
       return list.filter(item => keys.some(key => regex.test(get(item, key))));

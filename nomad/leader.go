@@ -117,6 +117,10 @@ WAIT:
 // previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	// Generate a leader ACL token. This will allow the leader to issue work
+	// that requires a valid ACL token.
+	s.setLeaderAcl(uuid.Generate())
+
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
 	if numWorkers := len(s.workers); numWorkers > 1 {
@@ -414,6 +418,7 @@ func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,
 		JobID:       job,
+		LeaderACL:   s.getLeaderAcl(),
 		Status:      structs.EvalStatusPending,
 		ModifyIndex: modifyIndex,
 	}
@@ -517,6 +522,9 @@ func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	// Clear the leader token since we are no longer the leader.
+	s.setLeaderAcl("")
+
 	// Disable the plan queue, since we are no longer leader
 	s.planQueue.SetEnabled(false)
 

@@ -5,14 +5,55 @@ package driver
 import (
 	"io/ioutil"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
+
+func TestRawExecDriver_User(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
+	task := &structs.Task{
+		Name:   "sleep",
+		Driver: "raw_exec",
+		User:   "alice",
+		Config: map[string]interface{}{
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "45s"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+	testtask.SetTaskEnv(task)
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewRawExecDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	resp, err := d.Start(ctx.ExecCtx, task)
+	if err == nil {
+		resp.Handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "unknown user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
 
 func TestRawExecDriver_Signal(t *testing.T) {
 	t.Parallel()

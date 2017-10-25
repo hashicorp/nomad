@@ -188,13 +188,13 @@ job "job1" {
 		stdinW.Close()
 	}()
 
-	args := []string{"-"}
+	args := []string{"-address=nope", "-"}
 	if code := cmd.Run(args); code != 1 {
 		t.Fatalf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String())
 	}
 
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "connection refused") {
-		t.Fatalf("expected connection refused error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error submitting job") {
+		t.Fatalf("expected submission error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 }

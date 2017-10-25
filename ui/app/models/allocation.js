@@ -3,14 +3,23 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import fetch from 'fetch';
 import PromiseObject from '../utils/classes/promise-object';
 import timeout from '../utils/timeout';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
-const { computed, RSVP } = Ember;
+const { computed, RSVP, inject } = Ember;
+
+const STATUS_ORDER = {
+  pending: 1,
+  running: 2,
+  complete: 3,
+  failed: 4,
+  lost: 5,
+};
 
 export default Model.extend({
+  token: inject.service(),
+
   shortId: shortUUIDProperty('id'),
   job: belongsTo('job'),
   node: belongsTo('node'),
@@ -18,12 +27,16 @@ export default Model.extend({
   taskGroupName: attr('string'),
   resources: fragment('resources'),
   modifyIndex: attr('number'),
+  jobVersion: attr('number'),
 
   // TEMPORARY: https://github.com/emberjs/data/issues/5209
   originalJobId: attr('string'),
 
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
+  statusIndex: computed('clientStatus', function() {
+    return STATUS_ORDER[this.get('clientStatus')] || 100;
+  }),
 
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
@@ -32,7 +45,7 @@ export default Model.extend({
 
   memoryUsed: computed.readOnly('stats.ResourceUsage.MemoryStats.RSS'),
   cpuUsed: computed('stats.ResourceUsage.CpuStats.TotalTicks', function() {
-    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks'));
+    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks') || 0);
   }),
 
   percentMemory: computed('taskGroup.reservedMemory', 'memoryUsed', function() {
@@ -44,8 +57,13 @@ export default Model.extend({
     return used / total;
   }),
 
-  percentCPU: computed('stats.ResourceUsage.CpuStats.Percent', function() {
-    return this.get('stats.ResourceUsage.CpuStats.Percent') || 0;
+  percentCPU: computed('cpuUsed', 'taskGroup.reservedCPU', function() {
+    const used = this.get('cpuUsed');
+    const total = this.get('taskGroup.reservedCPU');
+    if (!total || !used) {
+      return 0;
+    }
+    return used / total;
   }),
 
   stats: computed('node.{isPartial,httpAddr}', function() {
@@ -62,7 +80,12 @@ export default Model.extend({
 
     const url = `//${this.get('node.httpAddr')}/v1/client/allocation/${this.get('id')}/stats`;
     return PromiseObject.create({
-      promise: RSVP.Promise.race([fetch(url).then(res => res.json()), timeout(2000)]),
+      promise: RSVP.Promise.race([
+        this.get('token')
+          .authorizedRequest(url)
+          .then(res => res.json()),
+        timeout(2000),
+      ]),
     });
   }),
 

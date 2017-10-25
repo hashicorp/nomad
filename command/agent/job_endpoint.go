@@ -132,6 +132,8 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		},
 	}
 	s.parseWriteRequest(req, &planReq.WriteRequest)
+	planReq.Namespace = sJob.Namespace
+
 	var out structs.JobPlanResponse
 	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
 		return nil, err
@@ -162,6 +164,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 		},
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
+	args.Namespace = job.Namespace
 
 	var out structs.JobValidateResponse
 	if err := s.agent.RPC("Job.Validate", &args, &out); err != nil {
@@ -363,6 +366,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		},
 	}
 	s.parseWriteRequest(req, &regReq.WriteRequest)
+	regReq.Namespace = sJob.Namespace
+
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
 		return nil, err

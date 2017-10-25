@@ -10,4 +10,5 @@ export default Service.extend({
 
   isDev: computed.equal('environment', 'development'),
   isProd: computed.equal('environment', 'production'),
+  isTest: computed.equal('environment', 'test'),
 });

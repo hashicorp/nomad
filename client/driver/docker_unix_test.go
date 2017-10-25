@@ -20,7 +20,7 @@ func TestDockerDriver_Signal(t *testing.T) {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
-		t.SkipNow()
+		t.Skip("Docker not connected")
 	}
 
 	task := &structs.Task{
@@ -43,7 +43,6 @@ func TestDockerDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDockerDriverContexts(t, task)
-	//ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	defer ctx.AllocDir.Destroy()
 	d := NewDockerDriver(ctx.DriverCtx)
 
@@ -53,12 +52,13 @@ func TestDockerDriver_Signal(t *testing.T) {
 	testFile := filepath.Join(ctx.ExecCtx.TaskDir.LocalDir, "test.sh")
 	testData := []byte(`
 at_term() {
-    echo 'Terminated.'
+    echo 'Terminated.' > $NOMAD_TASK_DIR/output
     exit 3
 }
-trap at_term USR1
+trap at_term INT
 while true; do
-    sleep 1
+    echo 'sleeping'
+    sleep 0.2
 done
 	`)
 	if err := ioutil.WriteFile(testFile, testData, 0777); err != nil {
@@ -78,7 +78,7 @@ done
 	waitForExist(t, resp.Handle.(*DockerHandle).client, resp.Handle.(*DockerHandle))
 
 	time.Sleep(1 * time.Second)
-	if err := resp.Handle.Signal(syscall.SIGUSR1); err != nil {
+	if err := resp.Handle.Signal(syscall.SIGINT); err != nil {
 		t.Fatalf("Signal returned an error: %v", err)
 	}
 
@@ -92,7 +92,7 @@ done
 	}
 
 	// Check the log file to see it exited because of the signal
-	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "redis-demo.stdout.0")
+	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LocalDir, "output")
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
