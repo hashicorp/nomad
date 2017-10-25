@@ -166,6 +166,11 @@ type Server struct {
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
 
+	// leaderAcl is the management ACL token that is valid when resolved by the
+	// current leader.
+	leaderAcl     string
+	leaderAclLock sync.Mutex
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -1068,6 +1073,20 @@ func (s *Server) Encrypted() bool {
 // be used to modify state directly.
 func (s *Server) State() *state.StateStore {
 	return s.fsm.State()
+}
+
+// setLeaderAcl stores the given ACL token as the current leader's ACL token.
+func (s *Server) setLeaderAcl(token string) {
+	s.leaderAclLock.Lock()
+	s.leaderAcl = token
+	s.leaderAclLock.Unlock()
+}
+
+// getLeaderAcl retrieves the leader's ACL token
+func (s *Server) getLeaderAcl() string {
+	s.leaderAclLock.Lock()
+	defer s.leaderAclLock.Unlock()
+	return s.leaderAcl
 }
 
 // Regions returns the known regions in the cluster.

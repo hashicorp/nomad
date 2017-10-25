@@ -23,11 +23,14 @@ test('the server detail page should list all tags for the server', function(asse
   const tags = agent.tags;
 
   assert.equal(findAll('.server-tags tbody tr').length, Object.keys(tags).length, '# of tags');
-  Object.keys(tags).forEach((key, index) => {
-    const row = $(`.server-tags tbody tr:eq(${index})`);
-    assert.equal(row.find('td:eq(0)').text(), key, `Label: ${key}`);
-    assert.equal(row.find('td:eq(1)').text(), tags[key], `Value: ${tags[key]}`);
-  });
+  Object.keys(tags)
+    .map(name => ({ name, value: tags[name] }))
+    .sortBy('name')
+    .forEach((tag, index) => {
+      const row = $(`.server-tags tbody tr:eq(${index})`);
+      assert.equal(row.find('td:eq(0)').text(), tag.name, `Label: ${tag.name}`);
+      assert.equal(row.find('td:eq(1)').text(), tag.value, `Value: ${tag.value}`);
+    });
 });
 
 test('the list of servers from /servers should still be present', function(assert) {

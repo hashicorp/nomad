@@ -1,9 +1,16 @@
 {{#global-header class="page-header"}}
   {{#each breadcrumbs as |breadcrumb|}}
-    <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+    {{#link-to
+      params=(append
+        breadcrumb.args
+        (query-params jobNamespace=(or model.namespace.id "default"))
+      )
+      class="breadcrumb"}}
+      {{breadcrumb.label}}
+    {{/link-to}}
   {{/each}}
 {{/global-header}}
-{{#gutter-menu class="page-body"}}
+{{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
   <div class="tabs is-subnav">
     <ul>
       <li>{{#link-to "jobs.job.task-group" model.job model activeClass="is-active"}}Overview{{/link-to}}</li>
@@ -64,11 +71,14 @@
           {{#list-table
             source=p.list
             sortProperty=sortProperty
-            sortDescending=sortDescending as |t|}}
+            sortDescending=sortDescending
+            class="with-foot" as |t|}}
             {{#t.head}}
               {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+              {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
               {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-              {{#t.sort-by prop="clientStatus"}}Status{{/t.sort-by}}
+              {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
+              {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
               {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
               <th>CPU</th>
               <th>Memory</th>
@@ -77,19 +87,16 @@
               {{allocation-row allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
             {{/t.body}}
           {{/list-table}}
-          <nav class="pagination is-centered">
-            <ul class="pagination-list">
-              {{#p.first class="pagination-link"}} |&lt; {{/p.first}}
-              {{#p.prev class="pagination-link"}} &lt; {{/p.prev}}
-              {{#each p.pageLinks as |link|}}
-                {{#link-to (query-params currentPage=link.pageNumber) class="pagination-link" activeClass="is-current"}}
-                  {{link.pageNumber}}
-                {{/link-to}}
-              {{/each}}
-              {{#p.next class="pagination-link"}} &gt; {{/p.next}}
-              {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
-            </ul>
-          </nav>
+          <div class="table-foot">
+            <nav class="pagination">
+              <div class="pagination-numbers">
+                {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
+              </div>
+              {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+              {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+              <ul class="pagination-list"></ul>
+            </nav>
+          </div>
         {{else}}
           <div class="boxed-section-body">
             <div class="empty-message">

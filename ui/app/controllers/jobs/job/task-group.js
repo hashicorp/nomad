@@ -1,10 +1,11 @@
 import Ember from 'ember';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
+import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
 const { Controller, computed, inject } = Ember;
 
-export default Controller.extend(Sortable, Searchable, {
+export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
   jobController: inject.controller('jobs.job'),
 
   queryParams: {
@@ -17,10 +18,10 @@ export default Controller.extend(Sortable, Searchable, {
   currentPage: 1,
   pageSize: 10,
 
-  sortProperty: 'name',
-  sortDescending: false,
+  sortProperty: 'modifyIndex',
+  sortDescending: true,
 
-  searchProps: computed(() => ['id', 'name']),
+  searchProps: computed(() => ['shortId', 'name']),
 
   allocations: computed('model.allocations.[]', function() {
     return this.get('model.allocations') || [];

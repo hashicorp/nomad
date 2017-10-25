@@ -20,7 +20,7 @@ This is not present in the open source version of Nomad.
 When many teams or users are sharing Nomad clusters, there is the concern that a
 single user could use more than their fair share of resources. Resource quotas
 provide a mechanism for cluster administrators to restrict the resources that a
-[namespace](/guides/namespace.html) has access to.
+[namespace](/guides/namespaces.html) has access to.
 
 ## Quotas Objects
 
@@ -40,7 +40,7 @@ available by either other jobs finishing or the quota being expanded.
 ## Working with Quotas
 
 For specific details about working with quotas, see the [quotas
-commands](/docs/commands/quotas.html) and [HTTP API](/api/quotas.html)
+commands](/docs/commands/quota.html) and [HTTP API](/api/quotas.html)
 documentation.
 
 ### Creating quotas:

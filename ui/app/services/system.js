@@ -28,6 +28,11 @@ export default Service.extend({
     return this.get('store').findAll('namespace');
   }),
 
+  shouldShowNamespaces: computed('namespaces.[]', function() {
+    const namespaces = this.get('namespaces').toArray();
+    return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
+  }),
+
   activeNamespace: computed('namespaces.[]', {
     get() {
       const namespaceId = window.localStorage.nomadActiveNamespace || 'default';

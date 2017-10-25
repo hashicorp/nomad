@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -764,7 +763,7 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		},
 		Addresses: &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{
-			RPC: "{{ GetPrivateIP }}:8888",
+			RPC: "{{ GetPrivateIP }}",
 		},
 		Server: &ServerConfig{
 			Enabled: true,
@@ -775,16 +774,19 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		t.Fatalf("unable to normalize addresses: %s", err)
 	}
 
-	if c.AdvertiseAddrs.HTTP != fmt.Sprintf("%s:4646", c.BindAddr) {
-		t.Fatalf("expected HTTP advertise address %s:4646, got %s", c.BindAddr, c.AdvertiseAddrs.HTTP)
+	exp := net.JoinHostPort(c.BindAddr, "4646")
+	if c.AdvertiseAddrs.HTTP != exp {
+		t.Fatalf("expected HTTP advertise address %s, got %s", exp, c.AdvertiseAddrs.HTTP)
 	}
 
-	if c.AdvertiseAddrs.RPC != fmt.Sprintf("%s:8888", c.BindAddr) {
-		t.Fatalf("expected RPC advertise address %s:8888, got %s", c.BindAddr, c.AdvertiseAddrs.RPC)
+	exp = net.JoinHostPort(c.BindAddr, "4647")
+	if c.AdvertiseAddrs.RPC != exp {
+		t.Fatalf("expected RPC advertise address %s, got %s", exp, c.AdvertiseAddrs.RPC)
 	}
 
-	if c.AdvertiseAddrs.Serf != fmt.Sprintf("%s:4648", c.BindAddr) {
-		t.Fatalf("expected Serf advertise address %s:4648, got %s", c.BindAddr, c.AdvertiseAddrs.Serf)
+	exp = net.JoinHostPort(c.BindAddr, "4648")
+	if c.AdvertiseAddrs.Serf != exp {
+		t.Fatalf("expected Serf advertise address %s, got %s", exp, c.AdvertiseAddrs.Serf)
 	}
 
 	// allow to advertise 127.0.0.1 in non-dev mode, if explicitly configured to do so

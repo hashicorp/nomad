@@ -104,6 +104,28 @@ test('when there are clients, but no matches for a search term, there is an empt
   });
 });
 
+test('when accessing clients is forbidden, show a message with a link to the tokens page', function(
+  assert
+) {
+  server.create('agent');
+  server.create('node', { name: 'node' });
+  server.pretender.get('/v1/nodes', () => [403, {}, null]);
+
+  visit('/nodes');
+
+  andThen(() => {
+    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+  });
+
+  andThen(() => {
+    click('.empty-message-body a');
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/settings/tokens');
+  });
+});
+
 test('/servers should list all servers', function(assert) {
   const agentsCount = 10;
   const pageSize = 8;
@@ -171,23 +193,23 @@ test('each server should link to the server detail page', function(assert) {
   });
 });
 
-test('when the API returns no agents, show an empty message', function(assert) {
-  minimumSetup();
-
-  // Override the members handler to act as if server-side permissions
-  // are preventing a qualified response.
-  server.pretender.get('/v1/agent/members', () => [
-    200,
-    {},
-    JSON.stringify({
-      Members: [],
-    }),
-  ]);
+test('when accessing servers is forbidden, show a message with a link to the tokens page', function(
+  assert
+) {
+  server.create('agent');
+  server.pretender.get('/v1/agent/members', () => [403, {}, null]);
 
   visit('/servers');
 
   andThen(() => {
-    assert.ok(find('.empty-message'));
-    assert.equal(find('.empty-message-headline').textContent, 'Invalid Permissions');
+    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+  });
+
+  andThen(() => {
+    click('.empty-message-body a');
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/settings/tokens');
   });
 });

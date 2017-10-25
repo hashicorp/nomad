@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -260,45 +258,6 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
-func TestRawExecDriverUser(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
-	task := &structs.Task{
-		Name:   "sleep",
-		Driver: "raw_exec",
-		User:   "alice",
-		Config: map[string]interface{}{
-			"command": testtask.Path(),
-			"args":    []string{"sleep", "45s"},
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-		Resources: basicResources,
-	}
-	testtask.SetTaskEnv(task)
-
-	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
-	d := NewRawExecDriver(ctx.DriverCtx)
-
-	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("prestart err: %v", err)
-	}
-	resp, err := d.Start(ctx.ExecCtx, task)
-	if err == nil {
-		resp.Handle.Kill()
-		t.Fatalf("Should've failed")
-	}
-	msg := "unknown user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
-	}
-}
-
 func TestRawExecDriver_HandlerExec(t *testing.T) {
 	t.Parallel()
 	task := &structs.Task{
@@ -306,7 +265,7 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 		Driver: "raw_exec",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "9000"},
+			"args":    []string{"sleep", "9000s"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -349,6 +308,12 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 	}
 	if expected := "No such file or directory"; !bytes.Contains(out, []byte(expected)) {
 		t.Fatalf("expected output to contain %q but found: %q", expected, out)
+	}
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		t.Fatalf("Shouldn't be exited: %v", res.String())
+	default:
 	}
 
 	if err := resp.Handle.Kill(); err != nil {

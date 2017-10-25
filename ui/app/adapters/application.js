@@ -13,21 +13,20 @@ export default RESTAdapter.extend({
 
   headers: computed('token.secret', function() {
     const token = this.get('token.secret');
-    return (
-      token && {
+    if (token) {
+      return {
         'X-Nomad-Token': token,
-      }
-    );
+      };
+    }
   }),
 
   findAll() {
     return this._super(...arguments).catch(error => {
       const errorCodes = codesForError(error);
 
-      const isNotAuthorized = errorCodes.includes('403');
       const isNotImplemented = errorCodes.includes('501');
 
-      if (isNotAuthorized || isNotImplemented) {
+      if (isNotImplemented) {
         return [];
       }
 

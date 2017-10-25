@@ -79,14 +79,14 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
 });
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
-  assert.equal(findAll('.breadcrumb')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
+  assert.equal(findAll('.breadcrumb')[0].textContent.trim(), 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    findAll('.breadcrumb')[1].textContent,
+    findAll('.breadcrumb')[1].textContent.trim(),
     job.name,
     'Second breadcrumb says the job name'
   );
   assert.equal(
-    findAll('.breadcrumb')[2].textContent,
+    findAll('.breadcrumb')[2].textContent.trim(),
     taskGroup.name,
     'Third breadcrumb says the job name'
   );
@@ -140,43 +140,61 @@ test('/jobs/:id/:task-group should list one page of allocations for the task gro
 });
 
 test('each allocation should show basic information about the allocation', function(assert) {
-  const allocation = allocations.sortBy('name')[0];
+  const allocation = allocations.sortBy('modifyIndex').reverse()[0];
   const allocationRow = $(findAll('.allocations tbody tr')[0]);
 
-  assert.equal(
-    allocationRow
-      .find('td:eq(0)')
-      .text()
-      .trim(),
-    allocation.id.split('-')[0],
-    'Allocation short id'
-  );
-  assert.equal(
-    allocationRow
-      .find('td:eq(1)')
-      .text()
-      .trim(),
-    allocation.name,
-    'Allocation name'
-  );
-  assert.equal(
-    allocationRow
-      .find('td:eq(2)')
-      .text()
-      .trim(),
-    allocation.clientStatus,
-    'Client status'
-  );
-  assert.equal(
-    allocationRow
-      .find('td:eq(3)')
-      .text()
-      .trim(),
-    server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-    'Node ID'
-  );
+  andThen(() => {
+    assert.equal(
+      allocationRow
+        .find('td:eq(0)')
+        .text()
+        .trim(),
+      allocation.id.split('-')[0],
+      'Allocation short id'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(1)')
+        .text()
+        .trim(),
+      allocation.modifyIndex,
+      'Allocation modify index'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(2)')
+        .text()
+        .trim(),
+      allocation.name,
+      'Allocation name'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(3)')
+        .text()
+        .trim(),
+      allocation.clientStatus,
+      'Client status'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(4)')
+        .text()
+        .trim(),
+      allocation.jobVersion,
+      'Job Version'
+    );
+    assert.equal(
+      allocationRow
+        .find('td:eq(5)')
+        .text()
+        .trim(),
+      server.db.nodes.find(allocation.nodeId).id.split('-')[0],
+      'Node ID'
+    );
+  });
 
-  click(allocationRow.find('td:eq(3) a').get(0));
+  click(allocationRow.find('td:eq(5) a').get(0));
 
   andThen(() => {
     assert.equal(currentURL(), `/nodes/${allocation.nodeId}`, 'Node links to node page');
@@ -196,22 +214,22 @@ test('each allocation should show stats about the allocation, retrieved directly
 
   assert.equal(
     allocationRow
-      .find('td:eq(4)')
+      .find('td:eq(6)')
       .text()
       .trim(),
-    allocStats.resourceUsage.CpuStats.Percent,
+    Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
     'CPU %'
   );
 
   assert.equal(
-    allocationRow.find('td:eq(4) .tooltip').attr('aria-label'),
+    allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
     `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
     'Detailed CPU information is in a tooltip'
   );
 
   assert.equal(
     allocationRow
-      .find('td:eq(5)')
+      .find('td:eq(7)')
       .text()
       .trim(),
     allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
@@ -219,7 +237,7 @@ test('each allocation should show stats about the allocation, retrieved directly
   );
 
   assert.equal(
-    allocationRow.find('td:eq(5) .tooltip').attr('aria-label'),
+    allocationRow.find('td:eq(7) .tooltip').attr('aria-label'),
     `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
     'Detailed memory information is in a tooltip'
   );

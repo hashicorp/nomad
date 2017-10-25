@@ -62,7 +62,16 @@ test('each job row should contain information about the job', function(assert) {
     );
     assert.equal(jobRow.find('td:eq(2)').text(), job.type, 'Type');
     assert.equal(jobRow.find('td:eq(3)').text(), job.priority, 'Priority');
-    assert.equal(jobRow.find('td:eq(4)').text(), taskGroups.length, '# Groups');
+    andThen(() => {
+      assert.equal(
+        jobRow
+          .find('td:eq(4)')
+          .text()
+          .trim(),
+        taskGroups.length,
+        '# Groups'
+      );
+    });
   });
 });
 
@@ -128,5 +137,25 @@ test('when the namespace query param is set, only matching jobs are shown and th
   andThen(() => {
     assert.equal(findAll('.job-row').length, 1, `One job in the ${secondNamespace.name} namespace`);
     assert.equal(find('.job-row td').textContent, job2.name, 'The correct job is shown');
+  });
+});
+
+test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(
+  assert
+) {
+  server.pretender.get('/v1/jobs', () => [403, {}, null]);
+
+  visit('/jobs');
+
+  andThen(() => {
+    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+  });
+
+  andThen(() => {
+    click('.empty-message-body a');
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/settings/tokens');
   });
 });

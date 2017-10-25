@@ -159,6 +159,7 @@ OUTER:
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
 				Namespace: job.Namespace,
+				AuthToken: eval.LeaderACL,
 			},
 		}
 		var resp structs.JobDeregisterResponse
@@ -433,7 +434,8 @@ OUTER:
 		req := structs.NodeDeregisterRequest{
 			NodeID: nodeID,
 			WriteRequest: structs.WriteRequest{
-				Region: c.srv.config.Region,
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
 			},
 		}
 		var resp structs.NodeUpdateResponse
