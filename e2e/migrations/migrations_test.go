@@ -264,6 +264,11 @@ func TestJobMigrations(t *testing.T) {
 }
 
 func TestMigrations_WithACLs(t *testing.T) {
+	flag.Parse()
+	if !*integration {
+		t.Skip("skipping test in non-integration mode.")
+	}
+
 	t.Parallel()
 	assert := assert.New(t)
 
