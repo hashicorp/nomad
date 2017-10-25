@@ -1,8 +1,10 @@
 import Ember from 'ember';
+import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
+import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
 const { Route, inject, run } = Ember;
 
-export default Route.extend({
+export default Route.extend(WithForbiddenState, {
   system: inject.service(),
   store: inject.service(),
 
@@ -11,7 +13,9 @@ export default Route.extend({
   },
 
   model() {
-    return this.get('store').findAll('job');
+    return this.get('store')
+      .findAll('job')
+      .catch(notifyForbidden(this));
   },
 
   syncToController(controller) {

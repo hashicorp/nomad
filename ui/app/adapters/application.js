@@ -24,10 +24,9 @@ export default RESTAdapter.extend({
     return this._super(...arguments).catch(error => {
       const errorCodes = codesForError(error);
 
-      const isNotAuthorized = errorCodes.includes('403');
       const isNotImplemented = errorCodes.includes('501');
 
-      if (isNotAuthorized || isNotImplemented) {
+      if (isNotImplemented) {
         return [];
       }
 
