@@ -315,10 +315,10 @@
 			"revisionTime": "2017-06-13T09:22:38Z"
 		},
 		{
-			"checksumSHA1": "/5cvgU+J4l7EhMXTK76KaCAfOuU=",
+			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
 			"path": "github.com/davecgh/go-spew/spew",
-			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
-			"revisionTime": "2016-10-29T20:57:26Z"
+			"revision": "ecdeabc65495df2dec95d7c4a4c3e021903035e5",
+			"revisionTime": "2017-10-02T20:02:53Z"
 		},
 		{
 			"checksumSHA1": "Gj+xR1VgFKKmFXYOJMnAczC3Znk=",
@@ -1394,10 +1394,10 @@
 			"revisionTime": "2017-06-01T20:57:54Z"
 		},
 		{
-			"checksumSHA1": "9Zw986fuQM/hCoVd8vmHoSM+8sU=",
+			"checksumSHA1": "8G1zvpE4gTtWQRuP/x2HPVDmflo=",
 			"path": "github.com/ugorji/go/codec",
-			"revision": "5efa3251c7f7d05e5d9704a69a984ec9f1386a40",
-			"revisionTime": "2017-06-20T10:48:52Z"
+			"revision": "0053ebfd9d0ee06ccefbfe17072021e1d4acebee",
+			"revisionTime": "2017-06-20T06:01:02Z"
 		},
 		{
 			"checksumSHA1": "OgParimNuU2CJqr3pcTympeQZUc=",
