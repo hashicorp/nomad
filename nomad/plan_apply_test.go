@@ -226,6 +226,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		t.Fatalf("missing job")
 	}
 
+	if out.ModifyTime <= 0 {
+		t.Fatalf("must have valid modify time but was %v", out.ModifyTime)
+	}
+
 	// Lookup the allocation
 	out, err = s1.fsm.State().AllocByID(ws, alloc2.ID)
 	if err != nil {
