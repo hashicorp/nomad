@@ -3,6 +3,11 @@ import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 
 module('format-bytes', 'Unit | Helper | format-bytes');
 
+test('formats null/undefined as 0 bytes', function(assert) {
+  assert.equal(formatBytes([undefined]), '0 Bytes');
+  assert.equal(formatBytes([null]), '0 Bytes');
+});
+
 test('formats x < 1024 as bytes', function(assert) {
   assert.equal(formatBytes([0]), '0 Bytes');
   assert.equal(formatBytes([100]), '100 Bytes');
