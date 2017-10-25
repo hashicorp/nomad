@@ -152,6 +152,7 @@ tls {
     ca_file = "foo"
     cert_file = "bar"
     key_file = "pipe"
+    rpc_upgrade_mode = true
     verify_https_client = true
 }
 sentinel {
