@@ -175,9 +175,10 @@ func TestJobMigrations(t *testing.T) {
 	err = jobCmd.Run()
 	assert.Nil(err)
 
-	firstJoboutput, err := jobIsReady(20, "sleep")
+	firstJobOutput, err := jobIsReady(20, "sleep")
 	assert.Nil(err)
-	assert.NotContains(firstJoboutput, "failed")
+	assert.NotContains(firstJobOutput, "failed")
+	assert.NotContains(firstJobOutput, "pending")
 
 	fh2, err := ioutil.TempFile("", "nomad-sleep-2")
 	assert.Nil(err)
