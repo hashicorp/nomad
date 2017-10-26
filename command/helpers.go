@@ -75,6 +75,11 @@ func formatTimeDifference(first, second time.Time, d time.Duration) string {
 	return second.Truncate(d).Sub(first.Truncate(d)).String()
 }
 
+// formatTimePretty rounds off time difference to the nearest second for nicer display
+func formatTimePretty(first, second time.Time) string {
+	return formatTimeDifference(first.Round(time.Second), second.Round(time.Second), time.Second) + " ago"
+}
+
 // getLocalNodeID returns the node ID of the local Nomad Client and an error if
 // it couldn't be determined or the Agent is not running in Client mode.
 func getLocalNodeID(client *api.Client) (string, error) {
