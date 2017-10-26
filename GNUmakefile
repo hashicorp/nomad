@@ -204,9 +204,13 @@ dev: ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
+.PHONY: prerelease
+prerelease: GO_TAGS="ui"
+prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
+
 .PHONY: release
 release: GO_TAGS="ui"
-release: clean ember-dist static-assets $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
