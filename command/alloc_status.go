@@ -214,6 +214,9 @@ func (c *AllocStatusCommand) Run(args []string) int {
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {
+	formattedCreateTime := formatTimePretty(time.Unix(0, alloc.CreateTime), time.Now())
+	formattedModifyTime := formatTimePretty(time.Unix(0, alloc.ModifyTime), time.Now())
+
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(alloc.ID, uuidLength)),
 		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, uuidLength)),
@@ -225,7 +228,8 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
 		fmt.Sprintf("Desired Status|%s", alloc.DesiredStatus),
 		fmt.Sprintf("Desired Description|%s", alloc.DesiredDescription),
-		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
+		fmt.Sprintf("Created|%s", formattedCreateTime),
+		fmt.Sprintf("Modified|%s", formattedModifyTime),
 	}
 
 	if alloc.DeploymentID != "" {
