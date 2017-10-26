@@ -48,7 +48,7 @@ pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@"
 
 pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
@@ -56,7 +56,7 @@ pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
 	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@"
 
 pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
@@ -64,7 +64,7 @@ pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
 	@CGO_ENABLED=1 GOOS=linux GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@"
 
 pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
@@ -72,7 +72,7 @@ pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@"
 
 pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
@@ -80,7 +80,7 @@ pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@"
 
 pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
@@ -88,7 +88,7 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@"
 
 # If CGO support for Windows is ever required, set the following variables
@@ -101,7 +101,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@.exe"
 
 pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
@@ -109,7 +109,7 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
+		-tags \"$(GO_TAGS)\" \
 		-o "$@.exe"
 
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
@@ -117,7 +117,7 @@ pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS) lxc" \
+		-tags \"$(GO_TAGS) lxc\" \
 		-o "$@"
 
 # Define package targets for each of the build targets we actually have on this system
@@ -185,6 +185,10 @@ checkscripts: ## Lint shell scripts
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate -tags="ent" $(LOCAL_PACKAGES)
+
+progenerate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+progenerate: ## Update generated code
+	@go generate -tags="pro" $(LOCAL_PACKAGES)
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
