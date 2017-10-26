@@ -36,13 +36,28 @@ type AllocCounter interface {
 
 // AllocGarbageCollector garbage collects terminated allocations on a node
 type AllocGarbageCollector struct {
-	allocRunners   *IndexedGCAllocPQ
+	config *GCConfig
+
+	// allocRunners marked for GC
+	allocRunners *IndexedGCAllocPQ
+
+	// statsCollector for node based thresholds (eg disk)
 	statsCollector stats.NodeStatsCollector
-	allocCounter   AllocCounter
-	config         *GCConfig
-	logger         *log.Logger
-	destroyCh      chan struct{}
-	shutdownCh     chan struct{}
+
+	// allocCounter return the number of un-GC'd allocs on this node
+	allocCounter AllocCounter
+
+	// destroyCh is a semaphore for rate limiting concurrent garbage
+	// collections
+	destroyCh chan struct{}
+
+	// shutdownCh is closed when the GC's run method should exit
+	shutdownCh chan struct{}
+
+	// triggerCh is ticked by the Trigger method to cause a GC
+	triggerCh chan struct{}
+
+	logger *log.Logger
 }
 
 // NewAllocGarbageCollector returns a garbage collector for terminated
@@ -51,7 +66,7 @@ type AllocGarbageCollector struct {
 func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStatsCollector, ac AllocCounter, config *GCConfig) *AllocGarbageCollector {
 	// Require at least 1 to make progress
 	if config.ParallelDestroys <= 0 {
-		logger.Printf("[WARN] client: garbage collector defaulting parallism to 1 due to invalid input value of %d", config.ParallelDestroys)
+		logger.Printf("[WARN] client.gc: garbage collector defaulting parallism to 1 due to invalid input value of %d", config.ParallelDestroys)
 		config.ParallelDestroys = 1
 	}
 
@@ -63,6 +78,7 @@ func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStats
 		logger:         logger,
 		destroyCh:      make(chan struct{}, config.ParallelDestroys),
 		shutdownCh:     make(chan struct{}),
+		triggerCh:      make(chan struct{}, 1),
 	}
 
 	return gc
@@ -71,16 +87,28 @@ func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStats
 // Run the periodic garbage collector.
 func (a *AllocGarbageCollector) Run() {
 	ticker := time.NewTicker(a.config.Interval)
+	a.logger.Printf("[DEBUG] client.gc: GC'ing ever %v", a.config.Interval)
 	for {
 		select {
+		case <-a.triggerCh:
 		case <-ticker.C:
-			if err := a.keepUsageBelowThreshold(); err != nil {
-				a.logger.Printf("[ERR] client: error garbage collecting allocation: %v", err)
-			}
 		case <-a.shutdownCh:
 			ticker.Stop()
 			return
 		}
+
+		if err := a.keepUsageBelowThreshold(); err != nil {
+			a.logger.Printf("[ERR] client.gc: error garbage collecting allocation: %v", err)
+		}
+	}
+}
+
+// Force the garbage collector to run.
+func (a *AllocGarbageCollector) Trigger() {
+	select {
+	case a.triggerCh <- struct{}{}:
+	default:
+		// already triggered
 	}
 }
 
@@ -116,15 +144,15 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 			reason = fmt.Sprintf("number of allocations (%d) is over the limit (%d)", liveAllocs, a.config.MaxAllocs)
 		}
 
-		// No reason to gc, exit
 		if reason == "" {
+			// No reason to gc, exit
 			break
 		}
 
 		// Collect an allocation
 		gcAlloc := a.allocRunners.Pop()
 		if gcAlloc == nil {
-			a.logger.Printf("[WARN] client: garbage collection due to %s skipped because no terminal allocations", reason)
+			a.logger.Printf("[WARN] client.gc: garbage collection due to %s skipped because no terminal allocations", reason)
 			break
 		}
 
@@ -142,7 +170,7 @@ func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner, reason strin
 	if alloc := ar.Alloc(); alloc != nil {
 		id = alloc.ID
 	}
-	a.logger.Printf("[INFO] client: garbage collecting allocation %s due to %s", id, reason)
+	a.logger.Printf("[INFO] client.gc: garbage collecting allocation %s due to %s", id, reason)
 
 	// Acquire the destroy lock
 	select {
@@ -158,7 +186,7 @@ func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner, reason strin
 	case <-a.shutdownCh:
 	}
 
-	a.logger.Printf("[DEBUG] client: garbage collected %q", ar.Alloc().ID)
+	a.logger.Printf("[DEBUG] client.gc: garbage collected %q", ar.Alloc().ID)
 
 	// Release the lock
 	<-a.destroyCh
@@ -199,6 +227,11 @@ func (a *AllocGarbageCollector) CollectAll() {
 // MakeRoomFor garbage collects enough number of allocations in the terminal
 // state to make room for new allocations
 func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) error {
+	if len(allocations) == 0 {
+		// Nothing to make room for!
+		return nil
+	}
+
 	// GC allocs until below the max limit + the new allocations
 	max := a.config.MaxAllocs - len(allocations)
 	for a.allocCounter.NumAllocs() > max {

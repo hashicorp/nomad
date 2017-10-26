@@ -310,8 +310,11 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 	defer client.Shutdown()
 	waitTilNodeReady(client, t)
 
+	callN := 0
 	assertAllocs := func(expectedAll, expectedDestroyed int) {
 		// Wait for allocs to be started
+		callN++
+		client.logger.Printf("[TEST] %d -- Waiting for %d total allocs, %d GC'd", callN, expectedAll, expectedDestroyed)
 		testutil.WaitForResult(func() (bool, error) {
 			all, destroyed := 0, 0
 			for _, ar := range client.getAllocRunners() {
@@ -319,14 +322,19 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 				if ar.IsDestroyed() {
 					destroyed++
 				}
+
+				// assert is waiting
+				// 2017/10/26 21:38:01.649166
 			}
 			return all == expectedAll && destroyed == expectedDestroyed, fmt.Errorf(
 				"expected %d allocs (found %d); expected %d destroy (found %d)",
 				expectedAll, all, expectedDestroyed, destroyed,
 			)
 		}, func(err error) {
-			t.Fatalf("alloc state: %v", err)
+			client.logger.Printf("[TEST] %d -- FAILED to find %d total allocs, %d GC'd!", callN, expectedAll, expectedDestroyed)
+			t.Fatalf("%d alloc state: %v", callN, err)
 		})
+		client.logger.Printf("[TEST] %d -- Found %d total allocs, %d GC'd!", callN, expectedAll, expectedDestroyed)
 	}
 
 	// Create a job
@@ -374,15 +382,18 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 		t.Fatalf("error upserting stopped allocs: %v", err)
 	}
 
-	// 7 total, 0 GC'd still, but 4 should be marked for GC
-	assertAllocs(7, 0)
+	// 7 total, 1 GC'd to get down to limit of 6
+	assertAllocs(7, 1)
 
 	// Add one more alloc
 	if err := state.UpsertAllocs(102, []*structs.Allocation{newAlloc()}); err != nil {
 		t.Fatalf("error upserting new alloc: %v", err)
 	}
 
-	// 8 total, 2 GC'd to get down to limit of 6
+	// 8 total, 1 GC'd to get down to limit of 6
+	// If this fails it may be due to the gc's Run and MarkRoomFor methods
+	// gc'ing concurrently. May have to disable gc's run loop if this test
+	// is flaky.
 	assertAllocs(8, 2)
 
 	// Add new allocs to cause the gc of old terminal ones

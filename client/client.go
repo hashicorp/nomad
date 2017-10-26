@@ -1250,6 +1250,10 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 
 		if ok {
 			c.garbageCollector.MarkForCollection(ar)
+
+			// Trigger a GC in case we're over thresholds and just
+			// waiting for eligible allocs.
+			c.garbageCollector.Trigger()
 		}
 	}
 
@@ -1568,6 +1572,10 @@ func (c *Client) runAllocs(update *allocUpdates) {
 				add.ID, err)
 		}
 	}
+
+	// Trigger the GC once more now that new allocs are started that could
+	// have caused thesholds to be exceeded
+	c.garbageCollector.Trigger()
 }
 
 // removeAlloc is invoked when we should remove an allocation because it has

@@ -921,7 +921,6 @@ func (r *AllocRunner) handleDestroy() {
 	// Final state sync. We do this to ensure that the server has the correct
 	// state as we wait for a destroy.
 	alloc := r.Alloc()
-	r.updater(alloc)
 
 	// Broadcast and persist state synchronously
 	r.sendBroadcast(alloc)
@@ -935,6 +934,11 @@ func (r *AllocRunner) handleDestroy() {
 	if err := r.allocDir.UnmountAll(); err != nil {
 		r.logger.Printf("[ERR] client: alloc %q unable unmount task directories: %v", r.allocID, err)
 	}
+
+	// Update the server with the alloc's status -- also marks the alloc as
+	// being eligible for GC, so from this point on the alloc can be gc'd
+	// at any time.
+	r.updater(alloc)
 
 	for {
 		select {
