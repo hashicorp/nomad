@@ -147,6 +147,16 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		t.Fatalf("missing alloc")
 	}
 
+	if out.CreateTime <= 0 {
+		t.Fatalf("invalid create time %v", out.CreateTime)
+	}
+	if out.ModifyTime <= 0 {
+		t.Fatalf("invalid modify time %v", out.CreateTime)
+	}
+	if out.CreateTime != out.ModifyTime {
+		t.Fatalf("create time %v modify time %v must be equal", out.CreateTime, out.ModifyTime)
+	}
+
 	// Lookup the new deployment
 	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
 	if err != nil {
@@ -224,6 +234,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	}
 	if out.Job == nil {
 		t.Fatalf("missing job")
+	}
+
+	if out.ModifyTime <= 0 {
+		t.Fatalf("must have valid modify time but was %v", out.ModifyTime)
 	}
 
 	// Lookup the allocation
