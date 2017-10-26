@@ -679,6 +679,12 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		return fmt.Errorf("missing node ID")
 	}
 
+	// numOldAllocs is used to detect if there is a garbage collection event
+	// that effects the node. When an allocation is garbage collected, that does
+	// not change the modify index changes and thus the query won't unblock,
+	// even though the set of allocations on the node has changed.
+	var numOldAllocs int
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -708,8 +714,17 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			reply.Allocs = make(map[string]uint64)
 			reply.MigrateTokens = make(map[string]string)
 
+			// preferTableIndex is used to determine whether we should build the
+			// response index based on the full table indexes versus the modify
+			// indexes of the allocations on the specific node. This is prefered
+			// in the case that the node doesn't yet have allocations or when we
+			// detect a GC that effects the node.
+			preferTableIndex := true
+
 			// Setup the output
-			if len(allocs) != 0 {
+			if numAllocs := len(allocs); numAllocs != 0 {
+				preferTableIndex = false
+
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
 
@@ -742,7 +757,18 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
-			} else {
+
+				// Determine if we have less allocations than before. This
+				// indicates there was a garbage collection
+				if numAllocs < numOldAllocs {
+					preferTableIndex = true
+				}
+
+				// Store the new number of allocations
+				numOldAllocs = numAllocs
+			}
+
+			if preferTableIndex {
 				// Use the last index that affected the nodes table
 				index, err := state.Index("allocs")
 				if err != nil {
