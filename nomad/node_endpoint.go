@@ -209,6 +209,13 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
+	// Check node permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client deregistration")
@@ -246,7 +253,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	// Determine if there are any Vault accessors on the node
-	accessors, err := n.srv.State().VaultAccessorsByNode(ws, args.NodeID)
+	accessors, err := snap.VaultAccessorsByNode(ws, args.NodeID)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: looking up accessors for node %q failed: %v", args.NodeID, err)
 		return err
