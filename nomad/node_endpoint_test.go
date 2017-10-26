@@ -1406,8 +1406,10 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	node.ModifyIndex = resp.Index
 
 	// Inject fake evaluations async
+	now := time.Now().UTC().UnixNano()
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
+	alloc.ModifyTime = now
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
@@ -1443,6 +1445,10 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 
 	if len(resp2.Allocs) != 1 || resp2.Allocs[0].ID != alloc.ID {
 		t.Fatalf("bad: %#v", resp2.Allocs)
+	}
+
+	if resp2.Allocs[0].ModifyTime != now {
+		t.Fatalf("Invalid modify time %v", resp2.Allocs[0].ModifyTime)
 	}
 
 	// Alloc updates fire watches
@@ -1535,6 +1541,10 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	}
 	if out.ClientStatus != structs.AllocClientStatusFailed {
 		t.Fatalf("Bad: %#v", out)
+	}
+
+	if out.ModifyTime <= 0 {
+		t.Fatalf("must have valid modify time but was %v", out.ModifyTime)
 	}
 }
 
