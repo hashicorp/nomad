@@ -113,8 +113,11 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("should dump allocations")
 	}
-	if !strings.Contains(out, "Created At") {
+	if !strings.Contains(out, "Created") {
 		t.Fatal("should have created header")
+	}
+	if !strings.Contains(out, "Modified") {
+		t.Fatal("should have modified header")
 	}
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
@@ -137,6 +140,14 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	out = ui.OutputWriter.String()
 	if !strings.Contains(out, "job1_sfx") || strings.Contains(out, "job2_sfx") {
 		t.Fatalf("expected only job1_sfx, got: %s", out)
+	}
+
+	if !strings.Contains(out, "Created") {
+		t.Fatal("should have created header")
+	}
+
+	if !strings.Contains(out, "Modified") {
+		t.Fatal("should have modified header")
 	}
 	ui.OutputWriter.Reset()
 
