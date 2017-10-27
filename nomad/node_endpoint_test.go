@@ -1328,6 +1328,80 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake allocations async
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = node.ID
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
+	start := time.Now()
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.UpsertAllocs(100, []*structs.Allocation{alloc1, alloc2}))
+	})
+
+	// Lookup the allocs in a blocking query
+	req := &structs.NodeSpecificRequest{
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 50,
+			MaxQueryTime:  time.Second,
+		},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp2))
+
+	// Should block at least 100ms
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+
+	assert.EqualValues(100, resp2.Index)
+	if assert.Len(resp2.Allocs, 2) {
+		assert.EqualValues(100, resp2.Allocs[alloc1.ID])
+	}
+
+	// Delete an allocation
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.DeleteEval(200, nil, []string{alloc2.ID}))
+	})
+
+	req.QueryOptions.MinQueryIndex = 150
+	var resp3 structs.NodeClientAllocsResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp3))
+
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+	assert.EqualValues(200, resp3.Index)
+	if assert.Len(resp3.Allocs, 1) {
+		assert.EqualValues(100, resp3.Allocs[alloc1.ID])
+	}
+}
+
 // A MigrateToken should not be created if an allocation shares the same node
 // with its previous allocation
 func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {

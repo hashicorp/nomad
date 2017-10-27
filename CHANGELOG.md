@@ -40,6 +40,8 @@ BUG FIXES:
    change [GH-3214]
  * api: Fix search handling of jobs with more than four hyphens and case were
    length could cause lookup error [GH-3203]
+ * client: Improve the speed at which clients detect garbage collection events
+   [GH_-3452]
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [GH-3195]
  * driver/docker: Fix docker user specified syslogging [GH-3184]
