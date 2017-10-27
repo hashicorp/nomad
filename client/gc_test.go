@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
 )
 
 func gcConfig() *GCConfig {
@@ -290,12 +289,10 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 	}
 }
 
-// TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs asserts that when
-// making room for new allocs, terminal allocs are GC'd until old_allocs +
-// new_allocs <= limit
-func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
+// TestAllocGarbageCollector_MaxAllocs asserts that when making room for new
+// allocs, terminal allocs are GC'd until old_allocs + new_allocs <= limit
+func TestAllocGarbageCollector_MaxAllocs(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
 	server, serverAddr := testServer(t, nil)
 	defer server.Shutdown()
 	testutil.WaitForLeader(t, server.RPC)
@@ -303,6 +300,11 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 	const maxAllocs = 6
 	client := testClient(t, func(c *config.Config) {
 		c.GCMaxAllocs = maxAllocs
+		c.GCDiskUsageThreshold = 100
+		c.GCInodeUsageThreshold = 100
+		c.GCParallelDestroys = 1
+		c.GCInterval = time.Hour
+
 		c.RPCHandler = server
 		c.Servers = []string{serverAddr}
 		c.ConsulConfig.ClientAutoJoin = new(bool) // squelch logs
@@ -322,9 +324,6 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 				if ar.IsDestroyed() {
 					destroyed++
 				}
-
-				// assert is waiting
-				// 2017/10/26 21:38:01.649166
 			}
 			return all == expectedAll && destroyed == expectedDestroyed, fmt.Errorf(
 				"expected %d allocs (found %d); expected %d destroy (found %d)",
@@ -363,8 +362,17 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 	for i := 0; i < len(allocs); i++ {
 		allocs[i] = newAlloc()
 	}
-	if err := state.UpsertAllocs(100, allocs); err != nil {
-		t.Fatalf("error upserting initial allocs: %v", err)
+
+	// Upsert a copy of the allocs as modifying the originals later would
+	// cause a race
+	{
+		allocsCopy := make([]*structs.Allocation, len(allocs))
+		for i, a := range allocs {
+			allocsCopy[i] = a.Copy()
+		}
+		if err := state.UpsertAllocs(100, allocsCopy); err != nil {
+			t.Fatalf("error upserting initial allocs: %v", err)
+		}
 	}
 
 	// 7 total, 0 GC'd
@@ -401,7 +409,9 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 	for i := 0; i < len(newAllocs); i++ {
 		newAllocs[i] = newAlloc()
 	}
-	assert.Nil(state.UpsertAllocs(200, newAllocs))
+	if err := state.UpsertAllocs(200, newAllocs); err != nil {
+		t.Fatalf("error upserting %d new allocs: %v", len(newAllocs), err)
+	}
 
 	// 12 total, 4 GC'd total because all other allocs are alive
 	assertAllocs(12, 4)
