@@ -1330,6 +1330,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 
 func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -1344,9 +1345,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 	node.CreateIndex = resp.Index
 	node.ModifyIndex = resp.Index
 
@@ -1359,10 +1358,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1, alloc2})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		assert.Nil(state.UpsertAllocs(100, []*structs.Allocation{alloc1, alloc2}))
 	})
 
 	// Lookup the allocs in a blocking query
@@ -1376,45 +1372,33 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 		},
 	}
 	var resp2 structs.NodeClientAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp2))
 
 	// Should block at least 100ms
 	if time.Since(start) < 100*time.Millisecond {
 		t.Fatalf("too fast")
 	}
 
-	if resp2.Index != 100 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 100)
-	}
-
-	if len(resp2.Allocs) != 2 || resp2.Allocs[alloc1.ID] != 100 {
-		t.Fatalf("bad: %#v", resp2.Allocs)
+	assert.EqualValues(100, resp2.Index)
+	if assert.Len(resp2.Allocs, 2) {
+		assert.EqualValues(100, resp2.Allocs[alloc1.ID])
 	}
 
 	// Delete an allocation
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteEval(200, nil, []string{alloc2.ID})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		assert.Nil(state.DeleteEval(200, nil, []string{alloc2.ID}))
 	})
 
 	req.QueryOptions.MinQueryIndex = 150
 	var resp3 structs.NodeClientAllocsResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp3); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp3))
 
 	if time.Since(start) < 100*time.Millisecond {
 		t.Fatalf("too fast")
 	}
-	if resp3.Index != 200 {
-		t.Fatalf("Bad index: %d %d", resp3.Index, 200)
-	}
-	if len(resp3.Allocs) != 1 || resp3.Allocs[alloc1.ID] != 100 {
-		t.Fatalf("bad: %#v", resp3.Allocs)
+	assert.EqualValues(200, resp3.Index)
+	if assert.Len(resp3.Allocs, 1) {
+		assert.EqualValues(100, resp3.Allocs[alloc1.ID])
 	}
 }
 
