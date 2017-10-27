@@ -276,7 +276,7 @@ func TestMigrations_WithACLs(t *testing.T) {
 	assert.Nil(err)
 	defer stopServer()
 
-	clusterConfig := []string{"client1_acl.hcl", "client2_acl.hcl"}
+	clusterConfig := []string{"client1.hcl", "client2.hcl"}
 	stopCluster, err := startCluster(clusterConfig)
 	assert.Nil(err)
 	defer stopCluster()
