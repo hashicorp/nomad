@@ -147,7 +147,7 @@ func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) nodePurge(resp http.ResponseWriter, req *http.Request, nodeID string) (interface{}, error) {
-	if req.Method != "POST" {
+	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.NodeDeregisterRequest{

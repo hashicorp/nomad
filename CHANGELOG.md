@@ -11,6 +11,7 @@ IMPROVEMENTS:
  * core/enterprise: Sentinel integration for fine grain policy enforcement.
  * core/enterprise: Namespace support allowing jobs and their associated
    objects to be isolated from each other and other users of the cluster.
+ * api: Allow force deregistration of a node [GH-3447]
  * api: New `/v1/agent/health` endpoint for health checks.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * cli: Consul config option flags for nomad agent command [GH-3327]
