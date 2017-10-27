@@ -1753,3 +1753,53 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerDriver_OOMKilled(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	task := &structs.Task{
+		Name:   "oom-killed",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "sh",
+			// Incrementally creates a bigger and bigger variable.
+			"args": []string{"-c", "x=a; while true; do eval x='$x$x'; done"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			CPU:      250,
+			MemoryMB: 10,
+			DiskMB:   20,
+			Networks: []*structs.NetworkResource{},
+		},
+	}
+
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	select {
+	case res := <-handle.WaitCh():
+		if res.Successful() {
+			t.Fatalf("expected error, but container exited successfull")
+		}
+
+		if !strings.Contains(res.Err.Error(), "killed by OOM killer") {
+			t.Fatalf("not killed by OOM killer: %s", res.Err)
+		}
+
+		t.Logf("Successfully killed by OOM killer")
+
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+}
