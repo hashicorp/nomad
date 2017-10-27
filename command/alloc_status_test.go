@@ -128,9 +128,14 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "Created At") {
-		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	if !strings.Contains(out, "Created") {
+		t.Fatalf("expected to have 'Created' but saw: %s", out)
 	}
+
+	if !strings.Contains(out, "Modified") {
+		t.Fatalf("expected to have 'Modified' but saw: %s", out)
+	}
+
 	ui.OutputWriter.Reset()
 
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
@@ -140,8 +145,8 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, allocId1) {
 		t.Fatal("expected to find alloc id in output")
 	}
-	if !strings.Contains(out, "Created At") {
-		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	if !strings.Contains(out, "Created") {
+		t.Fatalf("expected to have 'Created' but saw: %s", out)
 	}
 	ui.OutputWriter.Reset()
 
@@ -150,8 +155,8 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "Created At") {
-		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	if !strings.Contains(out, "Created") {
+		t.Fatalf("expected to have 'Created' but saw: %s", out)
 	}
 	ui.OutputWriter.Reset()
 
