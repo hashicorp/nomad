@@ -2839,6 +2839,16 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		job.Namespace = structs.DefaultNamespace
 	}
 
+	// System, Periodic and Parameterized jobs are running until explicitly
+	// stopped
+	if job.Type == structs.JobTypeSystem || job.IsParameterized() || job.IsPeriodic() {
+		if job.Stop {
+			return structs.JobStatusDead, nil
+		}
+
+		return structs.JobStatusRunning, nil
+	}
+
 	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
 	if err != nil {
 		return "", err
@@ -2873,33 +2883,12 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		}
 	}
 
-	// system jobs are running until explicitly stopped (which is handled elsewhere)
-	if job.Type == structs.JobTypeSystem {
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
-
-		// Pending until at least one eval has completed
-		return structs.JobStatusRunning, nil
-	}
-
 	// The job is dead if all the allocations and evals are terminal or if there
 	// are no evals because of garbage collection.
 	if evalDelete || hasEval || hasAlloc {
 		return structs.JobStatusDead, nil
 	}
 
-	// If there are no allocations or evaluations it is a new job. If the
-	// job is periodic or is a parameterized job, we mark it as running as
-	// it will never have an allocation/evaluation against it.
-	if job.IsPeriodic() || job.IsParameterized() {
-		// If the job is stopped mark it as dead
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
-
-		return structs.JobStatusRunning, nil
-	}
 	return structs.JobStatusPending, nil
 }
 
