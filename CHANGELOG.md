@@ -22,6 +22,8 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [GH-3201]
  * core: Run deployment garbage collector on an interval [GH-3267]
+ * core: Fix paramterized jobs occasionally showing status dead incorrectly
+   [GH-3460]
  * core: Fix issue in which job versions above a threshold potentially wouldn't
    be stored [GH-3372]
  * core: Fix issue where node-drain with complete batch allocation would create
