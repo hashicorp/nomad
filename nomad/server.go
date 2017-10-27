@@ -19,7 +19,7 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -27,7 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	"github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -508,6 +508,12 @@ func (s *Server) Reload(config *Config) error {
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
 		if err := s.vault.SetConfig(config.VaultConfig); err != nil {
+			multierror.Append(&mErr, err)
+		}
+	}
+
+	if s.config != nil && config.TLSConfig != nil {
+		if err := s.config.SetTLSConfig(config.TLSConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
 	}
