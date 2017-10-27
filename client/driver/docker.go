@@ -1613,7 +1613,7 @@ func (h *DockerHandle) run() {
 	if ierr != nil {
 		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
 	} else if container.State.OOMKilled {
-		werr = fmt.Errorf("Docker container killed by OOM killer")
+		werr = fmt.Errorf("OOM Killed")
 	}
 
 	close(h.doneCh)

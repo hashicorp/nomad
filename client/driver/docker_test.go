@@ -1793,7 +1793,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 			t.Fatalf("expected error, but container exited successfull")
 		}
 
-		if !strings.Contains(res.Err.Error(), "killed by OOM killer") {
+		if res.Err.Error() != "OOM Killed" {
 			t.Fatalf("not killed by OOM killer: %s", res.Err)
 		}
 
