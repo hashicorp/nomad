@@ -50,6 +50,16 @@ func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteM
 	return wm, nil
 }
 
+// ToggleFreeze is used to toogle freeze mode on/off for a given node
+func (n *Nodes) ToggleFreeze(nodeID string, freeze bool, q *WriteOptions) (*WriteMeta, error) {
+	freezeArg := strconv.FormatBool(freeze)
+	wm, err := n.client.write("/v1/node/"+nodeID+"/freeze?enable="+freezeArg, nil, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
 // Allocations is used to return the allocations associated with a node.
 func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*Allocation, *QueryMeta, error) {
 	var resp []*Allocation
@@ -108,6 +118,7 @@ type Node struct {
 	Meta              map[string]string
 	NodeClass         string
 	Drain             bool
+	Freeze            bool
 	Status            string
 	StatusDescription string
 	StatusUpdatedAt   int64
@@ -157,6 +168,7 @@ type NodeListStub struct {
 	NodeClass         string
 	Version           string
 	Drain             bool
+	Freeze            bool
 	Status            string
 	StatusDescription string
 	CreateIndex       uint64
