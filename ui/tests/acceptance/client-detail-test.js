@@ -24,7 +24,7 @@ test('/nodes/:id should have a breadrcumb trail linking back to nodes', function
   visit(`/nodes/${node.id}`);
 
   andThen(() => {
-    assert.equal(findAll('.breadcrumb')[0].textContent, 'Nodes', 'First breadcrumb says nodes');
+    assert.equal(findAll('.breadcrumb')[0].textContent, 'Clients', 'First breadcrumb says clients');
     assert.equal(
       findAll('.breadcrumb')[1].textContent,
       node.id.split('-')[0],

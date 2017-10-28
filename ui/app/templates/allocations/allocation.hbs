@@ -2,7 +2,7 @@
   <h1 class="title">Allocation {{model.name}}</h1>
   <h3 class="subtitle">
     For job {{#link-to "jobs.job" model.job (query-params jobNamespace=model.job.namespace.id)}}{{model.job.name}}{{/link-to}}
-    on node {{#link-to "nodes.node" model.node}}{{model.node.shortId}}{{/link-to}}
+    on client {{#link-to "nodes.node" model.node}}{{model.node.shortId}}{{/link-to}}
   </h3>
 
   <div class="message">
