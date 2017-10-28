@@ -196,14 +196,16 @@ func (a *AllocGarbageCollector) Stop() {
 	close(a.shutdownCh)
 }
 
-// Collect garbage collects a single allocation on a node
-func (a *AllocGarbageCollector) Collect(allocID string) {
+// Collect garbage collects a single allocation on a node. Returns true if
+// alloc was found and garbage collected; otherwise false.
+func (a *AllocGarbageCollector) Collect(allocID string) bool {
 	if gcAlloc := a.allocRunners.Remove(allocID); gcAlloc != nil {
 		a.destroyAllocRunner(gcAlloc.allocRunner, "forced collection")
-		return
+		return true
 	}
 
 	a.logger.Printf("[DEBUG] client.gc: alloc %s is invalid or was already garbage collected", allocID)
+	return false
 }
 
 // CollectAll garbage collects all termianated allocations on a node

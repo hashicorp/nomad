@@ -487,9 +487,10 @@ func (c *Client) Stats() map[string]map[string]string {
 	return stats
 }
 
-// CollectAllocation garbage collects a single allocation
-func (c *Client) CollectAllocation(allocID string) {
-	c.garbageCollector.Collect(allocID)
+// CollectAllocation garbage collects a single allocation on a node. Returns
+// true if alloc was found and garbage collected; otherwise false.
+func (c *Client) CollectAllocation(allocID string) bool {
+	return c.garbageCollector.Collect(allocID)
 }
 
 // CollectAllAllocs garbage collects all allocations on a node in the terminal
