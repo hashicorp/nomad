@@ -133,7 +133,10 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 		return nil, structs.ErrPermissionDenied
 	}
 
-	s.agent.Client().CollectAllocation(allocID)
+	if !s.agent.Client().CollectAllocation(allocID) {
+		// Could not find alloc
+		return nil, fmt.Errorf("unable to collect allocation: not present")
+	}
 	return nil, nil
 }
 
