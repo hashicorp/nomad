@@ -20,8 +20,8 @@ moduleForAcceptance('Acceptance | client detail', {
   },
 });
 
-test('/nodes/:id should have a breadrcumb trail linking back to nodes', function(assert) {
-  visit(`/nodes/${node.id}`);
+test('/clients/:id should have a breadrcumb trail linking back to clients', function(assert) {
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     assert.equal(findAll('.breadcrumb')[0].textContent, 'Clients', 'First breadcrumb says clients');
@@ -37,12 +37,12 @@ test('/nodes/:id should have a breadrcumb trail linking back to nodes', function
   });
 
   andThen(() => {
-    assert.equal(currentURL(), '/nodes', 'First breadcrumb links back to nodes');
+    assert.equal(currentURL(), '/clients', 'First breadcrumb links back to clients');
   });
 });
 
-test('/nodes/:id should list immediate details for the node in the title', function(assert) {
-  visit(`/nodes/${node.id}`);
+test('/clients/:id should list immediate details for the node in the title', function(assert) {
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     assert.ok(find('.title').textContent.includes(node.name), 'Title includes name');
@@ -54,8 +54,8 @@ test('/nodes/:id should list immediate details for the node in the title', funct
   });
 });
 
-test('/nodes/:id should list additional detail for the node below the title', function(assert) {
-  visit(`/nodes/${node.id}`);
+test('/clients/:id should list additional detail for the node below the title', function(assert) {
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     assert.equal(
@@ -80,10 +80,10 @@ test('/nodes/:id should list additional detail for the node below the title', fu
   });
 });
 
-test('/nodes/:id should list all allocations on the node', function(assert) {
+test('/clients/:id should list all allocations on the node', function(assert) {
   const allocationsCount = server.db.allocations.where({ nodeId: node.id }).length;
 
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     assert.equal(
@@ -110,7 +110,7 @@ test('each allocation should have high-level details for the allocation', functi
   const cpuUsed = tasks.reduce((sum, task) => sum + task.Resources.CPU, 0);
   const memoryUsed = tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0);
 
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     const allocationRow = $(findAll('.allocations tbody tr')[0]);
@@ -199,10 +199,10 @@ test('each allocation should have high-level details for the allocation', functi
 test('each allocation should show job information even if the job is incomplete and already in the store', function(
   assert
 ) {
-  // First, visit nodes to load the allocations for each visible node.
+  // First, visit clients to load the allocations for each visible node.
   // Don't load the job belongsTo of the allocation! Leave it unfulfilled.
 
-  visit('/nodes');
+  visit('/clients');
 
   // Then, visit jobs to load all jobs, which should implicitly fulfill
   // the job belongsTo of each allocation pointed at each job.
@@ -213,7 +213,7 @@ test('each allocation should show job information even if the job is incomplete 
   // present. This will require reloading the job, since task groups aren't a
   // part of the jobs list response.
 
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     const allocationRow = $(findAll('.allocations tbody tr')[0]);
@@ -245,7 +245,7 @@ test('each allocation should link to the allocation detail page', function(asser
     .sortBy('modifyIndex')
     .reverse()[0];
 
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     click($('.allocations tbody tr:eq(0) td:eq(0) a').get(0));
@@ -261,7 +261,7 @@ test('each allocation should link to the allocation detail page', function(asser
 });
 
 test('each allocation should link to the job the allocation belongs to', function(assert) {
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   const allocation = server.db.allocations.where({ nodeId: node.id })[0];
   const job = server.db.jobs.find(allocation.jobId);
@@ -279,8 +279,8 @@ test('each allocation should link to the job the allocation belongs to', functio
   });
 });
 
-test('/nodes/:id should list all attributes for the node', function(assert) {
-  visit(`/nodes/${node.id}`);
+test('/clients/:id should list all attributes for the node', function(assert) {
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     assert.ok(find('.attributes-table'), 'Attributes table is on the page');
@@ -290,7 +290,7 @@ test('/nodes/:id should list all attributes for the node', function(assert) {
 test('when the node is not found, an error message is shown, but the URL persists', function(
   assert
 ) {
-  visit('/nodes/not-a-real-node');
+  visit('/clients/not-a-real-node');
 
   andThen(() => {
     assert.equal(
@@ -298,7 +298,7 @@ test('when the node is not found, an error message is shown, but the URL persist
       '/v1/node/not-a-real-node',
       'A request to the non-existent node is made'
     );
-    assert.equal(currentURL(), '/nodes/not-a-real-node', 'The URL persists');
+    assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(find('.error-message'), 'Error message is shown');
     assert.equal(
       find('.error-message .title').textContent,
