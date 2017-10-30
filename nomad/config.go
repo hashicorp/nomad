@@ -307,6 +307,7 @@ func DefaultConfig() *Config {
 		TLSConfig:                        &config.TLSConfig{},
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
+		StatsCollectionInterval:          1 * time.Minute,
 	}
 
 	// Enable all known schedulers by default
