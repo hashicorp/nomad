@@ -2,6 +2,8 @@
 
 IMPROVEMENTS:
  * api: Allocations now track and return modify time in addition to create time.
+ * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
+   to TLS rather than changing `heartbeat_grace`.
 
 BUG FIXES:
 
