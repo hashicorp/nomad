@@ -78,8 +78,8 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       1        1       1        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status   Created At
-8ba85cef  171a583b  cache       0        run      running  07/25/17 23:14:43 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+8ba85cef  171a583b  cache       0        run      running  5m ago   5m ago
 ```
 
 Here we can see that the result of our evaluation was the creation of an
@@ -100,7 +100,8 @@ Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 07/25/17 23:14:43 UTC
+Created             = 5m ago
+Modified            = 5m ago     
 Deployment ID       = fa882a5b
 Deployment Health   = healthy
 
@@ -321,10 +322,10 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       3        3       3        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status    Created At
-8ace140d  2cfe061e  cache       2        stop     complete  07/26/17 17:51:01 UTC
-8af5330a  2cfe061e  cache       2        stop     complete  07/26/17 17:51:01 UTC
-df50c3ae  2cfe061e  cache       2        stop     complete  07/26/17 17:51:01 UTC
+ID        Node ID   Task Group  Version  Desired  Status    Created    Modified
+8ace140d  2cfe061e  cache       2        stop     complete  5m ago     5m ago
+8af5330a  2cfe061e  cache       2        stop     complete  6m ago     6m ago
+df50c3ae  2cfe061e  cache       2        stop     complete  6m ago     6m ago
 ```
 
 If we wanted to start the job again, we could simply `run` it again.

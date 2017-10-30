@@ -504,7 +504,8 @@ $ curl \
     "CreateIndex": 15052,
     "ModifyIndex": 15057,
     "AllocModifyIndex": 15052,
-    "CreateTime": 1502140975600438500
+    "CreateTime": 1502140975600438500,
+    "ModifyTime": 1502140975600438500
   },
 ...
 ]
