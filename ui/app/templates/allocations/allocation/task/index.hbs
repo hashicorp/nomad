@@ -1,0 +1,12 @@
+{{#global-header class="page-header"}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "allocations/allocation/task/subnav"}}
+  <section class="section">
+    <ul>
+      <li>Name: {{model.name}}</li>
+      <li>State: {{model.state}}</li>
+      <li>CPU: {{model.resources.cpu}}</li>
+    </ul>
+  </section>
+{{/gutter-menu}}
