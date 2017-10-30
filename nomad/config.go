@@ -249,6 +249,14 @@ type Config struct {
 	// StatsCollectionInterval is the interval at which the Nomad server
 	// publishes metrics which are periodic in nature like updating gauges
 	StatsCollectionInterval time.Duration
+
+	// DisableTaggedMetrics determines whether metrics will be displayed via a
+	// key/value/tag format, or simply a key/value format
+	DisableTaggedMetrics bool
+
+	// BackwardsCompatibleMetrics determines whether to show methods of
+	// displaying metrics for older verions, or to only show the new format
+	BackwardsCompatibleMetrics bool
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
