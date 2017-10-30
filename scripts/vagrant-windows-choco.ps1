@@ -6,7 +6,6 @@ choco install -y docker-for-windows
 
 # Install Git
 choco install -y golang
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Users\vagrant\go\bin", [EnvironmentVariableTarget]::Machine)
 
 # Install Consul
 choco install -y consul

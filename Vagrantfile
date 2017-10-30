@@ -59,8 +59,11 @@ Vagrant.configure(2) do |config|
 			cpus: suggestedCPUCores(),
             memory: 4096
 
-		vmCfg.vm.synced_folder '.',
-            '/Users/vagrant/go/src/github.com/hashicorp/nomad'
+        vmCfg.vm.synced_folder '../../../../', '/go/'
+
+		vmCfg.vm.provision "shell",
+			powershell_elevated_interactive: true,
+            path: './scripts/vagrant-windows-hyperv.ps1'
 
 		vmCfg.vm.provision "shell",
 			powershell_elevated_interactive: true,
@@ -72,7 +75,8 @@ Vagrant.configure(2) do |config|
 
 		vmCfg.vm.provision "shell",
 			powershell_elevated_interactive: true,
-            path: './scripts/vagrant-windows-hyperv.ps1'
+            path: './scripts/vagrant-windows-gopath.ps1',
+            run: "always"
 	end
 
 	# Test Cluster (Linux)
