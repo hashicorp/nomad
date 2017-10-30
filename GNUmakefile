@@ -1,11 +1,5 @@
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-ifeq ($(OS),Windows_NT)
-THIS_OS := Windows
-BINARY := nomad.exe
-else
-THIS_OS := $(shell uname -s)
-BINARY := nomad
-endif
+THIS_OS := $(shell uname)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
@@ -98,21 +92,21 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 # windows/386 targets:
 #	CC=i686-w64-mingw32-gcc
 #	CXX=i686-w64-mingw32-g++
-pkg/windows_386/nomad.exe: $(SOURCE_FILES) ## Build Nomad for windows/386
+pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
-		-o "$@"
+		-o "$@.exe"
 
-pkg/windows_amd64/nomad.exe: $(SOURCE_FILES) ## Build Nomad for windows/amd64
+pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
-		-o "$@"
+		-o "$@.exe"
 
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
@@ -192,12 +186,12 @@ generate: ## Update generated code
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
-dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/$(BINARY)
+dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
 dev: ## Build for the current development platform
-	@echo "==> Removing old development build..." $(DEV_TARGET) $(THIS_OS)
+	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
-	@rm -f $(PROJECT_ROOT)/bin/$(BINARY)
-	@rm -f $(GOPATH)/bin/$(BINARY)
+	@rm -f $(PROJECT_ROOT)/bin/nomad
+	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
 		GO_TAGS="nomad_test $(NOMAD_UI_TAG)"
