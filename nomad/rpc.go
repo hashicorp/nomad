@@ -101,7 +101,7 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 	// Enforce TLS if EnableRPC is set
 	if s.config.TLSConfig.EnableRPC && !isTLS && RPCType(buf[0]) != rpcTLS {
 		if !s.config.TLSConfig.RPCUpgradeMode {
-			s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted with RequireTLS set")
+			s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted from %s with RequireTLS set", conn.RemoteAddr().String())
 			conn.Close()
 			return
 		}

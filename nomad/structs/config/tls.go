@@ -29,7 +29,7 @@ type TLSConfig struct {
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
 
-	// RPCUpgradeMode should be enabled when a cluster ie being upgraded
+	// RPCUpgradeMode should be enabled when a cluster is being upgraded
 	// to TLS. Allows servers to accept both plaintext and TLS connections and
 	// should only be a temporary state.
 	RPCUpgradeMode bool `mapstructure:"rpc_upgrade_mode"`
