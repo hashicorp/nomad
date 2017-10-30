@@ -54,6 +54,10 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
   a Nomad client makes the client use TLS for making RPC requests to the Nomad
   servers.
 
+- `rpc_upgrade_mode` `(bool: false)` - This option should be used only when the
+  cluster is being upgraded to TLS, and removed after the migration is
+  complete. This allows the agent to accept both TLS and plaintext traffic.
+
 - `verify_https_client` `(bool: false)` - Specifies agents should require
   client certificates for all incoming HTTPS requests. The client certificates
   must be signed by the same CA as Nomad.
