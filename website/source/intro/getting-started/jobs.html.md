@@ -79,8 +79,8 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       1        1       1        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status   Created At
-883269bf  e42d6f19  cache       0        run      running  10/31/17 22:58:40 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+8ba85cef  171a583b  cache       0        run      running  5m ago   5m ago
 ```
 
 Here we can see that the result of our evaluation was the creation of an
@@ -101,8 +101,9 @@ Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 10/31/17 22:58:40 UTC
-Deployment ID       = b0a84e74
+Created             = 5m ago
+Modified            = 5m ago     
+Deployment ID       = fa882a5b
 Deployment Health   = healthy
 
 Task "redis" is "running"
@@ -326,13 +327,10 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       3        3       3        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status    Created At
-7dce5722  e42d6f19  cache       2        stop     complete  11/01/17 17:31:16 UTC
-8cfab5f4  e42d6f19  cache       2        stop     complete  11/01/17 17:31:02 UTC
-27bd4a41  e42d6f19  cache       2        stop     complete  11/01/17 17:30:40 UTC
-3249e320  e42d6f19  cache       1        stop     complete  11/01/17 17:28:28 UTC
-453b210f  e42d6f19  cache       1        stop     complete  11/01/17 17:28:28 UTC
-883269bf  e42d6f19  cache       1        stop     complete  10/31/17 22:58:40 UTC
+ID        Node ID   Task Group  Version  Desired  Status    Created    Modified
+8ace140d  2cfe061e  cache       2        stop     complete  5m ago     5m ago
+8af5330a  2cfe061e  cache       2        stop     complete  6m ago     6m ago
+df50c3ae  2cfe061e  cache       2        stop     complete  6m ago     6m ago
 ```
 
 If we wanted to start the job again, we could simply `run` it again.
