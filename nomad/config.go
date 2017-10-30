@@ -245,6 +245,10 @@ type Config struct {
 
 	// SentinelConfig is this Agent's Sentinel configuration
 	SentinelConfig *config.SentinelConfig
+
+	// StatsCollectionInterval is the interval at which the Nomad server
+	// publishes metrics which are periodic in nature like updating gauges
+	StatsCollectionInterval time.Duration
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

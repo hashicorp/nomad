@@ -233,6 +233,9 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
 
+	// Setup telemetry related config
+	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
+
 	return conf, nil
 }
 

@@ -180,6 +180,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically unblock failed allocations
 	go s.periodicUnblockFailedEvals(stopCh)
 
+	// Periodically publish job summary metrics
+	go s.publishJobSummaryMetrics(stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -515,6 +518,52 @@ func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
 		case <-ticker.C:
 			// Unblock the failed allocations
 			s.blockedEvals.UnblockFailed()
+		}
+	}
+}
+
+// publishJobSummaryMetrics publishes the job summaries as metrics
+func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
+	// Using a timer instead of a ticker so that we can publish after the
+	// current batch of metrics have been published
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-timer.C:
+			state, err := s.State().Snapshot()
+			if err != nil {
+				timer.Reset(s.config.StatsCollectionInterval)
+				s.logger.Printf("[ERR] nomad: failed to get state: %v", err)
+				continue
+			}
+			ws := memdb.NewWatchSet()
+			iter, err := state.JobSummaries(ws)
+			if err != nil {
+				timer.Reset(s.config.StatsCollectionInterval)
+				s.logger.Printf("[ERR] nomad: failed to get job summaries: %v", err)
+				continue
+			}
+
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				summary := raw.(*structs.JobSummary)
+				for name, tgSummary := range summary.Summary {
+					metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+					metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+					metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+					metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+					metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+					metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+				}
+			}
+			timer.Reset(s.config.StatsCollectionInterval)
 		}
 	}
 }
