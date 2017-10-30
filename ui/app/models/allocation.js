@@ -38,6 +38,18 @@ export default Model.extend({
     return STATUS_ORDER[this.get('clientStatus')] || 100;
   }),
 
+  statusClass: computed('clientStatus', function() {
+    const classMap = {
+      pending: 'is-pending',
+      running: 'is-primary',
+      complete: 'is-complete',
+      failed: 'is-error',
+      lost: 'is-light',
+    };
+
+    return classMap[this.get('clientStatus')] || 'is-dark';
+  }),
+
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));

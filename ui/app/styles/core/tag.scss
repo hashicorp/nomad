@@ -16,6 +16,16 @@
     color: $blue-invert;
   }
 
+  &.is-primary {
+    background: $primary;
+    color: $primary-invert;
+  }
+
+  &.is-complete {
+    background: $nomad-green-dark;
+    color: findColorInvert($nomad-green-dark);
+  }
+
   &.is-error {
     background: $danger;
     color: $danger-invert;

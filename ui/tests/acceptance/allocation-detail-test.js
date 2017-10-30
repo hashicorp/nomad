@@ -28,14 +28,19 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   assert
 ) {
   assert.ok(find('h1').textContent.includes(allocation.name), 'Allocation name is in the heading');
-  assert.ok(find('h3').textContent.includes(job.name), 'Job name is in the subheading');
-  assert.ok(
-    find('h3').textContent.includes(node.id.split('-')[0]),
+  assert.equal(
+    find('.inline-definitions .job-link a').textContent.trim(),
+    job.name,
+    'Job name is in the subheading'
+  );
+  assert.equal(
+    find('.inline-definitions .node-link a').textContent.trim(),
+    node.id.split('-')[0],
     'Node short id is in the subheading'
   );
 
   andThen(() => {
-    click(findAll('h3 a')[0]);
+    click('.inline-definitions .job-link a');
   });
 
   andThen(() => {
@@ -45,7 +50,7 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   visit(`/allocations/${allocation.id}`);
 
   andThen(() => {
-    click(findAll('h3 a')[1]);
+    click('.inline-definitions .node-link a');
   });
 
   andThen(() => {
