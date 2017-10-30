@@ -74,6 +74,9 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 		cb(config)
 	}
 
+	// Enable raft as leader if we have bootstrap on
+	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
+
 	for i := 10; i >= 0; i-- {
 		ports := freeport.GetT(t, 2)
 		config.RPCAddr = &net.TCPAddr{
@@ -657,7 +660,6 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.JobID = job.ID
 	alloc2.Job = job
 
-	// Insert at zero so they are pulled
 	state := s1.State()
 	if err := state.UpsertJob(100, job); err != nil {
 		t.Fatal(err)
@@ -681,23 +683,20 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 
 	// Delete one allocation
-	err = state.DeleteEval(103, nil, []string{alloc1.ID})
-	if err != nil {
+	if err := state.DeleteEval(103, nil, []string{alloc1.ID}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Update the other allocation. Have to make a copy because the allocs are
 	// shared in memory in the test and the modify index would be updated in the
 	// alloc runner.
-	alloc2_2 := new(structs.Allocation)
-	*alloc2_2 = *alloc2
+	alloc2_2 := alloc2.Copy()
 	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
-	err = state.UpsertAllocs(104, []*structs.Allocation{alloc2_2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	if err := state.UpsertAllocs(104, []*structs.Allocation{alloc2_2}); err != nil {
+		t.Fatalf("err upserting stopped alloc: %v", err)
 	}
 
-	// One allocations should get de-registered
+	// One allocation should get GC'd and removed
 	testutil.WaitForResult(func() (bool, error) {
 		c1.allocLock.RLock()
 		num := len(c1.allocs)

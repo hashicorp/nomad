@@ -76,8 +76,13 @@ type AllocRunner struct {
 	// to call.
 	prevAlloc prevAllocWatcher
 
+	// ctx is cancelled with exitFn to cause the alloc to be destroyed
+	// (stopped and GC'd).
 	ctx    context.Context
 	exitFn context.CancelFunc
+
+	// waitCh is closed when the Run method exits. At that point the alloc
+	// has stopped and been GC'd.
 	waitCh chan struct{}
 
 	// State related fields
@@ -917,11 +922,6 @@ func (r *AllocRunner) handleDestroy() {
 	// state as we wait for a destroy.
 	alloc := r.Alloc()
 
-	//TODO(schmichael) updater can cause a GC which can block on this alloc
-	// runner shutting down. Since handleDestroy can be called by Run() we
-	// can't block shutdown here as it would cause a deadlock.
-	go r.updater(alloc)
-
 	// Broadcast and persist state synchronously
 	r.sendBroadcast(alloc)
 	if err := r.saveAllocRunnerState(); err != nil {
@@ -934,6 +934,11 @@ func (r *AllocRunner) handleDestroy() {
 	if err := r.allocDir.UnmountAll(); err != nil {
 		r.logger.Printf("[ERR] client: alloc %q unable unmount task directories: %v", r.allocID, err)
 	}
+
+	// Update the server with the alloc's status -- also marks the alloc as
+	// being eligible for GC, so from this point on the alloc can be gc'd
+	// at any time.
+	r.updater(alloc)
 
 	for {
 		select {
@@ -1063,6 +1068,17 @@ func (r *AllocRunner) Destroy() {
 
 	r.exitFn()
 	r.allocBroadcast.Close()
+}
+
+// IsDestroyed returns true if the AllocRunner is not running and has been
+// destroyed (GC'd).
+func (r *AllocRunner) IsDestroyed() bool {
+	select {
+	case <-r.waitCh:
+		return true
+	default:
+		return false
+	}
 }
 
 // WaitCh returns a channel to wait for termination
