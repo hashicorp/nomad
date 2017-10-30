@@ -9,10 +9,6 @@ GO_TAGS =
 
 default: help
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
-$(error Building Nomad is currently only supported on Darwin and Linux.)
-endif
-
 # On Linux we build for Linux, Windows, and potentially Linux+LXC
 ifeq (Linux,$(THIS_OS))
 
