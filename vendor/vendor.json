@@ -755,16 +755,16 @@
 			"revisionTime": "2017-10-16T16:22:40Z"
 		},
 		{
-			"checksumSHA1": "tU6mtqrRxFn0gqqRC35JhD0y2rE=",
+			"checksumSHA1": "HGljdtVaqi/e3DgIHymLRLfPYhw=",
 			"path": "github.com/hashicorp/consul/lib",
-			"revision": "51ea240df8476e02215d53fbfad5838bf0d44d21",
-			"revisionTime": "2017-10-16T16:22:40Z"
+			"revision": "bcafded4e60982d0b71e730f0b8564d73cb1d715",
+			"revisionTime": "2017-10-31T16:39:15Z"
 		},
 		{
 			"checksumSHA1": "hDJiPli3EEGJE4vAezMi05oOC7o=",
 			"path": "github.com/hashicorp/consul/lib/freeport",
-			"revision": "b31cfaaf2ac5ddd6ddee1d2e1041466e939dc097",
-			"revisionTime": "2017-10-25T22:34:43Z"
+			"revision": "bcafded4e60982d0b71e730f0b8564d73cb1d715",
+			"revisionTime": "2017-10-31T16:39:15Z"
 		},
 		{
 			"checksumSHA1": "5XjgqE4UIfwXvkq5VssGNc7uPhQ=",

@@ -209,9 +209,30 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
+	// Check node permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client deregistration")
+	}
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
 	}
 
 	// Commit this update via Raft
@@ -232,8 +253,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	// Determine if there are any Vault accessors on the node
-	ws := memdb.NewWatchSet()
-	accessors, err := n.srv.State().VaultAccessorsByNode(ws, args.NodeID)
+	accessors, err := snap.VaultAccessorsByNode(ws, args.NodeID)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: looking up accessors for node %q failed: %v", args.NodeID, err)
 		return err
@@ -679,6 +699,12 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		return fmt.Errorf("missing node ID")
 	}
 
+	// numOldAllocs is used to detect if there is a garbage collection event
+	// that effects the node. When an allocation is garbage collected, that does
+	// not change the modify index changes and thus the query won't unblock,
+	// even though the set of allocations on the node has changed.
+	var numOldAllocs int
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -708,8 +734,17 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			reply.Allocs = make(map[string]uint64)
 			reply.MigrateTokens = make(map[string]string)
 
+			// preferTableIndex is used to determine whether we should build the
+			// response index based on the full table indexes versus the modify
+			// indexes of the allocations on the specific node. This is prefered
+			// in the case that the node doesn't yet have allocations or when we
+			// detect a GC that effects the node.
+			preferTableIndex := true
+
 			// Setup the output
-			if len(allocs) != 0 {
+			if numAllocs := len(allocs); numAllocs != 0 {
+				preferTableIndex = false
+
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
 
@@ -742,7 +777,18 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
-			} else {
+
+				// Determine if we have less allocations than before. This
+				// indicates there was a garbage collection
+				if numAllocs < numOldAllocs {
+					preferTableIndex = true
+				}
+
+				// Store the new number of allocations
+				numOldAllocs = numAllocs
+			}
+
+			if preferTableIndex {
 				// Use the last index that affected the nodes table
 				index, err := state.Index("allocs")
 				if err != nil {
