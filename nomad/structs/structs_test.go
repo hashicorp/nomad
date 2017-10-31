@@ -2431,3 +2431,32 @@ func TestACLPolicySetHash(t *testing.T) {
 	assert.Equal(t, out2, ap.Hash)
 	assert.NotEqual(t, out1, out2)
 }
+
+func TestTaskEventPopulate(t *testing.T) {
+	testcases := []struct {
+		event       *TaskEvent
+		expectedMsg string
+	}{
+		{nil, ""},
+		{NewTaskEvent(TaskStarted), "Task started by client"},
+		{NewTaskEvent(TaskReceived), "Task received by client"},
+		{NewTaskEvent(TaskFailedValidation).SetValidationError(fmt.Errorf("task failed validation")), "task failed validation"},
+		{NewTaskEvent(TaskSetupFailure).SetSetupError(fmt.Errorf("task failed setup")), "task failed setup"},
+		{NewTaskEvent(TaskDriverFailure), "Failed to start task"},
+		{NewTaskEvent(TaskDownloadingArtifacts), "Client is downloading artifacts"},
+		{NewTaskEvent(TaskArtifactDownloadFailed), "Failed to download artifacts"},
+		{NewTaskEvent(TaskArtifactDownloadFailed).SetDownloadError(fmt.Errorf("connection reset by peer")), "connection reset by peer"},
+		{NewTaskEvent(TaskKilling).SetKillReason("Its time for you to die"), "Killing task: Its time for you to die"},
+		{NewTaskEvent(TaskKilling).SetKillTimeout(1 * time.Second), "Sent interrupt. Waiting 1s before force killing"},
+		{NewTaskEvent(TaskTerminated).SetExitCode(-1).SetSignal(3), "Exit Code: -1, Signal: 3"},
+		{NewTaskEvent(TaskLeaderDead), "Leader Task in Group dead"},
+		{NewTaskEvent(TaskSiblingFailed).SetFailedSibling("patient zero"), "Task's sibling \"patient zero\" failed"},
+	}
+
+	for _, tc := range testcases {
+		tc.event.PopulateEventDisplayMessage()
+		if tc.event != nil && tc.event.DisplayMessage != tc.expectedMsg {
+			t.Fatalf("Expected %v but got %v", tc.expectedMsg, tc.event.DisplayMessage)
+		}
+	}
+}
