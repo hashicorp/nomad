@@ -132,6 +132,71 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Deregister_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the node
+	node := mock.Node()
+	node1 := mock.Node()
+	state := s1.fsm.State()
+	if err := state.UpsertNode(1, node); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertNode(2, node1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
+
+	// Deregister without any token and expect it to fail
+	dereg := &structs.NodeDeregisterRequest{
+		NodeID:       node.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp); err == nil {
+		t.Fatalf("node de-register succeeded")
+	}
+
+	// Deregister with a valid token
+	dereg.AuthToken = validToken.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for the node in the FSM
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected node")
+	}
+
+	// Deregister with an invalid token.
+	dereg1 := &structs.NodeDeregisterRequest{
+		NodeID:       node1.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	dereg1.AuthToken = invalidToken.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg1, &resp); err == nil {
+		t.Fatalf("rpc should not have succeeded")
+	}
+
+	// Try with a root token
+	dereg1.AuthToken = root.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg1, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
@@ -1325,6 +1390,80 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	}
 	if len(resp3.Allocs) != 1 || resp3.Allocs[alloc.ID] != 200 {
 		t.Fatalf("bad: %#v", resp3.Allocs)
+	}
+}
+
+func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+	node.CreateIndex = resp.Index
+	node.ModifyIndex = resp.Index
+
+	// Inject fake allocations async
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = node.ID
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	state := s1.fsm.State()
+	state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
+	start := time.Now()
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.UpsertAllocs(100, []*structs.Allocation{alloc1, alloc2}))
+	})
+
+	// Lookup the allocs in a blocking query
+	req := &structs.NodeSpecificRequest{
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 50,
+			MaxQueryTime:  time.Second,
+		},
+	}
+	var resp2 structs.NodeClientAllocsResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp2))
+
+	// Should block at least 100ms
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+
+	assert.EqualValues(100, resp2.Index)
+	if assert.Len(resp2.Allocs, 2) {
+		assert.EqualValues(100, resp2.Allocs[alloc1.ID])
+	}
+
+	// Delete an allocation
+	time.AfterFunc(100*time.Millisecond, func() {
+		assert.Nil(state.DeleteEval(200, nil, []string{alloc2.ID}))
+	})
+
+	req.QueryOptions.MinQueryIndex = 150
+	var resp3 structs.NodeClientAllocsResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", req, &resp3))
+
+	if time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("too fast")
+	}
+	assert.EqualValues(200, resp3.Index)
+	if assert.Len(resp3.Allocs, 1) {
+		assert.EqualValues(100, resp3.Allocs[alloc1.ID])
 	}
 }
 

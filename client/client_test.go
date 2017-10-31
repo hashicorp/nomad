@@ -222,7 +222,7 @@ func TestClient_HasNodeChanged(t *testing.T) {
 	c := testClient(t, nil)
 	defer c.Shutdown()
 
-	node := c.Node()
+	node := c.config.Node
 	attrHash, err := hashstructure.Hash(node.Attributes, nil)
 	if err != nil {
 		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)

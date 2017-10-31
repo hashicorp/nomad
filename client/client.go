@@ -501,7 +501,7 @@ func (c *Client) CollectAllAllocs() error {
 func (c *Client) Node() *structs.Node {
 	c.configLock.RLock()
 	defer c.configLock.RUnlock()
-	return c.config.Node
+	return c.configCopy.Node
 }
 
 // StatsReporter exposes the various APIs related resource usage of a Nomad

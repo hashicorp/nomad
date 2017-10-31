@@ -11,6 +11,7 @@ IMPROVEMENTS:
  * core/enterprise: Sentinel integration for fine grain policy enforcement.
  * core/enterprise: Namespace support allowing jobs and their associated
    objects to be isolated from each other and other users of the cluster.
+ * api: Allow force deregistration of a node [GH-3447]
  * api: New `/v1/agent/health` endpoint for health checks.
  * api: Metrics endpoint exposes Prometheus formatted metrics [GH-3171]
  * cli: Consul config option flags for nomad agent command [GH-3327]
@@ -22,6 +23,8 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [GH-3201]
  * core: Run deployment garbage collector on an interval [GH-3267]
+ * core: Fix paramterized jobs occasionally showing status dead incorrectly
+   [GH-3460]
  * core: Fix issue in which job versions above a threshold potentially wouldn't
    be stored [GH-3372]
  * core: Fix issue where node-drain with complete batch allocation would create
@@ -38,8 +41,12 @@ BUG FIXES:
    change [GH-3214]
  * api: Fix search handling of jobs with more than four hyphens and case were
    length could cause lookup error [GH-3203]
+ * client: Improve the speed at which clients detect garbage collection events
+   [GH_-3452]
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [GH-3195]
+ * client: Fix data race that could lead to concurrent map read/writes during
+   hearbeating and fingerprinting [GH-3461]
  * driver/docker: Fix docker user specified syslogging [GH-3184]
  * driver/docker: Fix issue where CPU usage statistics were artificially high
    [GH-3229]
