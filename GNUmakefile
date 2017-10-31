@@ -1,3 +1,4 @@
+SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname)
 
@@ -228,10 +229,15 @@ test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
 		go test \
+			-v \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test $(if $(HAS_LXC),lxc)" \
-			./...
+			-tags="nomad_test $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
+	@echo "Exit code: $$(cat exit-code)" >> test.log
+	@grep -A1 -- '--- FAIL:' test.log || true
+	@grep '^FAIL' test.log || true
+	@test "$$TRAVIS" == "true" && cat test.log || true
+	@if [ "$$(cat exit-code)" == "0" ] ; then echo "PASS" ; exit 0 ; else exit 1 ; fi
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
