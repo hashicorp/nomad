@@ -147,9 +147,10 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 		delete(node.Attributes, qemuDriverAttr)
 		return false, fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
 	}
+	currentQemuVersion := matches[1]
 
 	node.Attributes[qemuDriverAttr] = "1"
-	node.Attributes[qemuDriverVersionAttr] = matches[1]
+	node.Attributes[qemuDriverVersionAttr] = currentQemuVersion
 
 	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
 	// We should consider this if driver.qemu.version is < 2.10.1 and the
@@ -157,13 +158,13 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	//
 	// Relevant fix is here:
 	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
-	currentVer := semver.New(matches[1])
+	currentQemuSemver := semver.New(currentQemuVersion)
 	fixedSocketPathLenVer := semver.New("2.10.1")
-	if currentVer.LessThan(*fixedSocketPathLenVer) {
+	if currentQemuSemver.LessThan(*fixedSocketPathLenVer) {
 		node.Attributes[qemuDriverLongMonitorPathAttr] = "0"
-		d.logger.Printf("[DEBUG] driver.qemu: long socket paths are not available in this version of QEMU")
+		d.logger.Printf("[DEBUG] driver.qemu: long socket paths are not available in this version of QEMU (%s)", currentQemuVersion)
 	} else {
-		d.logger.Printf("[DEBUG] driver.qemu: long socket paths available in this version of QEMU")
+		d.logger.Printf("[DEBUG] driver.qemu: long socket paths available in this version of QEMU (%s)", currentQemuVersion)
 		node.Attributes[qemuDriverLongMonitorPathAttr] = "1"
 	}
 	return true, nil
@@ -358,7 +359,7 @@ type qemuId struct {
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
 	id := &qemuId{}
 	if err := json.Unmarshal([]byte(handleID), id); err != nil {
-		return nil, fmt.Errorf("Failed to parse handle '%s': %v", handleID, err)
+		return nil, fmt.Errorf("Failed to parse handle %q: %v", handleID, err)
 	}
 
 	pluginConfig := &plugin.ClientConfig{
@@ -367,9 +368,9 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 	exec, pluginClient, err := createExecutorWithConfig(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERR] driver.qemu: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Printf("[ERR] driver.qemu: error connecting to plugin so destroying plugin pid %d and user pid %d", id.PluginConfig.Pid, id.UserPid)
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERR] driver.qemu: error destroying plugin and userpid: %v", e)
+			d.logger.Printf("[ERR] driver.qemu: error destroying plugin pid %d and userpid %d: %v", id.PluginConfig.Pid, id.UserPid, e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -438,16 +439,16 @@ func (h *qemuHandle) Kill() error {
 		monitorSocket, err := net.Dial("unix", h.monitorPath)
 		if err == nil {
 			defer monitorSocket.Close()
-			h.logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket at %s", h.monitorPath)
+			h.logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket %q", h.monitorPath)
 			_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
 			if err == nil {
 				return nil
 			}
-			h.logger.Printf("[WARN] driver.qemu: failed to send '%s' to monitor socket '%s': %s", qemuGracefulShutdownMsg, h.monitorPath, err)
+			h.logger.Printf("[WARN] driver.qemu: failed to send %q to monitor socket %q: %s", qemuGracefulShutdownMsg, h.monitorPath, err)
 		} else {
 			// OK, that didn't work - we'll continue on and
 			// attempt to kill the process as a last resort
-			h.logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor at %s: %s", h.monitorPath, err)
+			h.logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor %q: %s", h.monitorPath, err)
 		}
 	}
 
