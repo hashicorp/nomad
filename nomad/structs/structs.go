@@ -73,6 +73,8 @@ const (
 	ACLTokenUpsertRequestType
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
+
+	// Constant for restart events that are within policy
 	ReasonWithinPolicy = "Restart within policy"
 )
 
