@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -170,5 +170,4 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	assert.NotNil(err)
-	assert.Contains(err.Error(), "connection reset by peer")
 }
