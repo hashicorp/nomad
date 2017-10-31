@@ -167,6 +167,7 @@ func TestConfig_Parse(t *testing.T) {
 					CertFile:             "bar",
 					KeyFile:              "pipe",
 					RPCUpgradeMode:       true,
+					KeyLoader:            &config.KeyLoader{},
 					VerifyHTTPSClient:    true,
 				},
 				HTTPAPIResponseHeaders: map[string]string{

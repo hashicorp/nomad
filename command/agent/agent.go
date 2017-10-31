@@ -724,6 +724,16 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
+func (a *Agent) Reload(newConfig *Config) error {
+	if a.config != nil && newConfig.TLSConfig != nil {
+		if err := a.config.SetTLSConfig(newConfig.TLSConfig); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // setupConsul creates the Consul client and starts its main Run loop.
 func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	apiConf, err := consulConfig.ApiConfig()

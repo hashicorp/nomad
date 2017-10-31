@@ -23,8 +23,8 @@ import (
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
-	"github.com/hashicorp/nomad/helper/flag-helpers"
-	"github.com/hashicorp/nomad/helper/gated-writer"
+	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -628,6 +628,11 @@ func (c *Command) handleReload(config *Config) *Config {
 				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
 			}
 		}
+	}
+
+	err := c.agent.Reload(newConf)
+	if err != nil {
+		c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 	}
 
 	return newConf

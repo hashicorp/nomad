@@ -559,3 +559,45 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
 }
+
+func TestServer_Reload_TLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP: false,
+			KeyLoader:  &sconfig.KeyLoader{},
+		},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	assert.Nil(agentConfig.TLSConfig.KeyLoader.Certificate)
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+
+	assert.NotNil(agentConfig.TLSConfig.KeyLoader.Certificate)
+}

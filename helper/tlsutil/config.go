@@ -66,6 +66,8 @@ type Config struct {
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string
+
+	KeyLoader *config.KeyLoader
 }
 
 // AppendCA opens and parses the CA file and adds the certificates to
@@ -88,26 +90,21 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 	return nil
 }
 
-// Update syncs a new TLS config to a previously-created TLS config helper
-func (c *Config) Update(newConfig *config.TLSConfig) {
-	c.CAFile = newConfig.CAFile
-	c.CertFile = newConfig.CertFile
-	c.KeyFile = newConfig.KeyFile
-}
-
 // LoadKeyPair is used to open and parse a certificate and key file
 func (c *Config) LoadKeyPair() (*tls.Certificate, error) {
 	if c.CertFile == "" || c.KeyFile == "" {
 		return nil, nil
 	}
 
-	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+	if c.KeyLoader == nil {
+		return nil, nil // TODO make sure this is the correct behavior
+	}
+
+	cert, err := c.KeyLoader.LoadKeyPair(c.CertFile, c.KeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
 	}
-
-	c.Certificate = &cert
-	return c.Certificate, nil
+	return cert, err
 }
 
 // OutgoingTLSConfig generates a TLS configuration for outgoing
@@ -146,7 +143,7 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	} else if cert != nil {
-		tlsConfig.GetCertificate = c.getOutgoingCertificate
+		tlsConfig.GetCertificate = c.KeyLoader.GetOutgoingCertificate
 	}
 
 	return tlsConfig, nil
@@ -260,7 +257,7 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	} else if cert != nil {
-		tlsConfig.GetCertificate = c.getOutgoingCertificate
+		tlsConfig.GetCertificate = c.KeyLoader.GetOutgoingCertificate
 	}
 
 	// Check if we require verification

@@ -512,12 +512,6 @@ func (s *Server) Reload(config *Config) error {
 		}
 	}
 
-	if s.config != nil && config.TLSConfig != nil {
-		if err := s.config.SetTLSConfig(config.TLSConfig); err != nil {
-			multierror.Append(&mErr, err)
-		}
-	}
-
 	return mErr.ErrorOrNil()
 }
 

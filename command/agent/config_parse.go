@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/helper"
@@ -749,6 +749,10 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
 		return err
 	}
+
+	// TLSConfig requires a Keyloader object for dynamic reloading of TLS
+	// configuration
+	tlsConfig.KeyLoader = &config.KeyLoader{}
 	*result = &tlsConfig
 	return nil
 }
