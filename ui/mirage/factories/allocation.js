@@ -36,6 +36,24 @@ export default Factory.extend({
     },
   }),
 
+  withoutTaskWithPorts: trait({
+    afterCreate(allocation, server) {
+      const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
+      const resources = taskGroup.taskIds.map(id =>
+        server.create(
+          'task-resources',
+          {
+            allocation,
+            name: server.db.tasks.find(id).name,
+          },
+          'withoutReservedPorts'
+        )
+      );
+
+      allocation.update({ taskResourcesIds: resources.mapBy('id') });
+    },
+  }),
+
   afterCreate(allocation, server) {
     Ember.assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',

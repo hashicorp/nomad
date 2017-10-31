@@ -22,4 +22,15 @@ export default Fragment.extend({
 
   resources: fragment('resources'),
   events: fragmentArray('task-event'),
+
+  stateClass: computed('state', function() {
+    const classMap = {
+      pending: 'is-pending',
+      running: 'is-primary',
+      finished: 'is-complete',
+      failed: 'is-error',
+    };
+
+    return classMap[this.get('state')] || 'is-dark';
+  }),
 });

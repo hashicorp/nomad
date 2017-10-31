@@ -41,8 +41,19 @@ export function generateNetworks(options = {}) {
       MBits: 10,
       ReservedPorts: Array(
         faker.random.number({
-          min: options.minPorts || 0,
-          max: options.maxPorts || 3,
+          min: options.minPorts != null ? options.minPorts : 0,
+          max: options.maxPorts != null ? options.maxPorts : 2,
+        })
+      )
+        .fill(null)
+        .map(() => ({
+          Label: faker.hacker.noun(),
+          Value: faker.random.number({ min: 5000, max: 60000 }),
+        })),
+      DynamicPorts: Array(
+        faker.random.number({
+          min: options.minPorts != null ? options.minPorts : 0,
+          max: options.maxPorts != null ? options.maxPorts : 2,
         })
       )
         .fill(null)

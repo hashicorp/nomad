@@ -4,11 +4,6 @@
     opacity: 0.7;
     text-decoration: none;
 
-    &:hover {
-      color: $primary-invert;
-      opacity: 1;
-    }
-
     + .breadcrumb {
       margin-left: 15px;
       &::before {
@@ -22,5 +17,10 @@
     &:last-child {
       opacity: 1;
     }
+  }
+
+  a.breadcrumb:hover {
+    color: $primary-invert;
+    opacity: 1;
   }
 }

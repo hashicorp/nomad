@@ -1,5 +1,8 @@
 {{#global-header class="page-header"}}
-  Allocations
+  <span class="breadcrumb">Allocations</span>
+  {{#link-to "allocations.allocation" model class="breadcrumb"}}
+    {{model.shortId}}
+  {{/link-to}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
@@ -21,92 +24,59 @@
       </div>
     </div>
 
-    <div class="message">
-      <div class="message-header">
+    <div class="boxed-section">
+      <div class="boxed-section-head">
         Tasks
       </div>
-      {{#list-table
-        source=sortedStates
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        class="is-striped tasks" as |t|}}
-        {{#t.head}}
-          {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-          {{#t.sort-by prop="state"}}State{{/t.sort-by}}
-          <th>Last Event</th>
-          {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
-          <th>Addresses</th>
-        {{/t.head}}
-        {{#t.body as |row|}}
-          <tr>
-            <td>
-              {{#link-to "allocations.allocation.task" row.model.allocation row.model}}
-                {{row.model.task.name}}
-              {{/link-to}}
-            </td>
-            <td>{{row.model.state}}</td>
-            <td>
-              {{#if row.model.events.lastObject.displayMessage}}
-                {{row.model.events.lastObject.displayMessage}}
-              {{else}}
-                <em>No message</em>
-              {{/if}}
-            </td>
-            <td>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
-            <td>
-              <ul>
-                {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
-                  <li>
-                    <strong>{{port.Label}}:</strong>
-                    <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
-                  </li>
-                {{/each}}
-                {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
-                  <li>
-                    <strong>{{port.Label}}:</strong>
-                    <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
-                  </li>
-                {{/each}}
-              </ul>
-            </td>
-          </tr>
-        {{/t.body}}
-      {{/list-table}}
-    </div>
-
-    {{#each model.states as |state|}}
-      <div class="message task-state-events">
-        <div class="message-header">
-          {{state.task.name}} ({{state.state}}) Started: {{moment-format state.startedAt "MM/DD/YY HH:mm:ss [UTC]"}}
-          {{#unless state.isActive}}
-            Ended: {{moment-format state.finishedAt "MM/DD/YY HH:mm:ss [UTC]"}}
-          {{/unless}}
-        </div>
-        <table class="table is-striped task-events">
-          <thead>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table
+          source=sortedStates
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="is-striped tasks" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="state"}}State{{/t.sort-by}}
+            <th>Last Event</th>
+            {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
+            <th>Addresses</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
             <tr>
-              <td class="is-3">Time</td>
-              <td class="is-1">Type</td>
-              <td>Description</td>
+              <td>
+                {{#link-to "allocations.allocation.task" row.model.allocation row.model}}
+                  {{row.model.task.name}}
+                {{/link-to}}
+              </td>
+              <td>{{row.model.state}}</td>
+              <td>
+                {{#if row.model.events.lastObject.displayMessage}}
+                  {{row.model.events.lastObject.displayMessage}}
+                {{else}}
+                  <em>No message</em>
+                {{/if}}
+              </td>
+              <td>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
+              <td>
+                <ul>
+                  {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
+                    <li>
+                      <strong>{{port.Label}}:</strong>
+                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                    </li>
+                  {{/each}}
+                  {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
+                    <li>
+                      <strong>{{port.Label}}:</strong>
+                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                    </li>
+                  {{/each}}
+                </ul>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {{#each (reverse state.events) as |event|}}
-              <tr>
-                <td>{{moment-format event.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
-                <td>{{event.type}}</td>
-                <td>
-                  {{#if event.displayMessage}}
-                    {{event.displayMessage}}
-                  {{else}}
-                    <em>No message</em>
-                  {{/if}}
-                </td>
-              </tr>
-            {{/each}}
-          </tbody>
-        </table>
+          {{/t.body}}
+        {{/list-table}}
       </div>
-   {{/each}}
+    </div>
   </section>
 {{/gutter-menu}}
