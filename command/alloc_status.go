@@ -325,120 +325,129 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 
 	size := len(state.Events)
 	for i, event := range state.Events {
-		formatedTime := formatUnixNanoTime(event.Time)
-
-		// Build up the description based on the event type.
-		var desc string
-		switch event.Type {
-		case api.TaskSetup:
-			desc = event.Message
-		case api.TaskStarted:
-			desc = "Task started by client"
-		case api.TaskReceived:
-			desc = "Task received by client"
-		case api.TaskFailedValidation:
-			if event.ValidationError != "" {
-				desc = event.ValidationError
-			} else {
-				desc = "Validation of task failed"
-			}
-		case api.TaskSetupFailure:
-			if event.SetupError != "" {
-				desc = event.SetupError
-			} else {
-				desc = "Task setup failed"
-			}
-		case api.TaskDriverFailure:
-			if event.DriverError != "" {
-				desc = event.DriverError
-			} else {
-				desc = "Failed to start task"
-			}
-		case api.TaskDownloadingArtifacts:
-			desc = "Client is downloading artifacts"
-		case api.TaskArtifactDownloadFailed:
-			if event.DownloadError != "" {
-				desc = event.DownloadError
-			} else {
-				desc = "Failed to download artifacts"
-			}
-		case api.TaskKilling:
-			if event.KillReason != "" {
-				desc = fmt.Sprintf("Killing task: %v", event.KillReason)
-			} else if event.KillTimeout != 0 {
-				desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
-			} else {
-				desc = "Sent interrupt"
-			}
-		case api.TaskKilled:
-			if event.KillError != "" {
-				desc = event.KillError
-			} else {
-				desc = "Task successfully killed"
-			}
-		case api.TaskTerminated:
-			var parts []string
-			parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
-
-			if event.Signal != 0 {
-				parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
-			}
-
-			if event.Message != "" {
-				parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
-			}
-			desc = strings.Join(parts, ", ")
-		case api.TaskRestarting:
-			in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-			if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
-				desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
-			} else {
-				desc = in
-			}
-		case api.TaskNotRestarting:
-			if event.RestartReason != "" {
-				desc = event.RestartReason
-			} else {
-				desc = "Task exceeded restart policy"
-			}
-		case api.TaskSiblingFailed:
-			if event.FailedSibling != "" {
-				desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
-			} else {
-				desc = "Task's sibling failed"
-			}
-		case api.TaskSignaling:
-			sig := event.TaskSignal
-			reason := event.TaskSignalReason
-
-			if sig == "" && reason == "" {
-				desc = "Task being sent a signal"
-			} else if sig == "" {
-				desc = reason
-			} else if reason == "" {
-				desc = fmt.Sprintf("Task being sent signal %v", sig)
-			} else {
-				desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
-			}
-		case api.TaskRestartSignal:
-			if event.RestartReason != "" {
-				desc = event.RestartReason
-			} else {
-				desc = "Task signaled to restart"
-			}
-		case api.TaskDriverMessage:
-			desc = event.DriverMessage
-		case api.TaskLeaderDead:
-			desc = "Leader Task in Group dead"
-		case api.TaskGenericMessage:
-			event.Type = event.GenericSource
-			desc = event.Message
+		if event.DisplayMessage != "" {
+			formattedTime := formatUnixNanoTime(event.Time)
+			events[size-i] = fmt.Sprintf("%s|%s|%s", formattedTime, event.Type, event.DisplayMessage)
+		} else {
+			events[size-i] = buildDisplayMessage(event)
 		}
-
-		// Reverse order so we are sorted by time
-		events[size-i] = fmt.Sprintf("%s|%s|%s", formatedTime, event.Type, desc)
 	}
 	c.Ui.Output(formatList(events))
+}
+
+func buildDisplayMessage(event *api.TaskEvent) string {
+	formatedTime := formatUnixNanoTime(event.Time)
+
+	// Build up the description based on the event type.
+	var desc string
+	switch event.Type {
+	case api.TaskSetup:
+		desc = event.Message
+	case api.TaskStarted:
+		desc = "Task started by client"
+	case api.TaskReceived:
+		desc = "Task received by client"
+	case api.TaskFailedValidation:
+		if event.ValidationError != "" {
+			desc = event.ValidationError
+		} else {
+			desc = "Validation of task failed"
+		}
+	case api.TaskSetupFailure:
+		if event.SetupError != "" {
+			desc = event.SetupError
+		} else {
+			desc = "Task setup failed"
+		}
+	case api.TaskDriverFailure:
+		if event.DriverError != "" {
+			desc = event.DriverError
+		} else {
+			desc = "Failed to start task"
+		}
+	case api.TaskDownloadingArtifacts:
+		desc = "Client is downloading artifacts"
+	case api.TaskArtifactDownloadFailed:
+		if event.DownloadError != "" {
+			desc = event.DownloadError
+		} else {
+			desc = "Failed to download artifacts"
+		}
+	case api.TaskKilling:
+		if event.KillReason != "" {
+			desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+		} else if event.KillTimeout != 0 {
+			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
+		} else {
+			desc = "Sent interrupt"
+		}
+	case api.TaskKilled:
+		if event.KillError != "" {
+			desc = event.KillError
+		} else {
+			desc = "Task successfully killed"
+		}
+	case api.TaskTerminated:
+		var parts []string
+		parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+
+		if event.Signal != 0 {
+			parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
+		}
+
+		if event.Message != "" {
+			parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+		}
+		desc = strings.Join(parts, ", ")
+	case api.TaskRestarting:
+		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+		if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
+			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+		} else {
+			desc = in
+		}
+	case api.TaskNotRestarting:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task exceeded restart policy"
+		}
+	case api.TaskSiblingFailed:
+		if event.FailedSibling != "" {
+			desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+		} else {
+			desc = "Task's sibling failed"
+		}
+	case api.TaskSignaling:
+		sig := event.TaskSignal
+		reason := event.TaskSignalReason
+
+		if sig == "" && reason == "" {
+			desc = "Task being sent a signal"
+		} else if sig == "" {
+			desc = reason
+		} else if reason == "" {
+			desc = fmt.Sprintf("Task being sent signal %v", sig)
+		} else {
+			desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
+		}
+	case api.TaskRestartSignal:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task signaled to restart"
+		}
+	case api.TaskDriverMessage:
+		desc = event.DriverMessage
+	case api.TaskLeaderDead:
+		desc = "Leader Task in Group dead"
+	case api.TaskGenericMessage:
+		event.Type = event.GenericSource
+		desc = event.Message
+	}
+
+	// Reverse order so we are sorted by time
+	return fmt.Sprintf("%s|%s|%s", formatedTime, event.Type, desc)
 }
 
 // outputTaskResources prints the task resources for the passed task and if
