@@ -820,6 +820,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return fmt.Errorf("must update at least one allocation")
 	}
 
+	// Update modified timestamp for client initiated allocation updates
+	now := time.Now().UTC().UnixNano()
+	for _, alloc := range args.Alloc {
+		alloc.ModifyTime = now
+	}
 	// Add this to the batch
 	n.updatesLock.Lock()
 	n.updates = append(n.updates, args.Alloc...)
