@@ -112,13 +112,13 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
 
-pkg/linux_amd64-lxc/nomad: GO_TAGS2="$(GO_TAGS) lxc"
+pkg/linux_amd64-lxc/nomad: GO_TAGS2=$(GO_TAGS) lxc
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS2)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags \"$(GO_TAGS2)\" \
+		-tags "$(GO_TAGS2)" \
 		-o "$@"
 
 # Define package targets for each of the build targets we actually have on this system
@@ -203,7 +203,7 @@ dev: ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test ent $(NOMAD_UI_TAG)"
+		GO_TAGS=nomad_test ent $(NOMAD_UI_TAG)
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -221,14 +221,14 @@ prodev: check ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test pro $(NOMAD_UI_TAG)"
+		GO_TAGS=nomad_test pro $(NOMAD_UI_TAG)
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS="ui"
+prerelease: GO_TAGS=ui
 prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
