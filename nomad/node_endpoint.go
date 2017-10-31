@@ -736,9 +736,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			// preferTableIndex is used to determine whether we should build the
 			// response index based on the full table indexes versus the modify
-			// indexes of the allocations on the specific node. This is prefered
-			// in the case that the node doesn't yet have allocations or when we
-			// detect a GC that effects the node.
+			// indexes of the allocations on the specific node. This is
+			// preferred in the case that the node doesn't yet have allocations
+			// or when we detect a GC that effects the node.
 			preferTableIndex := true
 
 			// Setup the output
