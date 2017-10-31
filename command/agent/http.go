@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/NYTimes/gziphandler"
-	"github.com/elazarl/go-bindata-assetfs"
+	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/rs/cors"
 	"github.com/ugorji/go/codec"
 )
@@ -75,6 +76,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 			CAFile:               config.TLSConfig.CAFile,
 			CertFile:             config.TLSConfig.CertFile,
 			KeyFile:              config.TLSConfig.KeyFile,
+			KeyLoader:            &nconfig.KeyLoader{},
 		}
 		tlsConfig, err := tlsConf.IncomingTLSConfig()
 		if err != nil {

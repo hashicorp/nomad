@@ -328,6 +328,13 @@ type ServerConfig struct {
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
 }
 
+func (c *Config) SetTLSConfig(newConfig *config.TLSConfig) error {
+	c.TLSConfig = c.TLSConfig.Merge(newConfig)
+
+	_, err := c.TLSConfig.KeyLoader.LoadKeyPair(c.TLSConfig.CertFile, c.TLSConfig.KeyFile)
+	return err
+}
+
 // EncryptBytes returns the encryption key configured.
 func (s *ServerConfig) EncryptBytes() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s.EncryptKey)
@@ -595,9 +602,11 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
-		TLSConfig: &config.TLSConfig{},
-		Sentinel:  &config.SentinelConfig{},
-		Version:   version.GetVersion(),
+		TLSConfig: &config.TLSConfig{
+			KeyLoader: &config.KeyLoader{},
+		},
+		Sentinel: &config.SentinelConfig{},
+		Version:  version.GetVersion(),
 	}
 }
 

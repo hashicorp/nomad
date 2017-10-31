@@ -13,15 +13,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -168,6 +165,7 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 			CAFile:               cafile,
 			CertFile:             foocert,
 			KeyFile:              fookey,
+			KeyLoader:            &config.KeyLoader{},
 		}
 	})
 	defer s1.Shutdown()
@@ -278,51 +276,4 @@ func TestServer_Reload_Vault(t *testing.T) {
 	if !s1.vault.Running() {
 		t.Fatalf("Vault client should be running")
 	}
-}
-
-func TestServer_Reload_TLS(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
-	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
-	s1 := testServer(t, func(c *Config) {
-		c.DataDir = path.Join(dir, "nodeA")
-	})
-	defer s1.Shutdown()
-
-	codec := rpcClient(t, s1)
-
-	// assert that the server started in plaintext mode
-	assert.Equal(s1.config.TLSConfig.CertFile, "")
-
-	newTLSConfig := &config.TLSConfig{
-		EnableHTTP:           true,
-		EnableRPC:            true,
-		VerifyServerHostname: true,
-		CAFile:               cafile,
-		CertFile:             foocert,
-		KeyFile:              fookey,
-	}
-
-	config := s1.config
-	config.tlsConfigHelper = &tlsutil.Config{}
-
-	config.TLSConfig = newTLSConfig
-
-	err := s1.Reload(config)
-	assert.Nil(err)
-
-	// assert our server is now configured with the correct TLS configuration
-	assert.Equal(s1.config.TLSConfig.CertFile, foocert)
-
-	arg := struct{}{}
-	var out struct{}
-	err = msgpackrpc.CallWithCodec(codec, "Status.Ping", arg, &out)
-	assert.NotNil(err)
 }

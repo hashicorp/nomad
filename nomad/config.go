@@ -232,9 +232,6 @@ type Config struct {
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *config.TLSConfig
 
-	// tlsConfigHelper provides utility functions and a pointer to the TLS config
-	tlsConfigHelper *tlsutil.Config
-
 	// ACLEnabled controls if ACL enforcement and management is enabled.
 	ACLEnabled bool
 
@@ -275,27 +272,6 @@ func (c *Config) CheckVersion() error {
 			c.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
 	}
 	return nil
-}
-
-func (c *Config) SetTLSConfig(newTLSConfig *config.TLSConfig) error {
-	if newTLSConfig == nil {
-		return fmt.Errorf("no new tls configuration to reload")
-	}
-
-	c.configLock.Lock()
-	c.TLSConfig.Merge(newTLSConfig)
-	c.configLock.Unlock()
-
-	if c.tlsConfigHelper == nil {
-		return nil
-	}
-
-	// TODO can the TLSConfigHelper just have a TLSConfigCopy rather than copying
-	// fields?
-	c.tlsConfigHelper.Update(c.TLSConfig)
-	_, err := c.tlsConfigHelper.LoadKeyPair()
-
-	return err
 }
 
 // DefaultConfig returns the default configuration
@@ -343,6 +319,11 @@ func DefaultConfig() *Config {
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
 		StatsCollectionInterval:          1 * time.Minute,
+		TLSConfig: &config.TLSConfig{
+			KeyLoader: &config.KeyLoader{},
+		},
+		ReplicationBackoff: 30 * time.Second,
+		SentinelGCInterval: 30 * time.Second,
 	}
 
 	// Enable all known schedulers by default
@@ -375,13 +356,13 @@ func DefaultConfig() *Config {
 
 // tlsConfig returns a TLSUtil Config based on the server configuration
 func (c *Config) tlsConfig() *tlsutil.Config {
-	c.tlsConfigHelper = &tlsutil.Config{
+	return &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
 		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
 		CAFile:               c.TLSConfig.CAFile,
 		CertFile:             c.TLSConfig.CertFile,
 		KeyFile:              c.TLSConfig.KeyFile,
+		KeyLoader:            c.TLSConfig.KeyLoader,
 	}
-	return c.tlsConfigHelper
 }
