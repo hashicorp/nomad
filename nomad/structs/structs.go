@@ -73,6 +73,7 @@ const (
 	ACLTokenUpsertRequestType
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
+	ReasonWithinPolicy = "Restart within policy"
 )
 
 const (
@@ -3817,6 +3818,129 @@ type TaskEvent struct {
 
 	// GenericSource is the source of a message.
 	GenericSource string
+
+	// DisplayMessage is a human friendly message about the event
+	DisplayMessage string
+
+	// Details is a map with annotated info about the event
+	Details map[string]string
+}
+
+func (event *TaskEvent) PopulateEventDisplayMessage() {
+	// Build up the description based on the event type.
+	if event == nil { //TODO PA needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
+		return
+	}
+	var desc string
+	switch event.Type {
+	case TaskSetup:
+		desc = event.Message
+	case TaskStarted:
+		desc = "Task started by client"
+	case TaskReceived:
+		desc = "Task received by client"
+	case TaskFailedValidation:
+		if event.ValidationError != "" {
+			desc = event.ValidationError
+		} else {
+			desc = "Validation of task failed"
+		}
+	case TaskSetupFailure:
+		if event.SetupError != "" {
+			desc = event.SetupError
+		} else {
+			desc = "Task setup failed"
+		}
+	case TaskDriverFailure:
+		if event.DriverError != "" {
+			desc = event.DriverError
+		} else {
+			desc = "Failed to start task"
+		}
+	case TaskDownloadingArtifacts:
+		desc = "Client is downloading artifacts"
+	case TaskArtifactDownloadFailed:
+		if event.DownloadError != "" {
+			desc = event.DownloadError
+		} else {
+			desc = "Failed to download artifacts"
+		}
+	case TaskKilling:
+		if event.KillReason != "" {
+			desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+		} else if event.KillTimeout != 0 {
+			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
+		} else {
+			desc = "Sent interrupt"
+		}
+	case TaskKilled:
+		if event.KillError != "" {
+			desc = event.KillError
+		} else {
+			desc = "Task successfully killed"
+		}
+	case TaskTerminated:
+		var parts []string
+		parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+
+		if event.Signal != 0 {
+			parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
+		}
+
+		if event.Message != "" {
+			parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+		}
+		desc = strings.Join(parts, ", ")
+	case TaskRestarting:
+		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+		if event.RestartReason != "" && event.RestartReason != ReasonWithinPolicy {
+			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+		} else {
+			desc = in
+		}
+	case TaskNotRestarting:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task exceeded restart policy"
+		}
+	case TaskSiblingFailed:
+		if event.FailedSibling != "" {
+			desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+		} else {
+			desc = "Task's sibling failed"
+		}
+	case TaskSignaling:
+		sig := event.TaskSignal
+		reason := event.TaskSignalReason
+
+		if sig == "" && reason == "" {
+			desc = "Task being sent a signal"
+		} else if sig == "" {
+			desc = reason
+		} else if reason == "" {
+			desc = fmt.Sprintf("Task being sent signal %v", sig)
+		} else {
+			desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
+		}
+	case TaskRestartSignal:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task signaled to restart"
+		}
+	case TaskDriverMessage:
+		desc = event.DriverMessage
+	case TaskLeaderDead:
+		desc = "Leader Task in Group dead"
+	case TaskGenericMessage:
+		event.Type = event.GenericSource
+		desc = event.Message
+	default:
+		desc = ""
+	}
+
+	event.DisplayMessage = desc
 }
 
 func (te *TaskEvent) GoString() string {
@@ -3826,6 +3950,7 @@ func (te *TaskEvent) GoString() string {
 // SetMessage sets the message of TaskEvent
 func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
 	te.Message = msg
+	te.Details["message"] = msg
 	return te
 }
 
@@ -3840,8 +3965,9 @@ func (te *TaskEvent) Copy() *TaskEvent {
 
 func NewTaskEvent(event string) *TaskEvent {
 	return &TaskEvent{
-		Type: event,
-		Time: time.Now().UnixNano(),
+		Type:    event,
+		Time:    time.Now().UnixNano(),
+		Details: make(map[string]string),
 	}
 }
 
@@ -3850,35 +3976,41 @@ func NewTaskEvent(event string) *TaskEvent {
 func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
 		e.SetupError = err.Error()
+		e.Details["setup_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetFailsTask() *TaskEvent {
 	e.FailsTask = true
+	e.Details["fails_task"] = "true"
 	return e
 }
 
 func (e *TaskEvent) SetDriverError(err error) *TaskEvent {
 	if err != nil {
 		e.DriverError = err.Error()
+		e.Details["driver_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetExitCode(c int) *TaskEvent {
 	e.ExitCode = c
+	e.Details["exit_code"] = fmt.Sprintf("%d", c)
 	return e
 }
 
 func (e *TaskEvent) SetSignal(s int) *TaskEvent {
 	e.Signal = s
+	e.Details["signal"] = fmt.Sprintf("%d", s)
 	return e
 }
 
 func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
 	if err != nil {
 		e.Message = err.Error()
+		e.Details["exit_message"] = err.Error()
 	}
 	return e
 }
@@ -3886,38 +4018,45 @@ func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
 func (e *TaskEvent) SetKillError(err error) *TaskEvent {
 	if err != nil {
 		e.KillError = err.Error()
+		e.Details["kill_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetKillReason(r string) *TaskEvent {
 	e.KillReason = r
+	e.Details["kill_reason"] = r
 	return e
 }
 
 func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 	e.StartDelay = int64(delay)
+	e.Details["start_delay"] = fmt.Sprintf("%d", delay)
 	return e
 }
 
 func (e *TaskEvent) SetRestartReason(reason string) *TaskEvent {
 	e.RestartReason = reason
+	e.Details["restart_reason"] = reason
 	return e
 }
 
 func (e *TaskEvent) SetTaskSignalReason(r string) *TaskEvent {
 	e.TaskSignalReason = r
+	e.Details["task_signal_reason"] = r
 	return e
 }
 
 func (e *TaskEvent) SetTaskSignal(s os.Signal) *TaskEvent {
 	e.TaskSignal = s.String()
+	e.Details["task_signal"] = s.String()
 	return e
 }
 
 func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
 	if err != nil {
 		e.DownloadError = err.Error()
+		e.Details["download_error"] = err.Error()
 	}
 	return e
 }
@@ -3925,39 +4064,46 @@ func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
 func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 	if err != nil {
 		e.ValidationError = err.Error()
+		e.Details["validation_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
 	e.KillTimeout = timeout
+	e.Details["kill_timeout"] = timeout.String()
 	return e
 }
 
 func (e *TaskEvent) SetDiskLimit(limit int64) *TaskEvent {
 	e.DiskLimit = limit
+	e.Details["disk_limit"] = fmt.Sprintf("%d", limit)
 	return e
 }
 
 func (e *TaskEvent) SetFailedSibling(sibling string) *TaskEvent {
 	e.FailedSibling = sibling
+	e.Details["failed_sibling"] = sibling
 	return e
 }
 
 func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 	if err != nil {
 		e.VaultError = err.Error()
+		e.Details["vault_renewal_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	e.DriverMessage = m
+	e.Details["driver_message"] = m
 	return e
 }
 
 func (e *TaskEvent) SetGenericSource(s string) *TaskEvent {
 	e.GenericSource = s
+	e.Details["generic_source"] = s
 	return e
 }
 
