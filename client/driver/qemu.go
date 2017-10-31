@@ -161,9 +161,9 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	fixedSocketPathLenVer := semver.New("2.10.1")
 	if currentVer.LessThan(*fixedSocketPathLenVer) {
 		node.Attributes[qemuDriverLongMonitorPathAttr] = "0"
-		d.logger.Printf("[DEBUG] driver.qemu - long socket paths are not available in this version of QEMU")
+		d.logger.Printf("[DEBUG] driver.qemu: long socket paths are not available in this version of QEMU")
 	} else {
-		d.logger.Printf("[DEBUG] driver.qemu - long socket paths available in this version of QEMU")
+		d.logger.Printf("[DEBUG] driver.qemu: long socket paths available in this version of QEMU")
 		node.Attributes[qemuDriverLongMonitorPathAttr] = "1"
 	}
 	return true, nil
@@ -232,10 +232,10 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		// to perform graceful shutdowns)
 		monitorPath, err = getMonitorPath(ctx.TaskDir.Dir, ctx.TaskEnv.NodeAttrs[qemuDriverLongMonitorPathAttr])
 		if err == nil {
-			d.logger.Printf("[DEBUG] driver.qemu - got monitor path OK: %s", monitorPath)
+			d.logger.Printf("[DEBUG] driver.qemu: got monitor path OK: %s", monitorPath)
 			args = append(args, "-monitor", fmt.Sprintf("unix:%s,server,nowait", monitorPath))
 		} else {
-			d.logger.Printf("[WARN] driver.qemu - %s", err)
+			d.logger.Printf("[WARN] driver.qemu: %s", err)
 		}
 	}
 
@@ -288,7 +288,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		)
 	}
 
-	d.logger.Printf("[DEBUG] driver.qemu - starting QemuVM command: %q", strings.Join(args, " "))
+	d.logger.Printf("[DEBUG] driver.qemu: starting QemuVM command: %q", strings.Join(args, " "))
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
 		LogFile:  pluginLogFile,
@@ -321,7 +321,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		pluginClient.Kill()
 		return nil, err
 	}
-	d.logger.Printf("[INFO] driver.qemu - started new QemuVM: %s", vmID)
+	d.logger.Printf("[INFO] driver.qemu: started new QemuVM: %s", vmID)
 
 	// Create and Return Handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
@@ -367,7 +367,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 	exec, pluginClient, err := createExecutorWithConfig(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERR] driver.qemu - error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.qemu: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			d.logger.Printf("[ERR] driver.qemu: error destroying plugin and userpid: %v", e)
 		}
@@ -438,16 +438,16 @@ func (h *qemuHandle) Kill() error {
 		monitorSocket, err := net.Dial("unix", h.monitorPath)
 		if err == nil {
 			defer monitorSocket.Close()
-			h.logger.Printf("[DEBUG] driver.qemu - sending graceful shutdown command to qemu monitor socket at %s", h.monitorPath)
+			h.logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket at %s", h.monitorPath)
 			_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
 			if err == nil {
 				return nil
 			}
-			h.logger.Printf("[WARN] driver.qemu - failed to send '%s' to monitor socket '%s': %s", qemuGracefulShutdownMsg, h.monitorPath, err)
+			h.logger.Printf("[WARN] driver.qemu: failed to send '%s' to monitor socket '%s': %s", qemuGracefulShutdownMsg, h.monitorPath, err)
 		} else {
 			// OK, that didn't work - we'll continue on and
 			// attempt to kill the process as a last resort
-			h.logger.Printf("[WARN] driver.qemu - could not connect to qemu monitor at %s: %s", h.monitorPath, err)
+			h.logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor at %s: %s", h.monitorPath, err)
 		}
 	}
 
@@ -462,7 +462,7 @@ func (h *qemuHandle) Kill() error {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		h.logger.Printf("[DEBUG] driver.qemu - kill timeout exceeded")
+		h.logger.Printf("[DEBUG] driver.qemu: kill timeout exceeded")
 		if h.pluginClient.Exited() {
 			return nil
 		}
@@ -481,7 +481,7 @@ func (h *qemuHandle) run() {
 	ps, werr := h.executor.Wait()
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
-			h.logger.Printf("[ERR] driver.qemu - error killing user process: %v", e)
+			h.logger.Printf("[ERR] driver.qemu: error killing user process: %v", e)
 		}
 	}
 	close(h.doneCh)
