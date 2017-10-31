@@ -9,6 +9,26 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// enterpriseInit is used to initialize the state store with enterprise
+// objects.
+func (s *StateStore) enterpriseInit() error {
+	// Create the default namespace. This is safe to do every time we create the
+	// state store. There are two main cases, a brand new cluster in which case
+	// each server will have the same default namespace object, or a new cluster
+	// in which case if the default namespace has been modified, it will be
+	// overriden by the restore code path.
+	defaultNs := &structs.Namespace{
+		Name:        structs.DefaultNamespace,
+		Description: structs.DefaultNamespaceDescription,
+	}
+
+	if err := s.UpsertNamespaces(1, []*structs.Namespace{defaultNs}); err != nil {
+		return fmt.Errorf("inserting default namespace failed: %v", err)
+	}
+
+	return nil
+}
+
 // namespaceExists returns whether a namespace exists
 func (s *StateStore) namespaceExists(txn *memdb.Txn, namespace string) (bool, error) {
 	if namespace == structs.DefaultNamespace {
