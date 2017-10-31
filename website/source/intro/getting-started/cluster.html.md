@@ -213,6 +213,7 @@ it down with `nomad stop`.
 
 ## Next Steps
 
-We've now concluded the getting started guide, however there are a number
-of [next steps](next-steps.html) to get started with Nomad.
+Nomad is now up and running. The cluster can be entirely managed from the commandline,
+but Nomad also comes with a web interface that is hosted alongside the HTTP API.
+Next, we'll [visit the UI in the browser](ui.html).
 
