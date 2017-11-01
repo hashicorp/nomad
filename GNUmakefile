@@ -203,7 +203,7 @@ dev: ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS=nomad_test ent $(NOMAD_UI_TAG)
+		GO_TAGS="nomad_test ent $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -214,14 +214,14 @@ prodev: GOOS=$(shell go env GOOS)
 prodev: GOARCH=$(shell go env GOARCH)
 prodev: GOPATH=$(shell go env GOPATH)
 prodev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
-prodev: check ## Build for the current development platform
+prodev: ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS=nomad_test pro $(NOMAD_UI_TAG)
+		GO_TAGS="nomad_test pro $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
