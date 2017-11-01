@@ -16,14 +16,6 @@ import (
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
-func generateString(length int) string {
-	var newString string
-	for i := 0; i < length; i++ {
-		newString = newString + "x"
-	}
-	return string(newString)
-}
-
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
 	if !testutil.IsTravis() {
@@ -309,13 +301,13 @@ func TestQemuDriverUser(t *testing.T) {
 }
 
 func TestQemuDriverGetMonitorPath(t *testing.T) {
-	shortPath := generateString(10)
+	shortPath := strings.Repeat("x", 10)
 	_, err := getMonitorPath(shortPath, "0")
 	if err != nil {
 		t.Fatal("Should not have returned an error")
 	}
 
-	longPath := generateString(legacyMaxMonitorPathLen + 100)
+	longPath := strings.Repeat("x", legacyMaxMonitorPathLen+100)
 	_, err = getMonitorPath(longPath, "0")
 	if err == nil {
 		t.Fatal("Should have returned an error")
@@ -325,7 +317,7 @@ func TestQemuDriverGetMonitorPath(t *testing.T) {
 		t.Fatal("Should not have returned an error")
 	}
 
-	maxLengthPath := generateString(legacyMaxMonitorPathLen)
+	maxLengthPath := strings.Repeat("x", legacyMaxMonitorPathLen)
 	_, err = getMonitorPath(maxLengthPath, "0")
 	if err != nil {
 		t.Fatal("Should not have returned an error")
