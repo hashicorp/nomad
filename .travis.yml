@@ -29,6 +29,7 @@ matrix:
       dist: trusty
       sudo: false
       env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
+  allow_failures:
     - os: osx
       osx_image: xcode9.1
 
