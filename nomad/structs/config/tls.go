@@ -30,6 +30,7 @@ type TLSConfig struct {
 	// Must be provided to serve TLS connections.
 	CertFile string `mapstructure:"cert_file"`
 
+	// KeyLoader is a helper to dynamically reload TLS configuration
 	KeyLoader *KeyLoader
 
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
