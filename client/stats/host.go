@@ -190,9 +190,6 @@ func (h *HostStatsCollector) Stats() *HostStats {
 
 // toDiskStats merges UsageStat and PartitionStat to create a DiskStat
 func (h *HostStatsCollector) toDiskStats(usage *disk.UsageStat, partitionStat *disk.PartitionStat) *DiskStats {
-	if usage == nil {
-		return nil
-	}
 	ds := DiskStats{
 		Size:              usage.Total,
 		Used:              usage.Used,

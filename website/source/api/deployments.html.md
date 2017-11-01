@@ -253,7 +253,8 @@ $ curl \
     "DeploymentStatus": null,
     "CreateIndex": 19,
     "ModifyIndex": 22,
-    "CreateTime": 1498775380678486300
+    "CreateTime": 1498775380678486300,
+    "ModifyTime": 1498775380678486300
   }
 ]
 ```
