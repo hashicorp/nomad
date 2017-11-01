@@ -1,4 +1,4 @@
-## 0.7 (October 31, 2017)
+## 0.7.0 (November 1, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * driver/rkt: Nomad now requires at least rkt version `1.27.0` for the rkt
