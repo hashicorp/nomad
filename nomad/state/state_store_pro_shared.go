@@ -16,7 +16,7 @@ func (s *StateStore) enterpriseInit() error {
 	// state store. There are two main cases, a brand new cluster in which case
 	// each server will have the same default namespace object, or a new cluster
 	// in which case if the default namespace has been modified, it will be
-	// overriden by the restore code path.
+	// overridden by the restore code path.
 	defaultNs := &structs.Namespace{
 		Name:        structs.DefaultNamespace,
 		Description: structs.DefaultNamespaceDescription,
