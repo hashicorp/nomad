@@ -491,13 +491,11 @@ func (h *qemuHandle) run() {
 }
 
 func sendQemuShutdown(logger *log.Logger, monitorPath string, userPid int) error {
-	var err error
 	if monitorPath == "" {
 		logger.Printf("[DEBUG] driver.qemu: monitorPath not set; will not attempt graceful shutdown for user process pid %d", userPid)
-		err = errors.New("monitorPath not set")
+		return errors.New("monitorPath not set")
 	} else {
-		var monitorSocket net.Conn
-		monitorSocket, err = net.Dial("unix", monitorPath)
+		monitorSocket, err := net.Dial("unix", monitorPath)
 		if err == nil {
 			defer monitorSocket.Close()
 			logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket %q for user process pid %d", monitorPath, userPid)
@@ -508,6 +506,6 @@ func sendQemuShutdown(logger *log.Logger, monitorPath string, userPid int) error
 		} else {
 			logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor %q for user process pid %d: %s", monitorPath, userPid, err)
 		}
+		return err
 	}
-	return err
 }

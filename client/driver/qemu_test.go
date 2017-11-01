@@ -53,6 +53,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
+	logger := testLogger()
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -119,11 +120,12 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 
 	// Clean up
 	if err := resp.Handle.Kill(); err != nil {
-		fmt.Printf("\nError killing Qemu test: %s", err)
+		logger.Printf("Error killing Qemu test: %s", err)
 	}
 }
 
 func TestQemuDriver_GracefulShutdown(t *testing.T) {
+	logger := testLogger()
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -181,16 +183,16 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	// 5 seconds for it to become available.
 	monitorPath := fmt.Sprintf("%s/linux/%s", ctx.AllocDir.AllocDir, qemuMonitorSocketName)
 	monitorPathExists := false
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 100; i++ {
 		if _, err := os.Stat(monitorPath); !os.IsNotExist(err) {
-			fmt.Printf("Monitor socket exists at %q\n", monitorPath)
+			logger.Printf("monitor socket exists at %q\n", monitorPath)
 			monitorPathExists = true
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 	}
 	if monitorPathExists == false {
-		t.Fatalf("monitor socket did not exist after waiting 5 seconds")
+		t.Fatalf("monitor socket did not exist after waiting 20 seconds")
 	}
 
 	// userPid supplied in sendQemuShutdown calls is bogus (it's used only
@@ -208,9 +210,11 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	}
 
 	// Clean up
-	if err := resp.Handle.Kill(); err != nil {
-		fmt.Printf("\nError killing Qemu test: %s", err)
-	}
+	defer func() {
+		if err := resp.Handle.Kill(); err != nil {
+			logger.Printf("Error killing Qemu test: %s", err)
+		}
+	}()
 }
 
 func TestQemuDriverUser(t *testing.T) {
