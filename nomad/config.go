@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/memberlist"
@@ -57,8 +56,6 @@ type Config struct {
 	// bring up a collection of nodes.  All operations on BootstrapExpect
 	// must be handled via `atomic.*Int32()` calls.
 	BootstrapExpect int32
-
-	configLock sync.RWMutex
 
 	// DataDir is the directory to store our state in
 	DataDir string

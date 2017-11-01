@@ -59,14 +59,11 @@ type Config struct {
 	// Must be provided to serve TLS connections.
 	CertFile string
 
-	// Stores a TLS certificate that has been loaded given the information in the
-	// configuration. This can be updated via config.Reload()
-	Certificate *tls.Certificate
-
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string
 
+	// Utility to dynamically reload TLS configuration.
 	KeyLoader *config.KeyLoader
 }
 
@@ -97,7 +94,7 @@ func (c *Config) LoadKeyPair() (*tls.Certificate, error) {
 	}
 
 	if c.KeyLoader == nil {
-		return nil, nil // TODO make sure this is the correct behavior
+		return nil, fmt.Errorf("No Keyloader object to perform LoadKeyPair")
 	}
 
 	cert, err := c.KeyLoader.LoadKeyPair(c.CertFile, c.KeyFile)
@@ -147,10 +144,6 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	}
 
 	return tlsConfig, nil
-}
-
-func (c *Config) getOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-	return c.Certificate, nil
 }
 
 // OutgoingTLSWrapper returns a a Wrapper based on the OutgoingTLS

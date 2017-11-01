@@ -143,6 +143,8 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
+	assert := assert.New(t)
+
 	conf := &Config{
 		VerifyOutgoing: true,
 		CAFile:         cacert,
@@ -151,28 +153,15 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 		KeyLoader:      &config.KeyLoader{},
 	}
 	tlsConf, err := conf.OutgoingTLSConfig()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tlsConf == nil {
-		t.Fatalf("expected config")
-	}
-	if len(tlsConf.RootCAs.Subjects()) != 1 {
-		t.Fatalf("expect root cert")
-	}
-	if !tlsConf.InsecureSkipVerify {
-		t.Fatalf("should skip verification")
-	}
+	assert.Nil(err)
+	assert.NotNil(tlsConf)
+	assert.Equal(len(tlsConf.RootCAs.Subjects()), 1)
+	assert.True(tlsConf.InsecureSkipVerify)
 
 	clientHelloInfo := &tls.ClientHelloInfo{}
 	cert, err := tlsConf.GetCertificate(clientHelloInfo)
-	// TODO add asert package
-	if err != nil {
-		t.Fatalf("expected no error")
-	}
-	if cert == nil {
-		t.Fatalf("expected client cert")
-	}
+	assert.Nil(err)
+	assert.NotNil(cert)
 }
 
 func startTLSServer(config *Config) (net.Conn, chan error) {
