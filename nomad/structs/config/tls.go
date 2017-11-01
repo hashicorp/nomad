@@ -50,7 +50,15 @@ type KeyLoader struct {
 	Certificate *tls.Certificate
 }
 
+// LoadKeyPair reloads the TLS certificate based on the specified certificate
+// and key file. If successful, stores the certificate for further use.
 func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, error) {
+	// Allow downgrading
+	if certFile == "" && keyFile == "" {
+		k.Certificate = nil
+		return nil, nil
+	}
+
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
