@@ -21,6 +21,17 @@ With Nomad running, visit [http://localhost:4646](http://localhost:4646) to open
 
 [![Nomad UI Jobs List][img-jobs-list]][img-jobs-list]
 
+If you can't connect it's possible that Vagrant was unable to properly map the
+port from your host to the VM. Your `vagrant up` output will contain the new
+port mapping:
+
+```text
+==> default: Fixed port collision for 4646 => 4646. Now on port 2200.
+```
+
+In the case above you would connect to
+[http://localhost:2200](http://localhost:2200) instead.
+
 ## Inspecting a Job
 
 You should be automatically redirected to `/ui/jobs` upon visiting the UI in your browser. This
