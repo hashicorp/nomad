@@ -560,7 +560,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 }
 
-func TestServer_Reload_TLS(t *testing.T) {
+func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
@@ -600,4 +600,45 @@ func TestServer_Reload_TLS(t *testing.T) {
 	assert.Nil(err)
 
 	assert.NotNil(agentConfig.TLSConfig.KeyLoader.Certificate)
+}
+
+func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+			KeyLoader:            &sconfig.KeyLoader{},
+		},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP: false,
+			KeyLoader:  &sconfig.KeyLoader{},
+		},
+	}
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+
+	assert.Nil(agentConfig.TLSConfig.KeyLoader.Certificate)
 }
