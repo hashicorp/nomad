@@ -157,6 +157,11 @@ func NewPool(logOutput io.Writer, maxTime time.Duration, maxStreams int, tlsWrap
 	return pool
 }
 
+// ReloadTLS reloads TLS configuration on the fly
+func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
+	p.tlsWrap = tlsWrap
+}
+
 // Shutdown is used to close the connection pool
 func (p *ConnPool) Shutdown() error {
 	p.Lock()

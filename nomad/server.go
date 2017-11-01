@@ -353,6 +353,37 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
+func (s *Server) loadTLSConfiguration(newConfig *Config) error {
+	// TODO review whether this should happen at the agent, here, or both
+	// Reset the server's TLS configuration
+	s.config.TLSConfig = newConfig.TLSConfig
+
+	// Configure TLS
+	var tlsWrap tlsutil.RegionWrapper
+	var incomingTLS *tls.Config
+	if newConfig.TLSConfig.EnableRPC {
+		tlsConf := newConfig.tlsConfig()
+		tw, err := tlsConf.OutgoingTLSWrapper()
+		if err != nil {
+			return err
+		}
+		tlsWrap = tw
+
+		itls, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return err
+		}
+		incomingTLS = itls
+	}
+
+	// Reload TLS configuration in the server's conn pool
+	s.connPool.ReloadTLS(tlsWrap)
+
+	// Reset the server's rpcTLS configuration
+	s.rpcTLS = incomingTLS
+	return nil
+}
+
 // Shutdown is used to shutdown the server
 func (s *Server) Shutdown() error {
 	s.logger.Printf("[INFO] nomad: shutting down server")
@@ -498,16 +529,22 @@ func (s *Server) Leave() error {
 }
 
 // Reload handles a config reload. Not all config fields can handle a reload.
-func (s *Server) Reload(config *Config) error {
-	if config == nil {
+func (s *Server) Reload(newConfig *Config) error {
+	if newConfig == nil {
 		return fmt.Errorf("Reload given a nil config")
 	}
 
 	var mErr multierror.Error
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
-	if s.vault != nil {
-		if err := s.vault.SetConfig(config.VaultConfig); err != nil {
+	if s.vault != nil && newConfig.VaultConfig != nil {
+		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
+			multierror.Append(&mErr, err)
+		}
+	}
+
+	if newConfig.TLSConfig != nil {
+		if err := s.loadTLSConfiguration(newConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
 	}
