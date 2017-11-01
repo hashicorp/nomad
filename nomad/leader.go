@@ -180,6 +180,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically unblock failed allocations
 	go s.periodicUnblockFailedEvals(stopCh)
 
+	// Periodically publish job summary metrics
+	go s.publishJobSummaryMetrics(stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -515,6 +518,74 @@ func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
 		case <-ticker.C:
 			// Unblock the failed allocations
 			s.blockedEvals.UnblockFailed()
+		}
+	}
+}
+
+// publishJobSummaryMetrics publishes the job summaries as metrics
+func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-timer.C:
+			timer.Reset(s.config.StatsCollectionInterval)
+			state, err := s.State().Snapshot()
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to get state: %v", err)
+				continue
+			}
+			ws := memdb.NewWatchSet()
+			iter, err := state.JobSummaries(ws)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to get job summaries: %v", err)
+				continue
+			}
+
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				summary := raw.(*structs.JobSummary)
+				for name, tgSummary := range summary.Summary {
+					if !s.config.DisableTaggedMetrics {
+						labels := []metrics.Label{
+							{
+								Name:  "job",
+								Value: summary.JobID,
+							},
+							{
+								Name:  "task_group",
+								Value: name,
+							},
+						}
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+							float32(tgSummary.Queued), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+							float32(tgSummary.Complete), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+							float32(tgSummary.Failed), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+							float32(tgSummary.Running), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+							float32(tgSummary.Starting), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+							float32(tgSummary.Lost), labels)
+					}
+					if s.config.BackwardsCompatibleMetrics {
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+					}
+				}
+			}
 		}
 	}
 }
