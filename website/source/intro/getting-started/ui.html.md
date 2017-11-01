@@ -12,8 +12,6 @@ At this point we have a fully functioning cluster with a job running in it. We h
 learned how to inspect a job using `nomad status`, next we'll learn how to inspect
 a job in the web client.
 
-~> **Beta Feature!** This page covers the Nomad UI, a feature of v0.7 which is still in beta.
-
 ## Opening the Web UI
 
 As long as Nomad is running, the Nomad UI is also running. It is hosted at the same address
@@ -22,6 +20,17 @@ and port as the Nomad HTTP API under the `/ui` namespace.
 With Nomad running, visit [http://localhost:4646](http://localhost:4646) to open the Nomad UI.
 
 [![Nomad UI Jobs List][img-jobs-list]][img-jobs-list]
+
+If you can't connect it's possible that Vagrant was unable to properly map the
+port from your host to the VM. Your `vagrant up` output will contain the new
+port mapping:
+
+```text
+==> default: Fixed port collision for 4646 => 4646. Now on port 2200.
+```
+
+In the case above you would connect to
+[http://localhost:2200](http://localhost:2200) instead.
 
 ## Inspecting a Job
 

@@ -15,9 +15,9 @@ we will create our first real cluster with multiple nodes.
 
 ## Starting the Server
 
-The first step is to create the config file for the server. Either download
-the file from the [repository here](https://github.com/hashicorp/nomad/tree/master/demo/vagrant),
-or paste this into a file called `server.hcl`:
+The first step is to create the config file for the server. Either download the
+[file from the repository][server.hcl], or paste this into a file called
+`server.hcl`:
 
 ```hcl
 # Increase log verbosity
@@ -43,8 +43,8 @@ corresponding `bootstrap_expect` value.
 
 Once the file is created, start the agent in a new tab:
 
-```
-$ sudo nomad agent -config server.hcl
+```text
+$ nomad agent -config server.hcl
 ==> WARNING: Bootstrap mode enabled! Potentially unsafe operation.
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
@@ -53,7 +53,7 @@ $ sudo nomad agent -config server.hcl
              Log Level: DEBUG
                 Region: global (DC: dc1)
                 Server: true
-               Version: 0.6.0
+               Version: 0.7.0
 
 ==> Nomad agent started! Log data will stream in below:
 
@@ -80,11 +80,11 @@ Now we need some agents to run tasks!
 ## Starting the Clients
 
 Similar to the server, we must first configure the clients. Either download
-the configuration for client1 and client2 from the
+the configuration for `client1` and `client2` from the
 [repository here](https://github.com/hashicorp/nomad/tree/master/demo/vagrant), or
 paste the following into `client1.hcl`:
 
-```
+```hcl
 # Increase log verbosity
 log_level = "DEBUG"
 
@@ -108,11 +108,11 @@ ports {
 ```
 
 Copy that file to `client2.hcl` and change the `data_dir` to
-be "/tmp/client2" and the `http` port to 5657. Once you've created
+be `/tmp/client2` and the `http` port to 5657. Once you've created
 both `client1.hcl` and `client2.hcl`, open a tab for each and
 start the agents:
 
-```
+```text
 $ sudo nomad agent -config client1.hcl
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
@@ -121,7 +121,7 @@ $ sudo nomad agent -config client1.hcl
              Log Level: DEBUG
                 Region: global (DC: dc1)
                 Server: false
-               Version: 0.6.0
+               Version: 0.7.0
 
 ==> Nomad agent started! Log data will stream in below:
 
@@ -138,7 +138,7 @@ in managing the cluster or making scheduling decisions.
 Using the [`node-status` command](/docs/commands/node-status.html)
 we should see both nodes in the `ready` state:
 
-```
+```text 
 $ nomad node-status
 ID        Datacenter  Name   Class   Drain  Status
 fca62612  dc1         nomad  <none>  false  ready
@@ -157,7 +157,7 @@ verify that the `count` is still set to 3.
 
 Then, use the [`run` command](/docs/commands/run.html) to submit the job:
 
-```
+```text
 $ nomad run example.nomad
 ==> Monitoring evaluation "8e0a7cf9"
     Evaluation triggered by job "example"
@@ -217,3 +217,4 @@ Nomad is now up and running. The cluster can be entirely managed from the comman
 but Nomad also comes with a web interface that is hosted alongside the HTTP API.
 Next, we'll [visit the UI in the browser](ui.html).
 
+[server.hcl]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
