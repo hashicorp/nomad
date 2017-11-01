@@ -456,7 +456,7 @@ func (h *qemuHandle) Kill() error {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		h.logger.Printf("[DEBUG] driver.qemu: kill timeout exceeded")
+		h.logger.Printf("[DEBUG] driver.qemu: kill timeout exceeded for user process pid %d", h.userPid)
 		if h.pluginClient.Exited() {
 			return nil
 		}
@@ -475,7 +475,7 @@ func (h *qemuHandle) run() {
 	ps, werr := h.executor.Wait()
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.userPid); e != nil {
-			h.logger.Printf("[ERR] driver.qemu: error killing user process: %v", e)
+			h.logger.Printf("[ERR] driver.qemu: error killing user process pid %d: %v", h.userPid, e)
 		}
 	}
 	close(h.doneCh)
@@ -497,13 +497,13 @@ func (h *qemuHandle) sendQemuShutdown() error {
 		monitorSocket, err := net.Dial("unix", h.monitorPath)
 		if err == nil {
 			defer monitorSocket.Close()
-			h.logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket %q", h.monitorPath)
+			h.logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket %q for user process pid %d", h.monitorPath, h.userPid)
 			_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
 			if err != nil {
-				h.logger.Printf("[WARN] driver.qemu: failed to send shutdown message %q to monitor socket %q: %s", qemuGracefulShutdownMsg, h.monitorPath, err)
+				h.logger.Printf("[WARN] driver.qemu: failed to send shutdown message %q to monitor socket %q for user process pid %d: %s", qemuGracefulShutdownMsg, h.monitorPath, h.userPid, err)
 			}
 		}
-		h.logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor %q: %s", h.monitorPath, err)
+		h.logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor %q for user process pid %d: %s", h.monitorPath, h.userPid, err)
 	}
 	return err
 }
