@@ -6,22 +6,23 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=0.9.0
+CONSULVERSION=0.9.3
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=0.7.3
+VAULTVERSION=0.8.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.6.0
-NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
+NOMADVERSION=0.7.0
+NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/0.7.0-beta1/nomad_0.7.0-beta1_linux_amd64.zip
+# NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-HADOOP_VERSION=2.7.3
+HADOOP_VERSION=2.7.4
 
 # Dependencies
 sudo apt-get install -y software-properties-common
@@ -103,4 +104,4 @@ sudo mv /ops/examples/spark/spark-2.1.0-bin-nomad /usr/local/bin/spark
 sudo chown -R root:root /usr/local/bin/spark
 
 # Hadoop (to enable the HDFS CLI)
-wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz | sudo tar xz -C /usr/local/
+wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/

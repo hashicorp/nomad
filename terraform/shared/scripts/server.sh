@@ -7,26 +7,26 @@ CONFIGDIR=/ops/shared/config
 CONSULCONFIGDIR=/etc/consul.d
 VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
-HADOOP_VERSION=hadoop-2.7.3
+HADOOP_VERSION=hadoop-2.7.4
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
 # Wait for network
 sleep 15
 
-IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
+# IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
+IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
 DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
-SERVER_COUNT=$1
-REGION=$2
-CLUSTER_TAG_VALUE=$3
+CLOUD=$1
+SERVER_COUNT=$2
+RETRY_JOIN=$3
 
 # Consul
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul.json
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
-sed -i "s/REGION/$REGION/g" $CONFIGDIR/consul.json
-sed -i "s/CLUSTER_TAG_VALUE/$CLUSTER_TAG_VALUE/g" $CONFIGDIR/consul.json
+sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
-sudo cp $CONFIGDIR/consul_upstart.conf /etc/init/consul.conf
+sudo cp $CONFIGDIR/consul_upstart_$CLOUD.conf /etc/init/consul.conf
 
 sudo service consul start
 sleep 10
