@@ -524,8 +524,6 @@ func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
 
 // publishJobSummaryMetrics publishes the job summaries as metrics
 func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
-	// Using a timer instead of a ticker so that we can publish after the
-	// current batch of metrics have been published
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 
@@ -534,16 +532,15 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 		case <-stopCh:
 			return
 		case <-timer.C:
+			timer.Reset(s.config.StatsCollectionInterval)
 			state, err := s.State().Snapshot()
 			if err != nil {
-				timer.Reset(s.config.StatsCollectionInterval)
 				s.logger.Printf("[ERR] nomad: failed to get state: %v", err)
 				continue
 			}
 			ws := memdb.NewWatchSet()
 			iter, err := state.JobSummaries(ws)
 			if err != nil {
-				timer.Reset(s.config.StatsCollectionInterval)
 				s.logger.Printf("[ERR] nomad: failed to get job summaries: %v", err)
 				continue
 			}
@@ -589,7 +586,6 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					}
 				}
 			}
-			timer.Reset(s.config.StatsCollectionInterval)
 		}
 	}
 }
