@@ -695,7 +695,11 @@ func (c *Config) Merge(b *Config) *Config {
 	} else if b.TLSConfig != nil {
 		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
-	result.TLSConfig.KeyLoader = &config.KeyLoader{}
+
+	// Initialize the TLS Keyloader if necessasry
+	if result.TLSConfig != nil && result.TLSConfig.KeyLoader == nil {
+		result.TLSConfig.KeyLoader = &config.KeyLoader{}
+	}
 
 	// Apply the client config
 	if result.Client == nil && b.Client != nil {
