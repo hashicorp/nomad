@@ -14,8 +14,6 @@ Jobs, Deployments, Task Groups, Allocations, Clients, and Servers can all be
 monitored from the Web UI. The Web UI also supports the use of ACL tokens for
 clusters that are using the [ACL system](/guides/acl.html).
 
-~> **Beta Feature!** This page covers the Web UI, a feature of v0.7 which is still in beta.
-
 ## Accessing the Web UI
 
 The Web UI is served on the same address and port as the HTTP API. It is namespaced
