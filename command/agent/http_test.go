@@ -550,7 +550,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	}
 
 	s := makeHTTPServer(t, func(c *Config) {
-		c.TLSConfig = &config.TLSConfig{}
+		c.TLSConfig = newConfig.TLSConfig
 	})
 	defer s.Shutdown()
 
@@ -594,7 +594,6 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert.Nil(err)
 
 	resp, err := client.Do(req)
-	assert.Equal("", err.Error())
 	assert.Nil(err)
 
 	resp.Body.Close()
