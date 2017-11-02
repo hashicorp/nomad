@@ -179,22 +179,32 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 	// TODO Should be passed a context
 	ar.ctx, ar.exitFn = context.WithCancel(context.TODO())
 
-	ar.baseLabels = []metrics.Label{
-		{
-			Name:  "job",
-			Value: alloc.Job.Name,
-		},
-		{
-			Name:  "task_group",
-			Value: alloc.TaskGroup,
-		},
-		{
-			Name:  "node_id",
-			Value: ar.config.Node.ID,
-		},
-	}
-
 	return ar
+}
+
+// setBaseLabels creates the set of base labels. This should be called after
+// Restore has been called so the allocation is guaranteed to be loaded
+func (r *AllocRunner) setBaseLabels() {
+	r.baseLabels = make([]metrics.Label, 0, 3)
+
+	if r.alloc.Job != nil {
+		r.baseLabels = append(r.baseLabels, metrics.Label{
+			Name:  "job",
+			Value: r.alloc.Job.Name,
+		})
+	}
+	if r.alloc.TaskGroup != "" {
+		r.baseLabels = append(r.baseLabels, metrics.Label{
+			Name:  "task_group",
+			Value: r.alloc.TaskGroup,
+		})
+	}
+	if r.config != nil && r.config.Node != nil {
+		r.baseLabels = append(r.baseLabels, metrics.Label{
+			Name:  "node_id",
+			Value: r.config.Node.ID,
+		})
+	}
 }
 
 // pre060StateFilePath returns the path to our state file that would have been
@@ -791,6 +801,7 @@ func (r *AllocRunner) appendTaskEvent(state *structs.TaskState, event *structs.T
 // Run is a long running goroutine used to manage an allocation
 func (r *AllocRunner) Run() {
 	defer close(r.waitCh)
+	r.setBaseLabels()
 	go r.dirtySyncState()
 
 	// Find the task group to run in the allocation
