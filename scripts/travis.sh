@@ -7,6 +7,8 @@ PING_LOOP_PID=$!
 
 trap 'kill ${PING_LOOP_PID}' EXIT HUP INT QUIT TERM
 
+env
+
 if [[ "$RUN_STATIC_CHECKS" ]]; then
     make check
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then 
