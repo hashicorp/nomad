@@ -724,10 +724,16 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
+// Reload handles configuration changes for the agent. Provides a method that
+// is easier to unit test, as this action is invoked via SIGHUP.
 func (a *Agent) Reload(newConfig *Config) error {
 	if a.config != nil && newConfig.TLSConfig != nil {
-		if err := a.config.SetTLSConfig(newConfig.TLSConfig); err != nil {
-			return err
+
+		// If the agent is already running with TLS enabled, we need to only reload
+		// its certificates. In a later PR, we will introduce the ability to reload
+		// TLS configuration if the agent is not running with TLS enabled.
+		if a.config.TLSConfig != nil {
+			return a.config.SetTLSConfig(newConfig.TLSConfig)
 		}
 	}
 
