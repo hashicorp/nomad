@@ -188,6 +188,10 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 			Name:  "task_group",
 			Value: alloc.TaskGroup,
 		},
+		{
+			Name:  "node_id",
+			Value: ar.config.Node.ID,
+		},
 	}
 
 	return ar
