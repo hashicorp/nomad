@@ -419,6 +419,48 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     <td>Gauge</td>
     <td>node_id, datacenter, disk</td>
   </tr>
+  <tr>
+    <td>`nomad.client.allocs.start`</td>
+    <td>Number of allocations starting</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.running`</td>
+    <td>Number of allocations starting to run</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.failed`</td>
+    <td>Number of allocations failing</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.restart`</td>
+    <td>Number of allocations restarting</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.complete`</td>
+    <td>Number of allocations completing</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.destroy`</td>
+    <td>Number of allocations being destroyed</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
 </table>
 
 ## Host Metrics (deprecated post Nomad 0.7)

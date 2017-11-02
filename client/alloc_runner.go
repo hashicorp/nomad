@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -101,6 +102,10 @@ type AllocRunner struct {
 	// can lower write volume by not re-writing these values
 	immutablePersisted bool
 	allocDirPersisted  bool
+
+	// baseLabels are used when emitting tagged metrics. All alloc runner metrics
+	// will have these tags, and optionally more.
+	baseLabels []metrics.Label
 }
 
 // COMPAT: Remove in 0.7.0
@@ -173,6 +178,22 @@ func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB,
 
 	// TODO Should be passed a context
 	ar.ctx, ar.exitFn = context.WithCancel(context.TODO())
+
+	ar.baseLabels = []metrics.Label{
+		{
+			Name:  "job",
+			Value: alloc.Job.Name,
+		},
+		{
+			Name:  "task_group",
+			Value: alloc.TaskGroup,
+		},
+		{
+			Name:  "node_id",
+			Value: ar.config.Node.ID,
+		},
+	}
+
 	return ar
 }
 
@@ -645,6 +666,13 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 			taskState.Failed = true
 		}
 		if event.Type == structs.TaskRestarting {
+			if !r.config.DisableTaggedMetrics {
+				metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"},
+					1, r.baseLabels)
+			}
+			if r.config.BackwardsCompatibleMetrics {
+				metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "restart"}, 1)
+			}
 			taskState.Restarts++
 			taskState.LastRestart = time.Unix(0, event.Time)
 		}
@@ -668,6 +696,13 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 		// Capture the start time if it is just starting
 		if taskState.State != structs.TaskStateRunning {
 			taskState.StartedAt = time.Now().UTC()
+			if !r.config.DisableTaggedMetrics {
+				metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"},
+					1, r.baseLabels)
+			}
+			if r.config.BackwardsCompatibleMetrics {
+				metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "running"}, 1)
+			}
 		}
 	case structs.TaskStateDead:
 		// Capture the finished time. If it has never started there is no finish
@@ -690,6 +725,24 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 			}
 		}
 
+		// Emitting metrics to indicate task complete and failures
+		if taskState.Failed {
+			if !r.config.DisableTaggedMetrics {
+				metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"},
+					1, r.baseLabels)
+			}
+			if r.config.BackwardsCompatibleMetrics {
+				metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "failed"}, 1)
+			}
+		} else {
+			if !r.config.DisableTaggedMetrics {
+				metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"},
+					1, r.baseLabels)
+			}
+			if r.config.BackwardsCompatibleMetrics {
+				metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "complete"}, 1)
+			}
+		}
 		// If the task failed, we should kill all the other tasks in the task group.
 		if taskState.Failed {
 			for _, tr := range otherTaskRunners {
@@ -792,6 +845,15 @@ func (r *AllocRunner) Run() {
 		r.handleDestroy()
 		r.logger.Printf("[DEBUG] client: terminating runner for alloc '%s'", r.allocID)
 		return
+	}
+
+	// Increment alloc runner start counter. Incr'd even when restoring existing tasks so 1 start != 1 task execution
+	if !r.config.DisableTaggedMetrics {
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "start"},
+			1, r.baseLabels)
+	}
+	if r.config.BackwardsCompatibleMetrics {
+		metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, "start"}, 1)
 	}
 
 	// Start the watcher
@@ -921,6 +983,15 @@ func (r *AllocRunner) handleDestroy() {
 	// Final state sync. We do this to ensure that the server has the correct
 	// state as we wait for a destroy.
 	alloc := r.Alloc()
+
+	// Increment the destroy count for this alloc runner since this allocation is being removed from this client.
+	if !r.config.DisableTaggedMetrics {
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "destroy"},
+			1, r.baseLabels)
+	}
+	if r.config.BackwardsCompatibleMetrics {
+		metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, "destroy"}, 1)
+	}
 
 	// Broadcast and persist state synchronously
 	r.sendBroadcast(alloc)
