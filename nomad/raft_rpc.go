@@ -41,6 +41,7 @@ func NewRaftLayer(addr net.Addr, tlsWrap tlsutil.Wrapper) *RaftLayer {
 	return layer
 }
 
+// ReloadTLS will re-initialize the TLS wrapper on the fly
 func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
 	l.closeLock.Lock()
 	defer l.closeLock.Unlock()

@@ -353,12 +353,14 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
+// loadTLSConfiguration will completely reload the server's TLS configuration,
+// in situations where the server will move from plaintext to TLS or the
+// reverse.
 func (s *Server) loadTLSConfiguration(newConfig *Config) error {
 	// TODO review whether this should happen at the agent, here, or both
-	// Reset the server's TLS configuration
 	s.config.TLSConfig = newConfig.TLSConfig
 
-	// Configure TLS
+	// Configure TLS wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
 	if newConfig.TLSConfig.EnableRPC {
@@ -376,14 +378,16 @@ func (s *Server) loadTLSConfiguration(newConfig *Config) error {
 		incomingTLS = itls
 	}
 
+	// Reset the server's rpcTLS configuration
+	s.rpcTLS = incomingTLS
+
 	// Reload TLS configuration in the server's conn pool
 	s.connPool.ReloadTLS(tlsWrap)
 
+	// Reload TLS configuration for the server's raft layer
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
 	s.raftLayer.ReloadTLS(wrapper)
 
-	// Reset the server's rpcTLS configuration
-	s.rpcTLS = incomingTLS
 	return nil
 }
 
