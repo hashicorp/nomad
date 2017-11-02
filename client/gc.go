@@ -130,6 +130,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 		// See if we are below thresholds for used disk space and inode usage
 		diskStats := a.statsCollector.Stats().AllocDirStats
 		reason := ""
+		level := "WARN"
 
 		liveAllocs := a.allocCounter.NumAllocs()
 
@@ -141,6 +142,10 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 			reason = fmt.Sprintf("inode usage of %.0f is over gc threshold of %.0f",
 				diskStats.InodesUsedPercent, a.config.InodeUsageThreshold)
 		case liveAllocs > a.config.MaxAllocs:
+			// if we're unable to gc, don't WARN until at least 2x over limit
+			if liveAllocs < (a.config.MaxAllocs * 2) {
+				level = "INFO"
+			}
 			reason = fmt.Sprintf("number of allocations (%d) is over the limit (%d)", liveAllocs, a.config.MaxAllocs)
 		}
 
@@ -152,7 +157,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 		// Collect an allocation
 		gcAlloc := a.allocRunners.Pop()
 		if gcAlloc == nil {
-			a.logger.Printf("[WARN] client.gc: garbage collection due to %s skipped because no terminal allocations", reason)
+			a.logger.Printf("[%s] client.gc: garbage collection due to %s skipped because no terminal allocations", level, reason)
 			break
 		}
 
