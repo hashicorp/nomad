@@ -619,6 +619,12 @@ func (c *Command) handleReload(config *Config) *Config {
 		newConf.LogLevel = config.LogLevel
 	}
 
+	// Reloads configuration for an agent running in both client and server mode
+	err := c.agent.Reload(newConf)
+	if err != nil {
+		c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
+	}
+
 	if s := c.agent.Server(); s != nil {
 		sconf, err := convertServerConfig(newConf, c.logOutput)
 		if err != nil {
@@ -628,11 +634,6 @@ func (c *Command) handleReload(config *Config) *Config {
 				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
 			}
 		}
-	}
-
-	err := c.agent.Reload(newConf)
-	if err != nil {
-		c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 	}
 
 	return newConf
