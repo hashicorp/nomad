@@ -614,4 +614,6 @@ type TaskEvent struct {
 	TaskSignalReason string
 	TaskSignal       string
 	GenericSource    string
+	DisplayMessage   string
+	Details          map[string]string
 }

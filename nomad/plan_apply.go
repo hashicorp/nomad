@@ -149,6 +149,8 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 	for _, alloc := range req.Alloc {
 		if alloc.CreateTime == 0 {
 			alloc.CreateTime = now
+		} else {
+			alloc.ModifyTime = now
 		}
 		alloc.ModifyTime = now
 	}
