@@ -1,9 +1,9 @@
 ## 0.7.1 (Unreleased)
 
 IMPROVEMENTS:
- * api: Allocations now track and return modify time in addition to create time.
+ * api: Allocations now track and return modify time in addition to create time.[GH-3446]
  * cli: Allocation create and modify times are displayed in a human readable 
-   relative format like `6 h ago`.
+   relative format like `6 h ago`.[GH-3449]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`.
  * client: Added metrics to track state transitions of allocations [GH-3061]
