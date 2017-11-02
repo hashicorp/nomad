@@ -179,6 +179,13 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Clean up
+	defer func() {
+		if err := resp.Handle.Kill(); err != nil {
+			logger.Printf("Error killing Qemu test: %s", err)
+		}
+	}()
+
 	// The monitor socket will not exist immediately, so we'll wait up to
 	// 5 seconds for it to become available.
 	monitorPath := fmt.Sprintf("%s/linux/%s", ctx.AllocDir.AllocDir, qemuMonitorSocketName)
@@ -208,13 +215,6 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	if err := sendQemuShutdown(ctx.DriverCtx.logger, monitorPath, 0); err != nil {
 		t.Fatalf("unexpected error from sendQemuShutdown: %s", err)
 	}
-
-	// Clean up
-	defer func() {
-		if err := resp.Handle.Kill(); err != nil {
-			logger.Printf("Error killing Qemu test: %s", err)
-		}
-	}()
 }
 
 func TestQemuDriverUser(t *testing.T) {
