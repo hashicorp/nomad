@@ -330,7 +330,9 @@ type ServerConfig struct {
 
 func (c *Config) SetTLSConfig(newConfig *config.TLSConfig) error {
 	c.TLSConfig = newConfig
-	c.TLSConfig.KeyLoader = &config.KeyLoader{}
+	if c.TLSConfig.KeyLoader == nil {
+		c.TLSConfig.KeyLoader = &config.KeyLoader{}
+	}
 
 	_, err := c.TLSConfig.KeyLoader.LoadKeyPair(c.TLSConfig.CertFile, c.TLSConfig.KeyFile)
 	return err
