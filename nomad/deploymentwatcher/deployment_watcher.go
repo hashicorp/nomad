@@ -371,7 +371,13 @@ func (w *deploymentWatcher) watch() {
 				// Description should include that the job is being rolled back to
 				// version N
 				if j != nil {
-					desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+					// only revert if job being changed has a different spec
+					if w.j.SpecChanged(j) {
+						desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+					} else {
+						desc = structs.DeploymentStatusDescriptionRollbackFailed(desc, j.Version, w.j.Version)
+						j = nil
+					}
 				} else {
 					desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 				}
