@@ -328,14 +328,19 @@ type ServerConfig struct {
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
 }
 
+// SetTLSConfig will reload an agent's TLS configuration. If there is an error
+// while loading key and certificate files, the agent will remain at its
+// current configuration and return an error.
 func (c *Config) SetTLSConfig(newConfig *config.TLSConfig) error {
-	c.TLSConfig = newConfig
-	if c.TLSConfig.KeyLoader == nil {
-		c.TLSConfig.KeyLoader = &config.KeyLoader{}
+	newConfig.KeyLoader = &config.KeyLoader{}
+	_, err := newConfig.KeyLoader.LoadKeyPair(newConfig.CertFile, newConfig.KeyFile)
+
+	if err != nil {
+		return err
 	}
 
-	_, err := c.TLSConfig.KeyLoader.LoadKeyPair(c.TLSConfig.CertFile, c.TLSConfig.KeyFile)
-	return err
+	c.TLSConfig = newConfig
+	return nil
 }
 
 // EncryptBytes returns the encryption key configured.
