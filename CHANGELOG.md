@@ -8,6 +8,9 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+ * client: Fix allocation accounting in GC and trigger GCs on allocation
+   updates. [GH-3445]
+ 
 
 ## 0.7.0 (November 1, 2017)
 
