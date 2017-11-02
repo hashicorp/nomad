@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/yamux"
 )
@@ -159,6 +159,8 @@ func NewPool(logOutput io.Writer, maxTime time.Duration, maxStreams int, tlsWrap
 
 // ReloadTLS reloads TLS configuration on the fly
 func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
+	p.Lock()
+	defer p.Unlock()
 	p.tlsWrap = tlsWrap
 }
 
