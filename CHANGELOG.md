@@ -1,5 +1,10 @@
 ## 0.7.1 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
+   deprecated since earlier this year. If you have an Atlas stanza in your
+   config file it will have to be removed. 
+
 IMPROVEMENTS:
  * api: Allocations now track and return modify time in addition to create time.
  * cli: Allocation create and modify times are displayed in a human readable relative format like `6 h ago`.
