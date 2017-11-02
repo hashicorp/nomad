@@ -379,6 +379,9 @@ func (s *Server) loadTLSConfiguration(newConfig *Config) error {
 	// Reload TLS configuration in the server's conn pool
 	s.connPool.ReloadTLS(tlsWrap)
 
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer.ReloadTLS(wrapper)
+
 	// Reset the server's rpcTLS configuration
 	s.rpcTLS = incomingTLS
 	return nil
