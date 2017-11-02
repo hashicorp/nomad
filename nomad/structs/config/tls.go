@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"fmt"
+	"sync"
 )
 
 // TLSConfig provides TLS related configuration
@@ -47,6 +48,7 @@ type TLSConfig struct {
 }
 
 type KeyLoader struct {
+	cacheLock   sync.Mutex
 	Certificate *tls.Certificate
 }
 
@@ -63,6 +65,9 @@ func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, err
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
 	}
+
+	k.cacheLock.Lock()
+	defer k.cacheLock.Unlock()
 
 	k.Certificate = &cert
 	return k.Certificate, nil
