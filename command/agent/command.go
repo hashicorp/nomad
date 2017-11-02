@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
-	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -50,9 +49,6 @@ type Command struct {
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
-
-	scadaProvider *scada.Provider
-	scadaHttp     *HTTPServer
 }
 
 func (c *Command) readConfig() *Config {
@@ -63,7 +59,6 @@ func (c *Command) readConfig() *Config {
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Atlas:  &AtlasConfig{},
 		Client: &ClientConfig{},
 		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
@@ -106,11 +101,6 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
-
-	// Atlas options
-	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
-	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
-	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -224,9 +214,6 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Ensure the sub-structs at least exist
-	if config.Atlas == nil {
-		config.Atlas = &AtlasConfig{}
-	}
 	if config.Client == nil {
 		config.Client = &ClientConfig{}
 	}
@@ -380,13 +367,6 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 	}
 	c.agent = agent
 
-	// Enable the SCADA integration
-	if err := c.setupSCADA(config); err != nil {
-		agent.Shutdown()
-		c.Ui.Error(fmt.Sprintf("Error starting SCADA: %s", err))
-		return err
-	}
-
 	// Setup the HTTP server
 	http, err := NewHTTPServer(agent, config)
 	if err != nil {
@@ -497,16 +477,10 @@ func (c *Command) Run(args []string) int {
 	}
 	defer c.agent.Shutdown()
 
-	// Check and shut down the SCADA listeners at the end
+	// Shudown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
-		}
-		if c.scadaHttp != nil {
-			c.scadaHttp.Shutdown()
-		}
-		if c.scadaProvider != nil {
-			c.scadaProvider.Shutdown()
 		}
 	}()
 
@@ -765,52 +739,6 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metrics.NewGlobal(metricsConf, inm)
 	}
 	return inm, nil
-}
-
-// setupSCADA is used to start a new SCADA provider and listener,
-// replacing any existing listeners.
-func (c *Command) setupSCADA(config *Config) error {
-	// Shut down existing SCADA listeners
-	if c.scadaProvider != nil {
-		c.scadaProvider.Shutdown()
-	}
-	if c.scadaHttp != nil {
-		c.scadaHttp.Shutdown()
-	}
-
-	// No-op if we don't have an infrastructure
-	if config.Atlas == nil || config.Atlas.Infrastructure == "" {
-		return nil
-	}
-
-	// Create the new provider and listener
-	c.Ui.Output("Connecting to Atlas: " + config.Atlas.Infrastructure)
-
-	scadaConfig := &scada.Config{
-		Service:      "nomad",
-		Version:      config.Version.VersionNumber(),
-		ResourceType: "nomad-cluster",
-		Meta: map[string]string{
-			"auto-join":  strconv.FormatBool(config.Atlas.Join),
-			"region":     config.Region,
-			"datacenter": config.Datacenter,
-			"client":     strconv.FormatBool(config.Client != nil && config.Client.Enabled),
-			"server":     strconv.FormatBool(config.Server != nil && config.Server.Enabled),
-		},
-		Atlas: scada.AtlasConfig{
-			Endpoint:       config.Atlas.Endpoint,
-			Infrastructure: config.Atlas.Infrastructure,
-			Token:          config.Atlas.Token,
-		},
-	}
-
-	provider, list, err := scada.NewHTTPProvider(scadaConfig, c.logOutput)
-	if err != nil {
-		return err
-	}
-	c.scadaProvider = provider
-	c.scadaHttp = newScadaHttp(c.agent, list)
-	return nil
 }
 
 func (c *Command) startupJoin(config *Config) error {
@@ -1100,22 +1028,6 @@ Vault Options:
 
   -vault-tls-server-name=<token>
     Used to set the SNI host when connecting over TLS.
-
-Atlas Options:
-
-  -atlas=<infrastructure>
-    The Atlas infrastructure name to configure. This enables the SCADA
-    client and attempts to connect Nomad to the HashiCorp Atlas service
-    using the provided infrastructure name and token.
-
-  -atlas-token=<token>
-    The Atlas token to use when connecting to the HashiCorp Atlas
-    service. This must be provided to successfully connect your Nomad
-    agent to Atlas.
-
-  -atlas-join
-    Enable the Atlas join feature. This mode allows agents to discover
-    eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
 }

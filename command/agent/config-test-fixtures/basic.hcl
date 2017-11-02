@@ -106,12 +106,6 @@ enable_syslog = true
 syslog_facility = "LOCAL1"
 disable_update_check = true
 disable_anonymous_signature = true
-atlas {
-	infrastructure = "armon/test"
-	token = "abcd"
-	join = true
-	endpoint = "127.0.0.1:1234"
-}
 http_api_response_headers {
 	Access-Control-Allow-Origin = "*"
 }

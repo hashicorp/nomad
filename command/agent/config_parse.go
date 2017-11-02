@@ -92,7 +92,6 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"syslog_facility",
 		"disable_update_check",
 		"disable_anonymous_signature",
-		"atlas",
 		"consul",
 		"vault",
 		"tls",
@@ -116,7 +115,6 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "client")
 	delete(m, "server")
 	delete(m, "telemetry")
-	delete(m, "atlas")
 	delete(m, "consul")
 	delete(m, "vault")
 	delete(m, "tls")
@@ -175,13 +173,6 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("telemetry"); len(o.Items) > 0 {
 		if err := parseTelemetry(&result.Telemetry, o); err != nil {
 			return multierror.Prefix(err, "telemetry ->")
-		}
-	}
-
-	// Parse atlas config
-	if o := list.Filter("atlas"); len(o.Items) > 0 {
-		if err := parseAtlas(&result.Atlas, o); err != nil {
-			return multierror.Prefix(err, "atlas ->")
 		}
 	}
 
@@ -668,39 +659,6 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		}
 	}
 	*result = &telemetry
-	return nil
-}
-
-func parseAtlas(result **AtlasConfig, list *ast.ObjectList) error {
-	list = list.Elem()
-	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'atlas' block allowed")
-	}
-
-	// Get our atlas object
-	listVal := list.Items[0].Val
-
-	// Check for invalid keys
-	valid := []string{
-		"infrastructure",
-		"token",
-		"join",
-		"endpoint",
-	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
-		return err
-	}
-
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, listVal); err != nil {
-		return err
-	}
-
-	var atlas AtlasConfig
-	if err := mapstructure.WeakDecode(m, &atlas); err != nil {
-		return err
-	}
-	*result = &atlas
 	return nil
 }
 
