@@ -730,10 +730,11 @@ func (a *Agent) Reload(newConfig *Config) error {
 	if a.config != nil && newConfig.TLSConfig != nil {
 
 		// If the agent is already running with TLS enabled, we need to only reload
-		// its certificates. In a later PR, we will introduce the ability to reload
+		// its certificates.
+		// TODO(chelseakomlo) In a later PR, we will introduce the ability to reload
 		// TLS configuration if the agent is not running with TLS enabled.
 		if a.config.TLSConfig != nil {
-			return a.config.SetTLSConfig(newConfig.TLSConfig)
+			return a.config.UpdateTLSConfig(newConfig.TLSConfig)
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 
 // TLSConfig provides TLS related configuration
 type TLSConfig struct {
+	configLock sync.Mutex
 
 	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
 	EnableHTTP bool `mapstructure:"http"`
@@ -80,7 +81,9 @@ func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certifica
 func (t *TLSConfig) GetKeyLoader() *KeyLoader {
 	// If the keyloader has not yet been initialized, do it here
 	if t.KeyLoader == nil {
+		t.configLock.Lock()
 		t.KeyLoader = &KeyLoader{}
+		t.configLock.Unlock()
 	}
 	return t.KeyLoader
 }
