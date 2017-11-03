@@ -293,6 +293,8 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
 	j2.Stable = false
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 
 	d := mock.Deployment()
 	d.TaskGroups["web"].AutoRevert = true
@@ -792,7 +794,8 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
 	j2.Stable = false
-
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 	d := mock.Deployment()
 	d.TaskGroups["web"].AutoRevert = true
 	d.JobID = j2.ID

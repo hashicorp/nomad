@@ -4322,10 +4322,10 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
 }
 
-// DeploymentStatusDescriptionRollbackFailed is used to get the status description of
-// a deployment when rolling back to an older job is not possible because it has the same specification
-func DeploymentStatusDescriptionRollbackFailed(baseDescription string, jobVersion uint64, jobVersionOld uint64) string {
-	return fmt.Sprintf("%s - rolling back to job version %d failed because it had the same specification as job version %d ", baseDescription, jobVersion, jobVersionOld)
+// DeploymentStatusDescriptionRollbackNoop is used to get the status description of
+// a deployment when rolling back is not possible because it has the same specification
+func DeploymentStatusDescriptionRollbackNoop(baseDescription string, jobVersion uint64) string {
+	return fmt.Sprintf("%s - not rolling back to stable job version %d as current job has same specification ", baseDescription, jobVersion)
 }
 
 // DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of

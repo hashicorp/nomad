@@ -281,6 +281,9 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
 	j2.Stable = false
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
+
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
 
 	w.SetEnabled(true, m.state)
@@ -804,7 +807,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 	c := &matchDeploymentStatusUpdateConfig{
 		DeploymentID:      d.ID,
 		Status:            structs.DeploymentStatusFailed,
-		StatusDescription: structs.DeploymentStatusDescriptionRollbackFailed(structs.DeploymentStatusDescriptionFailedAllocations, 0, 1),
+		StatusDescription: structs.DeploymentStatusDescriptionRollbackNoop(structs.DeploymentStatusDescriptionFailedAllocations, 0),
 		JobVersion:        nil,
 		Eval:              true,
 	}

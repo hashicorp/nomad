@@ -149,7 +149,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 			}
 
 			if j != nil {
-				desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+				j, desc = w.handleRollbackValidity(j, desc)
 			}
 			break
 		}
@@ -183,6 +183,18 @@ func (w *deploymentWatcher) SetAllocHealth(
 	}
 	w.setLatestEval(index)
 	return nil
+}
+func (w *deploymentWatcher) handleRollbackValidity(j *structs.Job, desc string) (*structs.Job, string) {
+	// Only rollback if job being changed has a different spec.
+	// This prevents an infinite revert cycle when a previously stable version of the job fails to start up during a rollback
+	// If the job we are trying to rollback to is identical to the current job, we stop because the rollback will not succeed.
+	if w.j.SpecChanged(j) {
+		desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+	} else {
+		desc = structs.DeploymentStatusDescriptionRollbackNoop(desc, j.Version)
+		j = nil
+	}
+	return j, desc
 }
 
 func (w *deploymentWatcher) PromoteDeployment(
@@ -265,7 +277,7 @@ func (w *deploymentWatcher) FailDeployment(
 		}
 
 		if rollbackJob != nil {
-			desc = structs.DeploymentStatusDescriptionRollback(desc, rollbackJob.Version)
+			rollbackJob, desc = w.handleRollbackValidity(rollbackJob, desc)
 		} else {
 			desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 		}
@@ -371,15 +383,7 @@ func (w *deploymentWatcher) watch() {
 				// Description should include that the job is being rolled back to
 				// version N
 				if j != nil {
-					// Only revert if job being changed has a different spec.
-					// This prevents an infinite revert cycle when a previously stable version of the job fails to start up during a revert.
-					// If the job we are trying to revert to is identical to the one are reverting, we stop because the revert will not succeed.
-					if w.j.SpecChanged(j) {
-						desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
-					} else {
-						desc = structs.DeploymentStatusDescriptionRollbackFailed(desc, j.Version, w.j.Version)
-						j = nil
-					}
+					j, desc = w.handleRollbackValidity(j, desc)
 				} else {
 					desc = structs.DeploymentStatusDescriptionNoRollbackTarget(desc)
 				}
