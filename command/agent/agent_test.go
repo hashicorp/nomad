@@ -572,13 +572,14 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
+	logger := log.New(ioutil.Discard, "", 0)
+
 	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
-			EnableHTTP: false,
-		},
+		TLSConfig: &sconfig.TLSConfig{},
 	}
 
 	agent := &Agent{
+		logger: logger,
 		config: agentConfig,
 	}
 
@@ -598,7 +599,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
 
-	assert.NotNil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
+	assert.Equal(agent.config.TLSConfig.CAFile, newConfig.TLSConfig.CAFile)
+	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
@@ -613,6 +616,8 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
+	logger := log.New(ioutil.Discard, "", 0)
+
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -625,16 +630,13 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	}
 
 	agent := &Agent{
+		logger: logger,
 		config: agentConfig,
 	}
 
 	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
-			EnableHTTP: false,
-		},
+		TLSConfig: &sconfig.TLSConfig{},
 	}
-
-	assert.NotNil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
 
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
