@@ -325,20 +325,18 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 
 	size := len(state.Events)
 	for i, event := range state.Events {
-		if event.DisplayMessage != "" {
-			formattedTime := formatUnixNanoTime(event.Time)
-			formattedDisplayMsg := fmt.Sprintf("%s|%s|%s", formattedTime, event.Type, event.DisplayMessage)
-			events[size-i] = formattedDisplayMsg
-		} else {
-			events[size-i] = buildDisplayMessage(event)
+		msg := event.DisplayMessage
+		if msg == "" {
+			msg = buildDisplayMessage(event)
 		}
+		formattedTime := formatUnixNanoTime(event.Time)
+		events[size-i] = fmt.Sprintf("%s|%s|%s", formattedTime, event.Type, msg)
+		// Reverse order so we are sorted by time
 	}
 	c.Ui.Output(formatList(events))
 }
 
 func buildDisplayMessage(event *api.TaskEvent) string {
-	formattedTime := formatUnixNanoTime(event.Time)
-
 	// Build up the description based on the event type.
 	var desc string
 	switch event.Type {
@@ -447,8 +445,7 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = event.Message
 	}
 
-	// Reverse order so we are sorted by time
-	return fmt.Sprintf("%s|%s|%s", formattedTime, event.Type, desc)
+	return desc
 }
 
 // outputTaskResources prints the task resources for the passed task and if

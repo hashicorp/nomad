@@ -73,9 +73,6 @@ const (
 	ACLTokenUpsertRequestType
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
-
-	// Constant for restart events that are within policy
-	ReasonWithinPolicy = "Restart within policy"
 )
 
 const (
@@ -2487,6 +2484,9 @@ const (
 	// RestartPolicyMinInterval is the minimum interval that is accepted for a
 	// restart policy.
 	RestartPolicyMinInterval = 5 * time.Second
+
+	// ReasonWithinPolicy describes restart events that are within policy
+	ReasonWithinPolicy = "Restart within policy"
 )
 
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
@@ -3753,9 +3753,6 @@ const (
 
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
-
-	// TaskGenericMessage is used by various subsystems to emit a message.
-	TaskGenericMessage = "Generic"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -3764,75 +3761,105 @@ type TaskEvent struct {
 	Type string
 	Time int64 // Unix Nanosecond timestamp
 
-	// FailsTask marks whether this event fails the task
-	FailsTask bool
-
-	// Restart fields.
-	RestartReason string
-
-	// Setup Failure fields.
-	SetupError string
-
-	// Driver Failure fields.
-	DriverError string // A driver error occurred while starting the task.
-
-	// Task Terminated Fields.
-	ExitCode int    // The exit code of the task.
-	Signal   int    // The signal that terminated the task.
-	Message  string // A possible message explaining the termination of the task.
-
-	// Killing fields
-	KillTimeout time.Duration
-
-	// Task Killed Fields.
-	KillError string // Error killing the task.
-
-	// KillReason is the reason the task was killed
-	KillReason string
-
-	// TaskRestarting fields.
-	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
-
-	// Artifact Download fields
-	DownloadError string // Error downloading artifacts
-
-	// Validation fields
-	ValidationError string // Validation error
-
-	// The maximum allowed task disk size.
-	DiskLimit int64
-
-	// Name of the sibling task that caused termination of the task that
-	// the TaskEvent refers to.
-	FailedSibling string
-
-	// VaultError is the error from token renewal
-	VaultError string
-
-	// TaskSignalReason indicates the reason the task is being signalled.
-	TaskSignalReason string
-
-	// TaskSignal is the signal that was sent to the task
-	TaskSignal string
-
-	// DriverMessage indicates a driver action being taken.
-	DriverMessage string
-
-	// GenericSource is the source of a message.
-	GenericSource string
+	Message string // A possible message explaining the termination of the task.
 
 	// DisplayMessage is a human friendly message about the event
 	DisplayMessage string
 
 	// Details is a map with annotated info about the event
 	Details map[string]string
+
+	// DEPRECATION NOTICE: The following fields are deprecated and will be removed
+	// in a future release. Field values are available in the Details map.
+
+	// FailsTask marks whether this event fails the task.
+	// Deprecated, use Details["fails_task"] to access this.
+	FailsTask bool
+
+	// Restart fields.
+	// Deprecated, use Details["restart_reason"] to access this.
+	RestartReason string
+
+	// Setup Failure fields.
+	// Deprecated, use Details["setup_error"] to access this.
+	SetupError string
+
+	// Driver Failure fields.
+	// Deprecated, use Details["driver_error"] to access this.
+	DriverError string // A driver error occurred while starting the task.
+
+	// Task Terminated Fields.
+
+	// Deprecated, use Details["exit_code"] to access this.
+	ExitCode int // The exit code of the task.
+
+	// Deprecated, use Details["signal"] to access this.
+	Signal int // The signal that terminated the task.
+
+	// Killing fields
+	// Deprecated, use Details["kill_timeout"] to access this.
+	KillTimeout time.Duration
+
+	// Task Killed Fields.
+	// Deprecated, use Details["kill_error"] to access this.
+	KillError string // Error killing the task.
+
+	// KillReason is the reason the task was killed
+	// Deprecated, use Details["kill_reason"] to access this.
+	KillReason string
+
+	// TaskRestarting fields.
+	// Deprecated, use Details["start_delay"] to access this.
+	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
+
+	// Artifact Download fields
+	// Deprecated, use Details["download_error"] to access this.
+	DownloadError string // Error downloading artifacts
+
+	// Validation fields
+	// Deprecated, use Details["validation_error"] to access this.
+	ValidationError string // Validation error
+
+	// The maximum allowed task disk size.
+	// Deprecated, use Details["disk_limit"] to access this.
+	DiskLimit int64
+
+	// Name of the sibling task that caused termination of the task that
+	// the TaskEvent refers to.
+	// Deprecated, use Details["failed_sibling"] to access this.
+	FailedSibling string
+
+	// VaultError is the error from token renewal
+	// Deprecated, use Details["vault_renewal_error"] to access this.
+	VaultError string
+
+	// TaskSignalReason indicates the reason the task is being signalled.
+	// Deprecated, use Details["task_signal_reason"] to access this.
+	TaskSignalReason string
+
+	// TaskSignal is the signal that was sent to the task
+	// Deprecated, use Details["task_signal"] to access this.
+	TaskSignal string
+
+	// DriverMessage indicates a driver action being taken.
+	// Deprecated, use Details["driver_message"] to access this.
+	DriverMessage string
+
+	// GenericSource is the source of a message.
+	// Deprecated, is redundant with event type.
+	GenericSource string
 }
 
 func (event *TaskEvent) PopulateEventDisplayMessage() {
 	// Build up the description based on the event type.
-	if event == nil { //TODO PA needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
+	if event == nil { //TODO(preetha) needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
 		return
 	}
+
+	if event.DisplayMessage != "" {
+		return
+	}
+
 	var desc string
 	switch event.Type {
 	case TaskSetup:
@@ -3935,9 +3962,6 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 		desc = event.DriverMessage
 	case TaskLeaderDead:
 		desc = "Leader Task in Group dead"
-	case TaskGenericMessage:
-		event.Type = event.GenericSource
-		desc = event.Message
 	default:
 		desc = ""
 	}
@@ -4100,12 +4124,6 @@ func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	e.DriverMessage = m
 	e.Details["driver_message"] = m
-	return e
-}
-
-func (e *TaskEvent) SetGenericSource(s string) *TaskEvent {
-	e.GenericSource = s
-	e.Details["generic_source"] = s
 	return e
 }
 
