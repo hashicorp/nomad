@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -321,5 +322,5 @@ func TestServer_Reload_TLSConnections(t *testing.T) {
 	arg1 := struct{}{}
 	var out1 struct{}
 	newErr := msgpackrpc.CallWithCodec(codec, "Status.Ping", arg1, &out1)
-	assert.NotNil(newErr)
+	assert.Equal(newErr, io.EOF)
 }

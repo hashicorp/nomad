@@ -356,6 +356,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 // ReloadTLSConnections will completely reload the server's RPC connections if
 // the server is moving from a non-TLS to TLS connection, or vice versa.
 func (s *Server) ReloadTLSConnections() error {
+	s.logger.Printf("[INFO] nomad: reloading server network connections due to server configuration changes")
+
 	// Configure TLS wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
