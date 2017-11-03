@@ -328,12 +328,12 @@ type ServerConfig struct {
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
 }
 
-// SetTLSConfig will reload an agent's TLS configuration. If there is an error
+// UpdateTLSConfig will reload an agent's TLS configuration. If there is an error
 // while loading key and certificate files, the agent will remain at its
 // current configuration and return an error.
 // This only allows reloading the certificate and keyfile- other TLSConfig
 // fields are ignored.
-func (c *Config) SetTLSConfig(newConfig *config.TLSConfig) error {
+func (c *Config) UpdateTLSConfig(newConfig *config.TLSConfig) error {
 	if c.TLSConfig == nil {
 		return fmt.Errorf("unable to update non-existing TLSConfig")
 	}
