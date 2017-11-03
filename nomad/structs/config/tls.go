@@ -77,6 +77,14 @@ func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certifica
 	return k.Certificate, nil
 }
 
+func (t *TLSConfig) GetKeyLoader() *KeyLoader {
+	// If the keyloader has not yet been initialized, do it here
+	if t.KeyLoader == nil {
+		t.KeyLoader = &KeyLoader{}
+	}
+	return t.KeyLoader
+}
+
 // Merge is used to merge two TLS configs together
 func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	result := *t

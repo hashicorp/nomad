@@ -212,15 +212,13 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Version:                 version.GetVersion(),
-		VaultConfig:             config.DefaultVaultConfig(),
-		ConsulConfig:            config.DefaultConsulConfig(),
-		LogOutput:               os.Stderr,
-		Region:                  "global",
-		StatsCollectionInterval: 1 * time.Second,
-		TLSConfig: &config.TLSConfig{
-			KeyLoader: &config.KeyLoader{},
-		},
+		Version:                    version.GetVersion(),
+		VaultConfig:                config.DefaultVaultConfig(),
+		ConsulConfig:               config.DefaultConsulConfig(),
+		LogOutput:                  os.Stderr,
+		Region:                     "global",
+		StatsCollectionInterval:    1 * time.Second,
+		TLSConfig:                  &config.TLSConfig{},
 		LogLevel:                   "DEBUG",
 		GCInterval:                 1 * time.Minute,
 		GCParallelDestroys:         2,
@@ -358,7 +356,7 @@ func (c *Config) TLSConfiguration() *tlsutil.Config {
 		CAFile:               c.TLSConfig.CAFile,
 		CertFile:             c.TLSConfig.CertFile,
 		KeyFile:              c.TLSConfig.KeyFile,
-		KeyLoader:            c.TLSConfig.KeyLoader,
+		KeyLoader:            c.TLSConfig.GetKeyLoader(),
 	}
 	return tlsConf
 }

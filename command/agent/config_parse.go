@@ -752,7 +752,6 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 
 	// TLSConfig requires a Keyloader object for dynamic reloading of TLS
 	// configuration
-	tlsConfig.KeyLoader = &config.KeyLoader{}
 	*result = &tlsConfig
 	return nil
 }
