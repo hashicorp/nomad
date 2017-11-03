@@ -21,6 +21,7 @@ var Universe = &object.Scope{
 
 		// Builtins
 		"append": object.ExternalFunc(builtin_append),
+		"delete": object.ExternalFunc(builtin_delete),
 		"keys":   object.ExternalFunc(builtin_keys),
 		"values": object.ExternalFunc(builtin_values),
 		"length": object.ExternalFunc(builtin_length),
@@ -80,6 +81,37 @@ func builtin_append(args []object.Object) (interface{}, error) {
 
 	x.Elts = append(x.Elts, args[1])
 	return x, nil
+}
+
+// delete
+func builtin_delete(args []object.Object) (interface{}, error) {
+	if err := builtinArgCount(args, 2, 2); err != nil {
+		return nil, err
+	}
+
+	v, ok := args[0].(*object.MapObj)
+	if !ok {
+		if x, ok := args[0].(*object.UndefinedObj); ok {
+			return x, nil
+		}
+
+		return nil, fmt.Errorf(
+			"delete first argument can only be called with maps, got %q",
+			args[0].Type())
+	}
+
+	key := args[1]
+	for i, elt := range v.Elts {
+		if elt.Key.Type() == key.Type() && elt.Key.String() == key.String() {
+			lastIdx := len(v.Elts) - 1
+			v.Elts[i] = v.Elts[lastIdx]
+			v.Elts[lastIdx] = object.KeyedObj{}
+			v.Elts = v.Elts[:lastIdx]
+			break
+		}
+	}
+
+	return &object.UndefinedObj{}, nil
 }
 
 // keys

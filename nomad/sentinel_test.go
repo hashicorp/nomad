@@ -60,6 +60,38 @@ func TestServer_Sentinel_EnforceScope(t *testing.T) {
 	assert.NotNil(t, warn)
 }
 
+func TestServer_Sentinel_EnforceScope_MultiJobPolicies(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// data call back for enforement
+	job := mock.Job()
+	dataCB := func() map[string]interface{} {
+		return map[string]interface{}{
+			"job": job,
+		}
+	}
+
+	// Create a fake policy
+	p1 := mock.SentinelPolicy()
+	p1.Policy = "main = rule { job.priority == 50 }"
+	p2 := mock.SentinelPolicy()
+	p2.Policy = "main = rule { job.region == \"global\" }"
+	s1.State().UpsertSentinelPolicies(1000,
+		[]*structs.SentinelPolicy{p1, p2})
+
+	// Check that everything passes
+	warn, err := s1.enforceScope(false, structs.SentinelScopeSubmitJob, dataCB)
+	if !assert.Nil(t, err) {
+		t.Logf("error: %v", err)
+	}
+	if !assert.Nil(t, warn) {
+		t.Logf("warn: %v", warn)
+	}
+}
+
 // Ensure the standard lib is present
 func TestServer_Sentinel_EnforceScope_Stdlib(t *testing.T) {
 	t.Parallel()
