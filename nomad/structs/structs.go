@@ -4488,6 +4488,12 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
 }
 
+// DeploymentStatusDescriptionRollbackNoop is used to get the status description of
+// a deployment when rolling back is not possible because it has the same specification
+func DeploymentStatusDescriptionRollbackNoop(baseDescription string, jobVersion uint64) string {
+	return fmt.Sprintf("%s - not rolling back to stable job version %d as current job has same specification", baseDescription, jobVersion)
+}
+
 // DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
 // a deployment when there is no target to rollback to but autorevet is desired.
 func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
