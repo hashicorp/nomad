@@ -371,7 +371,9 @@ func (w *deploymentWatcher) watch() {
 				// Description should include that the job is being rolled back to
 				// version N
 				if j != nil {
-					// only revert if job being changed has a different spec
+					// Only revert if job being changed has a different spec.
+					// This prevents an infinite revert cycle when a previously stable version of the job fails to start up during a revert.
+					// If the job we are trying to revert to is identical to the one are reverting, we stop because the revert will not succeed.
 					if w.j.SpecChanged(j) {
 						desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
 					} else {
