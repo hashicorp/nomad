@@ -625,6 +625,7 @@ func (c *Command) handleReload(config *Config) *Config {
 		c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 	}
 
+	// If the configuration change is specific only to the server, handle it here
 	if s := c.agent.Server(); s != nil {
 		sconf, err := convertServerConfig(newConf, c.logOutput)
 		if err != nil {

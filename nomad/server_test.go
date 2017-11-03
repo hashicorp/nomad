@@ -279,7 +279,9 @@ func TestServer_Reload_Vault(t *testing.T) {
 	}
 }
 
-func TestServer_Reload_TLS(t *testing.T) {
+// Tests that the server will successfully reload its network connections,
+// upgrading from plaintext to TLS if the server's TLS configuratoin changes.
+func TestServer_Reload_TLSConnections(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
@@ -300,18 +302,17 @@ func TestServer_Reload_TLS(t *testing.T) {
 	// assert that the server started in plaintext mode
 	assert.Equal(s1.config.TLSConfig.CertFile, "")
 
-	newTLSConfig := &Config{
-		TLSConfig: &config.TLSConfig{
-			EnableHTTP:           true,
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
-		},
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
 	}
 
-	err := s1.Reload(newTLSConfig)
+	s1.config.TLSConfig = newTLSConfig
+	err := s1.ReloadTLSConnections()
 	assert.Nil(err)
 
 	// assert our server is now configured for TLS

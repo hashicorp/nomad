@@ -353,18 +353,14 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
-// loadTLSConfiguration will completely reload the server's TLS configuration,
-// in situations where the server will move from plaintext to TLS or the
-// reverse.
-func (s *Server) loadTLSConfiguration(newConfig *Config) error {
-	// TODO review whether this should happen at the agent, here, or both
-	s.config.TLSConfig = newConfig.TLSConfig
-
+// ReloadTLSConnections will completely reload the server's RPC connections if
+// the server is moving from a non-TLS to TLS connection, or vice versa.
+func (s *Server) ReloadTLSConnections() error {
 	// Configure TLS wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
-	if newConfig.TLSConfig.EnableRPC {
-		tlsConf := newConfig.tlsConfig()
+	if s.config.TLSConfig.EnableRPC {
+		tlsConf := s.config.tlsConfig()
 		tw, err := tlsConf.OutgoingTLSWrapper()
 		if err != nil {
 			return err
@@ -535,7 +531,8 @@ func (s *Server) Leave() error {
 	return nil
 }
 
-// Reload handles a config reload. Not all config fields can handle a reload.
+// Reload handles a config reload specific to server-only configuration. Not
+// all config fields can handle a reload.
 func (s *Server) Reload(newConfig *Config) error {
 	if newConfig == nil {
 		return fmt.Errorf("Reload given a nil config")
@@ -546,12 +543,6 @@ func (s *Server) Reload(newConfig *Config) error {
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil && newConfig.VaultConfig != nil {
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
-			multierror.Append(&mErr, err)
-		}
-	}
-
-	if newConfig.TLSConfig != nil {
-		if err := s.loadTLSConfiguration(newConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
 	}
