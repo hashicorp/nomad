@@ -319,6 +319,66 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	m.AssertNumberOfCalls(t, "UpdateDeploymentAllocHealth", 1)
 }
 
+// Test setting allocation unhealthy on job with identical spec and there should be no rollback
+func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	w, m := defaultTestDeploymentWatcher(t)
+
+	// Create a job, alloc, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	j.Stable = true
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups["web"].AutoRevert = true
+	a := mock.Alloc()
+	a.DeploymentID = d.ID
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Upsert the job again to get a new version
+	j2 := j.Copy()
+	j2.Stable = false
+
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
+		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
+
+	// Assert that we get a call to UpsertDeploymentAllocHealth
+	matchConfig := &matchDeploymentAllocHealthRequestConfig{
+		DeploymentID: d.ID,
+		Unhealthy:    []string{a.ID},
+		Eval:         true,
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusFailed,
+			StatusDescription: structs.DeploymentStatusDescriptionFailedAllocations,
+		},
+		JobVersion: nil,
+	}
+	matcher := matchDeploymentAllocHealthRequest(matchConfig)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
+
+	// Call SetAllocHealth
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:           d.ID,
+		UnhealthyAllocationIDs: []string{a.ID},
+	}
+	var resp structs.DeploymentUpdateResponse
+	err := w.SetAllocHealth(req, &resp)
+	assert.Nil(err, "SetAllocHealth")
+
+	testutil.WaitForResult(func() (bool, error) { return 0 == len(w.watchers), nil },
+		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
+	m.AssertNumberOfCalls(t, "UpdateDeploymentAllocHealth", 1)
+}
+
 // Test promoting a deployment
 func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	t.Parallel()
