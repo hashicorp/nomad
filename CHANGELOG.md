@@ -6,13 +6,14 @@ __BACKWARDS INCOMPATIBILITIES:__
    config file it will have to be removed. 
 
 IMPROVEMENTS:
- * api: Allocations now track and return modify time in addition to create time.[GH-3446]
- * api: Introduced new fields to track details and display message for task events,
-   and deprecated redundant existing fields. [GH-3399]
- * cli: Allocation create and modify times are displayed in a human readable 
-   relative format like `6 h ago`.[GH-3449]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
-   to TLS rather than changing `heartbeat_grace`.
+   to TLS rather than changing `heartbeat_grace`
+ * api: Allocations now track and return modify time in addition to create time
+   [GH-3446]
+ * api: Introduced new fields to track details and display message for task
+   events, and deprecated redundant existing fields [GH-3399]
+ * cli: Allocation create and modify times are displayed in a human readable
+   relative format like `6 h ago` [GH-3449]
  * client: Added metrics to track state transitions of allocations [GH-3061]
  * driver/docker: Detect OOM kill event [GH-3459]
 
@@ -22,9 +23,11 @@ BUG FIXES:
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
-   updates. [GH-3445]
+   updates [GH-3445]
  * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
-   to a previously stable job that fails to start up causes an infinite cycle of reverts. [GH-3496]
+   to a previously stable job that fails to start up causes an infinite cycle of reverts [GH-3496]
+ * sentinel: (Nomad Enterprise) Fix an issue that could cause an import error
+   when multiple Sentinel policies are applied
  
 
 ## 0.7.0 (November 1, 2017)
