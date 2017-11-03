@@ -575,7 +575,6 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
 			EnableHTTP: false,
-			KeyLoader:  &sconfig.KeyLoader{},
 		},
 	}
 
@@ -594,12 +593,12 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 		},
 	}
 
-	assert.Nil(agentConfig.TLSConfig.KeyLoader.Certificate)
+	assert.Nil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
 
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
 
-	assert.NotNil(agentConfig.TLSConfig.KeyLoader.Certificate)
+	assert.NotNil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
@@ -622,7 +621,6 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 			CAFile:               cafile,
 			CertFile:             foocert,
 			KeyFile:              fookey,
-			KeyLoader:            &sconfig.KeyLoader{},
 		},
 	}
 
@@ -633,12 +631,11 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	newConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
 			EnableHTTP: false,
-			KeyLoader:  &sconfig.KeyLoader{},
 		},
 	}
 
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
 
-	assert.Nil(agentConfig.TLSConfig.KeyLoader.Certificate)
+	assert.Nil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
 }

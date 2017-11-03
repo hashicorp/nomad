@@ -165,7 +165,6 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 			CAFile:               cafile,
 			CertFile:             foocert,
 			KeyFile:              fookey,
-			KeyLoader:            &config.KeyLoader{},
 		}
 	})
 	defer s1.Shutdown()

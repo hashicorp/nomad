@@ -331,15 +331,22 @@ type ServerConfig struct {
 // SetTLSConfig will reload an agent's TLS configuration. If there is an error
 // while loading key and certificate files, the agent will remain at its
 // current configuration and return an error.
+// This only allows reloading the certificate and keyfile- other TLSConfig
+// fields are ignored.
 func (c *Config) SetTLSConfig(newConfig *config.TLSConfig) error {
-	newConfig.KeyLoader = &config.KeyLoader{}
-	_, err := newConfig.KeyLoader.LoadKeyPair(newConfig.CertFile, newConfig.KeyFile)
+	if c.TLSConfig == nil {
+		return fmt.Errorf("unable to update non-existing TLSConfig")
+	}
+
+	keyLoader := c.TLSConfig.GetKeyLoader()
+	_, err := keyLoader.LoadKeyPair(newConfig.CertFile, newConfig.KeyFile)
 
 	if err != nil {
 		return err
 	}
 
-	c.TLSConfig = newConfig
+	c.TLSConfig.CertFile = newConfig.CertFile
+	c.TLSConfig.KeyFile = newConfig.KeyFile
 	return nil
 }
 
@@ -610,11 +617,9 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
-		TLSConfig: &config.TLSConfig{
-			KeyLoader: &config.KeyLoader{},
-		},
-		Sentinel: &config.SentinelConfig{},
-		Version:  version.GetVersion(),
+		TLSConfig: &config.TLSConfig{},
+		Sentinel:  &config.SentinelConfig{},
+		Version:   version.GetVersion(),
 	}
 }
 
@@ -701,11 +706,6 @@ func (c *Config) Merge(b *Config) *Config {
 		result.TLSConfig = &tlsConfig
 	} else if b.TLSConfig != nil {
 		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
-	}
-
-	// Initialize the TLS Keyloader if necessasry
-	if result.TLSConfig != nil && result.TLSConfig.KeyLoader == nil {
-		result.TLSConfig.KeyLoader = &config.KeyLoader{}
 	}
 
 	// Apply the client config
