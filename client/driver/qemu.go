@@ -33,6 +33,7 @@ var (
 	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
 	// We should consider this if driver.qemu.version is < 2.10.1 and the
 	// generated monitor path is too long.
+
 	//
 	// Relevant fix is here:
 	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
@@ -240,11 +241,14 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 
 	var monitorPath string
 	if d.driverConfig.GracefulShutdown {
+		if runtime.GOOS == "windows" {
+			return nil, errors.New("QEMU graceful shutdown is unsupported on the Windows platform")
+		}
 		// This socket will be used to manage the virtual machine (for example,
 		// to perform graceful shutdowns)
 		monitorPath, err := d.getMonitorPath(ctx.TaskDir.Dir)
 		if err != nil {
-			d.logger.Printf("[ERR] driver.qemu: could not get qemu monitor path - error: %s", err)
+			d.logger.Printf("[ERR] driver.qemu: could not get qemu monitor path: %s", err)
 			return nil, err
 		}
 		d.logger.Printf("[DEBUG] driver.qemu: got monitor path OK: %s", monitorPath)
@@ -292,6 +296,9 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 
 	// If using KVM, add optimization args
 	if accelerator == "kvm" {
+		if runtime.GOOS == "windows" {
+			return nil, errors.New("KVM accelerator is unsupported on the Windows platform")
+		}
 		args = append(args,
 			"-enable-kvm",
 			"-cpu", "host",
@@ -444,10 +451,19 @@ func (h *qemuHandle) Signal(s os.Signal) error {
 }
 
 func (h *qemuHandle) Kill() error {
-	// First, try sending a graceful shutdown command via the qemu monitor
-	if err := sendQemuShutdown(h.logger, h.monitorPath, h.userPid); err != nil {
-		h.logger.Printf("[DEBUG] driver.qemu: error sending graceful shutdown for user process pid %d: %s", h.userPid, err)
-		// Issue an interrupt to the qemu process as a last resort
+	gracefulShutdownSent := false
+	// Attempt a graceful shutdown only if it was configured in the job
+	if h.monitorPath != "" {
+		if err := sendQemuShutdown(h.logger, h.monitorPath, h.userPid); err == nil {
+			gracefulShutdownSent = true
+		} else {
+			h.logger.Printf("[DEBUG] driver.qemu: error sending graceful shutdown for user process pid %d: %s", h.userPid, err)
+		}
+	}
+
+	// If Nomad did not send a graceful shutdown signal, issue an interrupt to
+	// the qemu process as a last resort
+	if gracefulShutdownSent == false {
 		if err := h.executor.ShutDown(); err != nil {
 			if h.pluginClient.Exited() {
 				return nil
@@ -501,7 +517,6 @@ func (h *qemuHandle) run() {
 // monitor
 func sendQemuShutdown(logger *log.Logger, monitorPath string, userPid int) error {
 	if monitorPath == "" {
-		logger.Printf("[DEBUG] driver.qemu: monitorPath not set; will not attempt graceful shutdown for user process pid %d", userPid)
 		return errors.New("monitorPath not set")
 	}
 	monitorSocket, err := net.Dial("unix", monitorPath)
