@@ -736,7 +736,6 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
 }
 
-
 // Tests that the watcher fails rollback when the spec hasn't changed
 func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 	t.Parallel()
