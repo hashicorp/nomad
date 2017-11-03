@@ -1790,7 +1790,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	select {
 	case res := <-handle.WaitCh():
 		if res.Successful() {
-			t.Fatalf("expected error, but container exited successfull")
+			t.Fatalf("expected error, but container exited successful")
 		}
 
 		if res.Err.Error() != "OOM Killed" {
