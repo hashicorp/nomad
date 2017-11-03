@@ -184,17 +184,20 @@ func (w *deploymentWatcher) SetAllocHealth(
 	w.setLatestEval(index)
 	return nil
 }
-func (w *deploymentWatcher) handleRollbackValidity(j *structs.Job, desc string) (*structs.Job, string) {
+
+// handleRollbackValidity checks if the job being rolled back to has the same spec as the existing job
+// Returns a modified description and job accordingly.
+func (w *deploymentWatcher) handleRollbackValidity(rollbackJob *structs.Job, desc string) (*structs.Job, string) {
 	// Only rollback if job being changed has a different spec.
 	// This prevents an infinite revert cycle when a previously stable version of the job fails to start up during a rollback
 	// If the job we are trying to rollback to is identical to the current job, we stop because the rollback will not succeed.
-	if w.j.SpecChanged(j) {
-		desc = structs.DeploymentStatusDescriptionRollback(desc, j.Version)
+	if w.j.SpecChanged(rollbackJob) {
+		desc = structs.DeploymentStatusDescriptionRollback(desc, rollbackJob.Version)
 	} else {
-		desc = structs.DeploymentStatusDescriptionRollbackNoop(desc, j.Version)
-		j = nil
+		desc = structs.DeploymentStatusDescriptionRollbackNoop(desc, rollbackJob.Version)
+		rollbackJob = nil
 	}
-	return j, desc
+	return rollbackJob, desc
 }
 
 func (w *deploymentWatcher) PromoteDeployment(
