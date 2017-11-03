@@ -699,6 +699,19 @@ func (p *parser) parseRule() ast.Expr {
 		defer un(trace(p, "Rule"))
 	}
 
+	// If we have a first comment take it as the doc
+	var doc *ast.CommentGroup
+	if len(p.comments) > 0 {
+		temp := p.comments[len(p.comments)-1]
+
+		// The doc line must end just prior to the rule line
+		tempLine := p.file.Line(temp.End())
+		firstLine := p.file.Line(p.pos)
+		if tempLine+1 == firstLine {
+			doc = temp
+		}
+	}
+
 	pos := p.expect(token.RULE)
 
 	// Check if this rule has a when predicate
@@ -725,7 +738,14 @@ func (p *parser) parseRule() ast.Expr {
 
 	p.exprLev--
 
-	return &ast.RuleLit{Rule: pos, When: when, Lbrace: lbrace, Expr: expr, Rbrace: rbrace}
+	return &ast.RuleLit{
+		Doc:    doc,
+		Rule:   pos,
+		When:   when,
+		Lbrace: lbrace,
+		Expr:   expr,
+		Rbrace: rbrace,
+	}
 }
 
 func (p *parser) parseFunc() ast.Expr {

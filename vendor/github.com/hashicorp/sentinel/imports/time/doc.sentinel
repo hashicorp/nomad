@@ -1,38 +1,88 @@
-// The time import provides access to the time.
+// The time import provides access to the execution time and time functions.
 //
-// During the execution of a policy the time is fixed to the moment of first
-// access. This gives the illusion that a policy instantly executes at a
+// During the execution of a policy the time is fixed to the moment of
+// execution. This gives the illusion that a policy instantly executes at a
 // single moment of time. As an example of this, if a policy accessed
-// `time.hour`, then the time at the moment that field is accessed would be
-// reused for the remainder of time accessors.
+// `time.now.second` multiple times, for each access the same value would be
+// returned even if they are several seconds apart. This is the execution
+// `timespace`, which is mapped to `time.now`.
+//
+// It is also possible to run functions on a custom time by using the
+// `time.load()` function to create a new timespace from the specified value.
+// See the documentation for available actions on timespaces.
+//
+// Times specified as the reference time or via the `time.load()` function can
+// be specified in `timeish` fashion, either as seconds since the Unix epoch
+// (UTC) or as an RFC3339-style time string. If the latter, the time zone
+// included in the string will be honored.
 import "time"
 
-// The default timezone for time access. This will default to the system
-// local time if it isn't set. The value should be a string with the full
-// timezone name, such as "America/Los_Angeles".
+// The default timezone for the execution or reference time. This will default
+// to UTC if it isn't set. The value should be a string with the full timezone
+// name, such as `"America/Los_Angeles"`.
 config.timezone
 
-// A fixed time for all time accessors to reference, rather than the current
-// time. The value should be a Unix timestamp in integer format.
-config.fixed_time
+// An override for the execution time. If not set, the current time will be
+// used. Value should be timeish.
+config.reference
+
+// Create a `timespace` locked either to execution time or, if set, the
+// reference time. In a given execution, this will always produce the same
+// value.
+timespace = time.now
+
+// Create a timespace using the given value. Please see the import
+// documentation for valid values for "timeish".
+timespace = time.load(timeish)
 
 // The hour from 0 to 23.
-time.hour
+timespace.hour
 
 // The minute from 0 to 59.
-time.minute
+timespace.minute
 
 // The second from 0 to 59.
-time.second
+timespace.second
 
 // The day of the month, starting from 1.
-time.day
+timespace.day
 
 // The month of the year as an integer, starting from 1.
-time.month
+timespace.month
 
 // The weekday as an integer, where 0 is Sunday and 6 is Saturday.
-time.weekday
+timespace.weekday
 
 // The year as an integer.
-time.year
+timespace.year
+
+// The number of seconds since the Unix epoch.
+timespace.unix
+
+// The number of nanoseconds since the Unix epoch.
+timespace.unix_nano
+
+// Check if the time in the timespace is before the given time
+timespace.before(timeish_or_timespace)
+
+// Check if the time in the timespace is after the given time
+timespace.after(timeish_or_timespace)
+
+// Check if two times are equivalent
+timespace.equal(timeish_or_timespace)
+
+// Add a duration to the time in the timespace and return a new timespace. The
+// duration can be negative. The duration should be specified as an integer
+// multiplied with the correct unit.
+timespace.add(duration)
+
+// Subtract a time from the time in the timespace and return a duration.
+timespace.sub(timeish_or_timespace)
+
+// These values are constant durations that can be used in comparisons
+time.nanosecond
+time.microsecond
+time.millisecond
+time.second
+time.minute
+time.hour

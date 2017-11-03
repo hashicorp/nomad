@@ -54,6 +54,14 @@ func Eval(opts *EvalOpts) (bool, error) {
 		state.Trace.Desc = opts.Compiled.file.Doc.Text()
 		state.Trace.Result = result
 		state.Trace.Err = err
+
+		// If there is no policy docstring, default to the main rule (if
+		// that has a docstring)
+		if state.Trace.Desc == "" {
+			if r, ok := state.Trace.Rules["main"]; ok && r.Desc != "" {
+				state.Trace.Desc = r.Desc
+			}
+		}
 	}
 
 	return result, err
@@ -70,11 +78,13 @@ type evalState struct {
 	ExecId   uint64            // Execution ID, unique per evaluation
 	File     *ast.File         // File to execute
 	FileSet  *token.FileSet    // FileSet for positional information
+	MaxDepth int               // Maximum stack depth
 	Scope    *object.Scope     // Global scope, the parent of this should be Universe
 	Importer importer.Importer // Importer for imports
 	Timeout  time.Duration     // Timeout for execution
 	Trace    *trace.Trace      // If non-nil, sets trace data here
 
+	depth     int                   // current stack depth
 	deadline  time.Time             // deadline of this execution
 	imports   map[string]sdk.Import // imports are loaded imports
 	returnObj object.Object         // object set by last `return` statement
@@ -96,6 +106,11 @@ type evalState struct {
 // err may also be "EvalError" which contains more details about the
 // environment that resulted in the error.
 func (e *evalState) Eval() (result bool, err error) {
+	// Setup a default maximum stack depth so we don't error right away
+	if e.MaxDepth <= 0 {
+		e.MaxDepth = 500
+	}
+
 	// Setup the timeout channel if we have a timeout
 	if e.Timeout > 0 {
 		e.deadline = time.Now().UTC().Add(e.Timeout)
@@ -338,7 +353,7 @@ func (e *evalState) eval(raw ast.Node, s *object.Scope) object.Object {
 
 	case *ast.RuleLit:
 		// Just set the rule literal, we don't evaluate
-		return &object.RuleObj{WhenExpr: n.When, Expr: n.Expr, Scope: s}
+		return &object.RuleObj{Scope: s, Rule: n}
 
 	case *ast.FuncLit:
 		return &object.FuncObj{Params: n.Params, Body: n.Body.List, Scope: s}
@@ -380,16 +395,42 @@ func (e *evalState) eval(raw ast.Node, s *object.Scope) object.Object {
 }
 
 func (e *evalState) evalAssign(n *ast.AssignStmt, s *object.Scope) {
+	rhs := n.Rhs
+
+	// If the token isn't a plain assignment token, assume it is an
+	// operator token (+= , -=, etc.) and convert the RHS to a binary
+	// expression that performs that operation.
 	if n.Tok != token.ASSIGN {
-		e.err(
-			fmt.Sprintf("unsupported assignment token: %s", n.Tok),
-			n, s)
+		var op token.Token
+		switch n.Tok {
+		case token.ADD_ASSIGN:
+			op = token.ADD
+
+		case token.SUB_ASSIGN:
+			op = token.SUB
+
+		case token.MUL_ASSIGN:
+			op = token.MUL
+
+		case token.QUO_ASSIGN:
+			op = token.QUO
+
+		case token.REM_ASSIGN:
+			op = token.REM
+
+		default:
+			e.err(fmt.Sprintf("unsupported assignment token: %s", n.Tok), n, s)
+		}
+
+		// Convert the RHS to a binary expression equivalent for the given
+		// operation. For example: a += 2 turns into a = a + 2
+		rhs = &ast.BinaryExpr{X: n.Lhs, Op: op, Y: rhs}
 	}
 
 	// Determine the LHS
 	switch lhs := n.Lhs.(type) {
 	case *ast.Ident:
-		obj := e.eval(n.Rhs, s)
+		obj := e.eval(rhs, s)
 		dstS := s.Scope(lhs.Name)
 		dstS.Objects[lhs.Name] = obj
 
@@ -397,7 +438,7 @@ func (e *evalState) evalAssign(n *ast.AssignStmt, s *object.Scope) {
 		// assignment location so that we can use that.
 		if e.Trace != nil {
 			if r, ok := obj.(*object.RuleObj); ok {
-				e.ruleMap[r.Expr.Pos()] = lhs.Pos()
+				e.ruleMap[r.Rule.Pos()] = lhs.Pos()
 			}
 		}
 
@@ -438,7 +479,8 @@ func (e *evalState) evalIfStmt(n *ast.IfStmt, s *object.Scope) object.Object {
 
 func (e *evalState) evalForStmt(n *ast.ForStmt, s *object.Scope) object.Object {
 	// Create a new scope
-	s = object.NewScope(s)
+	s = e.enterFrame(n, s)
+	defer e.exitFrame(n, s)
 
 	// Loop over the elements
 	var result object.Object
@@ -484,6 +526,21 @@ func (e *evalState) evalBasicLit(n *ast.BasicLit, s *object.Scope) object.Object
 
 func (e *evalState) evalFile(n *ast.File, s *object.Scope) object.Object {
 	e.imports = make(map[string]sdk.Import)
+
+	// If we have a runtime object, we need to copy the map. This is so
+	// that we don't modify the map for multiple executions.
+	for _, obj := range s.Objects {
+		if _, ok := obj.(*object.RuntimeObj); ok {
+			m := make(map[string]object.Object)
+			for k, v := range s.Objects {
+				m[k] = v
+			}
+
+			s = object.NewScope(s.Outer)
+			s.Objects = m
+			break
+		}
+	}
 
 	// Find implicit imports in our scope
 	for k, obj := range s.Objects {
@@ -597,12 +654,8 @@ func (e *evalState) evalIndexExpr(n *ast.IndexExpr, s *object.Scope) object.Obje
 }
 
 func (e *evalState) evalSliceExpr(n *ast.SliceExpr, s *object.Scope) object.Object {
-	// Get the lhs
+	// Eval the LHS first
 	xRaw := e.eval(n.X, s)
-	x, ok := xRaw.(*object.ListObj)
-	if !ok {
-		e.err(fmt.Sprintf("only a list can be sliced, got %s", xRaw.Type()), n, s)
-	}
 
 	// Setup the low/high for slicing
 	var low, high int
@@ -627,18 +680,64 @@ func (e *evalState) evalSliceExpr(n *ast.SliceExpr, s *object.Scope) object.Obje
 		}
 
 		high = int(v.Value)
-	} else {
-		high = len(x.Elts)
 	}
 
-	return &object.ListObj{Elts: x.Elts[low:high]}
+	switch x := xRaw.(type) {
+	case *object.ListObj:
+		if n.High == nil {
+			high = len(x.Elts)
+		}
+
+		if low > high {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		if low < 0 || low > len(x.Elts) {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		if high < 0 || high > len(x.Elts) {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		return &object.ListObj{Elts: x.Elts[low:high]}
+
+	case *object.StringObj:
+		if n.High == nil {
+			high = len(x.Value)
+		}
+
+		if low > high {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		if low < 0 || low > len(x.Value) {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		if high < 0 || high > len(x.Value) {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		return &object.StringObj{Value: x.Value[low:high]}
+
+	case *object.UndefinedObj:
+		return x
+
+	default:
+		if xRaw == object.Null {
+			return &object.UndefinedObj{Pos: []token.Pos{n.Pos()}}
+		}
+
+		e.err(fmt.Sprintf("only lists and strings can be sliced, got %s", xRaw.Type()), n, s)
+		panic("unreachable")
+	}
 }
 
 func (e *evalState) evalQuantExpr(n *ast.QuantExpr, s *object.Scope) object.Object {
 	// Create a new scope
-	s = object.NewScope(s)
-
-	// TODO: undefined
+	s = e.enterFrame(n, s)
+	defer e.exitFrame(n, s)
 
 	// Loop over the elements
 	var result object.Object
@@ -648,6 +747,12 @@ func (e *evalState) evalQuantExpr(n *ast.QuantExpr, s *object.Scope) object.Obje
 
 		b, ok := x.(*object.BoolObj)
 		if !ok {
+			// If it is undefined, it is undefined
+			if _, ok := x.(*object.UndefinedObj); ok {
+				result = x
+				return true
+			}
+
 			e.err(fmt.Sprintf("body of quantifier expression must result in bool"), n.Body, s)
 		}
 
@@ -688,6 +793,28 @@ func (e *evalState) eltLoop(n ast.Expr, s *object.Scope, n1, n2 *ast.Ident, f fu
 			}
 			if value != nil {
 				s.Objects[value.Name] = elt
+			}
+
+			cont := f(s)
+			if !cont {
+				break
+			}
+		}
+
+	case *object.MapObj:
+		key := n1
+		value := n2
+		if n2 == nil {
+			key = n1
+			value = nil
+		}
+
+		for _, elt := range x.Elts {
+			if key != nil {
+				s.Objects[key.Name] = elt.Key
+			}
+			if value != nil {
+				s.Objects[value.Name] = elt.Value
 			}
 
 			cont := f(s)
@@ -889,13 +1016,10 @@ func (e *evalState) evalMathExpr(n *ast.BinaryExpr, s *object.Scope) object.Obje
 	xtyp := reflect.TypeOf(x)
 	ytyp := reflect.TypeOf(y)
 	if xtyp != ytyp {
-		// We allow float/int comparisons as a specific exception to the types
 		switch {
-		// TODO: float/int
-
 		default:
 			e.err(fmt.Sprintf(
-				"comparison requires both operands to be the same type, got %s and %s",
+				"math requires both operands to be the same type, got %s and %s",
 				x.Type(), y.Type()),
 				n, s)
 		}
@@ -905,11 +1029,14 @@ func (e *evalState) evalMathExpr(n *ast.BinaryExpr, s *object.Scope) object.Obje
 	case *object.IntObj:
 		return e.evalMathExpr_int(n, s, xObj.Value, y.(*object.IntObj).Value)
 
+	case *object.FloatObj:
+		return e.evalMathExpr_float(n, s, xObj.Value, y.(*object.FloatObj).Value)
+
 	case *object.ListObj:
 		return e.evalMathExpr_list(n, s, xObj, y.(*object.ListObj))
 
-	// TODO: floats
-	// TODO: strings
+	case *object.StringObj:
+		return e.evalMathExpr_string(n, s, xObj, y.(*object.StringObj))
 
 	default:
 		e.err(fmt.Sprintf("can't perform math on type %s", x.Type()), n, s)
@@ -943,6 +1070,29 @@ func (e *evalState) evalMathExpr_int(n *ast.BinaryExpr, s *object.Scope, x, y in
 	return &object.IntObj{Value: result}
 }
 
+func (e *evalState) evalMathExpr_float(n *ast.BinaryExpr, s *object.Scope, x, y float64) object.Object {
+	var result float64
+	switch n.Op {
+	case token.ADD:
+		result = x + y
+
+	case token.SUB:
+		result = x - y
+
+	case token.MUL:
+		result = x * y
+
+	case token.QUO:
+		result = x / y
+
+	default:
+		e.err(fmt.Sprintf("unsupported operator: %s", n.Op), n, s)
+		return nil
+	}
+
+	return &object.FloatObj{Value: result}
+}
+
 func (e *evalState) evalMathExpr_list(n *ast.BinaryExpr, s *object.Scope, x, y *object.ListObj) object.Object {
 	switch n.Op {
 	case token.ADD:
@@ -954,6 +1104,17 @@ func (e *evalState) evalMathExpr_list(n *ast.BinaryExpr, s *object.Scope, x, y *
 
 	default:
 		e.err(fmt.Sprintf("unsupported operator for lists: %s", n.Op), n, s)
+		return nil
+	}
+}
+
+func (e *evalState) evalMathExpr_string(n *ast.BinaryExpr, s *object.Scope, x, y *object.StringObj) object.Object {
+	switch n.Op {
+	case token.ADD:
+		return &object.StringObj{Value: x.Value + y.Value}
+
+	default:
+		e.err(fmt.Sprintf("unsupported operator for strings: %s", n.Op), n, s)
 		return nil
 	}
 }
@@ -1143,6 +1304,10 @@ func (e *evalState) evalContainsExpr(n *ast.BinaryExpr, s *object.Scope) object.
 		y := e.eval(n.Y, s)
 		return e.evalContainsExpr_map(n, s, xv, y)
 
+	case *object.StringObj:
+		y := e.eval(n.Y, s)
+		return e.evalContainsExpr_string(n, s, xv, y)
+
 	default:
 		e.err(fmt.Sprintf("left operand for contains must be list or map, got %s", x.Type()), n, s)
 		return nil
@@ -1174,6 +1339,18 @@ func (e *evalState) evalContainsExpr_map(
 	return object.False
 }
 
+func (e *evalState) evalContainsExpr_string(
+	n *ast.BinaryExpr, s *object.Scope, x *object.StringObj, y object.Object) object.Object {
+	yv, ok := y.(*object.StringObj)
+	if !ok {
+		e.err(fmt.Sprintf(
+			"both operands for contains/in must be a string for strings, got %q",
+			y.Type()), n, s)
+	}
+
+	return object.Bool(strings.Contains(x.Value, yv.Value))
+}
+
 func (e *evalState) evalInExpr(n *ast.BinaryExpr, s *object.Scope) object.Object {
 	// Evaluate the left side
 	x := e.eval(n.X, s)
@@ -1193,6 +1370,9 @@ func (e *evalState) evalInExpr(n *ast.BinaryExpr, s *object.Scope) object.Object
 
 	case *object.MapObj:
 		return e.evalContainsExpr_map(n, s, yv, x)
+
+	case *object.StringObj:
+		return e.evalContainsExpr_string(n, s, yv, x)
 
 	default:
 		e.err(fmt.Sprintf("right operand for in must be list or map, got %s", y.Type()), n.Y, s)
@@ -1296,7 +1476,8 @@ func (e *evalState) evalCallExpr(n *ast.CallExpr, s *object.Scope) object.Object
 	}
 
 	// Create a new scope for the function
-	evalScope := object.NewScope(f.Scope)
+	evalScope := e.enterFrame(n, f.Scope)
+	defer e.exitFrame(n, evalScope)
 
 	// Evaluate and set all the arguments
 	for i, arg := range n.Args {
@@ -1424,10 +1605,10 @@ func (e *evalState) evalRuleObj(ident string, r *object.RuleObj) object.Object {
 	}
 
 	// If this rule has a when predicate, check that.
-	if r.WhenExpr != nil {
+	if r.Rule.When != nil {
 		// If we haven't evalutated the when expression before, do it
 		if r.WhenValue == nil {
-			r.WhenValue = e.eval(r.WhenExpr, r.Scope)
+			r.WhenValue = e.eval(r.Rule.When, r.Scope)
 		}
 
 		switch v := r.WhenValue.(type) {
@@ -1443,33 +1624,34 @@ func (e *evalState) evalRuleObj(ident string, r *object.RuleObj) object.Object {
 			}
 
 		default:
-			e.err("rule predicate evaluated to a non-boolean value", r.WhenExpr, r.Scope)
+			e.err("rule predicate evaluated to a non-boolean value", r.Rule.When, r.Scope)
 		}
 	}
 
 	// If tracing is enabled and we haven't traced the execution
 	// of this rule yet, then we trace the execution of this rule.
 	if e.Trace != nil {
-		if _, ok := e.traces[r.Expr.Pos()]; !ok {
+		if _, ok := e.traces[r.Rule.Pos()]; !ok {
 			if e.traces == nil {
 				e.traces = make(map[token.Pos]*trace.Rule)
 			}
 
-			pos := r.Expr.Pos()
+			pos := r.Rule.Pos()
 			if identPos, ok := e.ruleMap[pos]; ok {
 				pos = identPos
 			}
 
 			// Store the trace
-			e.traces[r.Expr.Pos()] = &trace.Rule{
+			e.traces[r.Rule.Pos()] = &trace.Rule{
+				Desc:  r.Rule.Doc.Text(),
 				Ident: ident,
 				Pos:   pos,
-				Root:  e.pushTrace(r.Expr),
+				Root:  e.pushTrace(r.Rule.Expr),
 			}
 		}
 	}
 
-	raw := e.eval(r.Expr, r.Scope)
+	raw := e.eval(r.Rule.Expr, r.Scope)
 
 	// If we're tracing, then we need to restore the old trace.
 	if e.Trace != nil {
@@ -1478,11 +1660,27 @@ func (e *evalState) evalRuleObj(ident string, r *object.RuleObj) object.Object {
 
 	// If the rule didn't result in a bool, it is an error
 	if raw.Type() != object.BOOL && raw.Type() != object.UNDEFINED {
-		e.err("rule evaluated to a non-boolean value", r.Expr, r.Scope)
+		e.err("rule evaluated to a non-boolean value", r.Rule.Expr, r.Scope)
 	}
 
 	r.Value = raw
 	return raw
+}
+
+// ----------------------------------------------------------------------------
+// Helpers
+
+func (e *evalState) enterFrame(n ast.Node, s *object.Scope) *object.Scope {
+	e.depth++
+	if e.depth > e.MaxDepth {
+		e.err(fmt.Sprintf("maximum stack depth %d reached", e.MaxDepth), n, s)
+	}
+
+	return object.NewScope(s)
+}
+
+func (e *evalState) exitFrame(ast.Node, *object.Scope) {
+	e.depth--
 }
 
 // ----------------------------------------------------------------------------

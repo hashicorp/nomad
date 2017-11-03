@@ -18,6 +18,7 @@ import (
 // the evaluation of a rule based on the various boolean expressions evaluated
 // within it.
 type Rule struct {
+	Desc  string    // Description of the rule, if non-empty
 	Ident string    // Identifier of the rule
 	Pos   token.Pos // Position of the rule ident assignment
 	Root  *Bool     // Root boolean expression
@@ -43,9 +44,17 @@ func (b *Bool) String() string {
 
 // encoding/json implementation to allow embedding in JSON.
 func (b *Bool) MarshalJSON() ([]byte, error) {
+	// It is possible for the Value to be nil if the boolean never finished
+	// executing, which itself is possible if a runtime error occurred during
+	// eval of this particular rule.
+	value := "<no value>"
+	if b.Value != nil {
+		value = b.Value.String()
+	}
+
 	return json.Marshal(map[string]interface{}{
 		"expression": b.String(),
-		"value":      b.Value.String(),
+		"value":      value,
 		"children":   b.Children,
 	})
 }

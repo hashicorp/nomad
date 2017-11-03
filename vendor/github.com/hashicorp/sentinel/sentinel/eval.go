@@ -305,7 +305,8 @@ func (r *EvalResult) String() string {
 		idx := 1
 		for _, p := range r.Policies {
 			if !p.Result {
-				buf.WriteString(fmt.Sprintf("## Policy %d: %s\n\n", idx, p.Policy.Name()))
+				buf.WriteString(fmt.Sprintf("## Policy %d: %s (%s)\n\n",
+					idx, p.Policy.Name(), p.Policy.Level()))
 				p.stringBuf(&buf)
 				idx++
 			}
@@ -314,7 +315,8 @@ func (r *EvalResult) String() string {
 		// Good policies
 		for _, p := range r.Policies {
 			if p.Result {
-				buf.WriteString(fmt.Sprintf("## Policy %d: %s\n\n", idx, p.Policy.Name()))
+				buf.WriteString(fmt.Sprintf("## Policy %d: %s (%s)\n\n",
+					idx, p.Policy.Name(), p.Policy.Level()))
 				p.stringBuf(&buf)
 				idx++
 			}

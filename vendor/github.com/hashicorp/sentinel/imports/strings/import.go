@@ -59,6 +59,23 @@ func (m *root) Func(key string) interface{} {
 		return func(s string) (interface{}, error) {
 			return strings.ToUpper(s), nil
 		}
+	case "split":
+		return func(in interface{}, sep string) (interface{}, error) {
+			switch in.(type) {
+			case string:
+				return strings.Split(in.(string), sep), nil
+
+			// As a special case, if the string is already split, return as-is.
+			// This makes it safe to call split functions when not knowing if
+			// the value is already split or not.
+			case []string:
+				return in.([]string), nil
+			case []interface{}:
+				// JSON decoding sometimes produces this for string lists
+				return in, nil
+			}
+			return nil, nil
+		}
 	}
 
 	return nil

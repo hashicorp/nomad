@@ -67,12 +67,11 @@ type (
 
 	// RuleObj represents a rule.
 	RuleObj struct {
-		WhenExpr  ast.Expr // WhenExpr is the un-evaluated when predicate
-		WhenValue Object   // WhenValue is the value of the predicate once evaluated
-		Expr      ast.Expr // Expr is the un-evaluated expression
-		Scope     *Scope   // Scope to evaluate the rule in
-		Eval      bool     // Eval is true if evaluated
-		Value     Object   // Value is the set value once evaluated
+		Scope     *Scope       // Scope to evaluate the rule in
+		Rule      *ast.RuleLit // Rule AST
+		Eval      bool         // Eval is true if evaluated
+		WhenValue Object       // WhenValue is the value of the predicate once evaluated
+		Value     Object       // Value is the set value once evaluated
 	}
 
 	// KeyedObj represents a key/value pair. This doens't actual implement
@@ -127,10 +126,10 @@ func (o *RuleObj) String() string {
 	// TODO: use printer here once we have it
 
 	if !o.Eval {
-		return fmt.Sprintf("un-evaluated rule: %#v", o.Expr)
+		return fmt.Sprintf("un-evaluated rule: %#v", o.Rule)
 	}
 
-	return fmt.Sprintf("evaluated rule. result: %v, result: %s", o.Value, o.Expr)
+	return fmt.Sprintf("evaluated rule. result: %v, result: %s", o.Value, o.Rule)
 }
 func (o *FuncObj) String() string     { return "func" }
 func (o *ExternalObj) String() string { return "external" }

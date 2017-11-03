@@ -1,0 +1,62 @@
+// The strings import exposes common string operations.
+import "strings"
+
+// Returns true if `s` starts with `prefix`.
+//
+// ```python
+// strings.has_prefix("billing-id", "billing-") // true
+// strings.has_prefix("bill-id", "billing-")    // false
+// ```
+strings.has_prefix(s, prefix)
+
+// Returns true if `s` ends with `suffix`.
+//
+// ```python
+// strings.has_suffix("billing-id", "id")   // true
+// strings.has_suffix("billing-name", "id") // false
+// ```
+strings.has_suffix(s, suffix)
+
+// Trim the prefix from the string `s`. If the string doesn't have the
+// prefix, then the string is returned unmodified.
+//
+// ```python
+// strings.trim_prefix("billing-id", "billing-")   // "id"
+// strings.trim_prefix("bill-id",    "billing-")   // "bill-id"
+// ```
+strings.trim_prefix(s, prefix)
+
+// Trim the suffix from the string `s`. If the string doesn't have the
+// suffix, then the string is returned unmodified.
+//
+// ```python
+// strings.trim_suffix("billing-id", "-id")    // "billing"
+// strings.trim_suffix("bill-id",    "-foo")   // "bill-id"
+// ```
+strings.trim_suffix(s, suffix)
+
+// Lowercase the string s.
+//
+// ```python
+// strings.to_lower("FoO") // "foo"
+// ```
+strings.to_lower(s)
+
+// Uppercase the string s.
+//
+// ```python
+// strings.to_upper("FoO") // "FOO"
+// ```
+strings.to_upper(s)
+
+// Split the string 's' via a substring 'sep'. If 'sep' is not contained in
+// 's', the return value will be a single-element list containing only 's'.
+// As a special-case, if the input is already a list, it will be returned
+// as-is. This allows calling the split function when not knowing if the input
+// is already a list or not.
+//
+// ```python
+// strings.split("foo,bar,baz", ",") // ["foo", "bar", "baz"]
+// strings.split(["foo", "bar", "baz"], ",") // ["foo", "bar", "baz"]
+// ```
+strings.split(s, sep)

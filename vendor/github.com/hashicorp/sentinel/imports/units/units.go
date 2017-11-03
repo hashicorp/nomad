@@ -1,9 +1,5 @@
 package units
 
-import (
-	"time"
-)
-
 // Byte sizes (base 2 form)
 const (
 	B  int64 = iota
@@ -23,12 +19,4 @@ var unitMap = map[string]interface{}{
 	"gigabyte": GB,
 	"terabyte": TB,
 	"petabyte": PB,
-
-	// Time
-	"nanosecond":  time.Nanosecond,
-	"microsecond": time.Microsecond,
-	"millisecond": time.Millisecond,
-	"second":      time.Second,
-	"minute":      time.Minute,
-	"hour":        time.Hour,
 }
