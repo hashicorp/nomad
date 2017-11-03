@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"path"
-
 	"path/filepath"
 	"strings"
 	"time"
@@ -591,8 +590,11 @@ const (
 // TaskEvent is an event that effects the state of a task and contains meta-data
 // appropriate to the events type.
 type TaskEvent struct {
-	Type             string
-	Time             int64
+	Type           string
+	Time           int64
+	DisplayMessage string
+	Details        map[string]string
+	// DEPRECATION NOTICE: The following fields are all deprecated. see TaskEvent struct in structs.go for details.
 	FailsTask        bool
 	RestartReason    string
 	SetupError       string

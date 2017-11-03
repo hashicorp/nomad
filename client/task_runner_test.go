@@ -210,21 +210,43 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
 	}
 
-	if ctx.upd.events[0].Type != structs.TaskReceived {
+	event := ctx.upd.events[0]
+
+	if event.Type != structs.TaskReceived {
 		t.Fatalf("First Event was %v; want %v", ctx.upd.events[0].Type, structs.TaskReceived)
 	}
 
-	if ctx.upd.events[1].Type != structs.TaskSetup {
+	event = ctx.upd.events[1]
+	if event.Type != structs.TaskSetup {
 		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[1].Type, structs.TaskSetup)
 	}
+	displayMsg := event.DisplayMessage
 
-	if ctx.upd.events[2].Type != structs.TaskStarted {
+	if displayMsg != "Building Task Directory" {
+		t.Fatalf("Bad display message:%v", displayMsg)
+	}
+
+	event = ctx.upd.events[2]
+	if event.Type != structs.TaskStarted {
 		t.Fatalf("Second Event was %v; want %v", ctx.upd.events[2].Type, structs.TaskStarted)
 	}
-
-	if ctx.upd.events[3].Type != structs.TaskTerminated {
-		t.Fatalf("Third Event was %v; want %v", ctx.upd.events[3].Type, structs.TaskTerminated)
+	displayMsg = event.DisplayMessage
+	if displayMsg != "Task started by client" {
+		t.Fatalf("Bad display message:%v", displayMsg)
 	}
+
+	event = ctx.upd.events[3]
+	if event.Type != structs.TaskTerminated {
+		t.Fatalf("Third Event was %v; want %v", event.Type, structs.TaskTerminated)
+	}
+	displayMsg = event.DisplayMessage
+	if displayMsg != "Exit Code: 0" {
+		t.Fatalf("Bad display message:%v", displayMsg)
+	}
+	if event.Details["exit_code"] != "0" {
+		t.Fatalf("Bad details map :%v", event.Details)
+	}
+
 }
 
 func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {

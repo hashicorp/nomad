@@ -152,7 +152,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	assert.NotNil(state)
 	assert.NotEmpty(state.Events)
 	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Equal(allocHealthEventSource, last.Type)
 	assert.Contains(last.Message, "failed task")
 }
 
@@ -202,7 +202,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	assert.NotNil(state)
 	assert.NotEmpty(state.Events)
 	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Equal(allocHealthEventSource, last.Type)
 	assert.Contains(last.Message, "not running by deadline")
 }
 
@@ -412,7 +412,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	assert.NotNil(state)
 	assert.NotEmpty(state.Events)
 	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Equal(allocHealthEventSource, last.Type)
 	assert.Contains(last.Message, "Services not healthy by deadline")
 }
 
