@@ -23,6 +23,8 @@ BUG FIXES:
    timeout error [GH-3402]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates. [GH-3445]
+ * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
+   to a previously stable job that fails to start up causes an infinite cycle of reverts. [GH-3496]
  
 
 ## 0.7.0 (November 1, 2017)
