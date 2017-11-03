@@ -1609,6 +1609,13 @@ func (h *DockerHandle) run() {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
+	container, ierr := h.waitClient.InspectContainer(h.containerID)
+	if ierr != nil {
+		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
+	} else if container.State.OOMKilled {
+		werr = fmt.Errorf("OOM Killed")
+	}
+
 	close(h.doneCh)
 
 	// Shutdown the syslog collector
