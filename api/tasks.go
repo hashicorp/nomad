@@ -593,6 +593,9 @@ const (
 type TaskEvent struct {
 	Type             string
 	Time             int64
+	DisplayMessage   string
+	Details          map[string]string
+	// DEPRECATION NOTICE: The following fields are all deprecated. see TaskEvent struct in structs.go for details.
 	FailsTask        bool
 	RestartReason    string
 	SetupError       string
@@ -614,6 +617,4 @@ type TaskEvent struct {
 	TaskSignalReason string
 	TaskSignal       string
 	GenericSource    string
-	DisplayMessage   string
-	Details          map[string]string
 }
