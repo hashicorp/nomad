@@ -61,7 +61,7 @@ The `qemu` driver supports the following configuration in the job spec:
   [data_dir](https://www.nomadproject.io/docs/agent/configuration/index.html#data_dir)
   or
   [alloc_dir](https://www.nomadproject.io/docs/agent/configuration/client.html#alloc_dir)
-  paths.)
+  paths.) This feature is currently not supported on Windows.
 
 * `port_map` - (Optional) A key-value map of port labels.
 
