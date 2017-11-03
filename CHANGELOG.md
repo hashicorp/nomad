@@ -7,6 +7,8 @@ __BACKWARDS INCOMPATIBILITIES:__
 
 IMPROVEMENTS:
  * api: Allocations now track and return modify time in addition to create time.[GH-3446]
+ * api: Introduced new fields to track details and display message for task events,
+   and deprecated redundant existing fields. [GH-3399]
  * cli: Allocation create and modify times are displayed in a human readable 
    relative format like `6 h ago`.[GH-3449]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
