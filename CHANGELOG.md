@@ -14,6 +14,7 @@ IMPROVEMENTS:
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`.
  * client: Added metrics to track state transitions of allocations [GH-3061]
+ * driver/docker: Detect OOM kill event [GH-3459]
 
 BUG FIXES:
 
