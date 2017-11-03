@@ -29,18 +29,26 @@ import (
 
 var (
 	reQemuVersion = regexp.MustCompile(`version (\d[\.\d+]+)`)
+
+	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
+	// We should consider this if driver.qemu.version is < 2.10.1 and the
+	// generated monitor path is too long.
+	//
+	// Relevant fix is here:
+	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
+	qemuVersionLongSocketPathFix = semver.New("2.10.1")
 )
 
 const (
 	// The key populated in Node Attributes to indicate presence of the Qemu driver
-	qemuDriverAttr                = "driver.qemu"
-	qemuDriverVersionAttr         = "driver.qemu.version"
-	qemuDriverLongMonitorPathAttr = "driver.qemu.longsocketpaths"
+	qemuDriverAttr        = "driver.qemu"
+	qemuDriverVersionAttr = "driver.qemu.version"
 	// Represents an ACPI shutdown request to the VM (emulates pressing a physical power button)
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
 	qemuGracefulShutdownMsg = "system_powerdown\n"
-	legacyMaxMonitorPathLen = 108
 	qemuMonitorSocketName   = "qemu-monitor.sock"
+	// Maximum socket path length prior to qemu 2.10.1
+	qemuLegacyMaxMonitorPathLen = 108
 )
 
 // QemuDriver is a driver for running images via Qemu
@@ -75,11 +83,27 @@ type qemuHandle struct {
 	doneCh         chan struct{}
 }
 
-func getMonitorPath(dir string, longPathSupport string) (string, error) {
-	if len(dir) > legacyMaxMonitorPathLen && longPathSupport != "1" {
-		return "", fmt.Errorf("monitor path is too long")
+// getMonitorPath is used to determine whether a qemu monitor socket can be
+// safely created and accessed in the task directory by the version of qemu
+// present on the host. If it is safe to use, the socket's full path is
+// returned along with a nil error. Otherwise, an empty string is returned
+// along with a descriptive error.
+func (d *QemuDriver) getMonitorPath(dir string) (string, error) {
+	var longPathSupport bool
+	currentQemuVer := d.DriverContext.node.Attributes[qemuDriverVersionAttr]
+	currentQemuSemver := semver.New(currentQemuVer)
+	if currentQemuSemver.LessThan(*qemuVersionLongSocketPathFix) {
+		longPathSupport = false
+		d.logger.Printf("[DEBUG] driver.qemu: long socket paths are not available in this version of QEMU (%s)", currentQemuVer)
+	} else {
+		longPathSupport = true
+		d.logger.Printf("[DEBUG] driver.qemu: long socket paths available in this version of QEMU (%s)", currentQemuVer)
 	}
-	return fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName), nil
+	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
+	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && longPathSupport == false {
+		return "", fmt.Errorf("monitor path is too long for this version of qemu")
+	}
+	return fullSocketPath, nil
 }
 
 // NewQemuDriver is used to create a new exec driver
@@ -154,21 +178,6 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	node.Attributes[qemuDriverAttr] = "1"
 	node.Attributes[qemuDriverVersionAttr] = currentQemuVersion
 
-	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
-	// We should consider this if driver.qemu.version is < 2.10.1 and the
-	// generated monitor path is too long.
-	//
-	// Relevant fix is here:
-	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
-	currentQemuSemver := semver.New(currentQemuVersion)
-	fixedSocketPathLenVer := semver.New("2.10.1")
-	if currentQemuSemver.LessThan(*fixedSocketPathLenVer) {
-		node.Attributes[qemuDriverLongMonitorPathAttr] = "0"
-		d.logger.Printf("[DEBUG] driver.qemu: long socket paths are not available in this version of QEMU (%s)", currentQemuVersion)
-	} else {
-		d.logger.Printf("[DEBUG] driver.qemu: long socket paths available in this version of QEMU (%s)", currentQemuVersion)
-		node.Attributes[qemuDriverLongMonitorPathAttr] = "1"
-	}
 	return true, nil
 }
 
@@ -233,13 +242,13 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	if d.driverConfig.GracefulShutdown {
 		// This socket will be used to manage the virtual machine (for example,
 		// to perform graceful shutdowns)
-		monitorPath, err = getMonitorPath(ctx.TaskDir.Dir, ctx.TaskEnv.NodeAttrs[qemuDriverLongMonitorPathAttr])
-		if err == nil {
-			d.logger.Printf("[DEBUG] driver.qemu: got monitor path OK: %s", monitorPath)
-			args = append(args, "-monitor", fmt.Sprintf("unix:%s,server,nowait", monitorPath))
-		} else {
-			d.logger.Printf("[WARN] driver.qemu: %s", err)
+		monitorPath, err := d.getMonitorPath(ctx.TaskDir.Dir)
+		if err != nil {
+			d.logger.Printf("[ERR] driver.qemu: could not get qemu monitor path - error: %s", err)
+			return nil, err
 		}
+		d.logger.Printf("[DEBUG] driver.qemu: got monitor path OK: %s", monitorPath)
+		args = append(args, "-monitor", fmt.Sprintf("unix:%s,server,nowait", monitorPath))
 	}
 
 	// Add pass through arguments to qemu executable. A user can specify
@@ -436,11 +445,9 @@ func (h *qemuHandle) Signal(s os.Signal) error {
 
 func (h *qemuHandle) Kill() error {
 	// First, try sending a graceful shutdown command via the qemu monitor
-	err := sendQemuShutdown(h.logger, h.monitorPath, h.userPid)
-
-	// If we did not send a graceful shutdown via the monitor socket, we'll
-	// issue an interrupt to the qemu process as a last resort
-	if err != nil {
+	if err := sendQemuShutdown(h.logger, h.monitorPath, h.userPid); err != nil {
+		h.logger.Printf("[DEBUG] driver.qemu: error sending graceful shutdown for user process pid %d: %s", h.userPid, err)
+		// Issue an interrupt to the qemu process as a last resort
 		if err := h.executor.ShutDown(); err != nil {
 			if h.pluginClient.Exited() {
 				return nil
@@ -490,22 +497,23 @@ func (h *qemuHandle) run() {
 	close(h.waitCh)
 }
 
+// sendQemuShutdown attempts to issue an ACPI power-off command via the qemu
+// monitor
 func sendQemuShutdown(logger *log.Logger, monitorPath string, userPid int) error {
 	if monitorPath == "" {
 		logger.Printf("[DEBUG] driver.qemu: monitorPath not set; will not attempt graceful shutdown for user process pid %d", userPid)
 		return errors.New("monitorPath not set")
-	} else {
-		monitorSocket, err := net.Dial("unix", monitorPath)
-		if err == nil {
-			defer monitorSocket.Close()
-			logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket %q for user process pid %d", monitorPath, userPid)
-			_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
-			if err != nil {
-				logger.Printf("[WARN] driver.qemu: failed to send shutdown message %q to monitor socket %q for user process pid %d: %s", qemuGracefulShutdownMsg, monitorPath, userPid, err)
-			}
-		} else {
-			logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor %q for user process pid %d: %s", monitorPath, userPid, err)
-		}
+	}
+	monitorSocket, err := net.Dial("unix", monitorPath)
+	if err != nil {
+		logger.Printf("[WARN] driver.qemu: could not connect to qemu monitor %q for user process pid %d: %s", monitorPath, userPid, err)
 		return err
 	}
+	defer monitorSocket.Close()
+	logger.Printf("[DEBUG] driver.qemu: sending graceful shutdown command to qemu monitor socket %q for user process pid %d", monitorPath, userPid)
+	_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
+	if err != nil {
+		logger.Printf("[WARN] driver.qemu: failed to send shutdown message %q to monitor socket %q for user process pid %d: %s", qemuGracefulShutdownMsg, monitorPath, userPid, err)
+	}
+	return err
 }

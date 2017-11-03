@@ -47,9 +47,6 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	if node.Attributes[qemuDriverVersionAttr] == "" {
 		t.Fatalf("Missing Qemu driver version")
 	}
-	if node.Attributes[qemuDriverLongMonitorPathAttr] == "" {
-		t.Fatalf("Missing Qemu long monitor socket path support flag")
-	}
 }
 
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
@@ -145,7 +142,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 		},
 		// With the use of tcg acceleration, it's very unlikely a qemu instance
 		// will boot (and gracefully halt) in a reasonable amount of time, so
-		// this timeout is kept low to reduce test execution time
+		// this timeout is kept low to reduce test execution time.
 		KillTimeout: time.Duration(1 * time.Second),
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -165,6 +162,14 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	ctx := testDriverContexts(t, task)
 	defer ctx.AllocDir.Destroy()
 	d := NewQemuDriver(ctx.DriverCtx)
+
+	apply, err := d.Fingerprint(&config.Config{}, ctx.DriverCtx.node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !apply {
+		t.Fatalf("should apply")
+	}
 
 	dst := ctx.ExecCtx.TaskDir.Dir
 
@@ -304,25 +309,118 @@ func TestQemuDriverUser(t *testing.T) {
 	}
 }
 
-func TestQemuDriverGetMonitorPath(t *testing.T) {
+func TestQemuDriverGetMonitorPathOldQemu(t *testing.T) {
+	task := &structs.Task{
+		Name:   "linux",
+		Driver: "qemu",
+		Config: map[string]interface{}{
+			"image_path":        "linux-0.2.img",
+			"accelerator":       "tcg",
+			"graceful_shutdown": true,
+			"port_map": []map[string]int{{
+				"main": 22,
+				"web":  8080,
+			}},
+			"args": []string{"-nodefconfig", "-nodefaults"},
+		},
+		KillTimeout: time.Duration(1 * time.Second),
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 512,
+			Networks: []*structs.NetworkResource{
+				{
+					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
+				},
+			},
+		},
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+
+	// Simulate an older version of qemu which does not support long monitor socket paths
+	ctx.DriverCtx.node.Attributes[qemuDriverVersionAttr] = "2.0.0"
+
+	d := &QemuDriver{DriverContext: *ctx.DriverCtx}
+
 	shortPath := strings.Repeat("x", 10)
-	_, err := getMonitorPath(shortPath, "0")
+	_, err := d.getMonitorPath(shortPath)
 	if err != nil {
 		t.Fatal("Should not have returned an error")
 	}
 
-	longPath := strings.Repeat("x", legacyMaxMonitorPathLen+100)
-	_, err = getMonitorPath(longPath, "0")
+	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
+	_, err = d.getMonitorPath(longPath)
 	if err == nil {
 		t.Fatal("Should have returned an error")
 	}
-	_, err = getMonitorPath(longPath, "1")
+
+	// Max length includes the '/' separator and socket name
+	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
+	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
+	_, err = d.getMonitorPath(maxLengthLegacyPath)
+	if err != nil {
+		t.Fatalf("Should not have returned an error: %s", err)
+	}
+}
+
+func TestQemuDriverGetMonitorPathNewQemu(t *testing.T) {
+	task := &structs.Task{
+		Name:   "linux",
+		Driver: "qemu",
+		Config: map[string]interface{}{
+			"image_path":        "linux-0.2.img",
+			"accelerator":       "tcg",
+			"graceful_shutdown": true,
+			"port_map": []map[string]int{{
+				"main": 22,
+				"web":  8080,
+			}},
+			"args": []string{"-nodefconfig", "-nodefaults"},
+		},
+		KillTimeout: time.Duration(1 * time.Second),
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 512,
+			Networks: []*structs.NetworkResource{
+				{
+					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
+				},
+			},
+		},
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+
+	// Simulate a version of qemu which supports long monitor socket paths
+	ctx.DriverCtx.node.Attributes[qemuDriverVersionAttr] = "2.99.99"
+
+	d := &QemuDriver{DriverContext: *ctx.DriverCtx}
+
+	shortPath := strings.Repeat("x", 10)
+	_, err := d.getMonitorPath(shortPath)
 	if err != nil {
 		t.Fatal("Should not have returned an error")
 	}
 
-	maxLengthPath := strings.Repeat("x", legacyMaxMonitorPathLen)
-	_, err = getMonitorPath(maxLengthPath, "0")
+	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
+	_, err = d.getMonitorPath(longPath)
+	if err != nil {
+		t.Fatal("Should not have returned an error")
+	}
+
+	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
+	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
+	_, err = d.getMonitorPath(maxLengthLegacyPath)
 	if err != nil {
 		t.Fatal("Should not have returned an error")
 	}
