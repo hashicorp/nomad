@@ -87,7 +87,6 @@ func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStats
 // Run the periodic garbage collector.
 func (a *AllocGarbageCollector) Run() {
 	ticker := time.NewTicker(a.config.Interval)
-	a.logger.Printf("[DEBUG] client.gc: GC'ing ever %v", a.config.Interval)
 	for {
 		select {
 		case <-a.triggerCh:
