@@ -134,6 +134,7 @@ func (c *Command) readConfig() *Config {
 		cmdConfig.Consul.VerifySSL = &b
 		return nil
 	}), "consul-verify-ssl", "")
+        flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
 
 	// Vault options
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
