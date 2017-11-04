@@ -39,6 +39,7 @@ var (
 		"signal":  NewSignalFingerprint,
 		"storage": NewStorageFingerprint,
 		"vault":   NewVaultFingerprint,
+		"nvidia":  NewNvidiaGPUFingerprint,
 	}
 
 	// envFingerprinters contains the fingerprints that are environment specific.
