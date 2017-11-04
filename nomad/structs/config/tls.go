@@ -79,18 +79,35 @@ func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certifica
 }
 
 func (t *TLSConfig) GetKeyLoader() *KeyLoader {
+	t.configLock.Lock()
+	defer t.configLock.Unlock()
+
 	// If the keyloader has not yet been initialized, do it here
 	if t.KeyLoader == nil {
-		t.configLock.Lock()
 		t.KeyLoader = &KeyLoader{}
-		t.configLock.Unlock()
 	}
 	return t.KeyLoader
 }
 
+// Copy copies the fields of TLSConfig to another TLSConfig object. Required as
+// to not copy mutexes between objects.
+func (t *TLSConfig) Copy() *TLSConfig {
+	new := &TLSConfig{}
+	new.EnableHTTP = t.EnableHTTP
+	new.EnableRPC = t.EnableRPC
+	new.VerifyServerHostname = t.VerifyServerHostname
+	new.CAFile = t.CAFile
+	new.CertFile = t.CertFile
+	new.KeyLoader = t.KeyLoader
+	new.KeyFile = t.KeyFile
+	new.RPCUpgradeMode = t.RPCUpgradeMode
+	new.VerifyHTTPSClient = t.VerifyHTTPSClient
+	return new
+}
+
 // Merge is used to merge two TLS configs together
 func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
-	result := *t
+	result := t.Copy()
 
 	if b.EnableHTTP {
 		result.EnableHTTP = true
@@ -113,5 +130,5 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	if b.VerifyHTTPSClient {
 		result.VerifyHTTPSClient = true
 	}
-	return &result
+	return result
 }

@@ -560,7 +560,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	// First test with a plaintext request
 	transport := &http.Transport{}
 	client := &http.Client{Transport: transport}
-	req, err := http.NewRequest("GET", reqURL, nil)
+	_, err := http.NewRequest("GET", reqURL, nil)
 	assert.Nil(err)
 
 	// Next, reload the TLS configuration
@@ -590,7 +590,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 
 	transport = &http.Transport{TLSClientConfig: tlsConf}
 	client = &http.Client{Transport: transport}
-	req, err = http.NewRequest("GET", httpsReqURL, nil)
+	req, err := http.NewRequest("GET", httpsReqURL, nil)
 	assert.Nil(err)
 
 	resp, err := client.Do(req)
