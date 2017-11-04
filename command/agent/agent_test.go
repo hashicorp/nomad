@@ -559,3 +559,87 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
 }
+
+func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	assert.Nil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+
+	assert.Equal(agent.config.TLSConfig.CAFile, newConfig.TLSConfig.CAFile)
+	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+}
+
+func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{},
+	}
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+
+	assert.Nil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
+}

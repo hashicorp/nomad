@@ -41,6 +41,13 @@ func NewRaftLayer(addr net.Addr, tlsWrap tlsutil.Wrapper) *RaftLayer {
 	return layer
 }
 
+// ReloadTLS will re-initialize the TLS wrapper on the fly
+func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
+	l.closeLock.Lock()
+	defer l.closeLock.Unlock()
+	l.tlsWrap = tlsWrap
+}
+
 // Handoff is used to hand off a connection to the
 // RaftLayer. This allows it to be Accept()'ed
 func (l *RaftLayer) Handoff(c net.Conn) error {

@@ -328,6 +328,28 @@ type ServerConfig struct {
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
 }
 
+// UpdateTLSConfig will reload an agent's TLS configuration. If there is an error
+// while loading key and certificate files, the agent will remain at its
+// current configuration and return an error.
+// This only allows reloading the certificate and keyfile- other TLSConfig
+// fields are ignored.
+func (c *Config) UpdateTLSConfig(newConfig *config.TLSConfig) error {
+	if c.TLSConfig == nil {
+		return fmt.Errorf("unable to update non-existing TLSConfig")
+	}
+
+	keyLoader := c.TLSConfig.GetKeyLoader()
+	_, err := keyLoader.LoadKeyPair(newConfig.CertFile, newConfig.KeyFile)
+
+	if err != nil {
+		return err
+	}
+
+	c.TLSConfig.CertFile = newConfig.CertFile
+	c.TLSConfig.KeyFile = newConfig.KeyFile
+	return nil
+}
+
 // EncryptBytes returns the encryption key configured.
 func (s *ServerConfig) EncryptBytes() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s.EncryptKey)

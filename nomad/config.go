@@ -312,10 +312,10 @@ func DefaultConfig() *Config {
 		ConsulConfig:                     config.DefaultConsulConfig(),
 		VaultConfig:                      config.DefaultVaultConfig(),
 		RPCHoldTimeout:                   5 * time.Second,
+		StatsCollectionInterval:          1 * time.Minute,
 		TLSConfig:                        &config.TLSConfig{},
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
-		StatsCollectionInterval:          1 * time.Minute,
 	}
 
 	// Enable all known schedulers by default
@@ -348,13 +348,13 @@ func DefaultConfig() *Config {
 
 // tlsConfig returns a TLSUtil Config based on the server configuration
 func (c *Config) tlsConfig() *tlsutil.Config {
-	tlsConf := &tlsutil.Config{
+	return &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
 		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
 		CAFile:               c.TLSConfig.CAFile,
 		CertFile:             c.TLSConfig.CertFile,
 		KeyFile:              c.TLSConfig.KeyFile,
+		KeyLoader:            c.TLSConfig.GetKeyLoader(),
 	}
-	return tlsConf
 }

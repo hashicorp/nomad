@@ -8,7 +8,9 @@ import (
 	"net"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/yamux"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -46,9 +48,11 @@ func TestConfig_CACertificate_Valid(t *testing.T) {
 	}
 }
 
-func TestConfig_KeyPair_None(t *testing.T) {
-	conf := &Config{}
-	cert, err := conf.KeyPair()
+func TestConfig_LoadKeyPair_None(t *testing.T) {
+	conf := &Config{
+		KeyLoader: &config.KeyLoader{},
+	}
+	cert, err := conf.LoadKeyPair()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -57,12 +61,13 @@ func TestConfig_KeyPair_None(t *testing.T) {
 	}
 }
 
-func TestConfig_KeyPair_Valid(t *testing.T) {
+func TestConfig_LoadKeyPair_Valid(t *testing.T) {
 	conf := &Config{
-		CertFile: foocert,
-		KeyFile:  fookey,
+		CertFile:  foocert,
+		KeyFile:   fookey,
+		KeyLoader: &config.KeyLoader{},
 	}
-	cert, err := conf.KeyPair()
+	cert, err := conf.LoadKeyPair()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -138,28 +143,25 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 }
 
 func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
+	assert := assert.New(t)
+
 	conf := &Config{
 		VerifyOutgoing: true,
 		CAFile:         cacert,
 		CertFile:       foocert,
 		KeyFile:        fookey,
+		KeyLoader:      &config.KeyLoader{},
 	}
-	tls, err := conf.OutgoingTLSConfig()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tls == nil {
-		t.Fatalf("expected config")
-	}
-	if len(tls.RootCAs.Subjects()) != 1 {
-		t.Fatalf("expect root cert")
-	}
-	if !tls.InsecureSkipVerify {
-		t.Fatalf("should skip verification")
-	}
-	if len(tls.Certificates) != 1 {
-		t.Fatalf("expected client cert")
-	}
+	tlsConf, err := conf.OutgoingTLSConfig()
+	assert.Nil(err)
+	assert.NotNil(tlsConf)
+	assert.Equal(len(tlsConf.RootCAs.Subjects()), 1)
+	assert.True(tlsConf.InsecureSkipVerify)
+
+	clientHelloInfo := &tls.ClientHelloInfo{}
+	cert, err := tlsConf.GetCertificate(clientHelloInfo)
+	assert.Nil(err)
+	assert.NotNil(cert)
 }
 
 func startTLSServer(config *Config) (net.Conn, chan error) {
@@ -206,6 +208,7 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 		KeyFile:              fookey,
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
+		KeyLoader:            &config.KeyLoader{},
 	}
 
 	client, errc := startTLSServer(config)
@@ -274,6 +277,7 @@ func TestConfig_wrapTLS_OK(t *testing.T) {
 		CertFile:       foocert,
 		KeyFile:        fookey,
 		VerifyOutgoing: true,
+		KeyLoader:      &config.KeyLoader{},
 	}
 
 	client, errc := startTLSServer(config)
@@ -300,9 +304,10 @@ func TestConfig_wrapTLS_OK(t *testing.T) {
 
 func TestConfig_wrapTLS_BadCert(t *testing.T) {
 	serverConfig := &Config{
-		CAFile:   cacert,
-		CertFile: badcert,
-		KeyFile:  badkey,
+		CAFile:    cacert,
+		CertFile:  badcert,
+		KeyFile:   badkey,
+		KeyLoader: &config.KeyLoader{},
 	}
 
 	client, errc := startTLSServer(serverConfig)
@@ -335,11 +340,14 @@ func TestConfig_wrapTLS_BadCert(t *testing.T) {
 }
 
 func TestConfig_IncomingTLS(t *testing.T) {
+	assert := assert.New(t)
+
 	conf := &Config{
 		VerifyIncoming: true,
 		CAFile:         cacert,
 		CertFile:       foocert,
 		KeyFile:        fookey,
+		KeyLoader:      &config.KeyLoader{},
 	}
 	tlsC, err := conf.IncomingTLSConfig()
 	if err != nil {
@@ -354,9 +362,11 @@ func TestConfig_IncomingTLS(t *testing.T) {
 	if tlsC.ClientAuth != tls.RequireAndVerifyClientCert {
 		t.Fatalf("should not skip verification")
 	}
-	if len(tlsC.Certificates) != 1 {
-		t.Fatalf("expected client cert")
-	}
+
+	clientHelloInfo := &tls.ClientHelloInfo{}
+	cert, err := tlsC.GetCertificate(clientHelloInfo)
+	assert.Nil(err)
+	assert.NotNil(cert)
 }
 
 func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
@@ -364,6 +374,7 @@ func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
 		VerifyIncoming: true,
 		CertFile:       foocert,
 		KeyFile:        fookey,
+		KeyLoader:      &config.KeyLoader{},
 	}
 	_, err := conf.IncomingTLSConfig()
 	if err == nil {

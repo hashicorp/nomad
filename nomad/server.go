@@ -19,7 +19,7 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -27,7 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
-	"github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -353,6 +353,42 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
+// ReloadTLSConnections will completely reload the server's RPC connections if
+// the server is moving from a non-TLS to TLS connection, or vice versa.
+func (s *Server) ReloadTLSConnections() error {
+	s.logger.Printf("[INFO] nomad: reloading server network connections due to server configuration changes")
+
+	// Configure TLS wrapper
+	var tlsWrap tlsutil.RegionWrapper
+	var incomingTLS *tls.Config
+	if s.config.TLSConfig.EnableRPC {
+		tlsConf := s.config.tlsConfig()
+		tw, err := tlsConf.OutgoingTLSWrapper()
+		if err != nil {
+			return err
+		}
+		tlsWrap = tw
+
+		itls, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return err
+		}
+		incomingTLS = itls
+	}
+
+	// Reset the server's rpcTLS configuration
+	s.rpcTLS = incomingTLS
+
+	// Reload TLS configuration in the server's conn pool
+	s.connPool.ReloadTLS(tlsWrap)
+
+	// Reload TLS configuration for the server's raft layer
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer.ReloadTLS(wrapper)
+
+	return nil
+}
+
 // Shutdown is used to shutdown the server
 func (s *Server) Shutdown() error {
 	s.logger.Printf("[INFO] nomad: shutting down server")
@@ -497,17 +533,18 @@ func (s *Server) Leave() error {
 	return nil
 }
 
-// Reload handles a config reload. Not all config fields can handle a reload.
-func (s *Server) Reload(config *Config) error {
-	if config == nil {
+// Reload handles a config reload specific to server-only configuration. Not
+// all config fields can handle a reload.
+func (s *Server) Reload(newConfig *Config) error {
+	if newConfig == nil {
 		return fmt.Errorf("Reload given a nil config")
 	}
 
 	var mErr multierror.Error
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
-	if s.vault != nil {
-		if err := s.vault.SetConfig(config.VaultConfig); err != nil {
+	if s.vault != nil && newConfig.VaultConfig != nil {
+		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
 	}

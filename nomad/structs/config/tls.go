@@ -1,7 +1,14 @@
 package config
 
+import (
+	"crypto/tls"
+	"fmt"
+	"sync"
+)
+
 // TLSConfig provides TLS related configuration
 type TLSConfig struct {
+	configLock sync.Mutex
 
 	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
 	EnableHTTP bool `mapstructure:"http"`
@@ -25,6 +32,9 @@ type TLSConfig struct {
 	// Must be provided to serve TLS connections.
 	CertFile string `mapstructure:"cert_file"`
 
+	// KeyLoader is a helper to dynamically reload TLS configuration
+	KeyLoader *KeyLoader
+
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
@@ -36,6 +46,46 @@ type TLSConfig struct {
 
 	// Verify connections to the HTTPS API
 	VerifyHTTPSClient bool `mapstructure:"verify_https_client"`
+}
+
+type KeyLoader struct {
+	cacheLock   sync.Mutex
+	Certificate *tls.Certificate
+}
+
+// LoadKeyPair reloads the TLS certificate based on the specified certificate
+// and key file. If successful, stores the certificate for further use.
+func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, error) {
+	// Allow downgrading
+	if certFile == "" && keyFile == "" {
+		k.Certificate = nil
+		return nil, nil
+	}
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
+	}
+
+	k.cacheLock.Lock()
+	defer k.cacheLock.Unlock()
+
+	k.Certificate = &cert
+	return k.Certificate, nil
+}
+
+func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return k.Certificate, nil
+}
+
+func (t *TLSConfig) GetKeyLoader() *KeyLoader {
+	// If the keyloader has not yet been initialized, do it here
+	if t.KeyLoader == nil {
+		t.configLock.Lock()
+		t.KeyLoader = &KeyLoader{}
+		t.configLock.Unlock()
+	}
+	return t.KeyLoader
 }
 
 // Merge is used to merge two TLS configs together
@@ -64,4 +114,11 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 		result.VerifyHTTPSClient = true
 	}
 	return &result
+}
+
+// IsEmpty checks to see if every (non-boolean) field in the struct is nil
+func (t *TLSConfig) IsEmpty() bool {
+	return t.CAFile == "" &&
+		t.CertFile == "" &&
+		t.KeyFile == ""
 }
