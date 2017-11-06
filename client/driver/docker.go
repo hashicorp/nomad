@@ -1302,7 +1302,12 @@ CREATE:
 
 	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q from image %q (ID: %q) (attempt %d): %v",
 		config.Name, d.driverConfig.ImageName, d.imageID, attempted+1, createErr)
-	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
+	if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
+		// There is still a very small chance this is possible even with the
+		// coordinator so retry.
+		return nil, structs.NewRecoverableError(createErr, true)
+	}
+
 		containers, err := client.ListContainers(docker.ListContainersOptions{
 			All: true,
 		})
@@ -1364,12 +1369,6 @@ CREATE:
 			time.Sleep(1 * time.Second)
 			goto CREATE
 		}
-	} else if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
-		// There is still a very small chance this is possible even with the
-		// coordinator so retry.
-		return nil, structs.NewRecoverableError(createErr, true)
-	}
-
 	return nil, recoverableErrTimeouts(createErr)
 }
 
