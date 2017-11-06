@@ -1803,3 +1803,44 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 }
+
+func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	brokenConfigs := []interface{}{
+		map[string]interface{}{
+			"host_path": "",
+		},
+		map[string]interface{}{
+			"host_path":          "/dev/sda1",
+			"cgroup_permissions": "rxb",
+		},
+	}
+
+	test_cases := []struct {
+		deviceConfig interface{}
+		err          error
+	}{
+		{[]interface{}{brokenConfigs[0]}, fmt.Errorf("host path must be set in configuration for devices")},
+		{[]interface{}{brokenConfigs[1]}, fmt.Errorf("invalid cgroup permission string: \"rxb\"")},
+	}
+
+	for _, tc := range test_cases {
+		task, _, _ := dockerTask(t)
+		task.Config["devices"] = tc.deviceConfig
+
+		ctx := testDockerDriverContexts(t, task)
+		driver := NewDockerDriver(ctx.DriverCtx)
+		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+		defer ctx.AllocDir.Destroy()
+
+		if _, err := driver.Prestart(ctx.ExecCtx, task); err == nil || err.Error() != tc.err.Error() {
+			t.Fatalf("error expected in prestart, got %v, expected %v", err, tc.err)
+		}
+	}
+}

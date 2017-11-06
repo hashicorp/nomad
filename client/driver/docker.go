@@ -142,6 +142,12 @@ type DockerMount struct {
 	VolumeOptions []*DockerVolumeOptions `mapstructure:"volume_options"`
 }
 
+type DockerDevice struct {
+	HostPath          string `mapstructure:"host_path"`
+	ContainerPath     string `mapstructure:"container_path"`
+	CgroupPermissions string `mapstructure:"cgroup_permissions"`
+}
+
 type DockerVolumeOptions struct {
 	NoCopy       bool                       `mapstructure:"no_copy"`
 	Labels       []map[string]string        `mapstructure:"labels"`
@@ -190,12 +196,29 @@ type DockerDriverConfig struct {
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
+	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
 }
 
 // Validate validates a docker driver config
 func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
+	}
+	if len(c.Devices) > 0 {
+		for _, dev := range c.Devices {
+			if dev.HostPath == "" {
+				return fmt.Errorf("host path must be set in configuration for devices")
+			}
+
+			if dev.CgroupPermissions != "" {
+				for _, c := range dev.CgroupPermissions {
+					ch := string(c)
+					if ch != "r" && ch != "w" && ch != "m" {
+						return fmt.Errorf("invalid cgroup permission string: %q", dev.CgroupPermissions)
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -535,6 +558,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeBool,
 			},
 			"security_opt": {
+				Type: fields.TypeArray,
+			},
+			"devices": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -1018,6 +1044,20 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		} else {
 			d.logger.Printf("[ERR] driver.docker: invalid ip address for container dns server: %s", ip)
 		}
+	}
+
+	if len(driverConfig.Devices) > 0 {
+		var devices []docker.Device
+		for _, device := range driverConfig.Devices {
+			if device.HostPath != "" {
+				dev := docker.Device{
+					PathOnHost:        device.HostPath,
+					PathInContainer:   device.ContainerPath,
+					CgroupPermissions: device.CgroupPermissions}
+				devices = append(devices, dev)
+			}
+		}
+		hostConfig.Devices = devices
 	}
 
 	// Setup mounts

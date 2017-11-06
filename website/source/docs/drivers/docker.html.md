@@ -280,7 +280,26 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+* `devices` - (Optional) A list of
+  [devices](https://docs.docker.com/engine/reference/commandline/run/#add-host-device-to-container-device)
+  to be exposed the container. `host_path` is the only required field. By default, the container will be able to
+  `read`, `write` and `mknod` these devices. Use the optional `cgroup_permissions` field to restrict permissions.
 
+    ```hcl
+    config {
+      devices = [
+        {
+          host_path = "/dev/sda1"
+          container_path = "/dev/xvdc"
+          cgroup_permissions = "r"
+        },
+        {
+          host_path = "/dev/sda2"
+          container_path = "/dev/xvdd"
+        }
+      ]
+    }
+    ```
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
