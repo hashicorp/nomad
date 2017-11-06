@@ -139,6 +139,10 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	defer tw.Close()
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
 		relPath, err := filepath.Rel(d.AllocDir, path)
@@ -182,7 +186,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	// directories in the archive
 	for _, path := range rootPaths {
 		if err := filepath.Walk(path, walkFn); err != nil {
-			return err
+			return fmt.Errorf("failed to snapshot %s: %v", path, err)
 		}
 	}
 
