@@ -38,11 +38,15 @@ func (f *NvidiaGPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Nod
 		f.logger.Printf("[ERR] fingerprint.nvidia: error parsing nvidia smi output: %v", err)
 		return false, nil
 	}
+	if len(gpus) == 0 {
+		return false, nil
+	}
 	node.Attributes["gpus.total"] = fmt.Sprintf("%d", len(gpus))
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}
 	node.Resources.NvidiaGPUResources = gpus
+	f.logger.Printf("[INFO] fingerprint.nvidia: discovered %v gpus", len(gpus))
 
 	return true, nil
 }
