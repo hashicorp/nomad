@@ -23,6 +23,7 @@ BUG FIXES:
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
+ * cli: Fix panic when running `keyring` commands [GH-3509]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
