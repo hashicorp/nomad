@@ -1308,67 +1308,67 @@ CREATE:
 		return nil, structs.NewRecoverableError(createErr, true)
 	}
 
-		containers, err := client.ListContainers(docker.ListContainersOptions{
-			All: true,
+	containers, err := client.ListContainers(docker.ListContainersOptions{
+		All: true,
+	})
+	if err != nil {
+		d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
+		return nil, recoverableErrTimeouts(fmt.Errorf("Failed to query list of containers: %s", err))
+	}
+
+	// Delete matching containers
+	// Adding a / infront of the container name since Docker returns the
+	// container names with a / pre-pended to the Nomad generated container names
+	containerName := "/" + config.Name
+	d.logger.Printf("[DEBUG] driver.docker: searching for container name %q to purge", containerName)
+	for _, shimContainer := range containers {
+		d.logger.Printf("[DEBUG] driver.docker: listed container %+v", shimContainer.Names)
+		found := false
+		for _, name := range shimContainer.Names {
+			if name == containerName {
+				d.logger.Printf("[DEBUG] driver.docker: Found container %v: %v", containerName, shimContainer.ID)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
+
+		// Inspect the container and if the container isn't dead then return
+		// the container
+		container, err := client.InspectContainer(shimContainer.ID)
+		if err != nil {
+			err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
+
+			// This error is always recoverable as it could
+			// be caused by races between listing
+			// containers and this container being removed.
+			// See #2802
+			return nil, structs.NewRecoverableError(err, true)
+		}
+		if container != nil && container.State.Running {
+			return container, nil
+		}
+
+		err = client.RemoveContainer(docker.RemoveContainerOptions{
+			ID:    container.ID,
+			Force: true,
 		})
 		if err != nil {
-			d.logger.Printf("[ERR] driver.docker: failed to query list of containers matching name:%s", config.Name)
-			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to query list of containers: %s", err))
+			d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
+			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+		} else if err == nil {
+			d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
 		}
+	}
 
-		// Delete matching containers
-		// Adding a / infront of the container name since Docker returns the
-		// container names with a / pre-pended to the Nomad generated container names
-		containerName := "/" + config.Name
-		d.logger.Printf("[DEBUG] driver.docker: searching for container name %q to purge", containerName)
-		for _, shimContainer := range containers {
-			d.logger.Printf("[DEBUG] driver.docker: listed container %+v", shimContainer.Names)
-			found := false
-			for _, name := range shimContainer.Names {
-				if name == containerName {
-					d.logger.Printf("[DEBUG] driver.docker: Found container %v: %v", containerName, shimContainer.ID)
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				continue
-			}
-
-			// Inspect the container and if the container isn't dead then return
-			// the container
-			container, err := client.InspectContainer(shimContainer.ID)
-			if err != nil {
-				err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
-
-				// This error is always recoverable as it could
-				// be caused by races between listing
-				// containers and this container being removed.
-				// See #2802
-				return nil, structs.NewRecoverableError(err, true)
-			}
-			if container != nil && container.State.Running {
-				return container, nil
-			}
-
-			err = client.RemoveContainer(docker.RemoveContainerOptions{
-				ID:    container.ID,
-				Force: true,
-			})
-			if err != nil {
-				d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
-				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-			} else if err == nil {
-				d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
-			}
-		}
-
-		if attempted < 5 {
-			attempted++
-			time.Sleep(1 * time.Second)
-			goto CREATE
-		}
+	if attempted < 5 {
+		attempted++
+		time.Sleep(1 * time.Second)
+		goto CREATE
+	}
 	return nil, recoverableErrTimeouts(createErr)
 }
 
