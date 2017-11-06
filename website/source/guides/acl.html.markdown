@@ -22,7 +22,7 @@ The ACL system is designed to be easy to use and fast to enforce while providing
 
  * **ACL Tokens**. Requests to Nomad are authenticated by using bearer token. Each ACL token has a public Accessor ID which is used to name a token, and a Secret ID which is used to make requests to Nomad. The Secret ID is provided using a request header (`X-Nomad-Token`) and is used to authenticate the caller. Tokens are either `management` or `client` types. The `management` tokens are effectively "root" in the system, and can perform any operation. The `client` tokens are associated with one or more ACL policies which grant specific capabilities.
 
- * **Capabilities**. Capabilties are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilties via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
+ * **Capabilities**. Capabilities are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilities via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
 
 ### ACL Policies
 
@@ -72,7 +72,7 @@ Bootstrapping ACLs on a new cluster requires a few steps, outlined below:
 
 ### Enable ACLs on Nomad Servers
 
-The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritiative region should be enabled first. For each server:
+The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritative region should be enabled first. For each server:
 
 1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html#enabled).
 1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html#authoritative_region).
@@ -225,7 +225,7 @@ namespace "sensitive" {
 }
 ```
 
-Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants writeaccess to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
+Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants write access to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
 
 * `deny` - When multiple policies are associated with a token, deny will take precedence and prevent any capabilities.
 * `list-jobs` - Allows listing the jobs and seeing coarse grain status.
@@ -307,7 +307,7 @@ There's only one quota policy allowed per rule set, and its value is set to one 
 
 # Advanced Topics
 
-### Outages and Mulit-Region Replication
+### Outages and Multi-Region Replication
 
 The ACL system takes some steps to ensure operation during outages. Clients nodes maintain a limited
 cache of ACL tokens and ACL policies that have recently or frequently been used, associated with a time-to-live (TTL).
@@ -321,12 +321,12 @@ quorum is lost. The tokens and policies may become stale during this period as d
 replicating, but will be automatically fixed when the outage has been resolved.
 
 In a multi-region setup, there is a single authoritative region which is the source of truth for
-ACL policies and global ACL tokens. All other regions asychronously replicate from the authoritative
+ACL policies and global ACL tokens. All other regions asynchronously replicate from the authoritative
 region. When replication is interrupted, the existing data is used for request processing and may
 become stale. When the authoritative region is reachable, replication will resume and repair any
 inconsistency.
 
-### Reseting ACL Bootstrap
+### Resetting ACL Bootstrap
 
 If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again.
 First, we need to determine the reset index, this can be done by calling the reset endpoint:
