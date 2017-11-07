@@ -299,7 +299,7 @@ HTTPS. We can configure the local Nomad client to connect using TLS and specify
 our custom keys and certificates using the command line:
 
 ```shell
-$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -addr=https://127.0.0.1:4646
+$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -address=https://127.0.0.1:4646
 ```
 
 This process can be cumbersome to type each time, so the Nomad CLI also
