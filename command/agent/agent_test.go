@@ -560,55 +560,16 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 }
 
-func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
+func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
-
-	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
-			EnableHTTP: false,
-		},
-	}
-
-	agent := &Agent{
-		config: agentConfig,
-	}
-
-	newConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
-			EnableHTTP:           true,
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
-		},
-	}
-
-	assert.Nil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
-
-	err := agent.Reload(newConfig)
-	assert.Nil(err)
-
-	assert.NotNil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
-}
-
-func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
@@ -630,12 +591,17 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 
 	newConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
-			EnableHTTP: false,
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
 		},
 	}
 
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
-
-	assert.Nil(agentConfig.TLSConfig.GetKeyLoader().Certificate)
+	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
 }

@@ -63,7 +63,7 @@ type Config struct {
 	// Must be provided to serve TLS connections.
 	KeyFile string
 
-	// Utility to dynamically reload TLS configuration.
+	// KeyLoader dynamically reloads TLS configuration.
 	KeyLoader *config.KeyLoader
 }
 

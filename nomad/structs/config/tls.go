@@ -8,7 +8,6 @@ import (
 
 // TLSConfig provides TLS related configuration
 type TLSConfig struct {
-	configLock sync.Mutex
 
 	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
 	EnableHTTP bool `mapstructure:"http"`
@@ -35,6 +34,8 @@ type TLSConfig struct {
 	// KeyLoader is a helper to dynamically reload TLS configuration
 	KeyLoader *KeyLoader
 
+	keyloaderLock sync.Mutex
+
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string `mapstructure:"key_file"`
@@ -50,15 +51,18 @@ type TLSConfig struct {
 
 type KeyLoader struct {
 	cacheLock   sync.Mutex
-	Certificate *tls.Certificate
+	certificate *tls.Certificate
 }
 
 // LoadKeyPair reloads the TLS certificate based on the specified certificate
 // and key file. If successful, stores the certificate for further use.
 func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, error) {
+	k.cacheLock.Lock()
+	defer k.cacheLock.Unlock()
+
 	// Allow downgrading
 	if certFile == "" && keyFile == "" {
-		k.Certificate = nil
+		k.certificate = nil
 		return nil, nil
 	}
 
@@ -67,20 +71,25 @@ func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, err
 		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
 	}
 
+	k.certificate = &cert
+	return k.certificate, nil
+}
+
+// GetOutgoingCertificate fetches the currently-loaded certificate. This
+// currently does not consider information in the ClientHello and only returns
+// the certificate that was last loaded.
+func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	k.cacheLock.Lock()
 	defer k.cacheLock.Unlock()
 
-	k.Certificate = &cert
-	return k.Certificate, nil
+	return k.certificate, nil
 }
 
-func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-	return k.Certificate, nil
-}
-
+// GetKeyLoader returns the keyloader for a TLSConfig object. If the keyloader
+// has not been initialized, it will first do so.
 func (t *TLSConfig) GetKeyLoader() *KeyLoader {
-	t.configLock.Lock()
-	defer t.configLock.Unlock()
+	t.keyloaderLock.Lock()
+	defer t.keyloaderLock.Unlock()
 
 	// If the keyloader has not yet been initialized, do it here
 	if t.KeyLoader == nil {
@@ -92,13 +101,18 @@ func (t *TLSConfig) GetKeyLoader() *KeyLoader {
 // Copy copies the fields of TLSConfig to another TLSConfig object. Required as
 // to not copy mutexes between objects.
 func (t *TLSConfig) Copy() *TLSConfig {
+
 	new := &TLSConfig{}
 	new.EnableHTTP = t.EnableHTTP
 	new.EnableRPC = t.EnableRPC
 	new.VerifyServerHostname = t.VerifyServerHostname
 	new.CAFile = t.CAFile
 	new.CertFile = t.CertFile
+
+	t.keyloaderLock.Lock()
 	new.KeyLoader = t.KeyLoader
+	t.keyloaderLock.Unlock()
+
 	new.KeyFile = t.KeyFile
 	new.RPCUpgradeMode = t.RPCUpgradeMode
 	new.VerifyHTTPSClient = t.VerifyHTTPSClient

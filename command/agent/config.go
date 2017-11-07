@@ -340,7 +340,6 @@ func (c *Config) UpdateTLSConfig(newConfig *config.TLSConfig) error {
 
 	keyLoader := c.TLSConfig.GetKeyLoader()
 	_, err := keyLoader.LoadKeyPair(newConfig.CertFile, newConfig.KeyFile)
-
 	if err != nil {
 		return err
 	}
