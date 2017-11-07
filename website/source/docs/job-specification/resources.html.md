@@ -49,7 +49,7 @@ job "docs" {
 - `iops` `(int: 0)` - Specifies the number of IOPS required given as a weight
   between 0-1000.
 
-- `memory` `(int: 10)` - Specifies the memory required in MB
+- `memory` `(int: 300)` - Specifies the memory required in MB
 
 - `network` <code>([Network][]: <required>)</code> - Specifies the network
   requirements, including static and dynamic port allocations.
