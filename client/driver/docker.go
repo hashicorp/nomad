@@ -1049,13 +1049,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	if len(driverConfig.Devices) > 0 {
 		var devices []docker.Device
 		for _, device := range driverConfig.Devices {
-			if device.HostPath != "" {
-				dev := docker.Device{
-					PathOnHost:        device.HostPath,
-					PathInContainer:   device.ContainerPath,
-					CgroupPermissions: device.CgroupPermissions}
-				devices = append(devices, dev)
-			}
+			dev := docker.Device{
+				PathOnHost:        device.HostPath,
+				PathInContainer:   device.ContainerPath,
+				CgroupPermissions: device.CgroupPermissions}
+			devices = append(devices, dev)
 		}
 		hostConfig.Devices = devices
 	}
