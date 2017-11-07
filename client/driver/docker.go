@@ -1320,7 +1320,7 @@ CREATE:
 	// Adding a / infront of the container name since Docker returns the
 	// container names with a / pre-pended to the Nomad generated container names
 	containerName := "/" + config.Name
-	d.logger.Printf("[DEBUG] driver.docker: searching for container name %q to purge", containerName)
+	d.logger.Printf("[DEBUG] driver.docker: searching for container name %q", containerName)
 	for _, shimContainer := range containers {
 		d.logger.Printf("[DEBUG] driver.docker: listed container %+v", shimContainer.Names)
 		found := false
@@ -1352,6 +1352,7 @@ CREATE:
 			return container, nil
 		}
 
+		d.logger.Printf("[INFO] driver.docker: purging container container %s", container.ID)
 		err = client.RemoveContainer(docker.RemoveContainerOptions{
 			ID:    container.ID,
 			Force: true,
@@ -1359,9 +1360,8 @@ CREATE:
 		if err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to purge container %s", container.ID)
 			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-		} else if err == nil {
-			d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
 		}
+		d.logger.Printf("[INFO] driver.docker: purged container %s", container.ID)
 	}
 
 	if attempted < 5 {
