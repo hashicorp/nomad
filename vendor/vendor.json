@@ -49,9 +49,9 @@
 			"revisionTime": "2016-01-20T22:33:50Z"
 		},
 		{
-			"comment": "v0.8.7-87-g4b6ea73",
-			"path": "github.com/Sirupsen/logrus",
-			"revision": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
+			"comment": "v1.0.3-gf006c2a",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
 		},
 		{
 			"checksumSHA1": "qtjd74+bErubh+qyv3s+lWmn9wc=",
