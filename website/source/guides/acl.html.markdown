@@ -421,14 +421,14 @@ to a potential identity based on Vault's policy. The name of the role is specifi
 the mapping to Nomad policies is done by naming them in a comma separated list, for example:
 
 ```
-$ vault write nomad/roles/role-name policy=policyone,policytwo
+$ vault write nomad/role/role-name policy=policyone,policytwo
 Success! Data written to: nomad/roles/role-name
 ```
 
 Alternatively, to create management tokens, or global tokens:
 
 ```
-$ vault write nomad/roles/role-name token_type=management global=true
+$ vault write nomad/role/role-name token_type=management global=true
 Success! Data written to: nomad/roles/role-name
 ```
 
