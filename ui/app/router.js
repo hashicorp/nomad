@@ -16,8 +16,8 @@ Router.map(function() {
     });
   });
 
-  this.route('nodes', function() {
-    this.route('node', { path: '/:node_id' });
+  this.route('clients', function() {
+    this.route('client', { path: '/:node_id' });
   });
 
   this.route('servers', function() {

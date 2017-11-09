@@ -1,5 +1,5 @@
 {{#global-header class="page-header"}}
-  Nodes
+  Clients
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
@@ -8,7 +8,7 @@
     {{else}}
       {{#if nodes.length}}
         <div class="content">
-          <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search nodes..."}}</div>
+          <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search clients..."}}</div>
         </div>
       {{/if}}
       {{#list-pagination
