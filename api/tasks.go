@@ -186,7 +186,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 	s.CheckRestart.Canonicalize()
 
-	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
+	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
 	for _, c := range s.Checks {
 		c.CheckRestart.Canonicalize()
@@ -373,8 +373,13 @@ type Task struct {
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
-	min := MinResources()
-	t.Resources.Canonicalize()
+	if t.Resources == nil {
+		var r Resources
+		r.Canonicalize() 
+		t.Resources = &r
+	} else {
+		t.Resources.Canonicalize()
+	}
 
 	if t.KillTimeout == nil {
 		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
