@@ -1844,3 +1844,34 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerDriver_Device_Success(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	if runtime.GOOS != "linux" {
+		t.Skip("test device mounts only on linux")
+	}
+
+	config := map[string]interface{}{
+		"host_path":      "/dev/random",
+		"container_path": "/dev/myrandom",
+	}
+
+	task, _, _ := dockerTask(t)
+	task.Config["devices"] = []interface{}{config}
+
+	ctx := testDockerDriverContexts(t, task)
+	driver := NewDockerDriver(ctx.DriverCtx)
+	copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+	defer ctx.AllocDir.Destroy()
+
+	if _, err := driver.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("unexpected error:%v", err)
+	}
+
+}
