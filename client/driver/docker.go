@@ -346,6 +346,16 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		dconf.ImageName = strings.Replace(dconf.ImageName, "https://", "", 1)
 	}
 
+	// If devices are configured set default cgroup permissions
+	if len(dconf.Devices) > 0 {
+		for i, dev := range dconf.Devices {
+			if dev.CgroupPermissions == "" {
+				dev.CgroupPermissions = "rwm"
+			}
+			dconf.Devices[i] = dev
+		}
+	}
+
 	if err := dconf.Validate(); err != nil {
 		return nil, err
 	}
