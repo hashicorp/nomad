@@ -374,13 +374,9 @@ type Task struct {
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	if t.Resources == nil {
-		var r Resources
-		r.Canonicalize() 
-		t.Resources = &r
-	} else {
-		t.Resources.Canonicalize()
+		t.Resources = &Resources{}
 	}
-
+	t.Resources.Canonicalize()
 	if t.KillTimeout == nil {
 		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
 	}
