@@ -23,6 +23,8 @@ BUG FIXES:
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
+ * api: Apply correct memory default when task's do not specify memory
+   explicitly [GH-3520]
  * cli: Fix passing Consul address via flags [GH-3504]
  * cli: Fix panic when running `keyring` commands [GH-3509]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
