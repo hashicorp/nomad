@@ -373,11 +373,10 @@ type Task struct {
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
-	min := MinResources()
-	min.Merge(t.Resources)
-	min.Canonicalize()
-	t.Resources = min
-
+	if t.Resources == nil {
+		t.Resources = &Resources{}
+	}
+	t.Resources.Canonicalize()
 	if t.KillTimeout == nil {
 		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
 	}
