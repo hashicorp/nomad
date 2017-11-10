@@ -389,7 +389,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				}
 
 				// Read environment variables from templates
-				envMap, err := loadTemplateEnv(tmpls, tm.config.TaskDir)
+				envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir)
 				if err != nil {
 					tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 					return
