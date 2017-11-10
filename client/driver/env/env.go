@@ -532,17 +532,9 @@ func (b *Builder) SetHostEnvvars(filter []string) *Builder {
 	return b
 }
 
-// MergeTemplateEnv is used to merge the passed environment variables with
-// existing environment variables set from a template.
-func (b *Builder) MergeTemplateEnv(m map[string]string) *Builder {
+func (b *Builder) SetTemplateEnv(m map[string]string) *Builder {
 	b.mu.Lock()
-	if b.templateEnv == nil {
-		b.templateEnv = m
-	} else {
-		for k, v := range m {
-			b.templateEnv[k] = v
-		}
-	}
+	b.templateEnv = m
 	b.mu.Unlock()
 	return b
 }
