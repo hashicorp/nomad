@@ -218,7 +218,7 @@ func (tm *TaskTemplateManager) run() {
 		tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 		return
 	}
-	tm.config.EnvBuilder.SetTemplateEnv(envMap)
+	tm.config.EnvBuilder.MergeTemplateEnv(envMap)
 
 	// Unblock the task
 	tm.config.Hooks.UnblockStart(consulTemplateSourceName)
@@ -394,7 +394,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 					tm.config.Hooks.Kill(consulTemplateSourceName, err.Error(), true)
 					return
 				}
-				tm.config.EnvBuilder.SetTemplateEnv(envMap)
+				tm.config.EnvBuilder.MergeTemplateEnv(envMap)
 
 				for _, tmpl := range tmpls {
 					switch tmpl.ChangeMode {
