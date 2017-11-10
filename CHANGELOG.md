@@ -29,6 +29,9 @@ BUG FIXES:
    updates [GH-3445]
  * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
    to a previously stable job that fails to start up causes an infinite cycle of reverts [GH-3496]
+ * template: Fix issue where multiple environment variable templates would be
+   parsed incorrectly when contents of one have changed after the initial
+   rendering [GH-3529]
  * sentinel: (Nomad Enterprise) Fix an issue that could cause an import error
    when multiple Sentinel policies are applied
  
