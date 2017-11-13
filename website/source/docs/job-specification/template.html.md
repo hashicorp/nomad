@@ -102,7 +102,7 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
     
     If the grace is set to a value that is higher than your default TTL or max
     TTL, the template will always read a new secret. **If secrets are being
-    renewed constantly, increase the `vault_grace`.**
+    renewed constantly, decrease the `vault_grace`.**
     
     If the task defines several templates, the `vault_grace` will be set to the
     lowest value across all the templates.
