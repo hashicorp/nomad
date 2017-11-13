@@ -1222,8 +1222,25 @@ const (
 	BytesInMegabyte = 1024 * 1024
 )
 
-// DefaultResources returns the default resources for a task.
+
+// DefaultResources is a small resources object that contains the
+// default resources requests that we will provide to an object.
+// ---  THIS FUNCTION IS REPLICATED IN api/resources.go and should 
+// be kept in sync.
 func DefaultResources() *Resources {
+	return &Resources{
+		CPU:      100,
+		MemoryMB: 300,
+		IOPS:     0,
+	}
+}
+
+// MinResources is a small resources object that contains the
+// absolute minimum resources that we will provide to an object.
+// This should not be confused with the defaults which are 
+// provided in Canonicalize() ---  THIS FUNCTION IS REPLICATED IN 
+// api/resources.go and should be kept in sync.
+func MinResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 10,
@@ -1269,15 +1286,17 @@ func (r *Resources) Canonicalize() {
 
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
+// This is based on the minimums defined in the Resources type
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
-	if r.CPU < 20 {
+	minResources := MinResources()
+	if r.CPU < minResources.CPU {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is 20; got %d", r.CPU))
 	}
-	if r.MemoryMB < 10 {
+	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
 	}
-	if r.IOPS < 0 {
+	if r.IOPS < minResources.IOPS {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 0; got %d", r.IOPS))
 	}
 	for i, n := range r.Networks {
