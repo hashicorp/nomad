@@ -24,7 +24,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -1222,8 +1222,24 @@ const (
 	BytesInMegabyte = 1024 * 1024
 )
 
-// DefaultResources returns the default resources for a task.
+// DefaultResources is a small resources object that contains the
+// default resources requests that we will provide to an object.
+// ---  THIS FUNCTION IS REPLICATED IN api/resources.go and should
+// be kept in sync.
 func DefaultResources() *Resources {
+	return &Resources{
+		CPU:      100,
+		MemoryMB: 300,
+		IOPS:     0,
+	}
+}
+
+// MinResources is a small resources object that contains the
+// absolute minimum resources that we will provide to an object.
+// This should not be confused with the defaults which are
+// provided in Canonicalize() ---  THIS FUNCTION IS REPLICATED IN
+// api/resources.go and should be kept in sync.
+func MinResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 10,
@@ -1269,16 +1285,18 @@ func (r *Resources) Canonicalize() {
 
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
+// This is based on the minimums defined in the Resources type
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
-	if r.CPU < 20 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is 20; got %d", r.CPU))
+	minResources := MinResources()
+	if r.CPU < minResources.CPU {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is %d; got %d", minResources.CPU, r.CPU))
 	}
-	if r.MemoryMB < 10 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is 10; got %d", r.MemoryMB))
+	if r.MemoryMB < minResources.MemoryMB {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.CPU, r.MemoryMB))
 	}
-	if r.IOPS < 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is 0; got %d", r.IOPS))
+	if r.IOPS < minResources.IOPS {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is %d; got %d", minResources.CPU, r.IOPS))
 	}
 	for i, n := range r.Networks {
 		if err := n.MeetsMinResources(); err != nil {
@@ -3963,7 +3981,7 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 	case TaskLeaderDead:
 		desc = "Leader Task in Group dead"
 	default:
-		desc = ""
+		desc = event.Message
 	}
 
 	event.DisplayMessage = desc

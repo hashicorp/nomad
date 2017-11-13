@@ -70,7 +70,7 @@ limit {
 
 A quota specification is composed of one or more resource limits. Each limit
 applies to a particular Nomad region. Within the limit object, operators can
-specify the allowed cpu and memory usage.
+specify the allowed CPU and memory usage.
 
 To create the particular quota, it is as simple as running:
 

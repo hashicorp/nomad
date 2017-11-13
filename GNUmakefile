@@ -199,7 +199,7 @@ dev: ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS=nomad_test $(NOMAD_UI_TAG)
+		GO_TAGS="nomad_test $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -269,7 +269,7 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
-test-ui: ## Run Noma UI test suite
+test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
 	@cd ui && yarn install
 	@cd ui && npm install phantomjs-prebuilt
@@ -297,5 +297,6 @@ help: ## Display this usage information
 		sort | \
 		awk 'BEGIN {FS = ":.*?## "}; \
 			{printf $(HELP_FORMAT), $$1, $$2}'
-	@echo "\nThis host will build the following targets if 'make release' is invoked:"
+	@echo ""
+	@echo "This host will build the following targets if 'make release' is invoked:"
 	@echo $(ALL_TARGETS) | sed 's/^/    /'
