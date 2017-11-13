@@ -24,8 +24,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -1222,10 +1221,9 @@ const (
 	BytesInMegabyte = 1024 * 1024
 )
 
-
 // DefaultResources is a small resources object that contains the
 // default resources requests that we will provide to an object.
-// ---  THIS FUNCTION IS REPLICATED IN api/resources.go and should 
+// ---  THIS FUNCTION IS REPLICATED IN api/resources.go and should
 // be kept in sync.
 func DefaultResources() *Resources {
 	return &Resources{
@@ -1237,8 +1235,8 @@ func DefaultResources() *Resources {
 
 // MinResources is a small resources object that contains the
 // absolute minimum resources that we will provide to an object.
-// This should not be confused with the defaults which are 
-// provided in Canonicalize() ---  THIS FUNCTION IS REPLICATED IN 
+// This should not be confused with the defaults which are
+// provided in Canonicalize() ---  THIS FUNCTION IS REPLICATED IN
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
