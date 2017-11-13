@@ -187,7 +187,6 @@ func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface)
 // and finds one which is routable and marked as UP
 // It excludes PPP and lo devices unless they are specifically asked
 func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, error) {
-	var interfaces []net.Interface
 	var err error
 
 	if deviceName != "" {
@@ -200,14 +199,57 @@ func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, e
 		return nil, err
 	}
 
+	// Since we aren't given an interface to use we have to pick using a
+	// heuristic. To choose between interfaces we avoid down interfaces, those
+	// that are loopback, point to point, or don't have an address. Of the
+	// remaining interfaces we rank them positively for each global unicast
+	// address and slightly negatively for a link local address. This makes
+	// us select interfaces that have more globally routable address over those
+	// that do not.
+	var bestChoice *net.Interface
+	bestScore := -1000
 	for _, intf := range intfs {
-		if f.isDeviceEnabled(&intf) && !f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
-			interfaces = append(interfaces, intf)
+		// We require a non-loopback interface that is enabled with a valid
+		// address.
+		if !f.isDeviceEnabled(&intf) || f.isDeviceLoopBackOrPointToPoint(&intf) || !f.deviceHasIpAddress(&intf) {
+			continue
+		}
+
+		addrs, err := f.interfaceDetector.Addrs(&intf)
+		if err != nil {
+			return nil, err
+		}
+
+		seenLinkLocal := false
+		intfScore := 0
+		for _, addr := range addrs {
+			// Find the IP Addr and the CIDR from the Address
+			var ip net.IP
+			switch v := (addr).(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if !seenLinkLocal && (ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()) {
+				intfScore -= 1
+				seenLinkLocal = true
+			}
+
+			if ip.IsGlobalUnicast() {
+				intfScore += 2
+			}
+		}
+
+		if intfScore > bestScore {
+			// Make a copy on the stack so we grab a pointer to the correct
+			// interface
+			local := intf
+			bestChoice = &local
+			bestScore = intfScore
 		}
 	}
 
-	if len(interfaces) == 0 {
-		return nil, nil
-	}
-	return &interfaces[0], nil
+	return bestChoice, nil
 }

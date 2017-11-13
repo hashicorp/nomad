@@ -113,7 +113,8 @@ type NetworkInterfaceDetectorMultipleInterfaces struct {
 }
 
 func (n *NetworkInterfaceDetectorMultipleInterfaces) Interfaces() ([]net.Interface, error) {
-	return []net.Interface{lo, eth0, eth1, eth2}, nil
+	// Return link local first to test we don't prefer it
+	return []net.Interface{eth3, lo, eth0, eth1, eth2, eth4}, nil
 }
 
 func (n *NetworkInterfaceDetectorMultipleInterfaces) InterfaceByName(name string) (*net.Interface, error) {
@@ -301,7 +302,9 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 	}
 }
 
-func TestNetworkFingerPrint_excludelo_down_interfaces(t *testing.T) {
+// This tests that we prefer skipping link local and down interfaces as well as
+// those without global unicast addresses
+func TestNetworkFingerPrint_preferential_interfaces(t *testing.T) {
 	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
