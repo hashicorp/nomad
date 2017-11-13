@@ -490,9 +490,12 @@ of the Linux Kernel and Docker daemon.
 The `docker` driver has the following [client configuration
 options](/docs/agent/configuration/client.html#options):
 
-* `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
-  to customize this if you use a non-standard socket (HTTP or another
-  location).
+* `docker.endpoint` - If using a non-standard socket, HTTP or another location,
+  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
+  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
+  variable and then fall back to the default listen address for the given
+  operating system. Defaults to `unix:///var/run/docker.sock` on unix platforms
+  and `npipe:////./pipe/docker_engine` for Windows.
 
 * `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
   JSON file which is in the dockercfg format containing authentication
