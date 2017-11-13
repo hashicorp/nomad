@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-sockaddr/template"
@@ -124,12 +125,55 @@ type Config struct {
 	// client
 	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
+	tlsConfigLock sync.Mutex
+
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
 	// set arbritrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `mapstructure:"sentinel"`
+}
+
+// Copy creates a replica of the original config, excluding locks
+func (c *Config) Copy() *Config {
+	if c == nil {
+		return nil
+	}
+
+	new := Config{}
+	new.Region = c.Region
+	new.Datacenter = c.Datacenter
+	new.NodeName = c.NodeName
+	new.DataDir = c.DataDir
+	new.LogLevel = c.LogLevel
+	new.BindAddr = c.BindAddr
+	new.EnableDebug = c.EnableDebug
+	new.Ports = c.Ports
+	new.Addresses = c.Addresses
+	new.normalizedAddrs = c.normalizedAddrs
+	new.AdvertiseAddrs = c.AdvertiseAddrs
+	new.Client = c.Client
+	new.Server = c.Server
+	new.ACL = c.ACL
+	new.Telemetry = c.Telemetry
+	new.LeaveOnInt = c.LeaveOnInt
+	new.LeaveOnTerm = c.LeaveOnTerm
+	new.EnableSyslog = c.EnableSyslog
+	new.SyslogFacility = c.SyslogFacility
+	new.DisableUpdateCheck = c.DisableUpdateCheck
+	new.DisableAnonymousSignature = c.DisableAnonymousSignature
+	new.Consul = c.Consul
+	new.Vault = c.Vault
+	new.NomadConfig = c.NomadConfig
+	new.ClientConfig = c.ClientConfig
+	new.DevMode = c.DevMode
+	new.Version = c.Version
+	new.Files = c.Files
+	new.TLSConfig = c.TLSConfig.Copy()
+	new.HTTPAPIResponseHeaders = c.HTTPAPIResponseHeaders
+	new.Sentinel = c.Sentinel
+	return &new
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -334,6 +378,9 @@ type ServerConfig struct {
 // This only allows reloading the certificate and keyfile- other TLSConfig
 // fields are ignored.
 func (c *Config) UpdateTLSConfig(newConfig *config.TLSConfig) error {
+	c.tlsConfigLock.Lock()
+	defer c.tlsConfigLock.Unlock()
+
 	if c.TLSConfig == nil {
 		return fmt.Errorf("unable to update non-existing TLSConfig")
 	}
@@ -649,7 +696,7 @@ func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
 
 // Merge merges two configurations.
 func (c *Config) Merge(b *Config) *Config {
-	result := *c
+	result := c.Copy()
 
 	if b.Region != "" {
 		result.Region = b.Region
@@ -701,8 +748,7 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Apply the TLS Config
 	if result.TLSConfig == nil && b.TLSConfig != nil {
-		tlsConfig := *b.TLSConfig
-		result.TLSConfig = &tlsConfig
+		result.TLSConfig = b.TLSConfig.Copy()
 	} else if b.TLSConfig != nil {
 		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
@@ -789,7 +835,7 @@ func (c *Config) Merge(b *Config) *Config {
 		result.HTTPAPIResponseHeaders[k] = v
 	}
 
-	return &result
+	return result
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be

@@ -85,6 +85,16 @@ func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certifica
 	return k.certificate, nil
 }
 
+func (k *KeyLoader) Copy() *KeyLoader {
+	if k == nil {
+		return nil
+	}
+
+	new := KeyLoader{}
+	new.certificate = k.certificate
+	return &new
+}
+
 // GetKeyLoader returns the keyloader for a TLSConfig object. If the keyloader
 // has not been initialized, it will first do so.
 func (t *TLSConfig) GetKeyLoader() *KeyLoader {
@@ -101,6 +111,9 @@ func (t *TLSConfig) GetKeyLoader() *KeyLoader {
 // Copy copies the fields of TLSConfig to another TLSConfig object. Required as
 // to not copy mutexes between objects.
 func (t *TLSConfig) Copy() *TLSConfig {
+	if t == nil {
+		return t
+	}
 
 	new := &TLSConfig{}
 	new.EnableHTTP = t.EnableHTTP
@@ -110,7 +123,7 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.CertFile = t.CertFile
 
 	t.keyloaderLock.Lock()
-	new.KeyLoader = t.KeyLoader
+	new.KeyLoader = t.KeyLoader.Copy()
 	t.keyloaderLock.Unlock()
 
 	new.KeyFile = t.KeyFile

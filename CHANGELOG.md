@@ -3,11 +3,13 @@
 __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
-   config file it will have to be removed. 
+   config file it will have to be removed.
 
 IMPROVEMENTS:
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`
+ * core: Allow operators to reload TLS certificate and key files via SIGHUP
+   #3479
  * api: Allocations now track and return modify time in addition to create time
    [GH-3446]
  * api: Introduced new fields to track details and display message for task
