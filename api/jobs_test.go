@@ -139,7 +139,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 							},
 						},
 					},
@@ -201,7 +201,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 							},
 						},
@@ -550,7 +550,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 							},
 						},
@@ -582,7 +582,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 							},
 						},
