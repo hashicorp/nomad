@@ -440,8 +440,7 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = event.DriverMessage
 	case api.TaskLeaderDead:
 		desc = "Leader Task in Group dead"
-	case api.TaskGenericMessage:
-		event.Type = event.GenericSource
+	default:
 		desc = event.Message
 	}
 

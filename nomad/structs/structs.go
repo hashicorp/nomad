@@ -3963,7 +3963,7 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 	case TaskLeaderDead:
 		desc = "Leader Task in Group dead"
 	default:
-		desc = ""
+		desc = event.Message
 	}
 
 	event.DisplayMessage = desc
