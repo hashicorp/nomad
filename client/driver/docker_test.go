@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func dockerIsRemote(t *testing.T) bool {
@@ -1857,21 +1858,30 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 		t.Skip("test device mounts only on linux")
 	}
 
+	hostPath := "/dev/random"
+	containerPath := "/dev/myrandom"
+	perms := "rwm"
+
+	expectedDevice := docker.Device{hostPath, containerPath, perms}
 	config := map[string]interface{}{
-		"host_path":      "/dev/random",
-		"container_path": "/dev/myrandom",
+		"host_path":      hostPath,
+		"container_path": containerPath,
 	}
 
 	task, _, _ := dockerTask(t)
 	task.Config["devices"] = []interface{}{config}
 
-	ctx := testDockerDriverContexts(t, task)
-	driver := NewDockerDriver(ctx.DriverCtx)
-	copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
-	defer ctx.AllocDir.Destroy()
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
 
-	if _, err := driver.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("unexpected error:%v", err)
+	waitForExist(t, client, handle.(*DockerHandle))
+
+	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
 	}
+
+	assert.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
+	assert.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
 
 }
