@@ -16,6 +16,7 @@ IMPROVEMENTS:
    relative format like `6 h ago` [GH-3449]
  * client: Added metrics to track state transitions of allocations [GH-3061]
  * driver/docker: Detect OOM kill event [GH-3459]
+ * driver/docker: Adds support for adding host device to container via `--device` [GH-2938]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
 
 BUG FIXES:
