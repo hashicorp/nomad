@@ -494,7 +494,7 @@ options](/docs/agent/configuration/client.html#options):
   or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
   attempt to instantiate a Docker client using the `DOCKER_HOST` environment
   variable and then fall back to the default listen address for the given
-  operating system. Defaults to `unix:///var/run/docker.sock` on unix platforms
+  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
   and `npipe:////./pipe/docker_engine` for Windows.
 
 * `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
