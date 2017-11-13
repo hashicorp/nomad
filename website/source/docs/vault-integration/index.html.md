@@ -144,6 +144,7 @@ An example token role definition is given below:
 }
 ```
 
+
 ##### Token Role Requirements
 
 Nomad checks that token role has an appropriate configuration for use by the
@@ -287,10 +288,30 @@ specification documentation][vault-spec].
 
 ## Troubleshooting
 
+### Invalid Vault token
+
 Upon startup, Nomad will attempt to connect to the specified Vault server. Nomad
 will lookup the passed token and if the token is from a token role, the token
 role will be validated. Nomad will not shutdown if given an invalid Vault token,
 but will log the reasons the token is invalid and disable Vault integration.
+
+### Permission Denied errors
+
+If you are using a Vault version less than 0.7.1 with a Nomad version greater than or equal to 0.6.1, you will need to update your task's policy (listed in [the `vault` stanza of the job specification][vault-spec]) to add the following:
+
+```
+path "sys/leases/renew" {
+    capabilities = ["update"]
+}
+```
+
+This is included in Vault's "default" policy beginning with Vault 0.7.1 and is relied upon by Nomad's Vault integration beginning with Nomad 0.6.1. If you're using a newer Nomad version with an older Vault version, your default policy may not automatically include this and you will see "permission denied" errors in your Nomad logs similar to the following:
+
+```
+Code: 403. Errors: 
+URL: PUT https://vault:8200/v1/sys/leases/renew 
+* permission denied
+```
 
 ## Assumptions
 

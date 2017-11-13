@@ -25,12 +25,6 @@ const (
 	// ErrInvalidMethod is used if the HTTP method is not supported
 	ErrInvalidMethod = "Invalid method"
 
-	// scadaHTTPAddr is the address associated with the
-	// HTTPServer. When populating an ACL token for a request,
-	// this is checked to switch between the ACLToken and
-	// AtlasACLToken
-	scadaHTTPAddr = "SCADA"
-
 	// ErrEntOnly is the error returned if accessing an enterprise only
 	// endpoint
 	ErrEntOnly = "Nomad Enterprise only endpoint"
@@ -111,28 +105,6 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	go http.Serve(ln, gzip(mux))
 
 	return srv, nil
-}
-
-// newScadaHttp creates a new HTTP server wrapping the SCADA
-// listener such that HTTP calls can be sent from the brokers.
-func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
-	// Create the mux
-	mux := http.NewServeMux()
-
-	// Create the server
-	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: list,
-		logger:   agent.logger,
-		Addr:     scadaHTTPAddr,
-	}
-	srv.registerHandlers(false) // Never allow debug for SCADA
-
-	// Handle requests with gzip compression
-	go http.Serve(list, gziphandler.GzipHandler(mux))
-
-	return srv
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
@@ -278,7 +250,7 @@ func (e *codedError) Code() int {
 func handleUI(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
-		header.Add("Content-Security-Policy", "default-src 'none'; connect-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
+		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
 		h.ServeHTTP(w, req)
 		return
 	})

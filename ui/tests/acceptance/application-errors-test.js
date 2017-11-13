@@ -13,7 +13,7 @@ moduleForAcceptance('Acceptance | application errors ', {
 test('transitioning away from an error page resets the global error', function(assert) {
   server.pretender.get('/v1/nodes', () => [500, {}, null]);
 
-  visit('/nodes');
+  visit('/clients');
 
   andThen(() => {
     assert.ok(find('.error-message'), 'Application has errored');

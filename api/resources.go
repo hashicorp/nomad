@@ -17,7 +17,7 @@ func (r *Resources) Canonicalize() {
 		r.CPU = helper.IntToPtr(100)
 	}
 	if r.MemoryMB == nil {
-		r.MemoryMB = helper.IntToPtr(10)
+		r.MemoryMB = helper.IntToPtr(300)
 	}
 	if r.IOPS == nil {
 		r.IOPS = helper.IntToPtr(0)

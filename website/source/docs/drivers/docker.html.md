@@ -280,7 +280,26 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+* `devices` - (Optional) A list of
+  [devices](https://docs.docker.com/engine/reference/commandline/run/#add-host-device-to-container-device)
+  to be exposed the container. `host_path` is the only required field. By default, the container will be able to
+  `read`, `write` and `mknod` these devices. Use the optional `cgroup_permissions` field to restrict permissions.
 
+    ```hcl
+    config {
+      devices = [
+        {
+          host_path = "/dev/sda1"
+          container_path = "/dev/xvdc"
+          cgroup_permissions = "r"
+        },
+        {
+          host_path = "/dev/sda2"
+          container_path = "/dev/xvdd"
+        }
+      ]
+    }
+    ```
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
@@ -490,9 +509,12 @@ of the Linux Kernel and Docker daemon.
 The `docker` driver has the following [client configuration
 options](/docs/agent/configuration/client.html#options):
 
-* `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
-  to customize this if you use a non-standard socket (HTTP or another
-  location).
+* `docker.endpoint` - If using a non-standard socket, HTTP or another location,
+  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
+  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
+  variable and then fall back to the default listen address for the given
+  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
+  and `npipe:////./pipe/docker_engine` for Windows.
 
 * `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
   JSON file which is in the dockercfg format containing authentication

@@ -15,7 +15,7 @@ This is not present in the open source version of Nomad.
 
 # Sentinel Overview
 
-Sentinel integrates with the ACL system, and provides the ability to do fine grained policy enforcment. Users must have appropriate permissions to perform an action, and then are subject to any applicable Sentinel policies:
+Sentinel integrates with the ACL system, and provides the ability to do fine grained policy enforcement. Users must have appropriate permissions to perform an action, and then are subject to any applicable Sentinel policies:
 
 ![Sentinel Overview](/assets/images/sentinel.jpg)
 

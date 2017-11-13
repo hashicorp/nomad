@@ -2484,6 +2484,9 @@ const (
 	// RestartPolicyMinInterval is the minimum interval that is accepted for a
 	// restart policy.
 	RestartPolicyMinInterval = 5 * time.Second
+
+	// ReasonWithinPolicy describes restart events that are within policy
+	ReasonWithinPolicy = "Restart within policy"
 )
 
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
@@ -3750,9 +3753,6 @@ const (
 
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
-
-	// TaskGenericMessage is used by various subsystems to emit a message.
-	TaskGenericMessage = "Generic"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -3761,62 +3761,212 @@ type TaskEvent struct {
 	Type string
 	Time int64 // Unix Nanosecond timestamp
 
-	// FailsTask marks whether this event fails the task
+	Message string // A possible message explaining the termination of the task.
+
+	// DisplayMessage is a human friendly message about the event
+	DisplayMessage string
+
+	// Details is a map with annotated info about the event
+	Details map[string]string
+
+	// DEPRECATION NOTICE: The following fields are deprecated and will be removed
+	// in a future release. Field values are available in the Details map.
+
+	// FailsTask marks whether this event fails the task.
+	// Deprecated, use Details["fails_task"] to access this.
 	FailsTask bool
 
 	// Restart fields.
+	// Deprecated, use Details["restart_reason"] to access this.
 	RestartReason string
 
 	// Setup Failure fields.
+	// Deprecated, use Details["setup_error"] to access this.
 	SetupError string
 
 	// Driver Failure fields.
+	// Deprecated, use Details["driver_error"] to access this.
 	DriverError string // A driver error occurred while starting the task.
 
 	// Task Terminated Fields.
-	ExitCode int    // The exit code of the task.
-	Signal   int    // The signal that terminated the task.
-	Message  string // A possible message explaining the termination of the task.
+
+	// Deprecated, use Details["exit_code"] to access this.
+	ExitCode int // The exit code of the task.
+
+	// Deprecated, use Details["signal"] to access this.
+	Signal int // The signal that terminated the task.
 
 	// Killing fields
+	// Deprecated, use Details["kill_timeout"] to access this.
 	KillTimeout time.Duration
 
 	// Task Killed Fields.
+	// Deprecated, use Details["kill_error"] to access this.
 	KillError string // Error killing the task.
 
 	// KillReason is the reason the task was killed
+	// Deprecated, use Details["kill_reason"] to access this.
 	KillReason string
 
 	// TaskRestarting fields.
+	// Deprecated, use Details["start_delay"] to access this.
 	StartDelay int64 // The sleep period before restarting the task in unix nanoseconds.
 
 	// Artifact Download fields
+	// Deprecated, use Details["download_error"] to access this.
 	DownloadError string // Error downloading artifacts
 
 	// Validation fields
+	// Deprecated, use Details["validation_error"] to access this.
 	ValidationError string // Validation error
 
 	// The maximum allowed task disk size.
+	// Deprecated, use Details["disk_limit"] to access this.
 	DiskLimit int64
 
 	// Name of the sibling task that caused termination of the task that
 	// the TaskEvent refers to.
+	// Deprecated, use Details["failed_sibling"] to access this.
 	FailedSibling string
 
 	// VaultError is the error from token renewal
+	// Deprecated, use Details["vault_renewal_error"] to access this.
 	VaultError string
 
 	// TaskSignalReason indicates the reason the task is being signalled.
+	// Deprecated, use Details["task_signal_reason"] to access this.
 	TaskSignalReason string
 
 	// TaskSignal is the signal that was sent to the task
+	// Deprecated, use Details["task_signal"] to access this.
 	TaskSignal string
 
 	// DriverMessage indicates a driver action being taken.
+	// Deprecated, use Details["driver_message"] to access this.
 	DriverMessage string
 
 	// GenericSource is the source of a message.
+	// Deprecated, is redundant with event type.
 	GenericSource string
+}
+
+func (event *TaskEvent) PopulateEventDisplayMessage() {
+	// Build up the description based on the event type.
+	if event == nil { //TODO(preetha) needs investigation alloc_runner's Run method sends a nil event when sigterming nomad. Why?
+		return
+	}
+
+	if event.DisplayMessage != "" {
+		return
+	}
+
+	var desc string
+	switch event.Type {
+	case TaskSetup:
+		desc = event.Message
+	case TaskStarted:
+		desc = "Task started by client"
+	case TaskReceived:
+		desc = "Task received by client"
+	case TaskFailedValidation:
+		if event.ValidationError != "" {
+			desc = event.ValidationError
+		} else {
+			desc = "Validation of task failed"
+		}
+	case TaskSetupFailure:
+		if event.SetupError != "" {
+			desc = event.SetupError
+		} else {
+			desc = "Task setup failed"
+		}
+	case TaskDriverFailure:
+		if event.DriverError != "" {
+			desc = event.DriverError
+		} else {
+			desc = "Failed to start task"
+		}
+	case TaskDownloadingArtifacts:
+		desc = "Client is downloading artifacts"
+	case TaskArtifactDownloadFailed:
+		if event.DownloadError != "" {
+			desc = event.DownloadError
+		} else {
+			desc = "Failed to download artifacts"
+		}
+	case TaskKilling:
+		if event.KillReason != "" {
+			desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+		} else if event.KillTimeout != 0 {
+			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
+		} else {
+			desc = "Sent interrupt"
+		}
+	case TaskKilled:
+		if event.KillError != "" {
+			desc = event.KillError
+		} else {
+			desc = "Task successfully killed"
+		}
+	case TaskTerminated:
+		var parts []string
+		parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+
+		if event.Signal != 0 {
+			parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
+		}
+
+		if event.Message != "" {
+			parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+		}
+		desc = strings.Join(parts, ", ")
+	case TaskRestarting:
+		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+		if event.RestartReason != "" && event.RestartReason != ReasonWithinPolicy {
+			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+		} else {
+			desc = in
+		}
+	case TaskNotRestarting:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task exceeded restart policy"
+		}
+	case TaskSiblingFailed:
+		if event.FailedSibling != "" {
+			desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+		} else {
+			desc = "Task's sibling failed"
+		}
+	case TaskSignaling:
+		sig := event.TaskSignal
+		reason := event.TaskSignalReason
+
+		if sig == "" && reason == "" {
+			desc = "Task being sent a signal"
+		} else if sig == "" {
+			desc = reason
+		} else if reason == "" {
+			desc = fmt.Sprintf("Task being sent signal %v", sig)
+		} else {
+			desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
+		}
+	case TaskRestartSignal:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task signaled to restart"
+		}
+	case TaskDriverMessage:
+		desc = event.DriverMessage
+	case TaskLeaderDead:
+		desc = "Leader Task in Group dead"
+	default:
+		desc = event.Message
+	}
+
+	event.DisplayMessage = desc
 }
 
 func (te *TaskEvent) GoString() string {
@@ -3826,6 +3976,7 @@ func (te *TaskEvent) GoString() string {
 // SetMessage sets the message of TaskEvent
 func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
 	te.Message = msg
+	te.Details["message"] = msg
 	return te
 }
 
@@ -3840,8 +3991,9 @@ func (te *TaskEvent) Copy() *TaskEvent {
 
 func NewTaskEvent(event string) *TaskEvent {
 	return &TaskEvent{
-		Type: event,
-		Time: time.Now().UnixNano(),
+		Type:    event,
+		Time:    time.Now().UnixNano(),
+		Details: make(map[string]string),
 	}
 }
 
@@ -3850,35 +4002,41 @@ func NewTaskEvent(event string) *TaskEvent {
 func (e *TaskEvent) SetSetupError(err error) *TaskEvent {
 	if err != nil {
 		e.SetupError = err.Error()
+		e.Details["setup_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetFailsTask() *TaskEvent {
 	e.FailsTask = true
+	e.Details["fails_task"] = "true"
 	return e
 }
 
 func (e *TaskEvent) SetDriverError(err error) *TaskEvent {
 	if err != nil {
 		e.DriverError = err.Error()
+		e.Details["driver_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetExitCode(c int) *TaskEvent {
 	e.ExitCode = c
+	e.Details["exit_code"] = fmt.Sprintf("%d", c)
 	return e
 }
 
 func (e *TaskEvent) SetSignal(s int) *TaskEvent {
 	e.Signal = s
+	e.Details["signal"] = fmt.Sprintf("%d", s)
 	return e
 }
 
 func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
 	if err != nil {
 		e.Message = err.Error()
+		e.Details["exit_message"] = err.Error()
 	}
 	return e
 }
@@ -3886,38 +4044,45 @@ func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
 func (e *TaskEvent) SetKillError(err error) *TaskEvent {
 	if err != nil {
 		e.KillError = err.Error()
+		e.Details["kill_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetKillReason(r string) *TaskEvent {
 	e.KillReason = r
+	e.Details["kill_reason"] = r
 	return e
 }
 
 func (e *TaskEvent) SetRestartDelay(delay time.Duration) *TaskEvent {
 	e.StartDelay = int64(delay)
+	e.Details["start_delay"] = fmt.Sprintf("%d", delay)
 	return e
 }
 
 func (e *TaskEvent) SetRestartReason(reason string) *TaskEvent {
 	e.RestartReason = reason
+	e.Details["restart_reason"] = reason
 	return e
 }
 
 func (e *TaskEvent) SetTaskSignalReason(r string) *TaskEvent {
 	e.TaskSignalReason = r
+	e.Details["task_signal_reason"] = r
 	return e
 }
 
 func (e *TaskEvent) SetTaskSignal(s os.Signal) *TaskEvent {
 	e.TaskSignal = s.String()
+	e.Details["task_signal"] = s.String()
 	return e
 }
 
 func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
 	if err != nil {
 		e.DownloadError = err.Error()
+		e.Details["download_error"] = err.Error()
 	}
 	return e
 }
@@ -3925,39 +4090,40 @@ func (e *TaskEvent) SetDownloadError(err error) *TaskEvent {
 func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 	if err != nil {
 		e.ValidationError = err.Error()
+		e.Details["validation_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetKillTimeout(timeout time.Duration) *TaskEvent {
 	e.KillTimeout = timeout
+	e.Details["kill_timeout"] = timeout.String()
 	return e
 }
 
 func (e *TaskEvent) SetDiskLimit(limit int64) *TaskEvent {
 	e.DiskLimit = limit
+	e.Details["disk_limit"] = fmt.Sprintf("%d", limit)
 	return e
 }
 
 func (e *TaskEvent) SetFailedSibling(sibling string) *TaskEvent {
 	e.FailedSibling = sibling
+	e.Details["failed_sibling"] = sibling
 	return e
 }
 
 func (e *TaskEvent) SetVaultRenewalError(err error) *TaskEvent {
 	if err != nil {
 		e.VaultError = err.Error()
+		e.Details["vault_renewal_error"] = err.Error()
 	}
 	return e
 }
 
 func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	e.DriverMessage = m
-	return e
-}
-
-func (e *TaskEvent) SetGenericSource(s string) *TaskEvent {
-	e.GenericSource = s
+	e.Details["driver_message"] = m
 	return e
 }
 
@@ -4322,6 +4488,12 @@ func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint
 	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
 }
 
+// DeploymentStatusDescriptionRollbackNoop is used to get the status description of
+// a deployment when rolling back is not possible because it has the same specification
+func DeploymentStatusDescriptionRollbackNoop(baseDescription string, jobVersion uint64) string {
+	return fmt.Sprintf("%s - not rolling back to stable job version %d as current job has same specification", baseDescription, jobVersion)
+}
+
 // DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
 // a deployment when there is no target to rollback to but autorevet is desired.
 func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
@@ -4605,6 +4777,9 @@ type Allocation struct {
 	// CreateTime is the time the allocation has finished scheduling and been
 	// verified by the plan applier.
 	CreateTime int64
+
+	// ModifyTime is the time the allocation was last updated.
+	ModifyTime int64
 }
 
 // Index returns the index of the allocation. If the allocation is from a task
@@ -4746,6 +4921,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
+		ModifyTime:         a.ModifyTime,
 	}
 }
 
@@ -4767,6 +4943,7 @@ type AllocListStub struct {
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
+	ModifyTime         int64
 }
 
 // AllocMetric is used to track various metrics while attempting

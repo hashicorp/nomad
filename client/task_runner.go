@@ -542,6 +542,8 @@ func (r *TaskRunner) DestroyState() error {
 
 // setState is used to update the state of the task runner
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent, lazySync bool) {
+	event.PopulateEventDisplayMessage()
+
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
 		r.logger.Printf("[ERR] client: failed to save state of Task Runner for task %q: %v", r.task.Name, err)
@@ -1751,8 +1753,8 @@ func (r *TaskRunner) Kill(source, reason string, fail bool) {
 }
 
 func (r *TaskRunner) EmitEvent(source, message string) {
-	event := structs.NewTaskEvent(structs.TaskGenericMessage).
-		SetGenericSource(source).SetMessage(message)
+	event := structs.NewTaskEvent(source).
+		SetMessage(message)
 	r.setState("", event, false)
 	r.logger.Printf("[DEBUG] client: event from %q for task %q in alloc %q: %v",
 		source, r.task.Name, r.alloc.ID, message)

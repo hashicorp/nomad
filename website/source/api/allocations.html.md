@@ -141,7 +141,8 @@ $ curl \
     },
     "CreateIndex": 54,
     "ModifyIndex": 57,
-    "CreateTime": 1495747371794276400
+    "CreateTime": 1495747371794276400,
+    "ModifyTime": 1495747371794276400
   }
 ]
 ```
@@ -461,7 +462,8 @@ $ curl \
   "CreateIndex": 54,
   "ModifyIndex": 57,
   "AllocModifyIndex": 54,
-  "CreateTime": 1495747371794276400
+  "CreateTime": 1495747371794276400,
+  "ModifyTime": 1495747371794276400
 }
 ```
 

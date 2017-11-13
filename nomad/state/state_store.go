@@ -1724,6 +1724,9 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
 
+	// Update the modify time
+	copyAlloc.ModifyTime = alloc.ModifyTime
+
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating deployment: %v", err)
 	}

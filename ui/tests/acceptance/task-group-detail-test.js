@@ -197,7 +197,7 @@ test('each allocation should show basic information about the allocation', funct
   click(allocationRow.find('td:eq(5) a').get(0));
 
   andThen(() => {
-    assert.equal(currentURL(), `/nodes/${allocation.nodeId}`, 'Node links to node page');
+    assert.equal(currentURL(), `/clients/${allocation.nodeId}`, 'Node links to node page');
   });
 });
 

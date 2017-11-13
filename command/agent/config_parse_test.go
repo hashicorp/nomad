@@ -129,12 +129,6 @@ func TestConfig_Parse(t *testing.T) {
 				SyslogFacility:            "LOCAL1",
 				DisableUpdateCheck:        true,
 				DisableAnonymousSignature: true,
-				Atlas: &AtlasConfig{
-					Infrastructure: "armon/test",
-					Token:          "abcd",
-					Join:           true,
-					Endpoint:       "127.0.0.1:1234",
-				},
 				Consul: &config.ConsulConfig{
 					ServerServiceName:  "nomad",
 					ClientServiceName:  "nomad-client",
@@ -172,6 +166,7 @@ func TestConfig_Parse(t *testing.T) {
 					CAFile:               "foo",
 					CertFile:             "bar",
 					KeyFile:              "pipe",
+					RPCUpgradeMode:       true,
 					VerifyHTTPSClient:    true,
 				},
 				HTTPAPIResponseHeaders: map[string]string{

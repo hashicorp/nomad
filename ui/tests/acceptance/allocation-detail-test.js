@@ -49,7 +49,7 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   });
 
   andThen(() => {
-    assert.equal(currentURL(), `/nodes/${node.id}`, 'Node link navigates to the node');
+    assert.equal(currentURL(), `/clients/${node.id}`, 'Client link navigates to the client');
   });
 });
 

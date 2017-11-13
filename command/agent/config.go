@@ -94,9 +94,6 @@ type Config struct {
 	// for security bulletins
 	DisableAnonymousSignature bool `mapstructure:"disable_anonymous_signature"`
 
-	// AtlasConfig is used to configure Atlas
-	Atlas *AtlasConfig `mapstructure:"atlas"`
-
 	// Consul contains the configuration for the Consul Agent and
 	// parameters necessary to register services, their checks, and
 	// discover the current Nomad servers.
@@ -133,24 +130,6 @@ type Config struct {
 
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `mapstructure:"sentinel"`
-}
-
-// AtlasConfig is used to enable an parameterize the Atlas integration
-type AtlasConfig struct {
-	// Infrastructure is the name of the infrastructure
-	// we belong to. e.g. hashicorp/stage
-	Infrastructure string `mapstructure:"infrastructure"`
-
-	// Token is our authentication token from Atlas
-	Token string `mapstructure:"token" json:"-"`
-
-	// Join controls if Atlas will attempt to auto-join the node
-	// to it's cluster. Requires Atlas integration.
-	Join bool `mapstructure:"join"`
-
-	// Endpoint is the SCADA endpoint used for Atlas integration. If
-	// empty, the defaults from the provider are used.
-	Endpoint string `mapstructure:"endpoint"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -584,7 +563,6 @@ func DefaultConfig() *Config {
 		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
@@ -754,14 +732,6 @@ func (c *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = &advertise
 	} else if b.AdvertiseAddrs != nil {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
-	}
-
-	// Apply the Atlas configuration
-	if result.Atlas == nil && b.Atlas != nil {
-		atlasConfig := *b.Atlas
-		result.Atlas = &atlasConfig
-	} else if b.Atlas != nil {
-		result.Atlas = result.Atlas.Merge(b.Atlas)
 	}
 
 	// Apply the Consul Configuration
@@ -1278,25 +1248,6 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	}
 	if b.HTTP != "" {
 		result.HTTP = b.HTTP
-	}
-	return &result
-}
-
-// Merge merges two Atlas configurations together.
-func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
-	result := *a
-
-	if b.Infrastructure != "" {
-		result.Infrastructure = b.Infrastructure
-	}
-	if b.Token != "" {
-		result.Token = b.Token
-	}
-	if b.Join {
-		result.Join = true
-	}
-	if b.Endpoint != "" {
-		result.Endpoint = b.Endpoint
 	}
 	return &result
 }

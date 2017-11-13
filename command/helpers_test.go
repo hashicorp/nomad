@@ -294,3 +294,35 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 		t.Fatalf("Unexpected file")
 	}
 }
+
+func TestPrettyTimeDiff(t *testing.T) {
+	test_cases := []struct {
+		d   time.Duration
+		exp string
+	}{
+		{-740 * time.Second, "12m20s ago"},
+		{-12 * time.Minute, "12m ago"},
+		{-60 * time.Minute, "1h ago"},
+		{-80 * time.Minute, "1h20m ago"},
+		{-6 * time.Hour, "6h ago"},
+		{-22165 * time.Second, "6h9m ago"},
+		{-100 * time.Hour, "4d4h ago"},
+		{-438000 * time.Minute, "10mo4d ago"},
+		{-20460 * time.Hour, "2y4mo ago"},
+	}
+	for _, tc := range test_cases {
+		t2 := time.Now().Add(tc.d)
+		out := prettyTimeDiff(t2, time.Now())
+		if out != tc.exp {
+			t.Fatalf("expected :%v but got :%v", tc.exp, out)
+		}
+	}
+
+	var t1 time.Time
+	out := prettyTimeDiff(t1, time.Now())
+
+	if out != "" {
+		t.Fatalf("Expected empty output but got:%v", out)
+	}
+
+}

@@ -43,7 +43,7 @@ skip('the X-Nomad-Token header gets sent with requests once it is set', function
   let requestPosition = 0;
 
   visit(`/jobs/${job.id}`);
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
@@ -62,7 +62,7 @@ skip('the X-Nomad-Token header gets sent with requests once it is set', function
   });
 
   visit(`/jobs/${job.id}`);
-  visit(`/nodes/${node.id}`);
+  visit(`/clients/${node.id}`);
 
   andThen(() => {
     const newRequests = server.pretender.handledRequests.slice(requestPosition);
