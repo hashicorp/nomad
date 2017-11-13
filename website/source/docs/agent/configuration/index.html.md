@@ -163,8 +163,8 @@ testing.
   increasing order of verbosity.
 
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
-  value is used to identify individual nodes in a given datacenter and must be
-  unique per-datacenter.
+  value is used to identify individual agents. When specified on a server, the
+  name must be unique within the region.
 
 - `ports` `(Port: see below)` - Specifies the network ports used for different
   services required by the Nomad agent.
