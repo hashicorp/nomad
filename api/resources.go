@@ -32,7 +32,7 @@ func (r *Resources) Canonicalize() {
 
 // DefaultResources is a small resources object that contains the
 // default resources requests that we will provide to an object.
-// ---  THIS FUNCTION IS REPLICATED IN nomad/structs/structs.go 
+// ---  THIS FUNCTION IS REPLICATED IN nomad/structs/structs.go
 // and should be kept in sync.
 func DefaultResources() *Resources {
 	return &Resources{
@@ -44,8 +44,8 @@ func DefaultResources() *Resources {
 
 // MinResources is a small resources object that contains the
 // absolute minimum resources that we will provide to an object.
-// This should not be confused with the defaults which are 
-// provided in DefaultResources() ---  THIS LOGIC IS REPLICATED 
+// This should not be confused with the defaults which are
+// provided in DefaultResources() ---  THIS LOGIC IS REPLICATED
 // IN nomad/structs/structs.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
