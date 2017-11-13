@@ -233,6 +233,7 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"executeTemplate": executeTemplateFunc(i.t),
 		"explode":         explode,
 		"in":              in,
+		"indent":          indent,
 		"loop":            loop,
 		"join":            join,
 		"trimSpace":       trimSpace,
