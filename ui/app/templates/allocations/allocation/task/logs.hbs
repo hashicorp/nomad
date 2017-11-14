@@ -1,0 +1,25 @@
+{{#global-header class="page-header"}}
+  <span class="breadcrumb">Allocations</span>
+  {{#link-to "allocations.allocation" model.allocation class="breadcrumb"}}
+    {{model.allocation.shortId}}
+  {{/link-to}}
+  {{#link-to "allocations.allocation.task" model.allocation model class="breadcrumb"}}
+    {{model.name}}
+  {{/link-to}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "allocations/allocation/task/subnav"}}
+  <section class="section">
+    <button class="button is-primary" {{action "setMode" "stdout"}}>stdout</button>
+    <button class="button is-danger" {{action "setMode" "stderr"}}>stderr</button>
+    <button class="button is-outlined is-primary" onclick={{perform stream}}>Stream</button>
+    <button class="button is-outlined is-primary" onclick={{action "stopStreaming"}}>Stop</button>
+    <button class="button is-outlined is-primary" onclick={{perform head}}>Head</button>
+    <button class="button is-outlined is-primary" onclick={{perform tail}}>Tail</button>
+    <p class="content">Start: {{startOffset}}</p>
+    <p class="content">End: {{endOffset}}</p>
+    <div id="logs" style="max-height:300px; overflow:auto">
+      <pre><code>{{stdout.output}}</code></pre>
+    </div>
+  </section>
+{{/gutter-menu}}
