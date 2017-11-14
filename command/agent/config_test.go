@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -871,94 +870,4 @@ func TestIsMissingPort(t *testing.T) {
 	if missing := isMissingPort(err); missing {
 		t.Errorf("expected no error, but got %v", err)
 	}
-}
-
-func TestConfigCopy(t *testing.T) {
-	assert := assert.New(t)
-
-	c1 := &Config{
-		Telemetry:      &Telemetry{},
-		Client:         &ClientConfig{},
-		Server:         &ServerConfig{},
-		ACL:            &ACLConfig{},
-		Ports:          &Ports{},
-		Addresses:      &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
-		Sentinel:       &config.SentinelConfig{},
-	}
-
-	expected := c1.Copy()
-	assert.Equal(expected, c1)
-}
-
-func Test_UpdateTLS_Config_NoTLS(t *testing.T) {
-	assert := assert.New(t)
-
-	c1 := &Config{
-		Telemetry:      &Telemetry{},
-		Client:         &ClientConfig{},
-		Server:         &ServerConfig{},
-		ACL:            &ACLConfig{},
-		Ports:          &Ports{},
-		Addresses:      &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
-		Sentinel:       &config.SentinelConfig{},
-	}
-
-	newTLSConfig := &config.TLSConfig{}
-
-	err := c1.UpdateTLSConfig(newTLSConfig)
-	assert.NotNil(err)
-	assert.Contains(err.Error(), "unable to update non-existing TLSConfig")
-}
-
-func Test_UpdateTLS_Config_TLS(t *testing.T) {
-	assert := assert.New(t)
-
-	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
-	)
-
-	c1 := &Config{
-		Telemetry:      &Telemetry{},
-		Client:         &ClientConfig{},
-		Server:         &ServerConfig{},
-		ACL:            &ACLConfig{},
-		Ports:          &Ports{},
-		Addresses:      &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
-		Sentinel:       &config.SentinelConfig{},
-		TLSConfig: &config.TLSConfig{
-			EnableHTTP:           true,
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
-		},
-	}
-
-	newTLSConfig := &config.TLSConfig{
-		EnableHTTP:           true,
-		EnableRPC:            true,
-		VerifyServerHostname: true,
-		CAFile:               cafile,
-		CertFile:             foocert2,
-		KeyFile:              fookey2,
-	}
-
-	err := c1.UpdateTLSConfig(newTLSConfig)
-	assert.Nil(err)
-	assert.Equal(c1.TLSConfig.CertFile, newTLSConfig.CertFile)
-	assert.Equal(c1.TLSConfig.KeyFile, newTLSConfig.KeyFile)
 }

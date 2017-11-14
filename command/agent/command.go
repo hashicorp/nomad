@@ -557,8 +557,9 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		if conf := c.handleReload(config); conf != nil {
-			config = conf.Copy()
+		c.handleReload(config)
+		if c.agent.GetConfig() != nil {
+			*config = *c.agent.GetConfig()
 		}
 		goto WAIT
 	}

@@ -605,3 +605,73 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
 	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
 }
+
+func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "invalid_cert_path"
+		fookey2  = "invalid_key_path"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		},
+	}
+
+	err := agent.Reload(newConfig)
+	assert.NotNil(err)
+	assert.NotEqual(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.NotEqual(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+}
+
+func Test_GetConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	agentConfig := &Config{
+		Telemetry:      &Telemetry{},
+		Client:         &ClientConfig{},
+		Server:         &ServerConfig{},
+		ACL:            &ACLConfig{},
+		Ports:          &Ports{},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
+		Vault:          &sconfig.VaultConfig{},
+		Consul:         &sconfig.ConsulConfig{},
+		Sentinel:       &sconfig.SentinelConfig{},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	actualAgentConfig := agent.GetConfig()
+	assert.Equal(actualAgentConfig, agentConfig)
+}
