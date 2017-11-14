@@ -534,12 +534,14 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
 
-	newConfig := &Config{
+	agentConfig := &Config{
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
@@ -549,25 +551,26 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 		},
 	}
 
+	newConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			EnableHTTP:        true,
+			VerifyHTTPSClient: true,
+			CAFile:            cafile,
+			CertFile:          foocert2,
+			KeyFile:           fookey2,
+		},
+	}
+
 	s := makeHTTPServer(t, func(c *Config) {
-		c.TLSConfig = newConfig.TLSConfig
+		c.TLSConfig = agentConfig.TLSConfig
 	})
 	defer s.Shutdown()
 
-	// HTTP plaintext request should succeed
-	reqURL := fmt.Sprintf("http://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
-
-	// First test with a plaintext request
-	transport := &http.Transport{}
-	client := &http.Client{Transport: transport}
-	_, err := http.NewRequest("GET", reqURL, nil)
+	// Reload the TLS configuration==
+	err := s.Agent.Reload(newConfig)
 	assert.Nil(err)
 
-	// Next, reload the TLS configuration
-	err = s.Agent.Reload(newConfig)
-	assert.Nil(err)
-
-	// PASS: Requests that specify a valid hostname, CA cert, and client
+	// Requests that specify a valid hostname, CA cert, and client
 	// certificate succeed.
 	tlsConf := &tls.Config{
 		ServerName: "client.regionFoo.nomad",
@@ -588,8 +591,8 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert.Nil(err)
 	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
 
-	transport = &http.Transport{TLSClientConfig: tlsConf}
-	client = &http.Client{Transport: transport}
+	transport := &http.Transport{TLSClientConfig: tlsConf}
+	client := &http.Client{Transport: transport}
 	req, err := http.NewRequest("GET", httpsReqURL, nil)
 	assert.Nil(err)
 
