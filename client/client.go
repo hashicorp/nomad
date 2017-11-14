@@ -173,7 +173,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
-		tw, err := cfg.TLSConfiguration().OutgoingTLSWrapper()
+		isServerMode := false
+		tw, err := cfg.TLSConfiguration().OutgoingTLSWrapper(isServerMode)
 		if err != nil {
 			return nil, err
 		}
