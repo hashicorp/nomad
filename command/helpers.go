@@ -181,7 +181,11 @@ func prettyTimeDiff(first, second time.Time) string {
 	if num_periods > 2 {
 		end = indexes[num_periods-3]
 	}
-	return string(buf[start:end]) + " ago"
+	if start == end { //edge case when time difference is less than a second
+		return "0s ago"
+	} else {
+		return string(buf[start:end]) + " ago"
+	}
 
 }
 

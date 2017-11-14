@@ -300,6 +300,7 @@ func TestPrettyTimeDiff(t *testing.T) {
 		d   time.Duration
 		exp string
 	}{
+		{-100 * time.Millisecond, "0s ago"},
 		{-740 * time.Second, "12m20s ago"},
 		{-12 * time.Minute, "12m ago"},
 		{-60 * time.Minute, "1h ago"},
