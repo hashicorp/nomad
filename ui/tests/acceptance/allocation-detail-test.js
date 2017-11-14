@@ -28,14 +28,19 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   assert
 ) {
   assert.ok(find('h1').textContent.includes(allocation.name), 'Allocation name is in the heading');
-  assert.ok(find('h3').textContent.includes(job.name), 'Job name is in the subheading');
-  assert.ok(
-    find('h3').textContent.includes(node.id.split('-')[0]),
+  assert.equal(
+    find('.inline-definitions .job-link a').textContent.trim(),
+    job.name,
+    'Job name is in the subheading'
+  );
+  assert.equal(
+    find('.inline-definitions .node-link a').textContent.trim(),
+    node.id.split('-')[0],
     'Node short id is in the subheading'
   );
 
   andThen(() => {
-    click(findAll('h3 a')[0]);
+    click('.inline-definitions .job-link a');
   });
 
   andThen(() => {
@@ -45,7 +50,7 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   visit(`/allocations/${allocation.id}`);
 
   andThen(() => {
-    click(findAll('h3 a')[1]);
+    click('.inline-definitions .node-link a');
   });
 
   andThen(() => {
@@ -67,6 +72,7 @@ test('each task row should list high-level information for the task', function(a
     .map(id => server.db.taskResources.find(id))
     .sortBy('name')[0];
   const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
+  const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
   const taskRow = $(findAll('.tasks tbody tr')[0]);
   const events = server.db.taskEvents.where({ taskStateId: task.id });
   const event = events[events.length - 1];
@@ -105,83 +111,17 @@ test('each task row should list high-level information for the task', function(a
   );
 
   assert.ok(reservedPorts.length, 'The task has reserved ports');
+  assert.ok(dynamicPorts.length, 'The task has dynamic ports');
 
   const addressesText = taskRow.find('td:eq(4)').text();
   reservedPorts.forEach(port => {
     assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
     assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
   });
-});
-
-test('/allocation/:id should list recent events for each task', function(assert) {
-  const tasks = server.db.taskStates.where({ allocationId: allocation.id });
-  assert.equal(
-    findAll('.task-state-events').length,
-    tasks.length,
-    'A task state event block per task'
-  );
-});
-
-test('each recent events list should include the name, state, and time info for the task', function(
-  assert
-) {
-  const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
-  const recentEventsSection = $(findAll('.task-state-events')[0]);
-  const heading = recentEventsSection
-    .find('.message-header')
-    .text()
-    .trim();
-
-  assert.ok(heading.includes(task.name), 'Task name');
-  assert.ok(heading.includes(task.state), 'Task state');
-  assert.ok(
-    heading.includes(moment(task.startedAt).format('MM/DD/YY HH:mm:ss [UTC]')),
-    'Task started at'
-  );
-});
-
-test('each recent events list should list all recent events for the task', function(assert) {
-  const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
-  const events = server.db.taskEvents.where({ taskStateId: task.id });
-
-  assert.equal(
-    findAll('.task-state-events')[0].querySelectorAll('.task-events tbody tr').length,
-    events.length,
-    `Lists ${events.length} events`
-  );
-});
-
-test('each recent event should list the time, type, and description of the event', function(
-  assert
-) {
-  const task = server.db.taskStates.where({ allocationId: allocation.id })[0];
-  const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
-  const recentEvent = $('.task-state-events:eq(0) .task-events tbody tr:last');
-
-  assert.equal(
-    recentEvent
-      .find('td:eq(0)')
-      .text()
-      .trim(),
-    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss [UTC]'),
-    'Event timestamp'
-  );
-  assert.equal(
-    recentEvent
-      .find('td:eq(1)')
-      .text()
-      .trim(),
-    event.type,
-    'Event type'
-  );
-  assert.equal(
-    recentEvent
-      .find('td:eq(2)')
-      .text()
-      .trim(),
-    event.message,
-    'Event message'
-  );
+  dynamicPorts.forEach(port => {
+    assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
+    assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+  });
 });
 
 test('when the allocation is not found, an error message is shown, but the URL persists', function(
