@@ -14,8 +14,8 @@ have at least one server, though a cluster of 3 or 5 servers is recommended.
 A single server deployment is _**highly**_ discouraged as data loss is inevitable
 in a failure scenario.
 
-All other agents run in client mode. A client is a very lightweight
-process that registers the host machine, performs heartbeating, and runs any tasks
+All other agents run in client mode. A Nomad client is a very lightweight
+process that registers the host machine, performs heartbeating, and runs the tasks
 that are assigned to it by the servers. The agent must be run on every node that
 is part of the cluster so that the servers can assign work to those machines.
 
@@ -26,7 +26,7 @@ is used to quickly start an agent that is acting as a client and server to test
 job configurations or prototype interactions. It should _**not**_ be used in
 production as it does not persist state.
 
-```
+```text
 vagrant@nomad:~$ sudo nomad agent -dev
 
 ==> Starting Nomad agent...
@@ -99,7 +99,7 @@ ring using the [`server-members`](/docs/commands/server-members.html) command:
 ```text
 $ nomad server-members
 Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
-nomad.global  127.0.0.1  4648  alive   true    2         0.6.0  dc1         global
+nomad.global  127.0.0.1  4648  alive   true    2         0.7.0  dc1         global
 ```
 
 The output shows our own agent, the address it is running on, its

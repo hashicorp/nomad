@@ -30,7 +30,6 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
@@ -124,12 +123,6 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.1",
 			Serf: "127.0.0.1",
-		},
-		Atlas: &AtlasConfig{
-			Infrastructure: "hashicorp/test1",
-			Token:          "abc",
-			Join:           false,
-			Endpoint:       "foo",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
@@ -272,12 +265,6 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.2",
 			Serf: "127.0.0.2",
-		},
-		Atlas: &AtlasConfig{
-			Infrastructure: "hashicorp/test2",
-			Token:          "xyz",
-			Join:           true,
-			Endpoint:       "bar",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin":  "*",

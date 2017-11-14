@@ -12,6 +12,8 @@ This guide provides step by step guidance for cutting a new release of Nomad.
 8. Ensure you have the hc-release environment variables set for being able to
    read/write to S3. This can be retrieved from 1password.
 9. `./scripts/dist.sh <version>`. Formating of <version> is 0.x.x(-|rcx|betaX)
+10. Bump the version to the new dev version.
+11. Remove the generated files and commit
 
 # Only on final releases
 

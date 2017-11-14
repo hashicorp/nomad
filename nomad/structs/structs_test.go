@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -2430,4 +2431,56 @@ func TestACLPolicySetHash(t *testing.T) {
 	assert.NotNil(t, ap.Hash)
 	assert.Equal(t, out2, ap.Hash)
 	assert.NotEqual(t, out1, out2)
+}
+
+func TestTaskEventPopulate(t *testing.T) {
+	prepopulatedEvent := NewTaskEvent(TaskSetup)
+	prepopulatedEvent.DisplayMessage = "Hola"
+	testcases := []struct {
+		event       *TaskEvent
+		expectedMsg string
+	}{
+		{nil, ""},
+		{prepopulatedEvent, "Hola"},
+		{NewTaskEvent(TaskSetup).SetMessage("Setup"), "Setup"},
+		{NewTaskEvent(TaskStarted), "Task started by client"},
+		{NewTaskEvent(TaskReceived), "Task received by client"},
+		{NewTaskEvent(TaskFailedValidation), "Validation of task failed"},
+		{NewTaskEvent(TaskFailedValidation).SetValidationError(fmt.Errorf("task failed validation")), "task failed validation"},
+		{NewTaskEvent(TaskSetupFailure), "Task setup failed"},
+		{NewTaskEvent(TaskSetupFailure).SetSetupError(fmt.Errorf("task failed setup")), "task failed setup"},
+		{NewTaskEvent(TaskDriverFailure), "Failed to start task"},
+		{NewTaskEvent(TaskDownloadingArtifacts), "Client is downloading artifacts"},
+		{NewTaskEvent(TaskArtifactDownloadFailed), "Failed to download artifacts"},
+		{NewTaskEvent(TaskArtifactDownloadFailed).SetDownloadError(fmt.Errorf("connection reset by peer")), "connection reset by peer"},
+		{NewTaskEvent(TaskRestarting).SetRestartDelay(2 * time.Second).SetRestartReason(ReasonWithinPolicy), "Task restarting in 2s"},
+		{NewTaskEvent(TaskRestarting).SetRestartReason("Chaos Monkey did it"), "Chaos Monkey did it - Task restarting in 0s"},
+		{NewTaskEvent(TaskKilling), "Sent interrupt"},
+		{NewTaskEvent(TaskKilling).SetKillReason("Its time for you to die"), "Killing task: Its time for you to die"},
+		{NewTaskEvent(TaskKilling).SetKillTimeout(1 * time.Second), "Sent interrupt. Waiting 1s before force killing"},
+		{NewTaskEvent(TaskTerminated).SetExitCode(-1).SetSignal(3), "Exit Code: -1, Signal: 3"},
+		{NewTaskEvent(TaskTerminated).SetMessage("Goodbye"), "Exit Code: 0, Exit Message: \"Goodbye\""},
+		{NewTaskEvent(TaskKilled), "Task successfully killed"},
+		{NewTaskEvent(TaskKilled).SetKillError(fmt.Errorf("undead creatures can't be killed")), "undead creatures can't be killed"},
+		{NewTaskEvent(TaskNotRestarting).SetRestartReason("Chaos Monkey did it"), "Chaos Monkey did it"},
+		{NewTaskEvent(TaskNotRestarting), "Task exceeded restart policy"},
+		{NewTaskEvent(TaskLeaderDead), "Leader Task in Group dead"},
+		{NewTaskEvent(TaskSiblingFailed), "Task's sibling failed"},
+		{NewTaskEvent(TaskSiblingFailed).SetFailedSibling("patient zero"), "Task's sibling \"patient zero\" failed"},
+		{NewTaskEvent(TaskSignaling), "Task being sent a signal"},
+		{NewTaskEvent(TaskSignaling).SetTaskSignal(os.Interrupt), "Task being sent signal interrupt"},
+		{NewTaskEvent(TaskSignaling).SetTaskSignal(os.Interrupt).SetTaskSignalReason("process interrupted"), "Task being sent signal interrupt: process interrupted"},
+		{NewTaskEvent(TaskRestartSignal), "Task signaled to restart"},
+		{NewTaskEvent(TaskRestartSignal).SetRestartReason("Chaos Monkey restarted it"), "Chaos Monkey restarted it"},
+		{NewTaskEvent(TaskDriverMessage).SetDriverMessage("YOLO"), "YOLO"},
+		{NewTaskEvent("Unknown Type, No message"), ""},
+		{NewTaskEvent("Unknown Type").SetMessage("Hello world"), "Hello world"},
+	}
+
+	for _, tc := range testcases {
+		tc.event.PopulateEventDisplayMessage()
+		if tc.event != nil && tc.event.DisplayMessage != tc.expectedMsg {
+			t.Fatalf("Expected %v but got %v", tc.expectedMsg, tc.event.DisplayMessage)
+		}
+	}
 }

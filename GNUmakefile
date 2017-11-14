@@ -1,10 +1,11 @@
+SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
-GO_LDFLAGS := "-X main.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
+GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
 default: help
@@ -257,10 +258,16 @@ test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
 		go test \
+			-v \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test ent $(if $(HAS_LXC),lxc)" \
-			./...
+			-tags="nomad_test ent $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
+	@echo "Exit code: $$(cat exit-code)" >> test.log
+	@grep -A1 -- '--- FAIL:' test.log || true
+	@grep '^FAIL' test.log || true
+	@grep -A10 'panic' test.log || true
+	@test "$$TRAVIS" == "true" && cat test.log || true
+	@if [ "$$(cat exit-code)" == "0" ] ; then echo "PASS" ; exit 0 ; else exit 1 ; fi
 
 .PHONY: protest
 protest: prodev ## Run Nomad test suites

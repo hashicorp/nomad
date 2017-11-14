@@ -12,9 +12,9 @@ function minimumSetup() {
   server.createList('agent', 1);
 }
 
-moduleForAcceptance('Acceptance | nodes list');
+moduleForAcceptance('Acceptance | clients list');
 
-test('/nodes should list one page of clients', function(assert) {
+test('/clients should list one page of clients', function(assert) {
   // Make sure to make more nodes than 1 page to assert that pagination is working
   const nodesCount = 10;
   const pageSize = 8;
@@ -22,7 +22,7 @@ test('/nodes should list one page of clients', function(assert) {
   server.createList('node', nodesCount);
   server.createList('agent', 1);
 
-  visit('/nodes');
+  visit('/clients');
 
   andThen(() => {
     assert.equal(findAll('.client-node-row').length, pageSize);
@@ -34,7 +34,7 @@ test('/nodes should list one page of clients', function(assert) {
       assert.equal(
         $(`.client-node-row:eq(${nodeNumber}) td:eq(0)`).text(),
         sortedNodes[nodeNumber].id.split('-')[0],
-        'Nodes are ordered'
+        'Clients are ordered'
       );
     }
   });
@@ -44,7 +44,7 @@ test('each client record should show high-level info of the client', function(as
   minimumSetup();
   const node = server.db.nodes[0];
 
-  visit('/nodes');
+  visit('/clients');
 
   andThen(() => {
     const nodeRow = $(findAll('.client-node-row')[0]);
@@ -65,20 +65,20 @@ test('each client should link to the client detail page', function(assert) {
   minimumSetup();
   const node = server.db.nodes[0];
 
-  visit('/nodes');
+  visit('/clients');
   andThen(() => {
     click(findAll('.client-node-row')[0]);
   });
 
   andThen(() => {
-    assert.equal(currentURL(), `/nodes/${node.id}`);
+    assert.equal(currentURL(), `/clients/${node.id}`);
   });
 });
 
 test('when there are no clients, there is an empty message', function(assert) {
   server.createList('agent', 1);
 
-  visit('/nodes');
+  visit('/clients');
 
   andThen(() => {
     assert.ok(find('.empty-message'));
@@ -92,7 +92,7 @@ test('when there are clients, but no matches for a search term, there is an empt
   server.createList('agent', 1);
   server.create('node', { name: 'node' });
 
-  visit('/nodes');
+  visit('/clients');
 
   andThen(() => {
     fillIn('.search-box input', 'client');
@@ -111,7 +111,7 @@ test('when accessing clients is forbidden, show a message with a link to the tok
   server.create('node', { name: 'node' });
   server.pretender.get('/v1/nodes', () => [403, {}, null]);
 
-  visit('/nodes');
+  visit('/clients');
 
   andThen(() => {
     assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');

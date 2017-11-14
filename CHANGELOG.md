@@ -1,3 +1,43 @@
+## 0.7.1 (Unreleased)
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
+   deprecated since earlier this year. If you have an Atlas stanza in your
+   config file it will have to be removed. 
+
+IMPROVEMENTS:
+ * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
+   to TLS rather than changing `heartbeat_grace`
+ * api: Allocations now track and return modify time in addition to create time
+   [GH-3446]
+ * api: Introduced new fields to track details and display message for task
+   events, and deprecated redundant existing fields [GH-3399]
+ * cli: Allocation create and modify times are displayed in a human readable
+   relative format like `6 h ago` [GH-3449]
+ * client: Added metrics to track state transitions of allocations [GH-3061]
+ * driver/docker: Detect OOM kill event [GH-3459]
+ * driver/docker: Adds support for adding host device to container via `--device` [GH-2938]
+ * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
+
+BUG FIXES:
+
+ * core: Fixed an issue where the leader server could get into a state where it
+   was no longer performing the periodic leader loop duties after a barrier
+   timeout error [GH-3402]
+ * api: Apply correct memory default when task's do not specify memory
+   explicitly [GH-3520]
+ * cli: Fix passing Consul address via flags [GH-3504]
+ * cli: Fix panic when running `keyring` commands [GH-3509]
+ * client: Fix allocation accounting in GC and trigger GCs on allocation
+   updates [GH-3445]
+ * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
+   to a previously stable job that fails to start up causes an infinite cycle of reverts [GH-3496]
+ * template: Fix issue where multiple environment variable templates would be
+   parsed incorrectly when contents of one have changed after the initial
+   rendering [GH-3529]
+ * sentinel: (Nomad Enterprise) Fix an issue that could cause an import error
+   when multiple Sentinel policies are applied
+ 
 ## 0.7.0 (November 1, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__

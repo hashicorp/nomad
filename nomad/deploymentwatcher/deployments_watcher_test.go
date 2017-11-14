@@ -281,6 +281,9 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
 	j2.Stable = false
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
+
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
 
 	w.SetEnabled(true, m.state)
@@ -298,6 +301,66 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 			StatusDescription: structs.DeploymentStatusDescriptionFailedAllocations,
 		},
 		JobVersion: helper.Uint64ToPtr(0),
+	}
+	matcher := matchDeploymentAllocHealthRequest(matchConfig)
+	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
+
+	// Call SetAllocHealth
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:           d.ID,
+		UnhealthyAllocationIDs: []string{a.ID},
+	}
+	var resp structs.DeploymentUpdateResponse
+	err := w.SetAllocHealth(req, &resp)
+	assert.Nil(err, "SetAllocHealth")
+
+	testutil.WaitForResult(func() (bool, error) { return 0 == len(w.watchers), nil },
+		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
+	m.AssertNumberOfCalls(t, "UpdateDeploymentAllocHealth", 1)
+}
+
+// Test setting allocation unhealthy on job with identical spec and there should be no rollback
+func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	w, m := defaultTestDeploymentWatcher(t)
+
+	// Create a job, alloc, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	j.Stable = true
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups["web"].AutoRevert = true
+	a := mock.Alloc()
+	a.DeploymentID = d.ID
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Upsert the job again to get a new version
+	j2 := j.Copy()
+	j2.Stable = false
+
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
+		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
+
+	// Assert that we get a call to UpsertDeploymentAllocHealth
+	matchConfig := &matchDeploymentAllocHealthRequestConfig{
+		DeploymentID: d.ID,
+		Unhealthy:    []string{a.ID},
+		Eval:         true,
+		DeploymentUpdate: &structs.DeploymentStatusUpdate{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusFailed,
+			StatusDescription: structs.DeploymentStatusDescriptionFailedAllocations,
+		},
+		JobVersion: nil,
 	}
 	matcher := matchDeploymentAllocHealthRequest(matchConfig)
 	m.On("UpdateDeploymentAllocHealth", mocker.MatchedBy(matcher)).Return(nil)
@@ -639,6 +702,8 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 
 	// Upsert the job again to get a new version
 	j2 := j.Copy()
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 	j2.Stable = false
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
 
@@ -732,6 +797,115 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 	m.AssertCalled(t, "UpdateDeploymentStatus", mocker.MatchedBy(m3))
 	testutil.WaitForResult(func() (bool, error) { return 0 == len(w.watchers), nil },
 		func(err error) { assert.Equal(0, len(w.watchers), "Should have no deployment") })
+}
+
+// Tests that the watcher fails rollback when the spec hasn't changed
+func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	// Create a job, alloc, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	j.Stable = true
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups["web"].AutoRevert = true
+	a := mock.Alloc()
+	a.DeploymentID = d.ID
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Upsert the job again to get a new version
+	j2 := j.Copy()
+	// Modify the job to make its specification different
+	j2.Stable = false
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
+		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
+
+	// Assert that we will get a createEvaluation call only once. This will
+	// verify that the watcher is batching allocation changes
+	m1 := matchUpsertEvals([]string{d.ID})
+	m.On("UpsertEvals", mocker.MatchedBy(m1)).Return(nil).Once()
+
+	// Update the allocs health to healthy which should create an evaluation
+	for i := 0; i < 5; i++ {
+		req := &structs.ApplyDeploymentAllocHealthRequest{
+			DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+				DeploymentID:         d.ID,
+				HealthyAllocationIDs: []string{a.ID},
+			},
+		}
+		assert.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+	}
+
+	// Wait for there to be one eval
+	testutil.WaitForResult(func() (bool, error) {
+		ws := memdb.NewWatchSet()
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals); l != 1 {
+			return false, fmt.Errorf("Got %d evals; want 1", l)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	// Assert that we get a call to UpsertDeploymentStatusUpdate with roll back failed as the status
+	c := &matchDeploymentStatusUpdateConfig{
+		DeploymentID:      d.ID,
+		Status:            structs.DeploymentStatusFailed,
+		StatusDescription: structs.DeploymentStatusDescriptionRollbackNoop(structs.DeploymentStatusDescriptionFailedAllocations, 0),
+		JobVersion:        nil,
+		Eval:              true,
+	}
+	m2 := matchDeploymentStatusUpdateRequest(c)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(m2)).Return(nil)
+
+	// Update the allocs health to unhealthy which will cause attempting a rollback,
+	// fail in that step, do status update and eval
+	req2 := &structs.ApplyDeploymentAllocHealthRequest{
+		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
+			DeploymentID:           d.ID,
+			UnhealthyAllocationIDs: []string{a.ID},
+		},
+	}
+	assert.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+
+	// Wait for there to be one eval
+	testutil.WaitForResult(func() (bool, error) {
+		ws := memdb.NewWatchSet()
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals); l != 2 {
+			return false, fmt.Errorf("Got %d evals; want 1", l)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	m.AssertCalled(t, "UpsertEvals", mocker.MatchedBy(m1))
+
+	// verify that the job version hasn't changed after upsert
+	m.state.JobByID(nil, structs.DefaultNamespace, j.ID)
+	assert.Equal(uint64(0), j.Version, "Expected job version 0 but got ", j.Version)
 }
 
 // Test evaluations are batched between watchers

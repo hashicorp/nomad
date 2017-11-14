@@ -150,6 +150,7 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 		if alloc.CreateTime == 0 {
 			alloc.CreateTime = now
 		}
+		alloc.ModifyTime = now
 	}
 
 	// Dispatch the Raft transaction

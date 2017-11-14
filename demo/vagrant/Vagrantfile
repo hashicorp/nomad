@@ -10,14 +10,14 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip curl vim \
     software-properties-common
 
 # Download Nomad
-NOMAD_VERSION=0.6.3
+NOMAD_VERSION=0.7.0
 
 echo "Fetching Nomad..."
 cd /tmp/
 curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
 
 echo "Fetching Consul..."
-curl -sSL https://releases.hashicorp.com/consul/0.9.3/consul_0.9.3_linux_amd64.zip > consul.zip
+curl -sSL https://releases.hashicorp.com/consul/1.0.0/consul_1.0.0_linux_amd64.zip > consul.zip
 
 echo "Installing Nomad..."
 unzip nomad.zip
@@ -84,6 +84,9 @@ Vagrant.configure(2) do |config|
   config.vm.hostname = "nomad"
   config.vm.provision "shell", inline: $script, privileged: false
   config.vm.provision "docker" # Just install it
+  
+  # Expose the nomad api and ui to the host
+  config.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
 
   # Increase memory for Parallels Desktop
   config.vm.provider "parallels" do |p, o|

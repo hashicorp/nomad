@@ -68,7 +68,7 @@ func (c *KeyringCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *KeyringCommand) Run(args []string) int {
-	var installKey, useKey, removeKey, token string
+	var installKey, useKey, removeKey string
 	var listKeys bool
 
 	flags := c.Meta.FlagSet("keys", FlagSetClient)
@@ -78,7 +78,6 @@ func (c *KeyringCommand) Run(args []string) int {
 	flags.StringVar(&useKey, "use", "", "use key")
 	flags.StringVar(&removeKey, "remove", "", "remove key")
 	flags.BoolVar(&listKeys, "list", false, "list keys")
-	flags.StringVar(&token, "token", "", "acl token")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

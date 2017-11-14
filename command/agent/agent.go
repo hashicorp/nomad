@@ -233,6 +233,11 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
 
+	// Setup telemetry related config
+	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
+	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
+	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
+
 	return conf, nil
 }
 
