@@ -43,7 +43,7 @@ type Runner struct {
 
 	// outStream and errStream are the io.Writer streams where the runner will
 	// write information. These can be modified by calling SetOutStream and
-        // SetErrStream accordingly.
+	// SetErrStream accordingly.
 
 	// inStream is the ioReader where the runner will read information.
 	outStream, errStream io.Writer
@@ -740,12 +740,13 @@ func (r *Runner) runTemplate(tmpl *template.Template, runCtx *templateRunCtx) (*
 
 		// Render the template, taking dry mode into account
 		result, err := Render(&RenderInput{
-			Backup:    config.BoolVal(templateConfig.Backup),
-			Contents:  result.Output,
-			Dry:       r.dry,
-			DryStream: r.outStream,
-			Path:      config.StringVal(templateConfig.Destination),
-			Perms:     config.FileModeVal(templateConfig.Perms),
+			Backup:         config.BoolVal(templateConfig.Backup),
+			Contents:       result.Output,
+			CreateDestDirs: config.BoolVal(templateConfig.CreateDestDirs),
+			Dry:            r.dry,
+			DryStream:      r.outStream,
+			Path:           config.StringVal(templateConfig.Destination),
+			Perms:          config.FileModeVal(templateConfig.Perms),
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "error rendering "+templateConfig.Display())
@@ -1252,14 +1253,14 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 		Clients:         clients,
 		MaxStale:        config.TimeDurationVal(c.MaxStale),
 		Once:            once,
-		RenewVault:      config.StringPresent(c.Vault.Token) && config.BoolVal(c.Vault.RenewToken),
+		RenewVault:      clients.Vault().Token() != "" && config.BoolVal(c.Vault.RenewToken),
 		RetryFuncConsul: watch.RetryFunc(c.Consul.Retry.RetryFunc()),
 		// TODO: Add a sane default retry - right now this only affects "local"
 		// dependencies like reading a file from disk.
 		RetryFuncDefault: nil,
 		RetryFuncVault:   watch.RetryFunc(c.Vault.Retry.RetryFunc()),
 		VaultGrace:       config.TimeDurationVal(c.Vault.Grace),
-		VaultToken:       config.StringVal(c.Vault.Token),
+		VaultToken:       clients.Vault().Token(),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "runner")

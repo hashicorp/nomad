@@ -655,6 +655,25 @@ func in(l, v interface{}) (bool, error) {
 	return false, nil
 }
 
+// Indent prefixes each line of a string with the specified number of spaces
+func indent(spaces int, s string) (string, error) {
+	var output, prefix []byte
+	var sp bool
+	var size int
+	prefix = []byte(strings.Repeat(" ", spaces))
+	sp = true
+	for _, c := range []byte(s) {
+		if sp && c != '\n' {
+			output = append(output, prefix...)
+			size += spaces
+		}
+		output = append(output, c)
+		sp = c == '\n'
+		size += 1
+	}
+	return string(output[:size]), nil
+}
+
 // loop accepts varying parameters and differs its behavior. If given one
 // parameter, loop will return a goroutine that begins at 0 and loops until the
 // given int, increasing the index by 1 each iteration. If given two parameters,
