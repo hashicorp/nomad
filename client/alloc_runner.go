@@ -932,6 +932,7 @@ OUTER:
 				r.logger.Printf("[WARN] client: failed to sync alloc %q status upon receiving alloc update: %v",
 					r.allocID, err)
 			}
+
 		case <-r.ctx.Done():
 			taskDestroyEvent = structs.NewTaskEvent(structs.TaskKilled)
 			break OUTER
@@ -967,10 +968,17 @@ func (r *AllocRunner) destroyTaskRunners(destroyEvent *structs.TaskEvent) {
 		tr := r.tasks[leader]
 		r.taskLock.RUnlock()
 
-		r.logger.Printf("[DEBUG] client: alloc %q destroying leader task %q of task group %q first",
-			r.allocID, leader, r.alloc.TaskGroup)
-		tr.Destroy(destroyEvent)
-		<-tr.WaitCh()
+		// Dead tasks don't have a task runner created so guard against
+		// the leader being dead when this AR was saved.
+		if tr == nil {
+			r.logger.Printf("[DEBUG] client: alloc %q leader task %q of task group %q already stopped",
+				r.allocID, leader, r.alloc.TaskGroup)
+		} else {
+			r.logger.Printf("[DEBUG] client: alloc %q destroying leader task %q of task group %q first",
+				r.allocID, leader, r.alloc.TaskGroup)
+			tr.Destroy(destroyEvent)
+			<-tr.WaitCh()
+		}
 	}
 
 	// Then destroy non-leader tasks concurrently

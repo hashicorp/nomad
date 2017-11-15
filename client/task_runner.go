@@ -237,7 +237,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	// Build the restart tracker.
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
-		logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
+		logger.Printf("[ERR] client: alloc %q for missing task group %q", alloc.ID, alloc.TaskGroup)
 		return nil
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)

@@ -32,6 +32,8 @@ BUG FIXES:
    explicitly [GH-3520]
  * cli: Fix passing Consul address via flags [GH-3504]
  * cli: Fix panic when running `keyring` commands [GH-3509]
+ * client: Fix a panic when restoring an allocation with a dead leader task
+   [GH-3502]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
