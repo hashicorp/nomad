@@ -3074,13 +3074,12 @@ func (s *Service) Validate() error {
 	var mErr multierror.Error
 
 	// Ensure the service name is valid per the below RFCs but make an exception
-	// for our interpolation syntax
-	// RFC-952 §1 (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
-	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
-	// (https://tools.ietf.org/html/rfc2782).
-	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9\$][a-zA-Z0-9\-\$\{\}\_\.]*[a-z0-9\}])$`)
-	if !re.MatchString(s.Name) {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
+	// for our interpolation syntax by first stripping any environment variables from the name
+
+	serviceNameStripped := args.ReplaceEnvWithPlaceHolder(s.Name, "ENV-VAR")
+
+	if err := s.ValidateName(serviceNameStripped); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	switch s.AddressMode {

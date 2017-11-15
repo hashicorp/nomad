@@ -1682,6 +1682,14 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
+		Name:      "my_service-${NOMAD_META_FOO}",
+		PortLabel: "bar",
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("Service should be invalid (contains underscore but not in a variable name): %v", err)
+	}
+
+	s = Service{
 		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
 		PortLabel: "bar",
 	}
