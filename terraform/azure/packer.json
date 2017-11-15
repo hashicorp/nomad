@@ -18,9 +18,9 @@
     "image_sku": "16.04-LTS",
     "os_type": "Linux",
     "ssh_username": "packer",
-    "managed_image_name": "nomad",
+    "managed_image_name": "hashistack",
     "azure_tags": {
-      "Product": "Consul"
+      "Product": "Hashistack"
     }
   }],
   "provisioners":  [
@@ -33,17 +33,17 @@
   },
   {
     "type": "file",
-    "source": "../../shared",
+    "source": "../shared",
     "destination": "/ops"
   },
   {
     "type": "file",
-    "source": "../../examples",
+    "source": "../examples",
     "destination": "/ops"
   },
   {
     "type": "shell",
-    "script": "../../shared/scripts/setup.sh"
+    "script": "../shared/scripts/setup.sh"
   },
   {
     "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
