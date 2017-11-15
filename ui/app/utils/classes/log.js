@@ -45,7 +45,7 @@ const Log = EmberObject.extend(Evented, {
         newTail = newTail.substr(newTail.length - 50000);
       }
       this.set('tail', newTail);
-      this.trigger('tick');
+      this.trigger('tick', chunk);
     };
 
     if (window.ReadableStream) {

@@ -1,0 +1,14 @@
+<div class="boxed-section-head">
+  <button class="button is-info is-outlined" {{action "setMode" "stdout"}}>stdout</button>
+  <button class="button is-danger is-outlined" {{action "setMode" "stderr"}}>stderr</button>
+  <span class="pull-right">
+    <button class="button is-outlined" onclick={{perform head}}>Head</button>
+    <button class="button is-outlined" onclick={{perform tail}}>Tail</button>
+    <button class="button is-outlined" onclick={{action "toggleStream"}}>
+      {{if logger.isStreaming "Pause" "Play"}}
+    </button>
+  </span>
+</div>
+<div class="boxed-section-body is-dark is-full-bleed">
+  <pre class="cli-window"><code>{{logger.output}}</code></pre>
+</div>
