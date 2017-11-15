@@ -50,11 +50,11 @@ client {
   with user-defined metadata.
 
 - `network_interface` `(string: varied)` - Specifies the name of the interface
-  to force network fingerprinting on. When run in dev mode, this is defaulted
-  to the machine's loopback interface. If not in dev mode, the interface attached
-  to the default route is used. All addresses on the interface are fingerprinted
-  except those that are scoped local for IPv6. When allocating ports for tasks,
-  the scheduler will choose from the IPs of the fingerprinted interface.
+  to force network fingerprinting on. When run in dev mode, this defaults to the
+  loopback interface. When not in dev mode, the interface attached to the
+  default route is used. All IP addresses except those scoped local for IPV6 on
+  the chosen interface are fingerprinted. The scheduler chooses from those IP
+  addresses when allocating ports for tasks.
 
 - `network_speed` `(int: 0)` - Specifies an override for the network link speed.
   This value, if set, overrides any detected or defaulted link speed. Most
