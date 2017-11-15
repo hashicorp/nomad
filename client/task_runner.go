@@ -1891,6 +1891,14 @@ func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 		return
 	}
 
+	// If the task is not running don't emit anything
+	r.runningLock.Lock()
+	running := r.running
+	r.runningLock.Unlock()
+	if !running {
+		return
+	}
+
 	if ru.ResourceUsage.MemoryStats != nil {
 		r.setGaugeForMemory(ru)
 	}
