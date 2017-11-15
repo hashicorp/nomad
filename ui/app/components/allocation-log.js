@@ -1,10 +1,11 @@
 import Ember from 'ember';
-import { logger } from 'nomad-ui/utils/classes/log';
 import { task } from 'ember-concurrency';
+import { logger } from 'nomad-ui/utils/classes/log';
+import WindowResizable from 'nomad-ui/mixins/window-resizable';
 
 const { Component, computed, inject, run } = Ember;
 
-export default Component.extend({
+export default Component.extend(WindowResizable, {
   token: inject.service(),
 
   classNames: ['boxed-section'],
@@ -16,6 +17,21 @@ export default Component.extend({
     if (this.get('allocation') && this.get('task')) {
       this.send('toggleStream');
     }
+  },
+
+  didInsertElement() {
+    this.fillAvailableHeight();
+  },
+
+  windowResizeHandler() {
+    run.once(this, this.fillAvailableHeight);
+  },
+
+  fillAvailableHeight() {
+    // This math is arbitrary and far from bulletproof, but the UX
+    // of having the log window fill available height is worth the hack.
+    const cliWindow = this.$('.cli-window');
+    cliWindow.height(window.innerHeight - cliWindow.offset().top - 25);
   },
 
   mode: 'stdout',
@@ -49,14 +65,15 @@ export default Component.extend({
   tail: task(function*() {
     yield this.get('logger.gotoTail').perform();
     run.scheduleOnce('afterRender', () => {
-      this.$('.cli-window').scrollTop(this.$('.cli-window')[0].scrollHeight);
+      const cliWindow = this.$('.cli-window');
+      cliWindow.scrollTop(cliWindow[0].scrollHeight);
     });
   }),
 
   stream: task(function*() {
     this.get('logger').on('tick', () => {
-      var cliWindow = this.$('.cli-window');
       run.scheduleOnce('afterRender', () => {
+        const cliWindow = this.$('.cli-window');
         cliWindow.scrollTop(cliWindow[0].scrollHeight);
       });
     });
@@ -65,17 +82,19 @@ export default Component.extend({
     this.get('logger').off('tick');
   }),
 
+  willDestroy() {
+    this.get('logger').stop();
+  },
+
   actions: {
     setMode(mode) {
-      this.send('stopStreaming');
-      this.set('mode', mode);
-    },
-    stopStreaming() {
       this.get('logger').stop();
+      this.set('mode', mode);
+      this.get('stream').perform();
     },
     toggleStream() {
       if (this.get('logger.isStreaming')) {
-        this.send('stopStreaming');
+        this.get('logger').stop();
       } else {
         this.get('stream').perform();
       }
