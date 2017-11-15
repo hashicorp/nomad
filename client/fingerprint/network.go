@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -167,47 +168,25 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 	return nwResources, nil
 }
 
-// Checks if the device is marked UP by the operator
-func (f *NetworkFingerprint) isDeviceEnabled(intf *net.Interface) bool {
-	return intf.Flags&net.FlagUp != 0
-}
-
-// Checks if the device has any IP address configured
-func (f *NetworkFingerprint) deviceHasIpAddress(intf *net.Interface) bool {
-	addrs, err := f.interfaceDetector.Addrs(intf)
-	return err == nil && len(addrs) != 0
-}
-
-func (n *NetworkFingerprint) isDeviceLoopBackOrPointToPoint(intf *net.Interface) bool {
-	return intf.Flags&(net.FlagLoopback|net.FlagPointToPoint) != 0
-}
-
-// Returns the interface with the name passed by user
-// If the name is blank then it iterates through all the devices
-// and finds one which is routable and marked as UP
-// It excludes PPP and lo devices unless they are specifically asked
+// Returns the interface with the name passed by user. If the name is blank, we
+// use the interface attached to the default route.
 func (f *NetworkFingerprint) findInterface(deviceName string) (*net.Interface, error) {
-	var interfaces []net.Interface
-	var err error
-
-	if deviceName != "" {
-		return f.interfaceDetector.InterfaceByName(deviceName)
-	}
-
-	var intfs []net.Interface
-
-	if intfs, err = f.interfaceDetector.Interfaces(); err != nil {
-		return nil, err
-	}
-
-	for _, intf := range intfs {
-		if f.isDeviceEnabled(&intf) && !f.isDeviceLoopBackOrPointToPoint(&intf) && f.deviceHasIpAddress(&intf) {
-			interfaces = append(interfaces, intf)
+	// If we aren't given a device, look it up by using the interface with the default route
+	if deviceName == "" {
+		ri, err := sockaddr.NewRouteInfo()
+		if err != nil {
+			return nil, err
 		}
+
+		defaultIfName, err := ri.GetDefaultInterfaceName()
+		if err != nil {
+			return nil, err
+		}
+		if defaultIfName == "" {
+			return nil, fmt.Errorf("no network_interface given and failed to determine interface attached to default route")
+		}
+		deviceName = defaultIfName
 	}
 
-	if len(interfaces) == 0 {
-		return nil, nil
-	}
-	return &interfaces[0], nil
+	return f.interfaceDetector.InterfaceByName(deviceName)
 }

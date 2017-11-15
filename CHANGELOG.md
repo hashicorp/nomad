@@ -17,6 +17,8 @@ IMPROVEMENTS:
  * cli: Allocation create and modify times are displayed in a human readable
    relative format like `6 h ago` [GH-3449]
  * client: Added metrics to track state transitions of allocations [GH-3061]
+ * client: When `network_interface` is unspecified use interface attached to
+   default route [GH-3546]
  * driver/docker: Detect OOM kill event [GH-3459]
  * driver/docker: Adds support for adding host device to container via `--device` [GH-2938]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
