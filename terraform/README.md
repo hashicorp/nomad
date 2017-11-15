@@ -16,7 +16,7 @@ to bootstrap a local staging environment:
 
 ```bash
 $ git clone git@github.com:hashicorp/nomad.git
-$ cd terraform/aws
+$ cd terraform
 $ vagrant up && vagrant ssh
 ```
 
@@ -25,8 +25,8 @@ Azure CLI.
 
 ## Provision a cluster
 
-Follow the steps [here](aws/README.md) to provision a cluster on AWS.
-Follow the steps [here](azure/README.md) to provision a cluster on Azure.
+- Follow the steps [here](aws/README.md) to provision a cluster on AWS.
+- Follow the steps [here](azure/README.md) to provision a cluster on Azure.
 
 Continue with the steps below after a cluster has been provisioned.
 
