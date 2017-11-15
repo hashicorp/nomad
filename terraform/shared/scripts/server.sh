@@ -26,9 +26,9 @@ sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul.json
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
 sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
-sudo cp $CONFIGDIR/consul_upstart_$CLOUD.conf /etc/init/consul.conf
+sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
 
-sudo service consul start
+sudo systemctl start consul.service
 sleep 10
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
@@ -36,17 +36,16 @@ export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 # Vault
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/vault.hcl
 sudo cp $CONFIGDIR/vault.hcl $VAULTCONFIGDIR
-sudo cp $CONFIGDIR/vault_upstart.conf /etc/init/vault.conf
+sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
 
-sudo service vault start
+sudo systemctl start vault.service
 
 # Nomad
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/nomad.hcl
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/nomad.hcl
 sudo cp $CONFIGDIR/nomad.hcl $NOMADCONFIGDIR
-sudo cp $CONFIGDIR/nomad_upstart.conf /etc/init/nomad.conf
+sudo cp $CONFIGDIR/nomad.service /etc/systemd/system/nomad.service
 
-sudo service nomad start
+sudo systemctl start nomad.service
 sleep 10
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
