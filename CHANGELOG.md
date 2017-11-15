@@ -6,10 +6,10 @@ __BACKWARDS INCOMPATIBILITIES:__
    config file it will have to be removed.
 
 IMPROVEMENTS:
+ * core: Allow operators to reload TLS certificate and key files via SIGHUP
+   [GH-3479]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`
- * core: Allow operators to reload TLS certificate and key files via SIGHUP
-   #3479
  * api: Allocations now track and return modify time in addition to create time
    [GH-3446]
  * api: Introduced new fields to track details and display message for task
