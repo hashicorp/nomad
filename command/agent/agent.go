@@ -43,7 +43,9 @@ const (
 // scheduled to, and are responsible for interfacing with
 // servers to run allocations.
 type Agent struct {
-	config    *Config
+	config     *Config
+	configLock sync.Mutex
+
 	logger    *log.Logger
 	logOutput io.Writer
 
@@ -722,6 +724,40 @@ func (a *Agent) Stats() map[string]map[string]string {
 		}
 	}
 	return stats
+}
+
+// Reload handles configuration changes for the agent. Provides a method that
+// is easier to unit test, as this action is invoked via SIGHUP.
+func (a *Agent) Reload(newConfig *Config) error {
+	a.configLock.Lock()
+	defer a.configLock.Unlock()
+
+	if newConfig.TLSConfig != nil {
+
+		// TODO(chelseakomlo) In a later PR, we will introduce the ability to reload
+		// TLS configuration if the agent is not running with TLS enabled.
+		if a.config.TLSConfig != nil {
+			// Reload the certificates on the keyloader and on success store the
+			// updated TLS config. It is important to reuse the same keyloader
+			// as this allows us to dynamically reload configurations not only
+			// on the Agent but on the Server and Client too (they are
+			// referencing the same keyloader).
+			keyloader := a.config.TLSConfig.GetKeyLoader()
+			_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
+			if err != nil {
+				return err
+			}
+			a.config.TLSConfig = newConfig.TLSConfig
+			a.config.TLSConfig.KeyLoader = keyloader
+		}
+	}
+
+	return nil
+}
+
+// GetConfigCopy creates a replica of the agent's config, excluding locks
+func (a *Agent) GetConfig() *Config {
+	return a.config
 }
 
 // setupConsul creates the Consul client and starts its main Run loop.

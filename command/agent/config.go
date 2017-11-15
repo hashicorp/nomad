@@ -680,8 +680,7 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Apply the TLS Config
 	if result.TLSConfig == nil && b.TLSConfig != nil {
-		tlsConfig := *b.TLSConfig
-		result.TLSConfig = &tlsConfig
+		result.TLSConfig = b.TLSConfig.Copy()
 	} else if b.TLSConfig != nil {
 		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -367,6 +367,11 @@ func (c *Client) init() error {
 func (c *Client) Leave() error {
 	// TODO
 	return nil
+}
+
+// GetConfig returns the config of the client for testing purposes only
+func (c *Client) GetConfig() *config.Config {
+	return c.config
 }
 
 // Datacenter returns the datacenter for the given client
