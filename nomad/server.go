@@ -230,8 +230,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	var incomingTLS *tls.Config
 	if config.TLSConfig.EnableRPC {
 		tlsConf := config.tlsConfig()
-		isServerMode := true
-		tw, err := tlsConf.OutgoingTLSWrapper(isServerMode)
+		tw, err := tlsConf.OutgoingTLSWrapper()
 		if err != nil {
 			return nil, err
 		}

@@ -108,7 +108,7 @@ func (c *Config) LoadKeyPair() (*tls.Certificate, error) {
 // requests. It will return a nil config if this configuration should
 // not use TLS for outgoing connections. Provides a callback to
 // fetch certificates, allowing for reloading on the fly.
-func (c *Config) OutgoingTLSConfig(serverMode bool) (*tls.Config, error) {
+func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	// If VerifyServerHostname is true, that implies VerifyOutgoing
 	if c.VerifyServerHostname {
 		c.VerifyOutgoing = true
@@ -140,11 +140,8 @@ func (c *Config) OutgoingTLSConfig(serverMode bool) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	} else if cert != nil {
-		if serverMode {
-			tlsConfig.GetCertificate = c.KeyLoader.GetOutgoingCertificate
-		} else {
-			tlsConfig.Certificates = []tls.Certificate{*cert}
-		}
+		tlsConfig.GetCertificate = c.KeyLoader.GetOutgoingCertificate
+		tlsConfig.GetClientCertificate = c.KeyLoader.GetClientCertificate
 	}
 
 	return tlsConfig, nil
@@ -153,9 +150,9 @@ func (c *Config) OutgoingTLSConfig(serverMode bool) (*tls.Config, error) {
 // OutgoingTLSWrapper returns a a Wrapper based on the OutgoingTLS
 // configuration. If hostname verification is on, the wrapper
 // will properly generate the dynamic server name for verification.
-func (c *Config) OutgoingTLSWrapper(serverMode bool) (RegionWrapper, error) {
+func (c *Config) OutgoingTLSWrapper() (RegionWrapper, error) {
 	// Get the TLS config
-	tlsConfig, err := c.OutgoingTLSConfig(serverMode)
+	tlsConfig, err := c.OutgoingTLSConfig()
 	if err != nil {
 		return nil, err
 	}

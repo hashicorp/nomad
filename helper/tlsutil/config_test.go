@@ -80,8 +80,7 @@ func TestConfig_OutgoingTLS_MissingCA(t *testing.T) {
 	conf := &Config{
 		VerifyOutgoing: true,
 	}
-	isServerMode := false
-	tls, err := conf.OutgoingTLSConfig(isServerMode)
+	tls, err := conf.OutgoingTLSConfig()
 	if err == nil {
 		t.Fatalf("expected err")
 	}
@@ -94,8 +93,7 @@ func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
 	conf := &Config{
 		CAFile: cacert,
 	}
-	isServerMode := false
-	tls, err := conf.OutgoingTLSConfig(isServerMode)
+	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -109,8 +107,7 @@ func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
 		VerifyOutgoing: true,
 		CAFile:         cacert,
 	}
-	isServerMode := true
-	tls, err := conf.OutgoingTLSConfig(isServerMode)
+	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -130,8 +127,7 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 		VerifyServerHostname: true,
 		CAFile:               cacert,
 	}
-	isServerMode := true
-	tls, err := conf.OutgoingTLSConfig(isServerMode)
+	tls, err := conf.OutgoingTLSConfig()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -156,8 +152,7 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 		KeyFile:        fookey,
 		KeyLoader:      &config.KeyLoader{},
 	}
-	isServerMode := true
-	tlsConf, err := conf.OutgoingTLSConfig(isServerMode)
+	tlsConf, err := conf.OutgoingTLSConfig()
 	assert.Nil(err)
 	assert.NotNil(tlsConf)
 	assert.Equal(len(tlsConf.RootCAs.Subjects()), 1)
@@ -221,8 +216,7 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 		t.Fatalf("startTLSServer err: %v", <-errc)
 	}
 
-	isServerMode := true
-	wrap, err := config.OutgoingTLSWrapper(isServerMode)
+	wrap, err := config.OutgoingTLSWrapper()
 	if err != nil {
 		t.Fatalf("OutgoingTLSWrapper err: %v", err)
 	}
@@ -258,8 +252,7 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 		t.Fatalf("startTLSServer err: %v", <-errc)
 	}
 
-	isServerMode := true
-	wrap, err := config.OutgoingTLSWrapper(isServerMode)
+	wrap, err := config.OutgoingTLSWrapper()
 	if err != nil {
 		t.Fatalf("OutgoingTLSWrapper err: %v", err)
 	}
@@ -292,8 +285,7 @@ func TestConfig_wrapTLS_OK(t *testing.T) {
 		t.Fatalf("startTLSServer err: %v", <-errc)
 	}
 
-	isServerMode := false
-	clientConfig, err := config.OutgoingTLSConfig(isServerMode)
+	clientConfig, err := config.OutgoingTLSConfig()
 	if err != nil {
 		t.Fatalf("OutgoingTLSConfig err: %v", err)
 	}
@@ -328,8 +320,7 @@ func TestConfig_wrapTLS_BadCert(t *testing.T) {
 		VerifyOutgoing: true,
 	}
 
-	isServerMode := false
-	clientTLSConfig, err := clientConfig.OutgoingTLSConfig(isServerMode)
+	clientTLSConfig, err := clientConfig.OutgoingTLSConfig()
 	if err != nil {
 		t.Fatalf("OutgoingTLSConfig err: %v", err)
 	}

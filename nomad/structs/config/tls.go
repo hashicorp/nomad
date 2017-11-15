@@ -75,13 +75,22 @@ func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, err
 	return k.certificate, nil
 }
 
-// GetOutgoingCertificate fetches the currently-loaded certificate. This
-// currently does not consider information in the ClientHello and only returns
-// the certificate that was last loaded.
+// GetOutgoingCertificate fetches the currently-loaded certificate when
+// accepting a TLS connection. This currently does not consider information in
+// the ClientHello and only returns the certificate that was last loaded.
 func (k *KeyLoader) GetOutgoingCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	k.cacheLock.Lock()
 	defer k.cacheLock.Unlock()
+	return k.certificate, nil
+}
 
+// GetClientCertificate fetches the currently-loaded certificate when the Server
+// requests a certificate from the caller. This currently does not consider
+// information in the ClientHello and only returns the certificate that was last
+// loaded.
+func (k *KeyLoader) GetClientCertificate(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	k.cacheLock.Lock()
+	defer k.cacheLock.Unlock()
 	return k.certificate, nil
 }
 
