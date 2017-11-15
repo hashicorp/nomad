@@ -1,11 +1,13 @@
 <div class="boxed-section-head">
-  <button class="button is-info is-outlined" {{action "setMode" "stdout"}}>stdout</button>
-  <button class="button is-danger is-outlined" {{action "setMode" "stderr"}}>stderr</button>
+  <span>
+    <button class="button {{if (eq mode "stdout") "is-info"}}" {{action "setMode" "stdout"}}>stdout</button>
+    <button class="button {{if (eq mode "stderr") "is-danger"}}" {{action "setMode" "stderr"}}>stderr</button>
+  </span>
   <span class="pull-right">
-    <button class="button is-outlined" onclick={{perform head}}>Head</button>
-    <button class="button is-outlined" onclick={{perform tail}}>Tail</button>
-    <button class="button is-outlined" onclick={{action "toggleStream"}}>
-      {{if logger.isStreaming "Pause" "Play"}}
+    <button class="button is-white" onclick={{perform head}}>Head</button>
+    <button class="button is-white" onclick={{perform tail}}>Tail</button>
+    <button class="button is-white" onclick={{action "toggleStream"}}>
+      {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
     </button>
   </span>
 </div>

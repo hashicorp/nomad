@@ -1,6 +1,10 @@
 .boxed-section {
   margin-bottom: 1.5em;
 
+  &:last-child {
+    margin-bottom: 0;
+  }
+
   .boxed-section-head,
   .boxed-section-foot {
     padding: 0.75em 1.5em;
