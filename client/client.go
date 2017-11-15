@@ -370,6 +370,11 @@ func (c *Client) Leave() error {
 	return nil
 }
 
+// GetConfig returns the config of the client for testing purposes only
+func (c *Client) GetConfig() *config.Config {
+	return c.config
+}
+
 // Datacenter returns the datacenter for the given client
 func (c *Client) Datacenter() string {
 	return c.config.Node.Datacenter

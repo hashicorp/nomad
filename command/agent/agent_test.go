@@ -22,7 +22,7 @@ func tmpDir(t testing.TB) string {
 	return dir
 }
 
-func TestAgent_RPCPing(t *testing.T) {
+func TestAgent_RPC_Ping(t *testing.T) {
 	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
@@ -560,6 +560,77 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 }
 
+// This test asserts that the keyloader embeded in the TLS config is shared
+// across the Agent, Server, and Client. This is essential for certificate
+// reloading to work.
+func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	// We will start out with a bad cert and then reload with a good one.
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer agent.Shutdown()
+
+	originalKeyloader := agent.Config.TLSConfig.GetKeyLoader()
+	originalCert, err := originalKeyloader.GetOutgoingCertificate(nil)
+	assert.NotNil(originalKeyloader)
+	if assert.Nil(err) {
+		assert.NotNil(originalCert)
+	}
+
+	// Switch to the correct certificates and reload
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		},
+	}
+
+	assert.Nil(agent.Reload(newConfig))
+	assert.Equal(agent.Config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.Config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+	assert.Equal(agent.Config.TLSConfig.GetKeyLoader(), originalKeyloader)
+
+	// Assert is passed through on the server correctly
+	if assert.NotNil(agent.server.GetConfig().TLSConfig) {
+		serverKeyloader := agent.server.GetConfig().TLSConfig.GetKeyLoader()
+		assert.Equal(serverKeyloader, originalKeyloader)
+		newCert, err := serverKeyloader.GetOutgoingCertificate(nil)
+		assert.Nil(err)
+		assert.NotEqual(originalCert, newCert)
+	}
+
+	// Assert is passed through on the client correctly
+	if assert.NotNil(agent.client.GetConfig().TLSConfig) {
+		clientKeyloader := agent.client.GetConfig().TLSConfig.GetKeyLoader()
+		assert.Equal(clientKeyloader, originalKeyloader)
+		newCert, err := clientKeyloader.GetOutgoingCertificate(nil)
+		assert.Nil(err)
+		assert.NotEqual(originalCert, newCert)
+	}
+}
+
 func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -571,8 +642,6 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
@@ -621,8 +690,6 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 		foocert2 = "invalid_cert_path"
 		fookey2  = "invalid_key_path"
 	)
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
