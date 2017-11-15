@@ -560,7 +560,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 }
 
-// This test asserts that the keyloader embeded in the TLS config is shared
+// This test asserts that the keyloader embedded in the TLS config is shared
 // across the Agent, Server, and Client. This is essential for certificate
 // reloading to work.
 func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
