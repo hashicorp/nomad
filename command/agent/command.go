@@ -529,11 +529,11 @@ func (c *Command) Run(args []string) int {
 	go c.retryJoin(config)
 
 	// Wait for exit
-	return c.handleSignals(config)
+	return c.handleSignals()
 }
 
 // handleSignals blocks until we get an exit-causing signal
-func (c *Command) handleSignals(config *Config) int {
+func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
@@ -557,18 +557,15 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		c.handleReload(config)
-		if c.agent.GetConfig() != nil {
-			*config = *c.agent.GetConfig()
-		}
+		c.handleReload()
 		goto WAIT
 	}
 
 	// Check if we should do a graceful leave
 	graceful := false
-	if sig == os.Interrupt && config.LeaveOnInt {
+	if sig == os.Interrupt && c.agent.GetConfig().LeaveOnInt {
 		graceful = true
-	} else if sig == syscall.SIGTERM && config.LeaveOnTerm {
+	} else if sig == syscall.SIGTERM && c.agent.GetConfig().LeaveOnTerm {
 		graceful = true
 	}
 
@@ -600,12 +597,12 @@ WAIT:
 }
 
 // handleReload is invoked when we should reload our configs, e.g. SIGHUP
-func (c *Command) handleReload(config *Config) *Config {
+func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
 		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
-		return config
+		return
 	}
 
 	// Change the log level
@@ -618,7 +615,7 @@ func (c *Command) handleReload(config *Config) *Config {
 			minLevel, c.logFilter.Levels))
 
 		// Keep the current log level
-		newConf.LogLevel = config.LogLevel
+		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
 	// Reloads configuration for an agent running in both client and server mode
@@ -637,8 +634,6 @@ func (c *Command) handleReload(config *Config) *Config {
 			}
 		}
 	}
-
-	return newConf
 }
 
 // setupTelemetry is used ot setup the telemetry sub-systems
