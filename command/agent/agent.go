@@ -726,16 +726,6 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
-func updateTLSConfig(newConfig *config.TLSConfig) (*config.TLSConfig, error) {
-	keyLoader := newConfig.GetKeyLoader()
-	_, err := keyLoader.LoadKeyPair(newConfig.CertFile, newConfig.KeyFile)
-	if err != nil {
-		return nil, err
-	}
-
-	return newConfig, nil
-}
-
 // Reload handles configuration changes for the agent. Provides a method that
 // is easier to unit test, as this action is invoked via SIGHUP.
 func (a *Agent) Reload(newConfig *Config) error {
@@ -747,11 +737,18 @@ func (a *Agent) Reload(newConfig *Config) error {
 		// TODO(chelseakomlo) In a later PR, we will introduce the ability to reload
 		// TLS configuration if the agent is not running with TLS enabled.
 		if a.config.TLSConfig != nil {
-			new, err := updateTLSConfig(newConfig.TLSConfig)
+			// Reload the certificates on the keyloader and on success store the
+			// updated TLS config. It is important to reuse the same keyloader
+			// as this allows us to dynamically reload configurations not only
+			// on the Agent but on the Server and Client too (they are
+			// referencing the same keyloader).
+			keyloader := a.config.TLSConfig.GetKeyLoader()
+			_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
 			if err != nil {
 				return err
 			}
-			a.config.TLSConfig = new
+			a.config.TLSConfig = newConfig.TLSConfig
+			a.config.TLSConfig.KeyLoader = keyloader
 		}
 	}
 

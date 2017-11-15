@@ -600,10 +600,14 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 		},
 	}
 
+	originalKeyloader := agentConfig.TLSConfig.GetKeyLoader()
+	assert.NotNil(originalKeyloader)
+
 	err := agent.Reload(newConfig)
 	assert.Nil(err)
 	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
 	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+	assert.Equal(agent.config.TLSConfig.GetKeyLoader(), originalKeyloader)
 }
 
 func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {

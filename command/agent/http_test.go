@@ -535,10 +535,10 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 
 	const (
 		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
 	agentConfig := &Config{
@@ -566,10 +566,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	})
 	defer s.Shutdown()
 
-	// Reload the TLS configuration==
-	err := s.Agent.Reload(newConfig)
-	assert.Nil(err)
-
+	// Make an initial request that should fail.
 	// Requests that specify a valid hostname, CA cert, and client
 	// certificate succeed.
 	tlsConf := &tls.Config{
@@ -596,11 +593,42 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	req, err := http.NewRequest("GET", httpsReqURL, nil)
 	assert.Nil(err)
 
-	resp, err := client.Do(req)
+	// Check that we get an error that the certificate isn't valid for the
+	// region we are contacting.
+	_, err = client.Do(req)
+	assert.Contains(err.Error(), "certificate is valid for")
+
+	// Reload the TLS configuration==
+	assert.Nil(s.Agent.Reload(newConfig))
+
+	// Requests that specify a valid hostname, CA cert, and client
+	// certificate succeed.
+	tlsConf = &tls.Config{
+		ServerName: "client.regionFoo.nomad",
+		RootCAs:    x509.NewCertPool(),
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			c, err := tls.LoadX509KeyPair(foocert2, fookey2)
+			if err != nil {
+				return nil, err
+			}
+			return &c, nil
+		},
+	}
+
+	cacertBytes, err = ioutil.ReadFile(cafile)
+	assert.Nil(err)
+	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
+
+	transport = &http.Transport{TLSClientConfig: tlsConf}
+	client = &http.Client{Transport: transport}
+	req, err = http.NewRequest("GET", httpsReqURL, nil)
 	assert.Nil(err)
 
-	resp.Body.Close()
-	assert.Equal(resp.StatusCode, 200)
+	resp, err := client.Do(req)
+	if assert.Nil(err) {
+		resp.Body.Close()
+		assert.Equal(resp.StatusCode, 200)
+	}
 }
 
 // getIndex parses X-Nomad-Index
