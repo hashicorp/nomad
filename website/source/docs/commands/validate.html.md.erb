@@ -30,7 +30,11 @@ of 1 indicates an error.
 
 Service names are validated according to [RFC-1123](https://tools.ietf.org/html/rfc1123).
 Any environment variables in the name are ignored, because some environment variables can only
-be resolved in the node the job is run on.
+be resolved at run time. Invalid characters outside of environment variable names will not pass
+validation. 
+For example, if the service name is set to `my_service${NOMAD_NODE_NAME}` it will fail
+validation. However, if a service name is set to `myservice{NOMAD_NODE_NAME}` and the node name
+contains an invalid character, it will only be caught at run time and nomad validate will succeed.
 
 ## Examples
 
