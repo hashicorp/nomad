@@ -227,6 +227,14 @@ func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[
 	return portMap, nil
 }
 
+// rktRemove pod after it has exited.
+func rktRemove(uuid string) error {
+	cmd := exec.Command(rktCmd, "rm", uuid)
+	cmd.Stdout = ioutil.Discard
+	cmd.Stderr = ioutil.Discard
+	return cmd.Run()
+}
+
 // NewRktDriver is used to create a new rkt driver
 func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
@@ -671,9 +679,9 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	}
 	exec, pluginClient, err := createExecutorWithConfig(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERROR] driver.rkt: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.rkt: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.ExecutorPid); e != nil {
-			d.logger.Printf("[ERROR] driver.rkt: error destroying plugin and executor pid: %v", e)
+			d.logger.Printf("[ERR] driver.rkt: error destroying plugin and executor pid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -771,7 +779,7 @@ func (h *rktHandle) run() {
 	close(h.doneCh)
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.executorPid); e != nil {
-			h.logger.Printf("[ERROR] driver.rkt: error killing user process: %v", e)
+			h.logger.Printf("[ERR] driver.rkt: error killing user process: %v", e)
 		}
 	}
 
@@ -780,6 +788,13 @@ func (h *rktHandle) run() {
 		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()
+
+	// Remove the pod
+	if err := rktRemove(h.uuid); err != nil {
+		h.logger.Printf("[ERR] driver.rkt: error removing pod %q - must gc manually", h.uuid)
+	} else {
+		h.logger.Printf("[DEBUG] driver.rkt: removed pod %q", h.uuid)
+	}
 
 	// Send the results
 	h.waitCh <- dstructs.NewWaitResult(ps.ExitCode, 0, werr)

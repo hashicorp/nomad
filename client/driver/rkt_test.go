@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -166,16 +167,16 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	defer resp.Handle.Kill()
+	handle := resp.Handle.(*rktHandle)
+	defer handle.Kill()
 
 	// Update should be a no-op
-	err = resp.Handle.Update(task)
-	if err != nil {
+	if err := handle.Update(task); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Signal should be an error
-	if err = resp.Handle.Signal(syscall.SIGTERM); err == nil {
+	if err := resp.Handle.Signal(syscall.SIGTERM); err == nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -186,6 +187,18 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		}
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
+	}
+
+	// Make sure pod was removed #3561
+	var stderr bytes.Buffer
+	cmd := exec.Command(rktCmd, "status", handle.uuid)
+	cmd.Stdout = ioutil.Discard
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err == nil {
+		t.Fatalf("expected error running 'rkt status %s' on removed container", handle.uuid)
+	}
+	if out := stderr.String(); !strings.Contains(out, "no matches found") {
+		t.Fatalf("expected 'no matches found' but received: %s", out)
 	}
 }
 
