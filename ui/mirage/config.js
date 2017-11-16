@@ -173,9 +173,9 @@ export default function() {
       { params, queryParams }
     ) {
       const allocation = server.allocations.find(params.allocation_id);
-      const groups = server.taskGroups.findBy({ jobId: allocation.jobId });
+      const tasks = allocation.taskStateIds.map(id => server.taskStates.find(id));
 
-      if (!groups.mapBy('name').includes(queryParams.task)) {
+      if (!tasks.mapBy('name').includes(queryParams.task)) {
         return new Response(400, {}, 'must include task name');
       }
 

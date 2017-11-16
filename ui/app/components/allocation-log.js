@@ -8,7 +8,7 @@ const { Component, computed, inject, run } = Ember;
 export default Component.extend(WindowResizable, {
   token: inject.service(),
 
-  classNames: ['boxed-section'],
+  classNames: ['boxed-section', 'task-log'],
 
   allocation: null,
   task: null,
