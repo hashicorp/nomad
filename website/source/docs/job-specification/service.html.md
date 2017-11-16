@@ -89,6 +89,12 @@ does not automatically enable service discovery.
     - `${GROUP}` - the name of the group
     - `${TASK}` - the name of the task
     - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
+    
+    Any environment variables in the name are ignored during validation, because some environment variables can only
+    be resolved at run time. Invalid characters outside of environment variable names will not pass
+    validation. For example, if the service name is set to `my_service${NOMAD_NODE_NAME}` it will fail
+    validation. However, if a service name is set to `myservice${NOMAD_NODE_NAME}` and the node name
+    contains an invalid character, it will only be caught at run time and nomad validate will succeed.
 
 - `port` `(string: <required>)` - Specifies the label of the port on which this
   service is running. Note this is the _label_ of the port and not the port
