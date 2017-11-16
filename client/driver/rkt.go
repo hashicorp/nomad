@@ -229,10 +229,18 @@ func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[
 
 // rktRemove pod after it has exited.
 func rktRemove(uuid string) error {
+	errBuf := &bytes.Buffer{}
 	cmd := exec.Command(rktCmd, "rm", uuid)
 	cmd.Stdout = ioutil.Discard
-	cmd.Stderr = ioutil.Discard
-	return cmd.Run()
+	cmd.Stderr = errBuf
+	if err := cmd.Run(); err != nil {
+		if msg := errBuf.String(); len(msg) > 0 {
+			return fmt.Errorf("error removing pod %q: %s", uuid, msg)
+		}
+		return err
+	}
+
+	return nil
 }
 
 // NewRktDriver is used to create a new rkt driver
@@ -791,7 +799,7 @@ func (h *rktHandle) run() {
 
 	// Remove the pod
 	if err := rktRemove(h.uuid); err != nil {
-		h.logger.Printf("[ERR] driver.rkt: error removing pod %q - must gc manually", h.uuid)
+		h.logger.Printf("[ERR] driver.rkt: error removing pod %q - must gc manually: %v", h.uuid, err)
 	} else {
 		h.logger.Printf("[DEBUG] driver.rkt: removed pod %q", h.uuid)
 	}

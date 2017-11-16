@@ -589,3 +589,23 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 		t.Fatalf("error killing handle: %v", err)
 	}
 }
+
+func TestRktDriver_Remove_Error(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+
+	// Removing a non-existent pod should return an error
+	if err := rktRemove("00000000-0000-0000-0000-000000000000"); err == nil {
+		t.Fatalf("expected an error")
+	}
+
+	if err := rktRemove("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"); err == nil {
+		t.Fatalf("expected an error")
+	}
+}
