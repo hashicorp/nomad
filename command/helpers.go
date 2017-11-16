@@ -94,7 +94,7 @@ func fmtInt(buf []byte, v uint64) int {
 // is 10 months, 12 days, 3 hours and 2 seconds, the string "10mo12d" is returned. Zero values return the empty string
 func prettyTimeDiff(first, second time.Time) string {
 	// handle zero values
-	if first.Second() == 0 {
+	if first.IsZero() {
 		return ""
 	}
 	// round to the nearest second

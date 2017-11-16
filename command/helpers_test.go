@@ -296,25 +296,25 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 }
 
 func TestPrettyTimeDiff(t *testing.T) {
+	now := time.Now()
 	test_cases := []struct {
-		d   time.Duration
+		t1  time.Time
+		t2  time.Time
 		exp string
 	}{
-		{-100 * time.Millisecond, "0s ago"},
-		{-740 * time.Second, "12m20s ago"},
-		{-12 * time.Minute, "12m ago"},
-		{-60 * time.Minute, "1h ago"},
-		{-80 * time.Minute, "1h20m ago"},
-		{-6 * time.Hour, "6h ago"},
-		{-22165 * time.Second, "6h9m ago"},
-		{-100 * time.Hour, "4d4h ago"},
-		{-438000 * time.Minute, "10mo4d ago"},
-		{-20460 * time.Hour, "2y4mo ago"},
+		{now, now.Add(-10 * time.Millisecond), "0s ago"},
+		{now, now.Add(-740 * time.Second), "12m20s ago"},
+		{now, now.Add(-12 * time.Minute), "12m ago"},
+		{now, now.Add(-60 * time.Minute), "1h ago"},
+		{now, now.Add(-80 * time.Minute), "1h20m ago"},
+		{now, now.Add(-6 * time.Hour), "6h ago"},
+		{now, now.Add(-22165 * time.Second), "6h9m ago"},
+		{now, now.Add(-100 * time.Hour), "4d4h ago"},
+		{now, now.Add(-438000 * time.Minute), "10mo4d ago"},
+		{now, now.Add(-20460 * time.Hour), "2y4mo ago"},
 	}
 	for _, tc := range test_cases {
-		now := time.Now()
-		t2 := now.Add(tc.d)
-		out := prettyTimeDiff(t2, now)
+		out := prettyTimeDiff(tc.t2, tc.t1)
 		if out != tc.exp {
 			t.Fatalf("expected :%v but got :%v", tc.exp, out)
 		}
