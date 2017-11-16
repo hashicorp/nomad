@@ -1,18 +1,24 @@
 package agent
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -376,6 +382,85 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		respW = httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
 		assert.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
+	})
+}
+
+// TestHTTP_AllocSnapshot_Atomic ensures that when a client encounters an error
+// snapshotting a valid tar is not returned.
+func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create an alloc
+		state := s.server.State()
+		alloc := mock.Alloc()
+		alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+		alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "30s"
+		alloc.NodeID = s.client.NodeID()
+		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+		if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc.Copy()}); err != nil {
+			t.Fatalf("error upserting alloc: %v", err)
+		}
+
+		// Wait for the client to run it
+		testutil.WaitForResult(func() (bool, error) {
+			if _, err := s.client.GetClientAlloc(alloc.ID); err != nil {
+				return false, err
+			}
+
+			serverAlloc, err := state.AllocByID(nil, alloc.ID)
+			if err != nil {
+				return false, err
+			}
+
+			return serverAlloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf(serverAlloc.ClientStatus)
+		}, func(err error) {
+			t.Fatalf("client not running alloc: %v", err)
+		})
+
+		// Now write to its shared dir
+		allocDirI, err := s.client.GetAllocFS(alloc.ID)
+		if err != nil {
+			t.Fatalf("unable to find alloc dir: %v", err)
+		}
+		allocDir := allocDirI.(*allocdir.AllocDir)
+
+		// Remove the task dir to break Snapshot
+		os.RemoveAll(allocDir.TaskDirs["web"].LocalDir)
+
+		// Assert Snapshot fails
+		if err := allocDir.Snapshot(ioutil.Discard); err == nil {
+			t.Errorf("expected Snapshot() to fail but it did not")
+		} else {
+			s.logger.Printf("[DEBUG] agent.test: snapshot returned error: %v", err)
+		}
+
+		// Make the HTTP request to ensure the Snapshot error is
+		// propagated through to the HTTP layer and that a valid tar
+		// just isn't emitted.
+		respW := httptest.NewRecorder()
+		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/snapshot", alloc.ID), nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the request via the mux to make sure the error returned
+		// by Snapshot is properly propogated via HTTP
+		s.Server.mux.ServeHTTP(respW, req)
+		resp := respW.Result()
+		t.Logf("HTTP Response Status Code: %d", resp.StatusCode)
+		r := tar.NewReader(resp.Body)
+		for {
+			header, err := r.Next()
+			if err != nil {
+				if err == io.EOF {
+					t.Fatalf("Looks like a valid tar file to me?")
+				}
+				t.Logf("Yay! An error: %v", err)
+				return
+			}
+
+			t.Logf("Valid file returned: %s", header.Name)
+		}
 	})
 }
 

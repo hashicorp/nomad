@@ -246,6 +246,7 @@ func (d *AllocDir) Destroy() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to remove alloc dir %q: %v", d.AllocDir, err))
 	}
 
+	d.built = false
 	return mErr.ErrorOrNil()
 }
 
