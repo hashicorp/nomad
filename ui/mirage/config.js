@@ -1,6 +1,7 @@
 import Ember from 'ember';
 import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
+import { logFrames, logEncode } from './data/logs';
 
 const { copy } = Ember;
 
@@ -165,6 +166,24 @@ export default function() {
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
+    });
+
+    this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, function(
+      server,
+      { params, queryParams }
+    ) {
+      const allocation = server.allocations.find(params.allocation_id);
+      const groups = server.taskGroups.findBy({ jobId: allocation.jobId });
+
+      if (!groups.mapBy('name').includes(queryParams.task)) {
+        return new Response(400, {}, 'must include task name');
+      }
+
+      if (queryParams.plain) {
+        return logFrames.join('');
+      }
+
+      return logEncode(logFrames, logFrames.length - 1);
     });
   });
 }
