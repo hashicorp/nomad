@@ -90,12 +90,12 @@ does not automatically enable service discovery.
     - `${TASK}` - the name of the task
     - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
     
-    Any environment variables in the name are ignored during validation, because some environment variables can only
-    be resolved at run time. Invalid characters outside of environment variable names will not pass
-    validation. For example, if the service name is set to `my_service${NOMAD_NODE_NAME}` it will fail
-    validation. However, if a service name is set to `myservice${NOMAD_NODE_NAME}` and the node name
-    contains an invalid character, it will only be caught at run time and nomad validate will succeed.
-
+    Validation of the name occurs in two parts. When the job is registered, an initial validation pass checks that
+    the service name adheres to RFC-1123 §2.1 and the length limit, excluding any variables requiring interpolation. 
+    Once the client receives the service and all interpretable values are available, the service name will be 
+    interpolated and revalidated. This can cause certain service names to pass validation at submit time but fail 
+    at runtime.
+    
 - `port` `(string: <required>)` - Specifies the label of the port on which this
   service is running. Note this is the _label_ of the port and not the port
   number. The port label must match one defined in the [`network`][network]
