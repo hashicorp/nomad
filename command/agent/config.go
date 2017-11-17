@@ -545,6 +545,9 @@ func DevConfig() *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
+	conf.Telemetry.PrometheusMetrics = true
+	conf.Telemetry.PublishAllocationMetrics = true
+	conf.Telemetry.PublishNodeMetrics = true
 
 	return conf
 }
