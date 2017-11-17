@@ -20,7 +20,8 @@ IMPROVEMENTS:
  * client: When `network_interface` is unspecified use interface attached to
    default route [GH-3546]
  * driver/docker: Detect OOM kill event [GH-3459]
- * driver/docker: Adds support for adding host device to container via `--device` [GH-2938]
+ * driver/docker: Adds support for adding host device to container via
+   `--device` [GH-2938]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
  * core/enterprise: Nomad Pro now return a 501 response for Nomad Premium only end points
