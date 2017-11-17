@@ -31,7 +31,7 @@ test('the stdout log immediately starts streaming', function(assert) {
   const node = server.db.nodes.find(allocation.nodeId);
   const logUrlRegex = new RegExp(`${node.httpAddr}/v1/client/fs/logs/${allocation.id}`);
   assert.ok(
-    server.pretender.handledRequests.filter(req => logUrlRegex.test(req.url).length),
+    server.pretender.handledRequests.filter(req => logUrlRegex.test(req.url)).length,
     'Log requests were made'
   );
 });

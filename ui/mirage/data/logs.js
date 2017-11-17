@@ -6,10 +6,10 @@ export const logFrames = [
 
 export const logEncode = (frames, index) => {
   return frames
-    .slice(index)
+    .slice(0, index + 1)
     .map(frame => window.btoa(frame))
     .map((frame, innerIndex) => {
-      const offset = frames.slice(innerIndex).reduce((sum, frame) => sum + frame.length, 0);
+      const offset = frames.slice(0, innerIndex).reduce((sum, frame) => sum + frame.length, 0);
       return JSON.stringify({ Offset: offset, Data: frame });
     })
     .join('');

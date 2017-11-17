@@ -45,7 +45,6 @@ export default EmberObject.extend({
   poll: task(function*() {
     const { interval, logFetch, fullUrl } = this.getProperties('interval', 'logFetch', 'fullUrl');
     while (true) {
-      yield timeout(interval);
       let text = yield logFetch(fullUrl).then(res => res.text());
 
       const lines = text.replace(/\}\{/g, '}\n{').split('\n');
@@ -54,6 +53,8 @@ export default EmberObject.extend({
 
       this.set('endOffset', frames[frames.length - 1].Offset);
       this.get('write')(frames.mapBy('Data').join(''));
+
+      yield timeout(interval);
     }
   }),
 });
