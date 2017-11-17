@@ -22,7 +22,17 @@ func TestHTTP_AllocsList(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc1 := mock.Alloc()
+		testEvent := structs.NewTaskEvent(structs.TaskSiblingFailed)
+		var events1 []*structs.TaskEvent
+		events1 = append(events1, testEvent)
+		taskState := &structs.TaskState{Events: events1}
+		alloc1.TaskStates = make(map[string]*structs.TaskState)
+		alloc1.TaskStates["test"] = taskState
+
 		alloc2 := mock.Alloc()
+		alloc2.TaskStates = make(map[string]*structs.TaskState)
+		alloc2.TaskStates["test"] = taskState
+
 		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
 		err := state.UpsertAllocs(1000,
@@ -56,10 +66,15 @@ func TestHTTP_AllocsList(t *testing.T) {
 		}
 
 		// Check the alloc
-		n := obj.([]*structs.AllocListStub)
-		if len(n) != 2 {
-			t.Fatalf("bad: %#v", n)
+		allocs := obj.([]*structs.AllocListStub)
+		if len(allocs) != 2 {
+			t.Fatalf("bad: %#v", allocs)
 		}
+		expectedMsg := "Task's sibling failed"
+		displayMsg1 := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(t, expectedMsg, displayMsg1, "DisplayMessage should be set")
+		displayMsg2 := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(t, expectedMsg, displayMsg2, "DisplayMessage should be set")
 	})
 }
 
@@ -73,6 +88,14 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 		alloc1.ID = "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 		alloc2 := mock.Alloc()
 		alloc2.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
+
+		testEvent := structs.NewTaskEvent(structs.TaskSiblingFailed)
+		var events1 []*structs.TaskEvent
+		events1 = append(events1, testEvent)
+		taskState := &structs.TaskState{Events: events1}
+		alloc2.TaskStates = make(map[string]*structs.TaskState)
+		alloc2.TaskStates["test"] = taskState
+
 		summary1 := mock.JobSummary(alloc1.JobID)
 		summary2 := mock.JobSummary(alloc2.JobID)
 		if err := state.UpsertJobSummary(998, summary1); err != nil {
@@ -120,6 +143,10 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 		if n[0].ID != alloc2.ID {
 			t.Fatalf("expected alloc ID: %v, Actual: %v", alloc2.ID, n[0].ID)
 		}
+		expectedMsg := "Task's sibling failed"
+		displayMsg1 := n[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(t, expectedMsg, displayMsg1, "DisplayMessage should be set")
+
 	})
 }
 

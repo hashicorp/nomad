@@ -87,9 +87,26 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 		a1 := mock.Alloc()
 		a1.JobID = j.ID
 		a1.DeploymentID = d.ID
+
+		testEvent := structs.NewTaskEvent(structs.TaskSiblingFailed)
+		var events1 []*structs.TaskEvent
+		events1 = append(events1, testEvent)
+		taskState := &structs.TaskState{Events: events1}
+		a1.TaskStates = make(map[string]*structs.TaskState)
+		a1.TaskStates["test"] = taskState
+
 		a2 := mock.Alloc()
 		a2.JobID = j.ID
 		a2.DeploymentID = d.ID
+
+		// Create a test event
+		testEvent2 := structs.NewTaskEvent(structs.TaskSiblingFailed)
+		var events2 []*structs.TaskEvent
+		events2 = append(events2, testEvent2)
+		taskState2 := &structs.TaskState{Events: events2}
+		a2.TaskStates = make(map[string]*structs.TaskState)
+		a2.TaskStates["test"] = taskState2
+
 		assert.Nil(state.UpsertJob(998, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 		assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
@@ -108,9 +125,14 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 		assert.Equal("true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
 		assert.NotZero(respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
 
-		// Check the ouptput
+		// Check the output
 		allocs := obj.([]*structs.AllocListStub)
 		assert.Len(allocs, 2, "Deployment Allocs")
+		expectedMsg := "Task's sibling failed"
+		displayMsg1 := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(expectedMsg, displayMsg1, "DisplayMessage should be set")
+		displayMsg2 := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(expectedMsg, displayMsg2, "DisplayMessage should be set")
 	})
 }
 

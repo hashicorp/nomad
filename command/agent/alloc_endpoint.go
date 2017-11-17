@@ -34,6 +34,9 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 	if out.Allocations == nil {
 		out.Allocations = make([]*structs.AllocListStub, 0)
 	}
+	for _, alloc := range out.Allocations {
+		alloc.SetEventDisplayMessages()
+	}
 	return out.Allocations, nil
 }
 
@@ -70,6 +73,7 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 		alloc = alloc.Copy()
 		alloc.Job.Payload = decoded
 	}
+	alloc.SetEventDisplayMessages()
 
 	return alloc, nil
 }

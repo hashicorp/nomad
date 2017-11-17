@@ -4919,6 +4919,12 @@ func (a *Allocation) ShouldMigrate() bool {
 	return true
 }
 
+// SetEventDisplayMessage populates the display message if its not already set
+// this is to handle old allocations that don't have it, and this method will be removed in a future release
+func (a *Allocation) SetEventDisplayMessages() {
+	setDisplayMsg(a.TaskStates)
+}
+
 // Stub returns a list stub for the allocation
 func (a *Allocation) Stub() *AllocListStub {
 	return &AllocListStub{
@@ -4961,6 +4967,22 @@ type AllocListStub struct {
 	ModifyIndex        uint64
 	CreateTime         int64
 	ModifyTime         int64
+}
+
+// SetEventDisplayMessage populates the display message if its not already set
+// this is a temporary fix to handle old allocations that don't have display message populated, and this method will be removed in a future release
+func (a *AllocListStub) SetEventDisplayMessages() {
+	setDisplayMsg(a.TaskStates)
+}
+
+func setDisplayMsg(taskStates map[string]*TaskState) {
+	if taskStates != nil {
+		for _, taskState := range taskStates {
+			for _, event := range taskState.Events {
+				event.PopulateEventDisplayMessage()
+			}
+		}
+	}
 }
 
 // AllocMetric is used to track various metrics while attempting
