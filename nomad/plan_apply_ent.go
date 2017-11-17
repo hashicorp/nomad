@@ -30,7 +30,7 @@ func refreshIndex(snap *state.StateSnapshot) (uint64, error) {
 // evaluatePlanQuota returns whether the plan would be over quota
 func evaluatePlanQuota(snap *state.StateSnapshot, plan *structs.Plan) (bool, error) {
 	// If the job is nil, we are deregistering the job and as such can not
-	// transistion into exceeding quota.
+	// transition into exceeding quota.
 	job := plan.Job
 	if job == nil {
 		return false, nil
