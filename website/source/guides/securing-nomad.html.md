@@ -431,6 +431,48 @@ Jobs running in the cluster will _not_ be affected and will continue running
 throughout the switch as long as all clients can restart within their heartbeat
 TTL.
 
+## Changing Nomad certificates on the fly
+
+As of 0.7.1, Nomad supports dynamic certificate reloading via SIHUP.
+
+Given a prior TLS configuration as follows:
+
+```hcl
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "nomad-ca.pem"
+  cert_file = "server.pem"
+  key_file  = "server-key.pem"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+
+Nomad's cert_file and key_file can be reloaded via SIGHUP simply by
+updating the TLS stanza to:
+
+```hcl
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "nomad-ca.pem"
+  cert_file = "new_server.pem"
+  key_file  = "new_server_key.pem"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+
+NOTE: Dynamically reloading certificates will _not_ close existing connections.
+If you need to rotate certificates due to a security incident, you will still
+need to completely shutdown and restart the Nomad agent.
+
+
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
 [guide-install]: https://www.nomadproject.io/intro/getting-started/install.html
