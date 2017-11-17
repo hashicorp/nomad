@@ -10,8 +10,8 @@ description: |-
 
 In [Nomad Enterprise](https://www.hashicorp.com/products/nomad/), operators can
 create [Sentinel policies](/guides/sentinel-policy.html) for fine-grained policy
-enforcement. Sentinel policies build on top of the ACL system and allow operators to define
-fine-grained policies such as disallowing jobs to be submitted to production on
+enforcement. Sentinel policies build on top of the ACL system and allow operators to define 
+policies such as disallowing jobs to be submitted to production on
 Fridays. These extremely rich policies are defined as code. For example, to
 restrict jobs to only using the Docker driver, the operator would define and apply
 the following policy:
