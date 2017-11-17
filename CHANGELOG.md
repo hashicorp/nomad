@@ -14,7 +14,7 @@ IMPROVEMENTS:
    [GH-3446]
  * api: Introduced new fields to track details and display message for task
    events, and deprecated redundant existing fields [GH-3399]
- * api: Environment variables are now ignored during service name validation [GH-3532]
+ * api: Environment variables are ignored during service name validation [GH-3532]
  * cli: Allocation create and modify times are displayed in a human readable
    relative format like `6 h ago` [GH-3449]
  * client: Added metrics to track state transitions of allocations [GH-3061]
@@ -25,7 +25,7 @@ IMPROVEMENTS:
    `--device` [GH-2938]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
- * core/enterprise: Nomad Pro now return a 501 response for Nomad Premium only end points
+ * core/enterprise: Return 501 status code in Nomad Pro for Premium end points
 
 BUG FIXES:
 
