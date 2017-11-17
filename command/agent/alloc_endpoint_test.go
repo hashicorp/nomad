@@ -435,8 +435,9 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		}
 
 		// Make the HTTP request to ensure the Snapshot error is
-		// propagated through to the HTTP layer and that a valid tar
-		// just isn't emitted.
+		// propagated through to the HTTP layer. Since the tar is
+		// streamed over a 200 HTTP response the only way to signal an
+		// error is by writing a marker file.
 		respW := httptest.NewRecorder()
 		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/snapshot", alloc.ID), nil)
 		if err != nil {
@@ -447,19 +448,45 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		// by Snapshot is properly propogated via HTTP
 		s.Server.mux.ServeHTTP(respW, req)
 		resp := respW.Result()
-		t.Logf("HTTP Response Status Code: %d", resp.StatusCode)
 		r := tar.NewReader(resp.Body)
+		errorFilename := allocdir.SnapshotErrorFilename(alloc.ID)
+		markerFound := false
+		markerContents := ""
 		for {
 			header, err := r.Next()
 			if err != nil {
-				if err == io.EOF {
-					t.Fatalf("Looks like a valid tar file to me?")
+				if err != io.EOF {
+					// Huh, I wonder how a non-EOF error can happen?
+					t.Errorf("Unexpected error while streaming: %v", err)
 				}
-				t.Logf("Yay! An error: %v", err)
-				return
+				break
 			}
 
-			t.Logf("Valid file returned: %s", header.Name)
+			if markerFound {
+				// No more files should be found after the failure marker
+				t.Errorf("Next file found after error marker: %s", header.Name)
+				break
+			}
+
+			if header.Name == errorFilename {
+				// Found it!
+				markerFound = true
+				buf := make([]byte, int(header.Size))
+				if _, err := r.Read(buf); err != nil {
+					t.Errorf("Unexpected error reading error marker %s: %v", errorFilename, err)
+				} else {
+					markerContents = string(buf)
+				}
+			}
+		}
+
+		if !markerFound {
+			t.Fatalf("marker file %s not written; bad tar will be treated as good!", errorFilename)
+		}
+		if markerContents == "" {
+			t.Fatalf("marker file %s empty", markerContents)
+		} else {
+			t.Logf("EXPECTED snapshot error: %s", markerContents)
 		}
 	})
 }
