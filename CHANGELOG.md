@@ -14,9 +14,9 @@ IMPROVEMENTS:
    [GH-3446]
  * api: Introduced new fields to track details and display message for task
    events, and deprecated redundant existing fields [GH-3399]
+ * api: Environment variables are now ignored during service name validation [GH-3532]
  * cli: Allocation create and modify times are displayed in a human readable
    relative format like `6 h ago` [GH-3449]
- * cli: Environment variables are now ignored during service name validation [GH-3532]
  * client: Added metrics to track state transitions of allocations [GH-3061]
  * client: When `network_interface` is unspecified use interface attached to
    default route [GH-3546]
