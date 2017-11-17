@@ -141,3 +141,35 @@ func TestPlanApply_EvalPlan_AboveQuota(t *testing.T) {
 	assert.Nil(result.Deployment)
 	assert.Empty(result.DeploymentUpdates)
 }
+
+func TestPlanApply_EvalPlanQuota_NilJob(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	state := testStateStore(t)
+
+	// Create the quota spec
+	qs := mock.QuotaSpec()
+	assert.Nil(state.UpsertQuotaSpecs(100, []*structs.QuotaSpec{qs}))
+
+	// Create the namespace
+	ns := mock.Namespace()
+	ns.Quota = qs.Name
+	assert.Nil(state.UpsertNamespaces(200, []*structs.Namespace{ns}))
+
+	// Create the node
+	node := mock.Node()
+	state.UpsertNode(300, node)
+
+	alloc := mock.Alloc()
+	alloc.Namespace = ns.Name
+	plan := &structs.Plan{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+	}
+
+	snap, _ := state.Snapshot()
+	over, err := evaluatePlanQuota(snap, plan)
+	assert.Nil(err)
+	assert.False(over)
+}
