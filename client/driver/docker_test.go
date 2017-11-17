@@ -859,7 +859,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
-	task, _, _ := dockerTask()
+	task, _, _ := dockerTask(t)
 	expectedUlimits := map[string]string{
 		"nproc":  "4242",
 		"nofile": "2048:4096",
@@ -876,9 +876,9 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	client, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	waitForExist(t, client, handle.(*DockerHandle))
+	waitForExist(t, client, handle)
 
-	container, err := client.InspectContainer(handle.(*DockerHandle).ContainerID())
+	container, err := client.InspectContainer(handle.ContainerID())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
