@@ -47,7 +47,7 @@ BUG FIXES:
    rendering [GH-3529]
  * sentinel: (Nomad Enterprise) Fix an issue that could cause an import error
    when multiple Sentinel policies are applied
- 
+ * telemetry: Do not emit metrics for non-running tasks [GH-3559]
 
 ## 0.7.0 (November 1, 2017)
 
