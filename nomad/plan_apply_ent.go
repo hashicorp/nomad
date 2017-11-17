@@ -29,8 +29,14 @@ func refreshIndex(snap *state.StateSnapshot) (uint64, error) {
 
 // evaluatePlanQuota returns whether the plan would be over quota
 func evaluatePlanQuota(snap *state.StateSnapshot, plan *structs.Plan) (bool, error) {
-	// Get the namespace
+	// If the job is nil, we are deregistering the job and as such can not
+	// transition into exceeding quota.
 	job := plan.Job
+	if job == nil {
+		return false, nil
+	}
+
+	// Get the namespace
 	namespace, err := snap.NamespaceByName(nil, job.Namespace)
 	if err != nil {
 		return false, fmt.Errorf("failed to lookup job %q namespace %q: %v", job.ID, job.Namespace, err)
