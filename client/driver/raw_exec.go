@@ -298,8 +298,8 @@ func (h *rawExecHandle) run() {
 	ps, werr := h.executor.Wait()
 	close(h.doneCh)
 	if ps.ExitCode == 0 && werr != nil {
-		if e := killProcess(h.userPid); e != nil {
-			h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
+		if e := killProcessGroup(h.userPid); e != nil {
+			h.logger.Printf("[ERR] driver.raw_exec: error killing user process group: %v", e)
 		}
 	}
 
