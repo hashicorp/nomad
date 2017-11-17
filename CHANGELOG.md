@@ -30,6 +30,9 @@ BUG FIXES:
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
+ * core: Fixes an issue with jobs that have `auto_revert` set to true, where
+   reverting to a previously stable job that fails to start up causes an
+   infinite cycle of reverts [GH-3496]
  * api: Apply correct memory default when task's do not specify memory
    explicitly [GH-3520]
  * cli: Fix passing Consul address via flags [GH-3504]
@@ -38,8 +41,7 @@ BUG FIXES:
    [GH-3502]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
- * core: Fixes an issue with jobs that have `auto_revert` set to true, where reverting 
-   to a previously stable job that fails to start up causes an infinite cycle of reverts [GH-3496]
+ * driver/rkt: Remove pods on shutdown [GH-3562]
  * template: Fix issue where multiple environment variable templates would be
    parsed incorrectly when contents of one have changed after the initial
    rendering [GH-3529]
