@@ -4919,8 +4919,9 @@ func (a *Allocation) ShouldMigrate() bool {
 	return true
 }
 
-// SetEventDisplayMessage populates the display message if its not already set
-// this is to handle old allocations that don't have it, and this method will be removed in a future release
+// SetEventDisplayMessage populates the display message if its not already set,
+// a temporary fix to handle old allocations that don't have it.
+// This method will be removed in a future release.
 func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
@@ -4969,8 +4970,9 @@ type AllocListStub struct {
 	ModifyTime         int64
 }
 
-// SetEventDisplayMessage populates the display message if its not already set
-// this is a temporary fix to handle old allocations that don't have display message populated, and this method will be removed in a future release
+// SetEventDisplayMessage populates the display message if its not already set,
+// a temporary fix to handle old allocations that don't have it.
+// This method will be removed in a future release.
 func (a *AllocListStub) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
