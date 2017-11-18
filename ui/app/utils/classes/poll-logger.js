@@ -43,16 +43,18 @@ export default EmberObject.extend({
   },
 
   poll: task(function*() {
-    const { interval, logFetch, fullUrl } = this.getProperties('interval', 'logFetch', 'fullUrl');
+    const { interval, logFetch } = this.getProperties('interval', 'logFetch');
     while (true) {
-      let text = yield logFetch(fullUrl).then(res => res.text());
+      let text = yield logFetch(this.get('fullUrl')).then(res => res.text());
 
-      const lines = text.replace(/\}\{/g, '}\n{').split('\n');
-      const frames = lines.map(line => JSON.parse(line));
-      frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
+      if (text) {
+        const lines = text.replace(/\}\{/g, '}\n{').split('\n');
+        const frames = lines.map(line => JSON.parse(line));
+        frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
 
-      this.set('endOffset', frames[frames.length - 1].Offset);
-      this.get('write')(frames.mapBy('Data').join(''));
+        this.set('endOffset', frames[frames.length - 1].Offset);
+        this.get('write')(frames.mapBy('Data').join(''));
+      }
 
       yield timeout(interval);
     }
