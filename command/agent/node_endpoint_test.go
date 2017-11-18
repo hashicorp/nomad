@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_NodesList(t *testing.T) {
@@ -187,6 +188,14 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
+		// Create a test event for the allocation
+		testEvent := structs.NewTaskEvent(structs.TaskStarted)
+		var events []*structs.TaskEvent
+		events = append(events, testEvent)
+		taskState := &structs.TaskState{Events: events}
+		alloc1.TaskStates = make(map[string]*structs.TaskState)
+		alloc1.TaskStates["test"] = taskState
+
 		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -221,6 +230,9 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		if len(allocs) != 1 || allocs[0].ID != alloc1.ID {
 			t.Fatalf("bad: %#v", allocs)
 		}
+		expectedDisplayMsg := "Task started by client"
+		displayMsg := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(t, expectedDisplayMsg, displayMsg)
 	})
 }
 

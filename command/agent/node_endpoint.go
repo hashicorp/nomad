@@ -89,6 +89,9 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 	if out.Allocs == nil {
 		out.Allocs = make([]*structs.Allocation, 0)
 	}
+	for _, alloc := range out.Allocs {
+		alloc.SetEventDisplayMessages()
+	}
 	return out.Allocs, nil
 }
 
