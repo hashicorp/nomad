@@ -564,10 +564,10 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"userns_mode": {
 				Type: fields.TypeString,
 			},
-			"sysctl": &fields.FieldSchema{
+			"sysctl": {
 				Type: fields.TypeArray,
 			},
-			"ulimit": &fields.FieldSchema{
+			"ulimit": {
 				Type: fields.TypeArray,
 			},
 			"port_map": {

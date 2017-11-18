@@ -865,7 +865,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 		"nofile": "2048:4096",
 	}
 	task.Config["sysctl"] = []map[string]string{
-		map[string]string{
+		{
 			"net.core.somaxconn": "16384",
 		},
 	}
