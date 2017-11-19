@@ -74,8 +74,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
       command = "my-command"
     }
     ```
-
-<<<<<<< 657619c0ec51068e48a34817ddc4df267b6cce6f
+    
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
