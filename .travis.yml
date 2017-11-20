@@ -41,6 +41,11 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
 
 install:
+  - export TRAVIS_REPO_SLUG=hashicorp/nomad
+  - cd ../../
+  - git clone --branch=$TRAVIS_BRANCH git@github.com:hashicorp/nomad-enterprise.git $TRAVIS_REPO_SLUG
+  - cd $TRAVIS_REPO_SLUG
+  - git checkout -qf `git rev-parse ${TRAVIS_COMMIT_RANGE:-$TRAVIS_COMMIT} | head -n1`
   - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
   - if [[ "$RUN_STATIC_CHECKS" ]]; then make lint-deps ; fi
 

@@ -63,6 +63,12 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		config:    config,
 		abandonCh: make(chan struct{}),
 	}
+
+	// Initialize the state store with required enterprise objects
+	if err := s.enterpriseInit(); err != nil {
+		return nil, fmt.Errorf("enterprise state store initialization failed: %v", err)
+	}
+
 	return s, nil
 }
 

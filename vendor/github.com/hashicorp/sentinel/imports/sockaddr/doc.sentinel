@@ -1,0 +1,29 @@
+// The sockaddr import makes working with IP addresses easy.
+import "sockaddr"
+
+// The is_contained function returns true if `inner` is an address that
+// is contained within `outer`.
+//
+// ```python
+// sockaddr.is_container("192.168.0.0/24", "192.168.48.32") // true
+// sockaddr.is_container("192.168.0.0/24", "192.174.1.1")   // false
+// ```
+sockaddr.is_contained(outer, inner)
+
+// The is_equal function returns true if addr1 is equal to addr2.
+//
+// ```python
+// sockaddr.is_equal("192.168.12.24", "192.168.12.24") // true
+// ```
+sockaddr.is_equal(addr1, addr2)
+
+// The is_ipv4 function returns true if addr is an IPv4 address.
+//
+// ```python
+// sockaddr.is_ipv4("192.168.12.24") // true
+// sockaddr.is_ipv4("2001:0db8:85a3:0000:0000:8a2e:0370:7334") // false
+// ```
+sockaddr.is_ipv4(addr)
+
+// The is_ipv6 function returns true if addr is an IPv6 address.
+sockaddr.is_ipv6(addr)

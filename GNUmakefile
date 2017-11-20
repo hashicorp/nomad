@@ -113,12 +113,13 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
 
+pkg/linux_amd64-lxc/nomad: GO_TAGS2=$(GO_TAGS) lxc
 pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@echo "==> Building $@ with tags $(GO_TAGS2)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS) lxc" \
+		-tags "$(GO_TAGS2)" \
 		-o "$@"
 
 # Define package targets for each of the build targets we actually have on this system
@@ -185,7 +186,11 @@ checkscripts: ## Lint shell scripts
 
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
-	@go generate $(LOCAL_PACKAGES)
+	@go generate -tags="ent" $(LOCAL_PACKAGES)
+
+progenerate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+progenerate: ## Update generated code
+	@go generate -tags="pro" $(LOCAL_PACKAGES)
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
@@ -199,7 +204,25 @@ dev: ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test $(NOMAD_UI_TAG)"
+		GO_TAGS="nomad_test ent $(NOMAD_UI_TAG)"
+	@mkdir -p $(PROJECT_ROOT)/bin
+	@mkdir -p $(GOPATH)/bin
+	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
+	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
+
+.PHONY: prodev
+prodev: GOOS=$(shell go env GOOS)
+prodev: GOARCH=$(shell go env GOARCH)
+prodev: GOPATH=$(shell go env GOPATH)
+prodev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
+prodev: ## Build for the current development platform
+	@echo "==> Removing old development build..."
+	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
+	@rm -f $(PROJECT_ROOT)/bin/nomad
+	@rm -f $(GOPATH)/bin/nomad
+	@$(MAKE) --no-print-directory \
+		$(DEV_TARGET) \
+		GO_TAGS="nomad_test pro $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -210,8 +233,14 @@ prerelease: GO_TAGS=ui
 prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui
+release: GO_TAGS=ui ent
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+	@echo "==> Results:"
+	@tree --dirsfirst $(PROJECT_ROOT)/pkg
+
+.PHONY: prorelease
+prorelease: GO_TAGS=ui pro
+prorelease: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
@@ -232,13 +261,23 @@ test-nomad: dev ## Run Nomad test suites
 			-v \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
+			-tags="nomad_test ent $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
 	@echo "Exit code: $$(cat exit-code)" >> test.log
 	@grep -A1 -- '--- FAIL:' test.log || true
 	@grep '^FAIL' test.log || true
 	@grep -A10 'panic' test.log || true
 	@test "$$TRAVIS" == "true" && cat test.log || true
 	@if [ "$$(cat exit-code)" == "0" ] ; then echo "PASS" ; exit 0 ; else exit 1 ; fi
+
+.PHONY: protest
+protest: prodev ## Run Nomad test suites
+	@echo "==> Running Nomad test suites:"
+	@NOMAD_TEST_RKT=1 \
+		go test \
+			-cover \
+			-timeout=900s \
+			-tags="nomad_test pro $(if $(HAS_LXC),lxc)" \
+			./...
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
