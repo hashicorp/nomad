@@ -900,13 +900,46 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 			splitted := strings.SplitN(expectedStr, ":", 2)
 			soft, _ := strconv.Atoi(splitted[0])
 			hard, _ := strconv.Atoi(splitted[1])
+			assert.Equal(t, int64(soft), got.Soft, "Wrong soft %s ulimit for docker job. Expect: %d, got: %d", got.Name, soft, got.Soft)
+			assert.Equal(t, int64(hard), got.Hard, "Wrong hard %s ulimit for docker job. Expect: %d, got: %d", got.Name, hard, got.Hard)
 
-			if got.Soft != int64(soft) {
-				t.Errorf("Wrong soft %s ulimit for docker job. Expect: %d, got: %d", got.Name, soft, got.Soft)
-			}
-			if got.Hard != int64(hard) {
-				t.Errorf("Wrong hard %s ulimit for docker job. Expect: %d, got: %d", got.Name, hard, got.Hard)
-			}
+		}
+	}
+}
+
+func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
+	brokenConfigs := []interface{}{
+		map[string]interface{}{
+			"nofile": "",
+		},
+		map[string]interface{}{
+			"nofile": "abc:1234",
+		},
+		map[string]interface{}{
+			"nofile": "1234:abc",
+		},
+	}
+
+	test_cases := []struct {
+		ulimitConfig interface{}
+		err          error
+	}{
+		{[]interface{}{brokenConfigs[0]}, fmt.Errorf("Malformed ulimit specification nofile: \"\", cannot be empty")},
+		{[]interface{}{brokenConfigs[1]}, fmt.Errorf("Malformed soft ulimit nofile: abc:1234")},
+		{[]interface{}{brokenConfigs[2]}, fmt.Errorf("Malformed hard ulimit nofile: 1234:abc")},
+	}
+
+	for _, tc := range test_cases {
+		task, _, _ := dockerTask(t)
+		task.Config["ulimit"] = tc.ulimitConfig
+
+		ctx := testDockerDriverContexts(t, task)
+		driver := NewDockerDriver(ctx.DriverCtx)
+		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+		defer ctx.AllocDir.Destroy()
+
+		if _, err := driver.Prestart(ctx.ExecCtx, task); err == nil || err.Error() != tc.err.Error() {
+			t.Fatalf("error expected in prestart, got %v, expected %v", err, tc.err)
 		}
 	}
 }
