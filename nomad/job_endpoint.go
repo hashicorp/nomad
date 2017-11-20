@@ -1213,10 +1213,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 
 	// Transitioning to/from periodic is disallowed
 	if old.IsPeriodic() && !new.IsPeriodic() {
-		return fmt.Errorf("cannot update non-periodic job to being periodic")
+		return fmt.Errorf("cannot update periodic job to being non-periodic")
 	}
 	if new.IsPeriodic() && !old.IsPeriodic() {
-		return fmt.Errorf("cannot update periodic job to being non-periodic")
+		return fmt.Errorf("cannot update non-periodic job to being periodic")
 	}
 
 	// Transitioning to/from parameterized is disallowed
