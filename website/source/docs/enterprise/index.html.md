@@ -4,7 +4,7 @@ page_title: "Nomad Enterprise"
 sidebar_current: "docs-enterprise"
 description: |-
   Nomad Enterprise adds collaboration and governance capabilities to Nomad.
-  Features include Namespaces, Resource Quotas and Sentinel Policies.
+  Features include Namespaces, Resource Quotas, and Sentinel Policies.
 ---
 
 # Nomad Enterprise
