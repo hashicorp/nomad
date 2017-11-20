@@ -141,7 +141,7 @@ This endpoint queries the state of the target agent (self).
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `POST` | `/agent/self`                | `application/json`         |
+| `GET`  | `/agent/self`                | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
