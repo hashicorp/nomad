@@ -98,7 +98,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
   the container.
 
 * `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
-
+   containers on start.
 
     ```hcl
     config {

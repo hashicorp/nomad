@@ -213,13 +213,16 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 		}
 
 		splitted := strings.SplitN(ulimitRaw, ":", 2)
+		if len(splitted) < 2 {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit specification %v: %v", name, ulimitRaw)
+		}
 		soft, err := strconv.Atoi(splitted[0])
 		if err != nil {
-			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+			return []docker.ULimit{}, fmt.Errorf("Malformed soft ulimit %v: %v", name, ulimitRaw)
 		}
 		hard, err := strconv.Atoi(splitted[1])
 		if err != nil {
-			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit %v: %v", name, ulimitRaw)
+			return []docker.ULimit{}, fmt.Errorf("Malformed hard ulimit %v: %v", name, ulimitRaw)
 		}
 
 		ulimit := docker.ULimit{

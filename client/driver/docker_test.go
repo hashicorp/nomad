@@ -879,22 +879,21 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	waitForExist(t, client, handle)
 
 	container, err := client.InspectContainer(handle.ContainerID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(t, err, "unexpected error: %v", err)
 
-	if want, got := "16384", container.HostConfig.Sysctls["net.core.somaxconn"]; want != got {
-		t.Errorf("Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got)
-	}
+	want := "16384"
+	got := container.HostConfig.Sysctls["net.core.somaxconn"]
+	assert.Equal(t, want, got, "Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got)
 
-	if want, got := 2, len(container.HostConfig.Ulimits); want != got {
-		t.Errorf("Wrong number of ulimit configs for docker job. Expect: %d, got: %d", want, got)
-	}
+	expectedUlimitLen := 2
+	actualUlimitLen := len(container.HostConfig.Ulimits)
+	assert.Equal(t, want, got, "Wrong number of ulimit configs for docker job. Expect: %d, got: %d", expectedUlimitLen, actualUlimitLen)
+
 	for _, got := range container.HostConfig.Ulimits {
-		if expectedStr, ok := expectedUlimits[got.Name]; ok == false {
+		if expectedStr, ok := expectedUlimits[got.Name]; !ok {
 			t.Errorf("%s config unexpected for docker job.", got.Name)
 		} else {
-			if strings.Contains(expectedStr, ":") == false {
+			if !strings.Contains(expectedStr, ":") {
 				expectedStr = expectedStr + ":" + expectedStr
 			}
 
