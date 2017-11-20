@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -275,4 +277,101 @@ func TestServer_Reload_Vault(t *testing.T) {
 	if !s1.vault.Running() {
 		t.Fatalf("Vault client should be running")
 	}
+}
+
+// Tests that the server will successfully reload its network connections,
+// upgrading from plaintext to TLS if the server's TLS configuration changes.
+func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := testServer(t, func(c *Config) {
+		c.DataDir = path.Join(dir, "nodeA")
+	})
+	defer s1.Shutdown()
+
+	// assert that the server started in plaintext mode
+	assert.Equal(s1.config.TLSConfig.CertFile, "")
+
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
+	}
+
+	err := s1.ReloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+
+	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
+
+	time.Sleep(10 * time.Second)
+	codec := rpcClient(t, s1)
+
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	assert.NotNil(err)
+}
+
+// Tests that the server will successfully reload its network connections,
+// downgrading from TLS to plaintext if the server's TLS configuration changes.
+func TestServer_Reload_TLSConnections_TLSToPlaintext(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := testServer(t, func(c *Config) {
+		c.DataDir = path.Join(dir, "nodeB")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	newTLSConfig := &config.TLSConfig{}
+
+	err := s1.ReloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
+
+	time.Sleep(10 * time.Second)
+
+	codec := rpcClient(t, s1)
+
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	assert.Nil(err)
 }

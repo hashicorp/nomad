@@ -730,29 +730,71 @@ func (a *Agent) Stats() map[string]map[string]string {
 	return stats
 }
 
+// ShouldReload determines if we should reload the configuration and agent
+// connections. If the TLS Configuration has not changed, we shouldn't reload.
+func (a *Agent) ShouldReload(newConfig *Config) (bool, func(*Config) error) {
+	if a.config.TLSConfig.Equals(newConfig.TLSConfig) {
+		return false, nil
+	}
+
+	return true, a.Reload
+}
+
 // Reload handles configuration changes for the agent. Provides a method that
 // is easier to unit test, as this action is invoked via SIGHUP.
 func (a *Agent) Reload(newConfig *Config) error {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
-	if newConfig.TLSConfig != nil {
+	if newConfig == nil || newConfig.TLSConfig == nil {
+		return fmt.Errorf("cannot reload agent with nil configuration")
+	}
 
-		// TODO(chelseakomlo) In a later PR, we will introduce the ability to reload
-		// TLS configuration if the agent is not running with TLS enabled.
-		if a.config.TLSConfig != nil {
-			// Reload the certificates on the keyloader and on success store the
-			// updated TLS config. It is important to reuse the same keyloader
-			// as this allows us to dynamically reload configurations not only
-			// on the Agent but on the Server and Client too (they are
-			// referencing the same keyloader).
-			keyloader := a.config.TLSConfig.GetKeyLoader()
-			_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
-			if err != nil {
-				return err
-			}
-			a.config.TLSConfig = newConfig.TLSConfig
-			a.config.TLSConfig.KeyLoader = keyloader
+	// This is just a TLS configuration reload, we don't need to refresh
+	// existing network connections
+	if !a.config.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
+
+		// Reload the certificates on the keyloader and on success store the
+		// updated TLS config. It is important to reuse the same keyloader
+		// as this allows us to dynamically reload configurations not only
+		// on the Agent but on the Server and Client too (they are
+		// referencing the same keyloader).
+		keyloader := a.config.TLSConfig.GetKeyLoader()
+		_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
+		if err != nil {
+			return err
+		}
+		a.config.TLSConfig = newConfig.TLSConfig
+		a.config.TLSConfig.KeyLoader = keyloader
+		return nil
+	}
+
+	// Completely reload the agent's TLS configuration (moving from non-TLS to
+	// TLS, or vice versa)
+	// This does not handle errors in loading the new TLS configuration
+	a.config.TLSConfig = newConfig.TLSConfig.Copy()
+
+	if newConfig.TLSConfig.IsEmpty() {
+		a.logger.Println("[WARN] Downgrading agent's existing TLS configuration to plaintext")
+	} else {
+		a.logger.Println("[INFO] Upgrading from plaintext configuration to TLS")
+	}
+
+	// Reload the TLS configuration for the client or server, depending on how
+	// the agent is configured to run.
+	if s := a.Server(); s != nil {
+		err := s.ReloadTLSConnections(a.config.TLSConfig)
+		if err != nil {
+			a.logger.Printf("[WARN] agent: Issue reloading the server's TLS Configuration, consider a full system restart: %v", err.Error())
+			return err
+		}
+	}
+	if c := a.Client(); c != nil {
+
+		err := c.ReloadTLSConnections(a.config.TLSConfig)
+		if err != nil {
+			a.logger.Printf("[ERR] agent: Issue reloading the client's TLS Configuration, consider a full system restart: %v", err.Error())
+			return err
 		}
 	}
 

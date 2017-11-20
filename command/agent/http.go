@@ -126,11 +126,12 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 }
 
 // Shutdown is used to shutdown the HTTP server
-func (s *HTTPServer) Shutdown() {
+func (s *HTTPServer) Shutdown() error {
 	if s != nil {
 		s.logger.Printf("[DEBUG] http: Shutting down http server")
-		s.listener.Close()
+		return s.listener.Close()
 	}
+	return nil
 }
 
 // registerHandlers is used to attach our handlers to the mux

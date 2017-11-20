@@ -673,3 +673,74 @@ func encodeReq(obj interface{}) io.ReadCloser {
 	enc.Encode(obj)
 	return ioutil.NopCloser(buf)
 }
+
+func TestHTTP_VerifyHTTPSClientUpgrade_AfterConfigReload(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	newConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			EnableHTTP:        true,
+			VerifyHTTPSClient: true,
+			CAFile:            cafile,
+			CertFile:          foocert,
+			KeyFile:           fookey,
+		},
+	}
+
+	s := makeHTTPServer(t, func(c *Config) {
+		c.TLSConfig = newConfig.TLSConfig
+	})
+	defer s.Shutdown()
+
+	// HTTP plaintext request should succeed
+	reqURL := fmt.Sprintf("http://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
+
+	// First test with a plaintext request
+	transport := &http.Transport{}
+	client := &http.Client{Transport: transport}
+	_, err := http.NewRequest("GET", reqURL, nil)
+	assert.Nil(err)
+
+	// Next, reload the TLS configuration
+	err = s.Agent.Reload(newConfig)
+	assert.Nil(err)
+
+	// PASS: Requests that specify a valid hostname, CA cert, and client
+	// certificate succeed.
+	tlsConf := &tls.Config{
+		ServerName: "client.regionFoo.nomad",
+		RootCAs:    x509.NewCertPool(),
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			c, err := tls.LoadX509KeyPair(foocert, fookey)
+			if err != nil {
+				return nil, err
+			}
+			return &c, nil
+		},
+	}
+
+	// HTTPS request should succeed
+	httpsReqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
+
+	cacertBytes, err := ioutil.ReadFile(cafile)
+	assert.Nil(err)
+	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
+
+	transport = &http.Transport{TLSClientConfig: tlsConf}
+	client = &http.Client{Transport: transport}
+	req, err := http.NewRequest("GET", httpsReqURL, nil)
+	assert.Nil(err)
+
+	resp, err := client.Do(req)
+	assert.Nil(err)
+
+	resp.Body.Close()
+	assert.Equal(resp.StatusCode, 200)
+}

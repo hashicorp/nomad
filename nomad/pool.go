@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/yamux"
 )
@@ -173,6 +173,19 @@ func (p *ConnPool) Shutdown() error {
 	p.shutdown = true
 	close(p.shutdownCh)
 	return nil
+}
+
+// ReloadTLS reloads TLS configuration on the fly
+func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
+	p.Lock()
+	defer p.Unlock()
+
+	oldPool := p.pool
+	for _, conn := range oldPool {
+		conn.Close()
+	}
+	p.pool = make(map[string]*Conn)
+	p.tlsWrap = tlsWrap
 }
 
 // Acquire is used to get a connection that is

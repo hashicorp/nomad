@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -43,12 +44,14 @@ func NewRaftLayer(addr net.Addr, tlsWrap tlsutil.Wrapper) *RaftLayer {
 
 // Handoff is used to hand off a connection to the
 // RaftLayer. This allows it to be Accept()'ed
-func (l *RaftLayer) Handoff(c net.Conn) error {
+func (l *RaftLayer) Handoff(c net.Conn, ctx context.Context) error {
 	select {
 	case l.connCh <- c:
 		return nil
 	case <-l.closeCh:
 		return fmt.Errorf("Raft RPC layer closed")
+	case <-ctx.Done():
+		return fmt.Errorf("[INFO] nomad.rpc: Closing server RPC connection")
 	}
 }
 
@@ -109,4 +112,17 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 		return nil, err
 	}
 	return conn, err
+}
+
+// ReloadTLS will re-initialize the TLS wrapper on the fly
+func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
+	l.closeLock.Lock()
+	defer l.closeLock.Unlock()
+
+	if !l.closed {
+		close(l.closeCh)
+	}
+
+	l.tlsWrap = tlsWrap
+	l.closeCh = make(chan struct{})
 }
