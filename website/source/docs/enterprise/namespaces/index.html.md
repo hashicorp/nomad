@@ -20,3 +20,5 @@ jobs of others, provide fine grain access control to jobs when coupled with
 [ACLs](/guides/acl.html), and can prevent bad actors from negatively impacting
 the whole cluster when used in conjunction with
 [resource quotas](/docs/enterprise/quotas/index.html).
+
+See the [Namespaces Guide](/guides/namespaces.html) for a thorough overview.
