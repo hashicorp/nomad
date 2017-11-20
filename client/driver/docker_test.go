@@ -858,6 +858,92 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
+	task, _, _ := dockerTask(t)
+	expectedUlimits := map[string]string{
+		"nproc":  "4242",
+		"nofile": "2048:4096",
+	}
+	task.Config["sysctl"] = []map[string]string{
+		{
+			"net.core.somaxconn": "16384",
+		},
+	}
+	task.Config["ulimit"] = []map[string]string{
+		expectedUlimits,
+	}
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	assert.Nil(t, err, "unexpected error: %v", err)
+
+	want := "16384"
+	got := container.HostConfig.Sysctls["net.core.somaxconn"]
+	assert.Equal(t, want, got, "Wrong net.core.somaxconn config for docker job. Expect: %s, got: %s", want, got)
+
+	expectedUlimitLen := 2
+	actualUlimitLen := len(container.HostConfig.Ulimits)
+	assert.Equal(t, want, got, "Wrong number of ulimit configs for docker job. Expect: %d, got: %d", expectedUlimitLen, actualUlimitLen)
+
+	for _, got := range container.HostConfig.Ulimits {
+		if expectedStr, ok := expectedUlimits[got.Name]; !ok {
+			t.Errorf("%s config unexpected for docker job.", got.Name)
+		} else {
+			if !strings.Contains(expectedStr, ":") {
+				expectedStr = expectedStr + ":" + expectedStr
+			}
+
+			splitted := strings.SplitN(expectedStr, ":", 2)
+			soft, _ := strconv.Atoi(splitted[0])
+			hard, _ := strconv.Atoi(splitted[1])
+			assert.Equal(t, int64(soft), got.Soft, "Wrong soft %s ulimit for docker job. Expect: %d, got: %d", got.Name, soft, got.Soft)
+			assert.Equal(t, int64(hard), got.Hard, "Wrong hard %s ulimit for docker job. Expect: %d, got: %d", got.Name, hard, got.Hard)
+
+		}
+	}
+}
+
+func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
+	brokenConfigs := []interface{}{
+		map[string]interface{}{
+			"nofile": "",
+		},
+		map[string]interface{}{
+			"nofile": "abc:1234",
+		},
+		map[string]interface{}{
+			"nofile": "1234:abc",
+		},
+	}
+
+	test_cases := []struct {
+		ulimitConfig interface{}
+		err          error
+	}{
+		{[]interface{}{brokenConfigs[0]}, fmt.Errorf("Malformed ulimit specification nofile: \"\", cannot be empty")},
+		{[]interface{}{brokenConfigs[1]}, fmt.Errorf("Malformed soft ulimit nofile: abc:1234")},
+		{[]interface{}{brokenConfigs[2]}, fmt.Errorf("Malformed hard ulimit nofile: 1234:abc")},
+	}
+
+	for _, tc := range test_cases {
+		task, _, _ := dockerTask(t)
+		task.Config["ulimit"] = tc.ulimitConfig
+
+		ctx := testDockerDriverContexts(t, task)
+		driver := NewDockerDriver(ctx.DriverCtx)
+		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+		defer ctx.AllocDir.Destroy()
+
+		_, err := driver.Prestart(ctx.ExecCtx, task)
+		assert.NotNil(t, err, "Expected non nil error")
+		assert.Equal(t, err.Error(), tc.err.Error(), "unexpected error in prestart, got %v, expected %v", err, tc.err)
+	}
+}
+
 func TestDockerDriver_Labels(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
