@@ -938,9 +938,9 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
 		defer ctx.AllocDir.Destroy()
 
-		if _, err := driver.Prestart(ctx.ExecCtx, task); err == nil || err.Error() != tc.err.Error() {
-			t.Fatalf("error expected in prestart, got %v, expected %v", err, tc.err)
-		}
+		_, err := driver.Prestart(ctx.ExecCtx, task)
+		assert.NotNil(t, err, "Expected non nil error")
+		assert.Equal(t, err.Error(), tc.err.Error(), "unexpected error in prestart, got %v, expected %v", err, tc.err)
 	}
 }
 
