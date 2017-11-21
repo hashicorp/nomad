@@ -200,7 +200,7 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	//policy with read on default namespace and write on non default
+	// Policy with read on default namespace and write on non default
 	policy := &structs.ACLPolicy{
 		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
@@ -223,20 +223,23 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 	}
 	policy.SetHash()
 
-	// upsert policy and token
+	assert := assert.New(t)
+
+	// Upsert policy and token
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
 	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy})
-	assert.Nil(t, err)
+	assert.Nil(err)
 
 	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
-	assert.Nil(t, err)
+	assert.Nil(err)
 
-	//upsert namespace
+	// Upsert namespace
 	ns := mock.Namespace()
 	ns.Name = "test"
 	err = s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
-	assert.Nil(t, err)
+	assert.Nil(err)
+
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
@@ -244,22 +247,23 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	req.AuthToken = token.SecretID
-	// Try with token without write access to default namespace, expect failure
+	// Use token without write access to default namespace, expect failure
 	var resp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	assert.NotNil(t, err, "expected permission denied")
+	assert.NotNil(err, "expected permission denied")
 
 	req.Namespace = "test"
 	job.Namespace = "test"
-	req.Job = job
+
+	// Use token with write access to default namespace, expect success
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	assert.Nil(t, err, "unexpected err: %v", err)
-	assert.NotEqual(t, resp.Index, 0, "bad index: %d", resp.Index)
+	assert.Nil(err, "unexpected err: %v", err)
+	assert.NotEqual(resp.Index, 0, "bad index: %d", resp.Index)
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	assert.Nil(t, err)
-	assert.NotNil(t, out, "expected job")
+	assert.Nil(err)
+	assert.NotNil(out, "expected job")
 }
