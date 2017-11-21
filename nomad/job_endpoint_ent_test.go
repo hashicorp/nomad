@@ -3,13 +3,17 @@
 package nomad
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJobEndpoint_Register_Sentinel(t *testing.T) {
@@ -185,4 +189,81 @@ func TestJobEndpoint_Plan_Sentinel(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err == nil {
 		t.Fatalf("expected error")
 	}
+}
+
+func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
+	t.Parallel()
+	s1, _ := testACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Policy with read on default namespace and write on non default
+	policy := &structs.ACLPolicy{
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
+		Description: "Super cool policy!",
+		Rules: `
+		namespace "default" {
+			policy = "read"
+		}
+		namespace "test" {
+			policy = "write"
+		}
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+	policy.SetHash()
+
+	assert := assert.New(t)
+
+	// Upsert policy and token
+	token := mock.ACLToken()
+	token.Policies = []string{policy.Name}
+	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy})
+	assert.Nil(err)
+
+	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
+	assert.Nil(err)
+
+	// Upsert namespace
+	ns := mock.Namespace()
+	ns.Name = "test"
+	err = s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
+	assert.Nil(err)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	req.AuthToken = token.SecretID
+	// Use token without write access to default namespace, expect failure
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	assert.NotNil(err, "expected permission denied")
+
+	req.Namespace = "test"
+	job.Namespace = "test"
+
+	// Use token with write access to default namespace, expect success
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	assert.Nil(err, "unexpected err: %v", err)
+	assert.NotEqual(resp.Index, 0, "bad index: %d", resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	assert.Nil(err)
+	assert.NotNil(out, "expected job")
 }
