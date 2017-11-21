@@ -98,6 +98,8 @@ type ExecCommand struct {
 	// Args is the args of the command that the user wants to run.
 	Args []string
 
+	KillSignal string
+
 	// FSIsolation determines whether the command would be run in a chroot.
 	FSIsolation bool
 
@@ -481,6 +483,21 @@ func (e *UniversalExecutor) Exit() error {
 	return merr.ErrorOrNil()
 }
 
+// Look to see if the user has specified a kill command. If non has been
+// specified, default to SIGQUIT.
+func getMatchingSyscall(sys string) syscall.Signal {
+	switch sys {
+	case "SIGINT":
+		return syscall.SIGINT
+	case "SIGUSR1":
+		return syscall.SIGUSR1
+	case "SIGUSR2":
+		return syscall.SIGUSR2
+	default:
+		return syscall.SIGQUIT
+	}
+}
+
 // Shutdown sends an interrupt signal to the user process
 func (e *UniversalExecutor) ShutDown() error {
 	if e.cmd.Process == nil {
@@ -496,9 +513,18 @@ func (e *UniversalExecutor) ShutDown() error {
 		}
 		return nil
 	}
-	if err = proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
+
+	var killErr error
+	if e.command.KillSignal != "" {
+		sys := getMatchingSyscall(e.command.KillSignal)
+		killErr = syscall.Kill(e.cmd.Process.Pid, sys)
+	} else {
+		killErr = proc.Signal(os.Interrupt)
+	}
+	if killErr != nil && killErr.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
 	}
+
 	return nil
 }
 

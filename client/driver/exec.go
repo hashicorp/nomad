@@ -31,8 +31,9 @@ type ExecDriver struct {
 }
 
 type ExecDriverConfig struct {
-	Command string   `mapstructure:"command"`
-	Args    []string `mapstructure:"args"`
+	Command    string   `mapstructure:"command"`
+	Args       []string `mapstructure:"args"`
+	KillSignal string   `mapstructure:"kill_signal"`
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -66,6 +67,9 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 			},
 			"args": {
 				Type: fields.TypeArray,
+			},
+			"kill_signal": {
+				Type: fields.TypeString,
 			},
 		},
 	}
@@ -132,6 +136,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
+		KillSignal:     driverConfig.KillSignal,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
