@@ -5,7 +5,7 @@
     "source_ami": "ami-80861296",
     "instance_type": "t2.medium",
     "ssh_username": "ubuntu",
-    "ami_name": "nomad-packer {{timestamp}}",
+    "ami_name": "hashistack {{timestamp}}",
     "ami_groups": ["all"]
   }],
   "provisioners":  [
@@ -18,16 +18,16 @@
   },
   {
     "type": "file",
-    "source": "../../shared",
+    "source": "../shared",
     "destination": "/ops"
   },
   {
     "type": "file",
-    "source": "../../examples",
+    "source": "../examples",
     "destination": "/ops"
   },
   {
     "type": "shell",
-    "script": "../../shared/scripts/setup.sh"
+    "script": "../shared/scripts/setup.sh"
   }]
 }

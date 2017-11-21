@@ -82,3 +82,6 @@ rkt-*
 
 # generated routes file
 command/agent/bindata_assetfs.go
+
+# auto-generated cert file for Terraform/Azure
+azure-hashistack.pem

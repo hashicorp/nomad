@@ -4,13 +4,13 @@ variable "instance_type" {}
 variable "key_name" {}
 variable "server_count" {}
 variable "client_count" {}
-variable "cluster_tag_value" {}
+variable "retry_join" {}
 
 data "aws_vpc" "default" {
   default = true
 }
 
-resource "aws_security_group" "primary" {
+resource "aws_security_group" "hashistack" {
   name   = "hashistack"
   vpc_id = "${data.aws_vpc.default.id}"
 
@@ -21,7 +21,15 @@ resource "aws_security_group" "primary" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Consul UI
+  # Nomad
+  ingress {
+    from_port   = 4646
+    to_port     = 4646
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Consul
   ingress {
     from_port   = 8500
     to_port     = 8500
@@ -68,13 +76,13 @@ resource "aws_security_group" "primary" {
   }
 }
 
-data "template_file" "user_data_server_primary" {
+data "template_file" "user_data_server" {
   template = "${file("${path.root}/user-data-server.sh")}"
 
   vars {
-    server_count      = "${var.server_count}"
-    region            = "${var.region}"
-    cluster_tag_value = "${var.cluster_tag_value}"
+    server_count = "${var.server_count}"
+    region       = "${var.region}"
+    retry_join   = "${var.retry_join}"
   }
 }
 
@@ -82,25 +90,25 @@ data "template_file" "user_data_client" {
   template = "${file("${path.root}/user-data-client.sh")}"
 
   vars {
-    region            = "${var.region}"
-    cluster_tag_value = "${var.cluster_tag_value}"
+    region     = "${var.region}"
+    retry_join = "${var.retry_join}"
   }
 }
 
-resource "aws_instance" "primary" {
+resource "aws_instance" "server" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
-  vpc_security_group_ids = ["${aws_security_group.primary.id}"]
+  vpc_security_group_ids = ["${aws_security_group.hashistack.id}"]
   count                  = "${var.server_count}"
 
   #Instance tags
   tags {
     Name           = "hashistack-server-${count.index}"
-    ConsulAutoJoin = "${var.cluster_tag_value}"
+    ConsulAutoJoin = "auto-join"
   }
 
-  user_data            = "${data.template_file.user_data_server_primary.rendered}"
+  user_data            = "${data.template_file.user_data_server.rendered}"
   iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
 }
 
@@ -108,14 +116,14 @@ resource "aws_instance" "client" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
-  vpc_security_group_ids = ["${aws_security_group.primary.id}"]
+  vpc_security_group_ids = ["${aws_security_group.hashistack.id}"]
   count                  = "${var.client_count}"
-  depends_on             = ["aws_instance.primary"]
+  depends_on             = ["aws_instance.server"]
 
   #Instance tags
   tags {
     Name           = "hashistack-client-${count.index}"
-    ConsulAutoJoin = "${var.cluster_tag_value}"
+    ConsulAutoJoin = "auto-join"
   }
 
   user_data            = "${data.template_file.user_data_client.rendered}"
@@ -164,16 +172,8 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
   }
 }
 
-output "primary_server_private_ips" {
-  value = ["${aws_instance.primary.*.private_ip}"]
-}
-
-output "primary_server_public_ips" {
-  value = ["${aws_instance.primary.*.public_ip}"]
-}
-
-output "client_private_ips" {
-  value = ["${aws_instance.client.*.private_ip}"]
+output "server_public_ips" {
+  value = ["${aws_instance.server.*.public_ip}"]
 }
 
 output "client_public_ips" {

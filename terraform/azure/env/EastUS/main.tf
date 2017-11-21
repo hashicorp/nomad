@@ -1,16 +1,14 @@
-variable "region" {
-  description = "The AWS region to deploy to."
-  default     = "us-east-1"
+variable "location" {
+  description = "The Azure location to deploy to."
+  default     = "East US"
 }
 
-variable "ami" {}
+variable "image_id" {}
 
-variable "instance_type" {
-  description = "The AWS instance type to use for both clients and servers."
-  default     = "t2.medium"
+variable "vm_size" {
+  description = "The Azure VM size to use for both clients and servers."
+  default     = "Standard_DS1_v2"
 }
-
-variable "key_name" {}
 
 variable "server_count" {
   description = "The number of servers to provision."
@@ -24,23 +22,23 @@ variable "client_count" {
 
 variable "retry_join" {
   description = "Used by Consul to automatically form a cluster."
-  default     = "provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"
 }
 
-provider "aws" {
-  region = "${var.region}"
+terraform {
+  required_version = ">= 0.10.1"
 }
+
+provider "azurerm" {}
 
 module "hashistack" {
   source = "../../modules/hashistack"
 
-  region        = "${var.region}"
-  ami           = "${var.ami}"
-  instance_type = "${var.instance_type}"
-  key_name      = "${var.key_name}"
-  server_count  = "${var.server_count}"
-  client_count  = "${var.client_count}"
-  retry_join    = "${var.retry_join}"
+  location     = "${var.location}"
+  image_id     = "${var.image_id}"
+  vm_size      = "${var.vm_size}"
+  server_count = "${var.server_count}"
+  client_count = "${var.client_count}"
+  retry_join   = "${var.retry_join}"
 }
 
 output "IP_Addresses" {
