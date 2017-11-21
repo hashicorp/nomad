@@ -1,38 +1,11 @@
 import Ember from 'ember';
-import queryString from 'npm:query-string';
 import { task, timeout } from 'ember-concurrency';
+import AbstractLogger from './abstract-logger';
 
-const { Object: EmberObject, computed, assign } = Ember;
+const { Object: EmberObject } = Ember;
 
-export default EmberObject.extend({
-  url: '',
+export default EmberObject.extend(AbstractLogger, {
   interval: 1000,
-  params: computed(() => ({})),
-  logFetch() {
-    Ember.assert(
-      'Loggers need a logFetch method, which should have an interface like window.fetch'
-    );
-  },
-
-  endOffset: null,
-
-  fullUrl: computed('url', 'endOffset', 'params', function() {
-    const endOffset = this.get('endOffset');
-    let additionalParams;
-    if (endOffset) {
-      additionalParams = {
-        origin: 'start',
-        offset: this.get('endOffset'),
-      };
-    } else {
-      additionalParams = {
-        origin: 'end',
-        offset: 50000,
-      };
-    }
-    const queryParams = queryString.stringify(assign({}, this.get('params'), additionalParams));
-    return `${this.get('url')}?${queryParams}`;
-  }),
 
   start() {
     return this.get('poll').perform();
