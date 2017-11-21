@@ -2,7 +2,7 @@ import Ember from 'ember';
 import queryString from 'npm:query-string';
 
 const { Mixin, computed, assign } = Ember;
-const CHUNK_SIZE = 50000;
+const MAX_OUTPUT_LENGTH = 50000;
 
 export default Mixin.create({
   url: '',
@@ -19,7 +19,7 @@ export default Mixin.create({
     const endOffset = this.get('endOffset');
     return endOffset
       ? { origin: 'start', offset: endOffset }
-      : { origin: 'end', offset: CHUNK_SIZE };
+      : { origin: 'end', offset: MAX_OUTPUT_LENGTH };
   }),
 
   additionalParams: computed(() => ({})),

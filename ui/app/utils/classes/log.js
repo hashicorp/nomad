@@ -6,6 +6,8 @@ import PollLogger from 'nomad-ui/utils/classes/poll-logger';
 
 const { Object: EmberObject, Evented, computed, assign } = Ember;
 
+const MAX_OUTPUT_LENGTH = 50000;
+
 const Log = EmberObject.extend(Evented, {
   // Parameters
 
@@ -41,8 +43,8 @@ const Log = EmberObject.extend(Evented, {
     const args = this.getProperties('url', 'params', 'logFetch');
     args.write = chunk => {
       let newTail = this.get('tail') + chunk;
-      if (newTail.length > 50000) {
-        newTail = newTail.substr(newTail.length - 50000);
+      if (newTail.length > MAX_OUTPUT_LENGTH) {
+        newTail = newTail.substr(newTail.length - MAX_OUTPUT_LENGTH);
       }
       this.set('tail', newTail);
       this.trigger('tick', chunk);
@@ -74,8 +76,8 @@ const Log = EmberObject.extend(Evented, {
     this.stop();
     let text = yield logFetch(url).then(res => res.text());
 
-    if (text.length > 50000) {
-      text = text.substr(0, 50000);
+    if (text.length > MAX_OUTPUT_LENGTH) {
+      text = text.substr(0, MAX_OUTPUT_LENGTH);
       text += '\n\n---------- TRUNCATED: Click "tail" to view the bottom of the log ----------';
     }
     this.set('head', text);
@@ -88,7 +90,7 @@ const Log = EmberObject.extend(Evented, {
       assign(this.get('params'), {
         plain: true,
         origin: 'end',
-        offset: 50000,
+        offset: MAX_OUTPUT_LENGTH,
       })
     );
     const url = `${this.get('url')}?${queryParams}`;
