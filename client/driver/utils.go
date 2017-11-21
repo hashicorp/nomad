@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -109,15 +108,6 @@ func killProcess(pid int) error {
 		return err
 	}
 	return proc.Kill()
-}
-
-// killProcessGroup kills a process group with the given pid
-func killProcessGroup(pid int) error {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-	return syscall.Kill(-proc.Pid, syscall.SIGKILL)
 }
 
 // destroyPlugin kills the plugin with the given pid and also kills the user

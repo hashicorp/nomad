@@ -331,15 +331,6 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, execu
 	return mErrs.ErrorOrNil()
 }
 
-// configure new process group for child process
-func (e *UniversalExecutor) setNewProcessGroup() error {
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	e.cmd.SysProcAttr.Setpgid = true
-	return nil
-}
-
 // getCgroupManager returns the correct libcontainer cgroup manager.
 func getCgroupManager(groups *cgroupConfig.Cgroup, paths map[string]string) cgroups.Manager {
 	return &cgroupFs.Manager{Cgroups: groups, Paths: paths}

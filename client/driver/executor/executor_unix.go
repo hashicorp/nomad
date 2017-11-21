@@ -5,6 +5,7 @@ package executor
 import (
 	"fmt"
 	"io"
+	"syscall"
 
 	syslog "github.com/RackSec/srslog"
 
@@ -46,4 +47,13 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 			e.lro.Write([]byte{'\n'})
 		}
 	}
+}
+
+// configure new process group for child process
+func (e *UniversalExecutor) setNewProcessGroup() error {
+	if e.cmd.SysProcAttr == nil {
+		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	e.cmd.SysProcAttr.Setpgid = true
+	return nil
 }
