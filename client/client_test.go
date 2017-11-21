@@ -1097,7 +1097,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 		func() (bool, error) {
 			err := c1.RPC("Node.GetNode", &req, &out)
 			if err != nil {
-				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", err)
+				return false, fmt.Errorf("client RPC failed when it should have succeeded:\n%+v", err)
 			}
 			return true, nil
 		},

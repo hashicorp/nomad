@@ -84,8 +84,9 @@ const (
 // Server is Nomad server which manages the job queues,
 // schedulers, and notification bus for agents.
 type Server struct {
-	config *Config
-	logger *log.Logger
+	config     *Config
+	configLock sync.RWMutex
+	logger     *log.Logger
 
 	// Connection pool to other Nomad servers
 	connPool *ConnPool
@@ -363,7 +364,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
+	s.configLock.Lock()
 	s.config.TLSConfig = newTLSConfig
+	s.configLock.Unlock()
 
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
