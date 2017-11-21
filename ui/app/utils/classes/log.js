@@ -48,7 +48,7 @@ const Log = EmberObject.extend(Evented, {
       this.trigger('tick', chunk);
     };
 
-    if (window.ReadableStream) {
+    if (StreamLogger.isSupported) {
       this.set('logStreamer', StreamLogger.create(args));
     } else {
       this.set('logStreamer', PollLogger.create(args));

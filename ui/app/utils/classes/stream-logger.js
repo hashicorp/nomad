@@ -69,4 +69,6 @@ export default EmberObject.extend(AbstractLogger, {
       });
     }
   }),
+}).reopenClass({
+  isSupported: !!window.ReadableStream,
 });
