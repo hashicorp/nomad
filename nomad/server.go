@@ -405,13 +405,15 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	}
 	s.rpcListener = list
 
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer.ReloadTLS(wrapper)
+	s.raftTransport.Reload()
+	time.Sleep(500 * time.Millisecond)
+
 	// reinitialize the cancel context
 	ctx, cancel := context.WithCancel(context.Background())
 	s.rpcCancel = cancel
 	go s.listen(ctx)
-
-	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer.ReloadTLS(wrapper)
 
 	s.logger.Printf("[INFO] nomad: finished reloading server connections")
 	return nil
