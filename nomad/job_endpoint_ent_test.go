@@ -3,10 +3,9 @@
 package nomad
 
 import (
+	"fmt"
 	"strings"
 	"testing"
-
-	"fmt"
 
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
