@@ -835,6 +835,9 @@ func (s *Server) setupRaft() error {
 	// Our version of Raft protocol requires the LocalID to match the network
 	// address of the transport.
 	s.config.RaftConfig.LocalID = raft.ServerID(trans.LocalAddr())
+	if s.config.RaftConfig.ProtocolVersion >= 3 {
+		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
+	}
 
 	// Build an all in-memory setup for dev mode, otherwise prepare a full
 	// disk-based setup.
@@ -937,7 +940,7 @@ func (s *Server) setupRaft() error {
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
 					{
-						ID:      raft.ServerID(trans.LocalAddr()),
+						ID:      s.config.RaftConfig.LocalID,
 						Address: trans.LocalAddr(),
 					},
 				},
@@ -972,6 +975,8 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["vsn"] = fmt.Sprintf("%d", structs.ApiMajorVersion)
 	conf.Tags["mvn"] = fmt.Sprintf("%d", structs.ApiMinorVersion)
 	conf.Tags["build"] = s.config.Build
+	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
+	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["port"] = fmt.Sprintf("%d", s.rpcAdvertise.(*net.TCPAddr).Port)
 	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		conf.Tags["bootstrap"] = "1"

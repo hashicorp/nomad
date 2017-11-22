@@ -112,6 +112,11 @@ server {
   required as the agent internally knows the latest version, but may be useful
   in some upgrade scenarios.
 
+- `raft_protocol` `(int: 2)` - Specifies the Raft protocol version to use when
+  communicating with other Nomad servers. This affects available Autopilot
+  features and is typically not required as the agent internally knows the
+  latest version, but may be useful in some upgrade scenarios.
+
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
   Nomad treats leave as a permanent intent and does not attempt to join the

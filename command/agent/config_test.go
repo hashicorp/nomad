@@ -234,6 +234,7 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        2,
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
+			RaftProtocol:           2,
 			NumSchedulers:          2,
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
