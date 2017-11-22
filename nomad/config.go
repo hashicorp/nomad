@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
@@ -97,6 +98,9 @@ type Config struct {
 
 	// Node name is the name we use to advertise. Defaults to hostname.
 	NodeName string
+
+	// NodeID is the uuid of this server.
+	NodeID string
 
 	// Region is the region this Nomad server belongs to.
 	Region string
@@ -283,6 +287,7 @@ func DefaultConfig() *Config {
 		AuthoritativeRegion:              DefaultRegion,
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
+		NodeID:                           uuid.Generate(),
 		ProtocolVersion:                  ProtocolVersionMax,
 		RaftConfig:                       raft.DefaultConfig(),
 		RaftTimeout:                      10 * time.Second,
@@ -339,9 +344,9 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 
-	// Enable interoperability with unversioned Raft library, and don't
+	// Enable interoperability with raft protocol version 1, and don't
 	// start using new ID-based features yet.
-	c.RaftConfig.ProtocolVersion = 1
+	c.RaftConfig.ProtocolVersion = 2
 
 	return c
 }

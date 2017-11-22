@@ -83,6 +83,7 @@ func (c *Command) readConfig() *Config {
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
+	flags.IntVar(&cmdConfig.Server.RaftProtocol, "raft-protocol", 0, "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -869,6 +870,10 @@ Server Options:
   -join=<address>
     Address of an agent to join at start time. Can be specified
     multiple times.
+
+  -raft-protocol=<num>
+    The Raft protocol version to use. Used for enabling certain Autopilot
+    features. Defaults to 2.
 
   -retry-join=<address>
     Address of an agent to join at start time with retries enabled.

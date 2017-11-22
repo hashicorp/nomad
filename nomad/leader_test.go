@@ -811,3 +811,94 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	// P2 is un-modified - ignore. P3 modified, P4 new.
 	assert.Equal(t, []string{p3.AccessorID, p4.AccessorID}, update)
 }
+
+func TestLeader_UpgradeRaftVersion(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.Datacenter = "dc1"
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.Datacenter = "dc1"
+		c.RaftConfig.ProtocolVersion = 1
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.Datacenter = "dc1"
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s3.Shutdown()
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	testJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.numPeers()
+			return peers == 3, nil
+		}, func(err error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
+	// Kill the v1 server
+	if err := s2.Leave(); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range []*Server{s1, s3} {
+		minVer, err := MinRaftProtocol("dc1", s.Members())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := minVer, 2; got != want {
+			t.Fatalf("got min raft version %d want %d", got, want)
+		}
+	}
+
+	// Replace the dead server with one running raft protocol v3
+	s4 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.Datacenter = "dc1"
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s4.Shutdown()
+	testJoin(t, s1, s4)
+	servers[1] = s4
+
+	// Make sure we're back to 3 total peers with the new one added via ID
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			addrs := 0
+			ids := 0
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				return false, err
+			}
+			for _, server := range future.Configuration().Servers {
+				if string(server.ID) == string(server.Address) {
+					addrs++
+				} else {
+					ids++
+				}
+			}
+			if got, want := addrs, 2; got != want {
+				return false, fmt.Errorf("got %d server addresses want %d", got, want)
+			}
+			if got, want := ids, 1; got != want {
+				return false, fmt.Errorf("got %d server ids want %d", got, want)
+			}
+
+			return true, nil
+		}, func(err error) {
+			t.Fatal(err)
+		})
+	}
+}
