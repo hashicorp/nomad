@@ -29,10 +29,6 @@ func (e *UniversalExecutor) configureIsolation() error {
 	return nil
 }
 
-func (e *UniversalExecutor) setNewProcessGroup() error {
-	return nil
-}
-
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	pidStats, err := e.pidStats()
 	if err != nil {

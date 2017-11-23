@@ -440,6 +440,10 @@ var (
 	// finishedErr is the error message received when trying to kill and already
 	// exited process.
 	finishedErr = "os: process already finished"
+
+	// noSuchProcessErr is the error message received when trying to kill a non
+	// existing process (e.g. when killing a process group).
+	noSuchProcessErr = "no such process"
 )
 
 // ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
@@ -453,7 +457,10 @@ func (e *UniversalExecutor) cleanupUserLeftovers(proc *os.Process) error {
 	// If new process group was created upon command execution
 	// we can kill the whole process group now to cleanup any leftovers.
 	if e.cmd.SysProcAttr != nil && e.cmd.SysProcAttr.Setpgid {
-		return syscall.Kill(-proc.Pid, syscall.SIGKILL)
+		if err := syscall.Kill(-proc.Pid, syscall.SIGKILL); err != nil && err.Error() != noSuchProcessErr {
+			return err
+		}
+		return nil
 	} else {
 		return proc.Kill()
 	}

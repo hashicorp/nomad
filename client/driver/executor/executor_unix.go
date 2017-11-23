@@ -5,6 +5,7 @@ package executor
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"syscall"
 
 	syslog "github.com/RackSec/srslog"
@@ -51,6 +52,10 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 
 // configure new process group for child process
 func (e *UniversalExecutor) setNewProcessGroup() error {
+	// We need to check that as build flags includes windows for this file
+	if runtime.GOOS == "windows" {
+		return nil
+	}
 	if e.cmd.SysProcAttr == nil {
 		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
