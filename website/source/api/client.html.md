@@ -569,7 +569,7 @@ the Nomad client whose allocations should be garbage collected.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `GET`  | `/client/gc`                 | `application/json`         |
+| `GET`  | `/client/gc`                 | `text/plain`               |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
