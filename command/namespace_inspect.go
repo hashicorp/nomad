@@ -78,9 +78,13 @@ func (c *NamespaceInspectCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(possible) != 0 {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
-		return 1
+	if len(possible) > 1 {
+		if possible[0].Name == name {
+			ns = possible[0]
+		} else {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
+			return 1
+		}
 	}
 
 	out, err := Format(len(tmpl) == 0, tmpl, ns)
