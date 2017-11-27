@@ -51,7 +51,7 @@ func (l *RaftLayer) Handoff(c net.Conn, ctx context.Context) error {
 	case <-l.closeCh:
 		return fmt.Errorf("Raft RPC layer closed")
 	case <-ctx.Done():
-		return fmt.Errorf("[INFO] nomad.rpc: Closing raft RPC connection")
+		return fmt.Errorf("[INFO] nomad.rpc: Closing server RPC connection")
 	}
 }
 
@@ -120,9 +120,11 @@ func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
 	defer l.closeLock.Unlock()
 
 	if !l.closed {
+		l.closed = true
 		close(l.closeCh)
 	}
 
 	l.tlsWrap = tlsWrap
 	l.closeCh = make(chan struct{})
+	l.closed = false
 }

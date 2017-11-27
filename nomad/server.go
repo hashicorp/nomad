@@ -365,8 +365,9 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
 	s.configLock.Lock()
+	defer s.configLock.Unlock()
+
 	s.config.TLSConfig = newTLSConfig
-	s.configLock.Unlock()
 
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
@@ -393,6 +394,9 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.rpcTLS = incomingTLS
 
 	s.rpcCancel()
+	s.raftTransport.Close()
+	s.raftLayer.Close()
+
 	s.connPool.ReloadTLS(tlsWrap)
 
 	// reinitialize our rpc listener
@@ -405,15 +409,18 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	}
 	s.rpcListener = list
 
-	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer.ReloadTLS(wrapper)
-	s.raftTransport.Reload()
-	time.Sleep(500 * time.Millisecond)
-
 	// reinitialize the cancel context
 	ctx, cancel := context.WithCancel(context.Background())
 	s.rpcCancel = cancel
 	go s.listen(ctx)
+
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer.ReloadTLS(wrapper)
+
+	// re-initialize the network transport with a re-initialized stream layer
+	trans := raft.NewNetworkTransport(s.raftLayer, 3, s.config.RaftTimeout,
+		s.config.LogOutput)
+	s.raftTransport = trans
 
 	s.logger.Printf("[INFO] nomad: finished reloading server connections")
 	return nil

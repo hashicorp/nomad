@@ -177,19 +177,6 @@ func (n *NetworkTransport) Close() error {
 	return nil
 }
 
-func (n *NetworkTransport) Reload() {
-	n.shutdownLock.Lock()
-	defer n.shutdownLock.Unlock()
-
-	if !n.shutdown {
-		close(n.shutdownCh)
-		n.shutdown = true
-	}
-
-	time.Sleep(3 * time.Second)
-	n.shutdownCh = make(chan struct{})
-}
-
 // Consumer implements the Transport interface.
 func (n *NetworkTransport) Consumer() <-chan RPC {
 	return n.consumeCh

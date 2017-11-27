@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -46,6 +47,7 @@ type Command struct {
 	args           []string
 	agent          *Agent
 	httpServer     *HTTPServer
+	httpServerLock sync.Mutex
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -611,6 +613,8 @@ func (c *Command) reloadHTTPServerOnConfigChange(newConfig *Config) error {
 	if err != nil {
 		return err
 	}
+	c.httpServerLock.Lock()
+	defer c.httpServerLock.Unlock()
 	c.httpServer = http
 
 	return nil
@@ -644,23 +648,14 @@ func (c *Command) handleReload() {
 		err := reloadFunc(newConf)
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
-		}
-
-		err = c.httpServer.Shutdown()
-		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to stop HTTP server: %v", err)
 			return
 		}
 
-		// Wait some time to ensure a clean shutdown
-		time.Sleep(5 * time.Second)
-		http, err := NewHTTPServer(c.agent, c.agent.config)
+		err = c.reloadHTTPServerOnConfigChange(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to reload http server: %v", err)
+			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 			return
 		}
-		c.agent.logger.Println("[INFO] agent: successfully restarted the HTTP server")
-		c.httpServer = http
 	}
 
 	if s := c.agent.Server(); s != nil {

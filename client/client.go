@@ -365,7 +365,7 @@ func (c *Client) init() error {
 	return nil
 }
 
-// ReloadTLSConnectoins allows a client to reload RPC connections if the
+// ReloadTLSConnections allows a client to reload RPC connections if the
 // client's TLS configuration changes from plaintext to TLS
 func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	c.configLock.Lock()
