@@ -62,7 +62,10 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
-	id := m.Tags["id"]
+	id := "unknown"
+	if v, ok := m.Tags["id"]; ok {
+		id = v
+	}
 	region := m.Tags["region"]
 	datacenter := m.Tags["dc"]
 	_, bootstrap := m.Tags["bootstrap"]
