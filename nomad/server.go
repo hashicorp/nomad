@@ -99,21 +99,28 @@ type Server struct {
 	leaderCh      <-chan bool
 	raft          *raft.Raft
 	raftLayer     *RaftLayer
-	raftStore     *raftboltdb.BoltStore
-	raftInmem     *raft.InmemStore
-	raftTransport *raft.NetworkTransport
+	raftLayerLock sync.Mutex
+
+	raftStore *raftboltdb.BoltStore
+	raftInmem *raft.InmemStore
+
+	raftTransport     *raft.NetworkTransport
+	raftTransportLock sync.Mutex
 
 	// fsm is the state machine used with Raft
 	fsm *nomadFSM
 
 	// rpcListener is used to listen for incoming connections
-	rpcListener  net.Listener
+	rpcListener     net.Listener
+	rpcListenerLock sync.Mutex
+
 	rpcServer    *rpc.Server
 	rpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
-	rpcTLS    *tls.Config
-	rpcCancel context.CancelFunc
+	rpcTLS     *tls.Config
+	rpcCancel  context.CancelFunc
+	rpcTLSLock sync.Mutex
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
@@ -365,9 +372,8 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
 	s.configLock.Lock()
-	defer s.configLock.Unlock()
-
 	s.config.TLSConfig = newTLSConfig
+	s.configLock.Unlock()
 
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
@@ -390,16 +396,20 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		s.logger.Printf("[ERR] nomad: No TLS Context to reset")
 		return fmt.Errorf("Unable to reset tls context")
 	}
-
-	s.rpcTLS = incomingTLS
-
 	s.rpcCancel()
+
+	s.rpcTLSLock.Lock()
+	s.rpcTLS = incomingTLS
+	s.rpcTLSLock.Unlock()
+
+	s.raftTransportLock.Lock()
+	defer s.raftTransportLock.Unlock()
 	s.raftTransport.Close()
-	s.raftLayer.Close()
 
 	s.connPool.ReloadTLS(tlsWrap)
 
 	// reinitialize our rpc listener
+	s.rpcListenerLock.Lock()
 	s.rpcListener.Close()
 	time.Sleep(500 * time.Millisecond)
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
@@ -407,15 +417,21 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		s.logger.Printf("[ERR] nomad: No TLS listener to reload")
 		return err
 	}
+
 	s.rpcListener = list
 
 	// reinitialize the cancel context
 	ctx, cancel := context.WithCancel(context.Background())
 	s.rpcCancel = cancel
+	s.rpcListenerLock.Unlock()
+
 	go s.listen(ctx)
 
+	s.raftLayerLock.Lock()
+	s.raftLayer.Close()
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer.ReloadTLS(wrapper)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
+	s.raftLayerLock.Unlock()
 
 	// re-initialize the network transport with a re-initialized stream layer
 	trans := raft.NewNetworkTransport(s.raftLayer, 3, s.config.RaftTimeout,

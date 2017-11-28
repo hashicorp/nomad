@@ -803,6 +803,9 @@ func (a *Agent) Reload(newConfig *Config) error {
 
 // GetConfigCopy creates a replica of the agent's config, excluding locks
 func (a *Agent) GetConfig() *Config {
+	a.configLock.Lock()
+	defer a.configLock.Unlock()
+
 	return a.config
 }
 

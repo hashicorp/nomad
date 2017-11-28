@@ -113,18 +113,3 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 	}
 	return conn, err
 }
-
-// ReloadTLS will re-initialize the TLS wrapper on the fly
-func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
-	l.closeLock.Lock()
-	defer l.closeLock.Unlock()
-
-	if !l.closed {
-		l.closed = true
-		close(l.closeCh)
-	}
-
-	l.tlsWrap = tlsWrap
-	l.closeCh = make(chan struct{})
-	l.closed = false
-}
