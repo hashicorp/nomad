@@ -237,22 +237,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	}
 
 	// Configure TLS
-	var tlsWrap tlsutil.RegionWrapper
-	var incomingTLS *tls.Config
-	if config.TLSConfig.EnableRPC {
-		tlsConf := config.tlsConfig()
-		tw, err := tlsConf.OutgoingTLSWrapper()
-		if err != nil {
-			return nil, err
-		}
-		tlsWrap = tw
-
-		itls, err := tlsConf.IncomingTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-		incomingTLS = itls
-	}
+	tlsConf := config.tlsConfig()
+	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
 
 	// Create the ACL object cache
 	aclCache, err := lru.New2Q(aclCacheSize)
@@ -366,6 +352,25 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
+func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.RegionWrapper, error) {
+	var tlsWrap tlsutil.RegionWrapper
+	var incomingTLS *tls.Config
+	if enableRPC {
+		tw, err := tlsConf.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, nil, err
+		}
+		tlsWrap = tw
+
+		itls, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, nil, err
+		}
+		incomingTLS = itls
+	}
+	return incomingTLS, tlsWrap, nil
+}
+
 // ReloadTLSConnections updates a server's TLS configuration and reloads RPC
 // connections
 func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
@@ -375,22 +380,8 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.config.TLSConfig = newTLSConfig
 	s.configLock.Unlock()
 
-	var tlsWrap tlsutil.RegionWrapper
-	var incomingTLS *tls.Config
-	if s.config.TLSConfig.EnableRPC {
-		tlsConf := s.config.tlsConfig()
-		tw, err := tlsConf.OutgoingTLSWrapper()
-		if err != nil {
-			return err
-		}
-		tlsWrap = tw
-
-		itls, err := tlsConf.IncomingTLSConfig()
-		if err != nil {
-			return err
-		}
-		incomingTLS = itls
-	}
+	tlsConf := s.config.tlsConfig()
+	incomingTLS, tlsWrap, err := getTLSConf(s.config.TLSConfig.EnableRPC, tlsConf)
 
 	if s.rpcCancel == nil {
 		s.logger.Printf("[ERR] nomad: No TLS Context to reset")
