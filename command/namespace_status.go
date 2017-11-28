@@ -61,20 +61,16 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Do a prefix lookup
+	// Do a prefix lookup; No matches is returned as an error state.
 	ns, possible, err := getNamespace(client.Namespaces(), name)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving namespaces: %s", err))
 		return 1
 	}
 
-	if len(possible) > 1 {
-		if possible[0].Name == name {
-			ns = possible[0]
-		} else {
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
-			return 1
-		}
+	if ns == nil && possible != nil {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
+		return 1
 	}
 
 	c.Ui.Output(formatNamespaceBasics(ns))
@@ -118,6 +114,14 @@ func formatNamespaceBasics(ns *api.Namespace) string {
 	return formatKV(basic)
 }
 
+// getNamespace returns three values:
+// * an exact match, if found
+// * the fuzzy matches, if found
+// * any error
+//
+// In the case that the fuzzy match finds one and only one
+// possibility, it will return it as though it was an exact
+// match.
 func getNamespace(client *api.Namespaces, ns string) (match *api.Namespace, possible []*api.Namespace, err error) {
 	// Do a prefix lookup
 	namespaces, _, err := client.PrefixList(ns, nil)
@@ -131,6 +135,8 @@ func getNamespace(client *api.Namespaces, ns string) (match *api.Namespace, poss
 		return nil, nil, fmt.Errorf("Namespace %q matched no namespaces", ns)
 	case l == 1:
 		return namespaces[0], nil, nil
+	case l > 1 && ns == namespaces[0].Name:
+		return namespaces[0], namespaces[1:], nil
 	default:
 		return nil, namespaces, nil
 	}

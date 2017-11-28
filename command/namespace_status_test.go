@@ -163,5 +163,4 @@ func TestNamespaceStatusCommand_NamespaceMatchesPrefix(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 	}
-
 }
