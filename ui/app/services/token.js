@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import fetch from 'fetch';
+import fetch from 'nomad-ui/utils/fetch';
 
 const { Service, computed, assign } = Ember;
 

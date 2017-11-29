@@ -1,0 +1,15 @@
+{{#global-header class="page-header"}}
+  <span class="breadcrumb">Allocations</span>
+  {{#link-to "allocations.allocation" model.allocation class="breadcrumb"}}
+    {{model.allocation.shortId}}
+  {{/link-to}}
+  {{#link-to "allocations.allocation.task" model.allocation model class="breadcrumb"}}
+    {{model.name}}
+  {{/link-to}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "allocations/allocation/task/subnav"}}
+  <section class="section">
+    {{task-log allocation=model.allocation task=model.name}}
+  </section>
+{{/gutter-menu}}
