@@ -368,21 +368,21 @@ func (c *Client) init() error {
 // ReloadTLSConnections allows a client to reload RPC connections if the
 // client's TLS configuration changes from plaintext to TLS
 func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
-	c.configLock.Lock()
-	c.config.TLSConfig = newConfig
-	c.configLock.Unlock()
+	var tlsWrap tlsutil.RegionWrapper
+	if newConfig.EnableRPC {
+		tw, err := c.config.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
 
-	if c.config.TLSConfig.EnableRPC {
-		tw, err := c.config.TLSConfiguration().OutgoingTLSWrapper()
 		if err != nil {
 			return err
 		}
-		c.connPool.ReloadTLS(tw)
-	} else {
-		c.connPool.ReloadTLS(nil)
+		tlsWrap = tw
 	}
 
-	time.Sleep(3 * time.Second)
+	c.connPool.ReloadTLS(tlsWrap)
+
+	c.configLock.Lock()
+	c.config.TLSConfig = newConfig
+	c.configLock.Unlock()
 
 	return nil
 }

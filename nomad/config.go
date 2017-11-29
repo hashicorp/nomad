@@ -353,13 +353,20 @@ func DefaultConfig() *Config {
 
 // tlsConfig returns a TLSUtil Config based on the server configuration
 func (c *Config) tlsConfig() *tlsutil.Config {
+	return c.newTLSConfig(c.TLSConfig)
+}
+
+// newTLSConfig  returns a TLSUtil Config based on the server configuration
+// This is useful for creating a TLSConfig object without explictely setting it
+// on the config.
+func (c *Config) newTLSConfig(newConf *config.TLSConfig) *tlsutil.Config {
 	return &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
-		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
-		CAFile:               c.TLSConfig.CAFile,
-		CertFile:             c.TLSConfig.CertFile,
-		KeyFile:              c.TLSConfig.KeyFile,
-		KeyLoader:            c.TLSConfig.GetKeyLoader(),
+		VerifyServerHostname: newConf.VerifyServerHostname,
+		CAFile:               newConf.CAFile,
+		CertFile:             newConf.CertFile,
+		KeyFile:              newConf.KeyFile,
+		KeyLoader:            newConf.GetKeyLoader(),
 	}
 }

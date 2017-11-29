@@ -379,12 +379,8 @@ func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.R
 func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
-	s.configLock.Lock()
-	s.config.TLSConfig = newTLSConfig
-	s.configLock.Unlock()
-
-	tlsConf := s.config.tlsConfig()
-	incomingTLS, tlsWrap, err := getTLSConf(s.config.TLSConfig.EnableRPC, tlsConf)
+	tlsConf := s.config.newTLSConfig(newTLSConfig)
+	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context")
 		return err
@@ -396,6 +392,10 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	}
 
 	s.rpcCancel()
+
+	s.configLock.Lock()
+	s.config.TLSConfig = newTLSConfig
+	s.configLock.Unlock()
 
 	s.rpcTLSLock.Lock()
 	s.rpcTLS = incomingTLS
