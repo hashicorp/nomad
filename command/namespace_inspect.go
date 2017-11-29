@@ -71,14 +71,14 @@ func (c *NamespaceInspectCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Do a prefix lookup; No matches is returned as an error state.
+	// Do a prefix lookup
 	ns, possible, err := getNamespace(client.Namespaces(), name)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving namespaces: %s", err))
 		return 1
 	}
 
-	if ns == nil && possible != nil {
+	if len(possible) != 0 {
 		c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
 		return 1
 	}

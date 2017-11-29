@@ -113,13 +113,24 @@ func TestNamespaceInspectCommand_NamespaceMatchesPrefix(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Create a foo namespace
-	ns = &api.Namespace{Name: "foo"}
+	ns2 := &api.Namespace{Name: "foo"}
+	_, err = client.Namespaces().Register(ns2, nil)
+	assert.Nil(t, err)
+
+	// Adding a NS after to prevent sort from creating
+	// false successes
+	ns = &api.Namespace{Name: "fooBaz"}
 	_, err = client.Namespaces().Register(ns, nil)
 	assert.Nil(t, err)
 
 	// Check status on namespace
-	code := cmd.Run([]string{"-address=" + url, ns.Name})
+	code := cmd.Run([]string{"-address=" + url, ns2.Name})
 	if code != 0 {
 		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+	// Check to ensure we got the proper foo
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "= foo\n") {
+		t.Fatalf("expected namespace foo, got: %s", out)
 	}
 }
