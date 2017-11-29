@@ -1047,11 +1047,12 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	config := &docker.Config{
-		Image:     d.imageID,
-		Hostname:  driverConfig.Hostname,
-		User:      task.User,
-		Tty:       driverConfig.TTY,
-		OpenStdin: driverConfig.Interactive,
+		Image:       d.imageID,
+		Hostname:    driverConfig.Hostname,
+		User:        task.User,
+		Tty:         driverConfig.TTY,
+		OpenStdin:   driverConfig.Interactive,
+		StopTimeout: int(task.KillTimeout),
 	}
 
 	if driverConfig.WorkDir != "" {
