@@ -7,6 +7,7 @@ import "github.com/hashicorp/nomad/helper"
 type Resources struct {
 	CPU      *int
 	MemoryMB *int `mapstructure:"memory"`
+	SwapMB   *int `mapstructure:"swap"`
 	DiskMB   *int `mapstructure:"disk"`
 	IOPS     *int
 	Networks []*NetworkResource
@@ -21,6 +22,9 @@ func (r *Resources) Canonicalize() {
 	}
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
+	}
+	if r.SwapMB == nil {
+		r.SwapMB = defaultResources.SwapMB
 	}
 	if r.IOPS == nil {
 		r.IOPS = defaultResources.IOPS
@@ -38,6 +42,7 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      helper.IntToPtr(100),
 		MemoryMB: helper.IntToPtr(300),
+		SwapMB:   helper.IntToPtr(0),
 		IOPS:     helper.IntToPtr(0),
 	}
 }
@@ -51,6 +56,7 @@ func MinResources() *Resources {
 	return &Resources{
 		CPU:      helper.IntToPtr(20),
 		MemoryMB: helper.IntToPtr(10),
+		SwapMB:   helper.IntToPtr(0),
 		IOPS:     helper.IntToPtr(0),
 	}
 }
@@ -65,6 +71,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.MemoryMB != nil {
 		r.MemoryMB = other.MemoryMB
+	}
+    if other.SwapMB != nil {
+		r.SwapMB = other.SwapMB
 	}
 	if other.DiskMB != nil {
 		r.DiskMB = other.DiskMB

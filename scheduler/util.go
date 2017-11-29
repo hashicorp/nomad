@@ -409,6 +409,8 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
 			return true
+		} else if ar.SwapMB != br.SwapMB {
+			return true
 		} else if ar.IOPS != br.IOPS {
 			return true
 		}

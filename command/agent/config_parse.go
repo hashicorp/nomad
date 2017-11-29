@@ -472,6 +472,7 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 	valid := []string{
 		"cpu",
 		"memory",
+        "swap",
 		"disk",
 		"iops",
 		"reserved_ports",
