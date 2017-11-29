@@ -53,7 +53,34 @@ export default Model.extend({
   versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
   deployments: hasMany('deployments'),
+  evaluations: hasMany('evaluations'),
   namespace: belongsTo('namespace'),
+
+  hasPlacementFailures: computed.bool('latestFailureEvaluation'),
+
+  latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
+    const evaluations = this.get('evaluations');
+    if (!evaluations || evaluations.get('isPending')) {
+      return null;
+    }
+    return evaluations.sortBy('modifyIndex').get('lastObject');
+  }),
+
+  latestFailureEvaluation: computed(
+    'evaluations.@each.modifyIndex',
+    'evaluations.isPending',
+    function() {
+      const evaluations = this.get('evaluations');
+      if (!evaluations || evaluations.get('isPending')) {
+        return null;
+      }
+
+      const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
+      if (failureEvaluations) {
+        return failureEvaluations.sortBy('modifyIndex').get('lastObject');
+      }
+    }
+  ),
 
   supportsDeployments: computed.equal('type', 'service'),
 
