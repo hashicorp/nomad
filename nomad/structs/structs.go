@@ -1339,16 +1339,16 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 // should be used for that.
 func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
-		return false, "cpu exhausted"
+		return false, "cpu"
 	}
 	if r.MemoryMB < other.MemoryMB {
-		return false, "memory exhausted"
+		return false, "memory"
 	}
 	if r.DiskMB < other.DiskMB {
-		return false, "disk exhausted"
+		return false, "disk"
 	}
 	if r.IOPS < other.IOPS {
-		return false, "iops exhausted"
+		return false, "iops"
 	}
 	return true, ""
 }
