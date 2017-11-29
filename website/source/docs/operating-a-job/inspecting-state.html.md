@@ -98,7 +98,7 @@ ID        Priority  Triggered By  Status    Placement Failures
 Placement Failure
 Task Group "example":
   * Resources exhausted on 1 nodes
-  * Dimension "cpu exhausted" exhausted on 1 nodes
+  * Dimension "cpu" exhausted on 1 nodes
 
 Allocations
 ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
@@ -135,7 +135,7 @@ Placement Failures = true
 Failed Placements
 Task Group "example" (failed to place 3 allocations):
   * Resources exhausted on 1 nodes
-  * Dimension "cpu exhausted" exhausted on 1 nodes
+  * Dimension "cpu" exhausted on 1 nodes
 
 Evaluation "5744eb15" waiting for additional capacity to place remainder
 ```
