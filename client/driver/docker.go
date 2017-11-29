@@ -1150,7 +1150,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
-	swapLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
+	swapLimit := int64(task.Resources.SwapMB) * 1024 * 1024
 
 	if len(driverConfig.Logging) == 0 {
 		if runtime.GOOS == "darwin" {
