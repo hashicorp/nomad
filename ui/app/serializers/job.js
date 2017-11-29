@@ -19,7 +19,7 @@ export default ApplicationSerializer.extend({
     // Transform the map-based JobSummary object into an array-based
     // JobSummary fragment list
     hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary') || {}).map(key => {
-      const allocStats = get(hash, `JobSummary.Summary.${key}`);
+      const allocStats = get(hash, `JobSummary.Summary.${key}`) || {};
       const summary = { Name: key };
 
       Object.keys(allocStats).forEach(
@@ -63,6 +63,11 @@ export default ApplicationSerializer.extend({
       deployments: {
         links: {
           related: buildURL(`${jobURL}/deployments`, { namespace: namespace }),
+        },
+      },
+      evaluations: {
+        links: {
+          related: buildURL(`${jobURL}/evaluations`, { namespace: namespace }),
         },
       },
     });
