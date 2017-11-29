@@ -58,7 +58,7 @@
               {{#with taskGroup.placementFailures as |failures|}}
                   <h3 class="title is-5">
                     {{taskGroup.name}}
-                    <span class="badge is-light">{{inc failures.coalescedFailures}}</span>
+                    <span class="badge is-light">{{inc failures.coalescedFailures}} unplaced</span>
                   </h3>
                   <ul class="simple-list">
                     {{#if (eq failures.nodesEvaluated 0)}}
