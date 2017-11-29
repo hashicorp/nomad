@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-const { Route, inject } = Ember;
+const { Route, RSVP, inject } = Ember;
 
 export default Route.extend({
   store: inject.service(),
@@ -17,7 +17,7 @@ export default Route.extend({
     return this.get('store')
       .findRecord('job', fullId, { reload: true })
       .then(job => {
-        return job.get('allocations').then(() => job);
+        return RSVP.all([job.get('allocations'), job.get('evaluations')]).then(() => job);
       })
       .catch(notifyError(this));
   },

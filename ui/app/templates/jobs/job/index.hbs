@@ -109,5 +109,39 @@
         {{/list-pagination}}
       </div>
     </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Evaluations
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=sortedEvaluations as |t|}}
+          {{#t.head}}
+            <th>ID</th>
+            <th>Priority</th>
+            <th>Triggered By</th>
+            <th>Status</th>
+            <th>Placement Failures</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr>
+              <td>{{row.model.shortId}}</td>
+              <td>{{row.model.priority}}</td>
+              <td>{{row.model.triggeredBy}}</td>
+              <td>{{row.model.status}}</td>
+              <td>
+                {{#if (eq row.model.status "blocked")}}
+                  N/A - In Progress
+                {{else if row.model.hasPlacementFailures}}
+                  True
+                {{else}}
+                  False
+                {{/if}}
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
   </section>
 {{/gutter-menu}}
