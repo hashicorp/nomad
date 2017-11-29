@@ -31,7 +31,7 @@ func (f *SwapFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (b
 	}
 
 	if swapInfo.Total > 0 {
-		node.Attributes["swap.total"] = fmt.Sprintf("%d", swapInfo.Total)
+		node.Attributes["swap.totalbytes"] = fmt.Sprintf("%d", swapInfo.Total)
 
 		if node.Resources == nil {
 			node.Resources = &structs.Resources{}
