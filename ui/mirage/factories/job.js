@@ -14,7 +14,7 @@ export default Factory.extend({
 
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
-  priority: () => faker.random.number(200),
+  priority: () => faker.random.number(100),
   all_at_once: faker.random.boolean,
   status: faker.list.random(...JOB_STATUSES),
   datacenters: provider(
@@ -40,6 +40,9 @@ export default Factory.extend({
 
   // When true, deployments for the job will always have a 'running' status
   activeDeployment: false,
+
+  // When true, an evaluation with a high modify index and placement failures is created
+  failedPlacements: false,
 
   afterCreate(job, server) {
     const groups = server.createList('task-group', job.groupsCount, {
@@ -84,5 +87,15 @@ export default Factory.extend({
           activeDeployment: job.activeDeployment,
         });
       });
+
+    server.createList('evaluation', faker.random.number({ min: 1, max: 5 }), { job });
+    server.createList('evaluation', faker.random.number(3), 'withPlacementFailures', { job });
+
+    if (job.failedPlacements) {
+      server.create('evaluation', 'withPlacementFailures', {
+        job,
+        modifyIndex: 4000,
+      });
+    }
   },
 });
