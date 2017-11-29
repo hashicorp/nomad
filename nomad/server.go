@@ -239,6 +239,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Configure TLS
 	tlsConf := config.tlsConfig()
 	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the ACL object cache
 	aclCache, err := lru.New2Q(aclCacheSize)
@@ -382,11 +385,16 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 
 	tlsConf := s.config.tlsConfig()
 	incomingTLS, tlsWrap, err := getTLSConf(s.config.TLSConfig.EnableRPC, tlsConf)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: unable to reset TLS context")
+		return err
+	}
 
 	if s.rpcCancel == nil {
 		s.logger.Printf("[ERR] nomad: No TLS Context to reset")
 		return fmt.Errorf("Unable to reset tls context")
 	}
+
 	s.rpcCancel()
 
 	s.rpcTLSLock.Lock()
