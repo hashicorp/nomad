@@ -48,7 +48,7 @@
     </div>
 
     {{#if model.hasPlacementFailures}}
-      <div class="boxed-section is-danger active-deployment">
+      <div class="boxed-section is-danger placement-failures">
         <div class="boxed-section-head">
           Placement Failures
         </div>
@@ -165,7 +165,7 @@
       <div class="boxed-section-head">
         Evaluations
       </div>
-      <div class="boxed-section-body is-full-bleed">
+      <div class="boxed-section-body is-full-bleed evaluations">
         {{#list-table source=sortedEvaluations as |t|}}
           {{#t.head}}
             <th>ID</th>
