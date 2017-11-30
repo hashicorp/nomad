@@ -981,14 +981,14 @@
 		{
 			"checksumSHA1": "0xM336Lb25URO/1W1/CtGoRygVU=",
 			"path": "github.com/hpcloud/tail/util",
-			"revision": "a30252cb686a21eb2d0b98132633053ec2f7f1e5",
-			"revisionTime": "2016-04-28T00:30:50Z"
+			"revision": "37f4271387456dd1bf82ab1ad9229f060cc45386",
+			"revisionTime": "2017-08-14T16:06:53Z"
 		},
 		{
-			"checksumSHA1": "mPYzD3FBUUDZEtVGJpOv1+Uf5ss=",
+			"checksumSHA1": "TP4OAv5JMtzj2TB6OQBKqauaKDc=",
 			"path": "github.com/hpcloud/tail/watch",
-			"revision": "a30252cb686a21eb2d0b98132633053ec2f7f1e5",
-			"revisionTime": "2016-04-28T00:30:50Z"
+			"revision": "37f4271387456dd1bf82ab1ad9229f060cc45386",
+			"revisionTime": "2017-08-14T16:06:53Z"
 		},
 		{
 			"comment": "0.2.2-2-gc01cf91",
@@ -1446,16 +1446,16 @@
 			"revisionTime": "2016-07-15T18:54:39Z"
 		},
 		{
-			"checksumSHA1": "j+bmn/vfOL5hDKrv5xN71RReIEw=",
+			"checksumSHA1": "SIhhNXud9FKua0s3WlGPRRkDKRg=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "bb24a47a89eac6c1227fbcb2ae37a8b9ed323366",
-			"revisionTime": "2017-08-30T08:51:02Z"
+			"revision": "8b4580aae2a0dd0c231a45d3ccb8434ff533b840",
+			"revisionTime": "2017-11-30T16:26:51Z"
 		},
 		{
-			"checksumSHA1": "gVfCD++7aVcdKF2spv6XkEM/wYw=",
+			"checksumSHA1": "riTVymIu2BFphV6UlA73Fn9tmmU=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "bb24a47a89eac6c1227fbcb2ae37a8b9ed323366",
-			"revisionTime": "2017-08-30T08:51:02Z"
+			"revision": "8b4580aae2a0dd0c231a45d3ccb8434ff533b840",
+			"revisionTime": "2017-11-30T16:26:51Z"
 		},
 		{
 			"checksumSHA1": "tltivJ/uj/lqLk05IqGfCv2F/E8=",
@@ -1590,10 +1590,10 @@
 			"revisionTime": "2017-07-21T17:58:12Z"
 		},
 		{
-			"checksumSHA1": "93uHIq25lffEKY47PV8dBPD+XuQ=",
+			"checksumSHA1": "eIhF+hmL/XZhzTiAwhLD0M65vlY=",
 			"path": "gopkg.in/fsnotify.v1",
-			"revision": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb",
-			"revisionTime": "2016-06-29T01:11:04Z"
+			"revision": "629574ca2a5df945712d3079857300b5e4da0236",
+			"revisionTime": "2016-10-11T02:33:12Z"
 		},
 		{
 			"checksumSHA1": "6f8MEU31llHM1sLM/GGH4/Qxu0A=",
