@@ -600,21 +600,17 @@ WAIT:
 	}
 }
 
-func (c *Command) reloadHTTPServerOnConfigChange(newConfig *Config) error {
+func (c *Command) reloadHTTPServer(newConfig *Config) error {
 	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
-	err := c.httpServer.Shutdown()
-	if err != nil {
-		return err
-	}
+	c.httpServerLock.Lock()
+	defer c.httpServerLock.Unlock()
 
-	// Wait some time to ensure a clean shutdown
-	time.Sleep(5 * time.Second)
+	c.httpServer.Shutdown()
+
 	http, err := NewHTTPServer(c.agent, c.agent.config)
 	if err != nil {
 		return err
 	}
-	c.httpServerLock.Lock()
-	defer c.httpServerLock.Unlock()
 	c.httpServer = http
 
 	return nil
@@ -642,18 +638,18 @@ func (c *Command) handleReload() {
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	shouldReload, reloadFunc := c.agent.ShouldReload(newConf)
-	if shouldReload && reloadFunc != nil {
+	shouldReload := c.agent.ShouldReload(newConf)
+	if shouldReload {
 		// Reloads configuration for an agent running in both client and server mode
-		err := reloadFunc(newConf)
+		err := c.agent.Reload(newConf)
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 			return
 		}
 
-		err = c.reloadHTTPServerOnConfigChange(newConf)
+		c.reloadHTTPServer(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
+			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
 			return
 		}
 	}

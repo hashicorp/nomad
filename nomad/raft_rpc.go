@@ -51,7 +51,7 @@ func (l *RaftLayer) Handoff(c net.Conn, ctx context.Context) error {
 	case <-l.closeCh:
 		return fmt.Errorf("Raft RPC layer closed")
 	case <-ctx.Done():
-		return fmt.Errorf("[INFO] nomad.rpc: Closing server RPC connection")
+		return nil
 	}
 }
 

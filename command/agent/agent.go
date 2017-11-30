@@ -732,12 +732,14 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // ShouldReload determines if we should reload the configuration and agent
 // connections. If the TLS Configuration has not changed, we shouldn't reload.
-func (a *Agent) ShouldReload(newConfig *Config) (bool, func(*Config) error) {
+func (a *Agent) ShouldReload(newConfig *Config) bool {
+	a.configLock.Lock()
+	defer a.configLock.Unlock()
 	if a.config.TLSConfig.Equals(newConfig.TLSConfig) {
-		return false, nil
+		return false
 	}
 
-	return true, a.Reload
+	return true
 }
 
 // Reload handles configuration changes for the agent. Provides a method that
@@ -775,9 +777,9 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.config.TLSConfig = newConfig.TLSConfig.Copy()
 
 	if newConfig.TLSConfig.IsEmpty() {
-		a.logger.Println("[WARN] Downgrading agent's existing TLS configuration to plaintext")
+		a.logger.Println("[WARN] agent: Downgrading agent's existing TLS configuration to plaintext")
 	} else {
-		a.logger.Println("[INFO] Upgrading from plaintext configuration to TLS")
+		a.logger.Println("[INFO] agent: Upgrading from plaintext configuration to TLS")
 	}
 
 	// Reload the TLS configuration for the client or server, depending on how
@@ -785,7 +787,7 @@ func (a *Agent) Reload(newConfig *Config) error {
 	if s := a.Server(); s != nil {
 		err := s.ReloadTLSConnections(a.config.TLSConfig)
 		if err != nil {
-			a.logger.Printf("[WARN] agent: Issue reloading the server's TLS Configuration, consider a full system restart: %v", err.Error())
+			a.logger.Printf("[WARN] agent: error reloading the server's TLS configuration: %v", err.Error())
 			return err
 		}
 	}
@@ -793,7 +795,7 @@ func (a *Agent) Reload(newConfig *Config) error {
 
 		err := c.ReloadTLSConnections(a.config.TLSConfig)
 		if err != nil {
-			a.logger.Printf("[ERR] agent: Issue reloading the client's TLS Configuration, consider a full system restart: %v", err.Error())
+			a.logger.Printf("[WARN] agent: error reloading the server's TLS configuration: %v", err.Error())
 			return err
 		}
 	}
@@ -801,7 +803,7 @@ func (a *Agent) Reload(newConfig *Config) error {
 	return nil
 }
 
-// GetConfigCopy creates a replica of the agent's config, excluding locks
+// GetConfig creates a locked reference to the agent's config
 func (a *Agent) GetConfig() *Config {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()

@@ -188,12 +188,14 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 
 // Equals compares the fields of two TLS configuration objects, returning a
 // boolean indicating if they are the same.
+// NewConfig should never be nil- calling code is responsible for walways
+// passing a valid TLSConfig object
 func (t *TLSConfig) Equals(newConfig *TLSConfig) bool {
-	if t == nil && newConfig == nil {
-		return true
+	if t == nil {
+		return false
 	}
 
-	if t != nil && newConfig == nil {
+	if t == nil && newConfig != nil {
 		return false
 	}
 

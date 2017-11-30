@@ -47,11 +47,12 @@ var (
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
-	agent    *Agent
-	mux      *http.ServeMux
-	listener net.Listener
-	logger   *log.Logger
-	Addr     string
+	agent      *Agent
+	mux        *http.ServeMux
+	listener   net.Listener
+	listenerCh chan struct{}
+	logger     *log.Logger
+	Addr       string
 }
 
 // NewHTTPServer starts new HTTP server over the agent
@@ -89,11 +90,12 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// Create the server
 	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: ln,
-		logger:   agent.logger,
-		Addr:     ln.Addr().String(),
+		agent:      agent,
+		mux:        mux,
+		listener:   ln,
+		listenerCh: make(chan struct{}),
+		logger:     agent.logger,
+		Addr:       ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
 
@@ -103,7 +105,10 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		return nil, err
 	}
 
-	go http.Serve(ln, gzip(mux))
+	go func() {
+		defer close(srv.listenerCh)
+		http.Serve(ln, gzip(mux))
+	}()
 
 	return srv, nil
 }
@@ -126,12 +131,12 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 }
 
 // Shutdown is used to shutdown the HTTP server
-func (s *HTTPServer) Shutdown() error {
+func (s *HTTPServer) Shutdown() {
 	if s != nil {
 		s.logger.Printf("[DEBUG] http: Shutting down http server")
-		return s.listener.Close()
+		s.listener.Close()
+		<-s.listenerCh // block until http.Serve has returned.
 	}
-	return nil
 }
 
 // registerHandlers is used to attach our handlers to the mux

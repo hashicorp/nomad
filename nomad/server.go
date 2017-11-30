@@ -437,7 +437,7 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		s.config.LogOutput)
 	s.raftTransport = trans
 
-	s.logger.Printf("[INFO] nomad: finished reloading server connections")
+	s.logger.Printf("[DEBUG] nomad: finished reloading server connections")
 	return nil
 }
 
