@@ -59,12 +59,6 @@ export default function() {
 
   this.get('/deployment/:id');
 
-  this.get('/job/:id/evaluations', function({ evaluations }, { params }) {
-    return this.serialize(evaluations.where({ jobId: params.id }));
-  });
-
-  this.get('/evaluation/:id');
-
   this.get('/deployment/allocations/:id', function(schema, { params }) {
     const job = schema.jobs.find(schema.deployments.find(params.id).jobId);
     const allocations = schema.allocations.where({ jobId: job.id });

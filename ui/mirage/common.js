@@ -71,7 +71,7 @@ function ipv6() {
   for (var i = 0; i < 8; i++) {
     var subnet = [];
     for (var char = 0; char < 4; char++) {
-      subnet.push(faker.random.number(15).toString(16));
+      subnet.push(faker.random.number(16).toString(16));
     }
     subnets.push(subnet.join(''));
   }

@@ -4,8 +4,7 @@ export default function(server) {
 
   server.createList('namespace', 3);
 
-  server.createList('job', 10);
-  server.createList('job', 5, { failedPlacements: true });
+  server.createList('job', 15);
 
   server.createList('token', 3);
   logTokens(server);
