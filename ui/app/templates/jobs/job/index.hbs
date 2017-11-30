@@ -47,6 +47,57 @@
       </div>
     </div>
 
+    {{#if model.hasPlacementFailures}}
+      <div class="boxed-section is-danger placement-failures">
+        <div class="boxed-section-head">
+          Placement Failures
+        </div>
+        <div class="boxed-section-body">
+          {{#each model.taskGroups as |taskGroup|}}
+            {{#if taskGroup.placementFailures}}
+              {{#with taskGroup.placementFailures as |failures|}}
+                  <h3 class="title is-5">
+                    {{taskGroup.name}}
+                    <span class="badge is-light">{{inc failures.coalescedFailures}} unplaced</span>
+                  </h3>
+                  <ul class="simple-list">
+                    {{#if (eq failures.nodesEvaluated 0)}}
+                      <li>No nodes were eligible for evaluation</li>
+                    {{/if}}
+                    {{#each-in failures.nodesAvailable as |datacenter available|}}
+                      {{#if (eq available 0)}}
+                        <li>No nodes are available in datacenter {{datacenter}}</li>
+                      {{/if}}
+                    {{/each-in}}
+                    {{#each-in failures.classFiltered as |class count|}}
+                      <li>Class {{class}} filtered {{count}} {{pluralize "node" count}}</li>
+                    {{/each-in}}
+                    {{#each-in failures.constraintFiltered as |constraint count|}}
+                      <li>Constraint <code>{{constraint}}</code> filtered {{count}} {{pluralize "node" count}}</li>
+                    {{/each-in}}
+                    {{#if failures.nodesExhausted}}
+                      <li>Resources exhausted on {{failures.nodesExhausted}} {{pluralize "node" failures.nodesExhausted}}</li>
+                    {{/if}}
+                    {{#each-in failures.classExhausted as |class count|}}
+                      <li>Class {{class}} exhausted on {{count}} {{pluralize "node" count}}</li>
+                    {{/each-in}}
+                    {{#each-in failures.dimensionExhausted as |dimension count|}}
+                      <li>Dimension {{dimension}} exhausted on {{count}} {{pluralize "node" count}}</li>
+                    {{/each-in}}
+                    {{#each-in failures.quotaExhausted as |quota dimension|}}
+                      <li>Quota limit hit {{dimension}}</li>
+                    {{/each-in}}
+                    {{#each-in failures.scores as |name score|}}
+                      <li>Score {{name}} = {{score}}</li>
+                    {{/each-in}}
+                  </ul>
+              {{/with}}
+            {{/if}}
+          {{/each}}
+        </div>
+      </div>
+    {{/if}}
+
     {{#if model.runningDeployment}}
       <div class="boxed-section is-info active-deployment">
         <div class="boxed-section-head">
@@ -107,6 +158,40 @@
             {{/t.body}}
           {{/list-table}}
         {{/list-pagination}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Evaluations
+      </div>
+      <div class="boxed-section-body is-full-bleed evaluations">
+        {{#list-table source=sortedEvaluations as |t|}}
+          {{#t.head}}
+            <th>ID</th>
+            <th>Priority</th>
+            <th>Triggered By</th>
+            <th>Status</th>
+            <th>Placement Failures</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr>
+              <td>{{row.model.shortId}}</td>
+              <td>{{row.model.priority}}</td>
+              <td>{{row.model.triggeredBy}}</td>
+              <td>{{row.model.status}}</td>
+              <td>
+                {{#if (eq row.model.status "blocked")}}
+                  N/A - In Progress
+                {{else if row.model.hasPlacementFailures}}
+                  True
+                {{else}}
+                  False
+                {{/if}}
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
       </div>
     </div>
   </section>

@@ -30,6 +30,10 @@ export default Controller.extend(Sortable, WithNamespaceResetting, {
   listToSort: computed.alias('taskGroups'),
   sortedTaskGroups: computed.alias('listSorted'),
 
+  sortedEvaluations: computed('model.evaluations.@each.modifyIndex', function() {
+    return (this.get('model.evaluations') || []).sortBy('modifyIndex').reverse();
+  }),
+
   actions: {
     gotoTaskGroup(taskGroup) {
       this.transitionToRoute('jobs.job.task-group', taskGroup.get('job'), taskGroup);
