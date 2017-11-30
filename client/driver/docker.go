@@ -1192,6 +1192,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		hostConfig.MemorySwap = 0
 		hostConfig.MemorySwappiness = -1
 	} else {
+		hostConfig.MemorySwappiness = 1
 		hostConfig.MemorySwap = memLimit + swapLimit // MemorySwap is memory + swap.
 	}
 
