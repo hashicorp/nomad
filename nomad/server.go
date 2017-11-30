@@ -113,6 +113,7 @@ type Server struct {
 	// rpcListener is used to listen for incoming connections
 	rpcListener     net.Listener
 	rpcListenerLock sync.Mutex
+	listenerCh      chan struct{}
 
 	rpcServer    *rpc.Server
 	rpcAdvertise net.Addr
@@ -328,10 +329,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Start ingesting events for Serf
 	go s.serfEventHandler()
 
-	// Start the RPC listeners
-	ctx, cancel := context.WithCancel(context.Background())
-	s.rpcCancel = cancel
-	go s.listen(ctx)
+	s.startRPCListener()
 
 	// Emit metrics for the eval broker
 	go evalBroker.EmitStats(time.Second, s.shutdownCh)
@@ -353,6 +351,33 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Done
 	return s, nil
+}
+
+// Start the RPC listeners
+func (s *Server) startRPCListener() {
+	s.rpcListenerLock.Lock()
+	defer s.rpcListenerLock.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.rpcCancel = cancel
+	go func() {
+		defer close(s.listenerCh)
+		s.listen(ctx)
+	}()
+}
+
+func (s *Server) createRPCListener() error {
+	s.rpcListenerLock.Lock()
+	defer s.rpcListenerLock.Unlock()
+
+	s.listenerCh = make(chan struct{})
+	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
+	if err != nil || list == nil {
+		s.logger.Printf("[ERR] nomad: No TLS listener to reload")
+		return err
+	}
+
+	s.rpcListener = list
+	return nil
 }
 
 func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.RegionWrapper, error) {
@@ -410,21 +435,14 @@ func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	// reinitialize our rpc listener
 	s.rpcListenerLock.Lock()
 	s.rpcListener.Close()
-	time.Sleep(500 * time.Millisecond)
-	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
-	if err != nil || list == nil {
-		s.logger.Printf("[ERR] nomad: No TLS listener to reload")
-		return err
-	}
-
-	s.rpcListener = list
-
-	// reinitialize the cancel context
-	ctx, cancel := context.WithCancel(context.Background())
-	s.rpcCancel = cancel
+	<-s.listenerCh
 	s.rpcListenerLock.Unlock()
 
-	go s.listen(ctx)
+	err = s.createRPCListener()
+	if err != nil {
+		return err
+	}
+	s.startRPCListener()
 
 	s.raftLayerLock.Lock()
 	s.raftLayer.Close()
@@ -865,6 +883,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 		return err
 	}
 	s.rpcListener = list
+	s.listenerCh = make(chan struct{})
 
 	if s.config.RPCAdvertise != nil {
 		s.rpcAdvertise = s.config.RPCAdvertise
