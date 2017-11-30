@@ -127,7 +127,7 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, isTLS bool) {
 
 	case rpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
-		s.raftLayer.Handoff(conn, ctx)
+		s.raftLayer.Handoff(ctx, conn)
 
 	case rpcMultiplex:
 		s.handleMultiplex(ctx, conn)

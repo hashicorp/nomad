@@ -647,7 +647,7 @@ func (c *Command) handleReload() {
 			return
 		}
 
-		c.reloadHTTPServer(newConf)
+		err = c.reloadHTTPServer(newConf)
 		if err != nil {
 			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
 			return

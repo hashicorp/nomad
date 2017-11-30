@@ -44,7 +44,7 @@ func NewRaftLayer(addr net.Addr, tlsWrap tlsutil.Wrapper) *RaftLayer {
 
 // Handoff is used to hand off a connection to the
 // RaftLayer. This allows it to be Accept()'ed
-func (l *RaftLayer) Handoff(c net.Conn, ctx context.Context) error {
+func (l *RaftLayer) Handoff(ctx context.Context, c net.Conn) error {
 	select {
 	case l.connCh <- c:
 		return nil
