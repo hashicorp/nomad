@@ -296,6 +296,83 @@ test('the active deployment section can be expanded to show task groups and allo
   });
 });
 
+test('the evaluations table lists evaluations sorted by modify index', function(assert) {
+  job = server.create('job');
+  const evaluations = server.db.evaluations
+    .where({ jobId: job.id })
+    .sortBy('modifyIndex')
+    .reverse();
+
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    assert.equal(
+      findAll('.evaluations tbody tr').length,
+      evaluations.length,
+      'A row for each evaluation'
+    );
+
+    evaluations.forEach((evaluation, index) => {
+      const row = $(findAll('.evaluations tbody tr')[index]);
+      assert.equal(
+        row.find('td:eq(0)').text(),
+        evaluation.id.split('-')[0],
+        `Short ID, row ${index}`
+      );
+    });
+
+    const firstEvaluation = evaluations[0];
+    const row = $(findAll('.evaluations tbody tr')[0]);
+    assert.equal(row.find('td:eq(1)').text(), '' + firstEvaluation.priority, 'Priority');
+    assert.equal(row.find('td:eq(2)').text(), firstEvaluation.triggeredBy, 'Triggered By');
+    assert.equal(row.find('td:eq(3)').text(), firstEvaluation.status, 'Status');
+  });
+});
+
+test('when the job has placement failures, they are called out', function(assert) {
+  job = server.create('job', { failedPlacements: true });
+  const failedEvaluation = server.db.evaluations
+    .where({ jobId: job.id })
+    .filter(evaluation => evaluation.failedTGAllocs)
+    .sortBy('modifyIndex')
+    .reverse()[0];
+
+  const failedTaskGroupNames = Object.keys(failedEvaluation.failedTGAllocs);
+
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    assert.ok(find('.placement-failures'), 'Placement failures section found');
+
+    const taskGroupLabels = findAll('.placement-failures h3.title').map(title =>
+      title.textContent.trim()
+    );
+    failedTaskGroupNames.forEach(name => {
+      assert.ok(
+        taskGroupLabels.find(label => label.includes(name)),
+        `${name} included in placement failures list`
+      );
+      assert.ok(
+        taskGroupLabels.find(label =>
+          label.includes(failedEvaluation.failedTGAllocs[name].CoalescedFailures + 1)
+        ),
+        'The number of unplaced allocs = CoalescedFailures + 1'
+      );
+    });
+  });
+});
+
+test('when the job has no placement failures, the placement failures section is gone', function(
+  assert
+) {
+  job = server.create('job', { noFailedPlacements: true });
+  visit(`/jobs/${job.id}`);
+
+  andThen(() => {
+    assert.notOk(find('.placement-failures'), 'Placement failures section not found');
+  });
+});
+
 test('when the job is not found, an error message is shown, but the URL persists', function(
   assert
 ) {

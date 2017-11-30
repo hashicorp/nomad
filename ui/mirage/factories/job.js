@@ -44,6 +44,9 @@ export default Factory.extend({
   // When true, an evaluation with a high modify index and placement failures is created
   failedPlacements: false,
 
+  // When true, no evaluations have failed placements
+  noFailedPlacements: false,
+
   afterCreate(job, server) {
     const groups = server.createList('task-group', job.groupsCount, {
       job,
@@ -89,7 +92,9 @@ export default Factory.extend({
       });
 
     server.createList('evaluation', faker.random.number({ min: 1, max: 5 }), { job });
-    server.createList('evaluation', faker.random.number(3), 'withPlacementFailures', { job });
+    if (!job.noFailedPlacements) {
+      server.createList('evaluation', faker.random.number(3), 'withPlacementFailures', { job });
+    }
 
     if (job.failedPlacements) {
       server.create('evaluation', 'withPlacementFailures', {
