@@ -428,10 +428,10 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		os.RemoveAll(allocDir.TaskDirs["web"].LocalDir)
 
 		// Assert Snapshot fails
-		if err := allocDir.Snapshot(ioutil.Discard); err == nil {
-			t.Errorf("expected Snapshot() to fail but it did not")
-		} else {
+		if err := allocDir.Snapshot(ioutil.Discard); err != nil {
 			s.logger.Printf("[DEBUG] agent.test: snapshot returned error: %v", err)
+		} else {
+			t.Errorf("expected Snapshot() to fail but it did not")
 		}
 
 		// Make the HTTP request to ensure the Snapshot error is
