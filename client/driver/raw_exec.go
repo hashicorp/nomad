@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -144,10 +145,19 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
+	var taskKillSignal os.Signal
+	if task.KillSignal != "" {
+		taskKillSignal = signals.SignalLookup[task.KillSignal]
+		if taskKillSignal == nil {
+			return nil, fmt.Errorf("Signal %s is not supported", task.KillSignal)
+		}
+	}
+
 	execCmd := &executor.ExecCommand{
-		Cmd:  command,
-		Args: driverConfig.Args,
-		User: task.User,
+		Cmd:            command,
+		Args:           driverConfig.Args,
+		User:           task.User,
+		TaskKillSignal: taskKillSignal,
 	}
 	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {

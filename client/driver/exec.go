@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -31,9 +32,8 @@ type ExecDriver struct {
 }
 
 type ExecDriverConfig struct {
-	Command    string   `mapstructure:"command"`
-	Args       []string `mapstructure:"args"`
-	KillSignal string   `mapstructure:"kill_signal"`
+	Command string   `mapstructure:"command"`
+	Args    []string `mapstructure:"args"`
 }
 
 // execHandle is returned from Start/Open as a handle to the PID
@@ -67,9 +67,6 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 			},
 			"args": {
 				Type: fields.TypeArray,
-			},
-			"kill_signal": {
-				Type: fields.TypeString,
 			},
 		},
 	}
@@ -133,10 +130,18 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
+	var taskKillSignal os.Signal
+	if task.KillSignal != "" {
+		taskKillSignal = signals.SignalLookup[task.KillSignal]
+		if taskKillSignal == nil {
+			return nil, fmt.Errorf("Signal %s is not supported", task.KillSignal)
+		}
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
-		KillSignal:     driverConfig.KillSignal,
+		TaskKillSignal: taskKillSignal,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),

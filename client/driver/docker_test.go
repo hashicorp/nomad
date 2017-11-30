@@ -2045,3 +2045,85 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 	assert.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
 
 }
+
+func TestDockerDriver_Kill(t *testing.T) {
+	assert := assert.New(t)
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	// Tasks started with a signal that is not supported should error
+	{
+		task := &structs.Task{
+			Name:       "nc-demo",
+			Driver:     "docker",
+			KillSignal: "ABCDEF",
+			Config: map[string]interface{}{
+				"load":    "busybox.tar",
+				"image":   "busybox",
+				"command": "/bin/nc",
+				"args":    []string{"-l", "127.0.0.1", "-p", "0"},
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: basicResources,
+		}
+
+		ctx := testDockerDriverContexts(t, task)
+		defer ctx.AllocDir.Destroy()
+		d := NewDockerDriver(ctx.DriverCtx)
+		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+
+		_, err := d.Prestart(ctx.ExecCtx, task)
+		if err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
+
+		_, err = d.Start(ctx.ExecCtx, task)
+		assert.NotNil(err)
+	}
+
+	// Tasks started with a signal that is not supported should not error
+	{
+		task := &structs.Task{
+			Name:       "nc-demo",
+			Driver:     "docker",
+			KillSignal: "SIGQUIT",
+			Config: map[string]interface{}{
+				"load":    "busybox.tar",
+				"image":   "busybox",
+				"command": "/bin/nc",
+				"args":    []string{"-l", "127.0.0.1", "-p", "0"},
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: basicResources,
+		}
+
+		ctx := testDockerDriverContexts(t, task)
+		defer ctx.AllocDir.Destroy()
+		d := NewDockerDriver(ctx.DriverCtx)
+		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+
+		_, err := d.Prestart(ctx.ExecCtx, task)
+		if err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
+
+		resp, err := d.Start(ctx.ExecCtx, task)
+		assert.Nil(err)
+		assert.NotNil(resp.Handle)
+
+		handle := resp.Handle.(*DockerHandle)
+		waitForExist(t, client, handle)
+		err = handle.Kill()
+		assert.Nil(err)
+	}
+}

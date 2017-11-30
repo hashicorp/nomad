@@ -201,6 +201,7 @@ type DockerDriverConfig struct {
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
+	StopSignal       string              `mapstructure:"stop_signal"`        // allow passing through a specific stop signal
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -712,7 +713,6 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
-
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
 		LogFile:  pluginLogFile,
@@ -1053,6 +1053,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		Tty:         driverConfig.TTY,
 		OpenStdin:   driverConfig.Interactive,
 		StopTimeout: int(task.KillTimeout.Seconds()),
+	}
+
+	// Set the stop signal for the docker container.
+	if task.KillSignal != "" {
+		config.StopSignal = task.KillSignal
 	}
 
 	if driverConfig.WorkDir != "" {

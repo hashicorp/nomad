@@ -559,6 +559,30 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"job-with-kill-signal.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("example"),
+				Name: helper.StringToPtr("example"),
+
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("webservice"),
+						Tasks: []*api.Task{
+							{
+								Name:       "webservice",
+								Driver:     "docker",
+								KillSignal: "SIGINT",
+								Config: map[string]interface{}{
+									"image": "hashicorp/image",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

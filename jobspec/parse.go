@@ -591,6 +591,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"template",
 			"user",
 			"vault",
+			"kill_signal",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -623,6 +624,13 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			WeaklyTypedInput: true,
 			Result:           &t,
 		})
+
+		// this needs to be manually assigned
+		killsig := m["kill_signal"]
+		if killsig != nil {
+			t.KillSignal = killsig.(string)
+		}
+
 		if err != nil {
 			return err
 		}
