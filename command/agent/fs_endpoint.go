@@ -622,13 +622,22 @@ func parseFramerErr(err error) error {
 		return nil
 	}
 
-	if strings.Contains(err.Error(), io.ErrClosedPipe.Error()) {
+	errMsg := err.Error()
+
+	if strings.Contains(errMsg, io.ErrClosedPipe.Error()) {
 		// The pipe check is for tests
 		return syscall.EPIPE
 	}
 
 	// The connection was closed by our peer
-	if strings.Contains(err.Error(), syscall.EPIPE.Error()) || strings.Contains(err.Error(), syscall.ECONNRESET.Error()) {
+	if strings.Contains(errMsg, syscall.EPIPE.Error()) || strings.Contains(errMsg, syscall.ECONNRESET.Error()) {
+		return syscall.EPIPE
+	}
+
+	// Windows version of ECONNRESET
+	//XXX(schmichael) I could find no existing error or constant to
+	//                compare this against.
+	if strings.Contains(errMsg, "forcibly closed") {
 		return syscall.EPIPE
 	}
 
