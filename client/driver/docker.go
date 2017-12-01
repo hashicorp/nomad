@@ -1052,7 +1052,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		User:        task.User,
 		Tty:         driverConfig.TTY,
 		OpenStdin:   driverConfig.Interactive,
-		StopTimeout: int(task.KillTimeout),
+		StopTimeout: int(task.KillTimeout.Seconds()),
 	}
 
 	if driverConfig.WorkDir != "" {
