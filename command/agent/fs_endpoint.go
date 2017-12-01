@@ -923,6 +923,20 @@ func (s *HTTPServer) logs(follow, plain bool, offset int64,
 			return nil
 		}
 
+		// defensively check to make sure StreamFramer hasn't stopped
+		// running to avoid tight loops with goroutine leaks as in
+		// #3342
+		select {
+		case <-framer.ExitCh():
+			err := parseFramerErr(framer.Err())
+			if err == syscall.EPIPE {
+				// EPIPE just means the connection was closed
+				return nil
+			}
+			return err
+		default:
+		}
+
 		// Since we successfully streamed, update the overall offset/idx.
 		offset = int64(0)
 		nextIdx = idx + 1
