@@ -395,7 +395,7 @@ func (c *ServiceClient) sync() error {
 			return err
 		}
 		sdereg++
-		metrics.IncrCounter([]string{"client", "consul", "service_deregisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "service_deregistrations"}, 1)
 	}
 
 	// Track services whose ports have changed as their checks may also
@@ -420,7 +420,7 @@ func (c *ServiceClient) sync() error {
 			return err
 		}
 		sreg++
-		metrics.IncrCounter([]string{"client", "consul", "service_regisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -439,7 +439,7 @@ func (c *ServiceClient) sync() error {
 			return err
 		}
 		cdereg++
-		metrics.IncrCounter([]string{"client", "consul", "check_deregisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "check_deregistrations"}, 1)
 	}
 
 	// Add Nomad checks missing from Consul
@@ -455,7 +455,7 @@ func (c *ServiceClient) sync() error {
 			return err
 		}
 		creg++
-		metrics.IncrCounter([]string{"client", "consul", "check_regisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "check_registrations"}, 1)
 
 		// Handle starting scripts
 		if script, ok := c.scripts[id]; ok {
