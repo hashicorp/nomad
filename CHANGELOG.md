@@ -45,6 +45,7 @@ BUG FIXES:
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * driver/rkt: Remove pods on shutdown [GH-3562]
+ * driver/rkt: Don't require port maps when using host networking [GH-3615]
  * template: Fix issue where multiple environment variable templates would be
    parsed incorrectly when contents of one have changed after the initial
    rendering [GH-3529]
