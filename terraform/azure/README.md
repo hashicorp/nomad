@@ -24,10 +24,6 @@ Use the `az login` CLI command to log in to Azure:
 
 ```bash
 $ az login
-```
-
-After completing the login process, take note of the `SUBSCRIPTION_ID` and the `TENANT_ID` 
-that are included in the output: 
 
 [
   {
@@ -43,8 +39,10 @@ that are included in the output:
     }
   }
 ]
+```
 
-These will be used to set the `ARM_SUBSCRIPTION_ID` and `ARM_TENANT_ID` environment 
+After completing the login process, take note of the `SUBSCRIPTION_ID` and the `TENANT_ID` 
+that are included in the output above. These will be used to set the `ARM_SUBSCRIPTION_ID` and `ARM_TENANT_ID` environment 
 variables for Packer and Terraform.
 
 ## Create an Application Id and Password
