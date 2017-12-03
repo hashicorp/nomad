@@ -53,7 +53,6 @@ Run the following CLI command to create an application Id and password:
 
 ```bash
 $ az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${SUBSCRIPTION_ID}"
-```
 
 {
   "appId": "CLIENT_ID",
@@ -62,6 +61,7 @@ $ az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${SUBSC
   "password": "CLIENT_SECRET",
   "tenant": "TENANT_ID"
 }
+```
 
 `appId` and `password` above will be used for the `ARM_CLIENT_ID` and `ARM_CLIENT_SECRET` 
 environment variables.
@@ -76,11 +76,13 @@ $ az group create --name packer --location "East US"
 
 ## Set the Azure Environment Variables
 
-export ARM_SUBSCRIPTION_ID=[ARM_SUBSCRIPTION_ID]
-export ARM_CLIENT_ID=[ARM_CLIENT_ID]
-export ARM_CLIENT_SECRET=[ARM_CLIENT_SECRET]
-export ARM_TENANT_ID=[ARM_TENANT_ID]
-export AZURE_RESOURCE_GROUP=packer
+```bash
+export ARM_SUBSCRIPTION_ID=[ARM_SUBSCRIPTION_ID]  
+export ARM_CLIENT_ID=[ARM_CLIENT_ID]  
+export ARM_CLIENT_SECRET=[ARM_CLIENT_SECRET]  
+export ARM_TENANT_ID=[ARM_TENANT_ID]  
+export AZURE_RESOURCE_GROUP=packer  
+```
 
 ## Build an Azure machine image with Packer
 
@@ -100,11 +102,11 @@ following CLI command:
 
 ```bash
 $ az image list --query "[?tags.Product=='Hashistack'].id"
-```
 
 [
   "/subscriptions/SUBSCRIPTION_ID/resourceGroups/PACKER/providers/Microsoft.Compute/images/hashistack"
 ]
+```
 
 The following CLI command will delete the image, if you need to delete and recreate it:
 
@@ -126,7 +128,6 @@ Run the following command to create an Azure service principal for Consul auto j
 
 ```bash
 $ az ad sp create-for-rbac --role="Reader" --scopes="/subscriptions/[SUBSCRIPTION_ID]"
-```
 
 {
   "appId": "CLIENT_ID",
@@ -135,6 +136,7 @@ $ az ad sp create-for-rbac --role="Reader" --scopes="/subscriptions/[SUBSCRIPTIO
   "password": "CLIENT_SECRET",
   "tenant": "TENANT_ID"
 }
+```
 
 Update `terraform.tfvars` with you SUBSCRIPTION_ID, TENANT_ID, CLIENT_ID and CLIENT_SECRET. Use the CLIENT_ID and CLIENT_SECRET created above for the service principal:
 
