@@ -519,6 +519,72 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	}
 }
 
+// TestRktDriver_PortsMapping_Host asserts that port_map isn't required when
+// host networking is used.
+func TestRktDriver_PortsMapping_Host(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name:   "etcd",
+		Driver: "rkt",
+		Config: map[string]interface{}{
+			"image": "docker://redis:latest",
+			"net":   []string{"host"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+			Networks: []*structs.NetworkResource{
+				{
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{Label: "main", Value: 8080}},
+				},
+			},
+		},
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewRktDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	resp, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Network != nil {
+		t.Fatalf("No network should be returned with --net=host but found: %#v", resp.Network)
+	}
+
+	failCh := make(chan error, 1)
+	go func() {
+		time.Sleep(1 * time.Second)
+		if err := resp.Handle.Kill(); err != nil {
+			failCh <- err
+		}
+	}()
+
+	select {
+	case err := <-failCh:
+		t.Fatalf("failed to kill handle: %v", err)
+	case <-resp.Handle.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+}
+
 func TestRktDriver_HandlerExec(t *testing.T) {
 	if !testutil.IsTravis() {
 		t.Parallel()

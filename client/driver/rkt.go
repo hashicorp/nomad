@@ -529,6 +529,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		if len(driverConfig.PortMap) > 0 {
 			return nil, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
+	} else if network == "host" {
+		// Port mapping is skipped when host networking is used.
+		d.logger.Println("[DEBUG] driver.rkt: Ignoring port_map when using --net=host")
 	} else {
 		// TODO add support for more than one network
 		network := task.Resources.Networks[0]
@@ -657,15 +660,19 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 	go h.run()
 
-	d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
-	driverNetwork, err := rktGetDriverNetwork(uuid, driverConfig.PortMap)
-	if err != nil && !pluginClient.Exited() {
-		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
+	// Only return a driver network if *not* using host networking
+	var driverNetwork *cstructs.DriverNetwork
+	if network != "host" {
+		d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
+		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap)
+		if err != nil && !pluginClient.Exited() {
+			d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
 
-		// If a portmap was given, this turns into a fatal error
-		if len(driverConfig.PortMap) != 0 {
-			pluginClient.Kill()
-			return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+			// If a portmap was given, this turns into a fatal error
+			if len(driverConfig.PortMap) != 0 {
+				pluginClient.Kill()
+				return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+			}
 		}
 	}
 
