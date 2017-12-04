@@ -56,7 +56,7 @@ BUG FIXES:
  * sentinel: (Nomad Enterprise) Fix an issue that could cause an import error
    when multiple Sentinel policies are applied
  * telemetry: Do not emit metrics for non-running tasks [GH-3559]
- * telemetry: Emit hostname as a tag rather than within the key name [GH-XXX]
+ * telemetry: Emit hostname as a tag rather than within the key name [GH-3616]
 
 ## 0.7.0 (November 1, 2017)
 
