@@ -3,18 +3,20 @@ layout: "docs"
 page_title: "Nomad Enterprise"
 sidebar_current: "docs-enterprise"
 description: |-
-  Nomad Enterprise features a number of capabilities beyond the open source
-  offering that may be beneficial in certain workflows.
+  Nomad Enterprise adds collaboration and governance capabilities to Nomad.
+  Features include Namespaces, Resource Quotas, and Sentinel Policies.
 ---
 
 # Nomad Enterprise
 
-Nomad Enterprise simplifies operations by automating workflows. It adds support
-for microservices deployments across complex network topologies. It also
-increases both scalability and resilience. Features include:
+[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) adds collaboration
+and governance capabilities to Nomad. With Nomad Enterprise, operators can enable
+multiple teams to safely use a single multi-region deployment, limit resource
+consumption across teams or projects, and enforce arbitrary fine-grained policies
+upon job submission. Nomad Enterprise features include:
 
 - [Namespaces](/docs/enterprise/namespaces/index.html)
 - [Resource Quotas](/docs/enterprise/quotas/index.html)
-- [Sentinel Policy Enforcement](/docs/enterprise/sentinel/index.html)
+- [Sentinel Policies](/docs/enterprise/sentinel/index.html)
 
 These features are part of [Nomad Enterprise](https://www.hashicorp.com/products/nomad/).

@@ -561,10 +561,10 @@
 			"revisionTime": "2016-07-19T20:45:16Z"
 		},
 		{
-			"checksumSHA1": "Fo+DksVXnYQULqol7d07WDAtSMg=",
+			"checksumSHA1": "E+wmSQrc/BXzgITrbNAbUzljoiM=",
 			"path": "github.com/fsouza/go-dockerclient",
-			"revision": "f06d891e0d0f000caf614fa8c670985434ae2df2",
-			"revisionTime": "2017-11-14T14:45:54Z"
+			"revision": "5ffdfff51ec0eba739b1039e65ba3625ef25f7c0",
+			"revisionTime": "2017-11-23T03:37:03Z"
 		},
 		{
 			"comment": "v1.8.5-2-g6ec4abd",

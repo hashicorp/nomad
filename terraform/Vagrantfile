@@ -8,13 +8,19 @@ Vagrant.configure(2) do |config|
     
     cd /tmp
 
-    PACKERVERSION=1.0.0
+    PACKERVERSION=1.1.2
     PACKERDOWNLOAD=https://releases.hashicorp.com/packer/${PACKERVERSION}/packer_${PACKERVERSION}_linux_amd64.zip
-    TERRAFORMVERSION=0.9.8
+    TERRAFORMVERSION=0.11.0
     TERRAFORMDOWNLOAD=https://releases.hashicorp.com/terraform/${TERRAFORMVERSION}/terraform_${TERRAFORMVERSION}_linux_amd64.zip
 
     echo "Dependencies..."
     sudo apt-get install -y unzip tree
+
+    # Azure CLI
+    echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+    sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
+    sudo apt-get install apt-transport-https
+    sudo apt-get update && sudo apt-get install azure-cli
 
     # Disable the firewall
     sudo ufw disable
@@ -43,9 +49,10 @@ Vagrant.configure(2) do |config|
 
   SHELL
 
-  config.vm.synced_folder "../aws/", "/home/vagrant/aws", owner: "vagrant", group: "vagrant"
-  config.vm.synced_folder "../shared/", "/home/vagrant/shared", owner: "vagrant", group: "vagrant"
-  config.vm.synced_folder "../examples/", "/home/vagrant/examples", owner: "vagrant", group: "vagrant"
+  config.vm.synced_folder "aws/", "/home/vagrant/aws", owner: "vagrant", group: "vagrant"
+  config.vm.synced_folder "azure/", "/home/vagrant/azure", owner: "vagrant", group: "vagrant"
+  config.vm.synced_folder "shared/", "/home/vagrant/shared", owner: "vagrant", group: "vagrant"
+  config.vm.synced_folder "examples/", "/home/vagrant/examples", owner: "vagrant", group: "vagrant"
 
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "2048"

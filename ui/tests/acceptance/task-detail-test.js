@@ -69,7 +69,7 @@ test('breadcrumbs includes allocations and link to the allocation detail page', 
 test('the addresses table lists all reserved and dynamic ports', function(assert) {
   const taskResources = allocation.taskResourcesIds
     .map(id => server.db.taskResources.find(id))
-    .sortBy('name')[0];
+    .find(resources => resources.name === task.name);
   const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
   const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
   const addresses = reservedPorts.concat(dynamicPorts);

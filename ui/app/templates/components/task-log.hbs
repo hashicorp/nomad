@@ -1,0 +1,16 @@
+<div class="boxed-section-head">
+  <span>
+    <button class="button {{if (eq mode "stdout") "is-info"}} action-stdout" {{action "setMode" "stdout"}}>stdout</button>
+    <button class="button {{if (eq mode "stderr") "is-danger"}} action-stderr" {{action "setMode" "stderr"}}>stderr</button>
+  </span>
+  <span class="pull-right">
+    <button class="button is-white action-head" onclick={{perform head}}>Head</button>
+    <button class="button is-white action-tail" onclick={{perform tail}}>Tail</button>
+    <button class="button is-white action-toggle-stream" onclick={{action "toggleStream"}}>
+      {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
+    </button>
+  </span>
+</div>
+<div class="boxed-section-body is-dark is-full-bleed">
+  <pre class="cli-window"><code>{{logger.output}}</code></pre>
+</div>

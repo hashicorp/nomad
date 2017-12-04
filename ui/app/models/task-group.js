@@ -24,6 +24,11 @@ export default Fragment.extend({
 
   reservedEphemeralDisk: attr('number'),
 
+  placementFailures: computed('job.latestFailureEvaluation.failedTGAllocs.[]', function() {
+    const placementFailures = this.get('job.latestFailureEvaluation.failedTGAllocs');
+    return placementFailures && placementFailures.findBy('name', this.get('name'));
+  }),
+
   queuedOrStartingAllocs: computed('summary.{queuedAllocs,startingAllocs}', function() {
     return this.get('summary.queuedAllocs') + this.get('summary.startingAllocs');
   }),

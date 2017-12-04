@@ -198,7 +198,7 @@ The `Job` object supports the following keys:
     - `Enabled` - `Enabled` determines whether the periodic job will spawn child
     jobs.
 
-    - `time_zone` - Specifies the time zone to evaluate the next launch interval
+    - `TimeZone` - Specifies the time zone to evaluate the next launch interval
       against. This is useful when wanting to account for day light savings in
       various time zones. The time zone must be parsable by Golang's
       [LoadLocation](https://golang.org/pkg/time/#LoadLocation). The default is
@@ -222,7 +222,8 @@ The `Job` object supports the following keys:
     ```json
     {
       "Periodic": {
-          "Spec": "*/15 - *"
+          "Spec": "*/15 - *",
+          "TimeZone": "Europe/Berlin",
           "SpecType": "cron",
           "Enabled": true,
           "ProhibitOverlap": true

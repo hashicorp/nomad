@@ -1477,7 +1477,7 @@ $ curl \
       "NodesExhausted": 1,
       "ClassExhausted": null,
       "DimensionExhausted": {
-        "cpu exhausted": 1
+        "cpu": 1
       }
     }
   },

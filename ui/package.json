@@ -20,7 +20,10 @@
         "prettier --single-quote --trailing-comma es5 --print-width 100 --write",
         "git add"
       ],
-      "ui/app/styles/**/*.*": ["prettier --write", "git add"]
+      "ui/app/styles/**/*.*": [
+        "prettier --write",
+        "git add"
+      ]
     }
   },
   "devDependencies": {
@@ -48,6 +51,7 @@
     "ember-cli-string-helpers": "^1.4.0",
     "ember-cli-uglify": "^1.2.0",
     "ember-composable-helpers": "^2.0.3",
+    "ember-concurrency": "^0.8.12",
     "ember-data": "^2.14.0",
     "ember-data-model-fragments": "^2.14.0",
     "ember-export-application-global": "^2.0.0",
@@ -78,6 +82,9 @@
   },
   "private": true,
   "ember-addon": {
-    "paths": ["lib/bulma", "lib/calendar"]
+    "paths": [
+      "lib/bulma",
+      "lib/calendar"
+    ]
   }
 }

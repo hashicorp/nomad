@@ -1,7 +1,7 @@
 region            = "us-east-1"
-ami               = "ami-a780afdc"
+ami               = "ami-6ce26316"
 instance_type     = "t2.medium"
 key_name          = "KEY_NAME"
-server_count      = "1"
+server_count      = "3"
 client_count      = "4"
-cluster_tag_value = "auto-join"
+
