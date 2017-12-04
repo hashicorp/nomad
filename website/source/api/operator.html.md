@@ -59,6 +59,7 @@ $ curl \
       "ID": "127.0.0.1:4647",
       "Leader": true,
       "Node": "bacon-mac.global",
+      "RaftProtocol": 2,
       "Voter": true
     }
   ]
