@@ -776,7 +776,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	// but we want to avoid doing that if possible to prevent useless Raft
 	// log entries. If the address is the same but the ID changed, remove the
 	// old server before adding the new one.
-	minRaftProtocol, err := MinRaftProtocol(s.config.Datacenter, members)
+	minRaftProtocol, err := MinRaftProtocol(s.config.Region, members)
 	if err != nil {
 		return err
 	}
@@ -848,7 +848,7 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 		return err
 	}
 
-	minRaftProtocol, err := MinRaftProtocol(s.config.Datacenter, s.serf.Members())
+	minRaftProtocol, err := MinRaftProtocol(s.config.Region, s.serf.Members())
 	if err != nil {
 		return err
 	}

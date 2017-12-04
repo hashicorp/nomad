@@ -854,7 +854,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 
 	for _, s := range []*Server{s1, s3} {
-		minVer, err := MinRaftProtocol("dc1", s.Members())
+		minVer, err := MinRaftProtocol(s1.config.Region, s.Members())
 		if err != nil {
 			t.Fatal(err)
 		}

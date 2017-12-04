@@ -149,11 +149,11 @@ func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Versio
 }
 
 // MinRaftProtocol returns the lowest supported Raft protocol among alive servers
-// in the given datacenter.
-func MinRaftProtocol(datacenter string, members []serf.Member) (int, error) {
+// in the given region.
+func MinRaftProtocol(region string, members []serf.Member) (int, error) {
 	minVersion := -1
 	for _, m := range members {
-		if m.Tags["role"] != "nomad" || m.Tags["dc"] != datacenter || m.Status != serf.StatusAlive {
+		if m.Tags["role"] != "nomad" || m.Tags["region"] != region || m.Status != serf.StatusAlive {
 			continue
 		}
 
