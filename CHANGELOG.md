@@ -26,6 +26,7 @@ IMPROVEMENTS:
  * driver/docker: Adds support for `ulimit` and `sysctl` options [GH-3568]
  * driver/docker: Adds support for StopTimeout (set to the same value as
    kill_timeout [GH-3601]
+ * driver/rkt: Add support for passing through user [GH-3612]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
  * core/enterprise: Return 501 status code in Nomad Pro for Premium end points

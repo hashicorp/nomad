@@ -569,6 +569,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 	}
 
+	// If a user has been specified for the task, pass it through to the user
+	if task.User != "" {
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--user=%s", task.User))
+	}
+
 	// Add user passed arguments.
 	if len(driverConfig.Args) != 0 {
 		parsed := ctx.TaskEnv.ParseAndReplace(driverConfig.Args)
