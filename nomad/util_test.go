@@ -154,14 +154,14 @@ func TestServersMeetMinimumVersion(t *testing.T) {
 
 func TestMinRaftProtocol(t *testing.T) {
 	t.Parallel()
-	makeMember := func(version, datacenter string) serf.Member {
+	makeMember := func(version, region string) serf.Member {
 		return serf.Member{
 			Name: "foo",
 			Addr: net.IP([]byte{127, 0, 0, 1}),
 			Tags: map[string]string{
 				"role":     "nomad",
-				"region":   "aws",
-				"dc":       datacenter,
+				"region":   region,
+				"dc":       "dc1",
 				"port":     "10000",
 				"vsn":      "1",
 				"raft_vsn": version,
@@ -171,10 +171,10 @@ func TestMinRaftProtocol(t *testing.T) {
 	}
 
 	cases := []struct {
-		members    []serf.Member
-		datacenter string
-		expected   int
-		err        error
+		members  []serf.Member
+		region   string
+		expected int
+		err      error
 	}{
 		// No servers, error
 		{
@@ -185,61 +185,61 @@ func TestMinRaftProtocol(t *testing.T) {
 		// One server
 		{
 			members: []serf.Member{
-				makeMember("1", "dc1"),
+				makeMember("1", "global"),
 			},
-			datacenter: "dc1",
-			expected:   1,
+			region:   "global",
+			expected: 1,
 		},
 		// One server, bad version formatting
 		{
 			members: []serf.Member{
-				makeMember("asdf", "dc1"),
+				makeMember("asdf", "global"),
 			},
-			datacenter: "dc1",
-			expected:   -1,
-			err:        errors.New(`strconv.Atoi: parsing "asdf": invalid syntax`),
+			region:   "global",
+			expected: -1,
+			err:      errors.New(`strconv.Atoi: parsing "asdf": invalid syntax`),
 		},
 		// One server, wrong datacenter
 		{
 			members: []serf.Member{
-				makeMember("1", "dc1"),
+				makeMember("1", "global"),
 			},
-			datacenter: "dc2",
-			expected:   -1,
-			err:        errors.New("no servers found"),
+			region:   "nope",
+			expected: -1,
+			err:      errors.New("no servers found"),
 		},
 		// Multiple servers, different versions
 		{
 			members: []serf.Member{
-				makeMember("1", "dc1"),
-				makeMember("2", "dc1"),
+				makeMember("1", "global"),
+				makeMember("2", "global"),
 			},
-			datacenter: "dc1",
-			expected:   1,
+			region:   "global",
+			expected: 1,
 		},
 		// Multiple servers, same version
 		{
 			members: []serf.Member{
-				makeMember("2", "dc1"),
-				makeMember("2", "dc1"),
+				makeMember("2", "global"),
+				makeMember("2", "global"),
 			},
-			datacenter: "dc1",
-			expected:   2,
+			region:   "global",
+			expected: 2,
 		},
 		// Multiple servers, multiple datacenters
 		{
 			members: []serf.Member{
-				makeMember("3", "dc1"),
-				makeMember("2", "dc1"),
-				makeMember("1", "dc2"),
+				makeMember("3", "r1"),
+				makeMember("2", "r1"),
+				makeMember("1", "r2"),
 			},
-			datacenter: "dc1",
-			expected:   2,
+			region:   "r1",
+			expected: 2,
 		},
 	}
 
 	for _, tc := range cases {
-		result, err := MinRaftProtocol(tc.datacenter, tc.members)
+		result, err := MinRaftProtocol(tc.region, tc.members)
 		if result != tc.expected {
 			t.Fatalf("bad: %v, %v, %v", result, tc.expected, tc)
 		}
