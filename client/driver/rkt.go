@@ -637,7 +637,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	execCmd := &executor.ExecCommand{
 		Cmd:  absPath,
 		Args: runArgs,
-		User: task.User,
 	}
 	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {
