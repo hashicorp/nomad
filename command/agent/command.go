@@ -654,6 +654,11 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
+
+	// Prefer the hostname as a label.
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
+		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
 		metricsConf.EnableHostname = true
