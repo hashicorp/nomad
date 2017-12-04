@@ -191,14 +191,6 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 // NewConfig should never be nil- calling code is responsible for walways
 // passing a valid TLSConfig object
 func (t *TLSConfig) Equals(newConfig *TLSConfig) bool {
-	if t == nil {
-		return false
-	}
-
-	if t == nil && newConfig != nil {
-		return false
-	}
-
 	return t.EnableRPC == newConfig.EnableRPC &&
 		t.CAFile == newConfig.CAFile &&
 		t.CertFile == newConfig.CertFile &&

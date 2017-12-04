@@ -87,6 +87,7 @@ func (s *Server) listen(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
+			default:
 			}
 
 			s.logger.Printf("[ERR] nomad.rpc: failed to accept RPC conn: %v", err)
