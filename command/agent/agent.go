@@ -782,24 +782,6 @@ func (a *Agent) Reload(newConfig *Config) error {
 		a.logger.Println("[INFO] agent: Upgrading from plaintext configuration to TLS")
 	}
 
-	// Reload the TLS configuration for the client or server, depending on how
-	// the agent is configured to run.
-	if s := a.Server(); s != nil {
-		err := s.ReloadTLSConnections(a.config.TLSConfig)
-		if err != nil {
-			a.logger.Printf("[WARN] agent: error reloading the server's TLS configuration: %v", err.Error())
-			return err
-		}
-	}
-	if c := a.Client(); c != nil {
-
-		err := c.ReloadTLSConnections(a.config.TLSConfig)
-		if err != nil {
-			a.logger.Printf("[WARN] agent: error reloading the server's TLS configuration: %v", err.Error())
-			return err
-		}
-	}
-
 	return nil
 }
 

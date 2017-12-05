@@ -640,16 +640,9 @@ func (c *Command) handleReload() {
 
 	shouldReload := c.agent.ShouldReload(newConf)
 	if shouldReload {
-		// Reloads configuration for an agent running in both client and server mode
 		err := c.agent.Reload(newConf)
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
-			return
-		}
-
-		err = c.reloadHTTPServer(newConf)
-		if err != nil {
-			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
 			return
 		}
 	}
@@ -661,7 +654,32 @@ func (c *Command) handleReload() {
 		} else {
 			if err := s.Reload(sconf); err != nil {
 				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
+				return
 			}
+		}
+	}
+
+	if s := c.agent.Client(); s != nil {
+		clientConfig, err := c.agent.clientConfig()
+		if err != nil {
+			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			return
+		}
+		if err := c.agent.Client().Reload(clientConfig); err != nil {
+			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			return
+		}
+	}
+
+	// reload HTTP server after we have reloaded both client and server, in case
+	// we error in either of the above cases. For example, reloading the http
+	// server to a TLS connection could succeed, while reloading the server's rpc
+	// connections could fail.
+	if shouldReload {
+		err := c.reloadHTTPServer(newConf)
+		if err != nil {
+			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
+			return
 		}
 	}
 }

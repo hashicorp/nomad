@@ -369,7 +369,7 @@ func (c *Client) init() error {
 // client's TLS configuration changes from plaintext to TLS
 func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
-	if newConfig.EnableRPC {
+	if newConfig != nil && newConfig.EnableRPC {
 		tw, err := c.config.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
 
 		if err != nil {
@@ -378,13 +378,19 @@ func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 		tlsWrap = tw
 	}
 
-	c.connPool.ReloadTLS(tlsWrap)
-
 	c.configLock.Lock()
 	c.config.TLSConfig = newConfig
 	c.configLock.Unlock()
 
+	c.connPool.ReloadTLS(tlsWrap)
+
 	return nil
+}
+
+// Reload allows a client to reload RPC connections if the
+// client's TLS configuration changes
+func (c *Client) Reload(newConfig *config.Config) error {
+	return c.reloadTLSConnections(newConfig.TLSConfig)
 }
 
 // Leave is used to prepare the client to leave the cluster

@@ -400,8 +400,8 @@ func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.R
 }
 
 // ReloadTLSConnections updates a server's TLS configuration and reloads RPC
-// connections
-func (s *Server) ReloadTLSConnections(newTLSConfig *config.TLSConfig) error {
+// connections. This will handle both TLS upgrades and downgrades.
+func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
 	tlsConf := s.config.newTLSConfig(newTLSConfig)
@@ -615,6 +615,12 @@ func (s *Server) Reload(newConfig *Config) error {
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
+			multierror.Append(&mErr, err)
+		}
+	}
+
+	if !newConfig.TLSConfig.Equals(s.config.TLSConfig) {
+		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
 	}

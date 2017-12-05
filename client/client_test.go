@@ -1032,7 +1032,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 		KeyFile:              fookey,
 	}
 
-	err := c1.ReloadTLSConnections(newConfig)
+	err := c1.reloadTLSConnections(newConfig)
 	assert.Nil(err)
 
 	req := structs.NodeSpecificRequest{
@@ -1085,7 +1085,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 
 	newConfig := &nconfig.TLSConfig{}
 
-	err := c1.ReloadTLSConnections(newConfig)
+	err := c1.reloadTLSConnections(newConfig)
 	assert.Nil(err)
 
 	req := structs.NodeSpecificRequest{

@@ -188,9 +188,14 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 
 // Equals compares the fields of two TLS configuration objects, returning a
 // boolean indicating if they are the same.
-// NewConfig should never be nil- calling code is responsible for walways
-// passing a valid TLSConfig object
+// It is possible for either the calling TLSConfig to be nil, or the TLSConfig
+// that it is being compared against, so we need to handle both places. See
+// server.go Reload for example.
 func (t *TLSConfig) Equals(newConfig *TLSConfig) bool {
+	if t == nil || newConfig == nil {
+		return t == newConfig
+	}
+
 	return t.EnableRPC == newConfig.EnableRPC &&
 		t.CAFile == newConfig.CAFile &&
 		t.CertFile == newConfig.CertFile &&

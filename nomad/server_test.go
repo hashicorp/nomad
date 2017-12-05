@@ -309,7 +309,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 		KeyFile:              fookey,
 	}
 
-	err := s1.ReloadTLSConnections(newTLSConfig)
+	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
 
 	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
@@ -330,7 +330,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 
 // Tests that the server will successfully reload its network connections,
 // downgrading from TLS to plaintext if the server's TLS configuration changes.
-func TestServer_Reload_TLSConnections_TLSToPlaintext(t *testing.T) {
+func TestServer_reload_TLSConnections_TLSToPlaintext(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
@@ -357,7 +357,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext(t *testing.T) {
 
 	newTLSConfig := &config.TLSConfig{}
 
-	err := s1.ReloadTLSConnections(newTLSConfig)
+	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
 	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
 
