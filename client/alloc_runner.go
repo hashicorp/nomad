@@ -819,7 +819,7 @@ func (r *AllocRunner) Run() {
 	r.allocDirLock.Unlock()
 
 	if err != nil {
-		r.logger.Printf("[ERR] client: failed to build task directories: %v", err)
+		r.logger.Printf("[ERR] client: alloc %q failed to build task directories: %v", r.allocID, err)
 		r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to build task dirs for '%s'", alloc.TaskGroup))
 		return
 	}
@@ -841,6 +841,14 @@ func (r *AllocRunner) Run() {
 
 		// Soft-fail on migration errors
 		r.logger.Printf("[WARN] client: alloc %q error while migrating data from previous alloc: %v", r.allocID, err)
+
+		// Recreate alloc dir to ensure a clean slate
+		r.allocDir.Destroy()
+		if err := r.allocDir.Build(); err != nil {
+			r.logger.Printf("[ERR] client: alloc %q failed to clean task directories after failed migration: %v", r.allocID, err)
+			r.setStatus(structs.AllocClientStatusFailed, fmt.Sprintf("failed to rebuild task dirs for '%s'", alloc.TaskGroup))
+			return
+		}
 	}
 
 	// Check if the allocation is in a terminal status. In this case, we don't

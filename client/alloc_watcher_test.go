@@ -9,9 +9,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/mock"
 )
@@ -68,9 +70,9 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 	}
 }
 
-// TestPrevAlloc_StreamAllocDir asserts that streaming a tar to an alloc dir
+// TestPrevAlloc_StreamAllocDir_Ok asserts that streaming a tar to an alloc dir
 // works.
-func TestPrevAlloc_StreamAllocDir(t *testing.T) {
+func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	t.Parallel()
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -194,5 +196,80 @@ func TestPrevAlloc_StreamAllocDir(t *testing.T) {
 	}
 	if fi2.Mode() != linkInfo.Mode() {
 		t.Fatalf("mode: %v", fi2.Mode())
+	}
+}
+
+// TestPrevAlloc_StreamAllocDir_Error asserts that errors encountered while
+// streaming a tar cause the migration to be cancelled and no files are written
+// (migrations are atomic).
+func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
+	t.Parallel()
+	dest, err := ioutil.TempDir("", "nomadtest-")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(dest)
+
+	// This test only unit tests streamAllocDir so we only need a partially
+	// complete remotePrevAlloc
+	prevAlloc := &remotePrevAlloc{
+		logger:      testLogger(),
+		allocID:     "123",
+		prevAllocID: "abc",
+		migrate:     true,
+	}
+
+	tarBuf := bytes.NewBuffer(nil)
+	tw := tar.NewWriter(tarBuf)
+	fooHdr := tar.Header{
+		Name:     "foo.txt",
+		Mode:     0666,
+		Size:     1,
+		ModTime:  time.Now(),
+		Typeflag: tar.TypeReg,
+	}
+	err = tw.WriteHeader(&fooHdr)
+	if err != nil {
+		t.Fatalf("error writing file header: %v", err)
+	}
+	if _, err := tw.Write([]byte{'a'}); err != nil {
+		t.Fatalf("error writing file: %v", err)
+	}
+
+	// Now write the error file
+	contents := []byte("SENTINEL ERROR")
+	err = tw.WriteHeader(&tar.Header{
+		Name:       allocdir.SnapshotErrorFilename(prevAlloc.prevAllocID),
+		Mode:       0666,
+		Size:       int64(len(contents)),
+		AccessTime: allocdir.SnapshotErrorTime,
+		ChangeTime: allocdir.SnapshotErrorTime,
+		ModTime:    allocdir.SnapshotErrorTime,
+		Typeflag:   tar.TypeReg,
+	})
+	if err != nil {
+		t.Fatalf("error writing sentinel file header: %v", err)
+	}
+	if _, err := tw.Write(contents); err != nil {
+		t.Fatalf("error writing sentinel file: %v", err)
+	}
+
+	// Assert streamAllocDir fails
+	err = prevAlloc.streamAllocDir(context.Background(), ioutil.NopCloser(tarBuf), dest)
+	if err == nil {
+		t.Fatalf("expected an error from streamAllocDir")
+	}
+	if !strings.HasSuffix(err.Error(), string(contents)) {
+		t.Fatalf("expected error to end with %q but found: %v", string(contents), err)
+	}
+
+	// streamAllocDir leaves cleanup to the caller on error, so assert
+	// "foo.txt" was written
+	fi, err := os.Stat(filepath.Join(dest, "foo.txt"))
+	if err != nil {
+		t.Fatalf("error reading foo.txt: %v", err)
+	}
+	if fi.Size() != fooHdr.Size {
+		t.Fatalf("expected foo.txt to be size 1 but found %d", fi.Size())
 	}
 }

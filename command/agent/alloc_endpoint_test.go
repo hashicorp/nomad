@@ -1,18 +1,24 @@
 package agent
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -376,6 +382,112 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		respW = httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
 		assert.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
+	})
+}
+
+// TestHTTP_AllocSnapshot_Atomic ensures that when a client encounters an error
+// snapshotting a valid tar is not returned.
+func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create an alloc
+		state := s.server.State()
+		alloc := mock.Alloc()
+		alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+		alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "30s"
+		alloc.NodeID = s.client.NodeID()
+		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+		if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc.Copy()}); err != nil {
+			t.Fatalf("error upserting alloc: %v", err)
+		}
+
+		// Wait for the client to run it
+		testutil.WaitForResult(func() (bool, error) {
+			if _, err := s.client.GetClientAlloc(alloc.ID); err != nil {
+				return false, err
+			}
+
+			serverAlloc, err := state.AllocByID(nil, alloc.ID)
+			if err != nil {
+				return false, err
+			}
+
+			return serverAlloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf(serverAlloc.ClientStatus)
+		}, func(err error) {
+			t.Fatalf("client not running alloc: %v", err)
+		})
+
+		// Now write to its shared dir
+		allocDirI, err := s.client.GetAllocFS(alloc.ID)
+		if err != nil {
+			t.Fatalf("unable to find alloc dir: %v", err)
+		}
+		allocDir := allocDirI.(*allocdir.AllocDir)
+
+		// Remove the task dir to break Snapshot
+		os.RemoveAll(allocDir.TaskDirs["web"].LocalDir)
+
+		// Assert Snapshot fails
+		if err := allocDir.Snapshot(ioutil.Discard); err != nil {
+			s.logger.Printf("[DEBUG] agent.test: snapshot returned error: %v", err)
+		} else {
+			t.Errorf("expected Snapshot() to fail but it did not")
+		}
+
+		// Make the HTTP request to ensure the Snapshot error is
+		// propagated through to the HTTP layer. Since the tar is
+		// streamed over a 200 HTTP response the only way to signal an
+		// error is by writing a marker file.
+		respW := httptest.NewRecorder()
+		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/snapshot", alloc.ID), nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the request via the mux to make sure the error returned
+		// by Snapshot is properly propogated via HTTP
+		s.Server.mux.ServeHTTP(respW, req)
+		resp := respW.Result()
+		r := tar.NewReader(resp.Body)
+		errorFilename := allocdir.SnapshotErrorFilename(alloc.ID)
+		markerFound := false
+		markerContents := ""
+		for {
+			header, err := r.Next()
+			if err != nil {
+				if err != io.EOF {
+					// Huh, I wonder how a non-EOF error can happen?
+					t.Errorf("Unexpected error while streaming: %v", err)
+				}
+				break
+			}
+
+			if markerFound {
+				// No more files should be found after the failure marker
+				t.Errorf("Next file found after error marker: %s", header.Name)
+				break
+			}
+
+			if header.Name == errorFilename {
+				// Found it!
+				markerFound = true
+				buf := make([]byte, int(header.Size))
+				if _, err := r.Read(buf); err != nil {
+					t.Errorf("Unexpected error reading error marker %s: %v", errorFilename, err)
+				} else {
+					markerContents = string(buf)
+				}
+			}
+		}
+
+		if !markerFound {
+			t.Fatalf("marker file %s not written; bad tar will be treated as good!", errorFilename)
+		}
+		if markerContents == "" {
+			t.Fatalf("marker file %s empty", markerContents)
+		} else {
+			t.Logf("EXPECTED snapshot error: %s", markerContents)
+		}
 	})
 }
 
