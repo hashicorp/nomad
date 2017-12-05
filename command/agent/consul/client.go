@@ -569,23 +569,16 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
 	}
 
-	// Determine the address to advertise
+	// Service address modes default to auto
 	addrMode := service.AddressMode
-	if addrMode == structs.AddressModeAuto {
-		if net.Advertise() {
-			addrMode = structs.AddressModeDriver
-		} else {
-			// No driver network or shouldn't default to driver's network
-			addrMode = structs.AddressModeHost
-		}
+	if addrMode == "" {
+		addrMode = structs.AddressModeAuto
 	}
-	ip, port := task.Resources.Networks.Port(service.PortLabel)
-	if addrMode == structs.AddressModeDriver {
-		if net == nil {
-			return nil, fmt.Errorf("service %s cannot use driver's IP because driver didn't set one", service.Name)
-		}
-		ip = net.IP
-		port = net.PortMap[service.PortLabel]
+
+	// Determine the address to advertise based on the mode
+	ip, port, err := getAddress(addrMode, service.PortLabel, task.Resources.Networks, net)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get address for service %q: %v", service.Name, err)
 	}
 
 	// Build the Consul Service registration request
@@ -641,13 +634,24 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 
 		}
 
-		// Checks should always use the host ip:port
+		// Default to the service's port but allow check to override
 		portLabel := check.PortLabel
 		if portLabel == "" {
 			// Default to the service's port label
 			portLabel = service.PortLabel
 		}
-		ip, port := task.Resources.Networks.Port(portLabel)
+
+		// Checks address mode defaults to host for pre-#3380 backward compat
+		addrMode := check.AddressMode
+		if addrMode == "" {
+			addrMode = structs.AddressModeHost
+		}
+
+		ip, port, err := getAddress(addrMode, portLabel, task.Resources.Networks, net)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get address for check %q: %v", check.Name, err)
+		}
+
 		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
@@ -709,8 +713,8 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restart
 func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	ops := &operations{}
 
-	t := new(TaskRegistration)
-	t.Services = make(map[string]*ServiceRegistration, len(newTask.Services))
+	taskReg := new(TaskRegistration)
+	taskReg.Services = make(map[string]*ServiceRegistration, len(newTask.Services))
 
 	existingIDs := make(map[string]*structs.Service, len(existing.Services))
 	for _, s := range existing.Services {
@@ -745,7 +749,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			serviceID: existingID,
 			checkIDs:  make(map[string]struct{}, len(newSvc.Checks)),
 		}
-		t.Services[existingID] = sreg
+		taskReg.Services[existingID] = sreg
 
 		// PortLabel and AddressMode aren't included in the ID, so we
 		// have to compare manually.
@@ -755,7 +759,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			delete(newIDs, existingID)
 		}
 
-		// Check to see what checks were updated
+		// See what checks were updated
 		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
 			existingChecks[makeCheckID(existingID, check)] = check
@@ -806,11 +810,11 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			return err
 		}
 
-		t.Services[sreg.serviceID] = sreg
+		taskReg.Services[sreg.serviceID] = sreg
 	}
 
 	// Add the task to the allocation's registration
-	c.addTaskRegistration(allocID, newTask.Name, t)
+	c.addTaskRegistration(allocID, newTask.Name, taskReg)
 
 	c.commit(ops)
 
@@ -1078,4 +1082,45 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 func isNomadService(id string) bool {
 	const prefix = nomadServicePrefix + "-executor"
 	return strings.HasPrefix(id, prefix)
+}
+
+// getAddress returns the ip and port to use for a service or check. An error
+// is returned if an ip and port cannot be determined.
+func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *cstructs.DriverNetwork) (string, int, error) {
+	switch addrMode {
+	case structs.AddressModeAuto:
+		if driverNet.Advertise() {
+			addrMode = structs.AddressModeDriver
+		} else {
+			addrMode = structs.AddressModeHost
+		}
+		return getAddress(addrMode, portLabel, networks, driverNet)
+	case structs.AddressModeHost:
+		// Default path: use host ip:port
+		ip, port := networks.Port(portLabel)
+		return ip, port, nil
+
+	case structs.AddressModeDriver:
+		// Require a driver network if driver address mode is used
+		if driverNet == nil {
+			return "", 0, fmt.Errorf(`cannot use address_mode="driver": no driver network exists`)
+		}
+
+		// If the port is a label, use the driver's port (not the host's)
+		if port, ok := driverNet.PortMap[portLabel]; ok {
+			return driverNet.IP, port, nil
+		}
+
+		// If port isn't a label, try to parse it as a literal port number
+		port, err := strconv.Atoi(portLabel)
+		if err != nil {
+			return "", 0, fmt.Errorf("invalid port %q: %v", portLabel, err)
+		}
+
+		return driverNet.IP, port, nil
+
+	default:
+		// Shouldn't happen due to validation, but enforce invariants
+		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
+	}
 }

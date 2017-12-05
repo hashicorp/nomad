@@ -16,6 +16,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -1438,5 +1439,143 @@ func TestCreateCheckReg(t *testing.T) {
 
 	if diff := pretty.Diff(actual, expected); len(diff) > 0 {
 		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
+	}
+}
+
+// TestGetAddress asserts Nomad uses the correct ip and port for services and
+// checks depending on port labels, driver networks, and address mode.
+func TestGetAddress(t *testing.T) {
+	const HostIP = "127.0.0.1"
+
+	cases := []struct {
+		Name string
+
+		// Parameters
+		Mode      string
+		PortLabel string
+		Host      map[string]int // will be converted to structs.Networks
+		Driver    *cstructs.DriverNetwork
+
+		// Results
+		IP          string
+		Port        int
+		ErrContains string
+	}{
+		{
+			Name:      "ExampleService",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12435},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			IP:   HostIP,
+			Port: 12435,
+		},
+		{
+			Name:      "Host",
+			Mode:      structs.AddressModeHost,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			IP:   HostIP,
+			Port: 12345,
+		},
+		{
+			Name:      "Driver",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			IP:   "10.1.2.3",
+			Port: 6379,
+		},
+		{
+			Name:      "AutoDriver",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap:       map[string]int{"db": 6379},
+				IP:            "10.1.2.3",
+				AutoAdvertise: true,
+			},
+			IP:   "10.1.2.3",
+			Port: 6379,
+		},
+		{
+			Name:      "DriverCustomPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "7890",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			IP:   "10.1.2.3",
+			Port: 7890,
+		},
+		{
+			Name:        "DriverWithoutNetwork",
+			Mode:        structs.AddressModeDriver,
+			PortLabel:   "db",
+			Host:        map[string]int{"db": 12345},
+			Driver:      nil,
+			ErrContains: "no driver network exists",
+		},
+		{
+			Name:      "DriverBadPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "bad-port-label",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ErrContains: "invalid port",
+		},
+		{
+			Name:        "InvalidMode",
+			Mode:        "invalid-mode",
+			ErrContains: "invalid address mode",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			// convert host port map into a structs.Networks
+			networks := []*structs.NetworkResource{
+				{
+					IP:            HostIP,
+					ReservedPorts: make([]structs.Port, len(tc.Host)),
+				},
+			}
+
+			i := 0
+			for label, port := range tc.Host {
+				networks[0].ReservedPorts[i].Label = label
+				networks[0].ReservedPorts[i].Value = port
+				i++
+			}
+
+			// Run getAddress
+			ip, port, err := getAddress(tc.Mode, tc.PortLabel, networks, tc.Driver)
+
+			// Assert the results
+			assert.Equal(t, tc.IP, ip, "IP mismatch")
+			assert.Equal(t, tc.Port, port, "Port mismatch")
+			if tc.ErrContains == "" {
+				assert.Nil(t, err)
+			} else {
+				assert.Contains(t, err.Error(), tc.ErrContains)
+			}
+		})
 	}
 }

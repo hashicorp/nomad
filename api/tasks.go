@@ -154,6 +154,7 @@ type ServiceCheck struct {
 	Path          string
 	Protocol      string
 	PortLabel     string `mapstructure:"port"`
+	AddressMode   string `mapstructure:"address_mode"`
 	Interval      time.Duration
 	Timeout       time.Duration
 	InitialStatus string `mapstructure:"initial_status"`
