@@ -10,9 +10,5 @@
   "service": {
     "name": "consul"
   },
-  "retry_join_ec2": {
-    "tag_key": "ConsulAutoJoin",
-    "tag_value": "CLUSTER_TAG_VALUE",
-    "region": "REGION"
-  }
+  "retry_join": ["RETRY_JOIN"]
 }

@@ -173,7 +173,6 @@ check: ## Lint the source code
 		--enable ineffassign \
 		--enable structcheck \
 		--enable unconvert \
-		--enable gas \
 		--enable gofmt \
 		./...
 	@echo "==> Spell checking website..."

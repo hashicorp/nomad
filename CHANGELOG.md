@@ -4,6 +4,9 @@ __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
+ * telemetry: Hostname is now emitted via a tag rather than within the key name.
+   To maintain old behavior during an upgrade path specify
+   `backwards_compatible_metrics` in the telemetry configuration.
 
 IMPROVEMENTS:
  * core: Allow operators to reload TLS certificate and key files via SIGHUP
@@ -17,6 +20,7 @@ IMPROVEMENTS:
  * api: Environment variables are ignored during service name validation [GH-3532]
  * cli: Allocation create and modify times are displayed in a human readable
    relative format like `6 h ago` [GH-3449]
+ * client: Sticky volume migrations are now atomic. [GH-3563]
  * client: Added metrics to track state transitions of allocations [GH-3061]
  * client: When `network_interface` is unspecified use interface attached to
    default route [GH-3546]
@@ -24,6 +28,8 @@ IMPROVEMENTS:
  * driver/docker: Adds support for adding host device to container via
    `--device` [GH-2938]
  * driver/docker: Adds support for `ulimit` and `sysctl` options [GH-3568]
+ * driver/docker: Adds support for StopTimeout (set to the same value as
+   kill_timeout [GH-3601]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
  * core/enterprise: Return 501 status code in Nomad Pro for Premium end points
@@ -45,12 +51,14 @@ BUG FIXES:
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * driver/rkt: Remove pods on shutdown [GH-3562]
+ * driver/rkt: Don't require port maps when using host networking [GH-3615]
  * template: Fix issue where multiple environment variable templates would be
    parsed incorrectly when contents of one have changed after the initial
    rendering [GH-3529]
  * sentinel: (Nomad Enterprise) Fix an issue that could cause an import error
    when multiple Sentinel policies are applied
  * telemetry: Do not emit metrics for non-running tasks [GH-3559]
+ * telemetry: Emit hostname as a tag rather than within the key name [GH-3616]
 
 ## 0.7.0 (November 1, 2017)
 

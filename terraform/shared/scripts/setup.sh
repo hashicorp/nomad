@@ -6,29 +6,27 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=0.9.0
+CONSULVERSION=1.0.0
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=0.7.3
+VAULTVERSION=0.8.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.6.0
+NOMADVERSION=0.7.0
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-HADOOP_VERSION=2.7.3
+HADOOP_VERSION=2.7.4
 
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
 sudo apt-get install -y unzip tree redis-tools jq
-sudo apt-get install -y upstart-sysv
-sudo update-initramfs -u
 
 # Numpy (for Spark)
 sudo apt-get install -y python-setuptools
@@ -97,10 +95,10 @@ sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 # Spark
-sudo wget -P /ops/examples/spark https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz
-sudo tar -xvf /ops/examples/spark/spark-2.1.0-bin-nomad.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.1.0-bin-nomad /usr/local/bin/spark
+sudo wget -P /ops/examples/spark https://s3.amazonaws.com/nomad-spark/spark-2.2.0-bin-nomad-0.7.0.tgz
+sudo tar -xvf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
+sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
 sudo chown -R root:root /usr/local/bin/spark
 
 # Hadoop (to enable the HDFS CLI)
-wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz | sudo tar xz -C /usr/local/
+wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/

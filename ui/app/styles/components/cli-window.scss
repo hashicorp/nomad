@@ -1,0 +1,11 @@
+.cli-window {
+  background: transparent;
+  color: $white;
+
+  height: 500px;
+  overflow: auto;
+
+  .is-light {
+    color: $text;
+  }
+}

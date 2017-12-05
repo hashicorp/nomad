@@ -128,6 +128,13 @@ func getNamespace(client *api.Namespaces, ns string) (match *api.Namespace, poss
 	case l == 1:
 		return namespaces[0], nil, nil
 	default:
+		// search for an exact match in the returned namespaces
+		for _, namespace := range namespaces {
+			if namespace.Name == ns {
+				return namespace, nil, nil
+			}
+		}
+		// if not found, return the fuzzy matches.
 		return nil, namespaces, nil
 	}
 }

@@ -548,12 +548,13 @@ WAIT:
 	case <-c.retryJoinErrCh:
 		return 1
 	}
-	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
-	// Skip any SIGPIPE signal (See issue #1798)
+	// Skip any SIGPIPE signal and don't try to log it (See issues #1798, #3554)
 	if sig == syscall.SIGPIPE {
 		goto WAIT
 	}
+
+	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
@@ -654,6 +655,11 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
+
+	// Prefer the hostname as a label.
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
+		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
 		metricsConf.EnableHostname = true
