@@ -24,6 +24,10 @@ const (
 )
 
 var (
+	// SnapshotErrorTime is the sentinel time that will be used on the
+	// error file written by Snapshot when it encounters as error.
+	SnapshotErrorTime = time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
+
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
 
@@ -128,6 +132,10 @@ func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 
 // Snapshot creates an archive of the files and directories in the data dir of
 // the allocation and the task local directories
+//
+// Since a valid tar may have been written even when an error occurs, a special
+// file "NOMAD-${ALLOC_ID}-ERROR.log" will be appended to the tar with the
+// error message as the contents.
 func (d *AllocDir) Snapshot(w io.Writer) error {
 	allocDataDir := filepath.Join(d.SharedDir, SharedDataDir)
 	rootPaths := []string{allocDataDir}
@@ -139,6 +147,10 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	defer tw.Close()
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
 		relPath, err := filepath.Rel(d.AllocDir, path)
@@ -158,7 +170,9 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 			return fmt.Errorf("error creating file header: %v", err)
 		}
 		hdr.Name = relPath
-		tw.WriteHeader(hdr)
+		if err := tw.WriteHeader(hdr); err != nil {
+			return err
+		}
 
 		// If it's a directory or symlink we just write the header into the tar
 		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
@@ -182,7 +196,16 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	// directories in the archive
 	for _, path := range rootPaths {
 		if err := filepath.Walk(path, walkFn); err != nil {
-			return err
+			allocID := filepath.Base(d.AllocDir)
+			if writeErr := writeError(tw, allocID, err); writeErr != nil {
+				// This could be bad; other side won't know
+				// snapshotting failed. It could also just mean
+				// the snapshotting side closed the connect
+				// prematurely and won't try to use the tar
+				// anyway.
+				d.logger.Printf("[WARN] client: snapshotting failed and unable to write error marker: %v", writeErr)
+			}
+			return fmt.Errorf("failed to snapshot %s: %v", path, err)
 		}
 	}
 
@@ -242,6 +265,8 @@ func (d *AllocDir) Destroy() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to remove alloc dir %q: %v", d.AllocDir, err))
 	}
 
+	// Unset built since the alloc dir has been destroyed.
+	d.built = false
 	return mErr.ErrorOrNil()
 }
 
@@ -556,4 +581,32 @@ func splitPath(path string) ([]fileInfo, error) {
 		currentDir = dir
 	}
 	return dirs, nil
+}
+
+// SnapshotErrorFilename returns the filename which will exist if there was an
+// error snapshotting a tar.
+func SnapshotErrorFilename(allocID string) string {
+	return fmt.Sprintf("NOMAD-%s-ERROR.log", allocID)
+}
+
+// writeError writes a special file to a tar archive with the error encountered
+// during snapshotting. See Snapshot().
+func writeError(tw *tar.Writer, allocID string, err error) error {
+	contents := []byte(fmt.Sprintf("Error snapshotting: %v", err))
+	hdr := tar.Header{
+		Name:       SnapshotErrorFilename(allocID),
+		Mode:       0666,
+		Size:       int64(len(contents)),
+		AccessTime: SnapshotErrorTime,
+		ChangeTime: SnapshotErrorTime,
+		ModTime:    SnapshotErrorTime,
+		Typeflag:   tar.TypeReg,
+	}
+
+	if err := tw.WriteHeader(&hdr); err != nil {
+		return err
+	}
+
+	_, err = tw.Write(contents)
+	return err
 }

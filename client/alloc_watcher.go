@@ -463,6 +463,9 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 	}
 
+	// if we see this file, there was an error on the remote side
+	errorFilename := allocdir.SnapshotErrorFilename(p.prevAllocID)
+
 	buf := make([]byte, 1024)
 	for !canceled() {
 		// Get the next header
@@ -476,6 +479,18 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		if err != nil {
 			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %v",
 				p.prevAllocID, p.allocID, err)
+		}
+
+		if hdr.Name == errorFilename {
+			// Error snapshotting on the remote side, try to read
+			// the message out of the file and return it.
+			errBuf := make([]byte, int(hdr.Size))
+			if _, err := tr.Read(errBuf); err != nil {
+				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %v",
+					p.prevAllocID, p.allocID, err)
+			}
+			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %s",
+				p.prevAllocID, p.allocID, string(errBuf))
 		}
 
 		// If the header is for a directory we create the directory
