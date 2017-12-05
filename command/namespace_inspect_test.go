@@ -130,7 +130,7 @@ func TestNamespaceInspectCommand_NamespaceMatchesPrefix(t *testing.T) {
 	}
 	// Check to ensure we got the proper foo
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "= foo\n") {
+	if !strings.Contains(out, "\"foo\",\n") {
 		t.Fatalf("expected namespace foo, got: %s", out)
 	}
 }
