@@ -2866,6 +2866,7 @@ type ServiceCheck struct {
 	Path          string              // path of the health check url for http type check
 	Protocol      string              // Protocol to use if check is http, defaults to http
 	PortLabel     string              // The port to use for tcp/http checks
+	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver's
 	Interval      time.Duration       // Interval of the check
 	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus string              // Initial status of the check
@@ -2911,6 +2912,7 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 
 // validate a Service's ServiceCheck
 func (sc *ServiceCheck) validate() error {
+	// Validate Type
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
 	case ServiceCheckHTTP:
@@ -2926,6 +2928,7 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
 
+	// Validate interval and timeout
 	if sc.Interval == 0 {
 		return fmt.Errorf("missing required value interval. Interval cannot be less than %v", minCheckInterval)
 	} else if sc.Interval < minCheckInterval {
@@ -2938,15 +2941,25 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 	}
 
+	// Validate InitialStatus
 	switch sc.InitialStatus {
 	case "":
-		// case api.HealthUnknown: TODO: Add when Consul releases 0.7.1
 	case api.HealthPassing:
 	case api.HealthWarning:
 	case api.HealthCritical:
 	default:
 		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q or empty`, sc.InitialStatus, api.HealthPassing, api.HealthWarning, api.HealthCritical)
 
+	}
+
+	// Validate AddressMode
+	switch sc.AddressMode {
+	case "", AddressModeHost, AddressModeDriver:
+		// Ok
+	case AddressModeAuto:
+		return fmt.Errorf("invalid address_mode %q - %s only valid for services", sc.AddressMode, AddressModeAuto)
+	default:
+		return fmt.Errorf("invalid address_mode %q", sc.AddressMode)
 	}
 
 	return sc.CheckRestart.Validate()
@@ -2999,6 +3012,11 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 		}
 		sort.Strings(headers)
 		io.WriteString(h, strings.Join(headers, ""))
+	}
+
+	// Only include AddressMode if set to maintain ID stability with Nomad <0.7.1
+	if len(sc.AddressMode) > 0 {
+		io.WriteString(h, sc.AddressMode)
 	}
 
 	return fmt.Sprintf("%x", h.Sum(nil))
@@ -3455,7 +3473,12 @@ func validateServices(t *Task) error {
 		knownServices[service.Name+service.PortLabel] = struct{}{}
 
 		if service.PortLabel != "" {
-			servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
+			if _, err := strconv.Atoi(service.PortLabel); service.AddressMode == "driver" && err == nil {
+				// Numeric ports are valid when AddressMode=driver
+			} else {
+
+				servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
+			}
 		}
 
 		// Ensure that check names are unique.

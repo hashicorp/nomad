@@ -583,6 +583,54 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-check-driver-address.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("address_mode_driver"),
+				Name: helper.StringToPtr("address_mode_driver"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name:        "http-service",
+										PortLabel:   "http",
+										AddressMode: "auto",
+										Checks: []api.ServiceCheck{
+											{
+												Name:        "http-check",
+												Type:        "http",
+												Path:        "/",
+												PortLabel:   "http",
+												AddressMode: "driver",
+											},
+										},
+									},
+									{
+										Name:        "random-service",
+										PortLabel:   "9000",
+										AddressMode: "driver",
+										Checks: []api.ServiceCheck{
+											{
+												Name:        "random-check",
+												Type:        "tcp",
+												PortLabel:   "9001",
+												AddressMode: "driver",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
