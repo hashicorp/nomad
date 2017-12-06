@@ -757,16 +757,16 @@
 			"revisionTime": "2017-06-02T22:43:19Z"
 		},
 		{
-			"checksumSHA1": "aYYfKsxwxF3pz3YqKlmDVxGMrnM=",
+			"checksumSHA1": "wCKbbnwvVEoKAE5TWunloLhErm4=",
 			"path": "github.com/hashicorp/go-getter",
-			"revision": "80eb888f740e980f6585273d48582c74b3a34f88",
-			"revisionTime": "2017-09-05T20:52:06Z"
+			"revision": "994f50a6f071b07cfbea9eca9618c9674091ca51",
+			"revisionTime": "2017-12-04T19:28:26Z"
 		},
 		{
 			"checksumSHA1": "9J+kDr29yDrwsdu2ULzewmqGjpA=",
 			"path": "github.com/hashicorp/go-getter/helper/url",
-			"revision": "80eb888f740e980f6585273d48582c74b3a34f88",
-			"revisionTime": "2017-09-05T20:52:06Z"
+			"revision": "994f50a6f071b07cfbea9eca9618c9674091ca51",
+			"revisionTime": "2017-12-04T19:28:26Z"
 		},
 		{
 			"checksumSHA1": "miVF4/7JP0lRwZvFJGKwZWk7aAQ=",
