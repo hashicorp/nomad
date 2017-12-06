@@ -210,12 +210,13 @@ func SetEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allo
 // specified. If it is not supported on the platform, returns an error.
 func getTaskKillSignal(signal string) (os.Signal, error) {
 	if signal == "" {
-		return nil, nil
+		return os.Interrupt, nil
 	}
 
 	taskKillSignal := signals.SignalLookup[signal]
 	if taskKillSignal == nil {
 		return nil, fmt.Errorf("Signal %s is not supported", signal)
 	}
+
 	return taskKillSignal, nil
 }

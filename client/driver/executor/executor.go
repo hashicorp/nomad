@@ -500,14 +500,7 @@ func (e *UniversalExecutor) ShutDown() error {
 		return nil
 	}
 
-	var osSignal os.Signal
-	if e.command.TaskKillSignal != nil {
-		osSignal = e.command.TaskKillSignal
-	} else {
-		osSignal = os.Interrupt
-	}
-
-	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
+	if err = proc.Signal(e.command.TaskKillSignal); err != nil && err.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
 	}
 

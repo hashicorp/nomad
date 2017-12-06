@@ -160,6 +160,7 @@ type DockerVolumeDriverConfig struct {
 	Options []map[string]string `mapstructure:"options"`
 }
 
+// DockerDriverConfig defines the user specified config block in a jobspec
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
@@ -201,7 +202,6 @@ type DockerDriverConfig struct {
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
-	StopSignal       string              `mapstructure:"stop_signal"`        // allow passing through a specific stop signal
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -1046,6 +1046,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, err
 	}
 
+	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
 		Image:       d.imageID,
 		Hostname:    driverConfig.Hostname,
@@ -1055,7 +1056,6 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		StopTimeout: int(task.KillTimeout.Seconds()),
 	}
 
-	// Set the stop signal for the docker container.
 	if task.KillSignal != "" {
 		config.StopSignal = task.KillSignal
 	}
