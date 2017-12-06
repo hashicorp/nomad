@@ -1,12 +1,10 @@
-job "example" {
-    task "webservice" {
-      kill_signal = "SIGINT"
-        driver = "docker"
-        config
-        {
-          image =  "hashicorp/image"
-        }
+job "foo" {
+  task "bar" {
+    driver = "docker"
+    kill_signal = "SIGQUIT"
+
+    config {
+      image = "hashicorp/image"
     }
-
+  }
 }
-

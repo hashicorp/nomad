@@ -563,17 +563,16 @@ func TestParse(t *testing.T) {
 		{
 			"job-with-kill-signal.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("example"),
-				Name: helper.StringToPtr("example"),
-
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("webservice"),
+						Name: helper.StringToPtr("bar"),
 						Tasks: []*api.Task{
 							{
-								Name:       "webservice",
+								Name:       "bar",
 								Driver:     "docker",
-								KillSignal: "SIGINT",
+								KillSignal: "SIGQUIT",
 								Config: map[string]interface{}{
 									"image": "hashicorp/image",
 								},

@@ -625,12 +625,6 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			Result:           &t,
 		})
 
-		// this needs to be manually assigned
-		killsig := m["kill_signal"]
-		if killsig != nil {
-			t.KillSignal = killsig.(string)
-		}
-
 		if err != nil {
 			return err
 		}
