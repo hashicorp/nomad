@@ -1631,7 +1631,12 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
-	// Update the task's environment for interpolating in services/checks
+	// Interpolate the old task with the old env before updating the env as
+	// updating services in Consul need both the old and new interpolations
+	// to find differences.
+	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
+
+	// Now it's safe to update the environment
 	r.envBuilder.UpdateTask(update, updatedTask)
 
 	var mErr multierror.Error
@@ -1650,7 +1655,8 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 		}
 
 		// Update services in Consul
-		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
+		newInterpolatedTask := interpolateServices(r.envBuilder.Build(), updatedTask)
+		if err := r.updateServices(drv, r.handle, oldInterpolatedTask, newInterpolatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1667,19 +1673,17 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	return mErr.ErrorOrNil()
 }
 
-// updateServices and checks with Consul.
-func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task) error {
+// updateServices and checks with Consul. Tasks must be interpolated!
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, oldTask, newTask *structs.Task) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	newInterpolatedTask := interpolateServices(r.envBuilder.Build(), new)
-	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), old)
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, r, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldTask, newTask, r, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
