@@ -202,7 +202,8 @@ func TestParse(t *testing.T) {
 										RightDelim: helper.StringToPtr("__"),
 									},
 								},
-								Leader: true,
+								Leader:     true,
+								KillSignal: "",
 							},
 							{
 								Name:   "storagelocker",
