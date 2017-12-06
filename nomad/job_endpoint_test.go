@@ -3760,9 +3760,8 @@ func TestJobEndpoint_ValidateJob_KillSignal(t *testing.T) {
 		job.TaskGroups[0].Tasks[0].KillSignal = "SIGINT"
 
 		err, warnings := validateJob(job)
-		if err == nil || !strings.Contains(err.Error(), "support sending signals") {
-			t.Fatalf("Expected signal feasibility error; got %v", err)
-		}
+		assert.NotNil(err)
+		assert.True(strings.Contains(err.Error(), "support sending signals"))
 		assert.Nil(warnings)
 	}
 
@@ -3773,9 +3772,7 @@ func TestJobEndpoint_ValidateJob_KillSignal(t *testing.T) {
 		job.TaskGroups[0].Tasks[0].KillSignal = "SIGINT"
 
 		err, warnings := validateJob(job)
-		if err != nil {
-			t.Fatalf("Expected error to be nil; got %v", err.Error())
-		}
+		assert.Nil(err)
 		assert.Nil(warnings)
 	}
 }
