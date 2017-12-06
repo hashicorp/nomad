@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -130,12 +129,9 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	var taskKillSignal os.Signal
-	if task.KillSignal != "" {
-		taskKillSignal = signals.SignalLookup[task.KillSignal]
-		if taskKillSignal == nil {
-			return nil, fmt.Errorf("Signal %s is not supported", task.KillSignal)
-		}
+	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
 	}
 
 	execCmd := &executor.ExecCommand{
