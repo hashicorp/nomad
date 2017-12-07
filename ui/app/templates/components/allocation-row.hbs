@@ -3,7 +3,7 @@
     {{allocation.shortId}}
   {{/link-to}}
 </td>
-<td>{{allocation.modifyIndex}}</td>
+<td>{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}</td>
 <td>{{allocation.name}}</td>
 <td>
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
