@@ -1188,7 +1188,7 @@ func (c *Client) registerNode() error {
 
 // updateNodeStatus is used to heartbeat and update the status of the node
 func (c *Client) updateNodeStatus() error {
-	c.logger.Printf("[TRACE] client: sending heartbeat")
+	start := time.Now()
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:       c.NodeID(),
 		Status:       structs.NodeStatusReady,
@@ -1199,6 +1199,8 @@ func (c *Client) updateNodeStatus() error {
 		c.triggerDiscovery()
 		return fmt.Errorf("failed to update status: %v", err)
 	}
+	end := time.Now()
+
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node update", len(resp.EvalIDs))
 	}
@@ -1219,7 +1221,8 @@ func (c *Client) updateNodeStatus() error {
 
 		// We have potentially missed our TTL log how delayed we were
 		if haveHeartbeated {
-			c.logger.Printf("[WARN] client: heartbeat missed. Heartbeat TTL was %v and heartbeated after %v", oldTTL, time.Since(last))
+			c.logger.Printf("[WARN] client: heartbeat missed (request took %v). Heartbeat TTL was %v and heartbeated after %v",
+				end.Sub(start), oldTTL, time.Since(last))
 		}
 	}
 
