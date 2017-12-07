@@ -11,8 +11,8 @@ __BACKWARDS INCOMPATIBILITIES:__
 IMPROVEMENTS:
  * core: Allow operators to reload TLS certificate and key files via SIGHUP
    [GH-3479]
- * core:  allow configurable stop signals for a task, when drivers support
-   sending stop signals. [GH-1755]
+ * core: Allow configurable stop signals for a task, when drivers support
+   sending stop signals [GH-1755]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`
  * api: Allocations now track and return modify time in addition to create time

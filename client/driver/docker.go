@@ -1054,10 +1054,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		Tty:         driverConfig.TTY,
 		OpenStdin:   driverConfig.Interactive,
 		StopTimeout: int(task.KillTimeout.Seconds()),
-	}
-
-	if task.KillSignal != "" {
-		config.StopSignal = task.KillSignal
+		StopSignal:  task.KillSignal,
 	}
 
 	if driverConfig.WorkDir != "" {
