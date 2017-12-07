@@ -36,6 +36,11 @@ IMPROVEMENTS:
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
  * core/enterprise: Return 501 status code in Nomad Pro for Premium end points
+ * ui: Added log streaming for tasks [GH-3564]
+ * ui: Show the modify time for allocations [GH-3607]
+ * ui: Added a dedicated Task page under allocations [GH-3472]
+ * ui: Added placement failures to the Job Detail page [GH-3603]
+ * ui: Warn uncaught exceptions to the developer console [GH-3623]
 
 BUG FIXES:
 
@@ -62,6 +67,10 @@ BUG FIXES:
    when multiple Sentinel policies are applied
  * telemetry: Do not emit metrics for non-running tasks [GH-3559]
  * telemetry: Emit hostname as a tag rather than within the key name [GH-3616]
+ * ui: Remove timezone text from timestamps [GH-3621]
+ * ui: Allow cross-origin requests from the UI [GH-3530]
+ * ui: Consistently use Clients instead of Nodes in copy [GH-3466]
+ * ui: Fully expand the job definition on the Job Definition page [GH-3631]
 
 ## 0.7.0 (November 1, 2017)
 
