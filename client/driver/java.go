@@ -265,12 +265,18 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
+	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
+		TaskKillSignal: taskKillSignal,
 	}
 	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {
