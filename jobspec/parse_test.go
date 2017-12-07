@@ -202,7 +202,8 @@ func TestParse(t *testing.T) {
 										RightDelim: helper.StringToPtr("__"),
 									},
 								},
-								Leader: true,
+								Leader:     true,
+								KillSignal: "",
 							},
 							{
 								Name:   "storagelocker",
@@ -551,6 +552,29 @@ func TestParse(t *testing.T) {
 								Driver: "docker",
 								DispatchPayload: &api.DispatchPayloadConfig{
 									File: "foo/bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"job-with-kill-signal.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("bar"),
+						Tasks: []*api.Task{
+							{
+								Name:       "bar",
+								Driver:     "docker",
+								KillSignal: "SIGQUIT",
+								Config: map[string]interface{}{
+									"image": "hashicorp/image",
 								},
 							},
 						},

@@ -1978,6 +1978,11 @@ func (j *Job) RequiredSignals() map[string]map[string][]string {
 				taskSignals[task.Vault.ChangeSignal] = struct{}{}
 			}
 
+			// If a user has specified a KillSignal, add it to required signals
+			if task.KillSignal != "" {
+				taskSignals[task.KillSignal] = struct{}{}
+			}
+
 			// Check if any template change mode uses signals
 			for _, t := range task.Templates {
 				if t.ChangeMode != TemplateChangeModeSignal {
@@ -3221,6 +3226,12 @@ type Task struct {
 	// ShutdownDelay is the duration of the delay between deregistering a
 	// task from Consul and sending it a signal to shutdown. See #2441
 	ShutdownDelay time.Duration
+
+	// The kill signal to use for the task. This is an optional specification,
+
+	// KillSignal is the kill signal to use for the task. This is an optional
+	// specification and defaults to SIGINT
+	KillSignal string
 }
 
 func (t *Task) Copy() *Task {

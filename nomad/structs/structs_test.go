@@ -806,6 +806,26 @@ func TestJob_RequiredSignals(t *testing.T) {
 		},
 	}
 
+	j2 := &Job{
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "foo",
+				Tasks: []*Task{
+					{
+						Name:       "t1",
+						KillSignal: "SIGQUIT",
+					},
+				},
+			},
+		},
+	}
+
+	e2 := map[string]map[string][]string{
+		"foo": {
+			"t1": {"SIGQUIT"},
+		},
+	}
+
 	cases := []struct {
 		Job      *Job
 		Expected map[string]map[string][]string
@@ -817,6 +837,10 @@ func TestJob_RequiredSignals(t *testing.T) {
 		{
 			Job:      j1,
 			Expected: e1,
+		},
+		{
+			Job:      j2,
+			Expected: e2,
 		},
 	}
 

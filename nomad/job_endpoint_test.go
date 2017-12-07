@@ -3748,6 +3748,35 @@ func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ValidateJob_KillSignal(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	// test validate fails if the driver does not support sending signals, but a
+	// stop_signal has been specified
+	{
+		job := mock.Job()
+		job.TaskGroups[0].Tasks[0].Driver = "qemu" // qemu does not support sending signals
+		job.TaskGroups[0].Tasks[0].KillSignal = "SIGINT"
+
+		err, warnings := validateJob(job)
+		assert.NotNil(err)
+		assert.True(strings.Contains(err.Error(), "support sending signals"))
+		assert.Nil(warnings)
+	}
+
+	// test validate succeeds if the driver does support sending signals, and
+	// a stop_signal has been specified
+	{
+		job := mock.Job()
+		job.TaskGroups[0].Tasks[0].KillSignal = "SIGINT"
+
+		err, warnings := validateJob(job)
+		assert.Nil(err)
+		assert.Nil(warnings)
+	}
+}
+
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 	t.Parallel()
 	old := mock.Job()

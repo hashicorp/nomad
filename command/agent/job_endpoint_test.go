@@ -1260,6 +1260,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							"lol": "code",
 						},
 						KillTimeout: helper.TimeToPtr(10 * time.Second),
+						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
 							MaxFiles:      helper.IntToPtr(10),
 							MaxFileSizeMB: helper.IntToPtr(100),
@@ -1455,6 +1456,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							"lol": "code",
 						},
 						KillTimeout: 10 * time.Second,
+						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
