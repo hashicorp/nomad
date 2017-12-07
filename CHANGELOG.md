@@ -22,10 +22,13 @@ IMPROVEMENTS:
  * api: Environment variables are ignored during service name validation [GH-3532]
  * cli: Allocation create and modify times are displayed in a human readable
    relative format like `6 h ago` [GH-3449]
+ * client: Support `address_mode` on checks [GH-3619]
  * client: Sticky volume migrations are now atomic. [GH-3563]
  * client: Added metrics to track state transitions of allocations [GH-3061]
  * client: When `network_interface` is unspecified use interface attached to
    default route [GH-3546]
+ * client: Support numeric ports on services and checks when
+   `address_mode="driver"` [GH-3619]
  * driver/docker: Detect OOM kill event [GH-3459]
  * driver/docker: Adds support for adding host device to container via
    `--device` [GH-2938]
@@ -56,6 +59,8 @@ BUG FIXES:
  * cli: Fix panic when running `keyring` commands [GH-3509]
  * client: Fix a panic when restoring an allocation with a dead leader task
    [GH-3502]
+ * client: Fix service/check updating when just interpolated variables change
+   [GH-3619]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * driver/rkt: Remove pods on shutdown [GH-3562]

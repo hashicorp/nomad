@@ -99,7 +99,8 @@ does not automatically enable service discovery.
 - `port` `(string: <required>)` - Specifies the label of the port on which this
   service is running. Note this is the _label_ of the port and not the port
   number. The port label must match one defined in the [`network`][network]
-  stanza.
+  stanza unless you're also using `address_mode="driver"`. Numeric ports may be
+  used when in driver addressing mode.
 
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
@@ -107,11 +108,12 @@ does not automatically enable service discovery.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
   driver-specific) this service should advertise. `host` indicates the host IP
-  and port. `driver` advertises the IP used in the driver (e.g. Docker's internal
-  IP) and uses the ports specified in the port map. The default is `auto` which
-  behaves the same as `host` unless the driver determines its IP should be used.
-  This setting supported Docker since Nomad 0.6 and rkt since Nomad 0.7. It
-  will advertise the container IP if a network plugin is used (e.g. weave).
+  and port. `driver` advertises the IP used in the driver (e.g. Docker's
+  internal IP) and uses the container's port specified in the port map. The
+  default is `auto` which behaves the same as `host` unless the driver
+  determines its IP should be used.  This setting supported Docker since Nomad
+  0.6 and rkt since Nomad 0.7. It will advertise the container IP if a network
+  plugin is used (e.g. weave).
 
 ### `check` Parameters
 
@@ -119,6 +121,11 @@ Note that health checks run inside the task. If your task is a Docker container,
 the script will run inside the Docker container. If your task is running in a
 chroot, it will run in the chroot. Please keep this in mind when authoring check
 scripts.
+
+- `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
+  Unlike services, checks do not have an `auto` address mode as there's no way
+  for Nomad to know which is the best address to use for checks. Consul needs
+  access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -161,7 +168,9 @@ scripts.
   stanza. If a port value was declared on the `service`, this will inherit from
   that value if not supplied. If supplied, this value takes precedence over the
   `service.port` value. This is useful for services which operate on multiple
-  ports. Checks will *always use the host IP and ports*.
+  ports. Checks will use the host IP and ports by default. In Nomad 0.7.1 or
+  later numeric ports may be used if `address_mode="driver"` is set on the
+   check.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
