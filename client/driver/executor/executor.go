@@ -500,7 +500,16 @@ func (e *UniversalExecutor) ShutDown() error {
 		return nil
 	}
 
-	if err = proc.Signal(e.command.TaskKillSignal); err != nil && err.Error() != finishedErr {
+	// Set default kill signal, as some drivers don't support configurable
+	// signals (such as rkt)
+	var osSignal os.Signal
+	if e.command.TaskKillSignal != nil {
+		osSignal = e.command.TaskKillSignal
+	} else {
+		osSignal = os.Interrupt
+	}
+
+	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
 	}
 
