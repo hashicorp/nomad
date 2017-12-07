@@ -3228,7 +3228,9 @@ type Task struct {
 	ShutdownDelay time.Duration
 
 	// The kill signal to use for the task. This is an optional specification,
-	// and if not set, the driver will default to SIGINT
+
+	// KillSignal is the kill signal to use for the task. This is an optional
+	// specification and defaults to SIGINT
 	KillSignal string
 }
 

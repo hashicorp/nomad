@@ -11,6 +11,8 @@ __BACKWARDS INCOMPATIBILITIES:__
 IMPROVEMENTS:
  * core: Allow operators to reload TLS certificate and key files via SIGHUP
    [GH-3479]
+ * core:  allow configurable stop signals for a task, when drivers support
+   sending stop signals. [GH-1755]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`
  * api: Allocations now track and return modify time in addition to create time
@@ -30,7 +32,6 @@ IMPROVEMENTS:
  * driver/docker: Adds support for `ulimit` and `sysctl` options [GH-3568]
  * driver/docker: Adds support for StopTimeout (set to the same value as
    kill_timeout [GH-3601]
- * driver/exec:  allow controlling the stop signal in exec/raw_exec [GH-1755]
  * driver/rkt: Add support for passing through user [GH-3612]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
