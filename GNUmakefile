@@ -28,8 +28,6 @@ else
 VERBOSE="true"
 endif
 
-print-%  : ; @echo $* = $($*)
-
 
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
