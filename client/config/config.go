@@ -354,7 +354,7 @@ func (c *Config) TLSConfiguration() *tlsutil.Config {
 }
 
 // NewTLSConfiguration returns a TLSUtil Config for a new TLS config object
-// This allows a TLSConfig object to be created without first explicitely
+// This allows a TLSConfig object to be created without first explicitly
 // setting it
 func (c *Config) NewTLSConfiguration(tlsConfig *config.TLSConfig) *tlsutil.Config {
 	return &tlsutil.Config{

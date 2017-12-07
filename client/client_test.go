@@ -1007,7 +1007,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	assert := assert.New(t)
 
 	s1, addr := testServer(t, func(c *nomad.Config) {
-		c.Region = "dc1"
+		c.Region = "foo"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1059,7 +1059,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	assert := assert.New(t)
 
 	s1, addr := testServer(t, func(c *nomad.Config) {
-		c.Region = "dc1"
+		c.Region = "foo"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1090,7 +1090,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
-		QueryOptions: structs.QueryOptions{Region: "dc1"},
+		QueryOptions: structs.QueryOptions{Region: "foo"},
 	}
 	var out structs.SingleNodeResponse
 	testutil.AssertUntil(100*time.Millisecond,

@@ -85,8 +85,9 @@ const (
 // schedulers, and notification bus for agents.
 type Server struct {
 	config     *Config
-	configLock sync.RWMutex
-	logger     *log.Logger
+	configLock sync.Mutex
+
+	logger *log.Logger
 
 	// Connection pool to other Nomad servers
 	connPool *ConnPool
@@ -96,32 +97,28 @@ type Server struct {
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
-	leaderCh      <-chan bool
-	raft          *raft.Raft
-	raftLayer     *RaftLayer
-	raftLayerLock sync.Mutex
+	leaderCh  <-chan bool
+	raft      *raft.Raft
+	raftLayer *RaftLayer
 
 	raftStore *raftboltdb.BoltStore
 	raftInmem *raft.InmemStore
 
-	raftTransport     *raft.NetworkTransport
-	raftTransportLock sync.Mutex
+	raftTransport *raft.NetworkTransport
 
 	// fsm is the state machine used with Raft
 	fsm *nomadFSM
 
 	// rpcListener is used to listen for incoming connections
-	rpcListener     net.Listener
-	rpcListenerLock sync.Mutex
-	listenerCh      chan struct{}
+	rpcListener net.Listener
+	listenerCh  chan struct{}
 
 	rpcServer    *rpc.Server
 	rpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
-	rpcTLS     *tls.Config
-	rpcCancel  context.CancelFunc
-	rpcTLSLock sync.Mutex
+	rpcTLS    *tls.Config
+	rpcCancel context.CancelFunc
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
@@ -329,6 +326,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Start ingesting events for Serf
 	go s.serfEventHandler()
 
+	// start the RPC listener for the server
 	s.startRPCListener()
 
 	// Emit metrics for the eval broker
@@ -353,10 +351,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
-// Start the RPC listeners
+// startRPCListener starts the server's  the RPC listener
 func (s *Server) startRPCListener() {
-	s.rpcListenerLock.Lock()
-	defer s.rpcListenerLock.Unlock()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.rpcCancel = cancel
 	go func() {
@@ -365,10 +361,8 @@ func (s *Server) startRPCListener() {
 	}()
 }
 
+// createRPCListener creates the server's RPC listener
 func (s *Server) createRPCListener() error {
-	s.rpcListenerLock.Lock()
-	defer s.rpcListenerLock.Unlock()
-
 	s.listenerCh = make(chan struct{})
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil || list == nil {
@@ -380,6 +374,8 @@ func (s *Server) createRPCListener() error {
 	return nil
 }
 
+// getTLSConf gets the server's TLS configuration based on the config supplied
+// by the operator
 func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.RegionWrapper, error) {
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
@@ -399,17 +395,26 @@ func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.R
 	return incomingTLS, tlsWrap, nil
 }
 
-// ReloadTLSConnections updates a server's TLS configuration and reloads RPC
-// connections. This will handle both TLS upgrades and downgrades.
+// reloadTLSConnections updates a server's TLS configuration and reloads RPC
+// connections.
 func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
+	// the server config must be in sync with the latest config changes, due to
+	// testing for TLS configuration settings in rpc.go
 	tlsConf := s.config.newTLSConfig(newTLSConfig)
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context")
 		return err
 	}
+
+	// Keeping configuration in sync is important for other places that require
+	// access to config information, such as rpc.go, where we decide on what kind
+	// of network connections to accept depending on the server configuration
+	s.configLock.Lock()
+	s.config.TLSConfig = newTLSConfig
+	s.configLock.Unlock()
 
 	if s.rpcCancel == nil {
 		s.logger.Printf("[ERR] nomad: No TLS Context to reset")
@@ -422,38 +427,27 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.config.TLSConfig = newTLSConfig
 	s.configLock.Unlock()
 
-	s.rpcTLSLock.Lock()
 	s.rpcTLS = incomingTLS
-	s.rpcTLSLock.Unlock()
-
-	s.raftTransportLock.Lock()
-	defer s.raftTransportLock.Unlock()
-	s.raftTransport.Close()
-
 	s.connPool.ReloadTLS(tlsWrap)
 
 	// reinitialize our rpc listener
-	s.rpcListenerLock.Lock()
 	s.rpcListener.Close()
 	<-s.listenerCh
-	s.rpcListenerLock.Unlock()
+	s.raftTransport.Pause()
+	s.raftLayer.Close()
 
 	err = s.createRPCListener()
+
+	// CLose existing streams
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
+
+	s.startRPCListener()
+
+	time.Sleep(3 * time.Second)
 	if err != nil {
 		return err
 	}
-	s.startRPCListener()
-
-	s.raftLayerLock.Lock()
-	s.raftLayer.Close()
-	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
-	s.raftLayerLock.Unlock()
-
-	// re-initialize the network transport with a re-initialized stream layer
-	trans := raft.NewNetworkTransport(s.raftLayer, 3, s.config.RaftTimeout,
-		s.config.LogOutput)
-	s.raftTransport = trans
 
 	s.logger.Printf("[DEBUG] nomad: finished reloading server connections")
 	return nil
@@ -621,6 +615,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	if !newConfig.TLSConfig.Equals(s.config.TLSConfig) {
 		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
+			s.logger.Printf("[DEBUG] nomad: reloading server TLS configuration")
 			multierror.Append(&mErr, err)
 		}
 	}

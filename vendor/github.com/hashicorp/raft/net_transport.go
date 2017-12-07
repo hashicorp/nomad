@@ -2,6 +2,7 @@ package raft
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -72,7 +73,8 @@ type NetworkTransport struct {
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
 
-	stream StreamLayer
+	stream       StreamLayer
+	streamCancel context.CancelFunc
 
 	timeout      time.Duration
 	TimeoutScale int
@@ -141,6 +143,7 @@ func NewNetworkTransportWithLogger(
 	if logger == nil {
 		logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
+
 	trans := &NetworkTransport{
 		connPool:     make(map[ServerAddress][]*netConn),
 		consumeCh:    make(chan RPC),
@@ -151,8 +154,24 @@ func NewNetworkTransportWithLogger(
 		timeout:      timeout,
 		TimeoutScale: DefaultTimeoutScale,
 	}
-	go trans.listen()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	trans.streamCancel = cancel
+	go trans.listen(ctx)
 	return trans
+}
+
+// Pause closes the current stream for a NetworkTransport instance
+func (n *NetworkTransport) Pause() {
+	n.streamCancel()
+	n.stream.Close()
+}
+
+// Pause creates a new stream for a NetworkTransport instance
+func (n *NetworkTransport) Reload(s StreamLayer) {
+	ctx, cancel := context.WithCancel(context.Background())
+	n.streamCancel = cancel
+	go n.listen(ctx)
 }
 
 // SetHeartbeatHandler is used to setup a heartbeat handler
@@ -356,14 +375,22 @@ func (n *NetworkTransport) DecodePeer(buf []byte) ServerAddress {
 }
 
 // listen is used to handling incoming connections.
-func (n *NetworkTransport) listen() {
+func (n *NetworkTransport) listen(ctx context.Context) {
 	for {
+		select {
+		case <-ctx.Done():
+			n.logger.Println("[INFO] raft-net: stream layer is closed")
+			return
+		default:
+		}
+
 		// Accept incoming connections
 		conn, err := n.stream.Accept()
 		if err != nil {
 			if n.IsShutdown() {
 				return
 			}
+			// TODO Getting an error here
 			n.logger.Printf("[ERR] raft-net: Failed to accept connection: %v", err)
 			continue
 		}

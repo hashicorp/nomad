@@ -365,9 +365,9 @@ func (c *Client) init() error {
 	return nil
 }
 
-// ReloadTLSConnections allows a client to reload RPC connections if the
-// client's TLS configuration changes from plaintext to TLS
-func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
+// reloadTLSConnections allows a client to reload its TLS configuration on the
+// fly
+func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
 		tw, err := c.config.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
@@ -378,6 +378,8 @@ func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 		tlsWrap = tw
 	}
 
+	// Keep the client configuration up to date as we use configuration values to
+	// decide on what type of connections to accept
 	c.configLock.Lock()
 	c.config.TLSConfig = newConfig
 	c.configLock.Unlock()
@@ -387,8 +389,7 @@ func (c *Client) ReloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	return nil
 }
 
-// Reload allows a client to reload RPC connections if the
-// client's TLS configuration changes
+// Reload allows a client to reload its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
 	return c.reloadTLSConnections(newConfig.TLSConfig)
 }

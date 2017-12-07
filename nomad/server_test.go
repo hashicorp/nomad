@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -330,7 +331,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 
 // Tests that the server will successfully reload its network connections,
 // downgrading from TLS to plaintext if the server's TLS configuration changes.
-func TestServer_reload_TLSConnections_TLSToPlaintext(t *testing.T) {
+func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
@@ -374,4 +375,174 @@ func TestServer_reload_TLSConnections_TLSToPlaintext(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	assert.Nil(err)
+}
+
+// Test that Raft connections are reloaded as expected when a Nomad server is
+// upgraded from plaintext to TLS
+func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		barcert = "../dev/tls_cluster/certs/nomad.pem"
+		barkey  = "../dev/tls_cluster/certs/nomad-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+		c.NodeName = "node1"
+		c.Region = "regionFoo"
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+		c.NodeName = "node2"
+		c.Region = "regionFoo"
+	})
+	defer s2.Shutdown()
+
+	testJoin(t, s1, s2)
+
+	testutil.WaitForResult(func() (bool, error) {
+		peers, _ := s1.numPeers()
+		return peers == 2, nil
+	}, func(err error) {
+		t.Fatalf("should have 2 peers")
+	})
+
+	// the server should be connected to the rest of the cluster
+	testutil.WaitForLeader(t, s2.RPC)
+
+	{
+		// assert that a job register request will succeed
+		codec := rpcClient(t, s2)
+		job := mock.Job()
+		req := &structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "regionFoo",
+				Namespace: job.Namespace,
+			},
+		}
+
+		// Fetch the response
+		var resp structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+		assert.Nil(err)
+
+		// Check for the job in the FSM of each server in the cluster
+		{
+			state := s2.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, job.Namespace, job.ID)
+			assert.Nil(err)
+			assert.NotNil(out)
+			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
+		}
+		{
+			state := s1.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, job.Namespace, job.ID)
+			assert.Nil(err)
+			assert.NotNil(out) // TODO Occasionally is flaky
+			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
+		}
+	}
+
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:        true,
+		VerifyHTTPSClient: true,
+		CAFile:            cafile,
+		CertFile:          foocert,
+		KeyFile:           fookey,
+	}
+
+	err := s1.reloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+
+	{
+		// assert that a job register request will fail between servers that
+		// should not be able to communicate over Raft
+		codec := rpcClient(t, s2)
+		job := mock.Job()
+		req := &structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+
+		var resp structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+		assert.NotNil(err)
+
+		// Check that the job was not persisted
+		state := s2.fsm.State()
+		ws := memdb.NewWatchSet()
+		out, _ := state.JobByID(ws, job.Namespace, job.ID)
+		assert.Nil(out)
+	}
+
+	secondNewTLSConfig := &config.TLSConfig{
+		EnableHTTP:        true,
+		VerifyHTTPSClient: true,
+		CAFile:            cafile,
+		CertFile:          barcert,
+		KeyFile:           barkey,
+	}
+
+	// Now, transition the other server to TLS, which should restore their
+	// ability to communicate.
+	err = s2.reloadTLSConnections(secondNewTLSConfig)
+	assert.Nil(err)
+
+	// the server should be connected to the rest of the cluster
+	testutil.WaitForLeader(t, s2.RPC)
+
+	{
+		// assert that a job register request will succeed
+		codec := rpcClient(t, s2)
+		job := mock.Job()
+		req := &structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "regionFoo",
+				Namespace: job.Namespace,
+			},
+		}
+
+		// Fetch the response
+		var resp structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+		assert.Nil(err)
+
+		// Check for the job in the FSM of each server in the cluster
+		{
+			state := s2.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, job.Namespace, job.ID)
+			assert.Nil(err)
+			assert.NotNil(out)
+			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
+		}
+		{
+			state := s1.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, job.Namespace, job.ID)
+			assert.Nil(err)
+			assert.NotNil(out)
+			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
+		}
+	}
 }

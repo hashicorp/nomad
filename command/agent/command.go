@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -47,7 +46,6 @@ type Command struct {
 	args           []string
 	agent          *Agent
 	httpServer     *HTTPServer
-	httpServerLock sync.Mutex
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -602,8 +600,6 @@ WAIT:
 
 func (c *Command) reloadHTTPServer(newConfig *Config) error {
 	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
-	c.httpServerLock.Lock()
-	defer c.httpServerLock.Unlock()
 
 	c.httpServer.Shutdown()
 
@@ -640,6 +636,7 @@ func (c *Command) handleReload() {
 
 	shouldReload := c.agent.ShouldReload(newConf)
 	if shouldReload {
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
 		err := c.agent.Reload(newConf)
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
@@ -649,8 +646,10 @@ func (c *Command) handleReload() {
 
 	if s := c.agent.Server(); s != nil {
 		sconf, err := convertServerConfig(newConf, c.logOutput)
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+			return
 		} else {
 			if err := s.Reload(sconf); err != nil {
 				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
@@ -661,6 +660,7 @@ func (c *Command) handleReload() {
 
 	if s := c.agent.Client(); s != nil {
 		clientConfig, err := c.agent.clientConfig()
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of client config")
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
 			return
