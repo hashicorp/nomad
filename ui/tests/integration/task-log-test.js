@@ -5,6 +5,7 @@ import { find, click } from 'ember-native-dom-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import { logEncode } from '../../mirage/data/logs';
+import ecWire from '../helpers/ec-wire';
 
 const { run } = Ember;
 
@@ -135,26 +136,24 @@ test('Clicking toggleStream starts and stops the log stream', function(assert) {
   this.setProperties(commonProps);
   this.render(hbs`{{task-log allocation=allocation task=task interval=interval}}`);
 
-  run.later(() => {
-    click('.action-toggle-stream');
-  }, interval);
-
-  return wait().then(() => {
-    assert.equal(find('.cli-window').textContent, streamFrames[0], 'First frame loaded');
-
-    run.later(() => {
+  return ecWire('-a.b--c--|d', interval, {
+    a: () => {
+      click('.action-toggle-stream');
+    },
+    b: () => {
+      assert.equal(find('.cli-window').textContent, streamFrames[0], 'First frame loaded');
+    },
+    c: () => {
       assert.equal(find('.cli-window').textContent, streamFrames[0], 'Still only first frame');
       click('.action-toggle-stream');
-      run.later(run, run.cancelTimers, interval * 2);
-    }, interval * 2);
-
-    return wait().then(() => {
+    },
+    d: () => {
       assert.equal(
         find('.cli-window').textContent,
         streamFrames[0] + streamFrames[0] + streamFrames[1],
         'Now includes second frame'
       );
-    });
+    },
   });
 });
 
