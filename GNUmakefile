@@ -22,6 +22,13 @@ ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
 endif
 
+ifeq ($(TRAVIS),true)
+$(info Running in Travis, verbose mode is disabled)
+else
+VERBOSE="true"
+endif
+
+
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
 	linux_arm \
@@ -227,17 +234,13 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
-		go test \
-			-v \
+		go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
-	@echo "Exit code: $$(cat exit-code)" >> test.log
-	@grep -A1 -- '--- FAIL:' test.log || true
-	@grep '^FAIL' test.log || true
-	@grep -A10 'panic' test.log || true
-	@test "$$TRAVIS" == "true" && cat test.log || true
-	@if [ "$$(cat exit-code)" == "0" ] ; then echo "PASS" ; exit 0 ; else exit 1 ; fi
+			-tags="nomad_test $(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	@if [ $(VERBOSE) ] ; then \
+		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
+	fi
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
