@@ -113,9 +113,10 @@ type Client struct {
 	servers *serverlist
 
 	// heartbeat related times for tracking how often to heartbeat
-	lastHeartbeat time.Time
-	heartbeatTTL  time.Duration
-	heartbeatLock sync.Mutex
+	lastHeartbeat   time.Time
+	heartbeatTTL    time.Duration
+	haveHeartbeated bool
+	heartbeatLock   sync.Mutex
 
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
@@ -1187,9 +1188,7 @@ func (c *Client) registerNode() error {
 
 // updateNodeStatus is used to heartbeat and update the status of the node
 func (c *Client) updateNodeStatus() error {
-	c.heartbeatLock.Lock()
-	defer c.heartbeatLock.Unlock()
-
+	c.logger.Printf("[TRACE] client: sending heartbeat")
 	req := structs.NodeUpdateStatusRequest{
 		NodeID:       c.NodeID(),
 		Status:       structs.NodeStatusReady,
@@ -1203,13 +1202,26 @@ func (c *Client) updateNodeStatus() error {
 	if len(resp.EvalIDs) != 0 {
 		c.logger.Printf("[DEBUG] client: %d evaluations triggered by node update", len(resp.EvalIDs))
 	}
-	if resp.Index != 0 {
-		c.logger.Printf("[DEBUG] client: state updated to %s", req.Status)
-	}
 
-	// Update heartbeat time and ttl
+	// Update the last heartbeat and the new TTL, capturing the old values
+	c.heartbeatLock.Lock()
+	last := c.lastHeartbeat
+	oldTTL := c.heartbeatTTL
+	haveHeartbeated := c.haveHeartbeated
 	c.lastHeartbeat = time.Now()
 	c.heartbeatTTL = resp.HeartbeatTTL
+	c.haveHeartbeated = true
+	c.heartbeatLock.Unlock()
+	c.logger.Printf("[TRACE] client: next heartbeat in %v", resp.HeartbeatTTL)
+
+	if resp.Index != 0 {
+		c.logger.Printf("[DEBUG] client: state updated to %s", req.Status)
+
+		// We have potentially missed our TTL log how delayed we were
+		if haveHeartbeated {
+			c.logger.Printf("[WARN] client: heartbeat missed. Heartbeat TTL was %v and heartbeated after %v", oldTTL, time.Since(last))
+		}
+	}
 
 	// Convert []*NodeServerInfo to []*endpoints
 	localdc := c.Datacenter()
