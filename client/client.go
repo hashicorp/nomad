@@ -1025,11 +1025,20 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 // registerAndHeartbeat is a long lived goroutine used to register the client
 // and then start heartbeatng to the server.
 func (c *Client) registerAndHeartbeat() {
+	// Before registering capture the hashes of the Node. The hashes may be out
+	// of date with what registers but this is okay since the loop checking for
+	// node updates will detect this and reregister. This is necessary to avoid
+	// races between the periodic fingerprinters and the node registering.
+	attrHash, metaHash, err := nodeMapHashes(c.Node())
+	if err != nil {
+		c.logger.Printf("[ERR] client: failed to determine initial node hashes. May result in stale node being registered: %v", err)
+	}
+
 	// Register the node
 	c.retryRegisterNode()
 
 	// Start watching changes for node changes
-	go c.watchNodeUpdates()
+	go c.watchNodeUpdates(attrHash, metaHash)
 
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
@@ -1110,6 +1119,21 @@ func (c *Client) run() {
 	}
 }
 
+// nodeMapHashes returns the hashes of the passed Node's attribute and metadata
+// maps.
+func nodeMapHashes(node *structs.Node) (attrHash, metaHash uint64, err error) {
+	attrHash, err = hashstructure.Hash(node.Attributes, nil)
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to calculate node attributes hash: %v", err)
+	}
+	// Calculate node meta map hash
+	metaHash, err = hashstructure.Hash(node.Meta, nil)
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to calculate node meta hash: %v", err)
+	}
+	return attrHash, metaHash, nil
+}
+
 // hasNodeChanged calculates a hash for the node attributes- and meta map.
 // The new hash values are compared against the old (passed-in) hash values to
 // determine if the node properties have changed. It returns the new hash values
@@ -1117,14 +1141,9 @@ func (c *Client) run() {
 func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
 	c.configLock.RLock()
 	defer c.configLock.RUnlock()
-	newAttrHash, err := hashstructure.Hash(c.config.Node.Attributes, nil)
+	newAttrHash, newMetaHash, err := nodeMapHashes(c.config.Node)
 	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
-	}
-	// Calculate node meta map hash
-	newMetaHash, err := hashstructure.Hash(c.config.Node.Meta, nil)
-	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node meta hash: %v", err)
+		c.logger.Printf("[DEBUG] client: unable to calculate node hashes: %v", err)
 	}
 	if newAttrHash != oldAttrHash || newMetaHash != oldMetaHash {
 		return true, newAttrHash, newMetaHash
@@ -1525,12 +1544,12 @@ OUTER:
 	}
 }
 
-// watchNodeUpdates periodically checks for changes to the node attributes or meta map
-func (c *Client) watchNodeUpdates() {
+// watchNodeUpdates periodically checks for changes to the node attributes or
+// meta map. The passed hashes are the initial hash values for the attribute and
+// metadata of the node respectively.
+func (c *Client) watchNodeUpdates(attrHash, metaHash uint64) {
 	c.logger.Printf("[DEBUG] client: periodically checking for node changes at duration %v", nodeUpdateRetryIntv)
 
-	// Initialize the hashes
-	_, attrHash, metaHash := c.hasNodeChanged(0, 0)
 	var changed bool
 	for {
 		select {
