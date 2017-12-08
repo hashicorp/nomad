@@ -45,6 +45,9 @@ var (
 
 	// validPolicyName is used to validate a policy name
 	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// b32 is a lowercase base32 encoding for use in URL friendly service hashes
+	b32 = base32.NewEncoding(strings.ToLower("abcdefghijklmnopqrstuvwxyz234567"))
 )
 
 type MessageType uint8
@@ -3158,7 +3161,7 @@ func (s *Service) Hash(allocID, taskName string) string {
 	// encoded without padding, only 4 bytes larger than base64, and saves
 	// 8 bytes vs hex. Since these hashes are used in Consul URLs it's nice
 	// to have a reasonably compact URL-safe representation.
-	return base32.StdEncoding.EncodeToString(h.Sum(nil))
+	return b32.EncodeToString(h.Sum(nil))
 }
 
 const (
