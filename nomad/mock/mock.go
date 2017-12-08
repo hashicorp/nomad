@@ -41,7 +41,7 @@ func Node() *structs.Node {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 22}},
+					ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -119,7 +119,7 @@ func Job() *structs.Job {
 							},
 							{
 								Name:      "${TASK}-admin",
-								PortLabel: "main",
+								PortLabel: "admin",
 							},
 						},
 						LogConfig: structs.DefaultLogConfig(),
@@ -128,8 +128,11 @@ func Job() *structs.Job {
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
 								{
-									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}, {Label: "admin"}},
+									MBits: 50,
+									DynamicPorts: []structs.Port{
+										{Label: "http"},
+										{Label: "admin"},
+									},
 								},
 							},
 						},
@@ -273,7 +276,7 @@ func Alloc() *structs.Allocation {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 					MBits:         50,
 					DynamicPorts:  []structs.Port{{Label: "http"}},
 				},
@@ -287,7 +290,7 @@ func Alloc() *structs.Allocation {
 					{
 						Device:        "eth0",
 						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 						MBits:         50,
 						DynamicPorts:  []structs.Port{{Label: "http"}},
 					},
