@@ -1126,6 +1126,9 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		if err != nil {
 			return "", 0, fmt.Errorf("invalid port %q: %v", portLabel, err)
 		}
+		if port == 0 {
+			return "", 0, fmt.Errorf("invalid port: %q: port 0 is invalid", portLabel)
+		}
 
 		return driverNet.IP, port, nil
 
