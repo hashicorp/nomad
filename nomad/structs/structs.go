@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/base32"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -3138,6 +3139,26 @@ func (s *Service) ValidateName(name string) error {
 		return fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
 	}
 	return nil
+}
+
+// Hash returns a base32 encoded hash of a Service's contents excluding checks
+// as they're hashed independently.
+func (s *Service) Hash(allocID, taskName string) string {
+	h := sha1.New()
+	io.WriteString(h, allocID)
+	io.WriteString(h, taskName)
+	io.WriteString(h, s.Name)
+	io.WriteString(h, s.PortLabel)
+	io.WriteString(h, s.AddressMode)
+	for _, tag := range s.Tags {
+		io.WriteString(h, tag)
+	}
+
+	// Base32 is used for encoding the hash as sha1 hashes can always be
+	// encoded without padding, only 4 bytes larger than base64, and saves
+	// 8 bytes vs hex. Since these hashes are used in Consul URLs it's nice
+	// to have a reasonably compact URL-safe representation.
+	return base32.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
 const (

@@ -1023,20 +1023,7 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 //
 //	Example Service ID: _nomad-task-TNM333JKJPM5AK4FAS3VXQLXFDWOF4VH
 func makeTaskServiceID(allocID, taskName string, service *structs.Service) string {
-	h := sha1.New()
-	io.WriteString(h, allocID)
-	io.WriteString(h, taskName)
-	io.WriteString(h, service.Name)
-	io.WriteString(h, service.PortLabel)
-	io.WriteString(h, service.AddressMode)
-	for _, tag := range service.Tags {
-		io.WriteString(h, tag)
-	}
-
-	// Base32 is used for encoding the hash as sha1 hashes can always be
-	// encoded without padding, only 4 bytes larger than base64, and saves
-	// 8 bytes vs hex.
-	return nomadTaskPrefix + base32.StdEncoding.EncodeToString(h.Sum(nil))
+	return nomadTaskPrefix + service.Hash(allocID, taskName)
 }
 
 // makeCheckID creates a unique ID for a check.
