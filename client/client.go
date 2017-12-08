@@ -1025,10 +1025,11 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 // registerAndHeartbeat is a long lived goroutine used to register the client
 // and then start heartbeatng to the server.
 func (c *Client) registerAndHeartbeat() {
-	// Before registering capture the hashes of the Node. The hashes may be out
-	// of date with what registers but this is okay since the loop checking for
-	// node updates will detect this and reregister. This is necessary to avoid
-	// races between the periodic fingerprinters and the node registering.
+	// Before registering capture the hashes of the Node's attribute and
+	// metadata maps. The hashes may be out of date with what registers but this
+	// is okay since the loop checking for node updates will detect this and
+	// reregister. This is necessary to avoid races between the periodic
+	// fingerprinters and the node registering.
 	attrHash, metaHash, err := nodeMapHashes(c.Node())
 	if err != nil {
 		c.logger.Printf("[ERR] client: failed to determine initial node hashes. May result in stale node being registered: %v", err)
@@ -1141,6 +1142,8 @@ func nodeMapHashes(node *structs.Node) (attrHash, metaHash uint64, err error) {
 func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
 	c.configLock.RLock()
 	defer c.configLock.RUnlock()
+
+	// Check if the Node that is being updated by fingerprinters has changed.
 	newAttrHash, newMetaHash, err := nodeMapHashes(c.config.Node)
 	if err != nil {
 		c.logger.Printf("[DEBUG] client: unable to calculate node hashes: %v", err)
