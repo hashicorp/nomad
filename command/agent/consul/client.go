@@ -1112,7 +1112,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 	case structs.AddressModeHost:
 		// Default path: use host ip:port
 		ip, port := networks.Port(portLabel)
-		if ip == "" && port == 0 {
+		if ip == "" && port <= 0 {
 			return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
 		}
 		return ip, port, nil
@@ -1133,7 +1133,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		if err != nil {
 			return "", 0, fmt.Errorf("invalid port %q: %v", portLabel, err)
 		}
-		if port == 0 {
+		if port <= 0 {
 			return "", 0, fmt.Errorf("invalid port: %q: port 0 is invalid", portLabel)
 		}
 
