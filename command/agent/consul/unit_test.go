@@ -220,8 +220,8 @@ func TestConsul_ChangeTags(t *testing.T) {
 }
 
 // TestConsul_ChangePorts asserts that changing the ports on a service updates
-// it in Consul. Since ports are not part of the service ID this is a slightly
-// different code path than changing tags.
+// it in Consul. Pre-0.7.1 ports were not part of the service ID and this was a
+// slightly different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
 	ctx := setupFake()
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -349,8 +349,8 @@ func TestConsul_ChangePorts(t *testing.T) {
 	}
 
 	for k, v := range ctx.FakeConsul.services {
-		if k != origServiceKey {
-			t.Errorf("unexpected key change; was: %q -- but found %q", origServiceKey, k)
+		if k == origServiceKey {
+			t.Errorf("expected key change; still: %q", k)
 		}
 		if v.Name != ctx.Task.Services[0].Name {
 			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
@@ -370,15 +370,15 @@ func TestConsul_ChangePorts(t *testing.T) {
 	for k, v := range ctx.FakeConsul.checks {
 		switch v.Name {
 		case "c1":
-			if k != origTCPKey {
-				t.Errorf("unexpected key change for %s from %q to %q", v.Name, origTCPKey, k)
+			if k == origTCPKey {
+				t.Errorf("expected key change for %s from %q", v.Name, origTCPKey)
 			}
 			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
 				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
 			}
 		case "c2":
-			if k != origScriptKey {
-				t.Errorf("unexpected key change for %s from %q to %q", v.Name, origScriptKey, k)
+			if k == origScriptKey {
+				t.Errorf("expected key change for %s from %q", v.Name, origScriptKey)
 			}
 			select {
 			case <-ctx.execs:
@@ -1383,9 +1383,16 @@ func TestIsNomadService(t *testing.T) {
 	}{
 		{"_nomad-client-nomad-client-http", false},
 		{"_nomad-server-nomad-serf", false},
+
+		// Pre-0.7.1 style IDs still match
 		{"_nomad-executor-abc", true},
 		{"_nomad-executor", true},
+
+		// Post-0.7.1 style IDs match
+		{"_nomad-task-FBBK265QN4TMT25ND4EP42TJVMYJ3HR4", true},
+
 		{"not-nomad", false},
+		{"_nomad", false},
 	}
 
 	for _, test := range tests {

@@ -3140,17 +3140,6 @@ func (s *Service) ValidateName(name string) error {
 	return nil
 }
 
-// Hash calculates the hash of the check based on it's content and the service
-// which owns it
-func (s *Service) Hash() string {
-	h := sha1.New()
-	io.WriteString(h, s.Name)
-	io.WriteString(h, strings.Join(s.Tags, ""))
-	io.WriteString(h, s.PortLabel)
-	io.WriteString(h, s.AddressMode)
-	return fmt.Sprintf("%x", h.Sum(nil))
-}
-
 const (
 	// DefaultKillTimeout is the default timeout between signaling a task it
 	// will be killed and killing it.
