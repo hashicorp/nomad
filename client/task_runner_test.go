@@ -119,9 +119,6 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 
 	upd := &MockTaskStateUpdater{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	// Initialize the port listing. This should be done by the offer process but
-	// we have a mock so that doesn't happen.
-	task.Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "", Value: 80}}
 
 	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
@@ -347,7 +344,7 @@ func TestTaskRunner_Update(t *testing.T) {
 	task.Services[0].Checks[0] = &structs.ServiceCheck{
 		Name:      "http-check",
 		Type:      "http",
-		PortLabel: "web",
+		PortLabel: "http",
 		Path:      "${NOMAD_META_foo}",
 	}
 	task.Driver = "mock_driver"
