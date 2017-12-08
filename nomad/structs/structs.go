@@ -3473,10 +3473,14 @@ func validateServices(t *Task) error {
 		knownServices[service.Name+service.PortLabel] = struct{}{}
 
 		if service.PortLabel != "" {
-			if _, err := strconv.Atoi(service.PortLabel); service.AddressMode == "driver" && err == nil {
-				// Numeric ports are valid when AddressMode=driver
+			if service.AddressMode == "driver" {
+				// Numeric port labels are valid for address_mode=driver
+				_, err := strconv.Atoi(service.PortLabel)
+				if err != nil {
+					// Not a numeric port label, add it to list to check
+					servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
+				}
 			} else {
-
 				servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
 			}
 		}
