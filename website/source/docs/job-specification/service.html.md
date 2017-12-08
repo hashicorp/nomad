@@ -98,23 +98,32 @@ does not automatically enable service discovery.
     
 - `port` `(string: <required>)` - Specifies the label of the port on which this
   service is running. Note this is the _label_ of the port and not the port
-  number. The port label must match one defined in the [`network`][network]
-  stanza unless you're also using `address_mode="driver"`. Numeric ports may be
-  used when in driver addressing mode.
+  number unless `address_mode = driver`. The port label must match one defined
+   in the [`network`][network] stanza unless you're also using
+  `address_mode="driver"`. Numeric ports may be used when in driver addressing
+   mode.
 
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
   when it is registered.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
-  driver-specific) this service should advertise. `host` indicates the host IP
-  and port. `driver` advertises the IP used in the driver (e.g. Docker's
-  internal IP) and uses the container's port specified in the port map. The
-  default is `auto` which behaves the same as `host` unless the driver
-  determines its IP should be used.  This setting is supported in Docker since
-  Nomad 0.6 and rkt since Nomad 0.7. Nomad will advertise the container IP if a
-  network plugin is used (e.g. weave). See [below for
-  details.](#using-driver-address-mode)
+  driver-specific) this service should advertise.  This setting is supported in
+  Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
+  examples.](#using-driver-address-mode) Valid options are:
+
+  - `auto` - Allows the driver to determine whether the host or driver address
+    should be used. Defaults to `host` and only implemented by Docker. If you
+    use a Docker network plugin such as weave, Docker will automatically use
+    its address.
+
+  - `driver` - Use the IP specified by the driver, and the port specified in a
+    port map. A numeric port may be specified since port maps aren't required
+    by all network plugins. Useful for advertising SDN and overlay network
+    addresses. Task will fail if driver network cannot be determined. Only
+    implemented for Docker and rkt.
+
+  - `host` - Use the host IP and port.
 
 ### `check` Parameters
 
@@ -127,7 +136,8 @@ scripts.
   Unlike services, checks do not have an `auto` address mode as there's no way
   for Nomad to know which is the best address to use for checks. Consul needs
   access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
-  [below for details.](#using-driver-address-mode)
+  [below for details.](#using-driver-address-mode) Unlike `port`, this setting
+  is *not* inherited from the `service`.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -166,13 +176,13 @@ scripts.
 
 - `port` `(string: <required>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
-  number. The port label must match one defined in the [`network`][network]
-  stanza. If a port value was declared on the `service`, this will inherit from
-  that value if not supplied. If supplied, this value takes precedence over the
-  `service.port` value. This is useful for services which operate on multiple
-  ports. Checks will use the host IP and ports by default. In Nomad 0.7.1 or
-  later numeric ports may be used if `address_mode="driver"` is set on the
-   check.
+  number unless `address_mode = driver`. The port label must match one defined
+  in the [`network`][network] stanza. If a port value was declared on the
+  `service`, this will inherit from that value if not supplied. If supplied,
+  this value takes precedence over the `service.port` value. This is useful for
+  services which operate on multiple ports. Checks will use the host IP and
+  ports by default. In Nomad 0.7.1 or later numeric ports may be used if
+  `address_mode="driver"` is set on the check.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
