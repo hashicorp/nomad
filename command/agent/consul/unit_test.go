@@ -1542,6 +1542,15 @@ func TestGetAddress(t *testing.T) {
 			ErrContains: "invalid port",
 		},
 		{
+			Name:      "DriverZeroPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "0",
+			Driver: &cstructs.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			ErrContains: "invalid port",
+		},
+		{
 			Name:        "HostBadPort",
 			Mode:        structs.AddressModeHost,
 			PortLabel:   "bad-port-label",
