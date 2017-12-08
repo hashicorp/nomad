@@ -56,6 +56,7 @@ BUG FIXES:
  * cli: Fix panic when running `keyring` commands [GH-3509]
  * client: Fix a panic when restoring an allocation with a dead leader task
    [GH-3502]
+ * client: Fix crash when following logs from a Windows node [GH-3608]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * driver/rkt: Remove pods on shutdown [GH-3562]
