@@ -1,6 +1,9 @@
 ## 0.7.1 (Unreleased)
 
 __BACKWARDS INCOMPATIBILITIES:__
+ * client: The format of service IDs in Consul has changed. If you rely upon
+   Nomad's service IDs (*not* service names; those are stable), you will need
+   to update your code.  [GH-3632]
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
@@ -57,6 +60,8 @@ BUG FIXES:
    explicitly [GH-3520]
  * cli: Fix passing Consul address via flags [GH-3504]
  * cli: Fix panic when running `keyring` commands [GH-3509]
+ * client: Fix advertising services with tags that require URL escaping
+   [GH-3632]
  * client: Fix a panic when restoring an allocation with a dead leader task
    [GH-3502]
  * client: Fix crash when following logs from a Windows node [GH-3608]

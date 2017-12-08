@@ -2,7 +2,10 @@ package consul
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/base32"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
@@ -21,9 +24,13 @@ import (
 )
 
 const (
-	// nomadServicePrefix is the first prefix that scopes all Nomad registered
-	// services
+	// nomadServicePrefix is the prefix that scopes all Nomad registered
+	// services (both agent and task entries).
 	nomadServicePrefix = "_nomad"
+
+	// nomadTaskPrefix is the prefix that scopes Nomad registered services
+	// for tasks.
+	nomadTaskPrefix = nomadServicePrefix + "-task-"
 
 	// defaultRetryInterval is how quickly to retry syncing services and
 	// checks to Consul when an error occurs. Will backoff up to a max.
@@ -288,8 +295,13 @@ func (c *ServiceClient) Run() {
 
 		if err := c.sync(); err != nil {
 			if failures == 0 {
+				// Log on the first failure
 				c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
+			} else if failures%10 == 0 {
+				// Log every 10th consecutive failure
+				c.logger.Printf("[ERR] consul.sync: still unable to update services in Consul after %d failures; latest error: %v", failures, err)
 			}
+
 			failures++
 			if !retryTimer.Stop() {
 				// Timer already expired, since the timer may
@@ -389,8 +401,14 @@ func (c *ServiceClient) sync() error {
 			// Not managed by Nomad, skip
 			continue
 		}
+
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
+			if isOldNomadService(id) {
+				// Don't hard-fail on old entries. See #3620
+				continue
+			}
+
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
@@ -398,29 +416,16 @@ func (c *ServiceClient) sync() error {
 		metrics.IncrCounter([]string{"client", "consul", "service_deregistrations"}, 1)
 	}
 
-	// Track services whose ports have changed as their checks may also
-	// need updating
-	portsChanged := make(map[string]struct{}, len(c.services))
-
 	// Add Nomad services missing from Consul
 	for id, locals := range c.services {
-		if remotes, ok := consulServices[id]; ok {
-			// Make sure Port and Address are stable since
-			// PortLabel and AddressMode aren't included in the
-			// service ID.
-			if locals.Port == remotes.Port && locals.Address == remotes.Address {
-				// Already exists in Consul; skip
-				continue
+		if _, ok := consulServices[id]; !ok {
+			if err = c.client.ServiceRegister(locals); err != nil {
+				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+				return err
 			}
-			// Port changed, reregister it and its checks
-			portsChanged[id] = struct{}{}
+			sreg++
+			metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 		}
-		if err = c.client.ServiceRegister(locals); err != nil {
-			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return err
-		}
-		sreg++
-		metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -433,8 +438,14 @@ func (c *ServiceClient) sync() error {
 			// Service not managed by Nomad, skip
 			continue
 		}
-		// Unknown Nomad managed check; kill
+
+		// Unknown Nomad managed check; remove
 		if err := c.client.CheckDeregister(id); err != nil {
+			if isOldNomadService(check.ServiceID) {
+				// Don't hard-fail on old entries.
+				continue
+			}
+
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
@@ -444,12 +455,11 @@ func (c *ServiceClient) sync() error {
 
 	// Add Nomad checks missing from Consul
 	for id, check := range c.checks {
-		if check, ok := consulChecks[id]; ok {
-			if _, changed := portsChanged[check.ServiceID]; !changed {
-				// Already in Consul and ports didn't change; skipping
-				continue
-			}
+		if _, ok := consulChecks[id]; ok {
+			// Already in Consul; skipping
+			continue
 		}
+
 		if err := c.client.CheckRegister(check); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
@@ -751,6 +761,9 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			continue
 		}
 
+		// Service exists and hasn't changed, don't re-add it later
+		delete(newIDs, existingID)
+
 		// Service still exists so add it to the task's registration
 		sreg := &ServiceRegistration{
 			serviceID: existingID,
@@ -758,15 +771,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 		}
 		taskReg.Services[existingID] = sreg
 
-		// PortLabel and AddressMode aren't included in the ID, so we
-		// have to compare manually.
-		serviceUnchanged := newSvc.PortLabel == existingSvc.PortLabel && newSvc.AddressMode == existingSvc.AddressMode
-		if serviceUnchanged {
-			// Service exists and hasn't changed, don't add it later
-			delete(newIDs, existingID)
-		}
-
-		// See what checks were updated
+		// See if any checks were updated
 		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
 			existingChecks[makeCheckID(existingID, check)] = check
@@ -779,17 +784,16 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 				// Check exists, so don't remove it
 				delete(existingChecks, checkID)
 				sreg.checkIDs[checkID] = struct{}{}
-			} else if serviceUnchanged {
-				// New check on an unchanged service; add them now
-				newCheckIDs, err := c.checkRegs(ops, allocID, existingID, newSvc, newTask, exec, net)
-				if err != nil {
-					return err
-				}
+			}
 
-				for _, checkID := range newCheckIDs {
-					sreg.checkIDs[checkID] = struct{}{}
+			// New check on an unchanged service; add them now
+			newCheckIDs, err := c.checkRegs(ops, allocID, existingID, newSvc, newTask, exec, net)
+			if err != nil {
+				return err
+			}
 
-				}
+			for _, checkID := range newCheckIDs {
+				sreg.checkIDs[checkID] = struct{}{}
 
 			}
 
@@ -999,36 +1003,40 @@ func (c *ServiceClient) removeTaskRegistration(allocID, taskName string) {
 //
 // Agent service IDs are of the form:
 //
-//	{nomadServicePrefix}-{ROLE}-{Service.Name}-{Service.Tags...}
-//	Example Server ID: _nomad-server-nomad-serf
-//	Example Client ID: _nomad-client-nomad-client-http
+//	{nomadServicePrefix}-{ROLE}-b32(sha1({Service.Name}-{Service.Tags...})
+//	Example Server ID: _nomad-server-FBBK265QN4TMT25ND4EP42TJVMYJ3HR4
+//	Example Client ID: _nomad-client-GGNJPGL7YN7RGMVXZILMPVRZZVRSZC7L
 //
 func makeAgentServiceID(role string, service *structs.Service) string {
-	parts := make([]string, len(service.Tags)+3)
-	parts[0] = nomadServicePrefix
-	parts[1] = role
-	parts[2] = service.Name
-	copy(parts[3:], service.Tags)
-	return strings.Join(parts, "-")
+	h := sha1.New()
+	io.WriteString(h, service.Name)
+	for _, tag := range service.Tags {
+		io.WriteString(h, tag)
+	}
+	b32 := base32.StdEncoding.EncodeToString(h.Sum(nil))
+	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, b32)
 }
 
 // makeTaskServiceID creates a unique ID for identifying a task service in
-// Consul.
+// Consul. All structs.Service fields are included in the ID's hash except
+// Checks. This allows updates to merely compare IDs.
 //
-// Task service IDs are of the form:
-//
-//	{nomadServicePrefix}-executor-{ALLOC_ID}-{Service.Name}-{Service.Tags...}
-//	Example Service ID: _nomad-executor-1234-echo-http-tag1-tag2-tag3
-//
+//	Example Service ID: _nomad-task-TNM333JKJPM5AK4FAS3VXQLXFDWOF4VH
 func makeTaskServiceID(allocID, taskName string, service *structs.Service) string {
-	parts := make([]string, len(service.Tags)+5)
-	parts[0] = nomadServicePrefix
-	parts[1] = "executor"
-	parts[2] = allocID
-	parts[3] = taskName
-	parts[4] = service.Name
-	copy(parts[5:], service.Tags)
-	return strings.Join(parts, "-")
+	h := sha1.New()
+	io.WriteString(h, allocID)
+	io.WriteString(h, taskName)
+	io.WriteString(h, service.Name)
+	io.WriteString(h, service.PortLabel)
+	io.WriteString(h, service.AddressMode)
+	for _, tag := range service.Tags {
+		io.WriteString(h, tag)
+	}
+
+	// Base32 is used for encoding the hash as sha1 hashes can always be
+	// encoded without padding, only 4 bytes larger than base64, and saves
+	// 8 bytes vs hex.
+	return nomadTaskPrefix + base32.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
 // makeCheckID creates a unique ID for a check.
@@ -1084,9 +1092,21 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 }
 
 // isNomadService returns true if the ID matches the pattern of a Nomad managed
-// service. Agent services return false as independent client and server agents
-// may be running on the same machine. #2827
+// service (new or old formats). Agent services return false as independent
+// client and server agents may be running on the same machine. #2827
 func isNomadService(id string) bool {
+	return strings.HasPrefix(id, nomadTaskPrefix) || isOldNomadService(id)
+}
+
+// isOldNomadService returns true if the ID matches an old pattern managed by
+// Nomad.
+//
+// Pre-0.7.1 task service IDs are of the form:
+//
+//	{nomadServicePrefix}-executor-{ALLOC_ID}-{Service.Name}-{Service.Tags...}
+//	Example Service ID: _nomad-executor-1234-echo-http-tag1-tag2-tag3
+//
+func isOldNomadService(id string) bool {
 	const prefix = nomadServicePrefix + "-executor"
 	return strings.HasPrefix(id, prefix)
 }
