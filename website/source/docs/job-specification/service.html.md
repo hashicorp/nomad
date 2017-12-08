@@ -111,9 +111,10 @@ does not automatically enable service discovery.
   and port. `driver` advertises the IP used in the driver (e.g. Docker's
   internal IP) and uses the container's port specified in the port map. The
   default is `auto` which behaves the same as `host` unless the driver
-  determines its IP should be used.  This setting supported Docker since Nomad
-  0.6 and rkt since Nomad 0.7. It will advertise the container IP if a network
-  plugin is used (e.g. weave).
+  determines its IP should be used.  This setting is supported in Docker since
+  Nomad 0.6 and rkt since Nomad 0.7. Nomad will advertise the container IP if a
+  network plugin is used (e.g. weave). See [below for
+  details.](#using-driver-address-mode)
 
 ### `check` Parameters
 
@@ -125,7 +126,8 @@ scripts.
 - `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
   Unlike services, checks do not have an `auto` address mode as there's no way
   for Nomad to know which is the best address to use for checks. Consul needs
-  access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1.
+  access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
+  [below for details.](#using-driver-address-mode)
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -332,6 +334,123 @@ service {
   }
 }
 ```
+
+### Using Driver Address Mode
+
+The [Docker](/docs/drivers/docker.html#network_mode) and
+[rkt](/docs/drivers/rkt.html#net) drivers support the `driver` setting for the
+`address_mode` parameter in both `service` and `check` stanzas. The driver
+address mode allows advertising and health checking the IP and port assigned to
+a task by the driver. This way if you're using a network plugin like Weave with
+Docker, you can advertise the Weave address in Consul instead of the host's
+address.
+
+For example if you were running the example Redis job in an environment with
+Weave but Consul was running on the host you could use the following
+configuration:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        network_mode = "weave"
+        port_map {
+          db = 6379
+        }
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
+
+      service {
+        name = "weave-redis"
+        port = "db"
+        check {
+          name     = "host-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+
+No explicit `address_mode` required!
+
+Services default to the `auto` address mode. When a Docker network mode other
+than "host" or "bridge" is used, services will automatically advertise the
+driver's address (in this case Weave's). The service will advertise the
+container's port: 6379.
+
+However since Consul is often run on the host without access to the Weave
+network, `check` stanzas default to `host` address mode. The TCP check will run
+against the host's IP and the dynamic host port assigned by Nomad.
+
+Note that the `check` still inherits the `service` stanza's `db` port label,
+but each will resolve the port label according to their address mode.
+
+If Consul has access to the Weave network the job could be configured like
+this:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        network_mode = "weave"
+        # No port map required!
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+        }
+      }
+
+      service {
+        name = "weave-redis"
+        port = 6379
+        address_mode = "driver"
+        check {
+          name     = "host-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = 6379
+          
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+In this case Nomad doesn't need to assign Redis any host ports. The `service`
+and `check` stanzas can both specify the port number to advertise and check
+directly since Nomad isn't managing any port assignments.
+
 
 - - -
 
