@@ -632,6 +632,13 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 			ops.scripts = append(ops.scripts, newScriptCheck(
 				allocID, task.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
 
+			// Skip getAddress for script checks
+			checkReg, err := createCheckReg(serviceID, checkID, check, "", 0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add script check %q: %v", check.Name, err)
+			}
+			ops.regChecks = append(ops.regChecks, checkReg)
+			continue
 		}
 
 		// Default to the service's port but allow check to override
@@ -1098,6 +1105,9 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 	case structs.AddressModeHost:
 		// Default path: use host ip:port
 		ip, port := networks.Port(portLabel)
+		if ip == "" && port == 0 {
+			return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
+		}
 		return ip, port, nil
 
 	case structs.AddressModeDriver:

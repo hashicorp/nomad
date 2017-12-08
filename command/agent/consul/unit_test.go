@@ -1542,6 +1542,12 @@ func TestGetAddress(t *testing.T) {
 			ErrContains: "invalid port",
 		},
 		{
+			Name:        "HostBadPort",
+			Mode:        structs.AddressModeHost,
+			PortLabel:   "bad-port-label",
+			ErrContains: "invalid port",
+		},
+		{
 			Name:        "InvalidMode",
 			Mode:        "invalid-mode",
 			ErrContains: "invalid address mode",
@@ -1574,7 +1580,11 @@ func TestGetAddress(t *testing.T) {
 			if tc.ErrContains == "" {
 				assert.Nil(t, err)
 			} else {
-				assert.Contains(t, err.Error(), tc.ErrContains)
+				if err == nil {
+					t.Fatalf("expected error containing %q but err=nil", tc.ErrContains)
+				} else {
+					assert.Contains(t, err.Error(), tc.ErrContains)
+				}
 			}
 		})
 	}

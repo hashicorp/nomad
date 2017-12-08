@@ -119,7 +119,7 @@ func Job() *structs.Job {
 							},
 							{
 								Name:      "${TASK}-admin",
-								PortLabel: "admin",
+								PortLabel: "main",
 							},
 						},
 						LogConfig: structs.DefaultLogConfig(),
