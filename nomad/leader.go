@@ -360,14 +360,12 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		added, err := s.periodicDispatcher.Add(job)
-		if err != nil {
+		if err := s.periodicDispatcher.Add(job); err != nil {
 			return err
 		}
 
-		// We did not add the job to the tracker, this can be for a variety of
-		// reasons, but it means that we do not need to force run it.
-		if !added {
+		// We do not need to force run the job since it isn't active.
+		if !job.IsPeriodicActive() {
 			continue
 		}
 
@@ -375,8 +373,12 @@ func (s *Server) restorePeriodicDispatcher() error {
 		// the time the periodic job was added. Otherwise it has the last launch
 		// time of the periodic job.
 		launch, err := s.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
-		if err != nil || launch == nil {
+		if err != nil {
 			return fmt.Errorf("failed to get periodic launch time: %v", err)
+		}
+		if launch == nil {
+			return fmt.Errorf("no recorded periodic launch time for job %q in namespace %q",
+				job.ID, job.Namespace)
 		}
 
 		// nextLaunch is the next launch that should occur.

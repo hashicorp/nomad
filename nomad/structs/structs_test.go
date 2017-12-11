@@ -637,6 +637,58 @@ func TestJob_IsPeriodic(t *testing.T) {
 	}
 }
 
+func TestJob_IsPeriodicActive(t *testing.T) {
+	cases := []struct {
+		job    *Job
+		active bool
+	}{
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: true,
+				},
+			},
+			active: true,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+				},
+			},
+			active: false,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: true,
+				},
+				Stop: true,
+			},
+			active: false,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+				},
+				ParameterizedJob: &ParameterizedJobConfig{},
+			},
+			active: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := c.job.IsPeriodicActive(); act != c.active {
+			t.Fatalf("case %d failed: got %v; want %v", i, act, c.active)
+		}
+	}
+}
+
 func TestJob_SystemJob_Validate(t *testing.T) {
 	j := testJob()
 	j.Type = JobTypeSystem
@@ -806,6 +858,26 @@ func TestJob_RequiredSignals(t *testing.T) {
 		},
 	}
 
+	j2 := &Job{
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "foo",
+				Tasks: []*Task{
+					{
+						Name:       "t1",
+						KillSignal: "SIGQUIT",
+					},
+				},
+			},
+		},
+	}
+
+	e2 := map[string]map[string][]string{
+		"foo": {
+			"t1": {"SIGQUIT"},
+		},
+	}
+
 	cases := []struct {
 		Job      *Job
 		Expected map[string]map[string][]string
@@ -817,6 +889,10 @@ func TestJob_RequiredSignals(t *testing.T) {
 		{
 			Job:      j1,
 			Expected: e1,
+		},
+		{
+			Job:      j2,
+			Expected: e2,
 		},
 	}
 
@@ -1154,6 +1230,102 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+}
+
+// TestTask_Validate_Service_Check_AddressMode asserts that checks do not
+// inherit address mode but do inherit ports.
+func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
+	task := &Task{
+		Resources: &Resources{
+			Networks: []*NetworkResource{
+				{
+					DynamicPorts: []Port{
+						{
+							Label: "http",
+							Value: 9999,
+						},
+					},
+				},
+			},
+		},
+		Services: []*Service{
+			{
+				Name:        "invalid-driver",
+				PortLabel:   "80",
+				AddressMode: "host",
+			},
+			{
+				Name:        "http-driver",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
+					{
+						// Should fail
+						Name:     "invalid-check-1",
+						Type:     "tcp",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+					{
+						// Should fail
+						Name:      "invalid-check-2",
+						Type:      "tcp",
+						PortLabel: "80",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+					{
+						// Should fail
+						Name:      "invalid-check-3",
+						Type:      "tcp",
+						PortLabel: "missing-port-label",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+					{
+						// Should pass
+						Name:     "valid-script-check",
+						Type:     "script",
+						Command:  "ok",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+					{
+						// Should pass
+						Name:      "valid-host-check",
+						Type:      "tcp",
+						PortLabel: "http",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+					{
+						// Should pass
+						Name:        "valid-driver-check",
+						Type:        "tcp",
+						AddressMode: "driver",
+						Interval:    time.Second,
+						Timeout:     time.Second,
+					},
+				},
+			},
+		},
+	}
+	err := validateServices(task)
+	if err == nil {
+		t.Fatalf("expected errors but task validated successfully")
+	}
+	errs := err.(*multierror.Error).Errors
+	if expected := 4; len(errs) != expected {
+		for i, err := range errs {
+			t.Logf("errs[%d] -> %s", i, err)
+		}
+		t.Fatalf("expected %d errors but found %d", expected, len(errs))
+	}
+
+	assert.Contains(t, errs[0].Error(), `check "invalid-check-1" cannot use a numeric port`)
+	assert.Contains(t, errs[1].Error(), `check "invalid-check-2" cannot use a numeric port`)
+	assert.Contains(t, errs[2].Error(), `port label "80" referenced`)
+	assert.Contains(t, errs[3].Error(), `port label "missing-port-label" referenced`)
 }
 
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {

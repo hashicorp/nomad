@@ -11,7 +11,7 @@ export default Component.extend({
   classNames: ['json-viewer'],
 
   json: null,
-  expandDepth: 2,
+  expandDepth: Infinity,
 
   formatter: computed('json', 'expandDepth', function() {
     return new JSONFormatter(this.get('json'), this.get('expandDepth'), {
@@ -30,5 +30,7 @@ export default Component.extend({
 });
 
 function embedViewer() {
-  this.$().empty().append(this.get('formatter').render());
+  this.$()
+    .empty()
+    .append(this.get('formatter').render());
 }

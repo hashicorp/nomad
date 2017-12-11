@@ -666,6 +666,8 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	}
 }
 
+// ApiTaskToStructsTask is a copy and type conversion between the API
+// representation of a task from a struct representation of a task.
 func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Name = apiTask.Name
 	structsTask.Driver = apiTask.Driver
@@ -676,6 +678,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Meta = apiTask.Meta
 	structsTask.KillTimeout = *apiTask.KillTimeout
 	structsTask.ShutdownDelay = apiTask.ShutdownDelay
+	structsTask.KillSignal = apiTask.KillSignal
 
 	if l := len(apiTask.Constraints); l != 0 {
 		structsTask.Constraints = make([]*structs.Constraint, l)
@@ -707,6 +710,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						Path:          check.Path,
 						Protocol:      check.Protocol,
 						PortLabel:     check.PortLabel,
+						AddressMode:   check.AddressMode,
 						Interval:      check.Interval,
 						Timeout:       check.Timeout,
 						InitialStatus: check.InitialStatus,

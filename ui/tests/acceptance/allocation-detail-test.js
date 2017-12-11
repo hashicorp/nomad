@@ -106,7 +106,7 @@ test('each task row should list high-level information for the task', function(a
       .find('td:eq(3)')
       .text()
       .trim(),
-    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss [UTC]'),
+    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss'),
     'Event Time'
   );
 

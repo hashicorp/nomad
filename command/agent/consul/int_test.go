@@ -116,7 +116,12 @@ func TestConsul_Integration(t *testing.T) {
 		{
 			Name:      "httpd2",
 			PortLabel: "http",
-			Tags:      []string{"test", "http2"},
+			Tags: []string{
+				"test",
+				// Use URL-unfriendly tags to test #3620
+				"public-test.ettaviation.com:80/ redirect=302,https://test.ettaviation.com",
+				"public-test.ettaviation.com:443/",
+			},
 		},
 	}
 

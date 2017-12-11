@@ -192,18 +192,18 @@ func (p *PeriodicDispatch) Tracked() []*structs.Job {
 // Add begins tracking of a periodic job. If it is already tracked, it acts as
 // an update to the jobs periodic spec. The method returns whether the job was
 // added and any error that may have occurred.
-func (p *PeriodicDispatch) Add(job *structs.Job) (added bool, err error) {
+func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
 	// Do nothing if not enabled
 	if !p.enabled {
-		return false, nil
+		return nil
 	}
 
 	// If we were tracking a job and it has been disabled, made non-periodic,
 	// stopped or is parameterized, remove it
-	disabled := !job.IsPeriodic() || !job.Periodic.Enabled || job.Stopped() || job.IsParameterized()
+	disabled := !job.IsPeriodicActive()
 
 	tuple := structs.NamespacedID{
 		ID:        job.ID,
@@ -216,7 +216,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) (added bool, err error) {
 		}
 
 		// If the job is disabled and we aren't tracking it, do nothing.
-		return false, nil
+		return nil
 	}
 
 	// Add or update the job.
@@ -224,12 +224,12 @@ func (p *PeriodicDispatch) Add(job *structs.Job) (added bool, err error) {
 	next := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
 	if tracked {
 		if err := p.heap.Update(job, next); err != nil {
-			return false, fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
+			return fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
 		}
 		p.logger.Printf("[DEBUG] nomad.periodic: updated periodic job %q (%s)", job.ID, job.Namespace)
 	} else {
 		if err := p.heap.Push(job, next); err != nil {
-			return false, fmt.Errorf("failed to add job %v: %v", job.ID, err)
+			return fmt.Errorf("failed to add job %v: %v", job.ID, err)
 		}
 		p.logger.Printf("[DEBUG] nomad.periodic: registered periodic job %q (%s)", job.ID, job.Namespace)
 	}
@@ -240,7 +240,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) (added bool, err error) {
 	default:
 	}
 
-	return true, nil
+	return nil
 }
 
 // Remove stops tracking the passed job. If the job is not tracked, it is a

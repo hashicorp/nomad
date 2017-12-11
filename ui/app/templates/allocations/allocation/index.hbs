@@ -56,7 +56,7 @@
                   <em>No message</em>
                 {{/if}}
               </td>
-              <td>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss [UTC]"}}</td>
+              <td>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
               <td>
                 <ul>
                   {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}

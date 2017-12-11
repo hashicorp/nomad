@@ -160,6 +160,7 @@ type DockerVolumeDriverConfig struct {
 	Options []map[string]string `mapstructure:"options"`
 }
 
+// DockerDriverConfig defines the user specified config block in a jobspec
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
@@ -712,7 +713,6 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
-
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
 		LogFile:  pluginLogFile,
@@ -1046,6 +1046,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, err
 	}
 
+	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
 		Image:       d.imageID,
 		Hostname:    driverConfig.Hostname,
@@ -1053,6 +1054,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		Tty:         driverConfig.TTY,
 		OpenStdin:   driverConfig.Interactive,
 		StopTimeout: int(task.KillTimeout.Seconds()),
+		StopSignal:  task.KillSignal,
 	}
 
 	if driverConfig.WorkDir != "" {

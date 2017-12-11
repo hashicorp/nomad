@@ -591,6 +591,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"template",
 			"user",
 			"vault",
+			"kill_signal",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -623,6 +624,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			WeaklyTypedInput: true,
 			Result:           &t,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -979,6 +981,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"header",
 			"method",
 			"check_restart",
+			"address_mode",
 		}
 		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")

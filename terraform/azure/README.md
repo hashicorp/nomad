@@ -41,9 +41,10 @@ $ az login
 ]
 ```
 
-After completing the login process, take note of the `SUBSCRIPTION_ID` and the `TENANT_ID` 
-that are included in the output above. These will be used to set the `ARM_SUBSCRIPTION_ID` and `ARM_TENANT_ID` environment 
-variables for Packer and Terraform.
+After completing the login process, take note of the values for `id` and 
+`tenantId` in the output above. These will be used to set the 
+`ARM_SUBSCRIPTION_ID` and `ARM_TENANT_ID` environment variables for Packer 
+and Terraform.
 
 ## Create an Application Id and Password
 
@@ -61,8 +62,8 @@ $ az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${SUBSC
 }
 ```
 
-`appId` and `password` above will be used for the `ARM_CLIENT_ID` and `ARM_CLIENT_SECRET` 
-environment variables.
+The values for `appId` and `password` above will be used for the `ARM_CLIENT_ID` 
+and `ARM_CLIENT_SECRET` environment variables.
 
 ## Create an Azure Resource Group
 
@@ -76,9 +77,9 @@ $ az group create --name packer --location "East US"
 
 ```bash
 export ARM_SUBSCRIPTION_ID=[ARM_SUBSCRIPTION_ID]  
+export ARM_TENANT_ID=[ARM_TENANT_ID]  
 export ARM_CLIENT_ID=[ARM_CLIENT_ID]  
 export ARM_CLIENT_SECRET=[ARM_CLIENT_SECRET]  
-export ARM_TENANT_ID=[ARM_TENANT_ID]  
 export AZURE_RESOURCE_GROUP=packer  
 ```
 
@@ -86,16 +87,17 @@ export AZURE_RESOURCE_GROUP=packer
 
 [Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool 
 for creating identical machine images for multiple platforms from a single 
-source configuration. The AMI can be customized through modifications to the 
-[build configuration script](../shared/scripts/setup.sh) and [packer.json](packer.json).
+source configuration. The machine image created here can be customized through 
+modifications to the [build configuration file](packer.json) and the 
+[shell script](../shared/scripts/setup.sh).
 
-Use the following command to build the AMI:
+Use the following command to build the machine image:
 
 ```bash
 $ packer build packer.json
 ```
 
-After the Packer build process completes, you can output the image Id using the 
+After the Packer build process completes, you can retrieve the image Id using the 
 following CLI command:
 
 ```bash
@@ -106,7 +108,7 @@ $ az image list --query "[?tags.Product=='Hashistack'].id"
 ]
 ```
 
-The following CLI command will delete the image, if you need to delete and recreate it:
+The following CLI command can be used to delete the image if necessary:
 
 ```bash
 $ az image delete --name hashistack --resource-group packer

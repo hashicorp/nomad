@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -334,6 +335,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
+	assert := assert.New(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -366,18 +368,19 @@ func TestRktDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("error in prestart: %v", err)
-	}
+	_, err := d.Prestart(ctx.ExecCtx, task)
+	assert.Nil(err)
 	resp, err := d.Start(ctx.ExecCtx, task)
-	if err == nil {
-		resp.Handle.Kill()
-		t.Fatalf("Should've failed")
+	assert.Nil(err)
+	defer resp.Handle.Kill()
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		assert.False(res.Successful())
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
 	}
-	msg := "unknown user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
-	}
+
 }
 
 func TestRktTrustPrefix(t *testing.T) {

@@ -1,6 +1,9 @@
 ## 0.7.1 (Unreleased)
 
 __BACKWARDS INCOMPATIBILITIES:__
+ * client: The format of service IDs in Consul has changed. If you rely upon
+   Nomad's service IDs (*not* service names; those are stable), you will need
+   to update your code.  [GH-3632]
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
@@ -11,6 +14,8 @@ __BACKWARDS INCOMPATIBILITIES:__
 IMPROVEMENTS:
  * core: Allow operators to reload TLS certificate and key files via SIGHUP
    [GH-3479]
+ * core: Allow configurable stop signals for a task, when drivers support
+   sending stop signals [GH-1755]
  * core: Allow agents to be run in `rpc_upgrade_mode` when migrating a cluster
    to TLS rather than changing `heartbeat_grace`
  * api: Allocations now track and return modify time in addition to create time
@@ -20,22 +25,33 @@ IMPROVEMENTS:
  * api: Environment variables are ignored during service name validation [GH-3532]
  * cli: Allocation create and modify times are displayed in a human readable
    relative format like `6 h ago` [GH-3449]
+ * client: Support `address_mode` on checks [GH-3619]
  * client: Sticky volume migrations are now atomic. [GH-3563]
  * client: Added metrics to track state transitions of allocations [GH-3061]
  * client: When `network_interface` is unspecified use interface attached to
    default route [GH-3546]
+ * client: Support numeric ports on services and checks when
+   `address_mode="driver"` [GH-3619]
  * driver/docker: Detect OOM kill event [GH-3459]
  * driver/docker: Adds support for adding host device to container via
    `--device` [GH-2938]
  * driver/docker: Adds support for `ulimit` and `sysctl` options [GH-3568]
  * driver/docker: Adds support for StopTimeout (set to the same value as
    kill_timeout [GH-3601]
+ * driver/rkt: Add support for passing through user [GH-3612]
  * driver/qemu: Support graceful shutdowns on unix platforms [GH-3411]
  * template: Updated to consul template 0.19.4 [GH-3543]
  * core/enterprise: Return 501 status code in Nomad Pro for Premium end points
+ * ui: Added log streaming for tasks [GH-3564]
+ * ui: Show the modify time for allocations [GH-3607]
+ * ui: Added a dedicated Task page under allocations [GH-3472]
+ * ui: Added placement failures to the Job Detail page [GH-3603]
+ * ui: Warn uncaught exceptions to the developer console [GH-3623]
 
 BUG FIXES:
 
+ * core: Fix issue in which restoring periodic jobs could fail when a leader
+   election occurs [GH-3646]
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
@@ -46,8 +62,13 @@ BUG FIXES:
    explicitly [GH-3520]
  * cli: Fix passing Consul address via flags [GH-3504]
  * cli: Fix panic when running `keyring` commands [GH-3509]
+ * client: Fix advertising services with tags that require URL escaping
+   [GH-3632]
  * client: Fix a panic when restoring an allocation with a dead leader task
    [GH-3502]
+ * client: Fix crash when following logs from a Windows node [GH-3608]
+ * client: Fix service/check updating when just interpolated variables change
+   [GH-3619]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
  * driver/rkt: Remove pods on shutdown [GH-3562]
@@ -59,6 +80,10 @@ BUG FIXES:
    when multiple Sentinel policies are applied
  * telemetry: Do not emit metrics for non-running tasks [GH-3559]
  * telemetry: Emit hostname as a tag rather than within the key name [GH-3616]
+ * ui: Remove timezone text from timestamps [GH-3621]
+ * ui: Allow cross-origin requests from the UI [GH-3530]
+ * ui: Consistently use Clients instead of Nodes in copy [GH-3466]
+ * ui: Fully expand the job definition on the Job Definition page [GH-3631]
 
 ## 0.7.0 (November 1, 2017)
 

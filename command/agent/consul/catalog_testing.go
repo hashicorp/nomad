@@ -80,6 +80,7 @@ func (c *MockAgent) Services() (map[string]*api.AgentService, error) {
 	return r, nil
 }
 
+// Checks implements the Agent API Checks method.
 func (c *MockAgent) Checks() (map[string]*api.AgentCheck, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -96,6 +97,19 @@ func (c *MockAgent) Checks() (map[string]*api.AgentCheck, error) {
 		}
 	}
 	return r, nil
+}
+
+// CheckRegs returns the raw AgentCheckRegistrations registered with this mock
+// agent.
+func (c *MockAgent) CheckRegs() []*api.AgentCheckRegistration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	regs := make([]*api.AgentCheckRegistration, 0, len(c.checks))
+	for _, check := range c.checks {
+		regs = append(regs, check)
+	}
+	return regs
 }
 
 func (c *MockAgent) CheckRegister(check *api.AgentCheckRegistration) error {

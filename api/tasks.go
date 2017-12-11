@@ -154,6 +154,7 @@ type ServiceCheck struct {
 	Path          string
 	Protocol      string
 	PortLabel     string `mapstructure:"port"`
+	AddressMode   string `mapstructure:"address_mode"`
 	Interval      time.Duration
 	Timeout       time.Duration
 	InitialStatus string `mapstructure:"initial_status"`
@@ -370,6 +371,7 @@ type Task struct {
 	DispatchPayload *DispatchPayloadConfig
 	Leader          bool
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
+	KillSignal      string        `mapstructure:"kill_signal"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {

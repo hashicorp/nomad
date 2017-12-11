@@ -202,7 +202,8 @@ func TestParse(t *testing.T) {
 										RightDelim: helper.StringToPtr("__"),
 									},
 								},
-								Leader: true,
+								Leader:     true,
+								KillSignal: "",
 							},
 							{
 								Name:   "storagelocker",
@@ -551,6 +552,77 @@ func TestParse(t *testing.T) {
 								Driver: "docker",
 								DispatchPayload: &api.DispatchPayloadConfig{
 									File: "foo/bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"job-with-kill-signal.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("bar"),
+						Tasks: []*api.Task{
+							{
+								Name:       "bar",
+								Driver:     "docker",
+								KillSignal: "SIGQUIT",
+								Config: map[string]interface{}{
+									"image": "hashicorp/image",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-check-driver-address.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("address_mode_driver"),
+				Name: helper.StringToPtr("address_mode_driver"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name:        "http-service",
+										PortLabel:   "http",
+										AddressMode: "auto",
+										Checks: []api.ServiceCheck{
+											{
+												Name:        "http-check",
+												Type:        "http",
+												Path:        "/",
+												PortLabel:   "http",
+												AddressMode: "driver",
+											},
+										},
+									},
+									{
+										Name:        "random-service",
+										PortLabel:   "9000",
+										AddressMode: "driver",
+										Checks: []api.ServiceCheck{
+											{
+												Name:        "random-check",
+												Type:        "tcp",
+												PortLabel:   "9001",
+												AddressMode: "driver",
+											},
+										},
+									},
 								},
 							},
 						},

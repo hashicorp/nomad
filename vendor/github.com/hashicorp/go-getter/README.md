@@ -21,8 +21,7 @@ URLs. For example: "github.com/hashicorp/go-getter" would turn into a
 Git URL. Or "./foo" would turn into a file URL. These are extensible.
 
 This library is used by [Terraform](https://terraform.io) for
-downloading modules, [Otto](https://ottoproject.io) for dependencies and
-Appfile imports, and [Nomad](https://nomadproject.io) for downloading
+downloading modules and [Nomad](https://nomadproject.io) for downloading
 binaries.
 
 ## Installation and Usage
@@ -232,6 +231,9 @@ The options below are available to all protocols:
 
   * `checksum` - Checksum to verify the downloaded file or archive. See
     the entire section on checksumming above for format and more details.
+
+  * `filename` - When in file download mode, allows specifying the name of the
+    downloaded file on disk. Has no effect in directory mode.
 
 ### Local Files (`file`)
 

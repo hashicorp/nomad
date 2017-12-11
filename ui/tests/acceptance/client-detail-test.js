@@ -3,6 +3,7 @@ import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helper
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import moment from 'moment';
 
 const { $ } = Ember;
 
@@ -127,8 +128,8 @@ test('each allocation should have high-level details for the allocation', functi
         .find('td:eq(1)')
         .text()
         .trim(),
-      allocation.modifyIndex,
-      'Allocation modify index'
+      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation modify time'
     );
     assert.equal(
       allocationRow

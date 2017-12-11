@@ -27,6 +27,7 @@ export default Model.extend({
   taskGroupName: attr('string'),
   resources: fragment('resources'),
   modifyIndex: attr('number'),
+  modifyTime: attr('date'),
   jobVersion: attr('number'),
 
   // TEMPORARY: https://github.com/emberjs/data/issues/5209
