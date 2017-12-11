@@ -710,6 +710,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						Path:          check.Path,
 						Protocol:      check.Protocol,
 						PortLabel:     check.PortLabel,
+						AddressMode:   check.AddressMode,
 						Interval:      check.Interval,
 						Timeout:       check.Timeout,
 						InitialStatus: check.InitialStatus,
