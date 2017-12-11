@@ -331,6 +331,65 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 }
 
+func TestFSM_RegisterPeriodicJob_NonLeader(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	// Disable the dispatcher
+	fsm.periodicDispatcher.SetEnabled(false)
+
+	job := mock.PeriodicJob()
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if jobOut == nil {
+		t.Fatalf("not found!")
+	}
+	if jobOut.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", jobOut.CreateIndex)
+	}
+
+	// Verify it wasn't added to the periodic runner.
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
+		t.Fatal("job added to periodic runner")
+	}
+
+	// Verify the launch time was tracked.
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut == nil {
+		t.Fatalf("not found!")
+	}
+	if launchOut.Launch.IsZero() {
+		t.Fatalf("bad launch time: %v", launchOut.Launch)
+	}
+}
+
 func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

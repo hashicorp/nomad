@@ -77,7 +77,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	job := mock.PeriodicJob()
 	job.Periodic.ProhibitOverlap = true // Shouldn't affect anything.
 	assert.Nil(state.UpsertJob(100, job))
-	_, err := s1.periodicDispatcher.Add(job)
+	err := s1.periodicDispatcher.Add(job)
 	assert.Nil(err)
 
 	// Force launch it.
