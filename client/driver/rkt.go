@@ -535,41 +535,43 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	} else {
 		// TODO add support for more than one network
 		network := task.Resources.Networks[0]
+		unmappedPorts := make([]string, 0, len(network.ReservedPorts)+len(network.DynamicPorts))
 		for _, port := range network.ReservedPorts {
-			var containerPort string
-
 			mapped, ok := driverConfig.PortMap[port.Label]
 			if !ok {
-				// If the user doesn't have a mapped port using port_map, driver stops running container.
-				return nil, fmt.Errorf("port_map is not set. When you defined port in the resources, you need to configure port_map.")
+				unmappedPorts = append(unmappedPorts, port.Label)
+				continue
 			}
-			containerPort = mapped
 
 			hostPortStr := strconv.Itoa(port.Value)
 
-			d.logger.Printf("[DEBUG] driver.rkt: exposed port %s", containerPort)
+			d.logger.Printf("[DEBUG] driver.rkt: alloc %s task %s mapped reserved port %s:%s",
+				d.DriverContext.allocID, task.Name, mapped, hostPortStr)
+
 			// Add port option to rkt run arguments. rkt allows multiple port args
-			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", mapped, hostPortStr))
 		}
 
 		for _, port := range network.DynamicPorts {
-			// By default we will map the allocated port 1:1 to the container
-			var containerPort string
-
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPort = mapped
-			} else {
-				// If the user doesn't have mapped a port using port_map, driver stops running container.
-				return nil, fmt.Errorf("port_map is not set. When you defined port in the resources, you need to configure port_map.")
+			mapped, ok := driverConfig.PortMap[port.Label]
+			if !ok {
+				unmappedPorts = append(unmappedPorts, port.Label)
+				continue
 			}
 
 			hostPortStr := strconv.Itoa(port.Value)
 
-			d.logger.Printf("[DEBUG] driver.rkt: exposed port %s", containerPort)
+			d.logger.Printf("[DEBUG] driver.rkt: alloc %s task %s mapped dynamic port %s:%s",
+				d.DriverContext.allocID, task.Name, mapped, hostPortStr)
+
 			// Add port option to rkt run arguments. rkt allows multiple port args
-			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", mapped, hostPortStr))
 		}
 
+		if len(unmappedPorts) > 0 {
+			d.logger.Printf("[INFO] driver.rkt: alloc %s task %s did not map these ports: %s",
+				d.DriverContext.allocID, task.Name, strings.Join(unmappedPorts, ", "))
+		}
 	}
 
 	// If a user has been specified for the task, pass it through to the user

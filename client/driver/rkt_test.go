@@ -453,7 +453,7 @@ func TestRktTaskValidate(t *testing.T) {
 }
 
 // TODO: Port Mapping test should be ran with proper ACI image and test the port access.
-func TestRktDriver_PortsMapping(t *testing.T) {
+func TestRktDriver_PortMapping(t *testing.T) {
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -483,8 +483,11 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 			CPU:      512,
 			Networks: []*structs.NetworkResource{
 				{
-					IP:            "127.0.0.1",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 8080}},
+					IP: "127.0.0.1",
+					ReservedPorts: []structs.Port{
+						{Label: "main", Value: 8080},
+						{Label: "unmapped", Value: 9999},
+					},
 				},
 			},
 		},
