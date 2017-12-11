@@ -637,6 +637,58 @@ func TestJob_IsPeriodic(t *testing.T) {
 	}
 }
 
+func TestJob_IsPeriodicActive(t *testing.T) {
+	cases := []struct {
+		job    *Job
+		active bool
+	}{
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: true,
+				},
+			},
+			active: true,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+				},
+			},
+			active: false,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: true,
+				},
+				Stop: true,
+			},
+			active: false,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+				},
+				ParameterizedJob: &ParameterizedJobConfig{},
+			},
+			active: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := c.job.IsPeriodicActive(); act != c.active {
+			t.Fatalf("case %d failed: got %v; want %v", i, act, c.active)
+		}
+	}
+}
+
 func TestJob_SystemJob_Validate(t *testing.T) {
 	j := testJob()
 	j.Type = JobTypeSystem

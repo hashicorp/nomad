@@ -50,6 +50,8 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+ * core: Fix issue in which restoring periodic jobs could fail when a leader
+   election occurs [GH-3646]
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
