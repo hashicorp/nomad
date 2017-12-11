@@ -22,6 +22,7 @@ export default Model.extend({
   httpAddr: attr('string'),
   tlsEnabled: attr('boolean'),
   attributes: fragment('node-attributes'),
+  meta: fragment('node-meta'),
   resources: fragment('resources'),
   reserved: fragment('resources'),
 
