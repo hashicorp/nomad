@@ -1939,6 +1939,12 @@ func (j *Job) IsPeriodic() bool {
 	return j.Periodic != nil
 }
 
+// IsPeriodicActive returns whether the job is an active periodic job that will
+// create child jobs
+func (j *Job) IsPeriodicActive() bool {
+	return j.IsPeriodic() && j.Periodic.Enabled && !j.Stopped() && !j.IsParameterized()
+}
+
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
 	return j.ParameterizedJob != nil

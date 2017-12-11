@@ -351,8 +351,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// We always add the job to the periodic dispatcher because there is the
 	// possibility that the periodic spec was removed and then we should stop
 	// tracking it.
-	added, err := n.periodicDispatcher.Add(req.Job)
-	if err != nil {
+	if err := n.periodicDispatcher.Add(req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
 		return err
 	}
@@ -360,12 +359,12 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// Create a watch set
 	ws := memdb.NewWatchSet()
 
-	// If it is periodic, record the time it was inserted. This is necessary for
-	// recovering during leader election. It is possible that from the time it
-	// is added to when it was suppose to launch, leader election occurs and the
-	// job was not launched. In this case, we use the insertion time to
-	// determine if a launch was missed.
-	if added {
+	// If it is an active periodic job, record the time it was inserted. This is
+	// necessary for recovering during leader election. It is possible that from
+	// the time it is added to when it was suppose to launch, leader election
+	// occurs and the job was not launched. In this case, we use the insertion
+	// time to determine if a launch was missed.
+	if req.Job.IsPeriodicActive() {
 		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
