@@ -40,7 +40,7 @@ test('each version mentions the version number, the stability, and the submitted
   );
   assert.equal(
     versionRow.find('.version-submit-date .submit-date').text(),
-    moment(version.submitTime / 1000000).format('MM/DD/YY HH:mm:ss [UTC]'),
+    moment(version.submitTime / 1000000).format('MM/DD/YY HH:mm:ss'),
     'Submit time'
   );
 });

@@ -3509,6 +3509,12 @@ func TestTaskDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeNone,
+										Name: "AddressMode",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
 										Name: "Command",
 										Old:  "foo",
 										New:  "foo",

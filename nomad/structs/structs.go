@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/base32"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -44,6 +45,9 @@ var (
 
 	// validPolicyName is used to validate a policy name
 	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// b32 is a lowercase base32 encoding for use in URL friendly service hashes
+	b32 = base32.NewEncoding(strings.ToLower("abcdefghijklmnopqrstuvwxyz234567"))
 )
 
 type MessageType uint8
@@ -1978,6 +1982,11 @@ func (j *Job) RequiredSignals() map[string]map[string][]string {
 				taskSignals[task.Vault.ChangeSignal] = struct{}{}
 			}
 
+			// If a user has specified a KillSignal, add it to required signals
+			if task.KillSignal != "" {
+				taskSignals[task.KillSignal] = struct{}{}
+			}
+
 			// Check if any template change mode uses signals
 			for _, t := range task.Templates {
 				if t.ChangeMode != TemplateChangeModeSignal {
@@ -2861,6 +2870,7 @@ type ServiceCheck struct {
 	Path          string              // path of the health check url for http type check
 	Protocol      string              // Protocol to use if check is http, defaults to http
 	PortLabel     string              // The port to use for tcp/http checks
+	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver's
 	Interval      time.Duration       // Interval of the check
 	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus string              // Initial status of the check
@@ -2906,6 +2916,7 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 
 // validate a Service's ServiceCheck
 func (sc *ServiceCheck) validate() error {
+	// Validate Type
 	switch strings.ToLower(sc.Type) {
 	case ServiceCheckTCP:
 	case ServiceCheckHTTP:
@@ -2921,6 +2932,7 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
 
+	// Validate interval and timeout
 	if sc.Interval == 0 {
 		return fmt.Errorf("missing required value interval. Interval cannot be less than %v", minCheckInterval)
 	} else if sc.Interval < minCheckInterval {
@@ -2933,15 +2945,25 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("timeout (%v) is lower than required minimum timeout %v", sc.Timeout, minCheckInterval)
 	}
 
+	// Validate InitialStatus
 	switch sc.InitialStatus {
 	case "":
-		// case api.HealthUnknown: TODO: Add when Consul releases 0.7.1
 	case api.HealthPassing:
 	case api.HealthWarning:
 	case api.HealthCritical:
 	default:
 		return fmt.Errorf(`invalid initial check state (%s), must be one of %q, %q, %q or empty`, sc.InitialStatus, api.HealthPassing, api.HealthWarning, api.HealthCritical)
 
+	}
+
+	// Validate AddressMode
+	switch sc.AddressMode {
+	case "", AddressModeHost, AddressModeDriver:
+		// Ok
+	case AddressModeAuto:
+		return fmt.Errorf("invalid address_mode %q - %s only valid for services", sc.AddressMode, AddressModeAuto)
+	default:
+		return fmt.Errorf("invalid address_mode %q", sc.AddressMode)
 	}
 
 	return sc.CheckRestart.Validate()
@@ -2994,6 +3016,11 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 		}
 		sort.Strings(headers)
 		io.WriteString(h, strings.Join(headers, ""))
+	}
+
+	// Only include AddressMode if set to maintain ID stability with Nomad <0.7.1
+	if len(sc.AddressMode) > 0 {
+		io.WriteString(h, sc.AddressMode)
 	}
 
 	return fmt.Sprintf("%x", h.Sum(nil))
@@ -3117,15 +3144,24 @@ func (s *Service) ValidateName(name string) error {
 	return nil
 }
 
-// Hash calculates the hash of the check based on it's content and the service
-// which owns it
-func (s *Service) Hash() string {
+// Hash returns a base32 encoded hash of a Service's contents excluding checks
+// as they're hashed independently.
+func (s *Service) Hash(allocID, taskName string) string {
 	h := sha1.New()
+	io.WriteString(h, allocID)
+	io.WriteString(h, taskName)
 	io.WriteString(h, s.Name)
-	io.WriteString(h, strings.Join(s.Tags, ""))
 	io.WriteString(h, s.PortLabel)
 	io.WriteString(h, s.AddressMode)
-	return fmt.Sprintf("%x", h.Sum(nil))
+	for _, tag := range s.Tags {
+		io.WriteString(h, tag)
+	}
+
+	// Base32 is used for encoding the hash as sha1 hashes can always be
+	// encoded without padding, only 4 bytes larger than base64, and saves
+	// 8 bytes vs hex. Since these hashes are used in Consul URLs it's nice
+	// to have a reasonably compact URL-safe representation.
+	return b32.EncodeToString(h.Sum(nil))
 }
 
 const (
@@ -3221,6 +3257,12 @@ type Task struct {
 	// ShutdownDelay is the duration of the delay between deregistering a
 	// task from Consul and sending it a signal to shutdown. See #2441
 	ShutdownDelay time.Duration
+
+	// The kill signal to use for the task. This is an optional specification,
+
+	// KillSignal is the kill signal to use for the task. This is an optional
+	// specification and defaults to SIGINT
+	KillSignal string
 }
 
 func (t *Task) Copy() *Task {
@@ -3428,7 +3470,13 @@ func validateServices(t *Task) error {
 
 	// Ensure that services don't ask for non-existent ports and their names are
 	// unique.
-	servicePorts := make(map[string][]string)
+	servicePorts := make(map[string]map[string]struct{})
+	addServicePort := func(label, service string) {
+		if _, ok := servicePorts[label]; !ok {
+			servicePorts[label] = map[string]struct{}{}
+		}
+		servicePorts[label][service] = struct{}{}
+	}
 	knownServices := make(map[string]struct{})
 	for i, service := range t.Services {
 		if err := service.Validate(); err != nil {
@@ -3444,16 +3492,63 @@ func validateServices(t *Task) error {
 		knownServices[service.Name+service.PortLabel] = struct{}{}
 
 		if service.PortLabel != "" {
-			servicePorts[service.PortLabel] = append(servicePorts[service.PortLabel], service.Name)
+			if service.AddressMode == "driver" {
+				// Numeric port labels are valid for address_mode=driver
+				_, err := strconv.Atoi(service.PortLabel)
+				if err != nil {
+					// Not a numeric port label, add it to list to check
+					addServicePort(service.PortLabel, service.Name)
+				}
+			} else {
+				addServicePort(service.PortLabel, service.Name)
+			}
 		}
 
-		// Ensure that check names are unique.
+		// Ensure that check names are unique and have valid ports
 		knownChecks := make(map[string]struct{})
 		for _, check := range service.Checks {
 			if _, ok := knownChecks[check.Name]; ok {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is duplicate", check.Name))
 			}
 			knownChecks[check.Name] = struct{}{}
+
+			if !check.RequiresPort() {
+				// No need to continue validating check if it doesn't need a port
+				continue
+			}
+
+			effectivePort := check.PortLabel
+			if effectivePort == "" {
+				// Inherits from service
+				effectivePort = service.PortLabel
+			}
+
+			if effectivePort == "" {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is missing a port", check.Name))
+				continue
+			}
+
+			isNumeric := false
+			portNumber, err := strconv.Atoi(effectivePort)
+			if err == nil {
+				isNumeric = true
+			}
+
+			// Numeric ports are fine for address_mode = "driver"
+			if check.AddressMode == "driver" && isNumeric {
+				if portNumber <= 0 {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q has invalid numeric port %d", check.Name, portNumber))
+				}
+				continue
+			}
+
+			if isNumeric {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf(`check %q cannot use a numeric port %d without setting address_mode="driver"`, check.Name, portNumber))
+				continue
+			}
+
+			// PortLabel must exist, report errors by its parent service
+			addServicePort(effectivePort, service.Name)
 		}
 	}
 
@@ -3472,7 +3567,14 @@ func validateServices(t *Task) error {
 	for servicePort, services := range servicePorts {
 		_, ok := portLabels[servicePort]
 		if !ok {
-			joined := strings.Join(services, ", ")
+			names := make([]string, 0, len(services))
+			for name := range services {
+				names = append(names, name)
+			}
+
+			// Keep order deterministic
+			sort.Strings(names)
+			joined := strings.Join(names, ", ")
 			err := fmt.Errorf("port label %q referenced by services %v does not exist", servicePort, joined)
 			mErr.Errors = append(mErr.Errors, err)
 		}

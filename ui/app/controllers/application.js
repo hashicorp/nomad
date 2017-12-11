@@ -33,6 +33,11 @@ export default Controller.extend({
       run.next(() => {
         throw this.get('error');
       });
+    } else {
+      run.next(() => {
+        // eslint-disable-next-line
+        console.warn('UNRECOVERABLE ERROR:', this.get('error'));
+      });
     }
   }),
 });

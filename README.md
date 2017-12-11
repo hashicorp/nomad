@@ -39,11 +39,11 @@ The key features of Nomad are:
   optimistic concurrency allowing all servers to make scheduling decisions to
   maximize throughput.
 
-* **HashiCorp Ecosystem**: Nomad integrates with the entire HashiCorp
-  ecosystem of tools. Along with all HashiCorp tools, Nomad is designed
-  in the unix philosophy of doing something specific and doing it well.
-  Nomad integrates with tools like Packer, Consul, and Terraform to support
-  building artifacts, service discovery, monitoring and capacity management.
+* **HashiCorp Ecosystem**: HashiCorp Ecosystem: Nomad integrates with the 
+entire HashiCorp ecosystem of tools. Like all HashiCorp tools, Nomad follows 
+the UNIX design philosophy of doing something specific and doing it well. 
+Nomad integrates with Terraform, Consul, and Vault for provisioning, service 
+discovery, and secrets management.
 
 For more information, see the [introduction section](https://www.nomadproject.io/intro)
 of the Nomad website.

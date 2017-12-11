@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -430,5 +431,87 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 	// need to kill long lived process
 	if err := resp.Handle.Kill(); err != nil {
 		t.Fatalf("Error: %s", err)
+	}
+}
+
+func TestJavaDriver_Start_Kill(t *testing.T) {
+	assert := assert.New(t)
+
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
+	// Test that a valid kill signal will successfully stop the process
+	{
+		ctestutils.JavaCompatible(t)
+		task := &structs.Task{
+			Name:       "demo-app",
+			Driver:     "java",
+			KillSignal: "SIGKILL",
+			Config: map[string]interface{}{
+				"jar_path": "demoapp.jar",
+				"args":     []string{"5"},
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: basicResources,
+		}
+
+		ctx := testDriverContexts(t, task)
+		defer ctx.AllocDir.Destroy()
+		d := NewJavaDriver(ctx.DriverCtx)
+
+		// Copy the test jar into the task's directory
+		dst := ctx.ExecCtx.TaskDir.Dir
+		copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
+
+		_, err := d.Prestart(ctx.ExecCtx, task)
+		assert.Nil(err)
+
+		resp, err := d.Start(ctx.ExecCtx, task)
+		assert.Nil(err)
+
+		assert.NotNil(resp.Handle)
+		err = resp.Handle.Kill()
+		assert.Nil(err)
+	}
+
+	// Test that an unsupported kill signal will return an error
+	{
+		ctestutils.JavaCompatible(t)
+		task := &structs.Task{
+			Name:       "demo-app",
+			Driver:     "java",
+			KillSignal: "ABCDEF",
+			Config: map[string]interface{}{
+				"jar_path": "demoapp.jar",
+				"args":     []string{"5"},
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: basicResources,
+		}
+
+		ctx := testDriverContexts(t, task)
+		defer ctx.AllocDir.Destroy()
+		d := NewJavaDriver(ctx.DriverCtx)
+
+		// Copy the test jar into the task's directory
+		dst := ctx.ExecCtx.TaskDir.Dir
+		copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
+
+		_, err := d.Prestart(ctx.ExecCtx, task)
+		assert.Nil(err)
+
+		_, err = d.Start(ctx.ExecCtx, task)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), "Signal ABCDEF is not supported")
 	}
 }

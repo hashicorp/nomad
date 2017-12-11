@@ -316,7 +316,7 @@ type StreamFramer struct {
 	// Captures whether the framer is running and any error that occurred to
 	// cause it to stop.
 	running bool
-	Err     error
+	err     error
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
@@ -379,16 +379,23 @@ func (s *StreamFramer) ExitCh() <-chan struct{} {
 	return s.exitCh
 }
 
+// Err returns the error that caused the StreamFramer to exit
+func (s *StreamFramer) Err() error {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return s.err
+}
+
 // run is the internal run method. It exits if Destroy is called or an error
 // occurs, in which case the exit channel is closed.
 func (s *StreamFramer) run() {
 	var err error
 	defer func() {
-		close(s.exitCh)
 		s.l.Lock()
 		s.running = false
-		s.Err = err
+		s.err = err
 		s.l.Unlock()
+		close(s.exitCh)
 	}()
 
 OUTER:
@@ -466,8 +473,8 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	// If we are not running, return the error that caused us to not run or
 	// indicated that it was never started.
 	if !s.running {
-		if s.Err != nil {
-			return s.Err
+		if s.err != nil {
+			return s.err
 		}
 
 		return fmt.Errorf("StreamFramer not running")
@@ -608,6 +615,35 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 	return nil, nil
 }
 
+// parseFramerErr takes an error and returns an error. The error will
+// potentially change if it was caused by the connection being closed.
+func parseFramerErr(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	errMsg := err.Error()
+
+	if strings.Contains(errMsg, io.ErrClosedPipe.Error()) {
+		// The pipe check is for tests
+		return syscall.EPIPE
+	}
+
+	// The connection was closed by our peer
+	if strings.Contains(errMsg, syscall.EPIPE.Error()) || strings.Contains(errMsg, syscall.ECONNRESET.Error()) {
+		return syscall.EPIPE
+	}
+
+	// Windows version of ECONNRESET
+	//XXX(schmichael) I could find no existing error or constant to
+	//                compare this against.
+	if strings.Contains(errMsg, "forcibly closed") {
+		return syscall.EPIPE
+	}
+
+	return err
+}
+
 // stream is the internal method to stream the content of a file. eofCancelCh is
 // used to cancel the stream if triggered while at EOF. If the connection is
 // broken an EPIPE error is returned
@@ -628,26 +664,6 @@ func (s *HTTPServer) stream(offset int64, path string,
 		t.Kill(nil)
 		t.Done()
 	}()
-
-	// parseFramerErr takes an error and returns an error. The error will
-	// potentially change if it was caused by the connection being closed.
-	parseFramerErr := func(e error) error {
-		if e == nil {
-			return nil
-		}
-
-		if strings.Contains(e.Error(), io.ErrClosedPipe.Error()) {
-			// The pipe check is for tests
-			return syscall.EPIPE
-		}
-
-		// The connection was closed by our peer
-		if strings.Contains(e.Error(), syscall.EPIPE.Error()) || strings.Contains(e.Error(), syscall.ECONNRESET.Error()) {
-			return syscall.EPIPE
-		}
-
-		return err
-	}
 
 	// Create a variable to allow setting the last event
 	var lastEvent string
@@ -721,7 +737,7 @@ OUTER:
 				lastEvent = truncateEvent
 				continue OUTER
 			case <-framer.ExitCh():
-				return parseFramerErr(framer.Err)
+				return parseFramerErr(framer.Err())
 			case err, ok := <-eofCancelCh:
 				if !ok {
 					return nil
@@ -916,7 +932,21 @@ func (s *HTTPServer) logs(follow, plain bool, offset int64,
 			return nil
 		}
 
-		//Since we successfully streamed, update the overall offset/idx.
+		// defensively check to make sure StreamFramer hasn't stopped
+		// running to avoid tight loops with goroutine leaks as in
+		// #3342
+		select {
+		case <-framer.ExitCh():
+			err := parseFramerErr(framer.Err())
+			if err == syscall.EPIPE {
+				// EPIPE just means the connection was closed
+				return nil
+			}
+			return err
+		default:
+		}
+
+		// Since we successfully streamed, update the overall offset/idx.
 		offset = int64(0)
 		nextIdx = idx + 1
 	}
