@@ -449,7 +449,7 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 	if verbose {
 		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range allocations {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
