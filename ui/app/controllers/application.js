@@ -33,7 +33,7 @@ export default Controller.extend({
       run.next(() => {
         throw this.get('error');
       });
-    } else {
+    } else if (!Ember.testing) {
       run.next(() => {
         // eslint-disable-next-line
         console.warn('UNRECOVERABLE ERROR:', this.get('error'));
