@@ -9,9 +9,9 @@ export default Component.extend({
 
   deployments: computed(() => []),
 
-  sortedDeployments: computed('deployments.@each.version.submitTime', function() {
+  sortedDeployments: computed('deployments.@each.versionSubmitTime', function() {
     return this.get('deployments')
-      .sortBy('version.submitTime')
+      .sortBy('versionSubmitTime')
       .reverse();
   }),
 
