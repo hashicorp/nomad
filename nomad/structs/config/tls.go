@@ -166,5 +166,8 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	if b.VerifyHTTPSClient {
 		result.VerifyHTTPSClient = true
 	}
+	if b.RPCUpgradeMode {
+		result.RPCUpgradeMode = true
+	}
 	return result
 }
