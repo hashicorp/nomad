@@ -42,7 +42,7 @@
     "ember-cli-htmlbars": "^1.1.1",
     "ember-cli-htmlbars-inline-precompile": "^0.4.0",
     "ember-cli-inject-live-reload": "^1.4.1",
-    "ember-cli-mirage": "^0.3.3",
+    "ember-cli-mirage": "^0.4.1",
     "ember-cli-moment-shim": "^3.3.3",
     "ember-cli-qunit": "^4.0.0",
     "ember-cli-sass": "^6.2.0",
