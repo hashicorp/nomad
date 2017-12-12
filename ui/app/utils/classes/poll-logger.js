@@ -8,7 +8,9 @@ export default EmberObject.extend(AbstractLogger, {
   interval: 1000,
 
   start() {
-    return this.get('poll').perform();
+    return this.get('poll')
+      .linked()
+      .perform();
   },
 
   stop() {
