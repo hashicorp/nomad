@@ -2022,7 +2022,11 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 	containerPath := "/dev/myrandom"
 	perms := "rwm"
 
-	expectedDevice := docker.Device{hostPath, containerPath, perms}
+	expectedDevice := docker.Device{
+		PathOnHost:        hostPath,
+		PathInContainer:   containerPath,
+		CgroupPermissions: perms,
+	}
 	config := map[string]interface{}{
 		"host_path":      hostPath,
 		"container_path": containerPath,
