@@ -302,6 +302,8 @@ func TestPrettyTimeDiff(t *testing.T) {
 		t2  time.Time
 		exp string
 	}{
+		{now, time.Unix(0, 0), ""}, // This is the upgrade path case
+		{now, now.Add(-10 * time.Millisecond), "0s ago"},
 		{now, now.Add(-10 * time.Millisecond), "0s ago"},
 		{now, now.Add(-740 * time.Second), "12m20s ago"},
 		{now, now.Add(-12 * time.Minute), "12m ago"},

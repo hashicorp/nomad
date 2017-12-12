@@ -2,10 +2,7 @@ package consul
 
 import (
 	"context"
-	"crypto/sha1"
-	"encoding/base32"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/url"
@@ -1004,17 +1001,11 @@ func (c *ServiceClient) removeTaskRegistration(allocID, taskName string) {
 // Agent service IDs are of the form:
 //
 //	{nomadServicePrefix}-{ROLE}-b32(sha1({Service.Name}-{Service.Tags...})
-//	Example Server ID: _nomad-server-FBBK265QN4TMT25ND4EP42TJVMYJ3HR4
-//	Example Client ID: _nomad-client-GGNJPGL7YN7RGMVXZILMPVRZZVRSZC7L
+//	Example Server ID: _nomad-server-fbbk265qn4tmt25nd4ep42tjvmyj3hr4
+//	Example Client ID: _nomad-client-ggnjpgl7yn7rgmvxzilmpvrzzvrszc7l
 //
 func makeAgentServiceID(role string, service *structs.Service) string {
-	h := sha1.New()
-	io.WriteString(h, service.Name)
-	for _, tag := range service.Tags {
-		io.WriteString(h, tag)
-	}
-	b32 := base32.StdEncoding.EncodeToString(h.Sum(nil))
-	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, b32)
+	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, service.Hash(role, ""))
 }
 
 // makeTaskServiceID creates a unique ID for identifying a task service in
