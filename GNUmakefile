@@ -151,6 +151,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/jteeuwen/go-bindata/...
 	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/a8m/tree/cmd/tree
+	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -193,12 +194,17 @@ generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
+vendorfmt:
+	@echo "--> Formatting vendor/vendor.json"
+	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+		vendorfmt
+
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
-dev: ## Build for the current development platform
+dev: vendorfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
