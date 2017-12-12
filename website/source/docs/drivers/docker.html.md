@@ -328,6 +328,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
