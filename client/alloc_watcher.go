@@ -453,6 +453,9 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 	tr := tar.NewReader(resp)
 	defer resp.Close()
 
+	// Cache effective uid as we only run Chown if we're root
+	euid := syscall.Geteuid()
+
 	canceled := func() bool {
 		select {
 		case <-ctx.Done():
@@ -521,7 +524,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 
 			// Can't change owner if not root. Returns false on
 			// Windows as Chown always errors there.
-			if syscall.Geteuid() == 0 {
+			if euid == 0 {
 				if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
 					f.Close()
 					return fmt.Errorf("error chowning file %v", err)
