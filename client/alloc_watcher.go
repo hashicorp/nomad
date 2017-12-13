@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul/lib"
@@ -517,9 +518,14 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				f.Close()
 				return fmt.Errorf("error chmoding file %v", err)
 			}
-			if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
-				f.Close()
-				return fmt.Errorf("error chowning file %v", err)
+
+			// Can't change owner if not root. Returns false on
+			// Windows as Chown always errors there.
+			if syscall.Geteuid() == 0 {
+				if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
+					f.Close()
+					return fmt.Errorf("error chowning file %v", err)
+				}
 			}
 
 			// We write in chunks so that we can test if the client
