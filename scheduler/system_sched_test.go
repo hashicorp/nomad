@@ -1349,7 +1349,7 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	node2.ComputeClass()
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
 
-	// Create a Job with two task groups, each constrianed on node class
+	// Create a Job with two task groups, each constrained on node class
 	job := mock.SystemJob()
 	tg1 := job.TaskGroups[0]
 	tg1.Constraints = append(tg1.Constraints,
@@ -1436,7 +1436,7 @@ func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
 	node2.ComputeClass()
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
 
-	// Create a Job with two task groups, each constrianed on node class
+	// Create a Job with two task groups, each constrained on node class
 	job := mock.SystemJob()
 	tg1 := job.TaskGroups[0]
 	tg1.Constraints = append(tg1.Constraints,

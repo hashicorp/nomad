@@ -303,7 +303,7 @@ func getSignalConstraint(signals []string) *structs.Constraint {
 	}
 }
 
-// Summary retreives the summary of a job
+// Summary retrieves the summary of a job
 func (j *Job) Summary(args *structs.JobSummaryRequest,
 	reply *structs.JobSummaryResponse) error {
 
