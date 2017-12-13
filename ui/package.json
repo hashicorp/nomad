@@ -33,7 +33,7 @@
     "d3-selection": "^1.1.0",
     "d3-transition": "^1.1.0",
     "ember-ajax": "^3.0.0",
-    "ember-browserify": "^1.1.13",
+    "ember-browserify": "^1.2.0",
     "ember-cli": "2.17.1",
     "ember-cli-babel": "^6.0.0",
     "ember-cli-bourbon": "2.0.0-beta.1",
