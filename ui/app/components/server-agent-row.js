@@ -4,7 +4,8 @@ import { lazyClick } from '../helpers/lazy-click';
 const { Component, inject, computed } = Ember;
 
 export default Component.extend({
-  // TODO Switch back to the router service style when it is no longer feature-flagged
+  // TODO Switch back to the router service once the service behaves more like Route
+  // https://github.com/emberjs/ember.js/issues/15801
   // router: inject.service('router'),
   _router: inject.service('-routing'),
   router: computed.alias('_router.router'),
@@ -15,7 +16,8 @@ export default Component.extend({
 
   agent: null,
   isActive: computed('agent', 'router.currentURL', function() {
-    // TODO Switch back to the router service style when it is no longer feature-flagged
+    // TODO Switch back to the router service once the service behaves more like Route
+    // https://github.com/emberjs/ember.js/issues/15801
     // const targetURL = this.get('router').urlFor('servers.server', this.get('agent'));
     // const currentURL = `${this.get('router.rootURL').slice(0, -1)}${this.get('router.currentURL')}`;
 
