@@ -32,13 +32,11 @@ matrix:
     - os: osx
       osx_image: xcode9.1
 
-cache:
-  directories:
-    - ui/node_modules
-
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.0.1 ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then export PATH="$HOME/.yarn/bin:$PATH" ; fi
 
 install:
   - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
