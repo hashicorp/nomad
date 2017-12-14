@@ -8,9 +8,9 @@
   },
   "repository": "",
   "scripts": {
-    "build": "ember build -prod",
-    "start": "ember server --proxy=http://127.0.0.1:4646",
-    "test": "ember test",
+    "build": "./node_modules/ember-cli/bin/ember build -prod",
+    "start": "./node_modules/ember-cli/bin/ember server",
+    "test": "./node_modules/ember-cli/bin/ember test",
     "precommit": "lint-staged"
   },
   "lint-staged": {
