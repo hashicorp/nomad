@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { computed } = Ember;
+import { computed } from '@ember/object';
 
 // An Ember.Computed property for summating all properties from a
 // set of objects.
@@ -9,6 +7,8 @@ const { computed } = Ember;
 //     sum: sumAggregationProperty('list', 'foo') // 4
 export default function sumAggregationProperty(listKey, propKey) {
   return computed(`${listKey}.@each.${propKey}`, function() {
-    return this.get(listKey).mapBy(propKey).reduce((sum, count) => sum + count, 0);
+    return this.get(listKey)
+      .mapBy(propKey)
+      .reduce((sum, count) => sum + count, 0);
   });
 }

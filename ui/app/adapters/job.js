@@ -1,10 +1,10 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import RSVP from 'rsvp';
+import { assign } from '@ember/polyfills';
 import ApplicationAdapter from './application';
 
-const { RSVP, inject, assign } = Ember;
-
 export default ApplicationAdapter.extend({
-  system: inject.service(),
+  system: service(),
 
   shouldReloadAll: () => true,
 

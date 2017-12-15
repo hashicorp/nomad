@@ -1,11 +1,9 @@
-import Ember from 'ember';
+import $ from 'jquery';
 import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
 import ipParts from 'nomad-ui/utils/ip-parts';
-
-const { $ } = Ember;
 
 function minimumSetup() {
   server.createList('node', 1);

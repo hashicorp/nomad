@@ -1,15 +1,14 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
-
-const { get, computed, inject } = Ember;
 
 export const namespace = 'v1';
 
 export default RESTAdapter.extend({
   namespace,
 
-  token: inject.service(),
+  token: service(),
 
   headers: computed('token.secret', function() {
     const token = this.get('token.secret');
