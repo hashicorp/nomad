@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import $ from 'jquery';
 import { click, find, findAll, currentURL, visit, fillIn } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { $ } = Ember;
 
 moduleForAcceptance('Acceptance | jobs list', {
   beforeEach() {

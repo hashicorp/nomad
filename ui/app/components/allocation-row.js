@@ -1,10 +1,10 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { run } from '@ember/runloop';
 import { lazyClick } from '../helpers/lazy-click';
 
-const { Component, inject, run } = Ember;
-
 export default Component.extend({
-  store: inject.service(),
+  store: service(),
 
   tagName: 'tr',
 

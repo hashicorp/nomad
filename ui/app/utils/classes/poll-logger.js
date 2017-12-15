@@ -1,8 +1,6 @@
-import Ember from 'ember';
+import EmberObject from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
 import AbstractLogger from './abstract-logger';
-
-const { Object: EmberObject } = Ember;
 
 export default EmberObject.extend(AbstractLogger, {
   interval: 1000,

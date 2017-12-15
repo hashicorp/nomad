@@ -1,12 +1,10 @@
-import Ember from 'ember';
+import { run } from '@ember/runloop';
 import { test, moduleForComponent } from 'ember-qunit';
 import wait from 'ember-test-helpers/wait';
 import { find, click } from 'ember-native-dom-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import { logEncode } from '../../mirage/data/logs';
-
-const { run } = Ember;
 
 const HOST = '1.1.1.1:1111';
 const commonProps = {

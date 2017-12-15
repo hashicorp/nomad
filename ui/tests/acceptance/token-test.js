@@ -1,9 +1,7 @@
+import $ from 'jquery';
 import { find, findAll, fillIn, click, visit } from 'ember-native-dom-helpers';
-import Ember from 'ember';
 import { test, skip } from 'ember-qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { $ } = Ember;
 
 let job;
 let node;

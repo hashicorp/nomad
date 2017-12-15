@@ -1,6 +1,5 @@
-import Ember from 'ember';
-
-const { Mixin, computed, get } = Ember;
+import Mixin from '@ember/object/mixin';
+import { get, computed } from '@ember/object';
 
 /**
   Searchable mixin
