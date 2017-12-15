@@ -1,6 +1,5 @@
-import Ember from 'ember';
-
-const { Component, computed } = Ember;
+import { equal } from '@ember/object/computed';
+import Component from '@ember/component';
 
 export default Component.extend({
   classNames: ['job-diff'],
@@ -10,7 +9,7 @@ export default Component.extend({
 
   verbose: true,
 
-  isEdited: computed.equal('diff.Type', 'Edited'),
-  isAdded: computed.equal('diff.Type', 'Added'),
-  isDeleted: computed.equal('diff.Type', 'Deleted'),
+  isEdited: equal('diff.Type', 'Edited'),
+  isAdded: equal('diff.Type', 'Added'),
+  isDeleted: equal('diff.Type', 'Deleted'),
 });

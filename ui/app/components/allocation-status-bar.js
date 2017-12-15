@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import { computed } from '@ember/object';
 import DistributionBar from './distribution-bar';
-
-const { computed } = Ember;
 
 export default DistributionBar.extend({
   layoutName: 'components/distribution-bar',

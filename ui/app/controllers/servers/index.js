@@ -1,8 +1,7 @@
-import Ember from 'ember';
-
-const { Controller, computed, inject } = Ember;
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
 
 export default Controller.extend({
-  serversController: inject.controller('servers'),
-  isForbidden: computed.alias('serversController.isForbidden'),
+  serversController: controller('servers'),
+  isForbidden: alias('serversController.isForbidden'),
 });

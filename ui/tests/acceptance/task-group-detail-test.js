@@ -1,11 +1,9 @@
-import Ember from 'ember';
+import $ from 'jquery';
 import { click, find, findAll, fillIn, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import moment from 'moment';
-
-const { $ } = Ember;
 
 let job;
 let taskGroup;

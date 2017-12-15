@@ -1,12 +1,11 @@
-import Ember from 'ember';
+import Service, { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
 import PromiseObject from '../utils/classes/promise-object';
 import { namespace } from '../adapters/application';
 
-const { Service, computed, inject } = Ember;
-
 export default Service.extend({
-  token: inject.service(),
-  store: inject.service(),
+  token: service(),
+  store: service(),
 
   leader: computed(function() {
     const token = this.get('token');

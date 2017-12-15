@@ -1,10 +1,9 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
 import FreestyleController from 'ember-freestyle/controllers/freestyle';
 
-const { inject, computed } = Ember;
-
 export default FreestyleController.extend({
-  emberFreestyle: inject.service(),
+  emberFreestyle: service(),
 
   timerTicks: 0,
 

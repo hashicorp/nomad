@@ -1,10 +1,10 @@
+import { get } from '@ember/object';
+import $ from 'jquery';
 import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
-import Ember from 'ember';
 import moment from 'moment';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
-const { get, $ } = Ember;
 const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
 let job;

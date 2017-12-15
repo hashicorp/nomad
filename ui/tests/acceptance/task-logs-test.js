@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import { run } from '@ember/runloop';
 import { find } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { run } = Ember;
 
 let allocation;
 let task;

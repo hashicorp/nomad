@@ -1,10 +1,8 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
 import { default as ApplicationAdapter, namespace } from './application';
 
-const { inject } = Ember;
-
 export default ApplicationAdapter.extend({
-  store: inject.service(),
+  store: service(),
 
   namespace: namespace + '/acl',
 
