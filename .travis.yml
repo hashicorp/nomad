@@ -12,6 +12,7 @@ git:
 branches:
   only:
     - master
+    - f-ui-upgrade-deps
 
 matrix:
   include:
