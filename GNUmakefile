@@ -270,8 +270,8 @@ static-assets: ## Compile the static routes to serve alongside the API
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
+	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
-	@cd ui && npm install phantomjs-prebuilt
 	@echo "--> Running ember tests"
 	@cd ui && phantomjs --version
 	@cd ui && npm test

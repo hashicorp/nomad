@@ -34,6 +34,9 @@ export default Model.extend({
     return (this.get('job.versions') || []).findBy('number', this.get('versionNumber'));
   }),
 
+  // Dependent keys can only go one level past an @each so an alias is needed
+  versionSubmitTime: computed.alias('version.submitTime'),
+
   placedCanaries: sumAggregation('taskGroupSummaries', 'placedCanaries'),
   desiredCanaries: sumAggregation('taskGroupSummaries', 'desiredCanaries'),
   desiredTotal: sumAggregation('taskGroupSummaries', 'desiredTotal'),
