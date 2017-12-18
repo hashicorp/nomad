@@ -1501,10 +1501,7 @@ func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID 
 		return fmt.Errorf("eval lookup failed: %v", err)
 	}
 	if existing == nil {
-		// return if there isn't an eval with this ID.
-		// In some cases (like snapshot restores), we process evals that are not already in the state store.
-		s.logger.Printf("[WARN] state_store: unable to find eval ID %v, cannot update modify index ", evalID)
-		return nil
+		return fmt.Errorf("[ERR] state_store: unable to find eval id %q", evalID)
 	}
 	eval := existing.(*structs.Evaluation).Copy()
 	// Update the indexes
