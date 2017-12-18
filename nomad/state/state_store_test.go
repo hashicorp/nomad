@@ -127,7 +127,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 
 	index, err := state.Index("allocs")
 	assert.Nil(err)
-	assert.Equal(uint64(1000), index)
+	assert.EqualValues(1000, index)
 
 	if watchFired(ws) {
 		t.Fatalf("bad")
@@ -136,7 +136,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 	evalOut, err := state.EvalByID(ws, eval.ID)
 	assert.Nil(err)
 	assert.NotNil(evalOut)
-	assert.Equal(uint64(1000), evalOut.ModifyIndex)
+	assert.EqualValues(1000, evalOut.ModifyIndex)
 }
 
 // This test checks that the deployment is created and allocations count towards
@@ -198,7 +198,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	evalOut, err := state.EvalByID(ws, eval.ID)
 	assert.Nil(err)
 	assert.NotNil(evalOut)
-	assert.Equal(uint64(1000), evalOut.ModifyIndex)
+	assert.EqualValues(1000, evalOut.ModifyIndex)
 
 	if watchFired(ws) {
 		t.Fatalf("bad")
@@ -240,7 +240,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	evalOut, err = state.EvalByID(ws, eval.ID)
 	assert.Nil(err)
 	assert.NotNil(evalOut)
-	assert.Equal(uint64(1001), evalOut.ModifyIndex)
+	assert.EqualValues(1001, evalOut.ModifyIndex)
 }
 
 // This test checks that deployment updates are applied correctly
@@ -315,12 +315,12 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	assert.NotNil(doutstandingout)
 	assert.Equal(update.Status, doutstandingout.Status)
 	assert.Equal(update.StatusDescription, doutstandingout.StatusDescription)
-	assert.Equal(uint64(1000), doutstandingout.ModifyIndex)
+	assert.EqualValues(1000, doutstandingout.ModifyIndex)
 
 	evalOut, err := state.EvalByID(ws, eval.ID)
 	assert.Nil(err)
 	assert.NotNil(evalOut)
-	assert.Equal(uint64(1000), evalOut.ModifyIndex)
+	assert.EqualValues(1000, evalOut.ModifyIndex)
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}

@@ -1505,7 +1505,6 @@ func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID 
 	}
 	eval := existing.(*structs.Evaluation).Copy()
 	// Update the indexes
-	eval.CreateIndex = existing.(*structs.Evaluation).CreateIndex
 	eval.ModifyIndex = index
 
 	// Insert the eval

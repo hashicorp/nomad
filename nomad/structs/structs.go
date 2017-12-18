@@ -515,10 +515,12 @@ type ApplyPlanResultsRequest struct {
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
 
-	// EvalID is the eval ID of the plan being applied. We also update the modify
-	// index of the eval ID as part of applying plan results. This is to ensure that
-	// other workers that are dequeing evaluations don't miss updates that can affect
-	// scheduling decisions.
+	// EvalID is the eval ID of the plan being applied. The modify index of the
+	// evaluation is updated as part of applying the plan to ensure that subsequent
+	// scheduling events for the same job will wait for the index that last produced
+	// state changes. This is necessary for blocked evaluations since they can be
+	// processed many times, potentially making state updates, without the state of
+	// the evaluation itself being updated.
 	EvalID string
 }
 

@@ -287,7 +287,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
 }
 
 func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
-	// test enqueing an eval, updating a plan result for the same eval and dequeing the eval
+	// test enqueueing an eval, updating a plan result for the same eval and de-queueing the eval
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
