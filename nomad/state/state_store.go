@@ -196,9 +196,14 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		return err
 	}
 
-	// Update the modify index of the eval id
-	if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
-		return err
+	// COMPAT: Nomad versions before 0.7.1 did not include the eval ID when
+	// applying the plan. Thus while we are upgrading, we ignore updating the
+	// modify index of evaluations from older plans.
+	if results.EvalID != "" {
+		// Update the modify index of the eval id
+		if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
+			return err
+		}
 	}
 
 	txn.Commit()
