@@ -46,7 +46,9 @@ type serverParts struct {
 	MinorVersion int
 	Build        version.Version
 	RaftVersion  int
+	NonVoter     bool
 	Addr         net.Addr
+	RPCAddr      net.Addr
 	Status       serf.MemberStatus
 }
 
@@ -69,6 +71,7 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	region := m.Tags["region"]
 	datacenter := m.Tags["dc"]
 	_, bootstrap := m.Tags["bootstrap"]
+	_, nonVoter := m.Tags["nonvoter"]
 
 	expect := 0
 	expect_str, ok := m.Tags["expect"]
@@ -78,6 +81,12 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		if err != nil {
 			return false, nil
 		}
+	}
+
+	// If the server is missing the rpc_addr tag, default to the serf advertise addr
+	rpc_ip := net.ParseIP(m.Tags["rpc_addr"])
+	if rpc_ip == nil {
+		rpc_ip = m.Addr
 	}
 
 	port_str := m.Tags["port"]
@@ -116,6 +125,7 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	}
 
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
+	rpcAddr := &net.TCPAddr{IP: rpc_ip, Port: port}
 	parts := &serverParts{
 		Name:         m.Name,
 		ID:           id,
@@ -125,10 +135,12 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		Bootstrap:    bootstrap,
 		Expect:       expect,
 		Addr:         addr,
+		RPCAddr:      rpcAddr,
 		MajorVersion: majorVersion,
 		MinorVersion: minorVersion,
 		Build:        *build_version,
 		RaftVersion:  raft_vsn,
+		NonVoter:     nonVoter,
 		Status:       m.Status,
 	}
 	return true, parts
@@ -139,7 +151,10 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version) bool {
 	for _, member := range members {
 		if valid, parts := isNomadServer(member); valid && parts.Status == serf.StatusAlive {
-			if parts.Build.LessThan(minVersion) {
+			// Check if the versions match - version.LessThan will return true for
+			// 0.8.0-rc1 < 0.8.0, so we want to ignore the metadata
+			versionsMatch := slicesMatch(minVersion.Segments(), parts.Build.Segments())
+			if parts.Build.LessThan(minVersion) && !versionsMatch {
 				return false
 			}
 		}
@@ -148,34 +163,26 @@ func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Versio
 	return true
 }
 
-// MinRaftProtocol returns the lowest supported Raft protocol among alive servers
-// in the given region.
-func MinRaftProtocol(region string, members []serf.Member) (int, error) {
-	minVersion := -1
-	for _, m := range members {
-		if m.Tags["role"] != "nomad" || m.Tags["region"] != region || m.Status != serf.StatusAlive {
-			continue
-		}
+func slicesMatch(a, b []int) bool {
+	if a == nil && b == nil {
+		return true
+	}
 
-		vsn, ok := m.Tags["raft_vsn"]
-		if !ok {
-			vsn = "1"
-		}
-		raftVsn, err := strconv.Atoi(vsn)
-		if err != nil {
-			return -1, err
-		}
+	if a == nil || b == nil {
+		return false
+	}
 
-		if minVersion == -1 || raftVsn < minVersion {
-			minVersion = raftVsn
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
 
-	if minVersion == -1 {
-		return minVersion, fmt.Errorf("no servers found")
-	}
-
-	return minVersion, nil
+	return true
 }
 
 // shuffleStrings randomly shuffles the list of strings

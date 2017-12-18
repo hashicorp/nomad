@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/raft"
 )
 
@@ -49,4 +50,25 @@ type RaftPeerByAddressRequest struct {
 
 	// WriteRequest holds the Region for this request.
 	WriteRequest
+}
+
+// AutopilotSetConfigRequest is used by the Operator endpoint to update the
+// current Autopilot configuration of the cluster.
+type AutopilotSetConfigRequest struct {
+	// Datacenter is the target this request is intended for.
+	Datacenter string
+
+	// Config is the new Autopilot configuration to use.
+	Config autopilot.Config
+
+	// CAS controls whether to use check-and-set semantics for this request.
+	CAS bool
+
+	// WriteRequest holds the ACL token to go along with this request.
+	WriteRequest
+}
+
+// RequestDatacenter returns the datacenter for a given request.
+func (op *AutopilotSetConfigRequest) RequestDatacenter() string {
+	return op.Datacenter
 }

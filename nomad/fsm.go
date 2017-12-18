@@ -234,6 +234,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenDelete(buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
+	case structs.AutopilotRequestType:
+		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -831,6 +833,23 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 		return err
 	}
 	return nil
+}
+
+func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
+	var req structs.AutopilotSetConfigRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "autopilot"}, time.Now())
+
+	if req.CAS {
+		act, err := n.state.AutopilotCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		if err != nil {
+			return err
+		}
+		return act
+	}
+	return n.state.AutopilotSetConfig(index, &req.Config)
 }
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {

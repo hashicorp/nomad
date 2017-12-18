@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	multierror "github.com/hashicorp/go-multierror"
@@ -100,6 +101,9 @@ type Server struct {
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
+	// autopilot is the Autopilot instance for this server.
+	autopilot *autopilot.Autopilot
+
 	// fsm is the state machine used with Raft
 	fsm *nomadFSM
 
@@ -170,6 +174,10 @@ type Server struct {
 	// current leader.
 	leaderAcl     string
 	leaderAclLock sync.Mutex
+
+	// statsFetcher is used by autopilot to check the status of the other
+	// Nomad router.
+	statsFetcher *StatsFetcher
 
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
@@ -271,6 +279,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Create the periodic dispatcher for launching periodic jobs.
 	s.periodicDispatcher = NewPeriodicDispatch(s.logger, s)
 
+	// Initialize the stats fetcher that autopilot will use.
+	s.statsFetcher = NewStatsFetcher(logger, s.connPool, s.config.Region)
+
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
 		s.Shutdown()
@@ -345,6 +356,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Emit metrics
 	go s.heartbeatStats()
+
+	// Start the server health checking.
+	go s.autopilot.ServerHealthLoop(s.shutdownCh)
 
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
@@ -777,6 +791,8 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	}
 	s.rpcListener = list
 
+	s.logger.Printf("[INFO] nomad: RPC listening on %q", s.rpcListener.Addr().String())
+
 	if s.config.RPCAdvertise != nil {
 		s.rpcAdvertise = s.config.RPCAdvertise
 	} else {
@@ -977,6 +993,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["build"] = s.config.Build
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
+	conf.Tags["rpc_addr"] = s.rpcAdvertise.(*net.TCPAddr).IP.String()
 	conf.Tags["port"] = fmt.Sprintf("%d", s.rpcAdvertise.(*net.TCPAddr).Port)
 	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		conf.Tags["bootstrap"] = "1"
@@ -984,6 +1001,9 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	bootstrapExpect := atomic.LoadInt32(&s.config.BootstrapExpect)
 	if bootstrapExpect != 0 {
 		conf.Tags["expect"] = fmt.Sprintf("%d", bootstrapExpect)
+	}
+	if s.config.NonVoter {
+		conf.Tags["nonvoter"] = "1"
 	}
 	conf.MemberlistConfig.LogOutput = s.config.LogOutput
 	conf.LogOutput = s.config.LogOutput

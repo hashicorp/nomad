@@ -275,6 +275,24 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"operator autopilot": func() (cli.Command, error) {
+			return &command.OperatorAutopilotCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator autopilot get-config": func() (cli.Command, error) {
+			return &command.OperatorAutopilotGetCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator autopilot set-config": func() (cli.Command, error) {
+			return &command.OperatorAutopilotSetCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"operator raft": func() (cli.Command, error) {
 			return &command.OperatorRaftCommand{
 				Meta: meta,

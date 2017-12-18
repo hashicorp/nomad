@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -2298,5 +2299,64 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 	if !reflect.DeepEqual(&expected, out2) {
 		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
+	}
+}
+
+func TestFSM_Autopilot(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	// Set the autopilot config using a request.
+	req := structs.AutopilotSetConfigRequest{
+		Datacenter: "dc1",
+		Config: autopilot.Config{
+			CleanupDeadServers:   true,
+			LastContactThreshold: 10 * time.Second,
+			MaxTrailingLogs:      300,
+		},
+	}
+	buf, err := structs.Encode(structs.AutopilotRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	// Verify key is set directly in the state store.
+	_, config, err := fsm.state.AutopilotConfig()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if config.CleanupDeadServers != req.Config.CleanupDeadServers {
+		t.Fatalf("bad: %v", config.CleanupDeadServers)
+	}
+	if config.LastContactThreshold != req.Config.LastContactThreshold {
+		t.Fatalf("bad: %v", config.LastContactThreshold)
+	}
+	if config.MaxTrailingLogs != req.Config.MaxTrailingLogs {
+		t.Fatalf("bad: %v", config.MaxTrailingLogs)
+	}
+
+	// Now use CAS and provide an old index
+	req.CAS = true
+	req.Config.CleanupDeadServers = false
+	req.Config.ModifyIndex = config.ModifyIndex - 1
+	buf, err = structs.Encode(structs.AutopilotRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp = fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	_, config, err = fsm.state.AutopilotConfig()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !config.CleanupDeadServers {
+		t.Fatalf("bad: %v", config.CleanupDeadServers)
 	}
 }

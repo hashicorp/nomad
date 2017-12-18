@@ -301,6 +301,11 @@ func (a *TestAgent) config() *Config {
 	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
 
+	// Tighten the autopilot timing
+	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
+	config.ServerHealthInterval = 50 * time.Millisecond
+	config.AutopilotInterval = 100 * time.Millisecond
+
 	// Bootstrap ourselves
 	config.Bootstrap = true
 	config.BootstrapExpect = 1

@@ -130,6 +130,9 @@ type Config struct {
 
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `mapstructure:"sentinel"`
+
+	// Autopilot contains the configuration for Autopilot behavior.
+	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -326,6 +329,10 @@ type ServerConfig struct {
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
+
+	// NonVotingServer is whether this server will act as a non-voting member
+	// of the cluster to help provide read scalability. (Enterprise-only)
+	NonVotingServer bool `mapstructure:"non_voting_server"`
 
 	// Encryption key to use for the Serf communication
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
@@ -604,6 +611,7 @@ func DefaultConfig() *Config {
 		TLSConfig: &config.TLSConfig{},
 		Sentinel:  &config.SentinelConfig{},
 		Version:   version.GetVersion(),
+		Autopilot: config.DefaultAutopilotConfig(),
 	}
 }
 
@@ -760,6 +768,13 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Sentinel = &server
 	} else if b.Sentinel != nil {
 		result.Sentinel = result.Sentinel.Merge(b.Sentinel)
+	}
+
+	if result.Autopilot == nil && b.Autopilot != nil {
+		autopilot := *b.Autopilot
+		result.Autopilot = &autopilot
+	} else if b.Autopilot != nil {
+		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
 	}
 
 	// Merge config files lists
@@ -1015,6 +1030,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
+	}
+	if b.NonVotingServer {
+		result.NonVotingServer = true
 	}
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey

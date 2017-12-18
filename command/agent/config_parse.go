@@ -98,6 +98,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"http_api_response_headers",
 		"acl",
 		"sentinel",
+		"autopilot",
 	}
 	if err := helper.CheckHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")
@@ -121,6 +122,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "http_api_response_headers")
 	delete(m, "acl")
 	delete(m, "sentinel")
+	delete(m, "autopilot")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -201,6 +203,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("sentinel"); len(o.Items) > 0 {
 		if err := parseSentinel(&result.Sentinel, o); err != nil {
 			return multierror.Prefix(err, "sentinel->")
+		}
+	}
+
+	// Parse Autopilot config
+	if o := list.Filter("autopilot"); len(o.Items) > 0 {
+		if err := parseAutopilot(&result.Autopilot, o); err != nil {
+			return multierror.Prefix(err, "autopilot->")
 		}
 	}
 
@@ -509,6 +518,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"bootstrap_expect",
 		"data_dir",
 		"protocol_version",
+		"raft_protocol",
 		"num_schedulers",
 		"enabled_schedulers",
 		"node_gc_threshold",
@@ -525,6 +535,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"rejoin_after_leave",
 		"encrypt",
 		"authoritative_region",
+		"non_voting_server",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -836,5 +847,51 @@ func parseSentinel(result **config.SentinelConfig, list *ast.ObjectList) error {
 	}
 
 	*result = &config
+	return nil
+}
+
+func parseAutopilot(result **config.AutopilotConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'autopilot' block allowed")
+	}
+
+	// Get our Autopilot object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"cleanup_dead_servers",
+		"server_stabilization_time",
+		"last_contact_threshold",
+		"max_trailing_logs",
+		"redundancy_zone_tag",
+		"disable_upgrade_migration",
+		"upgrade_version_tag",
+	}
+
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	autopilotConfig := config.DefaultAutopilotConfig()
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &autopilotConfig,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = autopilotConfig
 	return nil
 }
