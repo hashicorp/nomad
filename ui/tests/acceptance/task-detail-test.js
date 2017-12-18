@@ -1,11 +1,9 @@
-import Ember from 'ember';
+import $ from 'jquery';
 import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
 import ipParts from 'nomad-ui/utils/ip-parts';
-
-const { $ } = Ember;
 
 let allocation;
 let task;

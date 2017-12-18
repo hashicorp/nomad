@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import EmberObject, { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
 import TextDecoder from 'nomad-ui/utils/classes/text-decoder';
 import AbstractLogger from './abstract-logger';
-
-const { Object: EmberObject, computed } = Ember;
 
 export default EmberObject.extend(AbstractLogger, {
   reader: null,

@@ -1,10 +1,10 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-const { Route, RSVP, inject } = Ember;
-
 export default Route.extend({
-  store: inject.service(),
+  store: service(),
 
   serialize(model) {
     return { job_name: model.get('plainId') };

@@ -1,10 +1,12 @@
+import { inject as service } from '@ember/service';
+import Controller from '@ember/controller';
+import { run } from '@ember/runloop';
+import { observer, computed } from '@ember/object';
 import Ember from 'ember';
 import codesForError from '../utils/codes-for-error';
 
-const { Controller, computed, inject, run, observer } = Ember;
-
 export default Controller.extend({
-  config: inject.service(),
+  config: service(),
 
   error: null,
 

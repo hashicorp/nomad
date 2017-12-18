@@ -1,10 +1,13 @@
-import Ember from 'ember';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { run } from '@ember/runloop';
+import { assign } from '@ember/polyfills';
+import { guidFor } from '@ember/object/internals';
 import d3 from 'npm:d3-selection';
 import 'npm:d3-transition';
 import WindowResizable from '../mixins/window-resizable';
 import styleStringProperty from '../utils/properties/style-string';
 
-const { Component, computed, run, assign, guidFor } = Ember;
 const sumAggregate = (total, val) => total + val;
 
 export default Component.extend(WindowResizable, {

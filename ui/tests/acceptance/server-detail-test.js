@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import $ from 'jquery';
 import { find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { $ } = Ember;
 
 let agent;
 

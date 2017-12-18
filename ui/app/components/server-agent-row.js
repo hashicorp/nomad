@@ -1,14 +1,15 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
 import { lazyClick } from '../helpers/lazy-click';
-
-const { Component, inject, computed } = Ember;
 
 export default Component.extend({
   // TODO Switch back to the router service once the service behaves more like Route
   // https://github.com/emberjs/ember.js/issues/15801
   // router: inject.service('router'),
-  _router: inject.service('-routing'),
-  router: computed.alias('_router.router'),
+  _router: service('-routing'),
+  router: alias('_router.router'),
 
   tagName: 'tr',
   classNames: ['server-agent-row', 'is-interactive'],

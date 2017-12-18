@@ -1,10 +1,8 @@
-import Ember from 'ember';
+import $ from 'jquery';
 import { findAll, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
-
-const { $ } = Ember;
 
 let job;
 let versions;
