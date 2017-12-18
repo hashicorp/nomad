@@ -514,6 +514,12 @@ type ApplyPlanResultsRequest struct {
 	// deployments. This allows the scheduler to cancel any unneeded deployment
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// EvalID is the eval ID of the plan being applied. We also update the modify
+	// index of the eval ID as part of applying plan results. This is to ensure that
+	// other workers that are dequeing evaluations don't miss updates that can affect
+	// scheduling decisions.
+	EvalID string
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either

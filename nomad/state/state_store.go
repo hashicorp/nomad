@@ -196,6 +196,11 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		return err
 	}
 
+	// Update the modify index of the eval id
+	if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
+		return err
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -1475,6 +1480,36 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 			}
 		}
 	}
+
+	// Insert the eval
+	if err := txn.Insert("evals", eval); err != nil {
+		return fmt.Errorf("eval insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return nil
+}
+
+// updateEvalModifyIndex is used to update the modify index of an evaluation that has been
+// through a scheduler pass. This is done as part of plan apply. It ensures that when a subsequent
+// scheduler workers process a re-queued evaluation it sees any partial updates from the plan apply.
+func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID string) error {
+	// Lookup the evaluation
+	existing, err := txn.First("evals", "id", evalID)
+	if err != nil {
+		return fmt.Errorf("eval lookup failed: %v", err)
+	}
+	if existing == nil {
+		// return if there isn't an eval with this ID.
+		// In some cases (like snapshot restores), we process evals that are not already in the state store.
+		s.logger.Printf("[WARN] state_store: unable to find eval ID %v, cannot update modify index ", evalID)
+		return nil
+	}
+	eval := existing.(*structs.Evaluation).Copy()
+	// Update the indexes
+	eval.CreateIndex = existing.(*structs.Evaluation).CreateIndex
+	eval.ModifyIndex = index
 
 	// Insert the eval
 	if err := txn.Insert("evals", eval); err != nil {
