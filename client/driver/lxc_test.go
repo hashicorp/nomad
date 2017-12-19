@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	lxc "gopkg.in/lxc/go-lxc.v2"
@@ -61,6 +62,7 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	if !lxcPresent(t) {
 		t.Skip("lxc not present")
 	}
+	ctestutil.RequireRoot(t)
 
 	task := &structs.Task{
 		Name:   "foo",
@@ -137,6 +139,7 @@ func TestLxcDriver_Open_Wait(t *testing.T) {
 	if !lxcPresent(t) {
 		t.Skip("lxc not present")
 	}
+	ctestutil.RequireRoot(t)
 
 	task := &structs.Task{
 		Name:   "foo",
