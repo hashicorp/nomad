@@ -13,6 +13,14 @@ are generally applicable to the Nomad integration. The properties listed below
  are specific to running Spark on Nomad. Configuration properties can be set by 
  adding `--conf [property]=[value]` to the `spark-submit` command.
 
+- `spark.nomad.authToken` `(string: nil)` - Specifies the secret key of the auth 
+token to use when accessing the API. This falls back to the NOMAD_TOKEN environment 
+variable. Note that if this configuration setting is set and the cluster deploy 
+mode is used, this setting will be propagated to the driver application in the 
+job spec. If it is not set and an auth token is taken from the NOMAD_TOKEN 
+environment variable, the token will not be propagated to the driver which will 
+require the driver to pick up its token from an environment variable.
+
 - `spark.nomad.cluster.expectImmediateScheduling` `(bool: false)` - Specifies 
 that `spark-submit` should fail if Nomad is not able to schedule the job 
 immediately.
@@ -101,11 +109,13 @@ time that Nomad should wait before retrying executor task groups upon failure.
 - `spark.nomad.executor.retryInterval` `(string: "1d")` - Specifies Nomad's retry 
 interval for executor task groups.
 
-- `spark.nomad.job` `(string: nil)` - Specifies the Nomad job name.
-
 - `spark.nomad.job.template` `(string: nil)` - Specifies the path to a JSON file 
 containing a Nomad job to use as a template. This can also be set with 
 `spark-submit's --nomad-template` parameter.
+
+- `spark.nomad.namespace` `(string: nil)` - Specifies the namespace to use. This 
+falls back first to the NOMAD_NAMESPACE environment variable and then to Nomad's 
+default namespace. 
 
 - `spark.nomad.priority` `(string: nil)` - Specifies the priority for the 
 Nomad job.
