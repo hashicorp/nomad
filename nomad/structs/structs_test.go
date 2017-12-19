@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1322,6 +1323,11 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 		t.Fatalf("expected %d errors but found %d", expected, len(errs))
 	}
 
+	sorted := make([]string, 4)
+	for i, e := range errs {
+		sorted[i] = e.Error()
+	}
+	sort.Strings(sorted)
 	assert.Contains(t, errs[0].Error(), `check "invalid-check-1" cannot use a numeric port`)
 	assert.Contains(t, errs[1].Error(), `check "invalid-check-2" cannot use a numeric port`)
 	assert.Contains(t, errs[2].Error(), `port label "80" referenced`)
