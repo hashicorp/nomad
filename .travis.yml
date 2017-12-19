@@ -48,6 +48,7 @@ install:
   - git checkout -qf `git rev-parse ${TRAVIS_COMMIT_RANGE:-$TRAVIS_COMMIT} | head -n1`
   - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
   - if [[ "$RUN_STATIC_CHECKS" ]]; then make lint-deps ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm use && cd .. ; fi
 
 script:
   - sudo -E "PATH=$PATH" make travis

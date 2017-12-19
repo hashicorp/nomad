@@ -52,6 +52,9 @@ BUG FIXES:
 
  * core: Fix issue in which restoring periodic jobs could fail when a leader
    election occurs [GH-3646]
+ * core: Fix race condition in which rapid reprocessing of a blocked evaluation
+   may lead to the scheduler not seeing the results of the previous scheduling
+   event [GH-3669]
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
@@ -71,6 +74,7 @@ BUG FIXES:
    [GH-3619]
  * client: Fix allocation accounting in GC and trigger GCs on allocation
    updates [GH-3445]
+ * driver/docker: Fix container name conflict handling [GH-3551]
  * driver/rkt: Remove pods on shutdown [GH-3562]
  * driver/rkt: Don't require port maps when using host networking [GH-3615]
  * template: Fix issue where multiple environment variable templates would be
