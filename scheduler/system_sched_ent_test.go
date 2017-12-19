@@ -50,7 +50,7 @@ func TestSystemSched_JobRegister_QuotaLimit(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
-		Status:structs.EvalStatusPending,
+		Status:      structs.EvalStatusPending,
 	}
 	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
