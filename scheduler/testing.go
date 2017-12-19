@@ -122,6 +122,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		},
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
+		EvalID:            plan.EvalID,
 	}
 
 	// Apply the full plan

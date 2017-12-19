@@ -341,6 +341,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
 	s1.fsm.State().UpsertJob(1000, job)
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
 
 	// Create the register request
 	s1.evalBroker.Enqueue(eval1)

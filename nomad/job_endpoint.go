@@ -1088,6 +1088,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		AnnotatePlan:   true,
 	}
 
+	snap.UpsertEvals(100, []*structs.Evaluation{eval})
+
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.
 	planner := &scheduler.Harness{
