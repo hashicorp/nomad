@@ -52,6 +52,9 @@ BUG FIXES:
 
  * core: Fix issue in which restoring periodic jobs could fail when a leader
    election occurs [GH-3646]
+ * core: Fix race condition in which rapid reprocessing of a blocked evaluation
+   may lead to the scheduler not seeing the results of the previous scheduling
+   event [GH-3669]
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [GH-3402]
