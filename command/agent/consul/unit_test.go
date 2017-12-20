@@ -1464,9 +1464,9 @@ func TestGetAddress(t *testing.T) {
 		Driver    *cstructs.DriverNetwork
 
 		// Results
-		IP          string
-		Port        int
-		ErrContains string
+		ExpectedIP   string
+		ExpectedPort int
+		ExpectedErr  string
 	}{
 		{
 			Name:      "ExampleService",
@@ -1477,8 +1477,8 @@ func TestGetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			IP:   HostIP,
-			Port: 12435,
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12435,
 		},
 		{
 			Name:      "Host",
@@ -1489,8 +1489,8 @@ func TestGetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			IP:   HostIP,
-			Port: 12345,
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12345,
 		},
 		{
 			Name:      "Driver",
@@ -1501,8 +1501,8 @@ func TestGetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			IP:   "10.1.2.3",
-			Port: 6379,
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
 		},
 		{
 			Name:      "AutoDriver",
@@ -1514,8 +1514,8 @@ func TestGetAddress(t *testing.T) {
 				IP:            "10.1.2.3",
 				AutoAdvertise: true,
 			},
-			IP:   "10.1.2.3",
-			Port: 6379,
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
 		},
 		{
 			Name:      "DriverCustomPort",
@@ -1526,8 +1526,8 @@ func TestGetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			IP:   "10.1.2.3",
-			Port: 7890,
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 7890,
 		},
 		{
 			Name:        "DriverWithoutNetwork",
@@ -1535,7 +1535,7 @@ func TestGetAddress(t *testing.T) {
 			PortLabel:   "db",
 			Host:        map[string]int{"db": 12345},
 			Driver:      nil,
-			ErrContains: "no driver network exists",
+			ExpectedErr: "no driver network exists",
 		},
 		{
 			Name:      "DriverBadPort",
@@ -1546,7 +1546,7 @@ func TestGetAddress(t *testing.T) {
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
-			ErrContains: "invalid port",
+			ExpectedErr: "invalid port",
 		},
 		{
 			Name:      "DriverZeroPort",
@@ -1555,23 +1555,37 @@ func TestGetAddress(t *testing.T) {
 			Driver: &cstructs.DriverNetwork{
 				IP: "10.1.2.3",
 			},
-			ErrContains: "invalid port",
+			ExpectedErr: "invalid port",
 		},
 		{
 			Name:        "HostBadPort",
 			Mode:        structs.AddressModeHost,
 			PortLabel:   "bad-port-label",
-			ErrContains: "invalid port",
+			ExpectedErr: "invalid port",
 		},
 		{
 			Name:        "InvalidMode",
 			Mode:        "invalid-mode",
 			PortLabel:   "80",
-			ErrContains: "invalid address mode",
+			ExpectedErr: "invalid address mode",
 		},
 		{
-			Name: "EmptyIsOk",
-			Mode: structs.AddressModeHost,
+			Name:       "NoPort_AutoMode",
+			Mode:       structs.AddressModeHost,
+			ExpectedIP: HostIP,
+		},
+		{
+			Name:       "NoPort_HostMode",
+			Mode:       structs.AddressModeHost,
+			ExpectedIP: HostIP,
+		},
+		{
+			Name: "NoPort_DriverMode",
+			Mode: structs.AddressModeDriver,
+			Driver: &cstructs.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			ExpectedIP: "10.1.2.3",
 		},
 	}
 
@@ -1596,15 +1610,15 @@ func TestGetAddress(t *testing.T) {
 			ip, port, err := getAddress(tc.Mode, tc.PortLabel, networks, tc.Driver)
 
 			// Assert the results
-			assert.Equal(t, tc.IP, ip, "IP mismatch")
-			assert.Equal(t, tc.Port, port, "Port mismatch")
-			if tc.ErrContains == "" {
+			assert.Equal(t, tc.ExpectedIP, ip, "IP mismatch")
+			assert.Equal(t, tc.ExpectedPort, port, "Port mismatch")
+			if tc.ExpectedErr == "" {
 				assert.Nil(t, err)
 			} else {
 				if err == nil {
-					t.Fatalf("expected error containing %q but err=nil", tc.ErrContains)
+					t.Fatalf("expected error containing %q but err=nil", tc.ExpectedErr)
 				} else {
-					assert.Contains(t, err.Error(), tc.ErrContains)
+					assert.Contains(t, err.Error(), tc.ExpectedErr)
 				}
 			}
 		})

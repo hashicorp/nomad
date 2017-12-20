@@ -820,6 +820,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 
 	// Detect container address
 	ip, autoUse := d.detectIP(container)
+	if ip == "" {
+		d.logger.Printf("[DEBUG] driver.docker: task %s could not detect a container IP", d.taskName)
+	}
 
 	// Create a response with the driver handle and container network metadata
 	resp := &StartResponse{
@@ -860,13 +863,18 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		// Linux, nat on Windows)
 		if name != "bridge" && name != "nat" {
 			auto = true
+			d.logger.Printf("[INFO] driver.docker: task %s auto-advertising detected IP %s on network %q",
+				d.taskName, ip, name)
+		} else {
+			d.logger.Printf("[DEBUG] driver.docker task %s detect IP %s on network %q but not auto-advertising",
+				d.taskName, ip, name)
 		}
 
 		break
 	}
 
 	if n := len(c.NetworkSettings.Networks); n > 1 {
-		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
+		d.logger.Printf("[WARN] driver.docker: task %s multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", d.taskName, n, c.ID, ipName)
 	}
 
 	return ip, auto

@@ -1098,11 +1098,6 @@ func isOldNomadService(id string) bool {
 // label is specified (an empty value), zero values are returned because no
 // address could be resolved.
 func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *cstructs.DriverNetwork) (string, int, error) {
-	// No port label specified, no address can be assembled
-	if portLabel == "" {
-		return "", 0, nil
-	}
-
 	switch addrMode {
 	case structs.AddressModeAuto:
 		if driverNet.Advertise() {
@@ -1112,6 +1107,18 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		}
 		return getAddress(addrMode, portLabel, networks, driverNet)
 	case structs.AddressModeHost:
+		if portLabel == "" {
+			if len(networks) != 1 {
+				// If no networks are specified return zero
+				// values. Consul will advertise the host IP
+				// with no port. This is the pre-0.7.1 behavior
+				// some people rely on.
+				return "", 0, nil
+			}
+
+			return networks[0].IP, 0, nil
+		}
+
 		// Default path: use host ip:port
 		ip, port := networks.Port(portLabel)
 		if ip == "" && port <= 0 {
@@ -1123,6 +1130,11 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// Require a driver network if driver address mode is used
 		if driverNet == nil {
 			return "", 0, fmt.Errorf(`cannot use address_mode="driver": no driver network exists`)
+		}
+
+		// If no port label is specified just return the IP
+		if portLabel == "" {
+			return driverNet.IP, 0, nil
 		}
 
 		// If the port is a label, use the driver's port (not the host's)
