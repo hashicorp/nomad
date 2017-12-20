@@ -1,6 +1,8 @@
 {{#global-header class="page-header"}}
-  {{#link-to "clients" class="breadcrumb"}}Clients{{/link-to}}
-  <span class="breadcrumb">{{model.shortId}}</span>
+  <li>{{#link-to "clients.index"}}Clients{{/link-to}}</li>
+  <li class="is-active">
+    {{#link-to "clients.client" model.id}}{{model.shortId}}{{/link-to}}
+  </li>
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
