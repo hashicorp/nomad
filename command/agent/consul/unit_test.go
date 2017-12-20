@@ -1571,7 +1571,7 @@ func TestGetAddress(t *testing.T) {
 		},
 		{
 			Name:       "NoPort_AutoMode",
-			Mode:       structs.AddressModeHost,
+			Mode:       structs.AddressModeAuto,
 			ExpectedIP: HostIP,
 		},
 		{
