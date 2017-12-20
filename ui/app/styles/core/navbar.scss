@@ -45,6 +45,15 @@
         max-height: 26px;
       }
     }
+
+    .navbar-end > a.navbar-item {
+      color: rgba($primary-invert, 0.8);
+
+      &:hover {
+        color: $primary-invert;
+        background: transparent;
+      }
+    }
   }
 
   &.is-secondary {
