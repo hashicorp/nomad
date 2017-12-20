@@ -119,7 +119,7 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	if done, err := s.srv.forward("Search.PrefixSearch", args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "search", "prefixsearch"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "search", "prefix_search"}, time.Now())
 
 	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 	if err != nil {
