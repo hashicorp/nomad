@@ -23,16 +23,20 @@ test('/clients/:id should have a breadrcumb trail linking back to clients', func
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    assert.equal(findAll('.breadcrumb')[0].textContent, 'Clients', 'First breadcrumb says clients');
     assert.equal(
-      findAll('.breadcrumb')[1].textContent,
+      findAll('.breadcrumb a')[0].textContent,
+      'Clients',
+      'First breadcrumb says clients'
+    );
+    assert.equal(
+      findAll('.breadcrumb a')[1].textContent,
       node.id.split('-')[0],
       'Second breadcrumb says the node short id'
     );
   });
 
   andThen(() => {
-    click(findAll('.breadcrumb')[0]);
+    click(findAll('.breadcrumb a')[0]);
   });
 
   andThen(() => {

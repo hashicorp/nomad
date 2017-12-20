@@ -1,8 +1,8 @@
 {{#global-header class="page-header"}}
-  <span class="breadcrumb">Allocations</span>
-  {{#link-to "allocations.allocation" model class="breadcrumb"}}
-    {{model.shortId}}
-  {{/link-to}}
+  <li><a href="#">Allocations</a></li>
+  <li class="is-active">
+    {{#link-to "allocations.allocation" model}}{{model.shortId}}{{/link-to}}
+  </li>
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">

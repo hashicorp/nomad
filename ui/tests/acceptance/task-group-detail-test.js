@@ -78,21 +78,25 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
 });
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
-  assert.equal(findAll('.breadcrumb')[0].textContent.trim(), 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    findAll('.breadcrumb')[1].textContent.trim(),
+    findAll('.breadcrumb a')[0].textContent.trim(),
+    'Jobs',
+    'First breadcrumb says jobs'
+  );
+  assert.equal(
+    findAll('.breadcrumb a')[1].textContent.trim(),
     job.name,
     'Second breadcrumb says the job name'
   );
   assert.equal(
-    findAll('.breadcrumb')[2].textContent.trim(),
+    findAll('.breadcrumb a')[2].textContent.trim(),
     taskGroup.name,
     'Third breadcrumb says the job name'
   );
 });
 
 test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(assert) {
-  click(findAll('.breadcrumb')[0]);
+  click(findAll('.breadcrumb a')[0]);
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
@@ -101,7 +105,7 @@ test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(asse
 test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(
   assert
 ) {
-  click(findAll('.breadcrumb')[1]);
+  click(findAll('.breadcrumb a')[1]);
   andThen(() => {
     assert.equal(
       currentURL(),
