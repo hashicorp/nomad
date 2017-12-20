@@ -1,13 +1,14 @@
 {{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb|}}
-    {{#link-to
-      params=(append
-        breadcrumb.args
-        (query-params jobNamespace=(or model.namespace.id "default"))
-      )
-      class="breadcrumb"}}
-      {{breadcrumb.label}}
-    {{/link-to}}
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to
+        params=(append
+          breadcrumb.args
+          (query-params jobNamespace=(or model.namespace.id "default"))
+        )}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    </li>
   {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
