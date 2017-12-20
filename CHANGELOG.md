@@ -1,4 +1,4 @@
-## 0.7.1 (Unreleased)
+## 0.7.1 (December 19, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * client: The format of service IDs in Consul has changed. If you rely upon
