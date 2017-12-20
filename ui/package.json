@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "broccoli-asset-rev": "^2.4.5",
-    "bulma": "0.5.0",
+    "bulma": "0.6.1",
     "core-js": "^2.4.1",
     "d3-selection": "^1.1.0",
     "d3-transition": "^1.1.0",
