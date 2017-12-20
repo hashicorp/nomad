@@ -1,4 +1,4 @@
-.nav {
+.navbar {
   &.is-primary {
     background: linear-gradient(
       to right,
@@ -10,12 +10,13 @@
     padding-left: 20px;
     padding-right: 20px;
 
-    .nav-item {
+    .navbar-item {
       color: rgba($primary-invert, 0.8);
       text-decoration: none;
 
       &:hover {
         color: $primary-invert;
+        background: transparent;
       }
 
       &.is-active,
@@ -24,7 +25,7 @@
         border-bottom-color: $primary-invert;
       }
 
-      + .nav-item {
+      + .navbar-item {
         position: relative;
 
         &::before {
@@ -53,12 +54,12 @@
     font-weight: $weight-semibold;
     color: $primary-invert;
 
-    .nav-item {
+    .navbar-item {
       font-size: $size-4;
     }
   }
 
-  .nav-item {
+  .navbar-item {
     &.is-gutter {
       width: $gutter-width;
     }
