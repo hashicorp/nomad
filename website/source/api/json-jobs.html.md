@@ -300,13 +300,17 @@ The `Task` object supports the following keys:
     }
     ```
 
+- `KillSignal` - Specifies a configurable kill signal for a task, where the
+  default is SIGINT. Note that this is only supported for drivers which accept
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
+
 - `KillTimeout` - `KillTimeout` is a time duration in nanoseconds. It can be
   used to configure the time between signaling a task it will be killed and
   actually killing it. Drivers first sends a task the `SIGINT` signal and then
   sends `SIGTERM` if the task doesn't die after the `KillTimeout` duration has
   elapsed. The default `KillTimeout` is 5 seconds.
 
-- `leader` - Specifies whether the task is the leader task of the task group. If
+- `Leader` - Specifies whether the task is the leader task of the task group. If
   set to true, when the leader task completes, all other tasks within the task
   group will be gracefully shutdown.
 
@@ -346,6 +350,23 @@ The `Task` object supports the following keys:
        defined in the resources block.  This could be a label of either a
        dynamic or a static port.
 
+     - `AddressMode`: Specifies what address (host or driver-specific) this
+       service should advertise.  This setting is supported in Docker since
+       Nomad 0.6 and rkt since Nomad 0.7. Valid options are:
+
+       - `auto` - Allows the driver to determine whether the host or driver
+         address should be used. Defaults to `host` and only implemented by
+	 Docker. If you use a Docker network plugin such as weave, Docker will
+         automatically use its address.
+
+       - `driver` - Use the IP specified by the driver, and the port specified
+         in a port map. A numeric port may be specified since port maps aren't
+	 required by all network plugins. Useful for advertising SDN and
+         overlay network addresses. Task will fail if driver network cannot be
+         determined. Only implemented for Docker and rkt.
+
+       - `host` - Use the host IP and port.
+
      - `Checks`: `Checks` is an array of check objects. A check object defines a
        health check associated with the service. Nomad supports the `script`,
        `http` and `tcp` Consul Checks. Script checks are not supported for the
@@ -356,6 +377,25 @@ The `Task` object supports the following keys:
            options are currently `script`, `http` and `tcp`.
 
          - `Name`: The name of the health check.
+
+	 - `AddressMode`: Same as `AddressMode` on `Service`.  Unlike services,
+	   checks do not have an `auto` address mode as there's no way for
+	   Nomad to know which is the best address to use for checks. Consul
+	   needs access to the address for any HTTP or TCP checks. Added in
+	   Nomad 0.7.1. Unlike `PortLabel`, this setting is *not* inherited
+           from the `Service`.
+
+	 - `PortLabel`: Specifies the label of the port on which the check will
+	   be performed. Note this is the _label_ of the port and not the port
+	   number unless `AddressMode: "driver"`. The port label must match one
+	   defined in the Network stanza. If a port value was declared on the
+	   `Service`, this will inherit from that value if not supplied. If
+	   supplied, this value takes precedence over the `Service.PortLabel`
+	   value. This is useful for services which operate on multiple ports.
+	  `http` and `tcp` checks require a port while `script` checks do not.
+	  Checks will use the host IP and ports by default. In Nomad 0.7.1 or
+	  later numeric ports may be used if `AddressMode: "driver"` is set on
+          the check.
 
 	 - `Header`: Headers for HTTP checks. Should be an object where the
 	   values are an array of values. Headers will be written once for each
