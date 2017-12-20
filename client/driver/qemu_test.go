@@ -127,6 +127,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 		t.Parallel()
 	}
 	ctestutils.QemuCompatible(t)
+	ctestutils.RequireRoot(t)
 	task := &structs.Task{
 		Name:   "linux",
 		Driver: "qemu",

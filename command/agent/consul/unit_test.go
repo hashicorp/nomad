@@ -1566,7 +1566,12 @@ func TestGetAddress(t *testing.T) {
 		{
 			Name:        "InvalidMode",
 			Mode:        "invalid-mode",
+			PortLabel:   "80",
 			ErrContains: "invalid address mode",
+		},
+		{
+			Name: "EmptyIsOk",
+			Mode: structs.AddressModeHost,
 		},
 	}
 

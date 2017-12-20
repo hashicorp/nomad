@@ -292,7 +292,7 @@ func Alloc() *structs.Allocation {
 						IP:            "192.168.0.100",
 						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http"}},
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
 					},
 				},
 			},
