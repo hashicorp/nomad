@@ -944,9 +944,14 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+
+	// Need to remove mock dynamic port from alloc as it won't be computed
+	// in this test
+	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 0
+
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
-	resources := alloc.Resources
+	origResources := alloc.Resources
 	alloc.Resources = nil
 	req := structs.AllocUpdateRequest{
 		Job:   job,
@@ -973,10 +978,10 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Resources should be recomputed
-	resources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
-	alloc.Resources = resources
+	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
+	alloc.Resources = origResources
 	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
+		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))
 	}
 }
 
