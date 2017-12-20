@@ -3131,8 +3131,8 @@ func (s *Service) Validate() error {
 	}
 
 	for _, c := range s.Checks {
-		if s.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name, s.Name))
+		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
 			continue
 		}
 
@@ -3577,8 +3577,16 @@ func validateServices(t *Task) error {
 		}
 	}
 
+	// Iterate over a sorted list of keys to make error listings stable
+	keys := make([]string, 0, len(servicePorts))
+	for p := range servicePorts {
+		keys = append(keys, p)
+	}
+	sort.Strings(keys)
+
 	// Ensure all ports referenced in services exist.
-	for servicePort, services := range servicePorts {
+	for _, servicePort := range keys {
+		services := servicePorts[servicePort]
 		_, ok := portLabels[servicePort]
 		if !ok {
 			names := make([]string, 0, len(services))

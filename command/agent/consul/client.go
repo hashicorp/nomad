@@ -663,7 +663,7 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 
 		ip, port, err := getAddress(addrMode, portLabel, task.Resources.Networks, net)
 		if err != nil {
-			return nil, fmt.Errorf("unable to get address for check %q: %v", check.Name, err)
+			return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
 		}
 
 		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
@@ -1036,6 +1036,11 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()
 
+	// Require an address for http or tcp checks
+	if port == 0 && check.RequiresPort() {
+		return nil, fmt.Errorf("%s checks require an address", check.Type)
+	}
+
 	switch check.Type {
 	case structs.ServiceCheckHTTP:
 		proto := check.Protocol
@@ -1089,9 +1094,15 @@ func isOldNomadService(id string) bool {
 	return strings.HasPrefix(id, prefix)
 }
 
-// getAddress returns the ip and port to use for a service or check. An error
-// is returned if an ip and port cannot be determined.
+// getAddress returns the IP and port to use for a service or check. If no port
+// label is specified (an empty value), zero values are returned because no
+// address could be resolved.
 func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *cstructs.DriverNetwork) (string, int, error) {
+	// No port label specified, no address can be assembled
+	if portLabel == "" {
+		return "", 0, nil
+	}
+
 	switch addrMode {
 	case structs.AddressModeAuto:
 		if driverNet.Advertise() {

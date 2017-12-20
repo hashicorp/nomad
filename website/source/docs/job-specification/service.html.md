@@ -96,7 +96,7 @@ does not automatically enable service discovery.
     interpolated and revalidated. This can cause certain service names to pass validation at submit time but fail 
     at runtime.
     
-- `port` `(string: <required>)` - Specifies the label of the port on which this
+- `port` `(string: <optional>)` - Specifies the label of the port on which this
   service is running. Note this is the _label_ of the port and not the port
   number unless `address_mode = driver`. The port label must match one defined
    in the [`network`][network] stanza unless you're also using
@@ -174,14 +174,15 @@ scripts.
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
 
-- `port` `(string: <required>)` - Specifies the label of the port on which the
+- `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
   number unless `address_mode = driver`. The port label must match one defined
   in the [`network`][network] stanza. If a port value was declared on the
   `service`, this will inherit from that value if not supplied. If supplied,
   this value takes precedence over the `service.port` value. This is useful for
-  services which operate on multiple ports. Checks will use the host IP and
-  ports by default. In Nomad 0.7.1 or later numeric ports may be used if
+  services which operate on multiple ports. `http` and `tcp` checks require a
+  port while `script` checks do not. Checks will use the host IP and ports by
+  default. In Nomad 0.7.1 or later numeric ports may be used if
   `address_mode="driver"` is set on the check.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
