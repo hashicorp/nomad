@@ -22,14 +22,14 @@ test('visiting /jobs/:job_id', function(assert) {
 });
 
 test('breadcrumbs includes job name and link back to the jobs list', function(assert) {
-  assert.equal(findAll('.breadcrumb')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
+  assert.equal(findAll('.breadcrumb a')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    findAll('.breadcrumb')[1].textContent,
+    findAll('.breadcrumb a')[1].textContent,
     job.name,
     'Second breadcrumb says the job name'
   );
 
-  click(findAll('.breadcrumb')[0]);
+  click(findAll('.breadcrumb a')[0]);
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });

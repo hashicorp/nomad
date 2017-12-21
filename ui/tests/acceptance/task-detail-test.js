@@ -36,16 +36,16 @@ test('/allocation/:id/:task_name should name the task and list high-level task i
 });
 
 test('breadcrumbs includes allocations and link to the allocation detail page', function(assert) {
-  const breadcrumbs = findAll('.breadcrumb');
+  const breadcrumbs = findAll('.breadcrumb a');
   assert.equal(
     breadcrumbs[0].textContent.trim(),
     'Allocations',
     'Allocations is the first breadcrumb'
   );
-  assert.notEqual(
-    breadcrumbs[0].tagName.toLowerCase(),
-    'a',
-    'Allocations breadcrumb is not a link'
+  assert.equal(
+    breadcrumbs[0].getAttribute('href'),
+    '#',
+    "Allocations breadcrumb doesn't link anywhere"
   );
   assert.equal(
     breadcrumbs[1].textContent.trim(),
