@@ -69,6 +69,7 @@ type LxcDriverConfig struct {
 	TemplateArgs         []string `mapstructure:"template_args"`
 	LogLevel             string   `mapstructure:"log_level"`
 	Verbosity            string
+	Volumes              []string `mapstructure:"volumes"`
 }
 
 // NewLxcDriver returns a new instance of the LXC driver
@@ -137,11 +138,30 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: false,
 			},
+			"volumes": {
+				Type:     fields.TypeArray,
+				Required: false,
+			},
 		},
 	}
 
 	if err := fd.Validate(); err != nil {
 		return err
+	}
+
+	volumes, _ := fd.GetOk("volumes")
+	for _, volDesc := range volumes.([]interface{}) {
+		volStr := volDesc.(string)
+		paths := strings.Split(volStr, ":")
+		if len(paths) != 2 {
+			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+		}
+		if len(paths[0]) == 0 || len(paths[1]) == 0 {
+			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+		}
+		if paths[1][0] == '/' {
+			return fmt.Errorf("unsupported absolute container mount point: '%s'", paths[1])
+		}
 	}
 
 	return nil
@@ -250,6 +270,13 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.TaskDir.SharedAllocDir),
 		fmt.Sprintf("%s secrets none rw,bind,create=dir", ctx.TaskDir.SecretsDir),
 	}
+
+	for _, volDesc := range driverConfig.Volumes {
+		// the format was checked in Validate()
+		paths := strings.Split(volDesc, ":")
+		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], paths[1]))
+	}
+
 	for _, mnt := range mounts {
 		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
 			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
