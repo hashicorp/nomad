@@ -1,3 +1,8 @@
+## 0.8 (Unreleased)
+
+BUG FIXES:
+ * core: Fix search endpoint forwarding for multi-region clusters [GH-3680]
+
 ## 0.7.1 (December 19, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
