@@ -820,9 +820,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 
 	// Detect container address
 	ip, autoUse := d.detectIP(container)
-	if ip == "" {
-		d.logger.Printf("[DEBUG] driver.docker: task %s could not detect a container IP", d.taskName)
-	}
 
 	// Create a response with the driver handle and container network metadata
 	resp := &StartResponse{
@@ -863,11 +860,6 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		// Linux, nat on Windows)
 		if name != "bridge" && name != "nat" {
 			auto = true
-			d.logger.Printf("[INFO] driver.docker: task %s auto-advertising detected IP %s on network %q",
-				d.taskName, ip, name)
-		} else {
-			d.logger.Printf("[DEBUG] driver.docker task %s detect IP %s on network %q but not auto-advertising",
-				d.taskName, ip, name)
 		}
 
 		break

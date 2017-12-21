@@ -1440,6 +1440,21 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
+	// Log driver network information
+	if sresp.Network != nil && sresp.Network.IP != "" {
+		if sresp.Network.AutoAdvertise {
+			r.logger.Printf("[INFO] client: alloc %s task %s auto-advertising detected IP %s",
+				r.alloc.ID, r.task.Name, sresp.Network.IP)
+		} else {
+			r.logger.Printf("[DEBUG] client: alloc %s task %s detected IP %s but not auto-advertising",
+				r.alloc.ID, r.task.Name, sresp.Network.IP)
+		}
+	}
+
+	if sresp.Network == nil || sresp.Network.IP == "" {
+		r.logger.Printf("[DEBUG] client: alloc %s task %s could not detect a driver IP", r.alloc.ID, r.task.Name)
+	}
+
 	// Update environment with the network defined by the driver's Start method.
 	r.envBuilder.SetDriverNetwork(sresp.Network)
 
