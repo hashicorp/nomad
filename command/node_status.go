@@ -180,7 +180,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		out[0] = "ID|DC|Name|Class|"
 
 		if c.verbose {
-			out[0] += "Version|"
+			out[0] += "Address|Version|"
 		}
 
 		out[0] += "Drain|Status"
@@ -196,8 +196,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				node.Name,
 				node.NodeClass)
 			if c.verbose {
-				out[i+1] += fmt.Sprintf("|%s",
-					node.Version)
+				out[i+1] += fmt.Sprintf("|%s|%s",
+					node.Address, node.Version)
 			}
 			out[i+1] += fmt.Sprintf("|%v|%s",
 				node.Drain,
