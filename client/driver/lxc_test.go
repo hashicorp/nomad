@@ -273,7 +273,7 @@ func TestLxcDriver_Volumes_ConfigValidation(t *testing.T) {
 		}
 	}
 	if err := testVolumeConfig(t, []string{"abc:def"}); err != nil {
-		t.Fatalf("error in validate for syntactically valid config abc:def")
+		t.Fatalf("error in validate for syntactically valid config abc:def was %v", err)
 	}
 }
 

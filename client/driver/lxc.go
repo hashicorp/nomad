@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -55,10 +57,23 @@ func init() {
 type LxcDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+	lxcPath string
 }
 
-// LxcDriverConfig is the configuration of the LXC Container
-type LxcDriverConfig struct {
+// LxcCommonDriverConfig is configuration that's common between
+// container types - new containers created with Create and run with
+// Start; and containers created from a rootfs clone and started using
+// StartExecute.
+type LxcCommonDriverConfig struct {
+	LogLevel   string   `mapstructure:"log_level"`
+	Verbosity  string   `mapstructure:"verbosity"`
+	UseExecute bool     `mapstructure:"use_execute"`
+	Volumes    []string `mapstructure:"volumes"`
+}
+
+// LxcStartDriverConfig is the configuration for containers that will
+// be created with Create and run with Start
+type LxcStartDriverConfig struct {
 	Template             string
 	Distro               string
 	Release              string
@@ -71,9 +86,16 @@ type LxcDriverConfig struct {
 	FlushCache           bool     `mapstructure:"flush_cache"`
 	ForceCache           bool     `mapstructure:"force_cache"`
 	TemplateArgs         []string `mapstructure:"template_args"`
-	LogLevel             string   `mapstructure:"log_level"`
-	Verbosity            string
-	Volumes              []string `mapstructure:"volumes"`
+	LxcCommonDriverConfig
+}
+
+// LxcExecuteDriverConfig is configuration for containers that will be
+// created by cloning a rootfs and run using StartExecute
+type LxcExecuteDriverConfig struct {
+	LxcCommonDriverConfig
+	BaseRootFsPath string   `mapstructure:"base_rootfs_path"`
+	BaseConfigPath string   `mapstructure:"base_config_path"`
+	CmdArgs        []string `mapstructure:"cmd_args"`
 }
 
 // NewLxcDriver returns a new instance of the LXC driver
@@ -83,6 +105,24 @@ func NewLxcDriver(ctx *DriverContext) Driver {
 
 // Validate validates the lxc driver configuration
 func (d *LxcDriver) Validate(config map[string]interface{}) error {
+	commonFieldSchema := map[string]*fields.FieldSchema{
+		"log_level": {
+			Type:     fields.TypeString,
+			Required: false,
+		},
+		"verbosity": {
+			Type:     fields.TypeString,
+			Required: false,
+		},
+		"use_execute": {
+			Type:     fields.TypeBool,
+			Required: false,
+		},
+		"volumes": {
+			Type:     fields.TypeArray,
+			Required: false,
+		},
+	}
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
@@ -134,27 +174,61 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeArray,
 				Required: false,
 			},
-			"log_level": {
+		},
+	}
+	for k, v := range commonFieldSchema {
+		fd.Schema[k] = v
+	}
+
+	execFd := &fields.FieldData{
+		Raw: config,
+		Schema: map[string]*fields.FieldSchema{
+			"base_config_path": {
 				Type:     fields.TypeString,
-				Required: false,
+				Required: true,
 			},
-			"verbosity": {
+			"base_rootfs_path": {
 				Type:     fields.TypeString,
-				Required: false,
+				Required: true,
 			},
-			"volumes": {
+			"cmd_args": {
 				Type:     fields.TypeArray,
 				Required: false,
+				Default:  []string{},
 			},
 		},
 	}
 
-	if err := fd.Validate(); err != nil {
-		return err
+	for k, v := range commonFieldSchema {
+		execFd.Schema[k] = v
 	}
 
-	volumes, _ := fd.GetOk("volumes")
-	for _, volDesc := range volumes.([]interface{}) {
+	// default is to use lxc-start
+	useExecute := false
+	execConfig, ok := config["use_execute"]
+	if ok {
+		useExecute, ok = execConfig.(bool)
+		if !ok {
+			return fmt.Errorf("invalid value for use_execute config: %v", execConfig)
+		}
+	}
+	var volumes interface{}
+	if useExecute {
+		if err := execFd.Validate(); err != nil {
+			return err
+		}
+		volumes, _ = execFd.GetOk("volumes")
+	} else {
+		if err := fd.Validate(); err != nil {
+			return err
+		}
+		volumes, _ = fd.GetOk("volumes")
+	}
+	return d.validateVolumesConfig(volumes.([]interface{}))
+}
+
+func (d *LxcDriver) validateVolumesConfig(volumes []interface{}) error {
+	for _, volDesc := range volumes {
 		volStr := volDesc.(string)
 		paths := strings.Split(volStr, ":")
 		if len(paths) != 2 {
@@ -167,7 +241,6 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 			return fmt.Errorf("unsupported absolute container mount point: '%s'", paths[1])
 		}
 	}
-
 	return nil
 }
 
@@ -206,8 +279,12 @@ func (d *LxcDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 	return nil
 }
 
-func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
+func (d *LxcDriver) Prestart(_ *ExecContext, task *structs.Task) (*PrestartResponse, error) {
 	return nil, nil
+}
+
+func (d *LxcDriver) getContainerName(task *structs.Task) string {
+	return fmt.Sprintf("%s-%s", task.Name, d.DriverContext.allocID)
 }
 
 // Start starts the LXC Driver
@@ -223,23 +300,20 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*StartResponse, error, func() error) {
 	noCleanup := func() error { return nil }
-	var driverConfig LxcDriverConfig
-	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
+
+	var commonConfig LxcCommonDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &commonConfig); err != nil {
 		return nil, err, noCleanup
 	}
-	lxcPath := lxc.DefaultConfigPath()
-	if path := d.config.Read("driver.lxc.path"); path != "" {
-		lxcPath = path
-	}
 
-	containerName := fmt.Sprintf("%s-%s", task.Name, d.DriverContext.allocID)
-	c, err := lxc.NewContainer(containerName, lxcPath)
+	containerName := d.getContainerName(task)
+	c, err := lxc.NewContainer(containerName, d.lxcPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize container: %v", err), noCleanup
 	}
 
 	var verbosity lxc.Verbosity
-	switch driverConfig.Verbosity {
+	switch commonConfig.Verbosity {
 	case "verbose":
 		verbosity = lxc.Verbose
 	case "", "quiet":
@@ -250,7 +324,7 @@ func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 	c.SetVerbosity(verbosity)
 
 	var logLevel lxc.LogLevel
-	switch driverConfig.LogLevel {
+	switch commonConfig.LogLevel {
 	case "trace":
 		logLevel = lxc.TRACE
 	case "debug":
@@ -269,54 +343,39 @@ func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 	logFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%v-lxc.log", task.Name))
 	c.SetLogFile(logFile)
 
+	if commonConfig.UseExecute {
+		d.logger.Printf("[INFO] Using lxc-execute to start application container")
+		return d.executeContainer(ctx, c, task, &commonConfig)
+	} else {
+		d.logger.Printf("[INFO] Using lxc-start to start system container")
+		return d.startContainer(ctx, c, task, &commonConfig)
+	}
+}
+
+func (d *LxcDriver) startContainer(ctx *ExecContext, c *lxc.Container, task *structs.Task, commonConfig *LxcCommonDriverConfig) (*StartResponse, error, func() error) {
+	noCleanup := func() error { return nil }
+
+	var startConfig LxcStartDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &startConfig); err != nil {
+		return nil, err, noCleanup
+	}
+
 	options := lxc.TemplateOptions{
-		Template:             driverConfig.Template,
-		Distro:               driverConfig.Distro,
-		Release:              driverConfig.Release,
-		Arch:                 driverConfig.Arch,
-		FlushCache:           driverConfig.FlushCache,
-		DisableGPGValidation: driverConfig.DisableGPGValidation,
-		ExtraArgs:            driverConfig.TemplateArgs,
+		Template:             startConfig.Template,
+		Distro:               startConfig.Distro,
+		Release:              startConfig.Release,
+		Arch:                 startConfig.Arch,
+		FlushCache:           startConfig.FlushCache,
+		DisableGPGValidation: startConfig.DisableGPGValidation,
+		ExtraArgs:            startConfig.TemplateArgs,
 	}
 
 	if err := c.Create(options); err != nil {
 		return nil, fmt.Errorf("unable to create container: %v", err), noCleanup
 	}
 
-	// Set the network type to none
-	if err := c.SetConfigItem("lxc.network.type", "none"); err != nil {
-		return nil, fmt.Errorf("error setting network type configuration: %v", err), c.Destroy
-	}
-
-	// Bind mount the shared alloc dir and task local dir in the container
-	mounts := []string{
-		fmt.Sprintf("%s local none rw,bind,create=dir", ctx.TaskDir.LocalDir),
-		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.TaskDir.SharedAllocDir),
-		fmt.Sprintf("%s secrets none rw,bind,create=dir", ctx.TaskDir.SecretsDir),
-	}
-
-	volumesEnabled := d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault)
-
-	for _, volDesc := range driverConfig.Volumes {
-		// the format was checked in Validate()
-		paths := strings.Split(volDesc, ":")
-
-		if filepath.IsAbs(paths[0]) {
-			if !volumesEnabled {
-				return nil, fmt.Errorf("absolute bind-mount volume in config but '%v' is false", lxcVolumesConfigOption), c.Destroy
-			}
-		} else {
-			// Relative source paths are treated as relative to alloc dir
-			paths[0] = filepath.Join(ctx.TaskDir.Dir, paths[0])
-		}
-
-		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], paths[1]))
-	}
-
-	for _, mnt := range mounts {
-		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
-			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err), c.Destroy
-		}
+	if err := d.setCommonContainerConfig(ctx, c, commonConfig); err != nil {
+		return nil, err, c.Destroy
 	}
 
 	// Start the container
@@ -331,18 +390,14 @@ func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 		return c.Destroy()
 	}
 
-	// Set the resource limits
-	if err := c.SetMemoryLimit(lxc.ByteSize(task.Resources.MemoryMB) * lxc.MB); err != nil {
-		return nil, fmt.Errorf("unable to set memory limits: %v", err), stopAndDestroyCleanup
-	}
-	if err := c.SetCgroupItem("cpu.shares", strconv.Itoa(task.Resources.CPU)); err != nil {
-		return nil, fmt.Errorf("unable to set cpu shares: %v", err), stopAndDestroyCleanup
+	if err := setLimitsOnContainer(c, task); err != nil {
+		return nil, err, stopAndDestroyCleanup
 	}
 
 	h := lxcDriverHandle{
 		container:      c,
 		initPid:        c.InitPid(),
-		lxcPath:        lxcPath,
+		lxcPath:        d.lxcPath,
 		logger:         d.logger,
 		killTimeout:    GetKillTimeout(task.KillTimeout, d.DriverContext.config.MaxKillTimeout),
 		maxKillTimeout: d.DriverContext.config.MaxKillTimeout,
@@ -358,7 +413,174 @@ func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 	return &StartResponse{Handle: &h}, nil, noCleanup
 }
 
-func (d *LxcDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
+func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *structs.Task, commonConfig *LxcCommonDriverConfig) (*StartResponse, error, func() error) {
+	noCleanup := func() error { return nil }
+	var executeConfig LxcExecuteDriverConfig
+	if err := mapstructure.WeakDecode(task.Config, &executeConfig); err != nil {
+		return nil, err, noCleanup
+	}
+
+	containerPath := filepath.Join(d.lxcPath, c.Name())
+	containerRootfsPath := filepath.Join(containerPath, "rootfs")
+	if err := os.MkdirAll(containerRootfsPath, 0711); err != nil {
+		return nil, fmt.Errorf("unable to create container directory at %s", containerPath), noCleanup
+	}
+
+	if executeConfig.BaseRootFsPath[:4] != "lvm:" {
+		return nil, fmt.Errorf("only LVM is supported as a base to clone from"), noCleanup
+	}
+
+	baseLvName := executeConfig.BaseRootFsPath[4:]
+	lvCreateCmd := exec.Command("lvcreate", "-kn", "-n", c.Name(), "-s", baseLvName)
+	if err := lvCreateCmd.Run(); err != nil {
+		return nil, fmt.Errorf("could not create thin pool snapshot with cmd '%v': %v: %s", lvCreateCmd.Args, err, err.(*exec.ExitError).Stderr), noCleanup
+	}
+
+	vgName := baseLvName[:strings.Index(baseLvName, "/")]
+
+	tr := func(s string) string {
+		return strings.Replace(s, "-", "--", -1)
+	}
+
+	storageName := fmt.Sprintf("lvm:/dev/mapper/%s-%s", tr(vgName), tr(c.Name()))
+
+	configTemplate := struct {
+		RootFSPath    string
+		ContainerName string
+	}{
+		storageName,
+		c.Name(),
+	}
+
+	newConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config")
+	newConfigFile, err := os.Create(newConfigFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create new config file '%s': %v", newConfigFilePath, err), noCleanup
+	}
+	defer newConfigFile.Close()
+	removeConfigCleanup := func() error {
+		return os.Remove(newConfigFilePath)
+	}
+
+	if err := os.Chmod(newConfigFilePath, 0777); err != nil {
+		return nil, fmt.Errorf("unable to change permissions on config file"), removeConfigCleanup
+	}
+
+	tmpl, err := template.ParseFiles(executeConfig.BaseConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse config template in '%v': %v",
+			executeConfig.BaseConfigPath, err), removeConfigCleanup
+	}
+
+	if err := tmpl.Execute(newConfigFile, configTemplate); err != nil {
+		return nil, fmt.Errorf("Error executing config file template: %v", err), removeConfigCleanup
+	}
+
+	d.logger.Printf("[INFO] %s config path is %s", c.Name(), newConfigFilePath)
+	if err := c.LoadConfigFile(newConfigFilePath); err != nil {
+		return nil, fmt.Errorf("unable to read config file for container: %v", err), removeConfigCleanup
+	}
+
+	if err := d.setCommonContainerConfig(ctx, c, commonConfig); err != nil {
+		return nil, err, removeConfigCleanup
+	}
+
+	if err := c.StartExecute(executeConfig.CmdArgs); err != nil {
+		return nil, fmt.Errorf("unable to execute with args '%v': %v", executeConfig.CmdArgs, err), removeConfigCleanup
+	}
+
+	stopAndRemoveConfigCleanup := func() error {
+		removeConfigCleanup()
+		if err := c.Stop(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := setLimitsOnContainer(c, task); err != nil {
+		return nil, err, stopAndRemoveConfigCleanup
+	}
+
+	h := lxcDriverHandle{
+		container:      c,
+		initPid:        c.InitPid(),
+		lxcPath:        d.lxcPath,
+		logger:         d.logger,
+		killTimeout:    GetKillTimeout(task.KillTimeout, d.DriverContext.config.MaxKillTimeout),
+		maxKillTimeout: d.DriverContext.config.MaxKillTimeout,
+		totalCpuStats:  stats.NewCpuStats(),
+		userCpuStats:   stats.NewCpuStats(),
+		systemCpuStats: stats.NewCpuStats(),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
+		doneCh:         make(chan bool, 1),
+	}
+
+	go h.run()
+
+	return &StartResponse{Handle: &h}, nil, noCleanup
+
+}
+
+func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container, commonConfig *LxcCommonDriverConfig) error {
+	// Set the network type to none
+	if err := c.SetConfigItem("lxc.network.type", "none"); err != nil {
+		return fmt.Errorf("error setting network type configuration: %v", err)
+	}
+
+	// Bind mount the shared alloc dir and task local dir in the container
+	mounts := []string{
+		fmt.Sprintf("%s local none rw,bind,create=dir", ctx.TaskDir.LocalDir),
+		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.TaskDir.SharedAllocDir),
+		fmt.Sprintf("%s secrets none rw,bind,create=dir", ctx.TaskDir.SecretsDir),
+	}
+	for _, mnt := range mounts {
+		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
+			return fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+		}
+	}
+
+	volumesEnabled := d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault)
+
+	for _, volDesc := range commonConfig.Volumes {
+		// the format was checked in Validate()
+		paths := strings.Split(volDesc, ":")
+
+		if filepath.IsAbs(paths[0]) {
+			if !volumesEnabled {
+				return fmt.Errorf("absolute bind-mount volume in config but '%v' is false", lxcVolumesConfigOption)
+			}
+		} else {
+			// Relative source paths are treated as relative to alloc dir
+			paths[0] = filepath.Join(ctx.TaskDir.Dir, paths[0])
+		}
+
+		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], paths[1]))
+	}
+
+	for _, mnt := range mounts {
+		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
+			return fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+		}
+	}
+
+	return nil
+}
+
+func setLimitsOnContainer(c *lxc.Container, task *structs.Task) error {
+	// Set the resource limits
+	if err := c.SetMemoryLimit(lxc.ByteSize(task.Resources.MemoryMB) * lxc.MB); err != nil {
+		return fmt.Errorf("unable to set memory limits: %v", err)
+	}
+	if err := c.SetCgroupItem("cpu.shares", strconv.Itoa(task.Resources.CPU)); err != nil {
+		return fmt.Errorf("unable to set cpu shares: %v", err)
+	}
+	return nil
+}
+
+func (d *LxcDriver) Cleanup(ctx *ExecContext, resources *CreatedResources) error {
+
+	return nil
+}
 
 // Open creates the driver to monitor an existing LXC container
 func (d *LxcDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -371,7 +593,7 @@ func (d *LxcDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	containers := lxc.Containers(pid.LxcPath)
 	for _, c := range containers {
 		if c.Name() == pid.ContainerName {
-			container = &c
+			container = c
 			break
 		}
 	}
@@ -455,11 +677,21 @@ func (h *lxcDriverHandle) Kill() error {
 	name := h.container.Name()
 
 	h.logger.Printf("[INFO] driver.lxc: shutting down container %q", name)
-	if err := h.container.Shutdown(h.killTimeout); err != nil {
-		h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", name, err)
-		if err := h.container.Stop(); err != nil {
-			h.logger.Printf("[ERR] driver.lxc: error stopping container %q: %v", name, err)
+
+	if h.container.Running() {
+		if err := h.container.Shutdown(h.killTimeout); err != nil {
+			h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", name, err)
+
+			if err := h.container.Stop(); err != nil {
+				h.logger.Printf("[WARN] driver.lxc: error stopping container %q: %v", name, err)
+				return fmt.Errorf("could not stop container: %v", err)
+			}
 		}
+	}
+
+	if err := h.container.Destroy(); err != nil {
+		h.logger.Printf("[WARN] driver.lxc: error destroying container %q: %v.", name, err)
+		return fmt.Errorf("could not destroy container")
 	}
 
 	close(h.doneCh)
