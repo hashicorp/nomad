@@ -1253,7 +1253,7 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      100,
+		CPU:      20,
 		MemoryMB: 10,
 		IOPS:     0,
 	}
