@@ -10,7 +10,7 @@ description: |-
 
 Name: `rkt`
 
-The `rkt` driver provides an interface for using CoreOS rkt for running
+The `rkt` driver provides an interface for using rkt for running
 application containers.
 
 ## Task Configuration
