@@ -1746,7 +1746,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 
 	// Call to do the batch update
 	bf := NewBatchFuture()
-	endpoint := s1.endpoints.Node
+	endpoint := s1.staticEndpoints.Node
 	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc})
 	if err := bf.Wait(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1864,7 +1864,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 
 	// Create some evaluations
-	ids, index, err := s1.endpoints.Node.createNodeEvals(alloc.NodeID, 1)
+	ids, index, err := s1.staticEndpoints.Node.createNodeEvals(alloc.NodeID, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
