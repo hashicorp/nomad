@@ -135,6 +135,7 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 		},
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
+		EvalID:            plan.EvalID,
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)

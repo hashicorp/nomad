@@ -87,8 +87,17 @@ func TestConsul_Integration(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "1h",
 	}
+
 	// Choose a port that shouldn't be in use
-	task.Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "http", Value: 3}}
+	netResource := &structs.NetworkResource{
+		Device:        "eth0",
+		IP:            "127.0.0.1",
+		MBits:         50,
+		ReservedPorts: []structs.Port{{Label: "http", Value: 3}},
+	}
+	alloc.Resources.Networks[0] = netResource
+	alloc.TaskResources["web"].Networks[0] = netResource
+	task.Resources.Networks[0] = netResource
 	task.Services = []*structs.Service{
 		{
 			Name:      "httpd",
@@ -96,13 +105,12 @@ func TestConsul_Integration(t *testing.T) {
 			Tags:      []string{"nomad", "test", "http"},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      "httpd-http-check",
-					Type:      "http",
-					Path:      "/",
-					Protocol:  "http",
-					PortLabel: "http",
-					Interval:  9000 * time.Hour,
-					Timeout:   1, // fail as fast as possible
+					Name:     "httpd-http-check",
+					Type:     "http",
+					Path:     "/",
+					Protocol: "http",
+					Interval: 9000 * time.Hour,
+					Timeout:  1, // fail as fast as possible
 				},
 				{
 					Name:     "httpd-script-check",

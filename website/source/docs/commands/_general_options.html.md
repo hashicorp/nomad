@@ -26,3 +26,6 @@
 
 - `-tls-skip-verify`: Do not verify TLS certificate. This is highly not
   recommended. Verification will also be skipped if `NOMAD_SKIP_VERIFY` is set.
+  
+- `-token`: The SecretID of an ACL token to use to authenticate API requests with.
+  Overrides the `NOMAD_TOKEN` environment variable if set.

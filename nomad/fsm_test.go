@@ -944,9 +944,14 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+
+	// Need to remove mock dynamic port from alloc as it won't be computed
+	// in this test
+	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 0
+
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
-	resources := alloc.Resources
+	origResources := alloc.Resources
 	alloc.Resources = nil
 	req := structs.AllocUpdateRequest{
 		Job:   job,
@@ -973,10 +978,10 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Resources should be recomputed
-	resources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
-	alloc.Resources = resources
+	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
+	alloc.Resources = origResources
 	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
+		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))
 	}
 }
 
@@ -1213,6 +1218,10 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	alloc.DeploymentID = d.ID
 
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
+
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -1220,6 +1229,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 			Alloc: []*structs.Allocation{alloc},
 		},
 		Deployment: d,
+		EvalID:     eval.ID,
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
 	if err != nil {
@@ -1233,32 +1243,32 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	// Verify the allocation is registered
 	ws := memdb.NewWatchSet()
+	assert := assert.New(t)
 	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 	alloc.CreateIndex = out.CreateIndex
 	alloc.ModifyIndex = out.ModifyIndex
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Job should be re-attached
 	alloc.Job = job
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
+	assert.Equal(alloc, out)
 
 	dout, err := fsm.State().DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tg, ok := dout.TaskGroups[alloc.TaskGroup]; !ok || tg.PlacedAllocs != 1 {
-		t.Fatalf("err: %v %v", tg, err)
-	}
+	assert.Nil(err)
+	tg, ok := dout.TaskGroups[alloc.TaskGroup]
+	assert.True(ok)
+	assert.NotNil(tg)
+	assert.Equal(1, tg.PlacedAllocs)
 
 	// Ensure that the original job is used
 	evictAlloc := alloc.Copy()
 	job = mock.Job()
 	job.Priority = 123
+	eval = mock.Eval()
+	eval.JobID = job.ID
+
+	fsm.State().UpsertEvals(2, []*structs.Evaluation{eval})
 
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
@@ -1267,28 +1277,28 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 			Job:   job,
 			Alloc: []*structs.Allocation{evictAlloc},
 		},
+		EvalID: eval.ID,
 	}
 	buf, err = structs.Encode(structs.ApplyPlanResultsRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 
-	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	log := makeLog(buf)
+	//set the index to something other than 1
+	log.Index = 25
+	resp = fsm.Apply(log)
+	assert.Nil(resp)
 
 	// Verify we are evicted
 	out, err = fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("alloc found!")
-	}
-	if out.Job == nil || out.Job.Priority == 123 {
-		t.Fatalf("bad job")
-	}
+	assert.Nil(err)
+	assert.Equal(structs.AllocDesiredStatusEvict, out.DesiredStatus)
+	assert.NotNil(out.Job)
+	assert.NotEqual(123, out.Job.Priority)
+
+	evalOut, err := fsm.State().EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.Equal(log.Index, evalOut.ModifyIndex)
+
 }
 
 func TestFSM_DeploymentStatusUpdate(t *testing.T) {

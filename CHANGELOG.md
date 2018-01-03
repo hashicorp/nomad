@@ -1,4 +1,10 @@
-## 0.7.1 (Unreleased)
+## 0.8 (Unreleased)
+
+BUG FIXES:
+ * core: Fix search endpoint forwarding for multi-region clusters [GH-3680]
+ * config: Revert minimum CPU limit back to 20 from 100.
+
+## 0.7.1 (December 19, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * client: The format of service IDs in Consul has changed. If you rely upon
@@ -7,6 +13,8 @@ __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
+ * config: Default minimum CPU configuration has been changed to 100 from 20. Jobs 
+   using the old minimum value of 20 will have to be updated.
  * telemetry: Hostname is now emitted via a tag rather than within the key name.
    To maintain old behavior during an upgrade path specify
    `backwards_compatible_metrics` in the telemetry configuration.
@@ -52,6 +60,9 @@ BUG FIXES:
 
  * core: Fix issue in which restoring periodic jobs could fail when a leader
    election occurs [[GH-3646](https://github.com/hashicorp/nomad/issues/3646)]
+ * core: Fix race condition in which rapid reprocessing of a blocked evaluation
+   may lead to the scheduler not seeing the results of the previous scheduling
+   event [[GH-3669](https://github.com/hashicorp/nomad/issues/3669)]
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [[GH-3402](https://github.com/hashicorp/nomad/issues/3402)]
