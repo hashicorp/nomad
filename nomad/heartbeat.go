@@ -100,7 +100,7 @@ func (s *Server) invalidateHeartbeat(id string) {
 		},
 	}
 	var resp structs.NodeUpdateResponse
-	if err := s.endpoints.Node.UpdateStatus(&req, &resp); err != nil {
+	if err := s.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		s.logger.Printf("[ERR] nomad.heartbeat: update status failed: %v", err)
 	}
 }
