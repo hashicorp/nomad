@@ -2,6 +2,7 @@
 
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [GH-3680]
+ * config: Revert minimum CPU limit back to 20 from 100.
 
 ## 0.7.1 (December 19, 2017)
 
@@ -12,6 +13,8 @@ __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
+ * config: Default minimum CPU configuration has been changed from 100 to 20. Jobs 
+   using the old minimum value will have to be updated.
  * telemetry: Hostname is now emitted via a tag rather than within the key name.
    To maintain old behavior during an upgrade path specify
    `backwards_compatible_metrics` in the telemetry configuration.
