@@ -13,8 +13,8 @@ __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
- * config: Default minimum CPU configuration has been changed from 100 to 20. Jobs 
-   using the old minimum value will have to be updated.
+ * config: Default minimum CPU configuration has been changed to 100 from 20. Jobs 
+   using the old minimum value of 20 will have to be updated.
  * telemetry: Hostname is now emitted via a tag rather than within the key name.
    To maintain old behavior during an upgrade path specify
    `backwards_compatible_metrics` in the telemetry configuration.
