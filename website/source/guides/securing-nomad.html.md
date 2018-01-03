@@ -113,7 +113,7 @@ $ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cf
     -hostname="client.global.nomad,localhost,127.0.0.1" - | cfssljson -bare client
 
 # Generate a certificate for the CLI
-$ echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
+$ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -profile=client \
     - | cfssljson -bare cli
 ```
 
@@ -433,7 +433,7 @@ TTL.
 
 ## Changing Nomad certificates on the fly
 
-As of 0.7.1, Nomad supports dynamic certificate reloading via SIHUP.
+As of 0.7.1, Nomad supports dynamic certificate reloading via SIGHUP.
 
 Given a prior TLS configuration as follows:
 
