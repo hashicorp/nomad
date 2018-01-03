@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/raft"
 )
 
 const (
@@ -140,6 +141,9 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	}
 	if agentConfig.Server.ProtocolVersion != 0 {
 		conf.ProtocolVersion = uint8(agentConfig.Server.ProtocolVersion)
+	}
+	if agentConfig.Server.RaftProtocol != 0 {
+		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
 	if agentConfig.Server.NumSchedulers != 0 {
 		conf.NumSchedulers = agentConfig.Server.NumSchedulers

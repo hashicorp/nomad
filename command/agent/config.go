@@ -256,6 +256,9 @@ type ServerConfig struct {
 	// ProtocolVersionMin and ProtocolVersionMax.
 	ProtocolVersion int `mapstructure:"protocol_version"`
 
+	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
+	RaftProtocol int `mapstructure:"raft_protocol"`
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -975,6 +978,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ProtocolVersion != 0 {
 		result.ProtocolVersion = b.ProtocolVersion
+	}
+	if b.RaftProtocol != 0 {
+		result.RaftProtocol = b.RaftProtocol
 	}
 	if b.NumSchedulers != 0 {
 		result.NumSchedulers = b.NumSchedulers

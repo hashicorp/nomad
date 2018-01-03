@@ -36,6 +36,7 @@ func RuntimeStats() map[string]string {
 // serverParts is used to return the parts of a server role
 type serverParts struct {
 	Name         string
+	ID           string
 	Region       string
 	Datacenter   string
 	Port         int
@@ -44,6 +45,7 @@ type serverParts struct {
 	MajorVersion int
 	MinorVersion int
 	Build        version.Version
+	RaftVersion  int
 	Addr         net.Addr
 	Status       serf.MemberStatus
 }
@@ -60,6 +62,10 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
+	id := "unknown"
+	if v, ok := m.Tags["id"]; ok {
+		id = v
+	}
 	region := m.Tags["region"]
 	datacenter := m.Tags["dc"]
 	_, bootstrap := m.Tags["bootstrap"]
@@ -100,9 +106,19 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		minorVersion = 0
 	}
 
+	raft_vsn := 0
+	raft_vsn_str, ok := m.Tags["raft_vsn"]
+	if ok {
+		raft_vsn, err = strconv.Atoi(raft_vsn_str)
+		if err != nil {
+			return false, nil
+		}
+	}
+
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	parts := &serverParts{
 		Name:         m.Name,
+		ID:           id,
 		Region:       region,
 		Datacenter:   datacenter,
 		Port:         port,
@@ -112,6 +128,7 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		MajorVersion: majorVersion,
 		MinorVersion: minorVersion,
 		Build:        *build_version,
+		RaftVersion:  raft_vsn,
 		Status:       m.Status,
 	}
 	return true, parts
@@ -129,6 +146,36 @@ func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Versio
 	}
 
 	return true
+}
+
+// MinRaftProtocol returns the lowest supported Raft protocol among alive servers
+// in the given region.
+func MinRaftProtocol(region string, members []serf.Member) (int, error) {
+	minVersion := -1
+	for _, m := range members {
+		if m.Tags["role"] != "nomad" || m.Tags["region"] != region || m.Status != serf.StatusAlive {
+			continue
+		}
+
+		vsn, ok := m.Tags["raft_vsn"]
+		if !ok {
+			vsn = "1"
+		}
+		raftVsn, err := strconv.Atoi(vsn)
+		if err != nil {
+			return -1, err
+		}
+
+		if minVersion == -1 || raftVsn < minVersion {
+			minVersion = raftVsn
+		}
+	}
+
+	if minVersion == -1 {
+		return minVersion, fmt.Errorf("no servers found")
+	}
+
+	return minVersion, nil
 }
 
 // shuffleStrings randomly shuffles the list of strings

@@ -22,6 +22,13 @@ ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
 endif
 
+ifeq ($(TRAVIS),true)
+$(info Running in Travis, verbose mode is disabled)
+else
+VERBOSE="true"
+endif
+
+
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
 	linux_arm \
@@ -144,6 +151,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/jteeuwen/go-bindata/...
 	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/a8m/tree/cmd/tree
+	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -186,12 +194,21 @@ generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
+vendorfmt:
+	@echo "--> Formatting vendor/vendor.json"
+	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+		vendorfmt
+changelogfmt:
+	@echo "--> Making [GH-xxxx] references clickable..."
+	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+
+
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
-dev: ## Build for the current development platform
+dev: vendorfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
@@ -227,17 +244,13 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
-		go test \
-			-v \
+		go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
-	@echo "Exit code: $$(cat exit-code)" >> test.log
-	@grep -A1 -- '--- FAIL:' test.log || true
-	@grep '^FAIL' test.log || true
-	@grep -A10 'panic' test.log || true
-	@test "$$TRAVIS" == "true" && cat test.log || true
-	@if [ "$$(cat exit-code)" == "0" ] ; then echo "PASS" ; exit 0 ; else exit 1 ; fi
+			-tags="nomad_test $(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	@if [ $(VERBOSE) ] ; then \
+		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
+	fi
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)

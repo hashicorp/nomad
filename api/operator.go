@@ -32,6 +32,9 @@ type RaftServer struct {
 	// it's a non-voting server, which will be added in a future release of
 	// Nomad.
 	Voter bool
+
+	// RaftProtocol is the version of the Raft protocol spoken by this server.
+	RaftProtocol string
 }
 
 // RaftConfigration is returned when querying for the current Raft configuration.

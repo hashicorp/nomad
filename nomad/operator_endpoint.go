@@ -51,16 +51,21 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	reply.Index = future.Index()
 	for _, server := range future.Configuration().Servers {
 		node := "(unknown)"
+		raftProtocolVersion := "unknown"
 		if member, ok := serverMap[server.Address]; ok {
 			node = member.Name
+			if raftVsn, ok := member.Tags["raft_vsn"]; ok {
+				raftProtocolVersion = raftVsn
+			}
 		}
 
 		entry := &structs.RaftServer{
-			ID:      server.ID,
-			Node:    node,
-			Address: server.Address,
-			Leader:  server.Address == leader,
-			Voter:   server.Suffrage == raft.Voter,
+			ID:           server.ID,
+			Node:         node,
+			Address:      server.Address,
+			Leader:       server.Address == leader,
+			Voter:        server.Suffrage == raft.Voter,
+			RaftProtocol: raftProtocolVersion,
 		}
 		reply.Servers = append(reply.Servers, entry)
 	}

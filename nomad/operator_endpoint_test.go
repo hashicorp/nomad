@@ -44,11 +44,12 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 	expected := structs.RaftConfigurationResponse{
 		Servers: []*structs.RaftServer{
 			{
-				ID:      me.ID,
-				Node:    fmt.Sprintf("%v.%v", s1.config.NodeName, s1.config.Region),
-				Address: me.Address,
-				Leader:  true,
-				Voter:   true,
+				ID:           me.ID,
+				Node:         fmt.Sprintf("%v.%v", s1.config.NodeName, s1.config.Region),
+				Address:      me.Address,
+				Leader:       true,
+				Voter:        true,
+				RaftProtocol: fmt.Sprintf("%d", s1.config.RaftConfig.ProtocolVersion),
 			},
 		},
 		Index: future.Index(),
@@ -107,11 +108,12 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 		expected := structs.RaftConfigurationResponse{
 			Servers: []*structs.RaftServer{
 				{
-					ID:      me.ID,
-					Node:    fmt.Sprintf("%v.%v", s1.config.NodeName, s1.config.Region),
-					Address: me.Address,
-					Leader:  true,
-					Voter:   true,
+					ID:           me.ID,
+					Node:         fmt.Sprintf("%v.%v", s1.config.NodeName, s1.config.Region),
+					Address:      me.Address,
+					Leader:       true,
+					Voter:        true,
+					RaftProtocol: fmt.Sprintf("%d", s1.config.RaftConfig.ProtocolVersion),
 				},
 			},
 			Index: future.Index(),

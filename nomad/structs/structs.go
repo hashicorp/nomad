@@ -290,14 +290,14 @@ type NodeUpdateStatusRequest struct {
 	WriteRequest
 }
 
-// NodeUpdateDrainRequest is used for updatin the drain status
+// NodeUpdateDrainRequest is used for updating the drain status
 type NodeUpdateDrainRequest struct {
 	NodeID string
 	Drain  bool
 	WriteRequest
 }
 
-// NodeEvaluateRequest is used to re-evaluate the ndoe
+// NodeEvaluateRequest is used to re-evaluate the node
 type NodeEvaluateRequest struct {
 	NodeID string
 	WriteRequest
@@ -5328,7 +5328,7 @@ const (
 // potentially taking action (allocation of work) or doing nothing if the state
 // of the world does not require it.
 type Evaluation struct {
-	// ID is a randonly generated UUID used for this evaluation. This
+	// ID is a randomly generated UUID used for this evaluation. This
 	// is assigned upon the creation of the evaluation.
 	ID string
 
