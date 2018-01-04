@@ -55,6 +55,21 @@ const (
 	enqueueLimit = 30 * time.Second
 )
 
+// RPCContext provides metadata about the RPC connection.
+type RPCContext struct {
+	// Session exposes the multiplexed connection session.
+	Session *yamux.Session
+
+	// TLS marks whether the RPC is over a TLS based connection
+	TLS bool
+
+	// TLSRole is the certificate role making the TLS connection.
+	TLSRole string
+
+	// TLSRegion is the region on the certificate making theTLS connection
+	TLSRegion string
+}
+
 // NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls to
 // the Nomad Server.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
@@ -80,14 +95,14 @@ func (s *Server) listen() {
 			continue
 		}
 
-		go s.handleConn(conn, false)
+		go s.handleConn(conn, &RPCContext{})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
 
 // handleConn is used to determine if this is a Raft or
 // Nomad type RPC connection and invoke the correct handler
-func (s *Server) handleConn(conn net.Conn, isTLS bool) {
+func (s *Server) handleConn(conn net.Conn, ctx *RPCContext) {
 	// Read a single byte
 	buf := make([]byte, 1)
 	if _, err := conn.Read(buf); err != nil {
@@ -99,7 +114,7 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 	}
 
 	// Enforce TLS if EnableRPC is set
-	if s.config.TLSConfig.EnableRPC && !isTLS && RPCType(buf[0]) != rpcTLS {
+	if s.config.TLSConfig.EnableRPC && !ctx.TLS && RPCType(buf[0]) != rpcTLS {
 		if !s.config.TLSConfig.RPCUpgradeMode {
 			s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted from %s with RequireTLS set", conn.RemoteAddr().String())
 			conn.Close()
@@ -110,14 +125,17 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 	// Switch on the byte
 	switch RPCType(buf[0]) {
 	case rpcNomad:
-		s.handleNomadConn(conn)
+		// Create an RPC Server and handle the request
+		server := rpc.NewServer()
+		s.setupRpcServer(server, ctx)
+		s.handleNomadConn(conn, server)
 
 	case rpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
 		s.raftLayer.Handoff(conn)
 
 	case rpcMultiplex:
-		s.handleMultiplex(conn)
+		s.handleMultiplex(conn, ctx)
 
 	case rpcTLS:
 		if s.rpcTLS == nil {
@@ -126,7 +144,13 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 			return
 		}
 		conn = tls.Server(conn, s.rpcTLS)
-		s.handleConn(conn, true)
+
+		// Update the connection context with the fact that the connection is
+		// using TLS
+		// TODO pull out more TLS information into the context
+		ctx.TLS = true
+
+		s.handleConn(conn, ctx)
 
 	default:
 		s.logger.Printf("[ERR] nomad.rpc: unrecognized RPC byte: %v", buf[0])
@@ -137,11 +161,19 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 
 // handleMultiplex is used to multiplex a single incoming connection
 // using the Yamux multiplexer
-func (s *Server) handleMultiplex(conn net.Conn) {
+func (s *Server) handleMultiplex(conn net.Conn, ctx *RPCContext) {
 	defer conn.Close()
 	conf := yamux.DefaultConfig()
 	conf.LogOutput = s.config.LogOutput
 	server, _ := yamux.Server(conn, conf)
+
+	// Update the context to store the yamux session
+	ctx.Session = server
+
+	// Create the RPC server for this connection
+	rpcServer := rpc.NewServer()
+	s.setupRpcServer(rpcServer, ctx)
+
 	for {
 		sub, err := server.Accept()
 		if err != nil {
@@ -150,12 +182,12 @@ func (s *Server) handleMultiplex(conn net.Conn) {
 			}
 			return
 		}
-		go s.handleNomadConn(sub)
+		go s.handleNomadConn(sub, rpcServer)
 	}
 }
 
 // handleNomadConn is used to service a single Nomad RPC connection
-func (s *Server) handleNomadConn(conn net.Conn) {
+func (s *Server) handleNomadConn(conn net.Conn, server *rpc.Server) {
 	defer conn.Close()
 	rpcCodec := NewServerCodec(conn)
 	for {
@@ -165,7 +197,7 @@ func (s *Server) handleNomadConn(conn net.Conn) {
 		default:
 		}
 
-		if err := s.rpcServer.ServeRequest(rpcCodec); err != nil {
+		if err := server.ServeRequest(rpcCodec); err != nil {
 			if err != io.EOF && !strings.Contains(err.Error(), "closed") {
 				s.logger.Printf("[ERR] nomad.rpc: RPC error: %v (%v)", err, conn)
 				metrics.IncrCounter([]string{"nomad", "rpc", "request_error"}, 1)
