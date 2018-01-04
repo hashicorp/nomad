@@ -3270,7 +3270,7 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 	alloc.TaskStates["web"] = &structs.TaskState{
 		State: structs.TaskStateDead,
 		Events: []*structs.TaskEvent{
-			&structs.TaskEvent{
+			{
 				Type:     structs.TaskTerminated,
 				ExitCode: 0,
 			},
