@@ -860,7 +860,7 @@ func (s *Server) setupVaultClient() error {
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Populate the static RPC server
-	s.setupRpcServer(s.rpcServer)
+	s.setupRpcServer(s.rpcServer, nil)
 
 	listener, err := s.createRPCListener()
 	if err != nil {
@@ -891,7 +891,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 }
 
 // setupRpcServer is used to populate an RPC server with endpoints
-func (s *Server) setupRpcServer(server *rpc.Server) {
+func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// Add the static endpoints to the RPC server.
 	if s.staticEndpoints.Status == nil {
 		// Initialize the list just once
