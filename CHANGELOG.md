@@ -1,5 +1,10 @@
 ## 0.8 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * discovery: Prevent absolute URLs in check paths. The documentation indicated
+   that absolute URLs are not allowed, but it was not enforced. Absolute URLs
+   in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
+
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]
  * config: Revert minimum CPU limit back to 20 from 100.
