@@ -412,7 +412,8 @@ The `Task` object supports the following keys:
          - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
-           to add the relative URL of the health check endpoint.
+           to add the relative URL of the health check endpoint. Absolute paths
+           are not allowed.
 
          - `Protocol`: This indicates the protocol for the HTTP checks. Valid
            options are `http` and `https`. We default it to `http`.

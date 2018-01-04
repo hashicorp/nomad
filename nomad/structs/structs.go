@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -2936,6 +2937,13 @@ func (sc *ServiceCheck) validate() error {
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
+		}
+		url, err := url.Parse(sc.Path)
+		if err != nil {
+			return fmt.Errorf("http type must have a valid http path")
+		}
+		if url.IsAbs() {
+			return fmt.Errorf("http type must have a relative http path")
 		}
 
 	case ServiceCheckScript:

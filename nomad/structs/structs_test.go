@@ -1230,6 +1230,37 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	check2 := ServiceCheck{
+		Name:     "check-name-2",
+		Type:     ServiceCheckHTTP,
+		Interval: 10 * time.Second,
+		Timeout:  2 * time.Second,
+		Path:     "/foo/bar",
+	}
+
+	err = check2.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check2.Path = ""
+	err = check2.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "valid http path") {
+		t.Fatalf("err: %v", err)
+	}
+
+	check2.Path = "http://www.example.com"
+	err = check2.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "relative http path") {
+		t.Fatalf("err: %v", err)
+	}
 }
 
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not
