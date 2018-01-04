@@ -154,7 +154,7 @@ func (s *Server) maybeBootstrap() {
 			if err := s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion,
 				"Status.Peers", req, &peers); err != nil {
 				nextRetry := (1 << attempt) * peerRetryBase
-				s.logger.Printf("[ERR] consul: Failed to confirm peer status for %s: %v. Retrying in "+
+				s.logger.Printf("[ERR] nomad: Failed to confirm peer status for %s: %v. Retrying in "+
 					"%v...", server.Name, err, nextRetry.String())
 				time.Sleep(nextRetry)
 			} else {
