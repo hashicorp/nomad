@@ -136,7 +136,7 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 		nc.Grace = o.Grace
 	}
 
-	if nc.IgnoreWarnings {
+	if !nc.IgnoreWarnings {
 		nc.IgnoreWarnings = o.IgnoreWarnings
 	}
 
@@ -189,9 +189,9 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
-	for _, c := range s.Checks {
+	for i, c := range s.Checks {
+		s.Checks[i].CheckRestart = c.CheckRestart.Merge(s.CheckRestart)
 		c.CheckRestart.Canonicalize()
-		c.CheckRestart = c.CheckRestart.Merge(s.CheckRestart)
 	}
 }
 
