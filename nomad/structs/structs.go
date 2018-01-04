@@ -3813,7 +3813,9 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
-// Successful returns whether a task finished successfully.
+// Successful returns whether a task finished successfully. This doesn't really
+// have meaning on a non-batch allocation because a service and system
+// allocation should not finish.
 func (ts *TaskState) Successful() bool {
 	l := len(ts.Events)
 	if ts.State != TaskStateDead || l == 0 {
@@ -5019,9 +5021,25 @@ func (a *Allocation) Terminated() bool {
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all
-// tasks finished successfully
+// tasks finished successfully. Critically this function returns whether the
+// allocation has ran to completion and not just that the alloc has converged to
+// its desired state. That is to say that a batch allocation must have finished
+// with exit code 0 on all task groups. This doesn't really have meaning on a
+// non-batch allocation because a service and system allocation should not
+// finish.
 func (a *Allocation) RanSuccessfully() bool {
-	return a.ClientStatus == AllocClientStatusComplete
+	// Handle the case the client hasn't started the allocation.
+	if len(a.TaskStates) == 0 {
+		return false
+	}
+
+	// Check to see if all the tasks finised successfully in the allocation
+	allSuccess := true
+	for _, state := range a.TaskStates {
+		allSuccess = allSuccess && state.Successful()
+	}
+
+	return allSuccess
 }
 
 // ShouldMigrate returns if the allocation needs data migration

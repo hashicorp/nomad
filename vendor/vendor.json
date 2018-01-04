@@ -232,6 +232,7 @@
 		{"path":"github.com/spf13/pflag","checksumSHA1":"Q52Y7t0lEtk/wcDn5q7tS7B+jqs=","revision":"7aff26db30c1be810f9de5038ec5ef96ac41fd7c","revisionTime":"2017-08-24T17:57:12Z"},
 		{"path":"github.com/stretchr/objx","checksumSHA1":"K0crHygPTP42i1nLKWphSlvOQJw=","revision":"1a9d0bb9f541897e62256577b352fdbc1fb4fd94","revisionTime":"2015-09-28T12:21:52Z"},
 		{"path":"github.com/stretchr/testify/mock","checksumSHA1":"o+jsS/rxceTym4M3reSPfrPxaio=","revision":"f6abca593680b2315d2075e0f5e2a9751e3f431a","revisionTime":"2017-06-01T20:57:54Z"},
+		{"path":"github.com/stretchr/testify/require","checksumSHA1":"7vs6dSc1PPGBKyzb/SCIyeMJPLQ=","revision":"f6abca593680b2315d2075e0f5e2a9751e3f431a","revisionTime":"2017-06-01T20:57:54Z"},
 		{"path":"github.com/ugorji/go/codec","checksumSHA1":"8G1zvpE4gTtWQRuP/x2HPVDmflo=","revision":"0053ebfd9d0ee06ccefbfe17072021e1d4acebee","revisionTime":"2017-06-20T06:01:02Z"},
 		{"path":"github.com/ugorji/go/codec/codecgen","checksumSHA1":"OgParimNuU2CJqr3pcTympeQZUc=","revision":"5efa3251c7f7d05e5d9704a69a984ec9f1386a40","revisionTime":"2017-06-20T10:48:52Z"},
 		{"path":"github.com/ulikunitz/xz","checksumSHA1":"z2kAtVle4NFV2OExI85fZoTcsI4=","revision":"0c6b41e72360850ca4f98dc341fd999726ea007f","revisionTime":"2017-06-05T21:53:11Z"},

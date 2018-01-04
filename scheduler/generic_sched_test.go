@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServiceSched_JobRegister(t *testing.T) {
@@ -2825,6 +2826,94 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestBatchSched_Run_LostAlloc(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job
+	job := mock.Job()
+	job.ID = "my-job"
+	job.Type = structs.JobTypeBatch
+	job.TaskGroups[0].Count = 3
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Desired = 3
+	// Mark one as lost and then schedule
+	// [(0, run, running), (1, run, running), (1, stop, lost)]
+
+	// Create two running allocations
+	var allocs []*structs.Allocation
+	for i := 0; i <= 1; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, alloc)
+	}
+
+	// Create a failed alloc
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[1]"
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc.ClientStatus = structs.AllocClientStatusComplete
+	allocs = append(allocs, alloc)
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewBatchScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Ensure a replacement alloc was placed.
+	if len(out) != 4 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Assert that we have the correct number of each alloc name
+	expected := map[string]int{
+		"my-job.web[0]": 1,
+		"my-job.web[1]": 2,
+		"my-job.web[2]": 1,
+	}
+	actual := make(map[string]int, 3)
+	for _, alloc := range out {
+		actual[alloc.Name] += 1
+	}
+	require.Equal(t, actual, expected)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 	h := NewHarness(t)
 
@@ -3177,6 +3266,16 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusComplete
+	alloc.TaskStates = make(map[string]*structs.TaskState)
+	alloc.TaskStates["web"] = &structs.TaskState{
+		State: structs.TaskStateDead,
+		Events: []*structs.TaskEvent{
+			{
+				Type:     structs.TaskTerminated,
+				ExitCode: 0,
+			},
+		},
+	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
