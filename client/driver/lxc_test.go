@@ -69,6 +69,7 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 		Driver: "lxc",
 		Config: map[string]interface{}{
 			"template": "/usr/share/lxc/templates/lxc-busybox",
+			"volumes":  []string{"/tmp/:mnt/tmp"},
 		},
 		KillTimeout: 10 * time.Second,
 		Resources:   structs.DefaultResources(),
@@ -106,7 +107,7 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 
 	// Look for mounted directories in their proper location
 	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.DriverCtx.allocID)
-	for _, mnt := range []string{"alloc", "local", "secrets"} {
+	for _, mnt := range []string{"alloc", "local", "secrets", "mnt/tmp"} {
 		fullpath := filepath.Join(lxcHandle.lxcPath, containerName, "rootfs", mnt)
 		stat, err := os.Stat(fullpath)
 		if err != nil {
@@ -199,4 +200,99 @@ func TestLxcDriver_Open_Wait(t *testing.T) {
 
 func lxcPresent(t *testing.T) bool {
 	return lxc.Version() != ""
+}
+
+func TestLxcDriver_Volumes_ConfigValidation(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if !lxcPresent(t) {
+		t.Skip("lxc not present")
+	}
+	ctestutil.RequireRoot(t)
+
+	brokenVolumeConfigs := [][]string{
+		[]string{
+			"foo:/var",
+		},
+		[]string{
+			":",
+		},
+		[]string{
+			"abc:",
+		},
+		[]string{
+			":def",
+		},
+		[]string{
+			"abc:def:ghi",
+		},
+	}
+
+	for _, bc := range brokenVolumeConfigs {
+		if err := testVolumeConfig(t, bc); err == nil {
+			t.Fatalf("error expected in validate for config %+v", bc)
+		}
+	}
+	if err := testVolumeConfig(t, []string{"abc:def"}); err != nil {
+		t.Fatalf("error in validate for syntactically valid config abc:def")
+	}
+}
+
+func testVolumeConfig(t *testing.T, volConfig []string) error {
+	task := &structs.Task{
+		Name:        "voltest",
+		Driver:      "lxc",
+		KillTimeout: 10 * time.Second,
+		Resources:   structs.DefaultResources(),
+		Config: map[string]interface{}{
+			"template": "busybox",
+		},
+	}
+	task.Config["volumes"] = volConfig
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+
+	driver := NewLxcDriver(ctx.DriverCtx)
+
+	err := driver.Validate(task.Config)
+	return err
+
+}
+
+func TestLxcDriver_Start_NoVolumes(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if !lxcPresent(t) {
+		t.Skip("lxc not present")
+	}
+	ctestutil.RequireRoot(t)
+
+	task := &structs.Task{
+		Name:   "foo",
+		Driver: "lxc",
+		Config: map[string]interface{}{
+			"template": "/usr/share/lxc/templates/lxc-busybox",
+			"volumes":  []string{"/tmp/:mnt/tmp"},
+		},
+		KillTimeout: 10 * time.Second,
+		Resources:   structs.DefaultResources(),
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+
+	ctx.DriverCtx.config.Options = map[string]string{lxcVolumesConfigOption: "false"}
+
+	d := NewLxcDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	_, err := d.Start(ctx.ExecCtx, task)
+	if err == nil {
+		t.Fatalf("expected error in start, got nil.")
+	}
 }
