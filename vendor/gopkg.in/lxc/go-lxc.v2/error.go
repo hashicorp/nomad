@@ -16,6 +16,7 @@ var (
 	ErrAttachInterfaceFailed         = NewError("attaching specified netdev to the container failed")
 	ErrBlkioUsage                    = NewError("BlkioUsage for the container failed")
 	ErrCheckpointFailed              = NewError("checkpoint failed")
+	ErrClearingConfigItemFailed      = NewError("clearing config item for the container failed")
 	ErrClearingCgroupItemFailed      = NewError("clearing cgroup item for the container failed")
 	ErrCloneFailed                   = NewError("cloning the container failed")
 	ErrCloseAllFdsFailed             = NewError("setting close_all_fds flag for container failed")
