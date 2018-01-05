@@ -65,6 +65,7 @@
     "ember-resolver": "^4.5.0",
     "ember-sinon": "^0.7.0",
     "ember-source": "~2.17.0",
+    "ember-test-selectors": "^0.3.8",
     "ember-truth-helpers": "^2.0.0",
     "ember-welcome-page": "^3.0.0",
     "eslint": "^4.13.1",
