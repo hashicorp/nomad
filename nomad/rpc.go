@@ -57,6 +57,9 @@ const (
 
 // RPCContext provides metadata about the RPC connection.
 type RPCContext struct {
+	// Conn exposes the raw connection.
+	Conn net.Conn
+
 	// Session exposes the multiplexed connection session.
 	Session *yamux.Session
 
@@ -66,8 +69,11 @@ type RPCContext struct {
 	// TLSRole is the certificate role making the TLS connection.
 	TLSRole string
 
-	// TLSRegion is the region on the certificate making theTLS connection
+	// TLSRegion is the region on the certificate making the TLS connection
 	TLSRegion string
+
+	// NodeID marks the NodeID that initiated the connection.
+	NodeID string
 }
 
 // NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls to
@@ -109,7 +115,7 @@ func (s *Server) listen(ctx context.Context) {
 			continue
 		}
 
-		go s.handleConn(ctx, conn, &RPCContext{})
+		go s.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
@@ -143,6 +149,10 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCConte
 		server := rpc.NewServer()
 		s.setupRpcServer(server, rpcCtx)
 		s.handleNomadConn(ctx, conn, server)
+
+		// Remove any potential mapping between a NodeID to this connection and
+		// close the underlying connection.
+		s.removeNodeConn(rpcCtx)
 
 	case rpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
@@ -200,7 +210,13 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCConte
 // handleMultiplex is used to multiplex a single incoming connection
 // using the Yamux multiplexer
 func (s *Server) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
-	defer conn.Close()
+	defer func() {
+		// Remove any potential mapping between a NodeID to this connection and
+		// close the underlying connection.
+		s.removeNodeConn(rpcCtx)
+		conn.Close()
+	}()
+
 	conf := yamux.DefaultConfig()
 	conf.LogOutput = s.config.LogOutput
 	server, _ := yamux.Server(conn, conf)
