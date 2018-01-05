@@ -16,13 +16,13 @@ test('transitioning away from an error page resets the global error', function(a
   visit('/clients');
 
   andThen(() => {
-    assert.ok(find('.error-message'), 'Application has errored');
+    assert.ok(find('[data-test-error]'), 'Application has errored');
   });
 
   visit('/jobs');
 
   andThen(() => {
-    assert.notOk(find('.error-message'), 'Application is no longer in an error state');
+    assert.notOk(find('[data-test-error]'), 'Application is no longer in an error state');
   });
 });
 
@@ -34,16 +34,16 @@ test('the 403 error page links to the ACL tokens page', function(assert) {
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.ok(find('[data-test-error]'), 'Error message is shown');
     assert.equal(
-      find('.error-message .title').textContent,
+      find('[data-test-error] .title').textContent,
       'Not Authorized',
       'Error message is for 403'
     );
   });
 
   andThen(() => {
-    click('.error-message a');
+    click('[data-test-error-acl-link]');
   });
 
   andThen(() => {

@@ -22,7 +22,7 @@ moduleForAcceptance('Acceptance | task logs', {
 
 test('/allocation/:id/:task_name/logs should have a log component', function(assert) {
   assert.equal(currentURL(), `/allocations/${allocation.id}/${task.name}/logs`, 'No redirect');
-  assert.ok(find('.task-log'), 'Task log component found');
+  assert.ok(find('[data-test-task-log]'), 'Task log component found');
 });
 
 test('the stdout log immediately starts streaming', function(assert) {
