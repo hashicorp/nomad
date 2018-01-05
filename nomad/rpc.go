@@ -159,10 +159,34 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCConte
 		}
 		conn = tls.Server(conn, s.rpcTLS)
 
+		// Force a handshake so we can get information about the TLS connection
+		// state.
+		tlsConn, ok := conn.(*tls.Conn)
+		if !ok {
+			s.logger.Printf("[ERR] nomad.rpc: expected TLS connection but got %T", conn)
+			conn.Close()
+			return
+		}
+
+		if err := tlsConn.Handshake(); err != nil {
+			s.logger.Printf("[WARN] nomad.rpc: failed TLS handshake from connection from %v: %v", tlsConn.RemoteAddr(), err)
+			conn.Close()
+			return
+		}
+
 		// Update the connection context with the fact that the connection is
 		// using TLS
-		// TODO pull out more TLS information into the context
 		rpcCtx.TLS = true
+
+		// Parse the region and role from the TLS certificate
+		state := tlsConn.ConnectionState()
+		parts := strings.SplitN(state.ServerName, ".", 3)
+		if len(parts) != 3 || (parts[0] != "server" && parts[0] != "client") || parts[2] != "nomad" {
+			s.logger.Printf("[WARN] nomad.rpc: invalid server name %q on verified TLS connection", state.ServerName)
+		} else {
+			rpcCtx.TLSRole = parts[0]
+			rpcCtx.TLSRegion = parts[1]
+		}
 
 		s.handleConn(ctx, conn, rpcCtx)
 
