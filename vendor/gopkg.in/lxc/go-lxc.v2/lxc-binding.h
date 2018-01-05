@@ -2,6 +2,11 @@
 // Use of this source code is governed by a LGPLv2.1
 // license that can be found in the LICENSE file.
 
+#define VERSION_AT_LEAST(major, minor, micro)							\
+	((LXC_DEVEL == 1) || (!(major > LXC_VERSION_MAJOR ||					\
+	major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR ||				\
+	major == LXC_VERSION_MAJOR && minor == LXC_VERSION_MINOR && micro > LXC_VERSION_MICRO)))
+
 extern bool go_lxc_add_device_node(struct lxc_container *c, const char *src_path, const char *dest_path);
 extern void go_lxc_clear_config(struct lxc_container *c);
 extern bool go_lxc_clear_config_item(struct lxc_container *c, const char *key);
@@ -60,12 +65,24 @@ extern int go_lxc_attach(struct lxc_container *c,
 		char *initial_cwd,
 		char **extra_env_vars,
 		char **extra_keep_env);
+extern int go_lxc_attach_no_wait(struct lxc_container *c,
+		bool clear_env,
+		int namespaces,
+		long personality,
+		uid_t uid, gid_t gid,
+		int stdinfd, int stdoutfd, int stderrfd,
+		char *initial_cwd,
+		char **extra_env_vars,
+		char **extra_keep_env,
+		const char * const argv[],
+		pid_t *attached_pid);
 extern int go_lxc_console_getfd(struct lxc_container *c, int ttynum);
 extern int go_lxc_snapshot_list(struct lxc_container *c, struct lxc_snapshot **ret);
 extern int go_lxc_snapshot(struct lxc_container *c);
 extern pid_t go_lxc_init_pid(struct lxc_container *c);
 extern bool go_lxc_checkpoint(struct lxc_container *c, char *directory, bool stop, bool verbose);
 extern bool go_lxc_restore(struct lxc_container *c, char *directory, bool verbose);
+extern bool go_lxc_config_item_is_supported(const char *key);
 
 /* n.b. that we're just adding the fields here to shorten the definition
  * of go_lxc_migrate; in the case where we don't have the ->migrate API call,
@@ -89,8 +106,21 @@ struct extra_migrate_opts {
 	bool preserves_inodes;
 	char *action_script;
 	uint64_t ghost_limit;
+	uint64_t features_to_check;
 };
 int go_lxc_migrate(struct lxc_container *c, unsigned int cmd, struct migrate_opts *opts, struct extra_migrate_opts *extras);
 
 extern bool go_lxc_attach_interface(struct lxc_container *c, const char *dev, const char *dst_dev);
 extern bool go_lxc_detach_interface(struct lxc_container *c, const char *dev, const char *dst_dev);
+
+#if !VERSION_AT_LEAST(3, 0, 0)
+struct lxc_console_log {
+	bool clear;
+	bool read;
+	uint64_t *read_max;
+	char *data;
+	bool write_logfile;
+};
+#endif
+
+extern int go_lxc_console_log(struct lxc_container *c, struct lxc_console_log *log);
