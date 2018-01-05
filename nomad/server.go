@@ -425,8 +425,8 @@ func (s *Server) Leave() error {
 		return err
 	}
 
-	// TODO (alexdadgar) - This will need to be updated once we support node
-	// IDs.
+	// TODO (alexdadgar) - This will need to be updated before 0.8 release to
+	// correctly handle using node IDs instead of address when raftProtocol = 3
 	addr := s.raftTransport.LocalAddr()
 
 	// If we are the current leader, and we have any other peers (cluster has multiple
