@@ -10,7 +10,7 @@
     {{else}}
       {{#if filteredJobs.length}}
         <div class="content">
-          <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
+          <div>{{search-box data-test-jobs-search searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
         </div>
       {{/if}}
       {{#list-pagination
@@ -31,7 +31,7 @@
             <th class="is-3">Allocation Status</th>
           {{/t.head}}
           {{#t.body key="model.id" as |row|}}
-            {{job-row job=row.model onClick=(action "gotoJob" row.model)}}
+            {{job-row data-test-job-row job=row.model onClick=(action "gotoJob" row.model)}}
           {{/t.body}}
         {{/list-table}}
         <div class="table-foot">
@@ -45,14 +45,14 @@
           </nav>
         </div>
       {{else}}
-        <div class="empty-message">
+        <div data-test-empty-jobs-list class="empty-message">
           {{#if (eq filteredJobs.length 0)}}
-            <h3 class="empty-message-headline">No Jobs</h3>
+            <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Jobs</h3>
             <p class="empty-message-body">
               The cluster is currently empty.
             </p>
           {{else if searchTerm}}
-            <h3 class="empty-message-headline">No Matches</h3>
+            <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
             <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
           {{/if}}
         </div>
