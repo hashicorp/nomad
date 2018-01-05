@@ -24,19 +24,19 @@ test('/clients/:id should have a breadrcumb trail linking back to clients', func
 
   andThen(() => {
     assert.equal(
-      findAll('.breadcrumb a')[0].textContent,
+      find('[data-test-breadcrumb="clients"]').textContent,
       'Clients',
       'First breadcrumb says clients'
     );
     assert.equal(
-      findAll('.breadcrumb a')[1].textContent,
+      find('[data-test-breadcrumb="client"]').textContent,
       node.id.split('-')[0],
       'Second breadcrumb says the node short id'
     );
   });
 
   andThen(() => {
-    click(findAll('.breadcrumb a')[0]);
+    click(find('[data-test-breadcrumb="clients"]'));
   });
 
   andThen(() => {
@@ -48,12 +48,9 @@ test('/clients/:id should list immediate details for the node in the title', fun
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    assert.ok(find('.title').textContent.includes(node.name), 'Title includes name');
-    assert.ok(find('.title').textContent.includes(node.id), 'Title includes id');
-    assert.ok(
-      findAll(`.title .node-status-light.${node.status}`).length,
-      'Title includes status light'
-    );
+    assert.ok(find('[data-test-title]').textContent.includes(node.name), 'Title includes name');
+    assert.ok(find('[data-test-title]').textContent.includes(node.id), 'Title includes id');
+    assert.ok(find(`[data-test-node-status="${node.status}"]`), 'Title includes status light');
   });
 });
 
@@ -67,16 +64,16 @@ test('/clients/:id should list additional detail for the node below the title', 
       'Status is in additional details'
     );
     assert.ok(
-      $('.inline-definitions .pair:eq(0) .status-text').hasClass(`node-${node.status}`),
+      $('[data-test-status-definition] .status-text').hasClass(`node-${node.status}`),
       'Status is decorated with a status class'
     );
     assert.equal(
-      findAll('.inline-definitions .pair')[1].textContent,
+      find('[data-test-address-definition]').textContent,
       `Address ${node.httpAddr}`,
       'Address is in additional detals'
     );
     assert.equal(
-      findAll('.inline-definitions .pair')[2].textContent,
+      find('[data-test-datacenter-definition]').textContent,
       `Datacenter ${node.datacenter}`,
       'Datacenter is in additional details'
     );
@@ -90,7 +87,7 @@ test('/clients/:id should list all allocations on the node', function(assert) {
 
   andThen(() => {
     assert.equal(
-      findAll('.allocations tbody tr').length,
+      findAll('[data-test-allocation]').length,
       allocationsCount,
       `Allocations table lists all ${allocationsCount} associated allocations`
     );
@@ -116,10 +113,10 @@ test('each allocation should have high-level details for the allocation', functi
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    const allocationRow = $(findAll('.allocations tbody tr')[0]);
+    const allocationRow = $(find('[data-test-allocation]'));
     assert.equal(
       allocationRow
-        .find('td:eq(0)')
+        .find('[data-test-short-id]')
         .text()
         .trim(),
       allocation.id.split('-')[0],
@@ -127,7 +124,7 @@ test('each allocation should have high-level details for the allocation', functi
     );
     assert.equal(
       allocationRow
-        .find('td:eq(1)')
+        .find('[data-test-modify-time]')
         .text()
         .trim(),
       moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
@@ -135,7 +132,7 @@ test('each allocation should have high-level details for the allocation', functi
     );
     assert.equal(
       allocationRow
-        .find('td:eq(2)')
+        .find('[data-test-name]')
         .text()
         .trim(),
       allocation.name,
@@ -143,56 +140,57 @@ test('each allocation should have high-level details for the allocation', functi
     );
     assert.equal(
       allocationRow
-        .find('td:eq(3)')
+        .find('[data-test-client-status]')
         .text()
         .trim(),
       allocation.clientStatus,
       'Client status'
     );
-    assert.ok(
+    assert.equal(
       allocationRow
-        .find('td:eq(4)')
+        .find('[data-test-job]')
         .text()
-        .includes(server.db.jobs.find(allocation.jobId).name),
+        .trim(),
+      server.db.jobs.find(allocation.jobId).name,
       'Job name'
     );
     assert.ok(
       allocationRow
-        .find('td:eq(4) .is-faded')
+        .find('[data-test-task-group]')
         .text()
         .includes(allocation.taskGroup),
       'Task group name'
     );
     assert.ok(
       allocationRow
-        .find('td:eq(5)')
+        .find('[data-test-job-version]')
         .text()
         .includes(allocation.jobVersion),
       'Job Version'
     );
     assert.equal(
       allocationRow
-        .find('td:eq(6)')
+        .find('[data-test-cpu]')
         .text()
         .trim(),
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
       'CPU %'
     );
     assert.equal(
-      allocationRow.find('td:eq(6) .tooltip').attr('aria-label'),
+      allocationRow.find('[data-test-cpu] .tooltip').attr('aria-label'),
       `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
       'Detailed CPU information is in a tooltip'
     );
     assert.equal(
       allocationRow
-        .find('td:eq(7)')
+        .find('[data-test-mem]')
         .text()
         .trim(),
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
       'Memory used'
     );
     assert.equal(
-      allocationRow.find('td:eq(7) .tooltip').attr('aria-label'),
+      allocationRow.find('[data-test-mem] .tooltip').attr('aria-label'),
       `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
       'Detailed memory information is in a tooltip'
     );
@@ -219,7 +217,7 @@ test('each allocation should show job information even if the job is incomplete 
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    const allocationRow = $(findAll('.allocations tbody tr')[0]);
+    const allocationRow = $(find('[data-test-allocation]'));
     const allocation = server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
@@ -227,14 +225,14 @@ test('each allocation should show job information even if the job is incomplete 
 
     assert.ok(
       allocationRow
-        .find('td:eq(4)')
+        .find('[data-test-job]')
         .text()
         .includes(server.db.jobs.find(allocation.jobId).name),
       'Job name'
     );
     assert.ok(
       allocationRow
-        .find('td:eq(4) .is-faded')
+        .find('[data-test-task-group]')
         .text()
         .includes(allocation.taskGroup),
       'Task group name'
@@ -251,7 +249,7 @@ test('each allocation should link to the allocation detail page', function(asser
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    click($('.allocations tbody tr:eq(0) td:eq(0) a').get(0));
+    click('[data-test-short-id] a');
   });
 
   andThen(() => {
@@ -270,7 +268,7 @@ test('each allocation should link to the job the allocation belongs to', functio
   const job = server.db.jobs.find(allocation.jobId);
 
   andThen(() => {
-    click($('.allocations tbody tr:eq(0) td:eq(4) a').get(0));
+    click('[data-test-job]');
   });
 
   andThen(() => {
@@ -286,7 +284,7 @@ test('/clients/:id should list all attributes for the node', function(assert) {
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    assert.ok(find('.attributes-table'), 'Attributes table is on the page');
+    assert.ok(find('[data-test-attributes]'), 'Attributes table is on the page');
   });
 });
 
@@ -302,9 +300,9 @@ test('when the node is not found, an error message is shown, but the URL persist
       'A request to the non-existent node is made'
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
-    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.ok(find('[data-test-error]'), 'Error message is shown');
     assert.equal(
-      find('.error-message .title').textContent,
+      find('[data-test-error-title]').textContent,
       'Not Found',
       'Error message is for 404'
     );

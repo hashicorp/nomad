@@ -27,7 +27,7 @@
               {{#t.sort-by prop="datacenter"}}Datacenter{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{server-agent-row agent=row.model}}
+              {{server-agent-row data-test-server-agent-row agent=row.model}}
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">

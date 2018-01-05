@@ -1,5 +1,4 @@
 import { get } from '@ember/object';
-import $ from 'jquery';
 import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import moment from 'moment';
 import { test } from 'qunit';
@@ -22,14 +21,18 @@ test('visiting /jobs/:job_id', function(assert) {
 });
 
 test('breadcrumbs includes job name and link back to the jobs list', function(assert) {
-  assert.equal(findAll('.breadcrumb a')[0].textContent, 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    findAll('.breadcrumb a')[1].textContent,
+    find('[data-test-breadcrumb="Jobs"]').textContent,
+    'Jobs',
+    'First breadcrumb says jobs'
+  );
+  assert.equal(
+    find(`[data-test-breadcrumb="${job.name}"]`).textContent,
     job.name,
     'Second breadcrumb says the job name'
   );
 
-  click(findAll('.breadcrumb a')[0]);
+  click(find('[data-test-breadcrumb="Jobs"]'));
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
@@ -38,7 +41,7 @@ test('breadcrumbs includes job name and link back to the jobs list', function(as
 test('the subnav includes links to definition, versions, and deployments when type = service', function(
   assert
 ) {
-  const subnavLabels = findAll('.tabs.is-subnav a').map(anchor => anchor.textContent);
+  const subnavLabels = findAll('[data-test-tab]').map(anchor => anchor.textContent);
   assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
   assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
   assert.ok(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
@@ -49,7 +52,7 @@ test('the subnav includes links to definition and versions when type != service'
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    const subnavLabels = findAll('.tabs.is-subnav a').map(anchor => anchor.textContent);
+    const subnavLabels = findAll('[data-test-tab]').map(anchor => anchor.textContent);
     assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
     assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
     assert.notOk(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
@@ -57,15 +60,15 @@ test('the subnav includes links to definition and versions when type != service'
 });
 
 test('the job detail page should contain basic information about the job', function(assert) {
-  assert.ok(findAll('.title .tag')[0].textContent.includes(job.status), 'Status');
-  assert.ok(findAll('.job-stats span')[0].textContent.includes(job.type), 'Type');
-  assert.ok(findAll('.job-stats span')[1].textContent.includes(job.priority), 'Priority');
-  assert.notOk(findAll('.job-stats span')[2], 'Namespace is not included');
+  assert.ok(find('[data-test-job-status]').textContent.includes(job.status), 'Status');
+  assert.ok(find('[data-test-job-stat="type"]').textContent.includes(job.type), 'Type');
+  assert.ok(find('[data-test-job-stat="priority"]').textContent.includes(job.priority), 'Priority');
+  assert.notOk(find('[data-test-job-stat="namespace"]'), 'Namespace is not included');
 });
 
 test('the job detail page should list all task groups', function(assert) {
   assert.equal(
-    findAll('.task-group-row').length,
+    findAll('[data-test-task-group]').length,
     server.db.taskGroups.where({ jobId: job.id }).length
   );
 });
@@ -74,45 +77,38 @@ test('each row in the task group table should show basic information about the t
   assert
 ) {
   const taskGroup = job.taskGroupIds.map(id => server.db.taskGroups.find(id)).sortBy('name')[0];
-  const taskGroupRow = $(findAll('.task-group-row')[0]);
+  const taskGroupRow = find('[data-test-task-group]');
   const tasks = server.db.tasks.where({ taskGroupId: taskGroup.id });
   const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
   assert.equal(
-    taskGroupRow
-      .find('td:eq(0)')
-      .text()
-      .trim(),
+    taskGroupRow.querySelector('[data-test-task-group-name]').textContent.trim(),
     taskGroup.name,
     'Name'
   );
   assert.equal(
-    taskGroupRow
-      .find('td:eq(1)')
-      .text()
-      .trim(),
+    taskGroupRow.querySelector('[data-test-task-group-count]').textContent.trim(),
     taskGroup.count,
     'Count'
   );
   assert.equal(
-    taskGroupRow.find('td:eq(3)').text(),
+    taskGroupRow.querySelector('[data-test-task-group-cpu]').textContent.trim(),
     `${sum(tasks, 'Resources.CPU')} MHz`,
     'Reserved CPU'
   );
   assert.equal(
-    taskGroupRow.find('td:eq(4)').text(),
+    taskGroupRow.querySelector('[data-test-task-group-mem]').textContent.trim(),
     `${sum(tasks, 'Resources.MemoryMB')} MiB`,
     'Reserved Memory'
   );
   assert.equal(
-    taskGroupRow.find('td:eq(5)').text(),
+    taskGroupRow.querySelector('[data-test-task-group-disk]').textContent.trim(),
     `${taskGroup.ephemeralDisk.SizeMB} MiB`,
     'Reserved Disk'
   );
 });
 
 test('the allocations diagram lists all allocation status figures', function(assert) {
-  const legend = find('.distribution-bar .legend');
   const jobSummary = server.db.jobSummaries.findBy({ jobId: job.id });
   const statusCounts = Object.keys(jobSummary.Summary).reduce(
     (counts, key) => {
@@ -129,37 +125,37 @@ test('the allocations diagram lists all allocation status figures', function(ass
   );
 
   assert.equal(
-    legend.querySelector('li.queued .value').textContent,
+    find('[data-test-legend-value="queued"]').textContent,
     statusCounts.queued,
     `${statusCounts.queued} are queued`
   );
 
   assert.equal(
-    legend.querySelector('li.starting .value').textContent,
+    find('[data-test-legend-value="starting"]').textContent,
     statusCounts.starting,
     `${statusCounts.starting} are starting`
   );
 
   assert.equal(
-    legend.querySelector('li.running .value').textContent,
+    find('[data-test-legend-value="running"]').textContent,
     statusCounts.running,
     `${statusCounts.running} are running`
   );
 
   assert.equal(
-    legend.querySelector('li.complete .value').textContent,
+    find('[data-test-legend-value="complete"]').textContent,
     statusCounts.complete,
     `${statusCounts.complete} are complete`
   );
 
   assert.equal(
-    legend.querySelector('li.failed .value').textContent,
+    find('[data-test-legend-value="failed"]').textContent,
     statusCounts.failed,
     `${statusCounts.failed} are failed`
   );
 
   assert.equal(
-    legend.querySelector('li.lost .value').textContent,
+    find('[data-test-legend-value="lost"]').textContent,
     statusCounts.lost,
     `${statusCounts.lost} are lost`
   );
@@ -174,7 +170,7 @@ test('there is no active deployment section when the job has no active deploymen
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(findAll('.active-deployment').length === 0, 'No active deployment');
+    assert.notOk(find('[data-test-active-deployment]'), 'No active deployment');
   });
 });
 
@@ -193,27 +189,21 @@ test('the active deployment section shows up for the currently running deploymen
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(findAll('.active-deployment').length === 1, 'Active deployment');
+    assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
     assert.equal(
-      $('.active-deployment > .boxed-section-head .badge')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-active-deployment-stat="id"]').textContent.trim(),
       deployment.id.split('-')[0],
       'The active deployment is the most recent running deployment'
     );
 
     assert.equal(
-      $('.active-deployment > .boxed-section-head .submit-time')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-active-deployment-stat="submit-time"]').textContent.trim(),
       moment(version.submitTime / 1000000).fromNow(),
       'Time since the job was submitted is in the active deployment header'
     );
 
     assert.equal(
-      $('.deployment-metrics .label:contains("Canaries") + .value')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-deployment-metric="canaries"]').textContent.trim(),
       `${sum(taskGroupSummaries, 'placedCanaries')} / ${sum(
         taskGroupSummaries,
         'desiredCanaries'
@@ -222,41 +212,31 @@ test('the active deployment section shows up for the currently running deploymen
     );
 
     assert.equal(
-      $('.deployment-metrics .label:contains("Placed") + .value')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-deployment-metric="placed"]').textContent.trim(),
       sum(taskGroupSummaries, 'placedAllocs'),
       'Placed allocs aggregates across task groups'
     );
 
     assert.equal(
-      $('.deployment-metrics .label:contains("Desired") + .value')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-deployment-metric="desired"]').textContent.trim(),
       sum(taskGroupSummaries, 'desiredTotal'),
       'Desired allocs aggregates across task groups'
     );
 
     assert.equal(
-      $('.deployment-metrics .label:contains("Healthy") + .value')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-deployment-metric="healthy"]').textContent.trim(),
       sum(taskGroupSummaries, 'healthyAllocs'),
       'Healthy allocs aggregates across task groups'
     );
 
     assert.equal(
-      $('.deployment-metrics .label:contains("Unhealthy") + .value')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-deployment-metric="unhealthy"]').textContent.trim(),
       sum(taskGroupSummaries, 'unhealthyAllocs'),
       'Unhealthy allocs aggregates across task groups'
     );
 
     assert.equal(
-      $('.deployment-metrics .notification')
-        .get(0)
-        .textContent.trim(),
+      find('[data-test-deployment-notification]').textContent.trim(),
       deployment.statusDescription,
       'Status description is in the metrics block'
     );
@@ -270,29 +250,17 @@ test('the active deployment section can be expanded to show task groups and allo
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(
-      $('.active-deployment .boxed-section-head:contains("Task Groups")').length === 0,
-      'Task groups not found'
-    );
-    assert.ok(
-      $('.active-deployment .boxed-section-head:contains("Allocations")').length === 0,
-      'Allocations not found'
-    );
+    assert.notOk(find('[data-test-deployment-task-groups]'), 'Task groups not found');
+    assert.notOk(find('[data-test-deployment-allocations]'), 'Allocations not found');
   });
 
   andThen(() => {
-    click('.active-deployment-details-toggle');
+    click('[data-test-deployment-toggle-details]');
   });
 
   andThen(() => {
-    assert.ok(
-      $('.active-deployment .boxed-section-head:contains("Task Groups")').length === 1,
-      'Task groups found'
-    );
-    assert.ok(
-      $('.active-deployment .boxed-section-head:contains("Allocations")').length === 1,
-      'Allocations found'
-    );
+    assert.ok(find('[data-test-deployment-task-groups]'), 'Task groups found');
+    assert.ok(find('[data-test-deployment-allocations]'), 'Allocations found');
   });
 });
 
@@ -307,25 +275,37 @@ test('the evaluations table lists evaluations sorted by modify index', function(
 
   andThen(() => {
     assert.equal(
-      findAll('.evaluations tbody tr').length,
+      findAll('[data-test-evaluation]').length,
       evaluations.length,
       'A row for each evaluation'
     );
 
     evaluations.forEach((evaluation, index) => {
-      const row = $(findAll('.evaluations tbody tr')[index]);
+      const row = findAll('[data-test-evaluation]')[index];
       assert.equal(
-        row.find('td:eq(0)').text(),
+        row.querySelector('[data-test-id]').textContent,
         evaluation.id.split('-')[0],
         `Short ID, row ${index}`
       );
     });
 
     const firstEvaluation = evaluations[0];
-    const row = $(findAll('.evaluations tbody tr')[0]);
-    assert.equal(row.find('td:eq(1)').text(), '' + firstEvaluation.priority, 'Priority');
-    assert.equal(row.find('td:eq(2)').text(), firstEvaluation.triggeredBy, 'Triggered By');
-    assert.equal(row.find('td:eq(3)').text(), firstEvaluation.status, 'Status');
+    const row = find('[data-test-evaluation]');
+    assert.equal(
+      row.querySelector('[data-test-priority]').textContent,
+      '' + firstEvaluation.priority,
+      'Priority'
+    );
+    assert.equal(
+      row.querySelector('[data-test-triggered-by]').textContent,
+      firstEvaluation.triggeredBy,
+      'Triggered By'
+    );
+    assert.equal(
+      row.querySelector('[data-test-status]').textContent,
+      firstEvaluation.status,
+      'Status'
+    );
   });
 });
 
@@ -342,9 +322,9 @@ test('when the job has placement failures, they are called out', function(assert
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.ok(find('.placement-failures'), 'Placement failures section found');
+    assert.ok(find('[data-test-placement-failures]'), 'Placement failures section found');
 
-    const taskGroupLabels = findAll('.placement-failures h3.title').map(title =>
+    const taskGroupLabels = findAll('[data-test-placement-failure-task-group]').map(title =>
       title.textContent.trim()
     );
     failedTaskGroupNames.forEach(name => {
@@ -369,7 +349,7 @@ test('when the job has no placement failures, the placement failures section is 
   visit(`/jobs/${job.id}`);
 
   andThen(() => {
-    assert.notOk(find('.placement-failures'), 'Placement failures section not found');
+    assert.notOk(find('[data-test-placement-failures]'), 'Placement failures section not found');
   });
 });
 
@@ -385,9 +365,9 @@ test('when the job is not found, an error message is shown, but the URL persists
       'A request to the non-existent job is made'
     );
     assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
-    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.ok(find('[data-test-error]'), 'Error message is shown');
     assert.equal(
-      find('.error-message .title').textContent,
+      find('[data-test-error-title]').textContent,
       'Not Found',
       'Error message is for 404'
     );
@@ -411,7 +391,7 @@ test('when there are namespaces, the job detail page states the namespace for th
 
   andThen(() => {
     assert.ok(
-      findAll('.job-stats span')[2].textContent.includes(namespace.name),
+      find('[data-test-job-stat="namespace"]').textContent.includes(namespace.name),
       'Namespace included in stats'
     );
   });
@@ -427,7 +407,7 @@ test('when switching namespaces, the app redirects to /jobs with the new namespa
   visit(`/jobs/${job.id}?namespace=${namespace.name}`);
 
   andThen(() => {
-    selectChoose('.namespace-switcher', label);
+    selectChoose('[data-test-namespace-switcher]', label);
   });
 
   andThen(() => {
@@ -436,13 +416,15 @@ test('when switching namespaces, the app redirects to /jobs with the new namespa
       .where({ namespace: otherNamespace })
       .sortBy('modifyIndex')
       .reverse();
-    assert.equal(findAll('.job-row').length, jobs.length, 'Shows the right number of jobs');
+    assert.equal(
+      findAll('[data-test-job-row]').length,
+      jobs.length,
+      'Shows the right number of jobs'
+    );
     jobs.forEach((job, index) => {
+      const jobRow = findAll('[data-test-job-row]')[index];
       assert.equal(
-        $(findAll('.job-row')[index])
-          .find('td:eq(0)')
-          .text()
-          .trim(),
+        jobRow.querySelector('[data-test-job-name]').textContent.trim(),
         job.name,
         `Job ${index} is right`
       );
