@@ -16,14 +16,19 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+
+	// Check that we have no client connections
+	require.Empty(s1.connectedNodes())
 
 	// Create the register request
 	node := mock.Node()
@@ -41,6 +46,11 @@ func TestClientEndpoint_Register(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
+	// Check that we have the client connections
+	nodes := s1.connectedNodes()
+	require.Len(nodes, 1)
+	require.Equal(node.ID, nodes[0])
+
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
@@ -57,6 +67,15 @@ func TestClientEndpoint_Register(t *testing.T) {
 	if out.ComputedClass == "" {
 		t.Fatal("ComputedClass not set")
 	}
+
+	// Close the connection and check that we remove the client connections
+	require.Nil(codec.Close())
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s1.connectedNodes()
+		return len(nodes) == 0, nil
+	}, func(err error) {
+		t.Fatalf("should have no clients")
+	})
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
@@ -260,10 +279,14 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+
+	// Check that we have no client connections
+	require.Empty(s1.connectedNodes())
 
 	// Create the register request
 	node := mock.Node()
@@ -304,6 +327,11 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 		t.Fatalf("bad: %#v", ttl)
 	}
 
+	// Check that we have the client connections
+	nodes := s1.connectedNodes()
+	require.Len(nodes, 1)
+	require.Equal(node.ID, nodes[0])
+
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
@@ -317,6 +345,15 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	if out.ModifyIndex != resp2.Index {
 		t.Fatalf("index mis-match")
 	}
+
+	// Close the connection and check that we remove the client connections
+	require.Nil(codec.Close())
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s1.connectedNodes()
+		return len(nodes) == 0, nil
+	}, func(err error) {
+		t.Fatalf("should have no clients")
+	})
 }
 
 func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
@@ -1230,30 +1267,23 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	// Check that we have no client connections
+	require.Empty(s1.connectedNodes())
+
 	// Create the register request
 	node := mock.Node()
-	reg := &structs.NodeRegisterRequest{
-		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	// Fetch the response
-	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	node.CreateIndex = resp.Index
-	node.ModifyIndex = resp.Index
+	state := s1.fsm.State()
+	require.Nil(state.UpsertNode(98, node))
 
 	// Inject fake evaluations
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
 	if err != nil {
@@ -1278,6 +1308,11 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
+	// Check that we have the client connections
+	nodes := s1.connectedNodes()
+	require.Len(nodes, 1)
+	require.Equal(node.ID, nodes[0])
+
 	// Lookup node with bad SecretID
 	get.SecretID = "foobarbaz"
 	var resp3 structs.NodeClientAllocsResponse
@@ -1298,6 +1333,15 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	if len(resp4.Allocs) != 0 {
 		t.Fatalf("unexpected node %#v", resp3.Allocs)
 	}
+
+	// Close the connection and check that we remove the client connections
+	require.Nil(codec.Close())
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s1.connectedNodes()
+		return len(nodes) == 0, nil
+	}, func(err error) {
+		t.Fatalf("should have no clients")
+	})
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {

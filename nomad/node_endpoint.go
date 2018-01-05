@@ -36,6 +36,9 @@ const (
 type Node struct {
 	srv *Server
 
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
+
 	// updates holds pending client status updates for allocations
 	updates []*structs.Allocation
 
@@ -112,6 +115,13 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
+	}
+
+	// We have a valid node connection, so add the mapping to cache the
+	// connection and allow the server to send RPCs to the client.
+	if n.ctx != nil && n.ctx.NodeID == "" {
+		n.ctx.NodeID = args.Node.ID
+		n.srv.addNodeConn(n.ctx)
 	}
 
 	// Commit this update via Raft
@@ -303,6 +313,13 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 	if node == nil {
 		return fmt.Errorf("node not found")
+	}
+
+	// We have a valid node connection, so add the mapping to cache the
+	// connection and allow the server to send RPCs to the client.
+	if n.ctx != nil && n.ctx.NodeID == "" {
+		n.ctx.NodeID = args.NodeID
+		n.srv.addNodeConn(n.ctx)
 	}
 
 	// XXX: Could use the SecretID here but have to update the heartbeat system
@@ -722,6 +739,13 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					return fmt.Errorf("missing node secret ID for client status update")
 				} else if args.SecretID != node.SecretID {
 					return fmt.Errorf("node secret ID does not match")
+				}
+
+				// We have a valid node connection, so add the mapping to cache the
+				// connection and allow the server to send RPCs to the client.
+				if n.ctx != nil && n.ctx.NodeID == "" {
+					n.ctx.NodeID = args.NodeID
+					n.srv.addNodeConn(n.ctx)
 				}
 
 				var err error

@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/yamux"
 )
 
 const (
@@ -115,6 +116,11 @@ type Server struct {
 	// staticEndpoints is the set of static endpoints that can be reused across
 	// all RPC connections
 	staticEndpoints endpoints
+
+	// nodeConns is the set of multiplexed node connections we have keyed by
+	// NodeID
+	nodeConns     map[string]*yamux.Session
+	nodeConnsLock sync.RWMutex
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
@@ -261,6 +267,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
 		rpcServer:     rpc.NewServer(),
+		nodeConns:     make(map[string]*yamux.Session),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:   make(chan serf.Member, 32),
@@ -784,7 +791,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Alloc = &Alloc{s}
 		s.staticEndpoints.Eval = &Eval{s}
 		s.staticEndpoints.Job = &Job{s}
-		s.staticEndpoints.Node = &Node{srv: s}
+		s.staticEndpoints.Node = &Node{srv: s} // Add but don't register
 		s.staticEndpoints.Deployment = &Deployment{srv: s}
 		s.staticEndpoints.Operator = &Operator{s}
 		s.staticEndpoints.Periodic = &Periodic{s}
@@ -801,7 +808,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Alloc)
 	server.Register(s.staticEndpoints.Eval)
 	server.Register(s.staticEndpoints.Job)
-	server.Register(s.staticEndpoints.Node)
 	server.Register(s.staticEndpoints.Deployment)
 	server.Register(s.staticEndpoints.Operator)
 	server.Register(s.staticEndpoints.Periodic)
@@ -813,7 +819,10 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	s.staticEndpoints.Enterprise.Register(server)
 
 	// Create new dynamic endpoints and add them to the RPC server.
-	// TODO
+	node := &Node{srv: s, ctx: ctx}
+
+	// Register the dynamic endpoints
+	server.Register(node)
 }
 
 // setupRaft is used to setup and initialize Raft
@@ -1170,6 +1179,49 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 		return err
 	}
 	return codec.err
+}
+
+// getNodeConn returns the connection to the given node and whether it exists.
+func (s *Server) getNodeConn(nodeID string) (*yamux.Session, bool) {
+	s.nodeConnsLock.RLock()
+	defer s.nodeConnsLock.RUnlock()
+	session, ok := s.nodeConns[nodeID]
+	return session, ok
+}
+
+// connectedNodes returns the set of nodes we have a connection with.
+func (s *Server) connectedNodes() []string {
+	s.nodeConnsLock.RLock()
+	defer s.nodeConnsLock.RUnlock()
+	nodes := make([]string, 0, len(s.nodeConns))
+	for nodeID := range s.nodeConns {
+		nodes = append(nodes, nodeID)
+	}
+	return nodes
+}
+
+// addNodeConn adds the mapping between a node and its session.
+func (s *Server) addNodeConn(ctx *RPCContext) {
+	// Hotpath the no-op
+	if ctx == nil || ctx.NodeID == "" {
+		return
+	}
+
+	s.nodeConnsLock.Lock()
+	defer s.nodeConnsLock.Unlock()
+	s.nodeConns[ctx.NodeID] = ctx.Session
+}
+
+// removeNodeConn removes the mapping between a node and its session.
+func (s *Server) removeNodeConn(ctx *RPCContext) {
+	// Hotpath the no-op
+	if ctx == nil || ctx.NodeID == "" {
+		return
+	}
+
+	s.nodeConnsLock.Lock()
+	defer s.nodeConnsLock.Unlock()
+	delete(s.nodeConns, ctx.NodeID)
 }
 
 // Stats is used to return statistics for debugging and insight
