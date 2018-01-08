@@ -1070,7 +1070,7 @@ type Node struct {
 
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
-	// conducting priviledged activities.
+	// conducting privileged activities.
 	SecretID string
 
 	// Datacenter for this node
