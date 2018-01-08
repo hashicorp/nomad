@@ -3643,7 +3643,7 @@ type Template struct {
 	DestPath string
 
 	// EmbeddedTmpl store the raw template. This is useful for smaller templates
-	// where they are embedded in the job file rather than sent as an artificat
+	// where they are embedded in the job file rather than sent as an artifact
 	EmbeddedTmpl string
 
 	// ChangeMode indicates what should be done if the template is re-rendered
