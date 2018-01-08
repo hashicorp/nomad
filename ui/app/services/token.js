@@ -19,7 +19,7 @@ export default Service.extend({
     },
   }),
 
-  authorizedRequest(url, options = {}) {
+  authorizedRequest(url, options = { credentials: 'include' }) {
     const headers = {};
     const token = this.get('secret');
 

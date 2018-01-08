@@ -5,6 +5,7 @@ BUG FIXES:
  * core: Fix an issue in which batch jobs with queued placements and lost
    allocations could result in improper placement counts [[GH-3717](https://github.com/hashicorp/nomad/issues/3717)]
  * config: Revert minimum CPU limit back to 20 from 100.
+ * ui: Fix requests using client-side certificates in Firefox. [[GH-3728](https://github.com/hashicorp/nomad/pull/3728)]
 
 ## 0.7.1 (December 19, 2017)
 
