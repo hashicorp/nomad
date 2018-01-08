@@ -62,13 +62,13 @@ test('Basic appearance', function(assert) {
   this.setProperties(commonProps);
   this.render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  assert.ok(find('.action-stdout'), 'Stdout button');
-  assert.ok(find('.action-stderr'), 'Stderr button');
-  assert.ok(find('.action-head'), 'Head button');
-  assert.ok(find('.action-tail'), 'Tail button');
-  assert.ok(find('.action-toggle-stream'), 'Stream toggle button');
+  assert.ok(find('[data-test-log-action="stdout"]'), 'Stdout button');
+  assert.ok(find('[data-test-log-action="stderr"]'), 'Stderr button');
+  assert.ok(find('[data-test-log-action="head"]'), 'Head button');
+  assert.ok(find('[data-test-log-action="tail"]'), 'Tail button');
+  assert.ok(find('[data-test-log-action="toggle-stream"]'), 'Stream toggle button');
 
-  assert.ok(find('.boxed-section-body.is-full-bleed.is-dark'), 'Body is full-bleed and dark');
+  assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'), 'Body is full-bleed and dark');
 
   assert.ok(find('pre.cli-window'), 'Cli is preformatted and using the cli-window component class');
 });
@@ -87,7 +87,7 @@ test('Streaming starts on creation', function(assert) {
 
   return wait().then(() => {
     assert.equal(
-      find('.cli-window').textContent,
+      find('[data-test-log-cli]').textContent,
       streamFrames[0],
       'First chunk of streaming log is shown'
     );
@@ -98,7 +98,7 @@ test('Clicking Head loads the log head', function(assert) {
   this.setProperties(commonProps);
   this.render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  click('.action-head');
+  click('[data-test-log-action="head"]');
 
   return wait().then(() => {
     assert.ok(
@@ -107,7 +107,7 @@ test('Clicking Head loads the log head', function(assert) {
       ),
       'Log head request was made'
     );
-    assert.equal(find('.cli-window').textContent, logHead[0], 'Head of the log is shown');
+    assert.equal(find('[data-test-log-cli]').textContent, logHead[0], 'Head of the log is shown');
   });
 });
 
@@ -115,7 +115,7 @@ test('Clicking Tail loads the log tail', function(assert) {
   this.setProperties(commonProps);
   this.render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  click('.action-tail');
+  click('[data-test-log-action="tail"]');
 
   return wait().then(() => {
     assert.ok(
@@ -124,7 +124,7 @@ test('Clicking Tail loads the log tail', function(assert) {
       ),
       'Log tail request was made'
     );
-    assert.equal(find('.cli-window').textContent, logTail[0], 'Tail of the log is shown');
+    assert.equal(find('[data-test-log-cli]').textContent, logTail[0], 'Tail of the log is shown');
   });
 });
 
@@ -134,21 +134,25 @@ test('Clicking toggleStream starts and stops the log stream', function(assert) {
   this.render(hbs`{{task-log allocation=allocation task=task interval=interval}}`);
 
   run.later(() => {
-    click('.action-toggle-stream');
+    click('[data-test-log-action="toggle-stream"]');
   }, interval);
 
   return wait().then(() => {
-    assert.equal(find('.cli-window').textContent, streamFrames[0], 'First frame loaded');
+    assert.equal(find('[data-test-log-cli]').textContent, streamFrames[0], 'First frame loaded');
 
     run.later(() => {
-      assert.equal(find('.cli-window').textContent, streamFrames[0], 'Still only first frame');
-      click('.action-toggle-stream');
+      assert.equal(
+        find('[data-test-log-cli]').textContent,
+        streamFrames[0],
+        'Still only first frame'
+      );
+      click('[data-test-log-action="toggle-stream"]');
       run.later(run, run.cancelTimers, interval * 2);
     }, interval * 2);
 
     return wait().then(() => {
       assert.equal(
-        find('.cli-window').textContent,
+        find('[data-test-log-cli]').textContent,
         streamFrames[0] + streamFrames[0] + streamFrames[1],
         'Now includes second frame'
       );
@@ -160,7 +164,7 @@ test('Clicking stderr switches the log to standard error', function(assert) {
   this.setProperties(commonProps);
   this.render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  click('.action-stderr');
+  click('[data-test-log-action="stderr"]');
   run.later(run, run.cancelTimers, commonProps.interval);
 
   return wait().then(() => {
