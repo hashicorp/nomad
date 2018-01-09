@@ -499,7 +499,15 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 
 		// If the header is for a directory we create the directory
 		if hdr.Typeflag == tar.TypeDir {
-			os.MkdirAll(filepath.Join(dest, hdr.Name), os.FileMode(hdr.Mode))
+			name := filepath.Join(dest, hdr.Name)
+			os.MkdirAll(name, os.FileMode(hdr.Mode))
+
+			// Can't change owner if not root or on Windows.
+			if euid == 0 {
+				if err := os.Chown(name, hdr.Uid, hdr.Gid); err != nil {
+					return fmt.Errorf("error chowning directory %v", err)
+				}
+			}
 			continue
 		}
 		// If the header is for a symlink we create the symlink
@@ -522,8 +530,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				return fmt.Errorf("error chmoding file %v", err)
 			}
 
-			// Can't change owner if not root. Returns false on
-			// Windows as Chown always errors there.
+			// Can't change owner if not root or on Windows.
 			if euid == 0 {
 				if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
 					f.Close()
