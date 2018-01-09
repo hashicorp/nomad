@@ -657,7 +657,7 @@ BUG FIXES:
   * client: Killing an allocation doesn't cause allocation stats to block
     [[GH-1454](https://github.com/hashicorp/nomad/issues/1454)]
   * driver/docker: Disable swap on docker driver [[GH-1480](https://github.com/hashicorp/nomad/issues/1480)]
-  * driver/docker: Fix improper gating on priviledged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
+  * driver/docker: Fix improper gating on privileged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
   * driver/docker: Default network type is "nat" on Windows [[GH-1521](https://github.com/hashicorp/nomad/issues/1521)]
   * driver/docker: Cleanup created volume when destroying container [[GH-1519](https://github.com/hashicorp/nomad/issues/1519)]
   * driver/rkt: Set host environment variables [[GH-1581](https://github.com/hashicorp/nomad/issues/1581)]
