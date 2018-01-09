@@ -128,15 +128,15 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 		return nc
 	}
 
-	if nc.Limit == 0 {
+	if o.Limit > 0 {
 		nc.Limit = o.Limit
 	}
 
-	if nc.Grace == nil {
+	if o.Grace != nil {
 		nc.Grace = o.Grace
 	}
 
-	if !nc.IgnoreWarnings {
+	if o.IgnoreWarnings {
 		nc.IgnoreWarnings = o.IgnoreWarnings
 	}
 
@@ -185,13 +185,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
-	s.CheckRestart.Canonicalize()
-
 	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
-	for i, c := range s.Checks {
-		s.Checks[i].CheckRestart = c.CheckRestart.Merge(s.CheckRestart)
-		c.CheckRestart.Canonicalize()
+	for i, check := range s.Checks {
+		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
+		s.Checks[i].CheckRestart.Canonicalize()
 	}
 }
 
