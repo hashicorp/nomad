@@ -11,6 +11,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
@@ -281,17 +282,22 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		if err != nil {
 			s.logger.Printf("[ERR] http: Request %v, error: %v", reqURL, err)
 			code := 500
+			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
 			} else {
-				switch err.Error() {
-				case structs.ErrPermissionDenied.Error(), structs.ErrTokenNotFound.Error():
+				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+					errMsg = structs.ErrPermissionDenied.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+					errMsg = structs.ErrTokenNotFound.Error()
 					code = 403
 				}
 			}
 
 			resp.WriteHeader(code)
-			resp.Write([]byte(err.Error()))
+			resp.Write([]byte(errMsg))
 			return
 		}
 

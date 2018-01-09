@@ -11,6 +11,7 @@ BUG FIXES:
    allocations could result in improper placement counts [[GH-3717](https://github.com/hashicorp/nomad/issues/3717)]
  * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
  * config: Revert minimum CPU limit back to 20 from 100.
+ * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
  * ui: Fix requests using client-side certificates in Firefox. [[GH-3728](https://github.com/hashicorp/nomad/pull/3728)]
 
 ## 0.7.1 (December 19, 2017)
@@ -663,7 +664,7 @@ BUG FIXES:
   * client: Killing an allocation doesn't cause allocation stats to block
     [[GH-1454](https://github.com/hashicorp/nomad/issues/1454)]
   * driver/docker: Disable swap on docker driver [[GH-1480](https://github.com/hashicorp/nomad/issues/1480)]
-  * driver/docker: Fix improper gating on privileged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
+  * driver/docker: Fix improper gating on priviledged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
   * driver/docker: Default network type is "nat" on Windows [[GH-1521](https://github.com/hashicorp/nomad/issues/1521)]
   * driver/docker: Cleanup created volume when destroying container [[GH-1519](https://github.com/hashicorp/nomad/issues/1519)]
   * driver/rkt: Set host environment variables [[GH-1581](https://github.com/hashicorp/nomad/issues/1581)]
