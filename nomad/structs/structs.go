@@ -39,11 +39,6 @@ import (
 )
 
 var (
-	ErrNoLeader         = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath     = fmt.Errorf("No path to region")
-	ErrTokenNotFound    = errors.New("ACL token not found")
-	ErrPermissionDenied = errors.New("Permission denied")
-
 	// validPolicyName is used to validate a policy name
 	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
