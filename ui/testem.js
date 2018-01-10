@@ -13,6 +13,7 @@ module.exports = {
       mode: 'ci',
       args: [
         '--headless',
+        '--no-sandbox',
         '--disable-gpu',
         '--remote-debugging-port=9222',
         '--window-size=1440,900',
