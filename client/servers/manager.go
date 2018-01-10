@@ -15,26 +15,10 @@ import (
 	"github.com/hashicorp/consul/lib"
 )
 
-// TODO: Have the min reuse be 5 minutes and change the clients connpool to
-// cache for 6.
-
 const (
-	// clientRPCJitterFraction determines the amount of jitter added to
-	// clientRPCMinReuseDuration before a connection is expired and a new
-	// connection is established in order to rebalance load across Nomad
-	// servers.  The cluster-wide number of connections per second from
-	// rebalancing is applied after this jitter to ensure the CPU impact
-	// is always finite.  See newRebalanceConnsPerSecPerServer's comment
-	// for additional commentary.
-	//
-	// For example, in a 10K Nomad cluster with 5x servers, this default
-	// averages out to ~13 new connections from rebalancing per server
-	// per second (each connection is reused for 120s to 180s).
-	clientRPCJitterFraction = 2
-
 	// clientRPCMinReuseDuration controls the minimum amount of time RPC
 	// queries are sent over an established connection to a single server
-	clientRPCMinReuseDuration = 120 * time.Second
+	clientRPCMinReuseDuration = 5 * time.Minute
 
 	// Limit the number of new connections a server receives per second
 	// for connection rebalancing.  This limit caps the load caused by
@@ -522,18 +506,11 @@ func (m *Manager) reconcileServerList(l *serverList) bool {
 func (m *Manager) refreshServerRebalanceTimer() time.Duration {
 	l := m.getServerList()
 	numServers := len(l.servers)
+
 	// Limit this connection's life based on the size (and health) of the
 	// cluster.  Never rebalance a connection more frequently than
 	// connReuseLowWatermarkDuration, and make sure we never exceed
 	// clusterWideRebalanceConnsPerSec operations/s across numLANMembers.
-
-	/*
-		clusterWideRebalanceConnsPerSec := float64(numServers * newRebalanceConnsPerSecPerServer)
-		connReuseLowWatermarkDuration := clientRPCMinReuseDuration + lib.RandomStagger(clientRPCMinReuseDuration/clientRPCJitterFraction)
-		numLANMembers := int(m.NumNodes())
-		connRebalanceTimeout := lib.RateScaledInterval(clusterWideRebalanceConnsPerSec, connReuseLowWatermarkDuration, numLANMembers)
-	*/
-
 	clusterWideRebalanceConnsPerSec := float64(numServers * newRebalanceConnsPerSecPerServer)
 
 	connRebalanceTimeout := lib.RateScaledInterval(clusterWideRebalanceConnsPerSec, clientRPCMinReuseDuration, int(m.NumNodes()))

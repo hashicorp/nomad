@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+func init() {
+	// Seed the random number generator
+	rand.Seed(time.Now().UnixNano())
+}
+
 type fauxAddr struct {
 	Addr string
 }
@@ -244,26 +249,31 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 		minRebalance time.Duration
 	}
 	clusters := []clusterSizes{
-		{0, 3, 2 * time.Minute},
-		{1, 0, 2 * time.Minute}, // partitioned cluster
-		{1, 3, 2 * time.Minute},
-		{2, 3, 2 * time.Minute},
-		{100, 0, 2 * time.Minute}, // partitioned
-		{100, 1, 2 * time.Minute}, // partitioned
-		{100, 3, 2 * time.Minute},
-		{1024, 1, 2 * time.Minute}, // partitioned
-		{1024, 3, 2 * time.Minute}, // partitioned
-		{1024, 5, 2 * time.Minute},
+		{1, 0, 5 * time.Minute}, // partitioned cluster
+		{1, 3, 5 * time.Minute},
+		{2, 3, 5 * time.Minute},
+		{100, 0, 5 * time.Minute}, // partitioned
+		{100, 1, 5 * time.Minute}, // partitioned
+		{100, 3, 5 * time.Minute},
+		{1024, 1, 5 * time.Minute}, // partitioned
+		{1024, 3, 5 * time.Minute}, // partitioned
+		{1024, 5, 5 * time.Minute},
 		{16384, 1, 4 * time.Minute}, // partitioned
-		{16384, 2, 2 * time.Minute}, // partitioned
-		{16384, 3, 2 * time.Minute}, // partitioned
-		{16384, 5, 2 * time.Minute},
-		{65535, 0, 2 * time.Minute}, // partitioned
+		{16384, 2, 5 * time.Minute}, // partitioned
+		{16384, 3, 5 * time.Minute}, // partitioned
+		{16384, 5, 5 * time.Minute},
+		{32768, 0, 5 * time.Minute}, // partitioned
+		{32768, 1, 8 * time.Minute}, // partitioned
+		{32768, 2, 3 * time.Minute}, // partitioned
+		{32768, 3, 5 * time.Minute}, // partitioned
+		{32768, 5, 3 * time.Minute}, // partitioned
+		{65535, 7, 5 * time.Minute},
+		{65535, 0, 5 * time.Minute}, // partitioned
 		{65535, 1, 8 * time.Minute}, // partitioned
 		{65535, 2, 3 * time.Minute}, // partitioned
 		{65535, 3, 5 * time.Minute}, // partitioned
 		{65535, 5, 3 * time.Minute}, // partitioned
-		{65535, 7, 2 * time.Minute},
+		{65535, 7, 5 * time.Minute},
 		{1000000, 1, 4 * time.Hour},     // partitioned
 		{1000000, 2, 2 * time.Hour},     // partitioned
 		{1000000, 3, 80 * time.Minute},  // partitioned
@@ -284,6 +294,7 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 		}
 
 		d := m.refreshServerRebalanceTimer()
+		t.Logf("Nodes: %d; Servers: %d; Refresh: %v; Min: %v", s.numNodes, s.numServers, d, s.minRebalance)
 		if d < s.minRebalance {
 			t.Errorf("duration too short for cluster of size %d and %d servers (%s < %s)", s.numNodes, s.numServers, d, s.minRebalance)
 		}
