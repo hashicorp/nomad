@@ -212,19 +212,19 @@ func TestLxcDriver_Volumes_ConfigValidation(t *testing.T) {
 	ctestutil.RequireRoot(t)
 
 	brokenVolumeConfigs := [][]string{
-		[]string{
+		{
 			"foo:/var",
 		},
-		[]string{
+		{
 			":",
 		},
-		[]string{
+		{
 			"abc:",
 		},
-		[]string{
+		{
 			":def",
 		},
-		[]string{
+		{
 			"abc:def:ghi",
 		},
 	}
