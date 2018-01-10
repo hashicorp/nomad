@@ -68,9 +68,7 @@ TRY:
 	}
 
 	// We can wait a bit and retry!
-	// TODO(alexdadgar): Plumb through the RPCHoldTimeout config
-	//if time.Since(firstCheck) < c.config.RPCHoldTimeout {
-	if time.Since(firstCheck) < 5*time.Second {
+	if time.Since(firstCheck) < c.config.RPCHoldTimeout {
 		jitter := lib.RandomStagger(5 * time.Second / nomad.JitterFraction)
 		select {
 		case <-time.After(jitter):
