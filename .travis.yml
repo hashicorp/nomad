@@ -6,6 +6,9 @@ language: go
 go:
   -  1.9.x
 
+addons:
+  chrome: stable
+
 git:
   depth: 300
 
