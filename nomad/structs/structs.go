@@ -1171,8 +1171,11 @@ func (n *Node) TerminalStatus() bool {
 
 // Stub returns a summarized version of the node
 func (n *Node) Stub() *NodeListStub {
+
+	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
+
 	return &NodeListStub{
-		Address:           n.Attributes["unique.network.ip-address"],
+		Address:           addr,
 		ID:                n.ID,
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
