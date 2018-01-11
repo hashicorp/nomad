@@ -13,7 +13,9 @@
   $url-color: blue
 ) {
   font-family: monospace;
-  &, a, a:hover {
+  &,
+  a,
+  a:hover {
     color: $default-color;
     text-decoration: none;
   }
@@ -31,10 +33,10 @@
         display: none;
       }
       &.json-formatter-object:after {
-        content: "No properties";
+        content: 'No properties';
       }
       &.json-formatter-array:after {
-        content: "[]";
+        content: '[]';
       }
     }
   }
@@ -100,7 +102,7 @@
   // Inline preview on hover (optional)
   > a > .json-formatter-preview-text {
     opacity: 0;
-    transition: opacity .15s ease-in;
+    transition: opacity 0.15s ease-in;
     font-style: italic;
   }
 
