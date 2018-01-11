@@ -21,8 +21,7 @@
         opacity: 0;
       }
 
-      $color-sequence: $orange, $yellow, $green, $turquoise, $blue, $purple,
-        $red;
+      $color-sequence: $orange, $yellow, $green, $turquoise, $blue, $purple, $red;
 
       @for $i from 1 through length($color-sequence) {
         .slice-#{$i - 1} {
