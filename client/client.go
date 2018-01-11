@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -157,6 +158,10 @@ type Client struct {
 	// clientACLResolver holds the ACL resolution state
 	clientACLResolver
 
+	// rpcServer is used to serve RPCs by the local agent.
+	rpcServer *rpc.Server
+	endpoints rpcEndpoints
+
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -201,6 +206,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// Setup the clients RPC server
+	c.setupClientRpc()
 
 	// Initialize the ACL state
 	if err := c.clientACLResolver.init(); err != nil {
@@ -472,35 +480,6 @@ func (c *Client) Shutdown() error {
 	close(c.shutdownCh)
 	c.connPool.Shutdown()
 	return c.saveState()
-}
-
-// RPC is used to forward an RPC call to a nomad server, or fail if no servers.
-func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
-	// Invoke the RPCHandler if it exists
-	if c.config.RPCHandler != nil {
-		return c.config.RPCHandler.RPC(method, args, reply)
-	}
-
-	servers := c.servers.all()
-	if len(servers) == 0 {
-		return noServersErr
-	}
-
-	var mErr multierror.Error
-	for _, s := range servers {
-		// Make the RPC request
-		if err := c.connPool.RPC(c.Region(), s.addr, c.RPCMajorVersion(), method, args, reply); err != nil {
-			errmsg := fmt.Errorf("RPC failed to server %s: %v", s.addr, err)
-			mErr.Errors = append(mErr.Errors, errmsg)
-			c.logger.Printf("[DEBUG] client: %v", errmsg)
-			c.servers.failed(s)
-			continue
-		}
-		c.servers.good(s)
-		return nil
-	}
-
-	return mErr.ErrorOrNil()
 }
 
 // Stats is used to return statistics for debugging and insight
@@ -2163,20 +2142,4 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		allocs[a.ID] = a
 	}
 	return allocs
-}
-
-// resolveServer given a sever's address as a string, return it's resolved
-// net.Addr or an error.
-func resolveServer(s string) (net.Addr, error) {
-	const defaultClientPort = "4647" // default client RPC port
-	host, port, err := net.SplitHostPort(s)
-	if err != nil {
-		if strings.Contains(err.Error(), "missing port") {
-			host = s
-			port = defaultClientPort
-		} else {
-			return nil, err
-		}
-	}
-	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }

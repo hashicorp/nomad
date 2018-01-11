@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -122,7 +123,7 @@ func testClient(t *testing.T, cb func(c *config.Config)) *Client {
 		cb(conf)
 	}
 
-	logger := log.New(conf.LogOutput, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	catalog := consul.NewMockCatalog(logger)
 	mockService := newMockConsulServiceClient()
 	mockService.logger = logger
