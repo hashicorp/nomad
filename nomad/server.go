@@ -219,6 +219,9 @@ type endpoints struct {
 	Operator   *Operator
 	ACL        *ACL
 	Enterprise *EnterpriseEndpoints
+
+	// Client endpoints
+	ClientStats *ClientStats
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -915,6 +918,9 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.System = &System{s}
 		s.staticEndpoints.Search = &Search{s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
+
+		// Client endpoints
+		s.staticEndpoints.ClientStats = &ClientStats{s}
 	}
 
 	// Register the static handlers
@@ -931,6 +937,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.System)
 	server.Register(s.staticEndpoints.Search)
 	s.staticEndpoints.Enterprise.Register(server)
+	server.Register(s.staticEndpoints.ClientStats)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx}
