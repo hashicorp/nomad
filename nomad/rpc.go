@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"math/rand"
@@ -66,11 +67,9 @@ type RPCContext struct {
 	// TLS marks whether the RPC is over a TLS based connection
 	TLS bool
 
-	// TLSRole is the certificate role making the TLS connection.
-	TLSRole string
-
-	// TLSRegion is the region on the certificate making the TLS connection
-	TLSRegion string
+	// VerifiedChains is is the Verified certificates presented by the incoming
+	// connection.
+	VerifiedChains [][]*x509.Certificate
 
 	// NodeID marks the NodeID that initiated the connection.
 	NodeID string
@@ -174,15 +173,9 @@ func (s *Server) handleConn(conn net.Conn, ctx *RPCContext) {
 		// using TLS
 		ctx.TLS = true
 
-		// Parse the region and role from the TLS certificate
+		// Store the verified chains so they can be inspected later.
 		state := tlsConn.ConnectionState()
-		parts := strings.SplitN(state.ServerName, ".", 3)
-		if len(parts) != 3 || (parts[0] != "server" && parts[0] != "client") || parts[2] != "nomad" {
-			s.logger.Printf("[WARN] nomad.rpc: invalid server name %q on verified TLS connection", state.ServerName)
-		} else {
-			ctx.TLSRole = parts[0]
-			ctx.TLSRegion = parts[1]
-		}
+		ctx.VerifiedChains = state.VerifiedChains
 
 		s.handleConn(conn, ctx)
 
