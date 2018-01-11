@@ -134,6 +134,10 @@ type ConnPool struct {
 	// Used to indicate the pool is shutdown
 	shutdown   bool
 	shutdownCh chan struct{}
+
+	// connListener is used to notify a potential listener of a new connection
+	// being made.
+	connListener chan<- *yamux.Session
 }
 
 // NewPool is used to make a new connection pool
@@ -170,6 +174,12 @@ func (p *ConnPool) Shutdown() error {
 	if p.shutdown {
 		return nil
 	}
+
+	if p.connListener != nil {
+		close(p.connListener)
+		p.connListener = nil
+	}
+
 	p.shutdown = true
 	close(p.shutdownCh)
 	return nil
@@ -186,6 +196,21 @@ func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
 	}
 	p.pool = make(map[string]*Conn)
 	p.tlsWrap = tlsWrap
+}
+
+// SetConnListener is used to listen to new connections being made. The
+// channel will be closed when the conn pool is closed or a new listener is set.
+func (p *ConnPool) SetConnListener(l chan<- *yamux.Session) {
+	p.Lock()
+	defer p.Unlock()
+
+	// Close the old listener
+	if p.connListener != nil {
+		close(p.connListener)
+	}
+
+	// Store the new listener
+	p.connListener = l
 }
 
 // Acquire is used to get a connection that is
@@ -227,6 +252,15 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 		}
 
 		p.pool[addr.String()] = c
+
+		// If there is a connection listener, notify them of the new connection.
+		if p.connListener != nil {
+			select {
+			case p.connListener <- c.session:
+			default:
+			}
+		}
+
 		p.Unlock()
 		return c, nil
 	}
