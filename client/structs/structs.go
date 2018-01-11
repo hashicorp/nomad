@@ -4,7 +4,22 @@ import (
 	"crypto/md5"
 	"io"
 	"strconv"
+
+	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// ClientStatsRequest is used to request stats about a Node.
+type ClientStatsRequest struct {
+	NodeID string
+	structs.QueryOptions
+}
+
+// ClientStatsResponse is used to return statistics about a node.
+type ClientStatsResponse struct {
+	HostStats *stats.HostStats
+	structs.QueryMeta
+}
 
 // MemoryStats holds memory usage related stats
 type MemoryStats struct {

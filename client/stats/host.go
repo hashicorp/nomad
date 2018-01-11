@@ -93,7 +93,12 @@ func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollec
 func (h *HostStatsCollector) Collect() error {
 	h.hostStatsLock.Lock()
 	defer h.hostStatsLock.Unlock()
+	return h.collectLocked()
+}
 
+// collectLocked collects stats related to resource usage of the host but should
+// be called with the lock held.
+func (h *HostStatsCollector) collectLocked() error {
 	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
 
 	// Determine up-time
@@ -185,6 +190,13 @@ func (h *HostStatsCollector) collectDiskStats() ([]*DiskStats, error) {
 func (h *HostStatsCollector) Stats() *HostStats {
 	h.hostStatsLock.RLock()
 	defer h.hostStatsLock.RUnlock()
+
+	if h.hostStats == nil {
+		if err := h.collectLocked(); err != nil {
+			h.logger.Printf("[WARN] client: error fetching host resource usage stats: %v", err)
+		}
+	}
+
 	return h.hostStats
 }
 
