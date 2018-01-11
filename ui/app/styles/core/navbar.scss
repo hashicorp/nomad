@@ -1,10 +1,6 @@
 .navbar {
   &.is-primary {
-    background: linear-gradient(
-      to right,
-      $nomad-green-darker,
-      $nomad-green-dark
-    );
+    background: linear-gradient(to right, $nomad-green-darker, $nomad-green-dark);
     height: 3.5rem;
     color: $primary-invert;
     padding-left: 20px;
@@ -32,7 +28,7 @@
           width: 1px;
           height: 1em;
           background: rgba($primary-invert, 0.5);
-          content: " ";
+          content: ' ';
           display: block;
           position: absolute;
           left: 0px;
