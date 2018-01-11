@@ -9,10 +9,6 @@ go:
 git:
   depth: 300
 
-branches:
-  only:
-    - master
-
 matrix:
   include:
     - os: linux
