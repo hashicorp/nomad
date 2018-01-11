@@ -3,7 +3,6 @@ package nomad
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,7 +10,6 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -24,6 +22,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -1256,52 +1255,17 @@ func (s *Server) Regions() []string {
 	return regions
 }
 
-// inmemCodec is used to do an RPC call without going over a network
-type inmemCodec struct {
-	method string
-	args   interface{}
-	reply  interface{}
-	err    error
-}
-
-func (i *inmemCodec) ReadRequestHeader(req *rpc.Request) error {
-	req.ServiceMethod = i.method
-	return nil
-}
-
-func (i *inmemCodec) ReadRequestBody(args interface{}) error {
-	sourceValue := reflect.Indirect(reflect.Indirect(reflect.ValueOf(i.args)))
-	dst := reflect.Indirect(reflect.Indirect(reflect.ValueOf(args)))
-	dst.Set(sourceValue)
-	return nil
-}
-
-func (i *inmemCodec) WriteResponse(resp *rpc.Response, reply interface{}) error {
-	if resp.Error != "" {
-		i.err = errors.New(resp.Error)
-		return nil
-	}
-	sourceValue := reflect.Indirect(reflect.Indirect(reflect.ValueOf(reply)))
-	dst := reflect.Indirect(reflect.Indirect(reflect.ValueOf(i.reply)))
-	dst.Set(sourceValue)
-	return nil
-}
-
-func (i *inmemCodec) Close() error {
-	return nil
-}
-
 // RPC is used to make a local RPC call
 func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
-	codec := &inmemCodec{
-		method: method,
-		args:   args,
-		reply:  reply,
+	codec := &codec.InmemCodec{
+		Method: method,
+		Args:   args,
+		Reply:  reply,
 	}
 	if err := s.rpcServer.ServeRequest(codec); err != nil {
 		return err
 	}
-	return codec.err
+	return codec.Err
 }
 
 // getNodeConn returns the connection to the given node and whether it exists.
