@@ -14,14 +14,14 @@
     "precommit": "lint-staged"
   },
   "lint-staged": {
-    "gitDir": "../",
-    "linters": {
-      "ui/{app,tests,config,lib,mirage}/**/*.js": [
-        "prettier --single-quote --trailing-comma es5 --print-width 100 --write",
-        "git add"
-      ],
-      "ui/app/styles/**/*.*": ["prettier --write", "git add"]
-    }
+    "ui/{app,tests,config,lib,mirage}/**/*.js": [
+      "prettier --write",
+      "git add"
+    ],
+    "ui/app/styles/**/*.*": [
+      "prettier --write",
+      "git add"
+    ]
   },
   "devDependencies": {
     "broccoli-asset-rev": "^2.4.5",
@@ -69,7 +69,7 @@
     "flat": "^4.0.0",
     "husky": "^0.14.3",
     "json-formatter-js": "^2.2.0",
-    "lint-staged": "^3.6.1",
+    "lint-staged": "^6.0.0",
     "loader.js": "^4.2.3",
     "prettier": "^1.4.4",
     "query-string": "^5.0.0"
@@ -79,6 +79,9 @@
   },
   "private": true,
   "ember-addon": {
-    "paths": ["lib/bulma", "lib/calendar"]
+    "paths": [
+      "lib/bulma",
+      "lib/calendar"
+    ]
   }
 }
