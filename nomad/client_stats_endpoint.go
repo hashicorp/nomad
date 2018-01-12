@@ -57,7 +57,7 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 	}
 
 	// Get the connection to the client
-	session, ok := s.srv.getNodeConn(args.NodeID)
+	state, ok := s.srv.getNodeConn(args.NodeID)
 	if !ok {
 		// Check if the node even exists
 		snap, err := s.srv.State().Snapshot()
@@ -79,7 +79,7 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 	}
 
 	// Open a new session
-	stream, err := session.Open()
+	stream, err := state.Session.Open()
 	if err != nil {
 		return err
 	}

@@ -49,7 +49,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 	// Check that we have the client connections
 	nodes := s1.connectedNodes()
 	require.Len(nodes, 1)
-	require.Equal(node.ID, nodes[0])
+	require.Contains(nodes, node.ID)
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
@@ -330,7 +330,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	// Check that we have the client connections
 	nodes := s1.connectedNodes()
 	require.Len(nodes, 1)
-	require.Equal(node.ID, nodes[0])
+	require.Contains(nodes, node.ID)
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
@@ -1311,7 +1311,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Check that we have the client connections
 	nodes := s1.connectedNodes()
 	require.Len(nodes, 1)
-	require.Equal(node.ID, nodes[0])
+	require.Contains(nodes, node.ID)
 
 	// Lookup node with bad SecretID
 	get.SecretID = "foobarbaz"

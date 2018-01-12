@@ -129,7 +129,7 @@ type Server struct {
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
-	nodeConns     map[string]*yamux.Session
+	nodeConns     map[string]*nodeConnState
 	nodeConnsLock sync.RWMutex
 
 	// peers is used to track the known Nomad servers. This is
@@ -205,6 +205,15 @@ type Server struct {
 	shutdownLock sync.Mutex
 }
 
+// nodeConnState is used to track connection information about a Nomad Client.
+type nodeConnState struct {
+	// Session holds the multiplexed yamux Session for dialing back.
+	Session *yamux.Session
+
+	// Established is when the connection was established.
+	Established time.Time
+}
+
 // Holds the RPC endpoints
 type endpoints struct {
 	Status     *Status
@@ -273,7 +282,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
 		rpcServer:     rpc.NewServer(),
-		nodeConns:     make(map[string]*yamux.Session),
+		nodeConns:     make(map[string]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:   make(chan serf.Member, 32),
@@ -1278,20 +1287,20 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 }
 
 // getNodeConn returns the connection to the given node and whether it exists.
-func (s *Server) getNodeConn(nodeID string) (*yamux.Session, bool) {
+func (s *Server) getNodeConn(nodeID string) (*nodeConnState, bool) {
 	s.nodeConnsLock.RLock()
 	defer s.nodeConnsLock.RUnlock()
-	session, ok := s.nodeConns[nodeID]
-	return session, ok
+	state, ok := s.nodeConns[nodeID]
+	return state, ok
 }
 
 // connectedNodes returns the set of nodes we have a connection with.
-func (s *Server) connectedNodes() []string {
+func (s *Server) connectedNodes() map[string]time.Time {
 	s.nodeConnsLock.RLock()
 	defer s.nodeConnsLock.RUnlock()
-	nodes := make([]string, 0, len(s.nodeConns))
-	for nodeID := range s.nodeConns {
-		nodes = append(nodes, nodeID)
+	nodes := make(map[string]time.Time, len(s.nodeConns))
+	for nodeID, state := range s.nodeConns {
+		nodes[nodeID] = state.Established
 	}
 	return nodes
 }
@@ -1305,7 +1314,10 @@ func (s *Server) addNodeConn(ctx *RPCContext) {
 
 	s.nodeConnsLock.Lock()
 	defer s.nodeConnsLock.Unlock()
-	s.nodeConns[ctx.NodeID] = ctx.Session
+	s.nodeConns[ctx.NodeID] = &nodeConnState{
+		Session:     ctx.Session,
+		Established: time.Now(),
+	}
 }
 
 // removeNodeConn removes the mapping between a node and its session.
