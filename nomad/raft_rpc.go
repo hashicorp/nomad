@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/raft"
 )
@@ -111,7 +112,7 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 	// Check for tls mode
 	if tlsWrapper != nil {
 		// Switch the connection into TLS mode
-		if _, err := conn.Write([]byte{byte(rpcTLS)}); err != nil {
+		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
 			conn.Close()
 			return nil, err
 		}
@@ -124,7 +125,7 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 	}
 
 	// Write the Raft byte to set the mode
-	_, err = conn.Write([]byte{byte(rpcRaft)})
+	_, err = conn.Write([]byte{byte(pool.RpcRaft)})
 	if err != nil {
 		conn.Close()
 		return nil, err

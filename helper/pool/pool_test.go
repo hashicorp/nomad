@@ -1,9 +1,12 @@
-package nomad
+package pool
 
 import (
+	"fmt"
+	"net"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
@@ -17,8 +20,28 @@ func newTestPool(t *testing.T) *ConnPool {
 }
 
 func TestConnPool_ConnListener(t *testing.T) {
-	// Create a server and test pool
-	s := TestServer(t, nil)
+	require := require.New(t)
+
+	ports := freeport.GetT(t, 1)
+	addrStr := fmt.Sprintf("127.0.0.1:%d", ports[0])
+	addr, err := net.ResolveTCPAddr("tcp", addrStr)
+	require.Nil(err)
+
+	exitCh := make(chan struct{})
+	defer close(exitCh)
+	go func() {
+		ln, err := net.Listen("tcp", addrStr)
+		require.Nil(err)
+		defer ln.Close()
+		conn, _ := ln.Accept()
+		defer conn.Close()
+
+		<-exitCh
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Create a test pool
 	pool := newTestPool(t)
 
 	// Setup a listener
@@ -26,9 +49,8 @@ func TestConnPool_ConnListener(t *testing.T) {
 	pool.SetConnListener(c)
 
 	// Make an RPC
-	var out struct{}
-	err := pool.RPC(s.Region(), s.config.RPCAddr, structs.ApiMajorVersion, "Status.Ping", struct{}{}, &out)
-	require.Nil(t, err)
+	_, err = pool.acquire("test", addr, structs.ApiMajorVersion)
+	require.Nil(err)
 
 	// Assert we get a connection.
 	select {
@@ -38,7 +60,7 @@ func TestConnPool_ConnListener(t *testing.T) {
 	}
 
 	// Test that the channel is closed when the pool shuts down.
-	require.Nil(t, pool.Shutdown())
+	require.Nil(pool.Shutdown())
 	_, ok := <-c
-	require.False(t, ok)
+	require.False(ok)
 }

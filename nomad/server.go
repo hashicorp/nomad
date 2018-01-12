@@ -23,6 +23,8 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -90,7 +92,7 @@ type Server struct {
 	logger *log.Logger
 
 	// Connection pool to other Nomad servers
-	connPool *ConnPool
+	connPool *pool.ConnPool
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
@@ -268,7 +270,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	s := &Server{
 		config:        config,
 		consulCatalog: consulCatalog,
-		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
 		rpcServer:     rpc.NewServer(),
 		nodeConns:     make(map[string]*yamux.Session),
@@ -1334,7 +1336,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
-		"runtime": RuntimeStats(),
+		"runtime": stats.RuntimeStats(),
 	}
 
 	return stats

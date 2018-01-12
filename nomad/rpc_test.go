@@ -9,6 +9,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -25,8 +26,8 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 		t.Fatalf("err: %v", err)
 	}
 	// Write the Consul RPC byte to set the mode
-	conn.Write([]byte{byte(rpcNomad)})
-	return NewClientCodec(conn)
+	conn.Write([]byte{byte(pool.RpcNomad)})
+	return pool.NewClientCodec(conn)
 }
 
 func TestRPC_forwardLeader(t *testing.T) {

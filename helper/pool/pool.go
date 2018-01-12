@@ -1,4 +1,4 @@
-package nomad
+package pool
 
 import (
 	"container/list"
@@ -12,8 +12,19 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
+
+// NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls.
+func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+}
+
+// NewServerCodec returns a new rpc.ServerCodec to be used to handle RPCs.
+func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+}
 
 // streamClient is used to wrap a stream with an RPC client
 type StreamClient struct {
@@ -302,7 +313,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	// Check if TLS is enabled
 	if p.tlsWrap != nil {
 		// Switch the connection into TLS mode
-		if _, err := conn.Write([]byte{byte(rpcTLS)}); err != nil {
+		if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
 			conn.Close()
 			return nil, err
 		}
@@ -317,7 +328,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	}
 
 	// Write the multiplex byte to set the mode
-	if _, err := conn.Write([]byte{byte(rpcMultiplex)}); err != nil {
+	if _, err := conn.Write([]byte{byte(RpcMultiplex)}); err != nil {
 		conn.Close()
 		return nil, err
 	}

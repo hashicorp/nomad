@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -18,14 +19,14 @@ import (
 // as we run the health check fairly frequently.
 type StatsFetcher struct {
 	logger       *log.Logger
-	pool         *ConnPool
+	pool         *pool.ConnPool
 	region       string
 	inflight     map[string]struct{}
 	inflightLock sync.Mutex
 }
 
 // NewStatsFetcher returns a stats fetcher.
-func NewStatsFetcher(logger *log.Logger, pool *ConnPool, region string) *StatsFetcher {
+func NewStatsFetcher(logger *log.Logger, pool *pool.ConnPool, region string) *StatsFetcher {
 	return &StatsFetcher{
 		logger:   logger,
 		pool:     pool,
