@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -520,7 +522,8 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ln, err := config.Listener("tcp", "127.0.0.1", 24000)
+	ports := freeport.GetT(t, 2)
+	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -529,20 +532,22 @@ func TestConfig_Listener(t *testing.T) {
 	if net := ln.Addr().Network(); net != "tcp" {
 		t.Fatalf("expected tcp, got: %q", net)
 	}
-	if addr := ln.Addr().String(); addr != "127.0.0.1:24000" {
-		t.Fatalf("expected 127.0.0.1:4646, got: %q", addr)
+	want := fmt.Sprintf("127.0.0.1:%d", ports[0])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 
 	// Falls back to default bind address if non provided
 	config.BindAddr = "0.0.0.0"
-	ln, err = config.Listener("tcp4", "", 24000)
+	ln, err = config.Listener("tcp4", "", ports[1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	ln.Close()
 
-	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
-		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
+	want = fmt.Sprintf("0.0.0.0:%d", ports[1])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 }
 
