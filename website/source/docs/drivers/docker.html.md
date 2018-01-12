@@ -210,11 +210,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
-* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
-  the container access to devices on the host. Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
-
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
