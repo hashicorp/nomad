@@ -14,7 +14,7 @@ import (
 
 func TestInitializeHeartbeatTimers(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -40,7 +40,7 @@ func TestInitializeHeartbeatTimers(t *testing.T) {
 
 func TestResetHeartbeatTimer(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -62,7 +62,7 @@ func TestResetHeartbeatTimer(t *testing.T) {
 
 func TestResetHeartbeatTimerLocked(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -83,7 +83,7 @@ func TestResetHeartbeatTimerLocked(t *testing.T) {
 
 func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -122,7 +122,7 @@ func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
 
 func TestInvalidateHeartbeat(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -150,7 +150,7 @@ func TestInvalidateHeartbeat(t *testing.T) {
 
 func TestClearHeartbeatTimer(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -170,7 +170,7 @@ func TestClearHeartbeatTimer(t *testing.T) {
 
 func TestClearAllHeartbeatTimers(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -192,20 +192,20 @@ func TestClearAllHeartbeatTimers(t *testing.T) {
 
 func TestServer_HeartbeatTTL_Failover(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
 		peers, _ := s1.numPeers()

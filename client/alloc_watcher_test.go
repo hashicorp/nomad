@@ -177,7 +177,7 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	}
 	defer os.RemoveAll(dir1)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = nil
 	})
 	defer c1.Shutdown()

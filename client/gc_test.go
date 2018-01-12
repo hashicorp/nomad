@@ -298,7 +298,7 @@ func TestAllocGarbageCollector_MaxAllocs(t *testing.T) {
 	testutil.WaitForLeader(t, server.RPC)
 
 	const maxAllocs = 6
-	client := testClient(t, func(c *config.Config) {
+	client := TestClient(t, func(c *config.Config) {
 		c.GCMaxAllocs = maxAllocs
 		c.GCDiskUsageThreshold = 100
 		c.GCInodeUsageThreshold = 100

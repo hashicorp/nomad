@@ -4,21 +4,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -33,110 +27,18 @@ import (
 )
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken) {
-	server, addr := testServer(t, func(c *nomad.Config) {
-		c.ACLEnabled = true
-		if cb != nil {
-			cb(c)
-		}
-	})
-	token := mock.ACLManagementToken()
-	err := server.State().BootstrapACLTokens(1, 0, token)
-	if err != nil {
-		t.Fatalf("failed to bootstrap ACL token: %v", err)
-	}
-	return server, addr, token
+	server, token := nomad.TestACLServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String(), token
 }
 
 func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
-	// Setup the default settings
-	config := nomad.DefaultConfig()
-	config.VaultConfig.Enabled = helper.BoolToPtr(false)
-	config.Build = "unittest"
-	config.DevMode = true
-
-	// Tighten the Serf timing
-	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
-	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
-	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
-	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
-	config.SerfConfig.MemberlistConfig.ProbeInterval = 100 * time.Millisecond
-	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
-
-	// Tighten the Raft timing
-	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
-	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
-	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
-	config.RaftConfig.StartAsLeader = true
-	config.RaftTimeout = 500 * time.Millisecond
-
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
-	catalog := consul.NewMockCatalog(logger)
-
-	// Invoke the callback if any
-	if cb != nil {
-		cb(config)
-	}
-
-	// Enable raft as leader if we have bootstrap on
-	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
-
-	for i := 10; i >= 0; i-- {
-		ports := freeport.GetT(t, 2)
-		config.RPCAddr = &net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: ports[0],
-		}
-		config.NodeName = fmt.Sprintf("Node %d", config.RPCAddr.Port)
-		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
-
-		// Create server
-		server, err := nomad.NewServer(config, catalog, logger)
-		if err == nil {
-			return server, config.RPCAddr.String()
-		} else if i == 0 {
-			t.Fatalf("err: %v", err)
-		} else {
-			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			time.Sleep(wait)
-		}
-	}
-	return nil, ""
-}
-
-func testClient(t *testing.T, cb func(c *config.Config)) *Client {
-	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = helper.BoolToPtr(false)
-	conf.DevMode = true
-	conf.Node = &structs.Node{
-		Reserved: &structs.Resources{
-			DiskMB: 0,
-		},
-	}
-
-	// Tighten the fingerprinter timeouts
-	if conf.Options == nil {
-		conf.Options = make(map[string]string)
-	}
-	conf.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
-
-	if cb != nil {
-		cb(conf)
-	}
-
-	logger := testlog.Logger(t)
-	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient()
-	mockService.logger = logger
-	client, err := NewClient(conf, catalog, mockService, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return client
+	server := nomad.TestServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String()
 }
 
 func TestClient_StartStop(t *testing.T) {
 	t.Parallel()
-	client := testClient(t, nil)
+	client := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -148,7 +50,7 @@ func TestClient_BaseLabels(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	client := testClient(t, nil)
+	client := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -173,7 +75,7 @@ func TestClient_RPC(t *testing.T) {
 	s1, addr := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
 	defer c1.Shutdown()
@@ -193,7 +95,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -214,7 +116,7 @@ func TestClient_Fingerprint(t *testing.T) {
 
 	driver.CheckForMockDriver(t)
 
-	c := testClient(t, nil)
+	c := TestClient(t, nil)
 	defer c.Shutdown()
 
 	// Ensure default values are present
@@ -226,7 +128,7 @@ func TestClient_Fingerprint(t *testing.T) {
 
 func TestClient_HasNodeChanged(t *testing.T) {
 	t.Parallel()
-	c := testClient(t, nil)
+	c := TestClient(t, nil)
 	defer c.Shutdown()
 
 	node := c.config.Node
@@ -262,7 +164,7 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 
 	// these constants are only defined when nomad_test is enabled, so these fail
 	// our linter without explicit disabling.
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			driver.ShutdownPeriodicAfter:    "true", // nolint: varcheck
 			driver.ShutdownPeriodicDuration: "3",    // nolint: varcheck
@@ -318,7 +220,7 @@ func TestClient_MixedTLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
 	defer c1.Shutdown()
@@ -368,7 +270,7 @@ func TestClient_BadTLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -406,7 +308,7 @@ func TestClient_Register(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -440,7 +342,7 @@ func TestClient_Heartbeat(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -472,7 +374,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -523,7 +425,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -618,7 +520,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
@@ -735,7 +637,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -846,7 +748,7 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := testClient(t, func(c *config.Config) {
+	c := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
 	defer c.Shutdown()
@@ -862,7 +764,7 @@ func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := testClient(t, func(c *config.Config) {
+	c := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
 	defer c.Shutdown()
@@ -878,7 +780,7 @@ func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := testClient(t, func(c *config.Config) {})
+	c := TestClient(t, func(c *config.Config) {})
 	defer c.Shutdown()
 
 	assert.Equal(c.ValidateMigrateToken("", ""), true)
@@ -900,7 +802,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
 	defer c1.Shutdown()
@@ -976,7 +878,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,

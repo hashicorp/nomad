@@ -31,13 +31,13 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 
 func TestRPC_forwardLeader(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
@@ -70,13 +70,13 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 func TestRPC_forwardRegion(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.Region = "region2"
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
@@ -104,7 +104,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC:            true,
@@ -147,7 +147,7 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC:            true,
