@@ -15,20 +15,11 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
 	memdb "github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
-)
-
-type RPCType byte
-
-const (
-	rpcNomad     RPCType = 0x01
-	rpcRaft              = 0x02
-	rpcMultiplex         = 0x03
-	rpcTLS               = 0x04
 )
 
 const (
@@ -75,18 +66,6 @@ type RPCContext struct {
 	NodeID string
 }
 
-// NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls to
-// the Nomad Server.
-func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
-}
-
-// NewServerCodec returns a new rpc.ServerCodec to be used by the Nomad Server
-// to handle rpcs.
-func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
-}
-
 // listen is used to listen for incoming RPC connections
 func (s *Server) listen() {
 	for {
@@ -119,7 +98,7 @@ func (s *Server) handleConn(conn net.Conn, ctx *RPCContext) {
 	}
 
 	// Enforce TLS if EnableRPC is set
-	if s.config.TLSConfig.EnableRPC && !ctx.TLS && RPCType(buf[0]) != rpcTLS {
+	if s.config.TLSConfig.EnableRPC && !ctx.TLS && pool.RPCType(buf[0]) != pool.RpcTLS {
 		if !s.config.TLSConfig.RPCUpgradeMode {
 			s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted from %s with RequireTLS set", conn.RemoteAddr().String())
 			conn.Close()
@@ -128,8 +107,8 @@ func (s *Server) handleConn(conn net.Conn, ctx *RPCContext) {
 	}
 
 	// Switch on the byte
-	switch RPCType(buf[0]) {
-	case rpcNomad:
+	switch pool.RPCType(buf[0]) {
+	case pool.RpcNomad:
 		// Create an RPC Server and handle the request
 		server := rpc.NewServer()
 		s.setupRpcServer(server, ctx)
@@ -139,14 +118,14 @@ func (s *Server) handleConn(conn net.Conn, ctx *RPCContext) {
 		// close the underlying connection.
 		s.removeNodeConn(ctx)
 
-	case rpcRaft:
+	case pool.RpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
 		s.raftLayer.Handoff(conn)
 
-	case rpcMultiplex:
+	case pool.RpcMultiplex:
 		s.handleMultiplex(conn, ctx)
 
-	case rpcTLS:
+	case pool.RpcTLS:
 		if s.rpcTLS == nil {
 			s.logger.Printf("[WARN] nomad.rpc: TLS connection attempted, server not configured for TLS")
 			conn.Close()
@@ -222,7 +201,7 @@ func (s *Server) handleMultiplex(conn net.Conn, ctx *RPCContext) {
 // handleNomadConn is used to service a single Nomad RPC connection
 func (s *Server) handleNomadConn(conn net.Conn, server *rpc.Server) {
 	defer conn.Close()
-	rpcCodec := NewServerCodec(conn)
+	rpcCodec := pool.NewServerCodec(conn)
 	for {
 		select {
 		case <-s.shutdownCh:

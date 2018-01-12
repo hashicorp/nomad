@@ -9,6 +9,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/pool"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -84,7 +85,7 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 	}
 
 	// Make the RPC
-	err = msgpackrpc.CallWithCodec(NewClientCodec(stream), "ClientStats.Stats", args, reply)
+	err = msgpackrpc.CallWithCodec(pool.NewClientCodec(stream), "ClientStats.Stats", args, reply)
 	if err != nil {
 		return err
 	}

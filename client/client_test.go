@@ -873,7 +873,7 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 	defer c.Shutdown()
 
 	alloc := mock.Alloc()
-	validToken, err := nomad.GenerateMigrateToken(alloc.ID, c.secretNodeID())
+	validToken, err := structs.GenerateMigrateToken(alloc.ID, c.secretNodeID())
 	assert.Nil(err)
 
 	assert.Equal(c.ValidateMigrateToken(alloc.ID, validToken), true)

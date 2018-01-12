@@ -27,9 +27,10 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pool"
+	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
@@ -108,7 +109,7 @@ type Client struct {
 
 	logger *log.Logger
 
-	connPool *nomad.ConnPool
+	connPool *pool.ConnPool
 
 	// servers is the (optionally prioritized) list of nomad servers
 	servers *serverlist
@@ -192,7 +193,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		consulCatalog:       consulCatalog,
 		consulService:       consulService,
 		start:               time.Now(),
-		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
 		allocUpdates:        make(chan *structs.Allocation, 64),
@@ -467,7 +468,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
-		"runtime": nomad.RuntimeStats(),
+		"runtime": hstats.RuntimeStats(),
 	}
 	return stats
 }
@@ -520,7 +521,7 @@ func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
 		return true
 	}
 
-	return nomad.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
+	return structs.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
