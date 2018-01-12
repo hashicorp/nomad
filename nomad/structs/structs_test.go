@@ -1178,6 +1178,122 @@ func TestTask_Validate_Services(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(s *Service) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			Services:  []*Service{s},
+			LogConfig: DefaultLogConfig(),
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []*Service{
+		{
+			// https://github.com/hashicorp/nomad/issues/3681#issuecomment-357274177
+			Name:        "DriverModeWithLabel",
+			PortLabel:   "http",
+			AddressMode: AddressModeDriver,
+		},
+		{
+			Name:        "DriverModeWithPort",
+			PortLabel:   "80",
+			AddressMode: AddressModeDriver,
+		},
+		{
+			Name:        "HostModeWithLabel",
+			PortLabel:   "http",
+			AddressMode: AddressModeHost,
+		},
+		{
+			Name:        "HostModeWithoutLabel",
+			AddressMode: AddressModeHost,
+		},
+		{
+			Name:        "DriverModeWithoutLabel",
+			AddressMode: AddressModeDriver,
+		},
+	}
+
+	for _, service := range cases {
+		task := getTask(service)
+		t.Run(service.Name, func(t *testing.T) {
+			if err := task.Validate(ephemeralDisk); err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+		})
+	}
+}
+
+func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(s *Service) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			Services:  []*Service{s},
+			LogConfig: DefaultLogConfig(),
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []*Service{
+		{
+			// https://github.com/hashicorp/nomad/issues/3681#issuecomment-357274177
+			Name:        "DriverModeWithLabel",
+			PortLabel:   "asdf",
+			AddressMode: AddressModeDriver,
+		},
+		{
+			Name:        "HostModeWithLabel",
+			PortLabel:   "asdf",
+			AddressMode: AddressModeHost,
+		},
+		{
+			Name:        "HostModeWithPort",
+			PortLabel:   "80",
+			AddressMode: AddressModeHost,
+		},
+	}
+
+	for _, service := range cases {
+		task := getTask(service)
+		t.Run(service.Name, func(t *testing.T) {
+			err := task.Validate(ephemeralDisk)
+			if err == nil {
+				t.Fatalf("expected an error")
+			}
+			//t.Logf("err: %v", err)
+		})
+	}
+}
+
 func TestTask_Validate_Service_Check(t *testing.T) {
 
 	invalidCheck := ServiceCheck{

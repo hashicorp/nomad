@@ -1145,10 +1145,13 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// If port isn't a label, try to parse it as a literal port number
 		port, err := strconv.Atoi(portLabel)
 		if err != nil {
-			return "", 0, fmt.Errorf("invalid port %q: %v", portLabel, err)
+			// Don't include Atoi error message as user likely
+			// never intended it to be a numeric and it creates a
+			// confusing error message
+			return "", 0, fmt.Errorf("invalid port label %q: port labels in driver address_mode must be numeric or in the driver's port map", portLabel)
 		}
 		if port <= 0 {
-			return "", 0, fmt.Errorf("invalid port: %q: port 0 is invalid", portLabel)
+			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
 		}
 
 		return driverNet.IP, port, nil
