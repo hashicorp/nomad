@@ -61,7 +61,6 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	return mErr.ErrorOrNil()
 }
 
-// TODO This can't really be tested until Servers can dial back to the client.
 // setupClientRpc is used to setup the Client's RPC endpoints
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
