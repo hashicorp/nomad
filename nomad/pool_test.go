@@ -18,7 +18,7 @@ func newTestPool(t *testing.T) *ConnPool {
 
 func TestConnPool_ConnListener(t *testing.T) {
 	// Create a server and test pool
-	s := testServer(t, nil)
+	s := TestServer(t, nil)
 	pool := newTestPool(t)
 
 	// Setup a listener

@@ -18,7 +18,7 @@ import (
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -61,7 +61,7 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 
 func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -124,7 +124,7 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 
 func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -180,7 +180,7 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 
 func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)

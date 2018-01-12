@@ -14,7 +14,7 @@ import (
 
 func TestPeriodicEndpoint_Force(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	state := s1.fsm.State()
@@ -64,7 +64,7 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, func(c *Config) {
+	s1, root := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -142,7 +142,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	state := s1.fsm.State()

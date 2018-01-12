@@ -21,7 +21,7 @@ import (
 
 func TestEvalEndpoint_GetEval(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -62,7 +62,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 
 func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -122,7 +122,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 
 func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -200,7 +200,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 
 func TestEvalEndpoint_Dequeue(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -242,7 +242,7 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 
 func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -289,7 +289,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
 func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 	// test enqueueing an eval, updating a plan result for the same eval and de-queueing the eval
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -355,7 +355,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 
 func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -381,7 +381,7 @@ func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
 
 func TestEvalEndpoint_Ack(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -421,7 +421,7 @@ func TestEvalEndpoint_Ack(t *testing.T) {
 
 func TestEvalEndpoint_Nack(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		// Disable all of the schedulers so we can manually dequeue
 		// evals and check the queue status
 		c.NumSchedulers = 0
@@ -474,7 +474,7 @@ func TestEvalEndpoint_Nack(t *testing.T) {
 
 func TestEvalEndpoint_Update(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -522,7 +522,7 @@ func TestEvalEndpoint_Update(t *testing.T) {
 
 func TestEvalEndpoint_Create(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -574,7 +574,7 @@ func TestEvalEndpoint_Create(t *testing.T) {
 
 func TestEvalEndpoint_Reap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -609,7 +609,7 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 
 func TestEvalEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -664,7 +664,7 @@ func TestEvalEndpoint_List(t *testing.T) {
 
 func TestEvalEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -729,7 +729,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 
 func TestEvalEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -795,7 +795,7 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 
 func TestEvalEndpoint_Allocations(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -833,7 +833,7 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 
 func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -897,7 +897,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 
 func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -952,7 +952,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 
 func TestEvalEndpoint_Reblock_NonExistent(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -988,7 +988,7 @@ func TestEvalEndpoint_Reblock_NonExistent(t *testing.T) {
 
 func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -1030,7 +1030,7 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 
 func TestEvalEndpoint_Reblock(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
