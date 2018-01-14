@@ -189,10 +189,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          "foo",
-						Count:         2,
-						RestartPolicy: NewRestartPolicy(JobTypeService),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "foo",
+						Count:            2,
+						RestartPolicy:    NewRestartPolicy(JobTypeService),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     2,
@@ -229,10 +230,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				Update:    UpdateStrategy{},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          "foo",
-						Count:         2,
-						RestartPolicy: NewRestartPolicy(JobTypeBatch),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "foo",
+						Count:            2,
+						RestartPolicy:    NewRestartPolicy(JobTypeBatch),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeBatch),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 					},
 				},
 			},
@@ -272,10 +274,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				Update:    UpdateStrategy{},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          "foo",
-						Count:         2,
-						RestartPolicy: NewRestartPolicy(JobTypeBatch),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "foo",
+						Count:            2,
+						RestartPolicy:    NewRestartPolicy(JobTypeBatch),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeBatch),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 					},
 				},
 			},
@@ -321,10 +324,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          "foo",
-						Count:         2,
-						RestartPolicy: NewRestartPolicy(JobTypeService),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "foo",
+						Count:            2,
+						RestartPolicy:    NewRestartPolicy(JobTypeService),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         2 * time.Second,
 							MaxParallel:     2,
@@ -363,10 +367,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          "foo",
-						Count:         2,
-						RestartPolicy: NewRestartPolicy(JobTypeService),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "foo",
+						Count:            2,
+						RestartPolicy:    NewRestartPolicy(JobTypeService),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     2,
@@ -414,10 +419,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          "foo",
-						Count:         2,
-						RestartPolicy: NewRestartPolicy(JobTypeService),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "foo",
+						Count:            2,
+						RestartPolicy:    NewRestartPolicy(JobTypeService),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     1,
@@ -429,10 +435,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						},
 					},
 					{
-						Name:          "bar",
-						Count:         14,
-						RestartPolicy: NewRestartPolicy(JobTypeService),
-						EphemeralDisk: DefaultEphemeralDisk(),
+						Name:             "bar",
+						Count:            14,
+						RestartPolicy:    NewRestartPolicy(JobTypeService),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     1,
@@ -444,10 +451,11 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						},
 					},
 					{
-						Name:          "foo",
-						Count:         26,
-						EphemeralDisk: DefaultEphemeralDisk(),
-						RestartPolicy: NewRestartPolicy(JobTypeService),
+						Name:             "foo",
+						Count:            26,
+						EphemeralDisk:    DefaultEphemeralDisk(),
+						RestartPolicy:    NewRestartPolicy(JobTypeService),
+						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     3,
@@ -559,6 +567,10 @@ func testJob() *Job {
 					Attempts: 3,
 					Interval: 10 * time.Minute,
 					Delay:    1 * time.Minute,
+				},
+				ReschedulePolicy: &ReschedulePolicy{
+					Interval: 5 * time.Minute,
+					Attempts: 10,
 				},
 				Tasks: []*Task{
 					{
@@ -914,6 +926,10 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 5,
+		},
 	}
 	err := tg.Validate(j)
 	mErr := err.(*multierror.Error)
@@ -993,6 +1009,10 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Delay:    10 * time.Second,
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
+		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 10,
 		},
 	}
 
@@ -2401,6 +2421,38 @@ func TestRestartPolicy_Validate(t *testing.T) {
 	}
 }
 
+func TestReschedulePolicy_Validate(t *testing.T) {
+	type testCase struct {
+		ReschedulePolicy *ReschedulePolicy
+		err              error
+	}
+
+	testCases := []testCase{
+		{
+			ReschedulePolicy: &ReschedulePolicy{1, 5 * time.Minute},
+			err:              nil,
+		},
+		{
+			ReschedulePolicy: &ReschedulePolicy{-1, 5 * time.Minute},
+			err:              fmt.Errorf("Attempts must be >= 0 (got -1)"),
+		},
+		{
+			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Second},
+			err:              fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, time.Second),
+		},
+	}
+
+	assert := assert.New(t)
+
+	for _, tc := range testCases {
+		if tc.err != nil {
+			assert.Contains(tc.ReschedulePolicy.Validate().Error(), tc.err.Error())
+		} else {
+			assert.Nil(tc.err)
+		}
+	}
+}
+
 func TestAllocation_Index(t *testing.T) {
 	a1 := Allocation{
 		Name:      "example.cache[1]",
@@ -2624,6 +2676,115 @@ func TestAllocation_Terminated(t *testing.T) {
 		if alloc.Terminated() != state.Terminated {
 			t.Fatalf("expected: %v, actual: %v", state.Terminated, alloc.Terminated())
 		}
+	}
+}
+
+func TestAllocation_ShouldReschedule(t *testing.T) {
+	type testCase struct {
+		Desc               string
+		ClientStatus       string
+		DesiredStatus      string
+		ReschedulePolicy   *ReschedulePolicy
+		RescheduleTrackers []*RescheduleTracker
+		ShouldReschedule   bool
+	}
+
+	harness := []testCase{
+		{
+			Desc:             "Reschedule when desired state is stop",
+			ClientStatus:     AllocClientStatusPending,
+			DesiredStatus:    AllocDesiredStatusStop,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule when client status is complete",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with nil reschedule policy",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule when client status is complete",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with policy when client status complete",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with no previous attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule with leftover attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{2, 5 * time.Minute},
+			RescheduleTrackers: []*RescheduleTracker{
+				{
+					RescheduleTime: time.Now().Add(-1 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule with too old previous attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{1, 5 * time.Minute},
+			RescheduleTrackers: []*RescheduleTracker{
+				{
+					RescheduleTime: time.Now().Add(-6 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule with no leftover attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{2, 5 * time.Minute},
+			RescheduleTrackers: []*RescheduleTracker{
+				{
+					RescheduleTime: time.Now().Add(-3 * time.Minute).UTC().UnixNano(),
+				},
+				{
+					RescheduleTime: time.Now().Add(-4 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldReschedule: false,
+		},
+	}
+
+	for _, state := range harness {
+		alloc := Allocation{}
+		alloc.DesiredStatus = state.DesiredStatus
+		alloc.ClientStatus = state.ClientStatus
+		alloc.RescheduleTrackers = state.RescheduleTrackers
+
+		t.Run(state.Desc, func(t *testing.T) {
+			if got := alloc.ShouldReschedule(state.ReschedulePolicy); got != state.ShouldReschedule {
+				t.Fatalf("expected %v but got %v", state.ShouldReschedule, got)
+			}
+		})
+
 	}
 }
 
