@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"github.com/moby/moby/daemon/caps"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
@@ -99,6 +100,9 @@ const (
 	dockerImageRemoveDelayConfigOption  = "docker.cleanup.image.delay"
 	dockerImageRemoveDelayConfigDefault = 3 * time.Minute
 
+	dockerCapsWhitelistConfigOption  = "docker.caps.whitelist"
+	dockerCapsWhitelistConfigDefault = dockerBasicCaps
+
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
@@ -109,6 +113,9 @@ const (
 	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
 	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
 	dockerAuthHelperPrefix = "docker-credential-"
+
+	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD," +
+		"NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 )
 
 type DockerDriver struct {
@@ -1125,6 +1132,29 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
+	// set capabilities
+	hostCapsWhitelist := d.config.ReadDefault(dockerCapsWhitelistConfigOption, dockerCapsWhitelistConfigDefault)
+	hostCapsWhitelist = strings.ToLower(hostCapsWhitelist)
+	if !strings.Contains(hostCapsWhitelist, "all") {
+		effectiveCaps, err := caps.TweakCapabilities(
+			strings.Split(dockerBasicCaps, ","),
+			driverConfig.CapAdd,
+			driverConfig.CapDrop,
+		)
+		if err != nil {
+			return c, err
+		}
+		var missingCaps []string
+		for _, cap := range effectiveCaps {
+			cap = strings.ToLower(cap[len("CAP_"):])
+			if !strings.Contains(hostCapsWhitelist, cap) {
+				missingCaps = append(missingCaps, cap)
+			}
+		}
+		if len(missingCaps) > 0 {
+			return c, fmt.Errorf("Docker driver doesn't have the following caps whitelisted on this Nomad agent: %s", missingCaps)
+		}
+	}
 	hostConfig.CapAdd = driverConfig.CapAdd
 	hostConfig.CapDrop = driverConfig.CapDrop
 
