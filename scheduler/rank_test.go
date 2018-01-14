@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFeasibleRankIterator(t *testing.T) {
@@ -428,4 +429,37 @@ func collectRanked(iter RankIterator) (out []*RankedNode) {
 		out = append(out, next)
 	}
 	return
+}
+
+func TestNodeAntiAffinity_PenaltyNodes(t *testing.T) {
+	_, ctx := testContext(t)
+	node1 := &structs.Node{
+		ID: uuid.Generate(),
+	}
+	node2 := &structs.Node{
+		ID: uuid.Generate(),
+	}
+
+	nodes := []*RankedNode{
+		{
+			Node: node1,
+		},
+		{
+			Node: node2,
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	nodeAntiAffIter := NewNodeAntiAffinityIterator(ctx, static, 50.0)
+	nodeAntiAffIter.SetPenaltyNodes([]string{node1.ID})
+
+	out := collectRanked(nodeAntiAffIter)
+	assert := assert.New(t)
+	assert.Equal(2, len(out))
+	assert.Equal(node1.ID, out[0].Node.ID)
+	assert.Equal(-50.0, out[0].Score)
+
+	assert.Equal(node2.ID, out[1].Node.ID)
+	assert.Equal(0.0, out[1].Score)
+
 }
