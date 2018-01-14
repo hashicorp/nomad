@@ -202,6 +202,8 @@ type DockerDriverConfig struct {
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
+	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
+	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -304,6 +306,8 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
+	dconf.CapAdd = env.ParseAndReplace(dconf.CapAdd)
+	dconf.CapDrop = env.ParseAndReplace(dconf.CapDrop)
 
 	for _, m := range dconf.SysctlRaw {
 		for k, v := range m {
@@ -642,6 +646,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"devices": {
+				Type: fields.TypeArray,
+			},
+			"cap_add": {
+				Type: fields.TypeArray,
+			},
+			"cap_drop": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -1114,6 +1124,9 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent`)
 	}
 	hostConfig.Privileged = driverConfig.Privileged
+
+	hostConfig.CapAdd = driverConfig.CapAdd
+	hostConfig.CapDrop = driverConfig.CapDrop
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {

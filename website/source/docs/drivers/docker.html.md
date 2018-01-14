@@ -324,6 +324,32 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
+* `cap_add` - (Optional) A list of string flags to pass directly to
+  [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  For example:
+
+
+    ```hcl
+    config {
+      cap_add = [
+        "SYS_TIME",
+      ]
+    }
+    ```
+
+* `cap_drop` - (Optional) A list of string flags to pass directly to
+  [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  For example:
+
+
+    ```hcl
+    config {
+      cap_drop = [
+        "MKNOD",
+      ]
+    }
+    ```
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named

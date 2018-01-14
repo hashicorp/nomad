@@ -1048,6 +1048,37 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Capabilities(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	task, _, _ := dockerTask(t)
+	task.Config["cap_add"] = []string{"ALL"}
+	task.Config["cap_drop"] = []string{"MKNOD", "NET_ADMIN"}
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(task.Config["cap_add"], container.HostConfig.CapAdd) {
+		t.Errorf("CapAdd doesn't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["cap_add"], container.HostConfig.CapAdd)
+	}
+
+	if !reflect.DeepEqual(task.Config["cap_drop"], container.HostConfig.CapDrop) {
+		t.Errorf("CapDrop doesn't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["cap_drop"], container.HostConfig.CapDrop)
+	}
+}
+
 func TestDockerDriver_DNS(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
