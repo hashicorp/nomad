@@ -511,7 +511,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			allocInPlace, "")
 
 		// Attempt to match the task group
-		option, _ := stack.Select(update.TaskGroup)
+		option, _ := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass any node weight options
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -722,7 +722,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // genericAllocUpdateFn is a factory for the scheduler to create an allocUpdateType
 // function to be passed into the reconciler. The factory takes objects that
 // exist only in the scheduler context and returns a function that can be used
-// by the reconciler to make decsions about how to update an allocation. The
+// by the reconciler to make decisions about how to update an allocation. The
 // factory allows the reconciler to be unaware of how to determine the type of
 // update necessary and can minimize the set of objects it is exposed to.
 func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
@@ -767,7 +767,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		ctx.Plan().AppendUpdate(existing, structs.AllocDesiredStatusStop, allocInPlace, "")
 
 		// Attempt to match the task group
-		option, _ := stack.Select(newTG)
+		option, _ := stack.Select(newTG, nil) // This select only looks at one node so we don't pass any node weight options
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(existing)

@@ -2467,6 +2467,16 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	var complete []*structs.Allocation
 	for i := 6; i < 10; i++ {
 		newAlloc := stop[i].Copy()
+		newAlloc.TaskStates = make(map[string]*structs.TaskState)
+		newAlloc.TaskStates["web"] = &structs.TaskState{
+			State: structs.TaskStateDead,
+			Events: []*structs.TaskEvent{
+				{
+					Type:     structs.TaskTerminated,
+					ExitCode: 0,
+				},
+			},
+		}
 		newAlloc.ClientStatus = structs.AllocClientStatusComplete
 		complete = append(complete, newAlloc)
 	}
@@ -2703,6 +2713,220 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 
 	// Should hit the retry limit
 	h.AssertEvalStatus(t, structs.EvalStatusFailed)
+}
+
+func TestServiceSched_Reschedule_Once(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 1,
+		Interval: 15 * time.Minute,
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	// Mark one of the allocations as failed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	failedAllocID := allocs[1].ID
+	successAllocID := allocs[0].ID
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure multiple plans
+	if len(h.Plans) == 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Verify that one new allocation got created with its restart tracker info
+	assert := assert.New(t)
+	assert.Equal(3, len(out))
+	var newAlloc *structs.Allocation
+	for _, alloc := range out {
+		if alloc.ID != successAllocID && alloc.ID != failedAllocID {
+			newAlloc = alloc
+		}
+	}
+	assert.Equal(failedAllocID, newAlloc.PreviousAllocation)
+	assert.Equal(1, len(newAlloc.RescheduleTrackers))
+	assert.Equal(failedAllocID, newAlloc.RescheduleTrackers[0].PrevAllocID)
+
+	// Mark this alloc as failed again, should not get rescheduled
+	newAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
+
+	// Create another mock evaluation
+	eval = &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err = h.Process(NewServiceScheduler, eval)
+	assert.Nil(err)
+	// Verify no new allocs were created this time
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+	assert.Equal(3, len(out))
+
+}
+
+func TestServiceSched_Reschedule_Multiple(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	maxRestartAttempts := 3
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: maxRestartAttempts,
+		Interval: 30 * time.Minute,
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	// Mark one of the allocations as failed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	expectedNumAllocs := 3
+	expectedNumReschedTrackers := 1
+
+	assert := assert.New(t)
+	for i := 0; i < maxRestartAttempts; i++ {
+		// Process the evaluation
+		err := h.Process(NewServiceScheduler, eval)
+		noErr(t, err)
+
+		// Ensure multiple plans
+		if len(h.Plans) == 0 {
+			t.Fatalf("bad: %#v", h.Plans)
+		}
+
+		// Lookup the allocations by JobID
+		ws := memdb.NewWatchSet()
+		out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+		noErr(t, err)
+
+		// Verify that a new allocation got created with its restart tracker info
+		assert.Equal(expectedNumAllocs, len(out))
+
+		// Find the new alloc with ClientStatusPending
+		var pendingAllocs []*structs.Allocation
+		fmt.Println("Iteration: ", i)
+		for _, alloc := range out {
+			fmt.Println(alloc.ID, alloc.ClientStatus, len(alloc.RescheduleTrackers), alloc.PreviousAllocation)
+			if alloc.ClientStatus == structs.AllocClientStatusPending {
+				pendingAllocs = append(pendingAllocs, alloc)
+			}
+		}
+		assert.Equal(1, len(pendingAllocs))
+		newAlloc := pendingAllocs[0]
+		assert.Equal(expectedNumReschedTrackers, len(newAlloc.RescheduleTrackers))
+
+		// Mark this alloc as failed again
+		newAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+		noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
+
+		// Create another mock evaluation
+		eval = &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    50,
+			TriggeredBy: structs.EvalTriggerNodeUpdate,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+		expectedNumAllocs += 1
+		expectedNumReschedTrackers += 1
+	}
+
+	// Process last eval again, should not reschedule
+	err := h.Process(NewServiceScheduler, eval)
+	assert.Nil(err)
+
+	// Verify no new allocs were created because restart attempts were exhausted
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
 }
 
 func TestBatchSched_Run_CompleteAlloc(t *testing.T) {

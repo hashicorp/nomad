@@ -16,6 +16,9 @@ const (
 	// batchJobAntiAffinityPenalty is the same as the
 	// serviceJobAntiAffinityPenalty but for batch type jobs.
 	batchJobAntiAffinityPenalty = 10.0
+
+	// previousFailedAllocNodePenalty is a scoring penalty for nodes that a failed allocation was previously run on
+	previousFailedAllocNodePenalty = 50.0
 )
 
 // Stack is a chained collection of iterators. The stack is used to
@@ -29,7 +32,12 @@ type Stack interface {
 	SetJob(job *structs.Job)
 
 	// Select is used to select a node for the task group
-	Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources)
+	Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources)
+}
+
+type SelectOptions struct {
+	PenaltyNodeIDs []string
+	PreferredNodes []*structs.Node
 }
 
 // GenericStack is the Stack used for the Generic scheduler. It is
@@ -49,6 +57,7 @@ type GenericStack struct {
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
 	jobAntiAff                 *JobAntiAffinityIterator
+	nodeAntiAff                *NodeAntiAffinityIterator
 	limit                      *LimitIterator
 	maxScore                   *MaxScoreIterator
 }
@@ -111,8 +120,10 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	}
 	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.binPack, penalty, "")
 
+	s.nodeAntiAff = NewNodeAntiAffinityIterator(ctx, s.jobAntiAff, previousFailedAllocNodePenalty)
+
 	// Apply a limit function. This is to avoid scanning *every* possible node.
-	s.limit = NewLimitIterator(ctx, s.jobAntiAff, 2)
+	s.limit = NewLimitIterator(ctx, s.nodeAntiAff, 2)
 
 	// Select the node with the maximum score for placement
 	s.maxScore = NewMaxScoreIterator(ctx, s.limit)
@@ -154,7 +165,22 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	}
 }
 
-func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
+func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
+
+	// This block handles trying to select from preferred nodes if options specify them
+	// It also sets back the set of nodes to the original nodes
+	if options != nil && len(options.PreferredNodes) > 0 {
+		originalNodes := s.source.nodes
+		s.source.SetNodes(options.PreferredNodes)
+		options.PreferredNodes = nil
+		if option, resources := s.Select(tg, options); option != nil {
+			s.source.SetNodes(originalNodes)
+			return option, resources
+		}
+		s.source.SetNodes(originalNodes)
+		return s.Select(tg, options)
+	}
+
 	// Reset the max selector and context
 	s.maxScore.Reset()
 	s.ctx.Reset()
@@ -170,6 +196,11 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.binPack.SetTaskGroup(tg)
+	if options != nil {
+		s.nodeAntiAff.SetPenaltyNodes(options.PenaltyNodeIDs)
+	} else {
+		s.nodeAntiAff.SetPenaltyNodes(nil)
+	}
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetTaskGroup(tg)
@@ -188,19 +219,6 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
 	return option, tgConstr.size
-}
-
-// SelectPreferredNode returns a node where an allocation of the task group can
-// be placed, the node passed to it is preferred over the other available nodes
-func (s *GenericStack) SelectPreferringNodes(tg *structs.TaskGroup, nodes []*structs.Node) (*RankedNode, *structs.Resources) {
-	originalNodes := s.source.nodes
-	s.source.SetNodes(nodes)
-	if option, resources := s.Select(tg); option != nil {
-		s.source.SetNodes(originalNodes)
-		return option, resources
-	}
-	s.source.SetNodes(originalNodes)
-	return s.Select(tg)
 }
 
 // SystemStack is the Stack used for the System scheduler. It is designed to
@@ -276,7 +294,7 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	}
 }
 
-func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
+func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
 	// Reset the binpack selector and context
 	s.binPack.Reset()
 	s.ctx.Reset()
