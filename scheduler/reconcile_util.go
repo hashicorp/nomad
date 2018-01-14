@@ -206,12 +206,68 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 			untainted[alloc.ID] = alloc
 			continue
 		}
-
-		if n == nil || n.TerminalStatus() {
-			lost[alloc.ID] = alloc
+		if !alloc.TerminalStatus() {
+			if n == nil || n.TerminalStatus() {
+				lost[alloc.ID] = alloc
+			} else {
+				migrate[alloc.ID] = alloc
+			}
 		} else {
-			migrate[alloc.ID] = alloc
+			untainted[alloc.ID] = alloc
 		}
+	}
+	return
+}
+
+// filterByRescheduleable filters the allocation set to return the set of allocations that are either
+// terminal or running, and a set of allocations that must be rescheduled
+func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs.ReschedulePolicy) (untainted, reschedule allocSet) {
+	untainted = make(map[string]*structs.Allocation)
+	reschedule = make(map[string]*structs.Allocation)
+
+	rescheduledPrevAllocs := make(map[string]struct{}) // Track previous allocs from any restart trackers
+
+	for _, alloc := range a {
+		if isBatch {
+			// Allocs from batch jobs should be filtered when the desired status
+			// is terminal and the client did not finish or when the client
+			// status is failed so that they will be replaced. If they are
+			// complete but not failed, they shouldn't be replaced.
+			switch alloc.DesiredStatus {
+			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+				if alloc.RanSuccessfully() {
+					untainted[alloc.ID] = alloc
+				}
+				continue
+			default:
+			}
+			if alloc.ShouldReschedule(reschedulePolicy) {
+				reschedule[alloc.ID] = alloc
+			} else {
+				untainted[alloc.ID] = alloc
+			}
+		} else {
+			// ignore allocs whose desired state is stop/evict
+			// everything else is either rescheduleable or untainted
+			if alloc.ShouldReschedule(reschedulePolicy) {
+				reschedule[alloc.ID] = alloc
+			} else if alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict {
+				untainted[alloc.ID] = alloc
+			}
+		}
+	}
+
+	// Find allocs that exist in restart trackers from other allocs
+	for _, alloc := range reschedule {
+		if alloc.RescheduleTrackers != nil {
+			for _, reschedTrack := range alloc.RescheduleTrackers {
+				rescheduledPrevAllocs[reschedTrack.PrevAllocID] = struct{}{}
+			}
+		}
+	}
+	// Delete these from rescheduleable allocs
+	for allocId, _ := range rescheduledPrevAllocs {
+		delete(reschedule, allocId)
 	}
 	return
 }
