@@ -22,7 +22,7 @@ import (
 func TestClientEndpoint_Register(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -80,7 +80,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -108,7 +108,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 
 func TestClientEndpoint_Deregister(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -153,7 +153,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 
 func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -218,7 +218,7 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 
 func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -280,7 +280,7 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -358,7 +358,7 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 
 func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -416,7 +416,7 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 
 func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -510,7 +510,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 
 func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -593,20 +593,20 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -668,7 +668,7 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -714,7 +714,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -771,7 +771,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 // pending/running state to lost when a node is marked as down.
 func TestClientEndpoint_Drain_Down(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -907,7 +907,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 
 func TestClientEndpoint_GetNode(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -966,7 +966,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1029,7 +1029,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 
 func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1131,7 +1131,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 
 func TestClientEndpoint_GetAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1193,7 +1193,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 
 func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1268,7 +1268,7 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1346,7 +1346,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 
 func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1468,7 +1468,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1545,7 +1545,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1596,7 +1596,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 
 func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1688,7 +1688,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 
 func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1755,7 +1755,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1812,7 +1812,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 
 func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1889,7 +1889,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1977,7 +1977,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 
 func TestClientEndpoint_Evaluate(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -2058,7 +2058,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 
 func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -2116,7 +2116,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 
 func TestClientEndpoint_ListNodes(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -2177,7 +2177,7 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 
 func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -2231,7 +2231,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 
 func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -2372,7 +2372,7 @@ func TestBatchFuture(t *testing.T) {
 
 func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -2453,7 +2453,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -2545,7 +2545,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 
 func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)

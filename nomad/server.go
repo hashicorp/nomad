@@ -21,6 +21,8 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -86,7 +88,7 @@ type Server struct {
 	logger *log.Logger
 
 	// Connection pool to other Nomad servers
-	connPool *ConnPool
+	connPool *pool.ConnPool
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
@@ -206,6 +208,9 @@ type endpoints struct {
 	Operator   *Operator
 	ACL        *ACL
 	Enterprise *EnterpriseEndpoints
+
+	// Client endpoints
+	ClientStats *ClientStats
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -263,7 +268,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	s := &Server{
 		config:        config,
 		consulCatalog: consulCatalog,
-		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
 		rpcServer:     rpc.NewServer(),
 		nodeConns:     make(map[string]*yamux.Session),
@@ -800,6 +805,9 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.System = &System{s}
 		s.staticEndpoints.Search = &Search{s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
+
+		// Client endpoints
+		s.staticEndpoints.ClientStats = &ClientStats{s}
 	}
 
 	// Register the static handlers
@@ -816,6 +824,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.System)
 	server.Register(s.staticEndpoints.Search)
 	s.staticEndpoints.Enterprise.Register(server)
+	server.Register(s.staticEndpoints.ClientStats)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx}
@@ -1204,7 +1213,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
-		"runtime": RuntimeStats(),
+		"runtime": stats.RuntimeStats(),
 	}
 
 	return stats

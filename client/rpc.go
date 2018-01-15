@@ -10,7 +10,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/codec"
-	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/yamux"
 )
 
@@ -61,7 +61,6 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	return mErr.ErrorOrNil()
 }
 
-// TODO This can't really be tested until Servers can dial back to the client.
 // setupClientRpc is used to setup the Client's RPC endpoints
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
@@ -120,7 +119,7 @@ func (c *Client) listenConn(s *yamux.Session) {
 // handleConn is used to handle an individual connection.
 func (c *Client) handleConn(conn net.Conn) {
 	defer conn.Close()
-	rpcCodec := nomad.NewServerCodec(conn)
+	rpcCodec := pool.NewServerCodec(conn)
 	for {
 		select {
 		case <-c.shutdownCh:

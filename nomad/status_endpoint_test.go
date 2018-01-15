@@ -13,7 +13,7 @@ import (
 
 func TestStatusVersion(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -44,7 +44,7 @@ func TestStatusVersion(t *testing.T) {
 
 func TestStatusPing(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -57,7 +57,7 @@ func TestStatusPing(t *testing.T) {
 
 func TestStatusLeader(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -79,7 +79,7 @@ func TestStatusLeader(t *testing.T) {
 
 func TestStatusPeers(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -100,7 +100,7 @@ func TestStatusPeers(t *testing.T) {
 
 func TestStatusMembers(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	assert := assert.New(t)
@@ -119,7 +119,7 @@ func TestStatusMembers(t *testing.T) {
 
 func TestStatusMembers_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	assert := assert.New(t)

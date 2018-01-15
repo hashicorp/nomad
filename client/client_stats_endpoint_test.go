@@ -14,7 +14,7 @@ import (
 func TestClientStats_Stats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	client := testClient(t, nil)
+	client := TestClient(t, nil)
 
 	req := &structs.ClientStatsRequest{}
 	var resp structs.ClientStatsResponse
@@ -30,7 +30,7 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 	server, addr, root := testACLServer(t, nil)
 	defer server.Shutdown()
 
-	client := testClient(t, func(c *config.Config) {
+	client := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})

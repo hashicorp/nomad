@@ -15,7 +15,6 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -368,7 +367,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		// Create an allocation
 		alloc := mock.Alloc()
 
-		validMigrateToken, err := nomad.GenerateMigrateToken(alloc.ID, s.Agent.Client().Node().SecretID)
+		validMigrateToken, err := structs.GenerateMigrateToken(alloc.ID, s.Agent.Client().Node().SecretID)
 		assert.Nil(err)
 
 		// Request with a token succeeds

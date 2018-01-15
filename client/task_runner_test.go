@@ -642,7 +642,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 
 	// Use mockConsulServiceClient
-	consul := newMockConsulServiceClient()
+	consul := newMockConsulServiceClient(t)
 	ctx.tr.consul = consul
 
 	ctx.tr.MarkReceived()

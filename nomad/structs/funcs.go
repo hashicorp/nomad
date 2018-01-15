@@ -1,6 +1,8 @@
 package structs
 
 import (
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -291,4 +293,31 @@ func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL
 	// Update the cache
 	cache.Add(cacheKey, aclObj)
 	return aclObj, nil
+}
+
+// GenerateMigrateToken will create a token for a client to access an
+// authenticated volume of another client to migrate data for sticky volumes.
+func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(allocID))
+	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// CompareMigrateToken returns true if two migration tokens can be computed and
+// are equal.
+func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return false
+	}
+	h.Write([]byte(allocID))
+
+	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
 }
