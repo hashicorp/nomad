@@ -2,16 +2,15 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 	"sync"
-	"testing"
 
 	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/go-testing-interface"
 )
 
 // mockConsulOp represents the register/deregister operations.
@@ -49,13 +48,10 @@ type mockConsulServiceClient struct {
 	allocRegistrationsFn func(allocID string) (*consul.AllocRegistration, error)
 }
 
-func newMockConsulServiceClient() *mockConsulServiceClient {
+func newMockConsulServiceClient(t testing.T) *mockConsulServiceClient {
 	m := mockConsulServiceClient{
 		ops:    make([]mockConsulOp, 0, 20),
-		logger: log.New(ioutil.Discard, "", 0),
-	}
-	if testing.Verbose() {
-		m.logger = log.New(os.Stderr, "", log.LstdFlags)
+		logger: testlog.Logger(t),
 	}
 	return &m
 }

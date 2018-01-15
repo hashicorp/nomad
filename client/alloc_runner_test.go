@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -62,8 +63,7 @@ func allocationBucketExists(tx *bolt.Tx, allocID string) bool {
 	return alloc != nil
 }
 
-func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
-	logger := testLogger()
+func testAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
@@ -76,22 +76,22 @@ func testAllocRunnerFromAlloc(alloc *structs.Allocation, restarts bool) (*MockAl
 		alloc.Job.Type = structs.JobTypeBatch
 	}
 	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, newMockConsulServiceClient(), noopPrevAlloc{})
+	ar := NewAllocRunner(testlog.Logger(t), conf, db, upd.Update, alloc, vclient, newMockConsulServiceClient(t), noopPrevAlloc{})
 	return upd, ar
 }
 
-func testAllocRunner(restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
+func testAllocRunner(t *testing.T, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
 	// Use mock driver
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	task.Config["run_for"] = "500ms"
-	return testAllocRunnerFromAlloc(alloc, restarts)
+	return testAllocRunnerFromAlloc(t, alloc, restarts)
 }
 
 func TestAllocRunner_SimpleRun(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -115,7 +115,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -163,7 +163,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Make the task block
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -211,7 +211,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	t.Parallel()
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Make the task run healthy
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -259,7 +259,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	t.Parallel()
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -352,7 +352,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -421,7 +421,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	t.Parallel()
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Make the task run healthy
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -502,7 +502,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 	}
 
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, badtask)
-	upd, ar := testAllocRunnerFromAlloc(alloc, true)
+	upd, ar := testAllocRunnerFromAlloc(t, alloc, true)
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -538,7 +538,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 
 func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -637,7 +637,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 
 func TestAllocRunner_Destroy(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -693,7 +693,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 
 func TestAllocRunner_Update(t *testing.T) {
 	t.Parallel()
-	_, ar := testAllocRunner(false)
+	_, ar := testAllocRunner(t, false)
 
 	// Deep copy the alloc to avoid races when updating
 	newAlloc := ar.Alloc().Copy()
@@ -728,7 +728,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		"run_for":   "10s",
 	}
 
-	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	upd, ar := testAllocRunnerFromAlloc(t, alloc, false)
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -796,7 +796,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 
 func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 	ar.logger = prefixedTestLogger("ar1: ")
 
 	// Ensure task takes some time
@@ -929,7 +929,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		"run_for":   "10s",
 	}
 
-	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	upd, ar := testAllocRunnerFromAlloc(t, alloc, false)
 	// Hack in old version to cause an upgrade on RestoreState
 	origConfig := ar.config.Copy()
 	ar.config.Version = &version.VersionInfo{Version: "0.5.6"}
@@ -1112,7 +1112,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 	*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
 	alloc.Job.Type = structs.JobTypeBatch
 	vclient := vaultclient.NewMockVaultClient()
-	cclient := newMockConsulServiceClient()
+	cclient := newMockConsulServiceClient(t)
 	ar := NewAllocRunner(logger, conf, db, upd.Update, alloc, vclient, cclient, noopPrevAlloc{})
 	defer ar.Destroy()
 
@@ -1140,7 +1140,7 @@ func TestAllocRunner_RestoreOldState(t *testing.T) {
 
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Create two tasks in the task group
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -1208,7 +1208,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 
 func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Create two tasks in the task group
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -1282,7 +1282,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 // with a leader the leader is stopped before other tasks.
 func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	t.Parallel()
-	upd, ar := testAllocRunner(false)
+	upd, ar := testAllocRunner(t, false)
 
 	// Create 3 tasks in the task group
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -1371,7 +1371,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 // See https://github.com/hashicorp/nomad/issues/3420#issuecomment-341666932
 func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	t.Parallel()
-	_, ar := testAllocRunner(false)
+	_, ar := testAllocRunner(t, false)
 	defer ar.Destroy()
 
 	// Create a leader and follower task in the task group
@@ -1468,7 +1468,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "1s",
 	}
-	upd, ar := testAllocRunnerFromAlloc(alloc, false)
+	upd, ar := testAllocRunnerFromAlloc(t, alloc, false)
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -1501,7 +1501,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "1s",
 	}
-	upd2, ar2 := testAllocRunnerFromAlloc(alloc2, false)
+	upd2, ar2 := testAllocRunnerFromAlloc(t, alloc2, false)
 
 	// Set prevAlloc like Client does
 	ar2.prevAlloc = newAllocWatcher(alloc2, ar, nil, ar2.config, ar2.logger, "")

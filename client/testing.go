@@ -33,7 +33,7 @@ func TestClient(t testing.T, cb func(c *config.Config)) *Client {
 
 	logger := testlog.Logger(t)
 	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient()
+	mockService := newMockConsulServiceClient(t)
 	mockService.logger = logger
 	client, err := NewClient(conf, catalog, mockService, logger)
 	if err != nil {

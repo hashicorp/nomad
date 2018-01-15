@@ -693,7 +693,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	// Create a new client
 	logger := log.New(c1.config.LogOutput, "", log.LstdFlags)
 	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient()
+	mockService := newMockConsulServiceClient(t)
 	mockService.logger = logger
 	c2, err := NewClient(c1.config, catalog, mockService, logger)
 	if err != nil {
