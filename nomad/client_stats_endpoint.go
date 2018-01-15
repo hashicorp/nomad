@@ -74,8 +74,13 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 			return fmt.Errorf("Unknown node %q", args.NodeID)
 		}
 
-		// TODO Handle forwarding to other servers
-		return ErrNoNodeConn
+		// Determine the Server that has a connection to the node.
+		srv, err := s.srv.serverWithNodeConn(args.NodeID)
+		if err != nil {
+			return err
+		}
+
+		return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
 	}
 
 	// Open a new session
