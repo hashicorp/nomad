@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -319,6 +320,15 @@ func (s *Server) forwardLeader(server *serverParts, method string, args interfac
 	// Handle a missing server
 	if server == nil {
 		return structs.ErrNoLeader
+	}
+	return s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+}
+
+// forwardServer is used to forward an RPC call to a particular server
+func (s *Server) forwardServer(server *serverParts, method string, args interface{}, reply interface{}) error {
+	// Handle a missing server
+	if server == nil {
+		return errors.New("must be given a valid server address")
 	}
 	return s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }

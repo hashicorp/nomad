@@ -33,7 +33,6 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	"github.com/hashicorp/yamux"
 )
 
 const (
@@ -203,15 +202,6 @@ type Server struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
-}
-
-// nodeConnState is used to track connection information about a Nomad Client.
-type nodeConnState struct {
-	// Session holds the multiplexed yamux Session for dialing back.
-	Session *yamux.Session
-
-	// Established is when the connection was established.
-	Established time.Time
 }
 
 // Holds the RPC endpoints
@@ -1284,52 +1274,6 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 		return err
 	}
 	return codec.Err
-}
-
-// getNodeConn returns the connection to the given node and whether it exists.
-func (s *Server) getNodeConn(nodeID string) (*nodeConnState, bool) {
-	s.nodeConnsLock.RLock()
-	defer s.nodeConnsLock.RUnlock()
-	state, ok := s.nodeConns[nodeID]
-	return state, ok
-}
-
-// connectedNodes returns the set of nodes we have a connection with.
-func (s *Server) connectedNodes() map[string]time.Time {
-	s.nodeConnsLock.RLock()
-	defer s.nodeConnsLock.RUnlock()
-	nodes := make(map[string]time.Time, len(s.nodeConns))
-	for nodeID, state := range s.nodeConns {
-		nodes[nodeID] = state.Established
-	}
-	return nodes
-}
-
-// addNodeConn adds the mapping between a node and its session.
-func (s *Server) addNodeConn(ctx *RPCContext) {
-	// Hotpath the no-op
-	if ctx == nil || ctx.NodeID == "" {
-		return
-	}
-
-	s.nodeConnsLock.Lock()
-	defer s.nodeConnsLock.Unlock()
-	s.nodeConns[ctx.NodeID] = &nodeConnState{
-		Session:     ctx.Session,
-		Established: time.Now(),
-	}
-}
-
-// removeNodeConn removes the mapping between a node and its session.
-func (s *Server) removeNodeConn(ctx *RPCContext) {
-	// Hotpath the no-op
-	if ctx == nil || ctx.NodeID == "" {
-		return
-	}
-
-	s.nodeConnsLock.Lock()
-	defer s.nodeConnsLock.Unlock()
-	delete(s.nodeConns, ctx.NodeID)
 }
 
 // Stats is used to return statistics for debugging and insight
