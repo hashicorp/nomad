@@ -2683,7 +2683,8 @@ type TaskGroup struct {
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
 
-	// ReschedulePolicy
+	// ReschedulePolicy is used to configure how the scheduler should
+	// retry failed allocations.
 	ReschedulePolicy *ReschedulePolicy
 }
 
