@@ -23,7 +23,7 @@ import (
 // TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
 // set a localPrevAlloc will block on it.
 func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
-	_, prevAR := testAllocRunner(false)
+	_, prevAR := testAllocRunner(t, false)
 	prevAR.alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "10s"
 
 	newAlloc := mock.Alloc()
