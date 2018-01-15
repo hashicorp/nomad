@@ -6,12 +6,13 @@ import ipParts from 'nomad-ui/utils/ip-parts';
 
 let allocation;
 let task;
+let job;
 
 moduleForAcceptance('Acceptance | task detail', {
   beforeEach() {
     server.create('agent');
     server.create('node');
-    server.create('job', { createAllocations: false });
+    job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', {
       useMessagePassthru: true,
     });
@@ -49,7 +50,7 @@ test('breadcrumbs includes allocations and link to the allocation detail page', 
   assert.equal(
     find('[data-test-breadcrumb="allocation"]').textContent.trim(),
     allocation.id.split('-')[0],
-    'Allocation short id is the second breadcrumb'
+    'Allocation short id is the fourth breadcrumb'
   );
   assert.equal(
     find('[data-test-breadcrumb="task"]').textContent.trim(),
@@ -62,7 +63,7 @@ test('breadcrumbs includes allocations and link to the allocation detail page', 
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
-      'Second breadcrumb links back to the allocation detail'
+      'Third breadcrumb links back to the allocation detail'
     );
   });
 });
