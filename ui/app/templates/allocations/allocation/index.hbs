@@ -1,8 +1,8 @@
 {{#global-header class="page-header"}}
-  <li><a href="#">Allocations</a></li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation" model}}{{model.shortId}}{{/link-to}}
-  </li>
+  {{#link-to "jobs" class="breadcrumb"}}Jobs{{/link-to}}
+  {{#link-to "jobs.job" model.job (query-params jobNamespace=model.job.namespace.id) class="breadcrumb" }}{{model.job.name}}{{/link-to}}
+  {{#link-to "jobs.job.task-group" model.job model.taskGroupName class="breadcrumb" }}{{model.taskGroupName}}{{/link-to}}
+  {{#link-to "allocations.allocation" model class="breadcrumb"}}{{model.shortId}}{{/link-to}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">

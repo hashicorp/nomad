@@ -1,15 +1,9 @@
 {{#global-header class="page-header"}}
-  <li><a href="#" data-test-breadcrumb="allocations">Allocations</a></li>
-  <li>
-    {{#link-to "allocations.allocation" model.allocation data-test-breadcrumb="allocation"}}
-      {{model.allocation.shortId}}
-    {{/link-to}}
-  </li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation.task" model.allocation model data-test-breadcrumb="task"}}
-      {{model.name}}
-    {{/link-to}}
-  </li>
+  {{#link-to "jobs" class="breadcrumb"}}Jobs{{/link-to}}
+  {{#link-to "jobs.job" model.allocation.job (query-params jobNamespace=model.allocation.job.namespace.id) class="breadcrumb" }}{{model.allocation.job.name}}{{/link-to}}
+  {{#link-to "jobs.job.task-group" model.allocation.job model.allocation.taskGroupName class="breadcrumb" }}{{model.allocation.taskGroupName}}{{/link-to}}
+  {{#link-to "allocations.allocation" model.allocation class="breadcrumb"}}{{model.allocation.shortId}}{{/link-to}}
+  {{#link-to "allocations.allocation.task" model.allocation model class="breadcrumb"}}{{model.name}}{{/link-to}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   {{partial "allocations/allocation/task/subnav"}}
