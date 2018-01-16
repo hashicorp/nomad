@@ -393,7 +393,7 @@ func correctDeploymentCanaries(result *structs.PlanResult) {
 	}
 }
 
-// evaluateNodePlan is used to evalute the plan for a single node,
+// evaluateNodePlan is used to evaluate the plan for a single node,
 // returning if the plan is valid or if an error is encountered
 func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID string) (bool, string, error) {
 	// If this is an evict-only plan, it always 'fits' since we are removing things.
