@@ -294,46 +294,6 @@ func (s *GenericScheduler) process() (bool, error) {
 	return true, nil
 }
 
-// filterCompleteAllocs filters allocations that are terminal and should be
-// re-placed.
-func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []*structs.Allocation {
-	filter := func(a *structs.Allocation) bool {
-		if s.batch {
-			// Allocs from batch jobs should be filtered when the desired status
-			// is terminal and the client did not finish or when the client
-			// status is failed so that they will be replaced. If they are
-			// complete but not failed, they shouldn't be replaced.
-			switch a.DesiredStatus {
-			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-				return !a.RanSuccessfully()
-			default:
-			}
-
-			switch a.ClientStatus {
-			case structs.AllocClientStatusFailed:
-				return true
-			default:
-				return false
-			}
-		}
-
-		// Filter terminal, non batch allocations
-		return a.TerminalStatus()
-	}
-
-	n := len(allocs)
-	for i := 0; i < n; i++ {
-		if filter(allocs[i]) {
-			// Remove the allocation
-			allocs[i], allocs[n-1] = allocs[n-1], nil
-			i--
-			n--
-		}
-	}
-
-	return allocs[:n]
-}
-
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
 func (s *GenericScheduler) computeJobAllocs() error {
@@ -473,7 +433,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				s.plan.AppendUpdate(prevAllocation, structs.AllocDesiredStatusStop, stopPrevAllocDesc, "")
 			}
 
-			// Setup node weights for replacement allocations
+			// Compute penalty nodes for rescheduled allocs
 			selectOptions := &SelectOptions{}
 			if prevAllocation != nil {
 				var penaltyNodes []string
