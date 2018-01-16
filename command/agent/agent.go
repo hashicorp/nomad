@@ -732,14 +732,14 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // ShouldReload determines if we should reload the configuration and agent
 // connections. If the TLS Configuration has not changed, we shouldn't reload.
-func (a *Agent) ShouldReload(newConfig *Config) bool {
+func (a *Agent) ShouldReload(newConfig *Config) (bool, bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 	if a.config.TLSConfig.Equals(newConfig.TLSConfig) {
-		return false
+		return false, false
 	}
 
-	return true
+	return true, true // requires a reload of both agent and http server
 }
 
 // Reload handles configuration changes for the agent. Provides a method that

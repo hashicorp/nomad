@@ -371,7 +371,6 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
 		tw, err := c.config.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
-
 		if err != nil {
 			return err
 		}

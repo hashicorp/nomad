@@ -888,8 +888,9 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 		config: agentConfig,
 	}
 
-	shouldReload := agent.ShouldReload(sameAgentConfig)
-	assert.False(shouldReload)
+	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(sameAgentConfig)
+	assert.False(shouldReloadAgent)
+	assert.False(shouldReloadHTTPServer)
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
@@ -935,6 +936,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		config: agentConfig,
 	}
 
-	shouldReload := agent.ShouldReload(newConfig)
-	assert.True(shouldReload)
+	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(newConfig)
+	assert.True(shouldReloadAgent)
+	assert.True(shouldReloadHTTPServer)
 }
