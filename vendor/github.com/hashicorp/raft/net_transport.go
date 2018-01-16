@@ -161,13 +161,20 @@ func NewNetworkTransportWithLogger(
 	return trans
 }
 
-// Pause closes the current stream for a NetworkTransport instance
+// Pause closes the current stream and existing connections for a
+// NetworkTransport instance
 func (n *NetworkTransport) Pause() {
+	for _, e := range n.connPool {
+		for _, conn := range e {
+			conn.Release()
+		}
+	}
 	n.streamCancel()
 }
 
 // Pause creates a new stream for a NetworkTransport instance
 func (n *NetworkTransport) Reload(s StreamLayer) {
+	n.stream = s
 	ctx, cancel := context.WithCancel(context.Background())
 	n.streamCancel = cancel
 	go n.listen(ctx)
@@ -389,19 +396,18 @@ func (n *NetworkTransport) listen(ctx context.Context) {
 			if n.IsShutdown() {
 				return
 			}
-			// TODO Getting an error here
 			n.logger.Printf("[ERR] raft-net: Failed to accept connection: %v", err)
 			continue
 		}
 		n.logger.Printf("[DEBUG] raft-net: %v accepted connection from: %v", n.LocalAddr(), conn.RemoteAddr())
 
 		// Handle the connection in dedicated routine
-		go n.handleConn(conn)
+		go n.handleConn(ctx, conn)
 	}
 }
 
 // handleConn is used to handle an inbound connection for its lifespan.
-func (n *NetworkTransport) handleConn(conn net.Conn) {
+func (n *NetworkTransport) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	r := bufio.NewReader(conn)
 	w := bufio.NewWriter(conn)
@@ -409,6 +415,13 @@ func (n *NetworkTransport) handleConn(conn net.Conn) {
 	enc := codec.NewEncoder(w, &codec.MsgpackHandle{})
 
 	for {
+		select {
+		case <-ctx.Done():
+			n.logger.Println("[INFO] raft-net: stream layer is closed for handleConn")
+			return
+		default:
+		}
+
 		if err := n.handleCommand(r, dec, enc); err != nil {
 			if err != io.EOF {
 				n.logger.Printf("[ERR] raft-net: Failed to decode incoming command: %v", err)

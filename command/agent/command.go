@@ -598,7 +598,7 @@ WAIT:
 	}
 }
 
-func (c *Command) reloadHTTPServer(newConfig *Config) error {
+func (c *Command) reloadHTTPServer() error {
 	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
 
 	c.httpServer.Shutdown()
@@ -676,7 +676,7 @@ func (c *Command) handleReload() {
 	// server to a TLS connection could succeed, while reloading the server's rpc
 	// connections could fail.
 	if shouldReloadHTTPServer {
-		err := c.reloadHTTPServer(newConf)
+		err := c.reloadHTTPServer()
 		if err != nil {
 			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
 			return

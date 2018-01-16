@@ -293,6 +293,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 	)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
+
 	s1 := testServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "nodeA")
 	})
@@ -312,10 +313,8 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 
 	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
-
 	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
 
-	time.Sleep(10 * time.Second)
 	codec := rpcClient(t, s1)
 
 	node := mock.Node()
@@ -327,6 +326,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	assert.NotNil(err)
+	assert.Contains("rpc error: EOF", err.Error())
 }
 
 // Tests that the server will successfully reload its network connections,
@@ -343,6 +343,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
+
 	s1 := testServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "nodeB")
 		c.TLSConfig = &config.TLSConfig{
@@ -361,8 +362,6 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
 	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
-
-	time.Sleep(10 * time.Second)
 
 	codec := rpcClient(t, s1)
 
@@ -391,6 +390,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
+
 	s1 := testServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
@@ -420,7 +420,6 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 		t.Fatalf("should have 2 peers")
 	})
 
-	// the server should be connected to the rest of the cluster
 	testutil.WaitForLeader(t, s2.RPC)
 
 	{
@@ -439,6 +438,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 		var resp structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 		assert.Nil(err)
+		assert.NotEqual(0, resp.Index)
 
 		// Check for the job in the FSM of each server in the cluster
 		{
@@ -454,7 +454,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 			ws := memdb.NewWatchSet()
 			out, err := state.JobByID(ws, job.Namespace, job.ID)
 			assert.Nil(err)
-			assert.NotNil(out) // TODO Occasionally is flaky
+			assert.NotNil(out)
 			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
 		}
 	}
@@ -478,17 +478,19 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 		req := &structs.JobRegisterRequest{
 			Job: job,
 			WriteRequest: structs.WriteRequest{
-				Region:    "global",
+				Region:    "regionFoo",
 				Namespace: job.Namespace,
 			},
 		}
 
+		// TODO(CK) This occasionally is flaky
 		var resp structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 		assert.NotNil(err)
+		assert.Contains("rpc error: EOF", err.Error())
 
 		// Check that the job was not persisted
-		state := s2.fsm.State()
+		state := s1.fsm.State()
 		ws := memdb.NewWatchSet()
 		out, _ := state.JobByID(ws, job.Namespace, job.ID)
 		assert.Nil(out)
@@ -507,12 +509,12 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	err = s2.reloadTLSConnections(secondNewTLSConfig)
 	assert.Nil(err)
 
-	// the server should be connected to the rest of the cluster
 	testutil.WaitForLeader(t, s2.RPC)
 
 	{
 		// assert that a job register request will succeed
 		codec := rpcClient(t, s2)
+
 		job := mock.Job()
 		req := &structs.JobRegisterRequest{
 			Job: job,
@@ -526,6 +528,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 		var resp structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 		assert.Nil(err)
+		assert.NotEqual(0, resp.Index)
 
 		// Check for the job in the FSM of each server in the cluster
 		{
@@ -533,7 +536,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 			ws := memdb.NewWatchSet()
 			out, err := state.JobByID(ws, job.Namespace, job.ID)
 			assert.Nil(err)
-			assert.NotNil(out)
+			assert.NotNil(out) // TODO(CK) This occasionally is flaky
 			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
 		}
 		{

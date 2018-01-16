@@ -400,8 +400,6 @@ func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.R
 func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
-	// the server config must be in sync with the latest config changes, due to
-	// testing for TLS configuration settings in rpc.go
 	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
@@ -430,10 +428,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	// reinitialize our rpc listener
 	s.rpcListener.Close()
 	<-s.listenerCh
-
-	// Close existing Raft connections
-	s.raftTransport.Pause()
-	s.raftLayer.Close()
+	s.startRPCListener()
 
 	listener, err := s.createRPCListener()
 	if err != nil {
@@ -441,14 +436,14 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		return err
 	}
 
-	// Close existing streams
+	// Close and reload existing Raft connections
+	s.raftTransport.Pause()
+	s.raftLayer.Close()
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
 	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
-
-	// Reload raft connections
 	s.raftTransport.Reload(s.raftLayer)
 
-	s.startRPCListener()
+	time.Sleep(3 * time.Second)
 
 	s.logger.Printf("[DEBUG] nomad: finished reloading server connections")
 	return nil
