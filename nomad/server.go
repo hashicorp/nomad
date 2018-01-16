@@ -402,7 +402,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 
 	// the server config must be in sync with the latest config changes, due to
 	// testing for TLS configuration settings in rpc.go
-	tlsConf := s.config.newTLSConfig(newTLSConfig)
+	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context")

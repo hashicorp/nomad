@@ -67,6 +67,18 @@ type Config struct {
 	KeyLoader *config.KeyLoader
 }
 
+func NewTLSConfiguration(newConf *config.TLSConfig) *Config {
+	return &Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: newConf.VerifyServerHostname,
+		CAFile:               newConf.CAFile,
+		CertFile:             newConf.CertFile,
+		KeyFile:              newConf.KeyFile,
+		KeyLoader:            newConf.GetKeyLoader(),
+	}
+}
+
 // AppendCA opens and parses the CA file and adds the certificates to
 // the provided CertPool.
 func (c *Config) AppendCA(pool *x509.CertPool) error {

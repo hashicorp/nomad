@@ -350,20 +350,13 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 // TLSConfiguration returns a TLSUtil Config based on the existing client
 // configuration
 func (c *Config) TLSConfiguration() *tlsutil.Config {
-	return c.NewTLSConfiguration(c.TLSConfig)
-}
-
-// NewTLSConfiguration returns a TLSUtil Config for a new TLS config object
-// This allows a TLSConfig object to be created without first explicitly
-// setting it
-func (c *Config) NewTLSConfiguration(tlsConfig *config.TLSConfig) *tlsutil.Config {
 	return &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
-		VerifyServerHostname: tlsConfig.VerifyServerHostname,
-		CAFile:               tlsConfig.CAFile,
-		CertFile:             tlsConfig.CertFile,
-		KeyFile:              tlsConfig.KeyFile,
-		KeyLoader:            tlsConfig.GetKeyLoader(),
+		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
+		CAFile:               c.TLSConfig.CAFile,
+		CertFile:             c.TLSConfig.CertFile,
+		KeyFile:              c.TLSConfig.KeyFile,
+		KeyLoader:            c.TLSConfig.GetKeyLoader(),
 	}
 }
