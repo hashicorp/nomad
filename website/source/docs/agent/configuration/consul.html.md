@@ -109,11 +109,15 @@ Nomad cluster will [automatically bootstrap][bootstrap] provided
 This example shows the default Consul integration:
 
 ```hcl
+consul {
+  address             = "127.0.0.1:8500"
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
+  auto_advertise      = true
+  server_auto_join    = true
+  client_auto_join    = true
+}
 ```
-
-That is not a mistake - it is intentionally empty. If a local Consul agent is
-running at the default address, Nomad will automatically connect and use the
-default values listed above.
 
 ### Custom Address and Port
 
