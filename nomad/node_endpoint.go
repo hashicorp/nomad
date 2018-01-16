@@ -820,10 +820,48 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return fmt.Errorf("must update at least one allocation")
 	}
 
+	// Ensure that evals field is empty.
+	if len(args.Evals) != 0 {
+		return fmt.Errorf("evals field must not be set ")
+	}
+
 	// Update modified timestamp for client initiated allocation updates
 	now := time.Now().UTC().UnixNano()
+	var evals []*structs.Evaluation
+
 	for _, alloc := range args.Alloc {
 		alloc.ModifyTime = now
+
+		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
+		if alloc.ClientStatus == structs.AllocClientStatusFailed {
+			ws := memdb.NewWatchSet()
+			job, err := n.srv.State().JobByID(ws, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				n.srv.logger.Printf("[ERR] nomad.client: Unable to find jobid %v", alloc.JobID)
+				return err
+			}
+			if job == nil {
+				return fmt.Errorf("[ERR] nomad.client: Unable to find jobid %v", alloc.JobID)
+			}
+			// Only create evaluations if this is an existing alloc and eligible as per its task group's ReschedulePolicy
+			if existingAlloc, _ := n.srv.State().AllocByID(ws, alloc.ID); existingAlloc != nil {
+				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
+				if taskGroup != nil && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy) {
+					eval := &structs.Evaluation{
+						ID:          uuid.Generate(),
+						Namespace:   alloc.Namespace,
+						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+						JobID:       alloc.JobID,
+						Type:        job.Type,
+						Status:      structs.EvalStatusPending,
+					}
+					evals = append(evals, eval)
+				}
+			}
+		}
+	}
+	if len(evals) > 0 {
+		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling", len(evals))
 	}
 	// Add this to the batch
 	n.updatesLock.Lock()
@@ -845,7 +883,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			n.updatesLock.Unlock()
 
 			// Perform the batch update
-			n.batchUpdate(future, updates)
+			n.batchUpdate(future, updates, evals)
 		})
 	}
 	n.updatesLock.Unlock()
@@ -861,10 +899,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 }
 
 // batchUpdate is used to update all the allocations
-func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation) {
+func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
 	// Prepare the batch update
 	batch := &structs.AllocUpdateRequest{
 		Alloc:        updates,
+		Evals:        evals,
 		WriteRequest: structs.WriteRequest{Region: n.srv.config.Region},
 	}
 
