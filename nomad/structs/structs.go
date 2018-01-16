@@ -5134,18 +5134,23 @@ func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy) bool {
 		return false
 	default:
 	}
-	if reschedulePolicy == nil {
-		return false
-	}
 	switch a.ClientStatus {
 	case AllocClientStatusFailed:
-		return a.rescheduleEligible(reschedulePolicy.Interval, reschedulePolicy.Attempts)
+		return a.RescheduleEligible(reschedulePolicy)
 	default:
 		return false
 	}
 }
 
-func (a *Allocation) rescheduleEligible(interval time.Duration, attempts int) bool {
+// RescheduleEligible returns if the allocation is eligible to be rescheduled according
+// to its ReschedulePolicy and the current state of its reschedule trackers
+func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy) bool {
+	if reschedulePolicy == nil {
+		return false
+	}
+	attempts := reschedulePolicy.Attempts
+	interval := reschedulePolicy.Interval
+
 	if attempts == 0 {
 		return false
 	}
