@@ -1,9 +1,7 @@
 {{#global-header class="page-header"}}
-  {{#link-to "jobs" class="breadcrumb"}}Jobs{{/link-to}}
-  {{#link-to "jobs.job" model.allocation.job (query-params jobNamespace=model.allocation.job.namespace.id) class="breadcrumb" }}{{model.allocation.job.name}}{{/link-to}}
-  {{#link-to "jobs.job.task-group" model.allocation.job model.allocation.taskGroupName class="breadcrumb" }}{{model.allocation.taskGroupName}}{{/link-to}}
-  {{#link-to "allocations.allocation" model.allocation class="breadcrumb"}}{{model.allocation.shortId}}{{/link-to}}
-  {{#link-to "allocations.allocation.task" model.allocation model class="breadcrumb"}}{{model.name}}{{/link-to}}
+  {{#each breadcrumbs as |breadcrumb|}}
+    {{#link-to params=breadcrumb.args class="breadcrumb"}}{{breadcrumb.label}}{{/link-to}}
+  {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   {{partial "allocations/allocation/task/subnav"}}
