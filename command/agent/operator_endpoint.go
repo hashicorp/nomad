@@ -55,22 +55,41 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 		return nil, nil
 	}
 
-	var args structs.RaftPeerByAddressRequest
-	s.parseWriteRequest(req, &args.WriteRequest)
-
 	params := req.URL.Query()
-	if _, ok := params["address"]; ok {
-		args.Address = raft.ServerAddress(params.Get("address"))
-	} else {
+	_, hasID := params["id"]
+	_, hasAddress := params["address"]
+
+	if !hasID && !hasAddress {
 		resp.WriteHeader(http.StatusBadRequest)
-		resp.Write([]byte("Must specify ?address with IP:port of peer to remove"))
+		fmt.Fprint(resp, "Must specify either ?id with the server's ID or ?address with IP:port of peer to remove")
+		return nil, nil
+	}
+	if hasID && hasAddress {
+		resp.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(resp, "Must specify only one of ?id or ?address")
 		return nil, nil
 	}
 
-	var reply struct{}
-	if err := s.agent.RPC("Operator.RaftRemovePeerByAddress", &args, &reply); err != nil {
-		return nil, err
+	if hasID {
+		var args structs.RaftPeerByIDRequest
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var reply struct{}
+		args.ID = raft.ServerID(params.Get("id"))
+		if err := s.agent.RPC("Operator.RaftRemovePeerByID", &args, &reply); err != nil {
+			return nil, err
+		}
+	} else {
+		var args structs.RaftPeerByAddressRequest
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var reply struct{}
+		args.Address = raft.ServerAddress(params.Get("address"))
+		if err := s.agent.RPC("Operator.RaftRemovePeerByAddress", &args, &reply); err != nil {
+			return nil, err
+		}
 	}
+
 	return nil, nil
 }
 
@@ -157,7 +176,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 	}
 }
 
-// OperatorServerHealth is used to get the health of the servers in the local DC
+// OperatorServerHealth is used to get the health of the servers in the given Region.
 func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		resp.WriteHeader(http.StatusMethodNotAllowed)

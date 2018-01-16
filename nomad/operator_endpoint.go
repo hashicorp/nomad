@@ -126,6 +126,71 @@ REMOVE:
 	return nil
 }
 
+// RaftRemovePeerByID is used to kick a stale peer (one that is in the Raft
+// quorum but no longer known to Serf or the catalog) by address in the form of
+// "IP:port". The reply argument is not used, but is required to fulfill the RPC
+// interface.
+func (op *Operator) RaftRemovePeerByID(args *structs.RaftPeerByIDRequest, reply *struct{}) error {
+	if done, err := op.srv.forward("Operator.RaftRemovePeerByID", args, args, reply); done {
+		return err
+	}
+
+	// Check management permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Since this is an operation designed for humans to use, we will return
+	// an error if the supplied id isn't among the peers since it's
+	// likely they screwed up.
+	var address raft.ServerAddress
+	{
+		future := op.srv.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			return err
+		}
+		for _, s := range future.Configuration().Servers {
+			if s.ID == args.ID {
+				address = s.Address
+				goto REMOVE
+			}
+		}
+		return fmt.Errorf("id %q was not found in the Raft configuration",
+			args.ID)
+	}
+
+REMOVE:
+	// The Raft library itself will prevent various forms of foot-shooting,
+	// like making a configuration with no voters. Some consideration was
+	// given here to adding more checks, but it was decided to make this as
+	// low-level and direct as possible. We've got ACL coverage to lock this
+	// down, and if you are an operator, it's assumed you know what you are
+	// doing if you are calling this. If you remove a peer that's known to
+	// Serf, for example, it will come back when the leader does a reconcile
+	// pass.
+	minRaftProtocol, err := op.srv.autopilot.MinRaftProtocol()
+	if err != nil {
+		return err
+	}
+
+	var future raft.Future
+	if minRaftProtocol >= 2 {
+		future = op.srv.raft.RemoveServer(args.ID, 0, 0)
+	} else {
+		future = op.srv.raft.RemovePeer(address)
+	}
+	if err := future.Error(); err != nil {
+		op.srv.logger.Printf("[WARN] nomad.operator: Failed to remove Raft peer with id %q: %v",
+			args.ID, err)
+		return err
+	}
+
+	op.srv.logger.Printf("[WARN] nomad.operator: Removed Raft peer with id %q", args.ID)
+	return nil
+}
+
 // AutopilotGetConfiguration is used to retrieve the current Autopilot configuration.
 func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, reply *autopilot.Config) error {
 	if done, err := op.srv.forward("Operator.AutopilotGetConfiguration", args, args, reply); done {

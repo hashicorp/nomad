@@ -74,28 +74,28 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	_, nonVoter := m.Tags["nonvoter"]
 
 	expect := 0
-	expect_str, ok := m.Tags["expect"]
+	expectStr, ok := m.Tags["expect"]
 	var err error
 	if ok {
-		expect, err = strconv.Atoi(expect_str)
+		expect, err = strconv.Atoi(expectStr)
 		if err != nil {
 			return false, nil
 		}
 	}
 
 	// If the server is missing the rpc_addr tag, default to the serf advertise addr
-	rpc_ip := net.ParseIP(m.Tags["rpc_addr"])
-	if rpc_ip == nil {
-		rpc_ip = m.Addr
+	rpcIP := net.ParseIP(m.Tags["rpc_addr"])
+	if rpcIP == nil {
+		rpcIP = m.Addr
 	}
 
-	port_str := m.Tags["port"]
-	port, err := strconv.Atoi(port_str)
+	portStr := m.Tags["port"]
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return false, nil
 	}
 
-	build_version, err := version.NewVersion(m.Tags["build"])
+	buildVersion, err := version.NewVersion(m.Tags["build"])
 	if err != nil {
 		return false, nil
 	}
@@ -115,17 +115,17 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		minorVersion = 0
 	}
 
-	raft_vsn := 0
-	raft_vsn_str, ok := m.Tags["raft_vsn"]
+	raftVsn := 0
+	raftVsnString, ok := m.Tags["raft_vsn"]
 	if ok {
-		raft_vsn, err = strconv.Atoi(raft_vsn_str)
+		raftVsn, err = strconv.Atoi(raftVsnString)
 		if err != nil {
 			return false, nil
 		}
 	}
 
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
-	rpcAddr := &net.TCPAddr{IP: rpc_ip, Port: port}
+	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
 		Name:         m.Name,
 		ID:           id,
@@ -138,8 +138,8 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		RPCAddr:      rpcAddr,
 		MajorVersion: majorVersion,
 		MinorVersion: minorVersion,
-		Build:        *build_version,
-		RaftVersion:  raft_vsn,
+		Build:        *buildVersion,
+		RaftVersion:  raftVsn,
 		NonVoter:     nonVoter,
 		Status:       m.Status,
 	}

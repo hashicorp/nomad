@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-// AutopilotDelegate is a Consul delegate for autopilot operations.
+// AutopilotDelegate is a Nomad delegate for autopilot operations.
 type AutopilotDelegate struct {
 	server *Server
 }
@@ -39,7 +39,7 @@ func (d *AutopilotDelegate) IsServer(m serf.Member) (*autopilot.ServerInfo, erro
 	return server, nil
 }
 
-// Heartbeat a metric for monitoring if we're the leader
+// NotifyHealth heartbeats a metric for monitoring if we're the leader.
 func (d *AutopilotDelegate) NotifyHealth(health autopilot.OperatorHealthReply) {
 	if d.server.raft.State() == raft.Leader {
 		metrics.SetGauge([]string{"nomad", "autopilot", "failure_tolerance"}, float32(health.FailureTolerance))

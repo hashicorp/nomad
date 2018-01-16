@@ -7,50 +7,40 @@ import (
 
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	operator := c.Operator()
 	config, err := operator.AutopilotGetConfiguration(nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !config.CleanupDeadServers {
-		t.Fatalf("bad: %v", config)
-	}
+	assert.Nil(err)
+	assert.True(config.CleanupDeadServers)
 
 	// Change a config setting
 	newConf := &AutopilotConfiguration{CleanupDeadServers: false}
-	if err := operator.AutopilotSetConfiguration(newConf, nil); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = operator.AutopilotSetConfiguration(newConf, nil)
+	assert.Nil(err)
 
 	config, err = operator.AutopilotGetConfiguration(nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if config.CleanupDeadServers {
-		t.Fatalf("bad: %v", config)
-	}
+	assert.Nil(err)
+	assert.False(config.CleanupDeadServers)
 }
 
 func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 	t.Parallel()
+	assert := assert.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	operator := c.Operator()
 	config, err := operator.AutopilotGetConfiguration(nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !config.CleanupDeadServers {
-		t.Fatalf("bad: %v", config)
-	}
+	assert.Nil(err)
+	assert.True(config.CleanupDeadServers)
 
 	// Pass an invalid ModifyIndex
 	{
@@ -59,12 +49,8 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 			ModifyIndex:        config.ModifyIndex - 1,
 		}
 		resp, err := operator.AutopilotCASConfiguration(newConf, nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		if resp {
-			t.Fatalf("bad: %v", resp)
-		}
+		assert.Nil(err)
+		assert.False(resp)
 	}
 
 	// Pass a valid ModifyIndex
@@ -74,12 +60,8 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 			ModifyIndex:        config.ModifyIndex,
 		}
 		resp, err := operator.AutopilotCASConfiguration(newConf, nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		if !resp {
-			t.Fatalf("bad: %v", resp)
-		}
+		assert.Nil(err)
+		assert.True(resp)
 	}
 }
 

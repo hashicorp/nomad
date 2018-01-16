@@ -23,24 +23,24 @@ on Raft Protocol versions.
 ## Configuration
 
 The configuration of Autopilot is loaded by the leader from the agent's
-[Autopilot settings](/docs/agent/options.html#autopilot) when initially
+[Autopilot settings](/docs/agent/configuration/autopilot.html) when initially
 bootstrapping the cluster:
 
 ```
-{
-    "cleanup_dead_servers": true,
-    "last_contact_threshold": "200ms",
-    "max_trailing_logs": 250,
-    "server_stabilization_time": "10s",
-    "redundancy_zone_tag": "az",
-    "disable_upgrade_migration": false,
-    "upgrade_version_tag": ""
+autopilot {
+    cleanup_dead_servers = true
+    last_contact_threshold = 200ms
+    max_trailing_logs = 250
+    server_stabilization_time = "10s"
+    redundancy_zone_tag = "az"
+    disable_upgrade_migration = false
+    upgrade_version_tag = ""
 }
 ```
 
 After bootstrapping, the configuration can be viewed or modified either via the
-[`operator autopilot`](/docs/commands/operator/autopilot.html) subcommand or the
-[`/v1/operator/autopilot/configuration`](/api/operator.html#autopilot-configuration)
+[`operator autopilot`](/docs/commands/operator.html) subcommand or the
+[`/v1/operator/autopilot/configuration`](/api/operator.html#read-autopilot-configuration)
 HTTP endpoint:
 
 ```
@@ -86,9 +86,9 @@ with the `-cleanup-dead-servers=false` option.
 ## Server Health Checking
 
 An internal health check runs on the leader to track the stability of servers.
-</br>A server is considered healthy if all of the following conditions are true:
+A server is considered healthy if all of the following conditions are true:
 
-- It has a SerfHealth status of 'Alive'
+- Its status according to Serf is 'Alive'
 - The time since its last contact with the current leader is below
 `LastContactThreshold`
 - Its latest Raft term matches the leader's term

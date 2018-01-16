@@ -109,9 +109,11 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `address` `(string: <required>)` - Specifies the server to remove as
-  `ip:port`. This may be provided multiple times and is provided as a
-  querystring parameter.
+- `address` `(string: <optional>)` - Specifies the server to remove as
+  `ip:port`. This cannot be provided along with the `id` parameter.
+
+- `id` `(string: <optional>)` - Specifies the server to remove as
+  `id`. This cannot be provided along with the `address` parameter.
 
 - `stale` - Specifies if the cluster should respond without an active leader.
   This is specified as a querystring parameter.

@@ -10,7 +10,7 @@ import (
 )
 
 // AutopilotConfiguration is used for querying/setting the Autopilot configuration.
-// Autopilot helps manage operator tasks related to Consul servers like removing
+// Autopilot helps manage operator tasks related to Nomad servers like removing
 // failed servers from the Raft quorum.
 type AutopilotConfiguration struct {
 	// CleanupDeadServers controls whether to remove dead servers from the Raft
@@ -40,7 +40,7 @@ type AutopilotConfiguration struct {
 	DisableUpgradeMigration bool
 
 	// (Enterprise-only) UpgradeVersionTag is the node tag to use for version info when
-	// performing upgrade migrations. If left blank, the Consul version will be used.
+	// performing upgrade migrations. If left blank, the Nomad version will be used.
 	UpgradeVersionTag string
 
 	// CreateIndex holds the index corresponding the creation of this configuration.
@@ -68,7 +68,7 @@ type ServerHealth struct {
 	// The status of the SerfHealth check for the server.
 	SerfStatus string
 
-	// Version is the Consul version of the server.
+	// Version is the Nomad version of the server.
 	Version string
 
 	// Leader is whether this server is currently the leader.
@@ -207,7 +207,8 @@ func (op *Operator) AutopilotCASConfiguration(conf *AutopilotConfiguration, q *W
 	return res, nil
 }
 
-// AutopilotServerHealth
+// AutopilotServerHealth is used to query Autopilot's top-level view of the health
+// of each Nomad server.
 func (op *Operator) AutopilotServerHealth(q *QueryOptions) (*OperatorHealthReply, error) {
 	r, err := op.c.newRequest("GET", "/v1/operator/autopilot/health")
 	if err != nil {

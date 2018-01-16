@@ -439,8 +439,6 @@ func (s *Server) Leave() error {
 		return err
 	}
 
-	// TODO (alexdadgar) - This will need to be updated once we support node
-	// IDs.
 	addr := s.raftTransport.LocalAddr()
 
 	// If we are the current leader, and we have any other peers (cluster has multiple
@@ -449,9 +447,21 @@ func (s *Server) Leave() error {
 	// for some sane period of time.
 	isLeader := s.IsLeader()
 	if isLeader && numPeers > 1 {
-		future := s.raft.RemovePeer(addr)
-		if err := future.Error(); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to remove ourself as raft peer: %v", err)
+		minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+		if err != nil {
+			return err
+		}
+
+		if minRaftProtocol >= 2 && s.config.RaftConfig.ProtocolVersion >= 3 {
+			future := s.raft.RemoveServer(raft.ServerID(s.config.NodeID), 0, 0)
+			if err := future.Error(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to remove ourself as raft peer: %v", err)
+			}
+		} else {
+			future := s.raft.RemovePeer(addr)
+			if err := future.Error(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to remove ourself as raft peer: %v", err)
+			}
 		}
 	}
 
@@ -951,8 +961,6 @@ func (s *Server) setupRaft() error {
 			return err
 		}
 		if !hasState {
-			// TODO (alexdadgar) - This will need to be updated when
-			// we add support for node IDs.
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
 					{

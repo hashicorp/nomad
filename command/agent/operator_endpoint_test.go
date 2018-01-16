@@ -2,20 +2,19 @@ package agent
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
 	"time"
-
-	"fmt"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pascaldekloe/goe/verify"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
@@ -48,13 +47,12 @@ func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
 }
 
 func TestHTTP_OperatorRaftPeer(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
 		req, err := http.NewRequest("DELETE", "/v1/operator/raft/peer?address=nope", body)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		assert.Nil(err)
 
 		// If we get this error, it proves we sent the address all the
 		// way through.
@@ -62,6 +60,21 @@ func TestHTTP_OperatorRaftPeer(t *testing.T) {
 		_, err = s.Server.OperatorRaftPeer(resp, req)
 		if err == nil || !strings.Contains(err.Error(),
 			"address \"nope\" was not found in the Raft configuration") {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	httpTest(t, nil, func(s *TestAgent) {
+		body := bytes.NewBuffer(nil)
+		req, err := http.NewRequest("DELETE", "/v1/operator/raft/peer?id=nope", body)
+		assert.Nil(err)
+
+		// If we get this error, it proves we sent the address all the
+		// way through.
+		resp := httptest.NewRecorder()
+		_, err = s.Server.OperatorRaftPeer(resp, req)
+		if err == nil || !strings.Contains(err.Error(),
+			"id \"nope\" was not found in the Raft configuration") {
 			t.Fatalf("err: %v", err)
 		}
 	})
