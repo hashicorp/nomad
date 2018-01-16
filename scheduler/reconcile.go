@@ -620,7 +620,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 		return nil
 	}
 	var place []allocPlaceResult
-	// add rescheduled alloc placement results
+	// Add rescheduled placement results
 	for _, alloc := range reschedule {
 		place = append(place, allocPlaceResult{
 			name:          alloc.Name,
@@ -632,7 +632,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			break
 		}
 	}
-	// add remaining
+	// Add remaining placement results
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
 			place = append(place, allocPlaceResult{

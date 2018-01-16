@@ -266,7 +266,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 		}
 	}
 	// Delete these from rescheduleable allocs
-	for allocId, _ := range rescheduledPrevAllocs {
+	for allocId := range rescheduledPrevAllocs {
 		delete(reschedule, allocId)
 	}
 	return
