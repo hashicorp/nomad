@@ -164,7 +164,6 @@ func NewNetworkTransportWithLogger(
 // Pause closes the current stream for a NetworkTransport instance
 func (n *NetworkTransport) Pause() {
 	n.streamCancel()
-	n.stream.Close()
 }
 
 // Pause creates a new stream for a NetworkTransport instance

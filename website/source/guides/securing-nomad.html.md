@@ -474,13 +474,14 @@ need to completely shutdown and restart the Nomad agent.
 
 ## Migrating a cluster to TLS
 
-Nomad supports dynamically reloading a server to move from plaintext to TLS.
-This can be done by editing the server's configuration and reloading the server
-or client via SIGHUP. Note that this will only reload changes within the tls
-configuration block, other configuration changes still require a full restart.
+Nomad supports dynamically reloading it's TLS configuration. To reload Nomad's
+configuration, first update the configuration file and then send the Nomad
+agent a SIGHUP signal. Note that this will only reload a subset of the
+configuration file, including the TLS configuration.
 
-This process will read in new TLS configuration for the agent, configure the
-agent for the new changes, and reload all network connections. This process
+When reloading the configuration, if there is a change to the TLS
+configuration, the agent will reload all network connections and when
+establishing new connections, will use the new configuration. This process
 works for both upgrading and downgrading TLS (but we recommend upgrading).
 
 

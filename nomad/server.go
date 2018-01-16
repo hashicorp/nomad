@@ -362,16 +362,16 @@ func (s *Server) startRPCListener() {
 }
 
 // createRPCListener creates the server's RPC listener
-func (s *Server) createRPCListener() error {
+func (s *Server) createRPCListener() (*net.TCPListener, error) {
 	s.listenerCh = make(chan struct{})
-	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
-	if err != nil || list == nil {
-		s.logger.Printf("[ERR] nomad: No TLS listener to reload")
-		return err
+	listener, err := net.ListenTCP("tcp", s.config.RPCAddr)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: error when initializing TLS listener %s", err)
+		return listener, err
 	}
 
-	s.rpcListener = list
-	return nil
+	s.rpcListener = listener
+	return listener, nil
 }
 
 // getTLSConf gets the server's TLS configuration based on the config supplied
@@ -405,24 +405,21 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
-		s.logger.Printf("[ERR] nomad: unable to reset TLS context")
+		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)
 		return err
 	}
 
-	// Keeping configuration in sync is important for other places that require
-	// access to config information, such as rpc.go, where we decide on what kind
-	// of network connections to accept depending on the server configuration
-	s.configLock.Lock()
-	s.config.TLSConfig = newTLSConfig
-	s.configLock.Unlock()
-
 	if s.rpcCancel == nil {
-		s.logger.Printf("[ERR] nomad: No TLS Context to reset")
-		return fmt.Errorf("Unable to reset tls context")
+		err = fmt.Errorf("No existing RPC server to reset.")
+		s.logger.Printf("[ERR] nomad: %s", err)
+		return err
 	}
 
 	s.rpcCancel()
 
+	// Keeping configuration in sync is important for other places that require
+	// access to config information, such as rpc.go, where we decide on what kind
+	// of network connections to accept depending on the server configuration
 	s.configLock.Lock()
 	s.config.TLSConfig = newTLSConfig
 	s.configLock.Unlock()
@@ -433,21 +430,25 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	// reinitialize our rpc listener
 	s.rpcListener.Close()
 	<-s.listenerCh
+
+	// Close existing Raft connections
 	s.raftTransport.Pause()
 	s.raftLayer.Close()
 
-	err = s.createRPCListener()
+	listener, err := s.createRPCListener()
+	if err != nil {
+		listener.Close()
+		return err
+	}
 
-	// CLose existing streams
+	// Close existing streams
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
 	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
 
-	s.startRPCListener()
+	// Reload raft connections
+	s.raftTransport.Reload(s.raftLayer)
 
-	time.Sleep(3 * time.Second)
-	if err != nil {
-		return err
-	}
+	s.startRPCListener()
 
 	s.logger.Printf("[DEBUG] nomad: finished reloading server connections")
 	return nil
@@ -615,7 +616,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	if !newConfig.TLSConfig.Equals(s.config.TLSConfig) {
 		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
-			s.logger.Printf("[DEBUG] nomad: reloading server TLS configuration")
+			s.logger.Printf("[ERR] nomad: error reloading server TLS configuration: %s", err)
 			multierror.Append(&mErr, err)
 		}
 	}
@@ -879,12 +880,11 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Search)
 	s.endpoints.Enterprise.Register(s)
 
-	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
+	listener, err := s.createRPCListener()
 	if err != nil {
+		listener.Close()
 		return err
 	}
-	s.rpcListener = list
-	s.listenerCh = make(chan struct{})
 
 	if s.config.RPCAdvertise != nil {
 		s.rpcAdvertise = s.config.RPCAdvertise
@@ -895,11 +895,11 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Verify that we have a usable advertise address
 	addr, ok := s.rpcAdvertise.(*net.TCPAddr)
 	if !ok {
-		list.Close()
+		listener.Close()
 		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
 	}
 	if addr.IP.IsUnspecified() {
-		list.Close()
+		listener.Close()
 		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
 	}
 
