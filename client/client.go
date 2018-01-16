@@ -1304,6 +1304,8 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	// send the fields that are updatable by the client.
 	stripped := new(structs.Allocation)
 	stripped.ID = alloc.ID
+	stripped.JobID = alloc.JobID
+	stripped.Namespace = alloc.Namespace
 	stripped.NodeID = c.NodeID()
 	stripped.TaskStates = alloc.TaskStates
 	stripped.ClientStatus = alloc.ClientStatus

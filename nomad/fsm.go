@@ -474,13 +474,16 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+	return n.upsertEvals(index, req.Evals)
+}
 
-	if err := n.state.UpsertEvals(index, req.Evals); err != nil {
+func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
+	if err := n.state.UpsertEvals(index, evals); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertEvals failed: %v", err)
 		return err
 	}
 
-	for _, eval := range req.Evals {
+	for _, eval := range evals {
 		if eval.ShouldEnqueue() {
 			n.evalBroker.Enqueue(eval)
 		} else if eval.ShouldBlock() {
@@ -578,6 +581,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
 		return err
+	}
+
+	// Update any evals
+	if len(req.Evals) > 0 {
+		if err := n.upsertEvals(index, req.Evals); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
+			return err
+		}
 	}
 
 	// Unblock evals for the nodes computed node class if the client has

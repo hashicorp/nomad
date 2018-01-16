@@ -1662,12 +1662,20 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Inject fake evaluations
+	// Inject fake allocations
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Inject mock job
+	job := mock.Job()
+	job.ID = alloc.JobID
+	err = state.UpsertJob(101, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1747,7 +1755,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	// Call to do the batch update
 	bf := NewBatchFuture()
 	endpoint := s1.endpoints.Node
-	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc})
+	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc}, nil)
 	if err := bf.Wait(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1803,6 +1811,14 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	va.NodeID = node.ID
 	va.AllocID = alloc.ID
 	if err := state.UpsertVaultAccessor(101, []*structs.VaultAccessor{va}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Inject mock job
+	job := mock.Job()
+	job.ID = alloc.JobID
+	err := state.UpsertJob(101, job)
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

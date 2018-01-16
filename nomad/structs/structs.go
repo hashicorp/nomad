@@ -532,6 +532,10 @@ type AllocUpdateRequest struct {
 	// Alloc is the list of new allocations to assign
 	Alloc []*Allocation
 
+	// Evals is the list of new evaluations to create
+	// Evals are valid only when used in the Raft RPC
+	Evals []*Evaluation
+
 	// Job is the shared parent job of the allocations.
 	// It is pulled out since it is common to reduce payload size.
 	Job *Job
