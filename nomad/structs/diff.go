@@ -234,6 +234,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
+	// Reschedule policy diff
+	reschedDiff := primitiveObjectDiff(tg.ReschedulePolicy, other.ReschedulePolicy, nil, "ReschedulePolicy", contextual)
+	if reschedDiff != nil {
+		diff.Objects = append(diff.Objects, reschedDiff)
+	}
+
 	// EphemeralDisk diff
 	diskDiff := primitiveObjectDiff(tg.EphemeralDisk, other.EphemeralDisk, nil, "EphemeralDisk", contextual)
 	if diskDiff != nil {
