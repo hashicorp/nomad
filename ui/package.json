@@ -53,7 +53,7 @@
     "ember-data-model-fragments": "^2.14.0",
     "ember-export-application-global": "^2.0.0",
     "ember-fetch": "^3.4.3",
-    "ember-freestyle": "^0.4.1",
+    "ember-freestyle": "~0.6.2",
     "ember-inline-svg": "^0.1.11",
     "ember-load-initializers": "^1.0.0",
     "ember-moment": "^7.5.0",
