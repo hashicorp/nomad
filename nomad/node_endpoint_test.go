@@ -1648,6 +1648,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
 
 	// Create the register request
 	node := mock.Node()
@@ -1662,23 +1663,20 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Inject fake allocations
-	alloc := mock.Alloc()
-	alloc.NodeID = node.ID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	// Inject mock job
 	job := mock.Job()
-	job.ID = alloc.JobID
-	err = state.UpsertJob(101, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err := state.UpsertJob(101, job)
+	assert.Nil(err)
+
+	// Inject fake allocations
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	alloc.TaskGroup = job.TaskGroups[0].Name
+	err = state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	assert.Nil(err)
 
 	// Attempt update
 	clientAlloc := new(structs.Allocation)
@@ -1692,12 +1690,10 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	}
 	var resp2 structs.NodeAllocsResponse
 	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index == 0 {
-		t.Fatalf("Bad index: %d", resp2.Index)
-	}
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
+	assert.Nil(err)
+	assert.NotEqual(0, resp2.Index)
+
 	if diff := time.Since(start); diff < batchUpdateInterval {
 		t.Fatalf("too fast: %v", diff)
 	}
@@ -1705,16 +1701,15 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Lookup the alloc
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.ClientStatus != structs.AllocClientStatusFailed {
-		t.Fatalf("Bad: %#v", out)
-	}
+	assert.Nil(err)
+	assert.Equal(structs.AllocClientStatusFailed, out.ClientStatus)
+	assert.True(out.ModifyTime > 0)
 
-	if out.ModifyTime <= 0 {
-		t.Fatalf("must have valid modify time but was %v", out.ModifyTime)
-	}
+	// Lookup evals, should have created one
+	evaluations, err := state.EvalsByJob(ws, job.Namespace, job.ID)
+	assert.Nil(err)
+	assert.Equal(1, len(evaluations))
+	assert.Equal(structs.EvalTriggerRetryFailedAlloc, evaluations[0].TriggeredBy)
 }
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
