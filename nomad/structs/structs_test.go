@@ -2429,16 +2429,28 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			ReschedulePolicy: &ReschedulePolicy{1, 5 * time.Minute},
-			err:              nil,
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts: 0,
+				Interval: 0 * time.Second},
+			err: nil,
 		},
 		{
-			ReschedulePolicy: &ReschedulePolicy{-1, 5 * time.Minute},
-			err:              nil,
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts: 1,
+				Interval: 5 * time.Minute},
+			err: nil,
 		},
 		{
-			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Second},
-			err:              fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, time.Second),
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts: -1,
+				Interval: 5 * time.Minute},
+			err: nil,
+		},
+		{
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts: 1,
+				Interval: 1 * time.Second},
+			err: fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, time.Second),
 		},
 	}
 
@@ -2699,6 +2711,14 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			DesiredStatus:    AllocDesiredStatusStop,
 			FailTime:         fail,
 			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Disabled recheduling",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{0, 1 * time.Minute},
 			ShouldReschedule: false,
 		},
 		{
