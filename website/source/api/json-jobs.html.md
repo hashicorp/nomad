@@ -45,7 +45,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 },
                 "Services": [{
                     "Id": "",
-                    "Name": "global-redis-check",
+                    "Name": "redis-cache",
                     "Tags": [
                         "global",
                         "cache"
