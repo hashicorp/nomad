@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -280,6 +281,10 @@ func TestServer_Reload_Vault(t *testing.T) {
 	}
 }
 
+func connectionReset(msg string) bool {
+	return strings.Contains(msg, "EOF") || strings.Contains(msg, "connection reset by peer")
+}
+
 // Tests that the server will successfully reload its network connections,
 // upgrading from plaintext to TLS if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
@@ -326,7 +331,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	assert.NotNil(err)
-	assert.Contains("rpc error: EOF", err.Error())
+	assert.True(connectionReset(err.Error()))
 }
 
 // Tests that the server will successfully reload its network connections,
@@ -487,7 +492,7 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 		var resp structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 		assert.NotNil(err)
-		assert.Contains("rpc error: EOF", err.Error())
+		assert.True(connectionReset(err.Error()))
 
 		// Check that the job was not persisted
 		state := s1.fsm.State()

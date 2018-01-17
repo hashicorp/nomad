@@ -100,7 +100,6 @@ type Server struct {
 	leaderCh  <-chan bool
 	raft      *raft.Raft
 	raftLayer *RaftLayer
-
 	raftStore *raftboltdb.BoltStore
 	raftInmem *raft.InmemStore
 
