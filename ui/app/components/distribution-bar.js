@@ -99,7 +99,7 @@ export default Component.extend(WindowResizable, {
       });
 
     slices = slices.merge(slicesEnter);
-    slices.attr('class', d => d.className || `slice-${filteredData.indexOf(d)}`);
+    slices.attr('class', d => d.className || `slice-${_data.indexOf(d)}`);
 
     const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
     const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
