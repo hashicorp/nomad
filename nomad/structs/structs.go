@@ -2521,11 +2521,11 @@ var (
 )
 
 var (
-	defaultServiceJobReschedulePolicy = ReschedulePolicy{
+	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
 		Attempts: 2,
 		Interval: 1 * time.Hour,
 	}
-	defaultBatchJobReschedulePolicy = ReschedulePolicy{
+	DefaultBatchJobReschedulePolicy = ReschedulePolicy{
 		Attempts: 1,
 		Interval: 24 * time.Hour,
 	}
@@ -2632,26 +2632,25 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 }
 
 func (r *ReschedulePolicy) Validate() error {
-	var mErr multierror.Error
-	// Check for ambiguous/confusing settings
-	if r.Attempts < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Attempts must be >= 0 (got %v)", r.Attempts))
-	}
+	if r != nil && r.Attempts > 0 {
+		var mErr multierror.Error
+		// Check for ambiguous/confusing settings
+		if r.Interval.Nanoseconds() < ReschedulePolicyMinInterval.Nanoseconds() {
+			multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, r.Interval))
+		}
 
-	if r.Interval.Nanoseconds() < ReschedulePolicyMinInterval.Nanoseconds() {
-		multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, r.Interval))
+		return mErr.ErrorOrNil()
 	}
-
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 func NewReshedulePolicy(jobType string) *ReschedulePolicy {
 	switch jobType {
-	case JobTypeService, JobTypeSystem:
-		rp := defaultServiceJobReschedulePolicy
+	case JobTypeService:
+		rp := DefaultServiceJobReschedulePolicy
 		return &rp
 	case JobTypeBatch:
-		rp := defaultBatchJobReschedulePolicy
+		rp := DefaultBatchJobReschedulePolicy
 		return &rp
 	}
 	return nil
@@ -4918,7 +4917,13 @@ type DeploymentStatusUpdate struct {
 	StatusDescription string
 }
 
+// RescheduleTracker encapsulates previous reschedule events
 type RescheduleTracker struct {
+	Events []*RescheduleEvent
+}
+
+// RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
+type RescheduleEvent struct {
 	// RescheduleTime is the timestamp of a reschedule attempt
 	RescheduleTime int64
 
@@ -4929,11 +4934,11 @@ type RescheduleTracker struct {
 	PrevNodeID string
 }
 
-func (rt *RescheduleTracker) Copy() *RescheduleTracker {
+func (rt *RescheduleEvent) Copy() *RescheduleEvent {
 	if rt == nil {
 		return nil
 	}
-	copy := new(RescheduleTracker)
+	copy := new(RescheduleEvent)
 	*copy = *rt
 	return copy
 }
@@ -5038,7 +5043,7 @@ type Allocation struct {
 	ModifyTime int64
 
 	// RescheduleTrackers captures details of previous reschedule attempts of the allocation
-	RescheduleTrackers []*RescheduleTracker
+	RescheduleTracker *RescheduleTracker
 }
 
 // Index returns the index of the allocation. If the allocation is from a task
@@ -5097,9 +5102,9 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 		na.TaskStates = ts
 	}
 
-	if a.RescheduleTrackers != nil {
-		var rescheduleTrackers []*RescheduleTracker
-		for _, tracker := range a.RescheduleTrackers {
+	if a.RescheduleTracker != nil {
+		var rescheduleTrackers []*RescheduleEvent
+		for _, tracker := range a.RescheduleTracker.Events {
 			rescheduleTrackers = append(rescheduleTrackers, tracker.Copy())
 		}
 	}
@@ -5126,8 +5131,8 @@ func (a *Allocation) TerminalStatus() bool {
 }
 
 // ShouldReschedule returns if the allocation is eligible to be rescheduled according
-// to its status and ReschedulePolicy
-func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy) bool {
+// to its status and ReschedulePolicy given its failure time
+func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
 	// First check the desired state
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
@@ -5136,7 +5141,7 @@ func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy) bool {
 	}
 	switch a.ClientStatus {
 	case AllocClientStatusFailed:
-		return a.RescheduleEligible(reschedulePolicy)
+		return a.RescheduleEligible(reschedulePolicy, failTime)
 	default:
 		return false
 	}
@@ -5144,7 +5149,7 @@ func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy) bool {
 
 // RescheduleEligible returns if the allocation is eligible to be rescheduled according
 // to its ReschedulePolicy and the current state of its reschedule trackers
-func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy) bool {
+func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
 	if reschedulePolicy == nil {
 		return false
 	}
@@ -5154,13 +5159,13 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy) bool
 	if attempts == 0 {
 		return false
 	}
-	if a.RescheduleTrackers == nil && attempts > 0 {
+	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
 		return true
 	}
 	attempted := 0
-	for j := len(a.RescheduleTrackers) - 1; j >= 0; j-- {
-		lastAttempt := a.RescheduleTrackers[j].RescheduleTime
-		timeDiff := time.Now().UTC().UnixNano() - lastAttempt
+	for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+		lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+		timeDiff := failTime.UTC().UnixNano() - lastAttempt
 		if timeDiff < interval.Nanoseconds() {
 			attempted += 1
 		}
@@ -5477,7 +5482,7 @@ const (
 	EvalTriggerDeploymentWatcher = "deployment-watcher"
 	EvalTriggerFailedFollowUp    = "failed-follow-up"
 	EvalTriggerMaxPlans          = "max-plan-attempts"
-	EvalTriggerRetryFailedAlloc  = "replacing-after-failure"
+	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 )
 
 const (
