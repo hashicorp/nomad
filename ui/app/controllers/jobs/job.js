@@ -1,13 +1,23 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
+import queryParams from '../../utils/queryParams';
 
 export default Controller.extend({
-  breadcrumbs: computed('model.{name,id}', function() {
+  breadcrumbs: computed('model', 'model.{name,id}', 'model.namespace.name', function() {
     return [
-      { label: 'Jobs', args: ['jobs'] },
+      {
+        label: 'Jobs',
+        params: ['jobs'],
+      },
       {
         label: this.get('model.name'),
-        args: ['jobs.job', this.get('model')],
+        params: [
+          'jobs.job',
+          this.get('model'),
+          queryParams({
+            jobNamespace: this.get('model.namespace.name'),
+          }),
+        ],
       },
     ];
   }),

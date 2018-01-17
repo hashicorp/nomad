@@ -22,7 +22,7 @@ export default [
     job_summary_id: '1',
     taskGroupIds: ['1000'],
     task_group_ids: ['1000'],
-    namespace: 'default',
-    namespaceId: 'default',
+    namespace: 'namespace-1',
+    namespaceId: 'namespace-1',
   },
 ];

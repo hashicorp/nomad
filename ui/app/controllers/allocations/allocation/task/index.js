@@ -1,39 +1,18 @@
 import { alias } from '@ember/object/computed';
-import Controller from '@ember/controller';
+import Controller, { inject as controller } from '@ember/controller';
 import { computed } from '@ember/object';
-
 export default Controller.extend({
+  allocationController: controller('allocations.allocation'),
   breadcrumbs: computed(
-    'model.{name,allocation}',
-    'model.allocation.{job,taskGroupName}',
-    'model.allocation.job.name',
+    'allocationController.breadcrumbs.[]',
+    'model.{name,job,taskGroupName,shortId}',
     function() {
-      return [
-        {
-          label: 'Jobs',
-          args: ['jobs'],
-        },
-        {
-          label: this.get('model.allocation.job.name'),
-          args: ['jobs.job', this.get('model.allocation.job')],
-        },
-        {
-          label: this.get('model.allocation.taskGroupName'),
-          args: [
-            'jobs.job.task-group',
-            this.get('model.allocation.job'),
-            this.get('model.allocation.taskGroupName'),
-          ],
-        },
-        {
-          label: this.get('model.allocation.shortId'),
-          args: ['allocations.allocation', this.get('model.allocation')],
-        },
+      return this.get('allocationController.breadcrumbs').concat([
         {
           label: this.get('model.name'),
-          args: ['allocations.allocation.task', this.get('model.allocation'), this.get('model')],
+          params: ['allocations.allocation.task', this.get('model.allocation'), this.get('model')],
         },
-      ];
+      ]);
     }
   ),
   network: alias('model.resources.networks.firstObject'),

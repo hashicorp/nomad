@@ -33,7 +33,10 @@ export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
 
   breadcrumbs: computed('jobController.breadcrumbs.[]', 'model.{name}', function() {
     return this.get('jobController.breadcrumbs').concat([
-      { label: this.get('model.name'), args: ['jobs.job.task-group', this.get('model.name')] },
+      {
+        label: this.get('model.name'),
+        params: ['jobs.job.task-group', this.get('model.name')],
+      },
     ]);
   }),
 
