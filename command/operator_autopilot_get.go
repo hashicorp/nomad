@@ -58,7 +58,7 @@ func (c *OperatorAutopilotGetCommand) Synopsis() string {
 
 func (c *OperatorAutopilotGetCommand) Help() string {
 	helpText := `
-Usage: consul operator autopilot get-config [options]
+Usage: nomad operator autopilot get-config [options]
 
   Displays the current Autopilot configuration.
 

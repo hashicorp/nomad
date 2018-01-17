@@ -34,7 +34,7 @@ type AutopilotConfig struct {
 	DisableUpgradeMigration *bool `mapstructure:"disable_upgrade_migration"`
 
 	// (Enterprise-only) UpgradeVersionTag is the node tag to use for version info when
-	// performing upgrade migrations. If left blank, the Consul version will be used.
+	// performing upgrade migrations. If left blank, the Nomad version will be used.
 	UpgradeVersionTag string `mapstructure:"upgrade_version_tag"`
 }
 

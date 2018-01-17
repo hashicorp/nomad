@@ -20,7 +20,7 @@ func (c *OperatorAutopilotCommand) Synopsis() string {
 
 func (c *OperatorAutopilotCommand) Help() string {
 	helpText := `
-Usage: consul operator autopilot <subcommand> [options]
+Usage: nomad operator autopilot <subcommand> [options]
 
   The Autopilot operator command is used to interact with Nomad's Autopilot
   subsystem. The command can be used to view or modify the current configuration.
