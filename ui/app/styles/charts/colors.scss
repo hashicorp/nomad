@@ -10,7 +10,8 @@ $lost: $dark;
     fill: $queued;
   }
 
-  .starting, .pending {
+  .starting,
+  .pending {
     .layer-0 {
       fill: $starting;
     }
@@ -58,7 +59,8 @@ $lost: $dark;
     background: $queued;
   }
 
-  &.starting, &.pending {
+  &.starting,
+  &.pending {
     background: repeating-linear-gradient(
       -45deg,
       $starting,

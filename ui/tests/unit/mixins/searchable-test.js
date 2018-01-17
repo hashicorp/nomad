@@ -1,15 +1,15 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import { getOwner } from '@ember/application';
+import EmberObject, { computed } from '@ember/object';
 import { moduleFor, test } from 'ember-qunit';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-const { getOwner, computed } = Ember;
-
 moduleFor('mixin:searchable', 'Unit | Mixin | Searchable', {
   subject() {
-    const SearchableObject = Ember.Object.extend(Searchable, {
+    const SearchableObject = EmberObject.extend(Searchable, {
       source: null,
       searchProps: computed(() => ['id', 'name']),
-      listToSearch: computed.alias('source'),
+      listToSearch: alias('source'),
     });
 
     this.register('test-container:searchable-object', SearchableObject);

@@ -1,10 +1,8 @@
-import Ember from 'ember';
+import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
-
-const { computed } = Ember;
 
 export default Fragment.extend({
   job: fragmentOwner(),

@@ -1,9 +1,10 @@
-import Ember from 'ember';
-
-const { Controller, inject, observer, run } = Ember;
+import { inject as service } from '@ember/service';
+import Controller from '@ember/controller';
+import { observer } from '@ember/object';
+import { run } from '@ember/runloop';
 
 export default Controller.extend({
-  system: inject.service(),
+  system: service(),
 
   queryParams: {
     jobNamespace: 'namespace',

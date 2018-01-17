@@ -1,6 +1,8 @@
 <div class="page-layout">
   {{#global-header class="page-header"}}
-    Servers
+    <li class="is-active">
+      {{#link-to "servers.index"}}Servers{{/link-to}}
+    </li>
   {{/global-header}}
   {{#gutter-menu class="page-body"}}
     <section class="section">
@@ -25,7 +27,7 @@
               {{#t.sort-by prop="datacenter"}}Datacenter{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{server-agent-row agent=row.model}}
+              {{server-agent-row data-test-server-agent-row agent=row.model}}
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">

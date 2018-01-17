@@ -1,6 +1,12 @@
 import { RestSerializer } from 'ember-cli-mirage';
 
-const keyCase = str => (str === 'id' ? 'ID' : str.camelize().capitalize().replace(/Id/g, 'ID'));
+const keyCase = str =>
+  str === 'id'
+    ? 'ID'
+    : str
+        .camelize()
+        .capitalize()
+        .replace(/Id/g, 'ID');
 
 export default RestSerializer.extend({
   serialize() {

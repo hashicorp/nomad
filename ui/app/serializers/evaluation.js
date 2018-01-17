@@ -1,10 +1,10 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { get } from '@ember/object';
+import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 
-const { inject, get, assign } = Ember;
-
 export default ApplicationSerializer.extend({
-  system: inject.service(),
+  system: service(),
 
   normalize(typeHash, hash) {
     hash.FailedTGAllocs = Object.keys(hash.FailedTGAllocs || {}).map(key => {

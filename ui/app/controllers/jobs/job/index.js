@@ -1,12 +1,13 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
-const { Controller, computed, inject } = Ember;
-
 export default Controller.extend(Sortable, WithNamespaceResetting, {
-  system: inject.service(),
-  jobController: inject.controller('jobs.job'),
+  system: service(),
+  jobController: controller('jobs.job'),
 
   queryParams: {
     currentPage: 'page',
@@ -20,15 +21,15 @@ export default Controller.extend(Sortable, WithNamespaceResetting, {
   sortProperty: 'name',
   sortDescending: false,
 
-  breadcrumbs: computed.alias('jobController.breadcrumbs'),
-  job: computed.alias('model'),
+  breadcrumbs: alias('jobController.breadcrumbs'),
+  job: alias('model'),
 
   taskGroups: computed('model.taskGroups.[]', function() {
     return this.get('model.taskGroups') || [];
   }),
 
-  listToSort: computed.alias('taskGroups'),
-  sortedTaskGroups: computed.alias('listSorted'),
+  listToSort: alias('taskGroups'),
+  sortedTaskGroups: alias('listSorted'),
 
   sortedEvaluations: computed('model.evaluations.@each.modifyIndex', function() {
     return (this.get('model.evaluations') || []).sortBy('modifyIndex').reverse();

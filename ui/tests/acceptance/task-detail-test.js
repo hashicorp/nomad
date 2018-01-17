@@ -1,11 +1,8 @@
-import Ember from 'ember';
 import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
 import ipParts from 'nomad-ui/utils/ip-parts';
-
-const { $ } = Ember;
 
 let allocation;
 let task;
@@ -27,36 +24,40 @@ moduleForAcceptance('Acceptance | task detail', {
 test('/allocation/:id/:task_name should name the task and list high-level task information', function(
   assert
 ) {
-  assert.ok(find('.title').textContent.includes(task.name), 'Task name');
-  assert.ok(find('.title').textContent.includes(task.state), 'Task state');
+  assert.ok(find('[data-test-title]').textContent.includes(task.name), 'Task name');
+  assert.ok(find('[data-test-state]').textContent.includes(task.state), 'Task state');
 
-  const inlineDefinitions = findAll('.inline-definitions .pair');
   assert.ok(
-    inlineDefinitions[0].textContent.includes(moment(task.startedAt).format('MM/DD/YY HH:mm:ss')),
+    find('[data-test-started-at]').textContent.includes(
+      moment(task.startedAt).format('MM/DD/YY HH:mm:ss')
+    ),
     'Task started at'
   );
 });
 
 test('breadcrumbs includes allocations and link to the allocation detail page', function(assert) {
-  const breadcrumbs = findAll('.breadcrumb');
   assert.equal(
-    breadcrumbs[0].textContent.trim(),
+    find('[data-test-breadcrumb="allocations"]').textContent.trim(),
     'Allocations',
     'Allocations is the first breadcrumb'
   );
-  assert.notEqual(
-    breadcrumbs[0].tagName.toLowerCase(),
-    'a',
-    'Allocations breadcrumb is not a link'
+  assert.equal(
+    find('[data-test-breadcrumb="allocations"]').getAttribute('href'),
+    '#',
+    "Allocations breadcrumb doesn't link anywhere"
   );
   assert.equal(
-    breadcrumbs[1].textContent.trim(),
+    find('[data-test-breadcrumb="allocation"]').textContent.trim(),
     allocation.id.split('-')[0],
     'Allocation short id is the second breadcrumb'
   );
-  assert.equal(breadcrumbs[2].textContent.trim(), task.name, 'Task name is the third breadcrumb');
+  assert.equal(
+    find('[data-test-breadcrumb="task"]').textContent.trim(),
+    task.name,
+    'Task name is the third breadcrumb'
+  );
 
-  click(breadcrumbs[1]);
+  click('[data-test-breadcrumb="allocation"]');
   andThen(() => {
     assert.equal(
       currentURL(),
@@ -75,7 +76,7 @@ test('the addresses table lists all reserved and dynamic ports', function(assert
   const addresses = reservedPorts.concat(dynamicPorts);
 
   assert.equal(
-    findAll('.addresses-list tbody tr').length,
+    findAll('[data-test-task-address]').length,
     addresses.length,
     'All addresses are listed'
   );
@@ -90,28 +91,19 @@ test('each address row shows the label and value of the address', function(asser
   const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
   const address = reservedPorts.concat(dynamicPorts).sortBy('Label')[0];
 
-  const addressRow = $(find('.addresses-list tbody tr'));
+  const addressRow = find('[data-test-task-address]');
   assert.equal(
-    addressRow
-      .find('td:eq(0)')
-      .text()
-      .trim(),
+    addressRow.querySelector('[data-test-task-address-is-dynamic]').textContent.trim(),
     reservedPorts.includes(address) ? 'No' : 'Yes',
     'Dynamic port is denoted as such'
   );
   assert.equal(
-    addressRow
-      .find('td:eq(1)')
-      .text()
-      .trim(),
+    addressRow.querySelector('[data-test-task-address-name]').textContent.trim(),
     address.Label,
     'Label'
   );
   assert.equal(
-    addressRow
-      .find('td:eq(2)')
-      .text()
-      .trim(),
+    addressRow.querySelector('[data-test-task-address-address]').textContent.trim(),
     `${ipParts(node.httpAddr).address}:${address.Value}`,
     'Value'
   );
@@ -121,7 +113,7 @@ test('the events table lists all recent events', function(assert) {
   const events = server.db.taskEvents.where({ taskStateId: task.id });
 
   assert.equal(
-    findAll('.task-events tbody tr').length,
+    findAll('[data-test-task-event]').length,
     events.length,
     `Lists ${events.length} events`
   );
@@ -131,29 +123,20 @@ test('each recent event should list the time, type, and description of the event
   assert
 ) {
   const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
-  const recentEvent = $('.task-events tbody tr:last');
+  const recentEvent = findAll('[data-test-task-event]').get('lastObject');
 
   assert.equal(
-    recentEvent
-      .find('td:eq(0)')
-      .text()
-      .trim(),
+    recentEvent.querySelector('[data-test-task-event-time]').textContent.trim(),
     moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss'),
     'Event timestamp'
   );
   assert.equal(
-    recentEvent
-      .find('td:eq(1)')
-      .text()
-      .trim(),
+    recentEvent.querySelector('[data-test-task-event-type]').textContent.trim(),
     event.type,
     'Event type'
   );
   assert.equal(
-    recentEvent
-      .find('td:eq(2)')
-      .text()
-      .trim(),
+    recentEvent.querySelector('[data-test-task-event-message]').textContent.trim(),
     event.message,
     'Event message'
   );
@@ -173,9 +156,9 @@ test('when the allocation is not found, the application errors', function(assert
       `/allocations/not-a-real-allocation/${task.name}`,
       'The URL persists'
     );
-    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.ok(find('[data-test-error]'), 'Error message is shown');
     assert.equal(
-      find('.error-message .title').textContent,
+      find('[data-test-error-title]').textContent,
       'Not Found',
       'Error message is for 404'
     );
@@ -196,9 +179,9 @@ test('when the allocation is found but the task is not, the application errors',
       `/allocations/${allocation.id}/not-a-real-task-name`,
       'The URL persists'
     );
-    assert.ok(find('.error-message'), 'Error message is shown');
+    assert.ok(find('[data-test-error]'), 'Error message is shown');
     assert.equal(
-      find('.error-message .title').textContent,
+      find('[data-test-error-title]').textContent,
       'Not Found',
       'Error message is for 404'
     );
@@ -218,5 +201,5 @@ moduleForAcceptance('Acceptance | task detail (no addresses)', {
 });
 
 test('when the task has no addresses, the addresses table is not shown', function(assert) {
-  assert.notOk(find('.addresses-list'), 'No addresses table');
+  assert.notOk(find('[data-test-task-addresses]'), 'No addresses table');
 });
