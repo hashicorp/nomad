@@ -8,6 +8,10 @@ export default function(server) {
   server.createList('job', 5, { failedPlacements: true });
 
   server.createList('token', 3);
+
+  // load fixtures from /mirage/fixtures/{argument}.js
+  server.loadFixtures('jobs', 'taskGroups', 'allocations', 'tasks', 'taskStates');
+
   logTokens(server);
 }
 
