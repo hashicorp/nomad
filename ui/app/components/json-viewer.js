@@ -1,7 +1,7 @@
-import Ember from 'ember';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { run } from '@ember/runloop';
 import JSONFormatterPkg from 'npm:json-formatter-js';
-
-const { Component, computed, run } = Ember;
 
 // json-formatter-js is packaged in a funny way that ember-cli-browserify
 // doesn't unwrap properly.

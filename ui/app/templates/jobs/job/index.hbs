@@ -1,6 +1,8 @@
 {{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb|}}
-    {{#link-to params=breadcrumb.args class="breadcrumb"}}{{breadcrumb.label}}{{/link-to}}
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to data-test-breadcrumb=breadcrumb.label params=breadcrumb.args}}{{breadcrumb.label}}{{/link-to}}
+    </li>
   {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
@@ -8,7 +10,7 @@
   <section class="section">
     <h1 class="title">
       {{model.name}}
-      <span class="bumper-left tag {{model.statusClass}}">{{model.status}}</span>
+      <span class="bumper-left tag {{model.statusClass}}" data-test-job-status>{{model.status}}</span>
       {{#if model.periodic}}
         <span class="tag is-hollow">periodic</span>
       {{else if model.parameterized}}
@@ -18,10 +20,10 @@
 
     <div class="boxed-section job-stats">
       <div class="boxed-section-body">
-        <span><strong>Type:</strong> {{model.type}} | </span>
-        <span><strong>Priority:</strong> {{model.priority}} </span>
+        <span data-test-job-stat="type"><strong>Type:</strong> {{model.type}} | </span>
+        <span data-test-job-stat="priority"><strong>Priority:</strong> {{model.priority}} </span>
         {{#if (and model.namespace system.shouldShowNamespaces)}}
-          <span> | <strong>Namespace:</strong> {{model.namespace.name}}</span>
+          <span data-test-job-stat="namespace"> | <strong>Namespace:</strong> {{model.namespace.name}}</span>
         {{/if}}
       </div>
     </div>
@@ -32,11 +34,11 @@
       </div>
       <div class="boxed-section-body">
         {{#allocation-status-bar allocationContainer=model class="split-view" as |chart|}}
-          <ol class="legend">
+          <ol data-test-allocations-legend class="legend">
             {{#each chart.data as |datum index|}}
               <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
                 <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
-                <span class="value">{{datum.value}}</span>
+                <span class="value" data-test-legend-value="{{datum.className}}">{{datum.value}}</span>
                 <span class="label">
                   {{datum.label}}
                 </span>
@@ -48,7 +50,7 @@
     </div>
 
     {{#if model.hasPlacementFailures}}
-      <div class="boxed-section is-danger placement-failures">
+      <div class="boxed-section is-danger" data-test-placement-failures>
         <div class="boxed-section-head">
           Placement Failures
         </div>
@@ -56,7 +58,7 @@
           {{#each model.taskGroups as |taskGroup|}}
             {{#if taskGroup.placementFailures}}
               {{#with taskGroup.placementFailures as |failures|}}
-                  <h3 class="title is-5">
+                  <h3 class="title is-5" data-test-placement-failure-task-group>
                     {{taskGroup.name}}
                     <span class="badge is-light">{{inc failures.coalescedFailures}} unplaced</span>
                   </h3>
@@ -99,13 +101,13 @@
     {{/if}}
 
     {{#if model.runningDeployment}}
-      <div class="boxed-section is-info active-deployment">
+      <div class="boxed-section is-info" data-test-active-deployment>
         <div class="boxed-section-head">
           <div class="boxed-section-row">
             Active Deployment
-            <span class="badge is-white is-subtle bumper-left">{{model.runningDeployment.shortId}}</span>
+            <span class="badge is-white is-subtle bumper-left" data-test-active-deployment-stat="id">{{model.runningDeployment.shortId}}</span>
             {{#if model.runningDeployment.version.submitTime}}
-              <span class="pull-right submit-time">{{moment-from-now model.runningDeployment.version.submitTime}}</span>
+              <span class="pull-right submit-time" data-test-active-deployment-stat="submit-time">{{moment-from-now model.runningDeployment.version.submitTime}}</span>
             {{/if}}
           </div>
           <div class="boxed-section-row">
@@ -125,7 +127,7 @@
           {{/job-deployment-details}}
         </div>
         <div class="boxed-section-foot">
-          <a class="pull-right active-deployment-details-toggle" {{action (toggle "isShowingDeploymentDetails" this)}}>
+          <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}} data-test-deployment-toggle-details>
             {{if isShowingDeploymentDetails "Hide" "Show"}} deployment task groups and allocations
           </a>
         </div>
@@ -154,7 +156,7 @@
               {{#t.sort-by prop="reservedEphemeralDisk"}}Reserved Disk{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{task-group-row taskGroup=row.model onClick=(action "gotoTaskGroup" row.model)}}
+              {{task-group-row data-test-task-group taskGroup=row.model onClick=(action "gotoTaskGroup" row.model)}}
             {{/t.body}}
           {{/list-table}}
         {{/list-pagination}}
@@ -175,12 +177,12 @@
             <th>Placement Failures</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr>
-              <td>{{row.model.shortId}}</td>
-              <td>{{row.model.priority}}</td>
-              <td>{{row.model.triggeredBy}}</td>
-              <td>{{row.model.status}}</td>
-              <td>
+            <tr data-test-evaluation="{{row.model.shortId}}">
+              <td data-test-id>{{row.model.shortId}}</td>
+              <td data-test-priority>{{row.model.priority}}</td>
+              <td data-test-triggered-by>{{row.model.triggeredBy}}</td>
+              <td data-test-status>{{row.model.status}}</td>
+              <td data-test-blocked>
                 {{#if (eq row.model.status "blocked")}}
                   N/A - In Progress
                 {{else if row.model.hasPlacementFailures}}

@@ -1212,6 +1212,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Name:      "serviceA",
 								Tags:      []string{"1", "2"},
 								PortLabel: "foo",
+								CheckRestart: &api.CheckRestart{
+									Limit: 4,
+									Grace: helper.TimeToPtr(11 * time.Second),
+								},
 								Checks: []api.ServiceCheck{
 									{
 										Id:            "hello",
@@ -1228,9 +1232,16 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										InitialStatus: "ok",
 										CheckRestart: &api.CheckRestart{
 											Limit:          3,
-											Grace:          helper.TimeToPtr(10 * time.Second),
 											IgnoreWarnings: true,
 										},
+									},
+									{
+										Id:        "check2id",
+										Name:      "check2",
+										Type:      "tcp",
+										PortLabel: "foo",
+										Interval:  4 * time.Second,
+										Timeout:   2 * time.Second,
 									},
 								},
 							},
@@ -1425,8 +1436,19 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										InitialStatus: "ok",
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
-											Grace:          10 * time.Second,
+											Grace:          11 * time.Second,
 											IgnoreWarnings: true,
+										},
+									},
+									{
+										Name:      "check2",
+										Type:      "tcp",
+										PortLabel: "foo",
+										Interval:  4 * time.Second,
+										Timeout:   2 * time.Second,
+										CheckRestart: &structs.CheckRestart{
+											Limit: 4,
+											Grace: 11 * time.Second,
 										},
 									},
 								},

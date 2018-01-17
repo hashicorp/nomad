@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import { gt } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
-
-const { computed } = Ember;
 
 export default Fragment.extend({
   deployment: fragmentOwner(),
@@ -12,7 +10,7 @@ export default Fragment.extend({
 
   autoRevert: attr('boolean'),
   promoted: attr('boolean'),
-  requiresPromotion: computed.gt('desiredCanaries', 0),
+  requiresPromotion: gt('desiredCanaries', 0),
 
   placedCanaries: attr('number'),
   desiredCanaries: attr('number'),

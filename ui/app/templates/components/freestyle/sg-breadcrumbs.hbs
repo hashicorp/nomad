@@ -1,0 +1,33 @@
+{{#freestyle-usage 'breadcrumbs-standard' title='Standard Breadcrumbs'}}
+  <div class="navbar is-secondary">
+    <div class="navbar-item"></div>
+    <nav class="breadcrumb is-large">
+      <li>
+        <a href="#">Topic</a>
+      </li>
+      <li>
+        <a href="#">Sub-topic</a>
+      </li>
+      <li class="is-active">
+        <a href="#">Active Topic</a>
+      </li>
+    </nav>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  Breadcrumbs are only ever used in the secondary nav of the primary header.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage 'breadcrumbs-single' title='Single Breadcrumb'}}
+  <div class="navbar is-secondary">
+    <div class="navbar-item"></div>
+    <nav class="breadcrumb is-large">
+      <li>
+        <a href="#">Topic</a>
+      </li>
+    </nav>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  Breadcrumbs are given a lot of emphasis and often double as a page title. Since they are also global state, they are important for helping a user keep their bearings.
+{{/freestyle-annotation}}

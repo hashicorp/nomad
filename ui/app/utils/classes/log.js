@@ -1,10 +1,12 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import { assert } from '@ember/debug';
+import Evented from '@ember/object/evented';
+import EmberObject, { computed } from '@ember/object';
+import { assign } from '@ember/polyfills';
 import queryString from 'npm:query-string';
 import { task } from 'ember-concurrency';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';
-
-const { Object: EmberObject, Evented, computed, assign } = Ember;
 
 const MAX_OUTPUT_LENGTH = 50000;
 
@@ -14,14 +16,12 @@ const Log = EmberObject.extend(Evented, {
   url: '',
   params: computed(() => ({})),
   logFetch() {
-    Ember.assert(
-      'Log objects need a logFetch method, which should have an interface like window.fetch'
-    );
+    assert('Log objects need a logFetch method, which should have an interface like window.fetch');
   },
 
   // Read-only state
 
-  isStreaming: computed.alias('logStreamer.poll.isRunning'),
+  isStreaming: alias('logStreamer.poll.isRunning'),
   logPointer: null,
   logStreamer: null,
 

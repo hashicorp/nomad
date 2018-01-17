@@ -1,8 +1,7 @@
-import Ember from 'ember';
+import { get } from '@ember/object';
+import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'npm:query-string';
-
-const { get, assign } = Ember;
 
 export default ApplicationSerializer.extend({
   attrs: {
