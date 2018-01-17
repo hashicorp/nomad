@@ -4922,6 +4922,20 @@ type RescheduleTracker struct {
 	Events []*RescheduleEvent
 }
 
+func (rt *RescheduleTracker) Copy() *RescheduleTracker {
+	if rt == nil {
+		return nil
+	}
+	nt := &RescheduleTracker{}
+	*nt = *rt
+	rescheduleEvents := make([]*RescheduleEvent, 0, len(rt.Events))
+	for _, tracker := range rt.Events {
+		rescheduleEvents = append(rescheduleEvents, tracker.Copy())
+	}
+	nt.Events = rescheduleEvents
+	return nt
+}
+
 // RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
 type RescheduleEvent struct {
 	// RescheduleTime is the timestamp of a reschedule attempt
@@ -4934,12 +4948,12 @@ type RescheduleEvent struct {
 	PrevNodeID string
 }
 
-func (rt *RescheduleEvent) Copy() *RescheduleEvent {
-	if rt == nil {
+func (re *RescheduleEvent) Copy() *RescheduleEvent {
+	if re == nil {
 		return nil
 	}
 	copy := new(RescheduleEvent)
-	*copy = *rt
+	*copy = *re
 	return copy
 }
 
@@ -5102,12 +5116,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 		na.TaskStates = ts
 	}
 
-	if a.RescheduleTracker != nil {
-		var rescheduleTrackers []*RescheduleEvent
-		for _, tracker := range a.RescheduleTracker.Events {
-			rescheduleTrackers = append(rescheduleTrackers, tracker.Copy())
-		}
-	}
+	na.RescheduleTracker = a.RescheduleTracker.Copy()
 	return na
 }
 
