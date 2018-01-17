@@ -2800,6 +2800,28 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 	}
 }
 
+func TestRescheduleTracker_Copy(t *testing.T) {
+	type testCase struct {
+		original *RescheduleTracker
+		expected *RescheduleTracker
+	}
+
+	cases := []testCase{
+		{nil, nil},
+		{&RescheduleTracker{Events: []*RescheduleEvent{
+			{2, "12", "12"},
+		}}, &RescheduleTracker{Events: []*RescheduleEvent{
+			{2, "12", "12"},
+		}}},
+	}
+
+	for _, tc := range cases {
+		if got := tc.original.Copy(); !reflect.DeepEqual(got, tc.expected) {
+			t.Fatalf("expected %v but got %v", *tc.expected, *got)
+		}
+	}
+}
+
 func TestVault_Validate(t *testing.T) {
 	v := &Vault{
 		Env:        true,
