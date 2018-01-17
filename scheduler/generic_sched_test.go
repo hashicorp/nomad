@@ -2788,8 +2788,8 @@ func TestServiceSched_Reschedule_Once(t *testing.T) {
 		}
 	}
 	assert.Equal(failedAllocID, newAlloc.PreviousAllocation)
-	assert.Equal(1, len(newAlloc.RescheduleTrackers))
-	assert.Equal(failedAllocID, newAlloc.RescheduleTrackers[0].PrevAllocID)
+	assert.Equal(1, len(newAlloc.RescheduleTracker.Events))
+	assert.Equal(failedAllocID, newAlloc.RescheduleTracker.Events[0].PrevAllocID)
 
 	// Mark this alloc as failed again, should not get rescheduled
 	newAlloc.ClientStatus = structs.AllocClientStatusFailed
@@ -2890,14 +2890,13 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 		var pendingAllocs []*structs.Allocation
 		fmt.Println("Iteration: ", i)
 		for _, alloc := range out {
-			fmt.Println(alloc.ID, alloc.ClientStatus, len(alloc.RescheduleTrackers), alloc.PreviousAllocation)
 			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				pendingAllocs = append(pendingAllocs, alloc)
 			}
 		}
 		assert.Equal(1, len(pendingAllocs))
 		newAlloc := pendingAllocs[0]
-		assert.Equal(expectedNumReschedTrackers, len(newAlloc.RescheduleTrackers))
+		assert.Equal(expectedNumReschedTrackers, len(newAlloc.RescheduleTracker.Events))
 
 		// Mark this alloc as failed again
 		newAlloc.ClientStatus = structs.AllocClientStatusFailed
