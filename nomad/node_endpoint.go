@@ -826,11 +826,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	// Update modified timestamp for client initiated allocation updates
-	now := time.Now().UTC().UnixNano()
+	now := time.Now()
 	var evals []*structs.Evaluation
 
 	for _, alloc := range args.Alloc {
-		alloc.ModifyTime = now
+		alloc.ModifyTime = now.UTC().UnixNano()
 
 		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
 		if alloc.ClientStatus == structs.AllocClientStatusFailed {
@@ -846,7 +846,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			// Only create evaluations if this is an existing alloc and eligible as per its task group's ReschedulePolicy
 			if existingAlloc, _ := n.srv.State().AllocByID(ws, alloc.ID); existingAlloc != nil {
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
-				if taskGroup != nil && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy) {
+				if taskGroup != nil && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
 					eval := &structs.Evaluation{
 						ID:          uuid.Generate(),
 						Namespace:   alloc.Namespace,
