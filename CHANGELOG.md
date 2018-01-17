@@ -5,6 +5,10 @@ __BACKWARDS INCOMPATIBILITIES:__
    that absolute URLs are not allowed, but it was not enforced. Absolute URLs
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
 
+IMPROVEMENTS:
+ * discovery: Allow `check_restart` to be specified in the `service` stanza.
+   [GH-3718]
+
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]
  * core: Fix an issue in which batch jobs with queued placements and lost
@@ -665,7 +669,7 @@ BUG FIXES:
   * client: Killing an allocation doesn't cause allocation stats to block
     [[GH-1454](https://github.com/hashicorp/nomad/issues/1454)]
   * driver/docker: Disable swap on docker driver [[GH-1480](https://github.com/hashicorp/nomad/issues/1480)]
-  * driver/docker: Fix improper gating on privileged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
+  * driver/docker: Fix improper gating on priviledged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
   * driver/docker: Default network type is "nat" on Windows [[GH-1521](https://github.com/hashicorp/nomad/issues/1521)]
   * driver/docker: Cleanup created volume when destroying container [[GH-1519](https://github.com/hashicorp/nomad/issues/1519)]
   * driver/rkt: Set host environment variables [[GH-1581](https://github.com/hashicorp/nomad/issues/1581)]

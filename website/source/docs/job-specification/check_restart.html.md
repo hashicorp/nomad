@@ -13,6 +13,12 @@ description: |-
   <tr>
     <th width="120">Placement</th>
     <td>
+      <code>job -> group -> task -> service -> **check_restart**</code>
+    </td>
+  </tr>
+  <tr>
+    <th width="120">Placement</th>
+    <td>
       <code>job -> group -> task -> service -> check -> **check_restart**</code>
     </td>
   </tr>
@@ -22,7 +28,10 @@ As of Nomad 0.7 the `check_restart` stanza instructs Nomad when to restart
 tasks with unhealthy service checks.  When a health check in Consul has been
 unhealthy for the `limit` specified in a `check_restart` stanza, it is
 restarted according to the task group's [`restart` policy][restart_stanza]. The
-`check_restart` settings apply to [`check`s][check_stanza].
+`check_restart` settings apply to [`check`s][check_stanza], but may also be
+placed on [`service`s][service_stanza] to apply to all checks on a service.
+If `check_restart` is set on both the check and service, the stanzas are
+merged with the check values taking precedence.
 
 ```hcl
 job "mysql" {
@@ -140,3 +149,4 @@ details.
 
 [check_stanza]:  /docs/job-specification/service.html#check-parameters "check stanza"
 [restart_stanza]: /docs/job-specification/restart.html "restart stanza"
+[service_stanza]: /docs/job-specification/service.html "service stanza"
