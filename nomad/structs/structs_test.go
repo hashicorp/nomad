@@ -2318,7 +2318,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 		},
 		{
 			ReschedulePolicy: &ReschedulePolicy{-1, 5 * time.Minute},
-			err:              fmt.Errorf("Attempts must be >= 0 (got -1)"),
+			err:              nil,
 		},
 		{
 			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Second},
@@ -2566,18 +2566,22 @@ func TestAllocation_Terminated(t *testing.T) {
 func TestAllocation_ShouldReschedule(t *testing.T) {
 	type testCase struct {
 		Desc               string
+		FailTime           time.Time
 		ClientStatus       string
 		DesiredStatus      string
 		ReschedulePolicy   *ReschedulePolicy
-		RescheduleTrackers []*RescheduleTracker
+		RescheduleTrackers []*RescheduleEvent
 		ShouldReschedule   bool
 	}
+
+	fail := time.Now()
 
 	harness := []testCase{
 		{
 			Desc:             "Reschedule when desired state is stop",
 			ClientStatus:     AllocClientStatusPending,
 			DesiredStatus:    AllocDesiredStatusStop,
+			FailTime:         fail,
 			ReschedulePolicy: nil,
 			ShouldReschedule: false,
 		},
@@ -2585,6 +2589,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule when client status is complete",
 			ClientStatus:     AllocClientStatusComplete,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: nil,
 			ShouldReschedule: false,
 		},
@@ -2592,6 +2597,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule with nil reschedule policy",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: nil,
 			ShouldReschedule: false,
 		},
@@ -2599,6 +2605,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule when client status is complete",
 			ClientStatus:     AllocClientStatusComplete,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: nil,
 			ShouldReschedule: false,
 		},
@@ -2606,6 +2613,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule with policy when client status complete",
 			ClientStatus:     AllocClientStatusComplete,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
 			ShouldReschedule: false,
 		},
@@ -2613,6 +2621,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule with no previous attempts",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
 			ShouldReschedule: true,
 		},
@@ -2621,9 +2630,10 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			ReschedulePolicy: &ReschedulePolicy{2, 5 * time.Minute},
-			RescheduleTrackers: []*RescheduleTracker{
+			FailTime:         fail,
+			RescheduleTrackers: []*RescheduleEvent{
 				{
-					RescheduleTime: time.Now().Add(-1 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: fail.Add(-1 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldReschedule: true,
@@ -2632,10 +2642,11 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule with too old previous attempts",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: &ReschedulePolicy{1, 5 * time.Minute},
-			RescheduleTrackers: []*RescheduleTracker{
+			RescheduleTrackers: []*RescheduleEvent{
 				{
-					RescheduleTime: time.Now().Add(-6 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: fail.Add(-6 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldReschedule: true,
@@ -2644,13 +2655,14 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			Desc:             "Reschedule with no leftover attempts",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
 			ReschedulePolicy: &ReschedulePolicy{2, 5 * time.Minute},
-			RescheduleTrackers: []*RescheduleTracker{
+			RescheduleTrackers: []*RescheduleEvent{
 				{
-					RescheduleTime: time.Now().Add(-3 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
 				},
 				{
-					RescheduleTime: time.Now().Add(-4 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: fail.Add(-4 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldReschedule: false,
@@ -2661,10 +2673,10 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 		alloc := Allocation{}
 		alloc.DesiredStatus = state.DesiredStatus
 		alloc.ClientStatus = state.ClientStatus
-		alloc.RescheduleTrackers = state.RescheduleTrackers
+		alloc.RescheduleTracker = &RescheduleTracker{state.RescheduleTrackers}
 
 		t.Run(state.Desc, func(t *testing.T) {
-			if got := alloc.ShouldReschedule(state.ReschedulePolicy); got != state.ShouldReschedule {
+			if got := alloc.ShouldReschedule(state.ReschedulePolicy, state.FailTime); got != state.ShouldReschedule {
 				t.Fatalf("expected %v but got %v", state.ShouldReschedule, got)
 			}
 		})
