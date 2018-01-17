@@ -3241,24 +3241,20 @@ ember-fetch@^3.4.3:
     node-fetch "^2.0.0-alpha.9"
     whatwg-fetch "^2.0.3"
 
-ember-freestyle@^0.4.1:
-  version "0.4.2"
-  resolved "https://registry.yarnpkg.com/ember-freestyle/-/ember-freestyle-0.4.2.tgz#ae1593be2106e4212b319e5474a3f9432fa4e329"
+ember-freestyle@~0.6.2:
+  version "0.6.2"
+  resolved "https://registry.yarnpkg.com/ember-freestyle/-/ember-freestyle-0.6.2.tgz#c325f96a32b4984b78e00cbd29e6dad23f0b1864"
   dependencies:
     broccoli-flatiron "0.0.0"
-    broccoli-funnel "^1.0.1"
     broccoli-merge-trees "^2.0.0"
-    broccoli-source "^1.1.0"
-    broccoli-stew "^1.2.0"
     broccoli-writer "^0.1.1"
-    ember-cli-babel "^6.0.0"
+    ember-cli-babel "^6.6.0"
     ember-cli-htmlbars "^1.3.0"
     ember-cli-sass "^6.1.3"
     ember-cli-showdown "^3.2.1"
     ember-runtime-enumerable-includes-polyfill "^2.0.0"
     es6-promise "^4.1.0"
     glob "^7.1.1"
-    highlight.js "^9.3.0"
 
 ember-get-config@^0.2.2:
   version "0.2.4"
@@ -4559,10 +4555,6 @@ heimdalljs@^0.3.0:
   resolved "https://registry.yarnpkg.com/heimdalljs/-/heimdalljs-0.3.3.tgz#e92d2c6f77fd46d5bf50b610d28ad31755054d0b"
   dependencies:
     rsvp "~3.2.1"
-
-highlight.js@^9.3.0:
-  version "9.12.0"
-  resolved "https://registry.yarnpkg.com/highlight.js/-/highlight.js-9.12.0.tgz#e6d9dbe57cbefe60751f02af336195870c90c01e"
 
 hmac-drbg@^1.0.0:
   version "1.0.1"
