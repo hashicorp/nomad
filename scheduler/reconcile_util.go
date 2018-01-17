@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"time"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -227,6 +229,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 
 	rescheduledPrevAllocs := make(map[string]struct{}) // Track previous allocs from any restart trackers
 
+	now := time.Now()
 	for _, alloc := range a {
 		if isBatch {
 			// Allocs from batch jobs should be filtered when the desired status
@@ -241,7 +244,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 				continue
 			default:
 			}
-			if alloc.ShouldReschedule(reschedulePolicy) {
+			if alloc.ShouldReschedule(reschedulePolicy, now) {
 				reschedule[alloc.ID] = alloc
 			} else {
 				untainted[alloc.ID] = alloc
@@ -249,7 +252,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 		} else {
 			// ignore allocs whose desired state is stop/evict
 			// everything else is either rescheduleable or untainted
-			if alloc.ShouldReschedule(reschedulePolicy) {
+			if alloc.ShouldReschedule(reschedulePolicy, now) {
 				reschedule[alloc.ID] = alloc
 			} else if alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict {
 				untainted[alloc.ID] = alloc
@@ -257,11 +260,12 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 		}
 	}
 
-	// Find allocs that exist in restart trackers from other allocs
+	// Find allocs that exist in reschedule events from other allocs
+	// This needs another pass through allocs we marked as reschedulable
 	for _, alloc := range reschedule {
-		if alloc.RescheduleTrackers != nil {
-			for _, reschedTrack := range alloc.RescheduleTrackers {
-				rescheduledPrevAllocs[reschedTrack.PrevAllocID] = struct{}{}
+		if alloc.RescheduleTracker != nil {
+			for _, rescheduleEvent := range alloc.RescheduleTracker.Events {
+				rescheduledPrevAllocs[rescheduleEvent.PrevAllocID] = struct{}{}
 			}
 		}
 	}
