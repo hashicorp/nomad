@@ -150,6 +150,9 @@ func (d *ReadableDuration) UnmarshalJSON(raw []byte) error {
 // AutopilotGetConfiguration is used to query the current Autopilot configuration.
 func (op *Operator) AutopilotGetConfiguration(q *QueryOptions) (*AutopilotConfiguration, error) {
 	r, err := op.c.newRequest("GET", "/v1/operator/autopilot/configuration")
+	if err != nil {
+		return nil, err
+	}
 	r.setQueryOptions(q)
 	_, resp, err := requireOK(op.c.doRequest(r))
 	if err != nil {

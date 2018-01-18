@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pascaldekloe/goe/verify"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -262,6 +261,7 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 }
 
 func TestDurationFixer(t *testing.T) {
+	assert := assert.New(t)
 	obj := map[string]interface{}{
 		"key1": []map[string]interface{}{
 			{
@@ -301,5 +301,5 @@ func TestDurationFixer(t *testing.T) {
 	}
 
 	// Ensure we only processed the intended fieldnames
-	verify.Values(t, "", obj, expected)
+	assert.Equal(obj, expected)
 }
