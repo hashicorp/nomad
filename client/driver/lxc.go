@@ -31,6 +31,11 @@ const (
 	// Config.Options map.
 	lxcConfigOption = "driver.lxc.enable"
 
+	// lxcVolumesConfigOption is the key for enabling the use of
+	// custom bind volumes to arbitrary host paths
+	lxcVolumesConfigOption  = "lxc.volumes.enabled"
+	lxcVolumesConfigDefault = true
+
 	// containerMonitorIntv is the interval at which the driver checks if the
 	// container is still alive
 	containerMonitorIntv = 2 * time.Second
@@ -69,6 +74,7 @@ type LxcDriverConfig struct {
 	TemplateArgs         []string `mapstructure:"template_args"`
 	LogLevel             string   `mapstructure:"log_level"`
 	Verbosity            string
+	Volumes              []string `mapstructure:"volumes"`
 }
 
 // NewLxcDriver returns a new instance of the LXC driver
@@ -137,11 +143,30 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeString,
 				Required: false,
 			},
+			"volumes": {
+				Type:     fields.TypeArray,
+				Required: false,
+			},
 		},
 	}
 
 	if err := fd.Validate(); err != nil {
 		return err
+	}
+
+	volumes, _ := fd.GetOk("volumes")
+	for _, volDesc := range volumes.([]interface{}) {
+		volStr := volDesc.(string)
+		paths := strings.Split(volStr, ":")
+		if len(paths) != 2 {
+			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+		}
+		if len(paths[0]) == 0 || len(paths[1]) == 0 {
+			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+		}
+		if paths[1][0] == '/' {
+			return fmt.Errorf("unsupported absolute container mount point: '%s'", paths[1])
+		}
 	}
 
 	return nil
@@ -170,6 +195,12 @@ func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 	}
 	node.Attributes["driver.lxc.version"] = version
 	node.Attributes["driver.lxc"] = "1"
+
+	// Advertise if this node supports lxc volumes
+	if d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault) {
+		node.Attributes["driver."+lxcVolumesConfigOption] = "1"
+	}
+
 	return true, nil
 }
 
@@ -250,6 +281,25 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		fmt.Sprintf("%s alloc none rw,bind,create=dir", ctx.TaskDir.SharedAllocDir),
 		fmt.Sprintf("%s secrets none rw,bind,create=dir", ctx.TaskDir.SecretsDir),
 	}
+
+	volumesEnabled := d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault)
+
+	for _, volDesc := range driverConfig.Volumes {
+		// the format was checked in Validate()
+		paths := strings.Split(volDesc, ":")
+
+		if filepath.IsAbs(paths[0]) {
+			if !volumesEnabled {
+				return nil, fmt.Errorf("absolute bind-mount volume in config but '%v' is false", lxcVolumesConfigOption)
+			}
+		} else {
+			// Relative source paths are treated as relative to alloc dir
+			paths[0] = filepath.Join(ctx.TaskDir.Dir, paths[0])
+		}
+
+		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], paths[1]))
+	}
+
 	for _, mnt := range mounts {
 		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
 			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
