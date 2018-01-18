@@ -1,7 +1,7 @@
 import { findAll, find } from 'ember-native-dom-helpers';
 import { test, moduleForComponent } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
-import cleanWhitespace from './cleanWhitespace';
+import cleanWhitespace from '../utils/clean-whitespace';
 
 moduleForComponent('job-diff', 'Integration | Component | job diff', {
   integration: true,
