@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // MemoryStats holds memory usage related stats
@@ -76,6 +77,48 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	if rp.Mode != nil {
 		r.Mode = rp.Mode
 	}
+}
+
+// Reschedule configures how Tasks are rescheduled  when they crash or fail.
+type ReschedulePolicy struct {
+	// Attempts limits the number of rescheduling attempts that can occur in an interval.
+	Attempts *int `mapstructure:"attempts"`
+
+	// Interval is a duration in which we can limit the number of reschedule attempts.
+	Interval *time.Duration `mapstructure:"interval"`
+}
+
+func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
+	if rp.Interval != nil {
+		r.Interval = rp.Interval
+	}
+	if rp.Attempts != nil {
+		r.Attempts = rp.Attempts
+	}
+}
+
+func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
+	if r == nil {
+		return nil
+	}
+	nrp := new(ReschedulePolicy)
+	*nrp = *r
+	return nrp
+}
+
+func (r *ReschedulePolicy) Empty() bool {
+	if r == nil {
+		return true
+	}
+
+	if r.Attempts != nil && *r.Attempts != 0 {
+		return false
+	}
+
+	if r.Interval != nil && *r.Interval != 0 {
+		return false
+	}
+	return true
 }
 
 // CheckRestart describes if and when a task should be restarted based on
@@ -222,14 +265,15 @@ func (e *EphemeralDisk) Canonicalize() {
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name          *string
-	Count         *int
-	Constraints   []*Constraint
-	Tasks         []*Task
-	RestartPolicy *RestartPolicy
-	EphemeralDisk *EphemeralDisk
-	Update        *UpdateStrategy
-	Meta          map[string]string
+	Name             *string
+	Count            *int
+	Constraints      []*Constraint
+	Tasks            []*Task
+	RestartPolicy    *RestartPolicy
+	ReschedulePolicy *ReschedulePolicy
+	EphemeralDisk    *EphemeralDisk
+	Update           *UpdateStrategy
+	Meta             map[string]string
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -271,6 +315,41 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Update != nil {
 		g.Update.Canonicalize()
 	}
+
+	// Merge the reschedule policy from the job
+	if jr, tr := job.Reschedule != nil, g.ReschedulePolicy != nil; jr && tr {
+		jobReschedule := job.Reschedule.Copy()
+		jobReschedule.Merge(g.ReschedulePolicy)
+		g.ReschedulePolicy = jobReschedule
+	} else if jr && !job.Reschedule.Empty() {
+		jobReschedule := job.Reschedule.Copy()
+		g.ReschedulePolicy = jobReschedule
+	}
+
+	// Merge with default reschedule policy
+	var defaultReschedulePolicy *ReschedulePolicy
+	switch *job.Type {
+	case "service":
+		defaultReschedulePolicy = &ReschedulePolicy{
+			Attempts: helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
+			Interval: helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+		}
+	case "batch":
+		defaultReschedulePolicy = &ReschedulePolicy{
+			Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+			Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+		}
+	default:
+		defaultReschedulePolicy = &ReschedulePolicy{
+			Attempts: helper.IntToPtr(0),
+			Interval: helper.TimeToPtr(0 * time.Second),
+		}
+	}
+
+	if g.ReschedulePolicy != nil {
+		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
+	}
+	g.ReschedulePolicy = defaultReschedulePolicy
 
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {
