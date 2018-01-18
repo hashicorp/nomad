@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -266,6 +267,105 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	}
 	tg.Canonicalize(job)
 	assert.Nil(t, tg.Update)
+}
+
+// Verifies that reschedule policy is merged correctly
+func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
+	type testCase struct {
+		desc                 string
+		jobReschedulePolicy  *ReschedulePolicy
+		taskReschedulePolicy *ReschedulePolicy
+		expected             *ReschedulePolicy
+	}
+
+	testCases := []testCase{
+		{
+			desc:                 "Default",
+			jobReschedulePolicy:  nil,
+			taskReschedulePolicy: nil,
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			},
+		},
+		{
+			desc: "Empty job reschedule policy",
+			jobReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(0),
+				Interval: helper.TimeToPtr(0),
+			},
+			taskReschedulePolicy: nil,
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			},
+		},
+		{
+			desc: "Inherit from job",
+			jobReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+				Interval: helper.TimeToPtr(20 * time.Second),
+			},
+			taskReschedulePolicy: nil,
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+				Interval: helper.TimeToPtr(20 * time.Second),
+			},
+		},
+		{
+			desc:                "Set in task",
+			jobReschedulePolicy: nil,
+			taskReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(5),
+				Interval: helper.TimeToPtr(2 * time.Minute),
+			},
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(5),
+				Interval: helper.TimeToPtr(2 * time.Minute),
+			},
+		},
+		{
+			desc: "Merge from job",
+			jobReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+			},
+			taskReschedulePolicy: &ReschedulePolicy{
+				Interval: helper.TimeToPtr(5 * time.Minute),
+			},
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+				Interval: helper.TimeToPtr(5 * time.Minute),
+			},
+		},
+		{
+			desc: "Attempts from job, default interval",
+			jobReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+			},
+			taskReschedulePolicy: nil,
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			job := &Job{
+				ID:         helper.StringToPtr("test"),
+				Reschedule: tc.jobReschedulePolicy,
+				Type:       helper.StringToPtr(JobTypeBatch),
+			}
+			job.Canonicalize()
+			tg := &TaskGroup{
+				Name:             helper.StringToPtr("foo"),
+				ReschedulePolicy: tc.taskReschedulePolicy,
+			}
+			tg.Canonicalize(job)
+			assert.Equal(t, tc.expected, tg.ReschedulePolicy)
+		})
+	}
 }
 
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly

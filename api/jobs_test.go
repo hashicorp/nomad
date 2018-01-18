@@ -135,6 +135,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval: helper.TimeToPtr(1 * time.Minute),
 							Mode:     helper.StringToPtr("delay"),
 						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Hour),
+						},
 						Tasks: []*Task{
 							{
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
@@ -196,6 +200,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Attempts: helper.IntToPtr(2),
 							Interval: helper.TimeToPtr(1 * time.Minute),
 							Mode:     helper.StringToPtr("delay"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Hour),
 						},
 						Tasks: []*Task{
 							{
@@ -325,6 +333,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Attempts: helper.IntToPtr(10),
 							Delay:    helper.TimeToPtr(25 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Hour),
 						},
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  helper.BoolToPtr(false),
@@ -537,6 +549,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval: helper.TimeToPtr(1 * time.Minute),
 							Mode:     helper.StringToPtr("delay"),
 						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Hour),
+						},
 						Update: &UpdateStrategy{
 							Stagger:         helper.TimeToPtr(2 * time.Second),
 							MaxParallel:     helper.IntToPtr(2),
@@ -568,6 +584,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Attempts: helper.IntToPtr(2),
 							Interval: helper.TimeToPtr(1 * time.Minute),
 							Mode:     helper.StringToPtr("delay"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts: helper.IntToPtr(2),
+							Interval: helper.TimeToPtr(1 * time.Hour),
 						},
 						Update: &UpdateStrategy{
 							Stagger:         helper.TimeToPtr(1 * time.Second),

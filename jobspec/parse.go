@@ -108,6 +108,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	delete(m, "periodic")
 	delete(m, "vault")
 	delete(m, "parameterized")
+	delete(m, "reschedule")
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
@@ -143,6 +144,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"task",
 		"type",
 		"update",
+		"reschedule",
 		"vault",
 		"vault_token",
 	}
@@ -175,6 +177,13 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("parameterized"); len(o.Items) > 0 {
 		if err := parseParameterizedJob(&result.ParameterizedJob, o); err != nil {
 			return multierror.Prefix(err, "parameterized ->")
+		}
+	}
+
+	// If we have a reschedule stanza, then parse that
+	if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
+		if err := parseReschedulePolicy(&result.Reschedule, o); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("'%s', reschedule ->"))
 		}
 	}
 
@@ -274,6 +283,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"task",
 			"ephemeral_disk",
 			"update",
+			"reschedule",
 			"vault",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
@@ -313,6 +323,12 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			}
 		}
 
+		// Parse reschedule policy
+		if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
+			if err := parseReschedulePolicy(&g.ReschedulePolicy, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', reschedule ->", n))
+			}
+		}
 		// Parse ephemeral disk
 		if o := listVal.Filter("ephemeral_disk"); len(o.Items) > 0 {
 			g.EphemeralDisk = &api.EphemeralDisk{}
@@ -401,6 +417,46 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 	}
 
 	var result api.RestartPolicy
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &result,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*final = &result
+	return nil
+}
+
+func parseReschedulePolicy(final **api.ReschedulePolicy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'reschedule' block allowed")
+	}
+
+	// Get our job object
+	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"attempts",
+		"interval",
+	}
+	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+		return err
+	}
+
+	var result api.ReschedulePolicy
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		WeaklyTypedInput: true,
