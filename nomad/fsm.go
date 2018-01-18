@@ -1123,7 +1123,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	return nil
 }
 
-// reconcileSummaries re-calculates the queued allocations for every job that we
+// reconcileQueuedAllocations re-calculates the queued allocations for every job that we
 // created a Job Summary during the snap shot restore
 func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	// Get all the jobs
@@ -1161,7 +1161,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
-
+		snap.UpsertEvals(100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
 		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
 		if err != nil {

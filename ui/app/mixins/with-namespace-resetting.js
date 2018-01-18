@@ -1,10 +1,10 @@
-import Ember from 'ember';
-
-const { Mixin, inject } = Ember;
+import { inject as controller } from '@ember/controller';
+import { inject as service } from '@ember/service';
+import Mixin from '@ember/object/mixin';
 
 export default Mixin.create({
-  system: inject.service(),
-  jobsController: inject.controller('jobs'),
+  system: service(),
+  jobsController: controller('jobs'),
 
   actions: {
     gotoJobs(namespace) {

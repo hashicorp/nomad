@@ -225,15 +225,28 @@ func TestPermissionDenied(t *testing.T) {
 	})
 	defer s.Shutdown()
 
-	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-		return nil, structs.ErrPermissionDenied
+	{
+		resp := httptest.NewRecorder()
+		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+			return nil, structs.ErrPermissionDenied
+		}
+
+		req, _ := http.NewRequest("GET", "/v1/job/foo", nil)
+		s.Server.wrap(handler)(resp, req)
+		assert.Equal(t, resp.Code, 403)
 	}
 
-	urlStr := "/v1/job/foo"
-	req, _ := http.NewRequest("GET", urlStr, nil)
-	s.Server.wrap(handler)(resp, req)
-	assert.Equal(t, resp.Code, 403)
+	// When remote RPC is used the errors have "rpc error: " prependend
+	{
+		resp := httptest.NewRecorder()
+		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+			return nil, fmt.Errorf("rpc error: %v", structs.ErrPermissionDenied)
+		}
+
+		req, _ := http.NewRequest("GET", "/v1/job/foo", nil)
+		s.Server.wrap(handler)(resp, req)
+		assert.Equal(t, resp.Code, 403)
+	}
 }
 
 func TestTokenNotFound(t *testing.T) {

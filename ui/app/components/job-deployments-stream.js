@@ -1,7 +1,6 @@
-import Ember from 'ember';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
 import moment from 'moment';
-
-const { Component, computed } = Ember;
 
 export default Component.extend({
   tagName: 'ol',
@@ -9,9 +8,9 @@ export default Component.extend({
 
   deployments: computed(() => []),
 
-  sortedDeployments: computed('deployments.@each.version.submitTime', function() {
+  sortedDeployments: computed('deployments.@each.versionSubmitTime', function() {
     return this.get('deployments')
-      .sortBy('version.submitTime')
+      .sortBy('versionSubmitTime')
       .reverse();
   }),
 

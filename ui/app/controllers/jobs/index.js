@@ -1,18 +1,19 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias, filterBy } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-const { Controller, computed, inject } = Ember;
-
 export default Controller.extend(Sortable, Searchable, {
-  system: inject.service(),
-  jobsController: inject.controller('jobs'),
+  system: service(),
+  jobsController: controller('jobs'),
 
-  isForbidden: computed.alias('jobsController.isForbidden'),
+  isForbidden: alias('jobsController.isForbidden'),
 
-  pendingJobs: computed.filterBy('model', 'status', 'pending'),
-  runningJobs: computed.filterBy('model', 'status', 'running'),
-  deadJobs: computed.filterBy('model', 'status', 'dead'),
+  pendingJobs: filterBy('model', 'status', 'pending'),
+  runningJobs: filterBy('model', 'status', 'running'),
+  deadJobs: filterBy('model', 'status', 'dead'),
 
   queryParams: {
     currentPage: 'page',
@@ -42,9 +43,9 @@ export default Controller.extend(Sortable, Searchable, {
     }
   ),
 
-  listToSort: computed.alias('filteredJobs'),
-  listToSearch: computed.alias('listSorted'),
-  sortedJobs: computed.alias('listSearched'),
+  listToSort: alias('filteredJobs'),
+  listToSearch: alias('listSorted'),
+  sortedJobs: alias('listSearched'),
 
   isShowingDeploymentDetails: false,
 

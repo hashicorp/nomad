@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -515,6 +516,14 @@ type ApplyPlanResultsRequest struct {
 	// deployments. This allows the scheduler to cancel any unneeded deployment
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// EvalID is the eval ID of the plan being applied. The modify index of the
+	// evaluation is updated as part of applying the plan to ensure that subsequent
+	// scheduling events for the same job will wait for the index that last produced
+	// state changes. This is necessary for blocked evaluations since they can be
+	// processed many times, potentially making state updates, without the state of
+	// the evaluation itself being updated.
+	EvalID string
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -1062,7 +1071,7 @@ type Node struct {
 
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
-	// conducting priviledged activities.
+	// conducting privileged activities.
 	SecretID string
 
 	// Datacenter for this node
@@ -1246,7 +1255,7 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      100,
+		CPU:      20,
 		MemoryMB: 10,
 		IOPS:     0,
 	}
@@ -2930,6 +2939,13 @@ func (sc *ServiceCheck) validate() error {
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
 		}
+		url, err := url.Parse(sc.Path)
+		if err != nil {
+			return fmt.Errorf("http type must have a valid http path")
+		}
+		if url.IsAbs() {
+			return fmt.Errorf("http type must have a relative http path")
+		}
 
 	case ServiceCheckScript:
 		if sc.Command == "" {
@@ -3124,8 +3140,8 @@ func (s *Service) Validate() error {
 	}
 
 	for _, c := range s.Checks {
-		if s.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but the service %+q has no port", c.Name, s.Name))
+		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
 			continue
 		}
 
@@ -3570,8 +3586,16 @@ func validateServices(t *Task) error {
 		}
 	}
 
+	// Iterate over a sorted list of keys to make error listings stable
+	keys := make([]string, 0, len(servicePorts))
+	for p := range servicePorts {
+		keys = append(keys, p)
+	}
+	sort.Strings(keys)
+
 	// Ensure all ports referenced in services exist.
-	for servicePort, services := range servicePorts {
+	for _, servicePort := range keys {
+		services := servicePorts[servicePort]
 		_, ok := portLabels[servicePort]
 		if !ok {
 			names := make([]string, 0, len(services))
@@ -3620,7 +3644,7 @@ type Template struct {
 	DestPath string
 
 	// EmbeddedTmpl store the raw template. This is useful for smaller templates
-	// where they are embedded in the job file rather than sent as an artificat
+	// where they are embedded in the job file rather than sent as an artifact
 	EmbeddedTmpl string
 
 	// ChangeMode indicates what should be done if the template is re-rendered
@@ -3790,7 +3814,9 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
-// Successful returns whether a task finished successfully.
+// Successful returns whether a task finished successfully. This doesn't really
+// have meaning on a non-batch allocation because a service and system
+// allocation should not finish.
 func (ts *TaskState) Successful() bool {
 	l := len(ts.Events)
 	if ts.State != TaskStateDead || l == 0 {
@@ -4996,9 +5022,25 @@ func (a *Allocation) Terminated() bool {
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all
-// tasks finished successfully
+// tasks finished successfully. Critically this function returns whether the
+// allocation has ran to completion and not just that the alloc has converged to
+// its desired state. That is to say that a batch allocation must have finished
+// with exit code 0 on all task groups. This doesn't really have meaning on a
+// non-batch allocation because a service and system allocation should not
+// finish.
 func (a *Allocation) RanSuccessfully() bool {
-	return a.ClientStatus == AllocClientStatusComplete
+	// Handle the case the client hasn't started the allocation.
+	if len(a.TaskStates) == 0 {
+		return false
+	}
+
+	// Check to see if all the tasks finised successfully in the allocation
+	allSuccess := true
+	for _, state := range a.TaskStates {
+		allSuccess = allSuccess && state.Successful()
+	}
+
+	return allSuccess
 }
 
 // ShouldMigrate returns if the allocation needs data migration

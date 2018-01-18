@@ -1,12 +1,13 @@
-import Ember from 'ember';
-
-const { Controller, inject, computed, getOwner } = Ember;
+import { inject as service } from '@ember/service';
+import { reads } from '@ember/object/computed';
+import Controller from '@ember/controller';
+import { getOwner } from '@ember/application';
 
 export default Controller.extend({
-  token: inject.service(),
-  store: inject.service(),
+  token: service(),
+  store: service(),
 
-  secret: computed.reads('token.secret'),
+  secret: reads('token.secret'),
 
   tokenIsValid: false,
   tokenIsInvalid: false,

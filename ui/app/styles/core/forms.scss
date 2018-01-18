@@ -4,7 +4,12 @@
   border-color: $grey-blue;
   color: $text;
 
-  &:hover, &.is-hovered, &:active, &.is-active, &:focus, &.is-focused {
+  &:hover,
+  &.is-hovered,
+  &:active,
+  &.is-active,
+  &:focus,
+  &.is-focused {
     border-color: darken($grey-blue, 5%);
   }
 
@@ -14,7 +19,8 @@
   }
 }
 
-.input, .textarea {
+.input,
+.textarea {
   @include input;
   box-shadow: none;
   padding: 0.75em 1.5em;

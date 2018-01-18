@@ -1,11 +1,10 @@
-import Ember from 'ember';
+import { collect, sum, bool, equal } from '@ember/object/computed';
+import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
-
-const { computed } = Ember;
 
 export default Model.extend({
   region: attr('string'),
@@ -35,7 +34,7 @@ export default Model.extend({
   failedAllocs: sumAggregation('taskGroupSummaries', 'failedAllocs'),
   lostAllocs: sumAggregation('taskGroupSummaries', 'lostAllocs'),
 
-  allocsList: computed.collect(
+  allocsList: collect(
     'queuedAllocs',
     'startingAllocs',
     'runningAllocs',
@@ -44,7 +43,7 @@ export default Model.extend({
     'lostAllocs'
   ),
 
-  totalAllocs: computed.sum('allocsList'),
+  totalAllocs: sum('allocsList'),
 
   pendingChildren: attr('number'),
   runningChildren: attr('number'),
@@ -56,7 +55,7 @@ export default Model.extend({
   evaluations: hasMany('evaluations'),
   namespace: belongsTo('namespace'),
 
-  hasPlacementFailures: computed.bool('latestFailureEvaluation'),
+  hasPlacementFailures: bool('latestFailureEvaluation'),
 
   latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
     const evaluations = this.get('evaluations');
@@ -82,7 +81,7 @@ export default Model.extend({
     }
   ),
 
-  supportsDeployments: computed.equal('type', 'service'),
+  supportsDeployments: equal('type', 'service'),
 
   runningDeployment: computed('deployments.@each.status', function() {
     return this.get('deployments').findBy('status', 'running');

@@ -1,4 +1,26 @@
-## 0.7.1 (Unreleased)
+## 0.8 (Unreleased)
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * discovery: Prevent absolute URLs in check paths. The documentation indicated
+   that absolute URLs are not allowed, but it was not enforced. Absolute URLs
+   in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
+
+IMPROVEMENTS:
+ * discovery: Allow `check_restart` to be specified in the `service` stanza.
+   [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
+ * driver/lxc: Add volumes config to LXC driver [GH-3687]
+
+BUG FIXES:
+ * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]
+ * core: Fix an issue in which batch jobs with queued placements and lost
+   allocations could result in improper placement counts [[GH-3717](https://github.com/hashicorp/nomad/issues/3717)]
+ * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
+ * client/vault: Recognize renewing non-renewable Vault lease as fatal [[GH-3727](https://github.com/hashicorp/nomad/issues/3727)]
+ * config: Revert minimum CPU limit back to 20 from 100.
+ * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
+ * ui: Fix requests using client-side certificates in Firefox. [[GH-3728](https://github.com/hashicorp/nomad/pull/3728)]
+
+## 0.7.1 (December 19, 2017)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * client: The format of service IDs in Consul has changed. If you rely upon
@@ -7,6 +29,8 @@ __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
+ * config: Default minimum CPU configuration has been changed to 100 from 20. Jobs 
+   using the old minimum value of 20 will have to be updated.
  * telemetry: Hostname is now emitted via a tag rather than within the key name.
    To maintain old behavior during an upgrade path specify
    `backwards_compatible_metrics` in the telemetry configuration.
@@ -52,6 +76,9 @@ BUG FIXES:
 
  * core: Fix issue in which restoring periodic jobs could fail when a leader
    election occurs [[GH-3646](https://github.com/hashicorp/nomad/issues/3646)]
+ * core: Fix race condition in which rapid reprocessing of a blocked evaluation
+   may lead to the scheduler not seeing the results of the previous scheduling
+   event [[GH-3669](https://github.com/hashicorp/nomad/issues/3669)]
  * core: Fixed an issue where the leader server could get into a state where it
    was no longer performing the periodic leader loop duties after a barrier
    timeout error [[GH-3402](https://github.com/hashicorp/nomad/issues/3402)]

@@ -1230,60 +1230,129 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	check2 := ServiceCheck{
+		Name:     "check-name-2",
+		Type:     ServiceCheckHTTP,
+		Interval: 10 * time.Second,
+		Timeout:  2 * time.Second,
+		Path:     "/foo/bar",
+	}
+
+	err = check2.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check2.Path = ""
+	err = check2.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "valid http path") {
+		t.Fatalf("err: %v", err)
+	}
+
+	check2.Path = "http://www.example.com"
+	err = check2.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "relative http path") {
+		t.Fatalf("err: %v", err)
+	}
 }
 
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not
 // inherit address mode but do inherit ports.
 func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
-	task := &Task{
-		Resources: &Resources{
-			Networks: []*NetworkResource{
-				{
-					DynamicPorts: []Port{
-						{
-							Label: "http",
-							Value: 9999,
+	getTask := func(s *Service) *Task {
+		return &Task{
+			Resources: &Resources{
+				Networks: []*NetworkResource{
+					{
+						DynamicPorts: []Port{
+							{
+								Label: "http",
+								Value: 9999,
+							},
 						},
 					},
 				},
 			},
-		},
-		Services: []*Service{
-			{
+			Services: []*Service{s},
+		}
+	}
+
+	cases := []struct {
+		Service     *Service
+		ErrContains string
+	}{
+		{
+			Service: &Service{
 				Name:        "invalid-driver",
 				PortLabel:   "80",
 				AddressMode: "host",
 			},
-			{
-				Name:        "http-driver",
+			ErrContains: `port label "80" referenced`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-fail-1",
 				PortLabel:   "80",
 				AddressMode: "driver",
 				Checks: []*ServiceCheck{
 					{
-						// Should fail
 						Name:     "invalid-check-1",
 						Type:     "tcp",
 						Interval: time.Second,
 						Timeout:  time.Second,
 					},
+				},
+			},
+			ErrContains: `check "invalid-check-1" cannot use a numeric port`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-fail-2",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
 					{
-						// Should fail
 						Name:      "invalid-check-2",
 						Type:      "tcp",
 						PortLabel: "80",
 						Interval:  time.Second,
 						Timeout:   time.Second,
 					},
+				},
+			},
+			ErrContains: `check "invalid-check-2" cannot use a numeric port`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-fail-3",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
 					{
-						// Should fail
 						Name:      "invalid-check-3",
 						Type:      "tcp",
 						PortLabel: "missing-port-label",
 						Interval:  time.Second,
 						Timeout:   time.Second,
 					},
+				},
+			},
+			ErrContains: `port label "missing-port-label" referenced`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-passes",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
 					{
-						// Should pass
 						Name:     "valid-script-check",
 						Type:     "script",
 						Command:  "ok",
@@ -1291,7 +1360,6 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 						Timeout:  time.Second,
 					},
 					{
-						// Should pass
 						Name:      "valid-host-check",
 						Type:      "tcp",
 						PortLabel: "http",
@@ -1299,7 +1367,6 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 						Timeout:   time.Second,
 					},
 					{
-						// Should pass
 						Name:        "valid-driver-check",
 						Type:        "tcp",
 						AddressMode: "driver",
@@ -1309,23 +1376,65 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 				},
 			},
 		},
-	}
-	err := validateServices(task)
-	if err == nil {
-		t.Fatalf("expected errors but task validated successfully")
-	}
-	errs := err.(*multierror.Error).Errors
-	if expected := 4; len(errs) != expected {
-		for i, err := range errs {
-			t.Logf("errs[%d] -> %s", i, err)
-		}
-		t.Fatalf("expected %d errors but found %d", expected, len(errs))
+		{
+			Service: &Service{
+				Name: "empty-address-3673-passes-1",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "valid-port-label",
+						Type:      "tcp",
+						PortLabel: "http",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+					{
+						Name:     "empty-is-ok",
+						Type:     "script",
+						Command:  "ok",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+				},
+			},
+		},
+		{
+			Service: &Service{
+				Name: "empty-address-3673-passes-2",
+			},
+		},
+		{
+			Service: &Service{
+				Name: "empty-address-3673-fails",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "empty-is-not-ok",
+						Type:     "tcp",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+				},
+			},
+			ErrContains: `invalid: check requires a port but neither check nor service`,
+		},
 	}
 
-	assert.Contains(t, errs[0].Error(), `check "invalid-check-1" cannot use a numeric port`)
-	assert.Contains(t, errs[1].Error(), `check "invalid-check-2" cannot use a numeric port`)
-	assert.Contains(t, errs[2].Error(), `port label "80" referenced`)
-	assert.Contains(t, errs[3].Error(), `port label "missing-port-label" referenced`)
+	for _, tc := range cases {
+		tc := tc
+		task := getTask(tc.Service)
+		t.Run(tc.Service.Name, func(t *testing.T) {
+			err := validateServices(task)
+			if err == nil && tc.ErrContains == "" {
+				// Ok!
+				return
+			}
+			if err == nil {
+				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
+			}
+			if !strings.Contains(err.Error(), tc.ErrContains) {
+				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
+			}
+		})
+	}
 }
 
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {

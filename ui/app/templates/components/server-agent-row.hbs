@@ -1,6 +1,6 @@
-<td>{{#link-to "servers.server" agent.id class="is-primary"}}{{agent.name}}{{/link-to}}</td>
-<td>{{agent.status}}</td>
-<td>{{if agent.isLeader "True" "False"}}</td>
-<td>{{agent.address}}</td>
-<td>{{agent.serfPort}}</td>
-<td>{{agent.datacenter}}</td>
+<td data-test-server-name>{{#link-to "servers.server" agent.id class="is-primary"}}{{agent.name}}{{/link-to}}</td>
+<td data-test-server-status>{{agent.status}}</td>
+<td data-test-server-is-leader>{{if agent.isLeader "True" "False"}}</td>
+<td data-test-server-address>{{agent.address}}</td>
+<td data-test-server-port>{{agent.serfPort}}</td>
+<td data-test-server-datacenter>{{agent.datacenter}}</td>

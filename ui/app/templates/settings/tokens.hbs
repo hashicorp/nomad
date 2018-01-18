@@ -20,16 +20,22 @@
         <div class="field">
           <label class="label">Secret ID</label>
           <div class="control">
-            <input class="input token-secret" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value={{token.secret}} oninput={{action (mut secret) value="target.value"}}>
+            <input
+              class="input"
+              type="text"
+              placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+              value={{token.secret}}
+              oninput={{action (mut secret) value="target.value"}}
+              data-test-token-secret>
           </div>
           <p class="help">Sent with every request to determine authorization</p>
         </div>
 
-        <p class="content"><button class="button is-primary token-submit" {{action "verifyToken"}}>Set Token</button></p>
+        <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}}>Set Token</button></p>
       {{/if}}
 
       {{#if tokenIsValid}}
-        <div class="notification is-success token-success">
+        <div data-test-token-success class="notification is-success">
           <div class="columns">
             <div class="column">
               <h3 class="title is-4">Token Authenticated!</h3>
@@ -40,7 +46,7 @@
       {{/if}}
 
       {{#if tokenIsInvalid}}
-        <div class="notification is-danger token-error">
+        <div data-test-token-error class="notification is-danger">
           <div class="columns">
             <div class="column">
               <h3 class="title is-4">Token Failed to Authenticate</h3>
@@ -58,26 +64,26 @@
         </div>
         <h3 class="title is-4">Policies</h3>
         {{#if (eq tokenRecord.type "management")}}
-          <div class="boxed-section token-management-message">
+          <div data-test-token-management-message class="boxed-section">
             <div class="boxed-section-body has-centered-text">
               The management token has all permissions
             </div>
           </div>
         {{else}}
           {{#each tokenRecord.policies as |policy|}}
-            <div class="boxed-section token-policy">
-              <div class="boxed-section-head">
+            <div data-test-token-policy class="boxed-section">
+              <div data-test-policy-name class="boxed-section-head">
                 {{policy.name}}
               </div>
               <div class="boxed-section-body">
-                <p class="content">
+                <p data-test-policy-description class="content">
                   {{#if policy.description}}
                     {{policy.description}}
                   {{else}}
                     <em>No description</em>
                   {{/if}}
                 </p>
-                <pre><code>{{policy.rules}}</code></pre>
+                <pre><code data-test-policy-rules>{{policy.rules}}</code></pre>
               </div>
             </div>
           {{/each}}

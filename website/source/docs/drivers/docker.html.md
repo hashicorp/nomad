@@ -210,11 +210,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
-* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
-  the container access to devices on the host. Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
-
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
@@ -275,7 +270,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
         "name-of-the-volume:/path/in/container"
       ]
       # Name of the Docker Volume Driver used by the container
-      volume_driver = "flocker"
+      volume_driver = "pxd"
     }
     ```
 
@@ -298,7 +293,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
               foo = "bar"
             }
             driver_config {
-              name = "flocker"
+              name = "pxd"
               options = {
                 foo = "bar"
               }
@@ -328,6 +323,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named

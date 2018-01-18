@@ -286,6 +286,73 @@ func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
 	}
 }
 
+func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
+	// test enqueueing an eval, updating a plan result for the same eval and de-queueing the eval
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+
+	state := s1.fsm.State()
+
+	if err := state.UpsertJob(999, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	s1.evalBroker.Enqueue(eval)
+
+	// Create a plan result and apply it with a later index
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{alloc},
+			Job:   job,
+		},
+		EvalID: eval.ID,
+	}
+	assert := assert.New(t)
+	err := state.UpsertPlanResults(1000, &res)
+	assert.Nil(err)
+
+	// Dequeue the eval
+	get := &structs.EvalDequeueRequest{
+		Schedulers:       defaultSched,
+		SchedulerVersion: scheduler.SchedulerVersion,
+		WriteRequest:     structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.EvalDequeueResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure outstanding
+	token, ok := s1.evalBroker.Outstanding(eval.ID)
+	if !ok {
+		t.Fatalf("should be outstanding")
+	}
+	if token != resp.Token {
+		t.Fatalf("bad token: %#v %#v", token, resp.Token)
+	}
+
+	if resp.WaitIndex != 1000 {
+		t.Fatalf("bad wait index; got %d; want %d", resp.WaitIndex, 1000)
+	}
+}
+
 func TestEvalEndpoint_Dequeue_Version_Mismatch(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
