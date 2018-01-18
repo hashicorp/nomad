@@ -95,6 +95,40 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 	return &resp, wm, nil
 }
 
+// UpdateOptions is used to pass through job update parameters
+type UpdateOptions struct {
+	EnforceIndex   bool
+	ModifyIndex    uint64
+	PolicyOverride bool
+}
+
+// Update is used to update an existing job
+func (j *Jobs) Update(job *Job, opts *UpdateOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	req := &UpdateJobRequest{
+		Job: job,
+	}
+	if opts != nil {
+		if opts.EnforceIndex {
+			req.EnforceIndex = true
+			req.JobModifyIndex = opts.ModifyIndex
+		}
+		if opts.PolicyOverride {
+			req.PolicyOverride = true
+		}
+	}
+
+	if job.Name == nil {
+		return nil, nil, fmt.Errorf("job needs to have a valid name")
+	}
+
+	var resp JobRegisterResponse
+	wm, err := j.client.write(fmt.Sprintf("/v1/job/%s", *job.Name), req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // List is used to list all of the existing jobs.
 func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	var resp []*JobListStub
@@ -842,6 +876,14 @@ type JobRegisterRequest struct {
 
 // RegisterJobRequest is used to serialize a job registration
 type RegisterJobRequest struct {
+	Job            *Job
+	EnforceIndex   bool   `json:",omitempty"`
+	JobModifyIndex uint64 `json:",omitempty"`
+	PolicyOverride bool   `json:",omitempty"`
+}
+
+// UpdateJobRequest is used to update an existing job
+type UpdateJobRequest struct {
 	Job            *Job
 	EnforceIndex   bool   `json:",omitempty"`
 	JobModifyIndex uint64 `json:",omitempty"`
