@@ -8,6 +8,7 @@ __BACKWARDS INCOMPATIBILITIES:__
 IMPROVEMENTS:
  * discovery: Allow `check_restart` to be specified in the `service` stanza.
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
+ * driver/lxc: Add volumes config to LXC driver [GH-3687]
 
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]
