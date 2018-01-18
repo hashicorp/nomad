@@ -54,7 +54,9 @@
 
   &.is-secondary {
     background-color: $nomad-green-dark;
-    padding: 1.25rem 20px 1.25rem 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     height: 4.5rem;
     font-weight: $weight-semibold;
     color: $primary-invert;

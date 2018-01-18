@@ -1,7 +1,5 @@
 {{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb|}}
-    {{#link-to params=breadcrumb.params class="breadcrumb"}}{{breadcrumb.label}}{{/link-to}}
-  {{/each}}
+  {{list-breadcrumbs items=breadcrumbs}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
