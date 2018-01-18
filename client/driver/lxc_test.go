@@ -3,8 +3,11 @@
 package driver
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -75,6 +78,19 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 		Resources:   structs.DefaultResources(),
 	}
 
+	testFileContents := []byte("this should be visible under /mnt/tmp")
+	tmpFile, err := ioutil.TempFile("/tmp", "testlxcdriver_start_wait")
+	if err != nil {
+		t.Fatalf("error writing temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.Write(testFileContents); err != nil {
+		t.Fatalf("error writing temp file: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("error closing temp file: %v", err)
+	}
+
 	ctx := testDriverContexts(t, task)
 	defer ctx.AllocDir.Destroy()
 	d := NewLxcDriver(ctx.DriverCtx)
@@ -116,6 +132,16 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 		if !stat.IsDir() {
 			t.Fatalf("expected %q to be a dir", fullpath)
 		}
+	}
+
+	// Test that /mnt/tmp/$tempFile exists in the container:
+	mountedContents, err := exec.Command("lxc-attach", "-n", containerName, "--", "cat", filepath.Join("/mnt/", tmpFile.Name())).Output()
+	if err != nil {
+		t.Fatalf("err reading temp file in bind mount: %v", err)
+	}
+
+	if !bytes.Equal(mountedContents, testFileContents) {
+		t.Fatalf("contents of temp bind mounted file did not match, was '%s'", mountedContents)
 	}
 
 	// Desroy the container
