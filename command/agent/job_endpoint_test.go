@@ -1171,6 +1171,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Delay:    helper.TimeToPtr(10 * time.Second),
 					Mode:     helper.StringToPtr("delay"),
 				},
+				ReschedulePolicy: &api.ReschedulePolicy{
+					Interval: helper.TimeToPtr(12 * time.Hour),
+					Attempts: helper.IntToPtr(5),
+				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
 					Sticky:  helper.BoolToPtr(true),
@@ -1378,6 +1382,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Attempts: 5,
 					Delay:    10 * time.Second,
 					Mode:     "delay",
+				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Interval: 12 * time.Hour,
+					Attempts: 5,
 				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB:  100,
