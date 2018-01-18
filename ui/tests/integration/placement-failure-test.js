@@ -18,7 +18,7 @@ const commonTemplate = hbs`
 const name = 'My Name';
 const failures = 10;
 
-test('placement failure report', function(assert) {
+test('placement failures report', function(assert) {
   this.set('taskGroup', {
     name: name,
     placementFailures: createFailures(failures),
@@ -26,7 +26,7 @@ test('placement failure report', function(assert) {
   this.render(commonTemplate);
   assert.equal(
     cleanWhitespace(find('.title').textContent),
-    `${name} ${failures} unplaced`,
+    `${name} ${failures + 1} unplaced`,
     'Title is rendered correctly with a count of unplaced'
   );
 });
