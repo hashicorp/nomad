@@ -83,12 +83,12 @@ test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(
     'Jobs is in the breadcrumb trail'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="jobs.job"]`).textContent.trim(),
+    find('[data-test-breadcrumb="jobs.job"]').textContent.trim(),
     job.name,
     'Job name is in the breadcrumb trail'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="jobs.job.task-group"]`).textContent.trim(),
+    find('[data-test-breadcrumb="jobs.job.task-group"]').textContent.trim(),
     taskGroup.name,
     'Task Group name is in the breadcrumb trail'
   );
@@ -104,7 +104,7 @@ test('/jobs/:id/:task-group Jobs breadcrumb should link to jobs', function(asser
 test('/jobs/:id/:task-group Job breadcrumb should link to the job for the task group', function(
   assert
 ) {
-  click(`[data-test-breadcrumb="jobs.job"]`);
+  click('[data-test-breadcrumb="jobs.job"]');
   andThen(() => {
     assert.equal(
       currentURL(),
