@@ -1,5 +1,6 @@
 import { find, findAll } from 'ember-native-dom-helpers';
 import { test, moduleForComponent } from 'ember-qunit';
+import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../utils/clean-whitespace';
 
@@ -8,13 +9,8 @@ moduleForComponent('placement-failure', 'Integration | Component | placement fai
 });
 
 const commonTemplate = hbs`
-  <div class="boxed-section">
-    <div class="boxed-section-body">
-      {{#placement-failure taskGroup=taskGroup}}{{/placement-failure}}
-    </div>
-  </div>
+    {{placement-failure taskGroup=taskGroup}}
 `;
-
 
 test('should render the placement failure (basic render)', function(assert) {
   const name = 'Placement Failure';
@@ -28,7 +24,9 @@ test('should render the placement failure (basic render)', function(assert) {
       name
     )
   );
+
   this.render(commonTemplate);
+
   assert.equal(
     cleanWhitespace(find('[data-test-placement-failure-task-group]').firstChild.wholeText),
     name,
@@ -85,6 +83,7 @@ test('should render the placement failure (basic render)', function(assert) {
     'Scores message shown'
   );
 });
+
 test('should render correctly when a node is not evaluated', function(assert) {
   this.set(
     'taskGroup',
@@ -95,7 +94,9 @@ test('should render correctly when a node is not evaluated', function(assert) {
       }
     )
   );
+
   this.render(commonTemplate);
+
   assert.equal(
     findAll('[data-test-placement-failure-no-evaluated-nodes]').length,
     0,
@@ -111,7 +112,7 @@ test('should render correctly when a node is not evaluated', function(assert) {
 function createFixture(obj = {}, name = 'Placement Failure') {
   return {
     name: name,
-    placementFailures: Object.assign({
+    placementFailures: assign({
       coalescedFailures: 10,
       nodesEvaluated: 0,
       nodesAvailable: {
