@@ -2888,7 +2888,6 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 
 		// Find the new alloc with ClientStatusPending
 		var pendingAllocs []*structs.Allocation
-		fmt.Println("Iteration: ", i)
 		for _, alloc := range out {
 			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				pendingAllocs = append(pendingAllocs, alloc)

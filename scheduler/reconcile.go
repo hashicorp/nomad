@@ -305,6 +305,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
+	// Determine what set of terminal allocations need to be rescheduled
 	untainted, reschedule := untainted.filterByRescheduleable(a.batch, tg.ReschedulePolicy)
 
 	// Create a structure for choosing names. Seed with the taken names which is
@@ -610,7 +611,7 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 }
 
 // computePlacement returns the set of allocations to place given the group
-// definition, the set of untainted and migrating allocations for the group.
+// definition, the set of untainted, migrating and reschedule allocations for the group.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet) []allocPlaceResult {
 
@@ -621,6 +622,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	}
 	var place []allocPlaceResult
 	// Add rescheduled placement results
+	// Any allocations being rescheduled will remain at DesiredStatusRun ClientStatusFailed
 	for _, alloc := range reschedule {
 		place = append(place, allocPlaceResult{
 			name:          alloc.Name,
@@ -666,6 +668,14 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	remove := len(untainted) + len(migrate) - group.Count
 	if remove <= 0 {
 		return stop
+	}
+
+	// Filter out any terminal allocations from the untainted set
+	// This is so that we don't try to mark them as stopped redundantly
+	for id, alloc := range untainted {
+		if alloc.TerminalStatus() {
+			delete(untainted, id)
+		}
 	}
 
 	// Prefer stopping any alloc that has the same name as the canaries if we
@@ -716,9 +726,6 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	removeNames := nameIndex.Highest(uint(remove))
 	for id, alloc := range untainted {
 		if _, ok := removeNames[alloc.Name]; ok {
-			if alloc.TerminalStatus() {
-				continue
-			}
 			stop[id] = alloc
 			a.result.stop = append(a.result.stop, allocStopResult{
 				alloc:             alloc,
@@ -736,9 +743,6 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// It is possible that we didn't stop as many as we should have if there
 	// were allocations with duplicate names.
 	for id, alloc := range untainted {
-		if alloc.TerminalStatus() {
-			continue
-		}
 		stop[id] = alloc
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,

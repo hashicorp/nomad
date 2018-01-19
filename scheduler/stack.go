@@ -36,7 +36,7 @@ type Stack interface {
 }
 
 type SelectOptions struct {
-	PenaltyNodeIDs []string
+	PenaltyNodeIDs map[string]struct{}
 	PreferredNodes []*structs.Node
 }
 
@@ -198,8 +198,6 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 	s.binPack.SetTaskGroup(tg)
 	if options != nil {
 		s.nodeAntiAff.SetPenaltyNodes(options.PenaltyNodeIDs)
-	} else {
-		s.nodeAntiAff.SetPenaltyNodes(nil)
 	}
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
