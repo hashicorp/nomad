@@ -35,6 +35,7 @@ func TestConfig_Merge(t *testing.T) {
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
+		Autopilot:      &config.AutopilotConfig{},
 	}
 
 	c2 := &Config{
@@ -100,6 +101,7 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        1,
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
+			RaftProtocol:           1,
 			NumSchedulers:          1,
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
@@ -157,6 +159,15 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:     &falseValue,
 			ClientAutoJoin:     &falseValue,
 			ChecksUseAdvertise: &falseValue,
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &falseValue,
+			ServerStabilizationTime: 1 * time.Second,
+			LastContactThreshold:    1 * time.Second,
+			MaxTrailingLogs:         1,
+			RedundancyZoneTag:       "1",
+			DisableUpgradeMigration: &falseValue,
+			UpgradeVersionTag:       "1",
 		},
 	}
 
@@ -248,6 +259,7 @@ func TestConfig_Merge(t *testing.T) {
 			RetryJoin:              []string{"1.1.1.1"},
 			RetryInterval:          "10s",
 			retryInterval:          time.Second * 10,
+			NonVotingServer:        true,
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -310,6 +322,15 @@ func TestConfig_Merge(t *testing.T) {
 					Args: []string{"a", "b", "c"},
 				},
 			},
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &trueValue,
+			ServerStabilizationTime: 2 * time.Second,
+			LastContactThreshold:    2 * time.Second,
+			MaxTrailingLogs:         2,
+			RedundancyZoneTag:       "2",
+			DisableUpgradeMigration: &trueValue,
+			UpgradeVersionTag:       "2",
 		},
 	}
 

@@ -15,6 +15,42 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.8.0
+
+#### Raft Protocol Version Compatibility
+
+When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need to
+set the [`-raft-protocol`](/docs/agent/options.html#_raft_protocol) option to 1 in
+order to maintain backwards compatibility with the old servers during the upgrade.
+After the servers have been migrated to version 0.8.0, `-raft-protocol` can be moved
+up to 2 and the servers restarted to match the default.
+
+The Raft protocol must be stepped up in this way; only adjacent version numbers are
+compatible (for example, version 1 cannot talk to version 3). Here is a table of the
+Raft Protocol versions supported by each Consul version:
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Version</th>
+    <th>Supported Raft Protocols</th>
+  </tr>
+  <tr>
+    <td>0.6 and earlier</td>
+    <td>0</td>
+  </tr>
+  <tr>
+    <td>0.7</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>0.8</td>
+    <td>1, 2, 3</td>
+  </tr>
+</table>
+
+In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
+in a Nomad cluster must be running with Raft protocol version 3 or later.
+
 ## Nomad 0.6.0
 
 ### Default `advertise` address changes

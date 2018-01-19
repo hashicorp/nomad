@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/testutil/retry"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -815,21 +816,18 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
-		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s1.Shutdown()
 
 	s2 := testServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
-		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 1
 	})
 	defer s2.Shutdown()
 
 	s3 := testServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
-		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s3.Shutdown()
@@ -854,7 +852,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 
 	for _, s := range []*Server{s1, s3} {
-		minVer, err := MinRaftProtocol(s1.config.Region, s.Members())
+		minVer, err := s.autopilot.MinRaftProtocol()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -899,6 +897,84 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 			return true, nil
 		}, func(err error) {
 			t.Fatal(err)
+		})
+	}
+}
+
+func TestLeader_RollRaftServer(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 1
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s3.Shutdown()
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	testJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
+	}
+
+	// Kill the v1 server
+	s2.Shutdown()
+
+	for _, s := range []*Server{s1, s3} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 2; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+
+	// Replace the dead server with one running raft protocol v3
+	s4 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s4.Shutdown()
+	testJoin(t, s4, s1)
+	servers[1] = s4
+
+	// Make sure the dead server is removed and we're back to 3 total peers
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) {
+			addrs := 0
+			ids := 0
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				r.Fatal(err)
+			}
+			for _, server := range future.Configuration().Servers {
+				if string(server.ID) == string(server.Address) {
+					addrs++
+				} else {
+					ids++
+				}
+			}
+			if got, want := addrs, 2; got != want {
+				r.Fatalf("got %d server addresses want %d", got, want)
+			}
+			if got, want := ids, 1; got != want {
+				r.Fatalf("got %d server ids want %d", got, want)
+			}
 		})
 	}
 }

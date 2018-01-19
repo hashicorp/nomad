@@ -102,6 +102,9 @@ server {
   second is a tradeoff as it lowers failure detection time of nodes at the
   tradeoff of false positives and increased load on the leader.
 
+- `non_voting_server` `(bool: false)` - is whether this server will act as
+  a non-voting member of the cluster to help provide read scalability. (Enterprise-only)
+
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
   disallow this server from making any scheduling decisions. This defaults to
