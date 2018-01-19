@@ -27,7 +27,7 @@ test('breadcrumbs includes job name and link back to the jobs list', function(as
     'First breadcrumb says jobs'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="jobs.job"]`).textContent,
+    find('[data-test-breadcrumb="jobs.job"]').textContent,
     job.name,
     'Second breadcrumb says the job name'
   );
