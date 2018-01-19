@@ -56,45 +56,7 @@
         </div>
         <div class="boxed-section-body">
           {{#each model.taskGroups as |taskGroup|}}
-            {{#if taskGroup.placementFailures}}
-              {{#with taskGroup.placementFailures as |failures|}}
-                  <h3 class="title is-5" data-test-placement-failure-task-group>
-                    {{taskGroup.name}}
-                    <span class="badge is-light">{{inc failures.coalescedFailures}} unplaced</span>
-                  </h3>
-                  <ul class="simple-list">
-                    {{#if (eq failures.nodesEvaluated 0)}}
-                      <li>No nodes were eligible for evaluation</li>
-                    {{/if}}
-                    {{#each-in failures.nodesAvailable as |datacenter available|}}
-                      {{#if (eq available 0)}}
-                        <li>No nodes are available in datacenter {{datacenter}}</li>
-                      {{/if}}
-                    {{/each-in}}
-                    {{#each-in failures.classFiltered as |class count|}}
-                      <li>Class {{class}} filtered {{count}} {{pluralize "node" count}}</li>
-                    {{/each-in}}
-                    {{#each-in failures.constraintFiltered as |constraint count|}}
-                      <li>Constraint <code>{{constraint}}</code> filtered {{count}} {{pluralize "node" count}}</li>
-                    {{/each-in}}
-                    {{#if failures.nodesExhausted}}
-                      <li>Resources exhausted on {{failures.nodesExhausted}} {{pluralize "node" failures.nodesExhausted}}</li>
-                    {{/if}}
-                    {{#each-in failures.classExhausted as |class count|}}
-                      <li>Class {{class}} exhausted on {{count}} {{pluralize "node" count}}</li>
-                    {{/each-in}}
-                    {{#each-in failures.dimensionExhausted as |dimension count|}}
-                      <li>Dimension {{dimension}} exhausted on {{count}} {{pluralize "node" count}}</li>
-                    {{/each-in}}
-                    {{#each-in failures.quotaExhausted as |quota dimension|}}
-                      <li>Quota limit hit {{dimension}}</li>
-                    {{/each-in}}
-                    {{#each-in failures.scores as |name score|}}
-                      <li>Score {{name}} = {{score}}</li>
-                    {{/each-in}}
-                  </ul>
-              {{/with}}
-            {{/if}}
+            {{placement-failure taskGroup=taskGroup}}
           {{/each}}
         </div>
       </div>

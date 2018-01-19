@@ -1,6 +1,7 @@
 import { findAll, find } from 'ember-native-dom-helpers';
 import { test, moduleForComponent } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
+import cleanWhitespace from '../utils/clean-whitespace';
 
 moduleForComponent('job-diff', 'Integration | Component | job diff', {
   integration: true,
@@ -191,11 +192,4 @@ function field(name, type, newVal, oldVal) {
     Type: 'None',
     Name: name,
   };
-}
-
-function cleanWhitespace(string) {
-  return string
-    .replace(/\n/g, '')
-    .replace(/ +/g, ' ')
-    .trim();
 }
