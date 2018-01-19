@@ -6000,6 +6000,9 @@ var (
 	}
 )
 
+// TODO Figure out if we can remove this. This is our fork that is just way
+// behind. I feel like its original purpose was to pin at a stable version but
+// now we can accomplish this with vendoring.
 var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
 	h := &hcodec.MsgpackHandle{RawToString: true}
 

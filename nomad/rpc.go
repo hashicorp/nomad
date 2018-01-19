@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
+	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -167,6 +168,12 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCConte
 
 		s.handleConn(ctx, conn, rpcCtx)
 
+	case pool.RpcStreaming:
+		s.handleStreamingConn(conn)
+
+	case pool.RpcMultiplexV2:
+		s.handleMultiplexV2(conn, ctx)
+
 	default:
 		s.logger.Printf("[ERR] nomad.rpc: unrecognized RPC byte: %v", buf[0])
 		conn.Close()
@@ -230,6 +237,41 @@ func (s *Server) handleNomadConn(ctx context.Context, conn net.Conn, server *rpc
 		}
 		metrics.IncrCounter([]string{"nomad", "rpc", "request"}, 1)
 	}
+}
+
+// handleStreamingConn is used to handle a single Streaming Nomad RPC connection.
+func (s *Server) handleStreamingConn(conn net.Conn) {
+	defer conn.Close()
+
+	// Decode the header
+	var header structs.StreamingRpcHeader
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	if err := decoder.Decode(&header); err != nil {
+		if err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			s.logger.Printf("[ERR] nomad.rpc: Streaming RPC error: %v (%v)", err, conn)
+			metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request_error"}, 1)
+		}
+
+		return
+	}
+
+	handler, err := s.streamingRpcs.GetHandler(header.Method)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad.rpc: Streaming RPC error: %v (%v)", err, conn)
+		metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request_error"}, 1)
+		return
+	}
+
+	// Invoke the handler
+	metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request"}, 1)
+	handler(conn)
+}
+
+// handleMultiplexV2 is used to multiplex a single incoming connection
+// using the Yamux multiplexer. Version 2 handling allows a single connection to
+// switch streams between regulars RPCs and Streaming RPCs.
+func (s *Server) handleMultiplexV2(conn net.Conn, ctx *RPCContext) {
+	// TODO
 }
 
 // forward is used to forward to a remote region or to forward to the local leader
