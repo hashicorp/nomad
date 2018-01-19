@@ -326,11 +326,7 @@ func NewNodeAntiAffinityIterator(ctx Context, source RankIterator, penalty float
 	return iter
 }
 
-func (iter *NodeAntiAffinityIterator) SetPenaltyNodes(nodes []string) {
-	penaltyNodes := make(map[string]struct{})
-	for _, node := range nodes {
-		penaltyNodes[node] = struct{}{}
-	}
+func (iter *NodeAntiAffinityIterator) SetPenaltyNodes(penaltyNodes map[string]struct{}) {
 	iter.penaltyNodes = penaltyNodes
 }
 
@@ -351,5 +347,6 @@ func (iter *NodeAntiAffinityIterator) Next() *RankedNode {
 }
 
 func (iter *NodeAntiAffinityIterator) Reset() {
+	iter.penaltyNodes = make(map[string]struct{})
 	iter.source.Reset()
 }

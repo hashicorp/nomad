@@ -434,24 +434,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			}
 
 			// Compute penalty nodes for rescheduled allocs
-			selectOptions := &SelectOptions{}
-			if prevAllocation != nil {
-				var penaltyNodes []string
-				penaltyNodes = append(penaltyNodes, prevAllocation.NodeID)
-				if prevAllocation.RescheduleTracker != nil {
-					for _, reschedEvent := range prevAllocation.RescheduleTracker.Events {
-						penaltyNodes = append(penaltyNodes, reschedEvent.PrevNodeID)
-					}
-				}
-				selectOptions.PenaltyNodeIDs = penaltyNodes
-			}
-
-			// Attempt to match the task group
-			var option *RankedNode
-			if preferredNode != nil {
-				selectOptions.PreferredNodes = []*structs.Node{preferredNode}
-			}
-			option, _ = s.stack.Select(tg, selectOptions)
+			selectOptions := getSelectOptions(prevAllocation, preferredNode)
+			option, _ := s.stack.Select(tg, selectOptions)
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
@@ -480,16 +464,11 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
-				if prev := prevAllocation; prev != nil {
-					alloc.PreviousAllocation = prev.ID
-					var rescheduleEvents []*structs.RescheduleEvent
-					if prev.RescheduleTracker != nil {
-						for _, reschedEvent := range prev.RescheduleTracker.Events {
-							rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
-						}
+				if prevAllocation != nil {
+					alloc.PreviousAllocation = prevAllocation.ID
+					if tg.ReschedulePolicy != nil && tg.ReschedulePolicy.Attempts > 0 {
+						updateRescheduleTracker(alloc, prevAllocation)
 					}
-					rescheduleEvents = append(rescheduleEvents, &structs.RescheduleEvent{RescheduleTime: time.Now().UTC().UnixNano(), PrevAllocID: prev.ID, PrevNodeID: alloc.NodeID})
-					alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 				}
 
 				// If we are placing a canary and we found a match, add the canary
@@ -518,10 +497,42 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					s.plan.PopUpdate(prevAllocation)
 				}
 			}
+
 		}
 	}
 
 	return nil
+}
+
+// getSelectOptions sets up preferred nodes and penalty nodes
+func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *SelectOptions {
+	selectOptions := &SelectOptions{}
+	if prevAllocation != nil {
+		penaltyNodes := make(map[string]struct{})
+		penaltyNodes[prevAllocation.NodeID] = struct{}{}
+		if prevAllocation.RescheduleTracker != nil {
+			for _, reschedEvent := range prevAllocation.RescheduleTracker.Events {
+				penaltyNodes[reschedEvent.PrevNodeID] = struct{}{}
+			}
+		}
+		selectOptions.PenaltyNodeIDs = penaltyNodes
+	}
+	if preferredNode != nil {
+		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
+	}
+	return selectOptions
+}
+
+// updateRescheduleTracker sets up the previous alloc id and
+func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation) {
+	var rescheduleEvents []*structs.RescheduleEvent
+	if prev.RescheduleTracker != nil {
+		for _, reschedEvent := range prev.RescheduleTracker.Events {
+			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+		}
+	}
+	rescheduleEvents = append(rescheduleEvents, &structs.RescheduleEvent{RescheduleTime: time.Now().UTC().UnixNano(), PrevAllocID: prev.ID, PrevNodeID: alloc.NodeID})
+	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 }
 
 // findPreferredNode finds the preferred node for an allocation
