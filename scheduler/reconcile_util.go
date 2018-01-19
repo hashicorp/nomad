@@ -28,8 +28,8 @@ type placementResult interface {
 	// PreviousAllocation returns the previous allocation
 	PreviousAllocation() *structs.Allocation
 
-	// Reschedule returns whether the placement was rescheduling a failed allocation
-	Reschedule() bool
+	// IsRescheduling returns whether the placement was rescheduling a failed allocation
+	IsRescheduling() bool
 
 	// StopPreviousAlloc returns whether the previous allocation should be
 	// stopped and if so the status description.
@@ -57,7 +57,7 @@ func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.ta
 func (a allocPlaceResult) Name() string                            { return a.name }
 func (a allocPlaceResult) Canary() bool                            { return a.canary }
 func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
-func (a allocPlaceResult) Reschedule() bool                        { return a.reschedule }
+func (a allocPlaceResult) IsRescheduling() bool                    { return a.reschedule }
 func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
 
 // allocDestructiveResult contains the information required to do a destructive
@@ -74,7 +74,7 @@ func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup           { retur
 func (a allocDestructiveResult) Name() string                            { return a.placeName }
 func (a allocDestructiveResult) Canary() bool                            { return false }
 func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation { return a.stopAlloc }
-func (a allocDestructiveResult) Reschedule() bool                        { return false }
+func (a allocDestructiveResult) IsRescheduling() bool                    { return false }
 func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
 	return true, a.stopStatusDescription
 }
@@ -278,6 +278,17 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 	// Delete these from rescheduleable allocs
 	for allocId := range rescheduledPrevAllocs {
 		delete(reschedule, allocId)
+	}
+	return
+}
+
+// filterByTerminal filters out terminal allocs
+func filterByTerminal(untainted allocSet) (nonTerminal allocSet) {
+	nonTerminal = make(map[string]*structs.Allocation)
+	for id, alloc := range untainted {
+		if !alloc.TerminalStatus() {
+			nonTerminal[id] = alloc
+		}
 	}
 	return
 }

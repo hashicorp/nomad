@@ -466,7 +466,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
-					if missing.Reschedule() {
+					if missing.IsRescheduling() {
 						updateRescheduleTracker(alloc, prevAllocation)
 					}
 				}
@@ -523,7 +523,7 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	return selectOptions
 }
 
-// updateRescheduleTracker sets up the previous alloc id and
+// updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
 func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation) {
 	var rescheduleEvents []*structs.RescheduleEvent
 	if prev.RescheduleTracker != nil {
@@ -531,7 +531,8 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
 		}
 	}
-	rescheduleEvents = append(rescheduleEvents, &structs.RescheduleEvent{RescheduleTime: time.Now().UTC().UnixNano(), PrevAllocID: prev.ID, PrevNodeID: alloc.NodeID})
+	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, alloc.NodeID)
+	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
 	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 }
 
