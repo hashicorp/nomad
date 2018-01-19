@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -218,7 +219,13 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
+	prevAllocID := uuid.Generate()
 	alloc := mock.Alloc()
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{RescheduleTime: time.Now().UTC().UnixNano(), PrevNodeID: "boom", PrevAllocID: prevAllocID},
+		},
+	}
 	state := s1.fsm.State()
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
