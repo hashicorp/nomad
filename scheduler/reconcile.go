@@ -673,11 +673,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 	// Filter out any terminal allocations from the untainted set
 	// This is so that we don't try to mark them as stopped redundantly
-	for id, alloc := range untainted {
-		if alloc.TerminalStatus() {
-			delete(untainted, id)
-		}
-	}
+	untainted = filterByTerminal(untainted)
 
 	// Prefer stopping any alloc that has the same name as the canaries if we
 	// are promoted
