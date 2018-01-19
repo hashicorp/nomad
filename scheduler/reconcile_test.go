@@ -1203,16 +1203,16 @@ func TestReconciler_MultiTG(t *testing.T) {
 
 // Tests rescheduling failed batch allocations
 func TestReconciler_Reschedule_Batch(t *testing.T) {
-	// Set desired 3
+	// Set desired 4
 	job := mock.Job()
-	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Count = 4
 
 	// Set up reschedule policy
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour}
 
-	// Create 3 existing allocations
+	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 6; i++ {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1221,16 +1221,34 @@ func TestReconciler_Reschedule_Batch(t *testing.T) {
 		allocs = append(allocs, alloc)
 		alloc.ClientStatus = structs.AllocClientStatusRunning
 	}
-	// Mark one as failed
+	// Mark 3 as failed with restart tracking info
 	allocs[0].ClientStatus = structs.AllocClientStatusFailed
-
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[1].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
 	// Mark one as complete
-	allocs[1].ClientStatus = structs.AllocClientStatusComplete
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
 	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil)
 	r := reconciler.Compute()
 
-	// Assert the correct results
+	// Two reschedule attempts were made, one more can be made
+	// Alloc 5 should not be replaced because it is terminal
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
@@ -1240,11 +1258,11 @@ func TestReconciler_Reschedule_Batch(t *testing.T) {
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  1,
-				Ignore: 2,
+				Ignore: 3,
 			},
 		},
 	})
-	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(2, 2), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
 	assertPlacementsAreRescheduled(t, 1, r.place)
 }
