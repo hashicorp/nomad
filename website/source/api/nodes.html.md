@@ -251,7 +251,7 @@ $ curl \
               "Env": null,
               "Services": [
                 {
-                  "Name": "global-redis-check",
+                  "Name": "redis-cache",
                   "PortLabel": "db",
                   "AddressMode": "auto",
                   "Tags": [
