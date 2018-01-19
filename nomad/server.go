@@ -84,8 +84,7 @@ const (
 // Server is Nomad server which manages the job queues,
 // schedulers, and notification bus for agents.
 type Server struct {
-	config     *Config
-	configLock sync.Mutex
+	config *Config
 
 	logger *log.Logger
 
@@ -97,12 +96,11 @@ type Server struct {
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
-	leaderCh  <-chan bool
-	raft      *raft.Raft
-	raftLayer *RaftLayer
-	raftStore *raftboltdb.BoltStore
-	raftInmem *raft.InmemStore
-
+	leaderCh      <-chan bool
+	raft          *raft.Raft
+	raftLayer     *RaftLayer
+	raftStore     *raftboltdb.BoltStore
+	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
 	// fsm is the state machine used with Raft
@@ -417,9 +415,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	// Keeping configuration in sync is important for other places that require
 	// access to config information, such as rpc.go, where we decide on what kind
 	// of network connections to accept depending on the server configuration
-	s.configLock.Lock()
 	s.config.TLSConfig = newTLSConfig
-	s.configLock.Unlock()
 
 	s.rpcTLS = incomingTLS
 	s.connPool.ReloadTLS(tlsWrap)
@@ -436,13 +432,9 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	}
 
 	// Close and reload existing Raft connections
-	s.raftTransport.Pause()
-	s.raftLayer.Close()
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
-	s.raftTransport.Reload(s.raftLayer)
-
-	time.Sleep(3 * time.Second)
+	s.raftLayer.ReloadTLS(wrapper)
+	s.raftTransport.CloseStreams()
 
 	s.logger.Printf("[DEBUG] nomad: finished reloading server connections")
 	return nil

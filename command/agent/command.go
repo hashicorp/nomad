@@ -598,6 +598,8 @@ WAIT:
 	}
 }
 
+// reloadHTTPServer shuts down the existing HTTP server and restarts it. This
+// is helpful when reloading the agent configuration.
 func (c *Command) reloadHTTPServer() error {
 	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
 

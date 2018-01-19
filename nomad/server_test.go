@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
-	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -417,52 +416,9 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	defer s2.Shutdown()
 
 	testJoin(t, s1, s2)
+	servers := []*Server{s1, s2}
 
-	testutil.WaitForResult(func() (bool, error) {
-		peers, _ := s1.numPeers()
-		return peers == 2, nil
-	}, func(err error) {
-		t.Fatalf("should have 2 peers")
-	})
-
-	testutil.WaitForLeader(t, s2.RPC)
-
-	{
-		// assert that a job register request will succeed
-		codec := rpcClient(t, s2)
-		job := mock.Job()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "regionFoo",
-				Namespace: job.Namespace,
-			},
-		}
-
-		// Fetch the response
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		assert.Nil(err)
-		assert.NotEqual(0, resp.Index)
-
-		// Check for the job in the FSM of each server in the cluster
-		{
-			state := s2.fsm.State()
-			ws := memdb.NewWatchSet()
-			out, err := state.JobByID(ws, job.Namespace, job.ID)
-			assert.Nil(err)
-			assert.NotNil(out)
-			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
-		}
-		{
-			state := s1.fsm.State()
-			ws := memdb.NewWatchSet()
-			out, err := state.JobByID(ws, job.Namespace, job.ID)
-			assert.Nil(err)
-			assert.NotNil(out)
-			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
-		}
-	}
+	testutil.WaitForLeader(t, s1.RPC)
 
 	newTLSConfig := &config.TLSConfig{
 		EnableHTTP:        true,
@@ -476,29 +432,19 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	assert.Nil(err)
 
 	{
-		// assert that a job register request will fail between servers that
-		// should not be able to communicate over Raft
-		codec := rpcClient(t, s2)
-		job := mock.Job()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "regionFoo",
-				Namespace: job.Namespace,
-			},
+		for _, serv := range servers {
+			testutil.WaitForResult(func() (bool, error) {
+				args := &structs.GenericRequest{}
+				var leader string
+				err := serv.RPC("Status.Leader", args, &leader)
+				if leader != "" && err != nil {
+					return false, fmt.Errorf("Should not have found leader but got %s", leader)
+				}
+				return true, nil
+			}, func(err error) {
+				t.Fatalf("err: %v", err)
+			})
 		}
-
-		// TODO(CK) This occasionally is flaky
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		assert.NotNil(err)
-		assert.True(connectionReset(err.Error()))
-
-		// Check that the job was not persisted
-		state := s1.fsm.State()
-		ws := memdb.NewWatchSet()
-		out, _ := state.JobByID(ws, job.Namespace, job.ID)
-		assert.Nil(out)
 	}
 
 	secondNewTLSConfig := &config.TLSConfig{
@@ -515,42 +461,4 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	assert.Nil(err)
 
 	testutil.WaitForLeader(t, s2.RPC)
-
-	{
-		// assert that a job register request will succeed
-		codec := rpcClient(t, s2)
-
-		job := mock.Job()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "regionFoo",
-				Namespace: job.Namespace,
-			},
-		}
-
-		// Fetch the response
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		assert.Nil(err)
-		assert.NotEqual(0, resp.Index)
-
-		// Check for the job in the FSM of each server in the cluster
-		{
-			state := s2.fsm.State()
-			ws := memdb.NewWatchSet()
-			out, err := state.JobByID(ws, job.Namespace, job.ID)
-			assert.Nil(err)
-			assert.NotNil(out) // TODO(CK) This occasionally is flaky
-			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
-		}
-		{
-			state := s1.fsm.State()
-			ws := memdb.NewWatchSet()
-			out, err := state.JobByID(ws, job.Namespace, job.ID)
-			assert.Nil(err)
-			assert.NotNil(out)
-			assert.Equal(out.CreateIndex, resp.JobModifyIndex)
-		}
-	}
 }

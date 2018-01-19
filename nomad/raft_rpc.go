@@ -21,7 +21,8 @@ type RaftLayer struct {
 	connCh chan net.Conn
 
 	// TLS wrapper
-	tlsWrap tlsutil.Wrapper
+	tlsWrap     tlsutil.Wrapper
+	tlsWrapLock sync.RWMutex
 
 	// Tracks if we are closed
 	closed    bool
@@ -78,6 +79,21 @@ func (l *RaftLayer) Close() error {
 	return nil
 }
 
+// getTLSWrapper is used to retrieve the current TLS wrapper
+func (l *RaftLayer) getTLSWrapper() tlsutil.Wrapper {
+	l.tlsWrapLock.RLock()
+	defer l.tlsWrapLock.RUnlock()
+	return l.tlsWrap
+}
+
+// ReloadTLS swaps the TLS wrapper. This is useful when upgrading or
+// downgrading TLS connections.
+func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
+	l.tlsWrapLock.Lock()
+	defer l.tlsWrapLock.Unlock()
+	l.tlsWrap = tlsWrap
+}
+
 // Addr is used to return the address of the listener
 func (l *RaftLayer) Addr() net.Addr {
 	return l.addr
@@ -90,8 +106,10 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 		return nil, err
 	}
 
+	tlsWrapper := l.getTLSWrapper()
+
 	// Check for tls mode
-	if l.tlsWrap != nil {
+	if tlsWrapper != nil {
 		// Switch the connection into TLS mode
 		if _, err := conn.Write([]byte{byte(rpcTLS)}); err != nil {
 			conn.Close()
@@ -99,7 +117,7 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 		}
 
 		// Wrap the connection in a TLS client
-		conn, err = l.tlsWrap(conn)
+		conn, err = tlsWrapper(conn)
 		if err != nil {
 			return nil, err
 		}
