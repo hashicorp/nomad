@@ -162,8 +162,9 @@ type Client struct {
 	clientACLResolver
 
 	// rpcServer is used to serve RPCs by the local agent.
-	rpcServer *rpc.Server
-	endpoints rpcEndpoints
+	rpcServer     *rpc.Server
+	endpoints     rpcEndpoints
+	streamingRpcs *structs.StreamingRpcRegistery
 
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
@@ -196,6 +197,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		consulService:       consulService,
 		start:               time.Now(),
 		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		streamingRpcs:       structs.NewStreamingRpcRegistery(),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
 		allocUpdates:        make(chan *structs.Allocation, 64),

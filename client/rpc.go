@@ -9,10 +9,11 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/nomad/helper/codec"
+	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
+	"github.com/ugorji/go/codec"
 )
 
 // rpcEndpoints holds the RPC endpoints
@@ -22,7 +23,7 @@ type rpcEndpoints struct {
 
 // ClientRPC is used to make a local, client only RPC call
 func (c *Client) ClientRPC(method string, args interface{}, reply interface{}) error {
-	codec := &codec.InmemCodec{
+	codec := &inmem.InmemCodec{
 		Method: method,
 		Args:   args,
 		Reply:  reply,
@@ -151,8 +152,36 @@ func (c *Client) listenConn(s *yamux.Session) {
 	}
 }
 
-// handleConn is used to handle an individual connection.
+// handleConn is used to determine if this is a RPC or Streaming RPC connection and
+// invoke the correct handler
 func (c *Client) handleConn(conn net.Conn) {
+	// Read a single byte
+	buf := make([]byte, 1)
+	if _, err := conn.Read(buf); err != nil {
+		if err != io.EOF {
+			c.logger.Printf("[ERR] client.rpc: failed to read byte: %v", err)
+		}
+		conn.Close()
+		return
+	}
+
+	// Switch on the byte
+	switch pool.RPCType(buf[0]) {
+	case pool.RpcNomad:
+		c.handleNomadConn(conn)
+
+	case pool.RpcStreaming:
+		c.handleStreamingConn(conn)
+
+	default:
+		c.logger.Printf("[ERR] client.rpc: unrecognized RPC byte: %v", buf[0])
+		conn.Close()
+		return
+	}
+}
+
+// handleNomadConn is used to handle a single Nomad RPC connection.
+func (c *Client) handleNomadConn(conn net.Conn) {
 	defer conn.Close()
 	rpcCodec := pool.NewServerCodec(conn)
 	for {
@@ -171,6 +200,34 @@ func (c *Client) handleConn(conn net.Conn) {
 		}
 		metrics.IncrCounter([]string{"client", "rpc", "request"}, 1)
 	}
+}
+
+// handleStreamingConn is used to handle a single Streaming Nomad RPC connection.
+func (c *Client) handleStreamingConn(conn net.Conn) {
+	defer conn.Close()
+
+	// Decode the header
+	var header structs.StreamingRpcHeader
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	if err := decoder.Decode(&header); err != nil {
+		if err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			c.logger.Printf("[ERR] client.rpc: Streaming RPC error: %v (%v)", err, conn)
+			metrics.IncrCounter([]string{"client", "streaming_rpc", "request_error"}, 1)
+		}
+
+		return
+	}
+
+	handler, err := c.streamingRpcs.GetHandler(header.Method)
+	if err != nil {
+		c.logger.Printf("[ERR] client.rpc: Streaming RPC error: %v (%v)", err, conn)
+		metrics.IncrCounter([]string{"client", "streaming_rpc", "request_error"}, 1)
+		return
+	}
+
+	// Invoke the handler
+	metrics.IncrCounter([]string{"client", "streaming_rpc", "request"}, 1)
+	handler(conn)
 }
 
 // setupClientRpcServer is used to populate a client RPC server with endpoints.

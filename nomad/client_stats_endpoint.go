@@ -87,9 +87,16 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 		return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
 	}
 
+	// TODO Refactor this out into a helper
 	// Open a new session
 	stream, err := state.Session.Open()
 	if err != nil {
+		return err
+	}
+
+	// Write the RpcNomad byte to set the mode
+	if _, err := stream.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+		stream.Close()
 		return err
 	}
 
