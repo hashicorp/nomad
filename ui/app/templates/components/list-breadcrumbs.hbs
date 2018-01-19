@@ -2,7 +2,7 @@
   <ul>
     {{#each items as |item|}}
       <li>
-        {{#link-to params=item.params}}{{item.label}}{{/link-to}}
+        {{#link-to params=item.params data-test-breadcrumb=(get item.params "0")}}{{item.label}}{{/link-to}}
       </li>
     {{/each}}
   </ul>

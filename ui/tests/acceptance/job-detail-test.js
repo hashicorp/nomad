@@ -22,17 +22,17 @@ test('visiting /jobs/:job_id', function(assert) {
 
 test('breadcrumbs includes job name and link back to the jobs list', function(assert) {
   assert.equal(
-    find('[data-test-breadcrumb="Jobs"]').textContent,
+    find('[data-test-breadcrumb="jobs"]').textContent,
     'Jobs',
     'First breadcrumb says jobs'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${job.name}"]`).textContent,
+    find(`[data-test-breadcrumb="jobs.job"]`).textContent,
     job.name,
     'Second breadcrumb says the job name'
   );
 
-  click(find('[data-test-breadcrumb="Jobs"]'));
+  click(find('[data-test-breadcrumb="jobs"]'));
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });

@@ -78,38 +78,38 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
   assert.equal(
-    find('[data-test-breadcrumb="Jobs"]').textContent.trim(),
+    find('[data-test-breadcrumb="jobs"]').textContent.trim(),
     'Jobs',
-    'First breadcrumb says jobs'
+    'Jobs is in the breadcrumb trail'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${job.name}"]`).textContent.trim(),
+    find(`[data-test-breadcrumb="jobs.job"]`).textContent.trim(),
     job.name,
-    'Second breadcrumb says the job name'
+    'Job name is in the breadcrumb trail'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${taskGroup.name}"]`).textContent.trim(),
+    find(`[data-test-breadcrumb="jobs.job.task-group"]`).textContent.trim(),
     taskGroup.name,
-    'Third breadcrumb says the job name'
+    'Task Group name is in the breadcrumb trail'
   );
 });
 
-test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(assert) {
-  click('[data-test-breadcrumb="Jobs"]');
+test('/jobs/:id/:task-group Jobs breadcrumb should link to jobs', function(assert) {
+  click('[data-test-breadcrumb="jobs"]');
   andThen(() => {
-    assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
+    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links back to jobs');
   });
 });
 
-test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(
+test('/jobs/:id/:task-group Job breadcrumb should link to the job for the task group', function(
   assert
 ) {
-  click(`[data-test-breadcrumb="${job.name}"]`);
+  click(`[data-test-breadcrumb="jobs.job"]`);
   andThen(() => {
     assert.equal(
       currentURL(),
       `/jobs/${job.id}`,
-      'Second breadcrumb links back to the job for the task group'
+      'Job breadcrumb links back to the job for the task group'
     );
   });
 });
