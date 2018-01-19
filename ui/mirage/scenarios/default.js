@@ -10,7 +10,10 @@ export default function(server) {
   server.createList('token', 3);
 
   // load fixtures from /mirage/fixtures/{argument}.js
-  server.loadFixtures('jobs', 'taskGroups', 'allocations', 'tasks', 'taskStates');
+  // comment out for now as until we have fixtures covering the entire app properly
+  // otherwise it can interfere with the faker data
+
+  // server.loadFixtures('jobs', 'taskGroups', 'allocations', 'tasks', 'taskStates');
 
   logTokens(server);
 }
