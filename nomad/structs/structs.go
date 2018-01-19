@@ -4948,6 +4948,12 @@ type RescheduleEvent struct {
 	PrevNodeID string
 }
 
+func NewRescheduleEvent(rescheduleTime int64, prevAllocID string, prevNodeID string) *RescheduleEvent {
+	return &RescheduleEvent{RescheduleTime: rescheduleTime,
+		PrevAllocID: prevAllocID,
+		PrevNodeID:  prevNodeID}
+}
+
 func (re *RescheduleEvent) Copy() *RescheduleEvent {
 	if re == nil {
 		return nil

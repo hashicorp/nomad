@@ -38,7 +38,7 @@ Basic Tests:
 √  Handle task group being removed
 √  Handle job being stopped both as .Stopped and nil
 √  Place more that one group
-√  Handle rescheduling failed allocs for service jobs
+√  Handle rescheduling failed allocs for batch jobs
 √  Handle rescheduling failed allocs for service jobs
 
 Update stanza Tests:
@@ -1227,10 +1227,7 @@ func TestReconciler_Reschedule_Batch(t *testing.T) {
 	// Mark one as complete
 	allocs[1].ClientStatus = structs.AllocClientStatusComplete
 
-	// Build a map of tainted nodes
-	tainted := make(map[string]*structs.Node)
-
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil)
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1276,34 +1273,39 @@ func TestReconciler_Reschedule_Service(t *testing.T) {
 	allocs[0].ClientStatus = structs.AllocClientStatusFailed
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
 
+	// Mark one of them as already rescheduled once
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+
 	// Mark one as desired state stop
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
-	// Build a map of tainted nodes
-	tainted := make(map[string]*structs.Node)
-
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
 	r := reconciler.Compute()
 
-	// Should place 3, two are rescheduled and one is a new placement
+	// Should place 2, one is rescheduled, one is past its reschedule limit and one is a new placement
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             3,
+		place:             2,
 		inplace:           0,
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Place:  3,
-				Ignore: 2,
+				Place:  2,
+				Ignore: 3,
 			},
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 1, 4, 4), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 0, 4, 4), placeResultsToNames(r.place))
 	// 2 rescheduled allocs should have previous allocs
-	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
-	assertPlacementsAreRescheduled(t, 2, r.place)
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
 }
 
 // Tests the reconciler cancels an old deployment when the job is being stopped
