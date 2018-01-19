@@ -172,13 +172,14 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 	if options != nil && len(options.PreferredNodes) > 0 {
 		originalNodes := s.source.nodes
 		s.source.SetNodes(options.PreferredNodes)
-		options.PreferredNodes = nil
-		if option, resources := s.Select(tg, options); option != nil {
+		optionsNew := *options
+		optionsNew.PreferredNodes = nil
+		if option, resources := s.Select(tg, &optionsNew); option != nil {
 			s.source.SetNodes(originalNodes)
 			return option, resources
 		}
 		s.source.SetNodes(originalNodes)
-		return s.Select(tg, options)
+		return s.Select(tg, &optionsNew)
 	}
 
 	// Reset the max selector and context
