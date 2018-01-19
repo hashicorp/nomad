@@ -628,6 +628,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			name:          alloc.Name,
 			taskGroup:     group,
 			previousAlloc: alloc,
+			reschedule:    true,
 		})
 		existing += 1
 		if existing == group.Count {

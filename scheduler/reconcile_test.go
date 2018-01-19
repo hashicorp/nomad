@@ -222,6 +222,30 @@ func assertPlaceResultsHavePreviousAllocs(t *testing.T, numPrevious int, place [
 	}
 }
 
+func assertPlacementsAreRescheduled(t *testing.T, numRescheduled int, place []allocPlaceResult) {
+	t.Helper()
+	names := make(map[string]struct{}, numRescheduled)
+
+	found := 0
+	for _, p := range place {
+		if _, ok := names[p.name]; ok {
+			t.Fatalf("Name %q already placed", p.name)
+		}
+		names[p.name] = struct{}{}
+
+		if p.previousAlloc == nil {
+			continue
+		}
+		if p.reschedule {
+			found++
+		}
+
+	}
+	if numRescheduled != found {
+		t.Fatalf("wanted %d; got %d placements that are rescheduled", numRescheduled, found)
+	}
+}
+
 func intRange(pairs ...int) []int {
 	if len(pairs)%2 != 0 {
 		return nil
@@ -922,6 +946,8 @@ func TestReconciler_DrainNode(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
 // Tests the reconciler properly handles draining nodes with allocations while
@@ -973,6 +999,8 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 1, 10, 14), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
 // Tests the reconciler properly handles draining nodes with allocations while
@@ -1024,6 +1052,8 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 2), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
 // Tests the reconciler properly handles a task group being removed
@@ -1219,6 +1249,7 @@ func TestReconciler_Reschedule_Batch(t *testing.T) {
 	})
 	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
 }
 
 // Tests rescheduling failed service allocations with desired state stop
@@ -1272,6 +1303,7 @@ func TestReconciler_Reschedule_Service(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1, 4, 4), placeResultsToNames(r.place))
 	// 2 rescheduled allocs should have previous allocs
 	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	assertPlacementsAreRescheduled(t, 2, r.place)
 }
 
 // Tests the reconciler cancels an old deployment when the job is being stopped
