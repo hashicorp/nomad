@@ -466,7 +466,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
-					if tg.ReschedulePolicy != nil && tg.ReschedulePolicy.Attempts > 0 {
+					if missing.Reschedule() {
 						updateRescheduleTracker(alloc, prevAllocation)
 					}
 				}

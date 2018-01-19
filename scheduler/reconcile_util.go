@@ -28,6 +28,9 @@ type placementResult interface {
 	// PreviousAllocation returns the previous allocation
 	PreviousAllocation() *structs.Allocation
 
+	// Reschedule returns whether the placement was rescheduling a failed allocation
+	Reschedule() bool
+
 	// StopPreviousAlloc returns whether the previous allocation should be
 	// stopped and if so the status description.
 	StopPreviousAlloc() (bool, string)
@@ -47,12 +50,14 @@ type allocPlaceResult struct {
 	canary        bool
 	taskGroup     *structs.TaskGroup
 	previousAlloc *structs.Allocation
+	reschedule    bool
 }
 
 func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
 func (a allocPlaceResult) Name() string                            { return a.name }
 func (a allocPlaceResult) Canary() bool                            { return a.canary }
 func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
+func (a allocPlaceResult) Reschedule() bool                        { return a.reschedule }
 func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
 
 // allocDestructiveResult contains the information required to do a destructive
@@ -69,6 +74,7 @@ func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup           { retur
 func (a allocDestructiveResult) Name() string                            { return a.placeName }
 func (a allocDestructiveResult) Canary() bool                            { return false }
 func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation { return a.stopAlloc }
+func (a allocDestructiveResult) Reschedule() bool                        { return false }
 func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
 	return true, a.stopStatusDescription
 }
