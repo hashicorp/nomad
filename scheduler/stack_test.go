@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkServiceStack_With_ComputedClass(b *testing.B) {
@@ -140,7 +141,8 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 
 	// Create a preferred node
 	preferredNode := mock.Node()
-	selectOptions := &SelectOptions{PreferredNodes: []*structs.Node{preferredNode}}
+	prefNodes := []*structs.Node{preferredNode}
+	selectOptions := &SelectOptions{PreferredNodes: prefNodes}
 	option, _ := stack.Select(job.TaskGroups[0], selectOptions)
 	if option == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
@@ -149,12 +151,16 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 		t.Fatalf("expected: %v, actual: %v", option.Node.ID, preferredNode.ID)
 	}
 
+	// Make sure select doesn't have a side effect on preferred nodes
+	require.Equal(t, prefNodes, selectOptions.PreferredNodes)
+
 	// Change the preferred node's kernel to windows and ensure the allocations
 	// are placed elsewhere
 	preferredNode1 := preferredNode.Copy()
 	preferredNode1.Attributes["kernel.name"] = "windows"
 	preferredNode1.ComputeClass()
-	selectOptions = &SelectOptions{PreferredNodes: []*structs.Node{preferredNode1}}
+	prefNodes1 := []*structs.Node{preferredNode1}
+	selectOptions = &SelectOptions{PreferredNodes: prefNodes1}
 	option, _ = stack.Select(job.TaskGroups[0], selectOptions)
 	if option == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
@@ -163,6 +169,7 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 	if option.Node.ID != nodes[0].ID {
 		t.Fatalf("expected: %#v, actual: %#v", nodes[0], option.Node)
 	}
+	require.Equal(t, prefNodes1, selectOptions.PreferredNodes)
 }
 
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
