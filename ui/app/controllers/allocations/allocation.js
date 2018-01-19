@@ -11,11 +11,11 @@ export default Controller.extend({
     'model.job.namespace.name',
     function() {
       const jobBreadcrumbs = this.get('jobController.breadcrumbs');
-      if(typeof jobBreadcrumbs[1].label === "undefined") {
+      if(typeof jobBreadcrumbs[1].label === 'undefined') {
         jobBreadcrumbs[1] = {
           label: this.get('model.job.name'),
           params: [
-            "jobs.job",
+            'jobs.job',
             this.get('model.job'),
             queryParams({
               jobNamespace: this.get('model.job.namespace.name'),
