@@ -96,6 +96,7 @@ type Allocation struct {
 	AllocModifyIndex   uint64
 	CreateTime         int64
 	ModifyTime         int64
+	RescheduleTracker  *RescheduleTracker
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
@@ -134,6 +135,7 @@ type AllocationListStub struct {
 	ModifyIndex        uint64
 	CreateTime         int64
 	ModifyTime         int64
+	RescheduleTracker  *RescheduleTracker
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
@@ -157,4 +159,21 @@ func (a AllocIndexSort) Less(i, j int) bool {
 
 func (a AllocIndexSort) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
+}
+
+// RescheduleTracker encapsulates previous reschedule events
+type RescheduleTracker struct {
+	Events []*RescheduleEvent
+}
+
+// RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
+type RescheduleEvent struct {
+	// RescheduleTime is the timestamp of a reschedule attempt
+	RescheduleTime int64
+
+	// PrevAllocID is the ID of the previous allocation being restarted
+	PrevAllocID string
+
+	// PrevNodeID is the node ID of the previous allocation
+	PrevNodeID string
 }
