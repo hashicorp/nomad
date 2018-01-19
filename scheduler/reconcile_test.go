@@ -38,6 +38,8 @@ Basic Tests:
 √  Handle task group being removed
 √  Handle job being stopped both as .Stopped and nil
 √  Place more that one group
+√  Handle rescheduling failed allocs for service jobs
+√  Handle rescheduling failed allocs for service jobs
 
 Update stanza Tests:
 √  Stopped job cancels any active deployment
@@ -71,6 +73,7 @@ Update stanza Tests:
 √  The stagger is correctly calculated when it is applied across multiple task groups.
 √  Change job change while scaling up
 √  Update the job when all allocations from the previous job haven't been placed yet.
+√  Paused or failed deployment doesn't do any rescheduling of failed allocs
 */
 
 var (
@@ -1166,6 +1169,109 @@ func TestReconciler_MultiTG(t *testing.T) {
 	})
 
 	assertNamesHaveIndexes(t, intRange(2, 9, 0, 9), placeResultsToNames(r.place))
+}
+
+// Tests rescheduling failed batch allocations
+func TestReconciler_Reschedule_Batch(t *testing.T) {
+	// Set desired 3
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour}
+
+	// Create 3 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark one as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one as complete
+	allocs[1].ClientStatus = structs.AllocClientStatusComplete
+
+	// Build a map of tainted nodes
+	tainted := make(map[string]*structs.Node)
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, tainted)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 2,
+			},
+		},
+	})
+	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+}
+
+// Tests rescheduling failed service allocations with desired state stop
+func TestReconciler_Reschedule_Service(t *testing.T) {
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour}
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark two as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one as desired state stop
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	// Build a map of tainted nodes
+	tainted := make(map[string]*structs.Node)
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	r := reconciler.Compute()
+
+	// Should place 3, two are rescheduled and one is a new placement
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             3,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  3,
+				Ignore: 2,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1, 4, 4), placeResultsToNames(r.place))
+	// 2 rescheduled allocs should have previous allocs
+	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
 }
 
 // Tests the reconciler cancels an old deployment when the job is being stopped
@@ -3147,4 +3253,48 @@ func TestReconciler_Batch_Rerun(t *testing.T) {
 	})
 
 	assertNamesHaveIndexes(t, intRange(0, 9), placeResultsToNames(r.place))
+}
+
+// Test that a failed deployment will not result in rescheduling failed allocations
+func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create an existing failed deployment that has some placed allocs
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusFailed
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     true,
+		DesiredTotal: 5,
+		PlacedAllocs: 4,
+	}
+
+	// Create 4 allocations and mark two as failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[3].ClientStatus = structs.AllocClientStatusFailed
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert that no rescheduled placements were created
+	assertResults(t, r, &resultExpectation{
+		place:             0,
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 2,
+			},
+		},
+	})
 }
