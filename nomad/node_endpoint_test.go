@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
@@ -1649,6 +1650,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
+	require := require.New(t)
 
 	// Create the register request
 	node := mock.Node()
@@ -1667,16 +1669,17 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	err := state.UpsertJob(101, job)
-	assert.Nil(err)
+	require.Nil(err)
 
 	// Inject fake allocations
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	err = state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	require.Nil(err)
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	err = state.UpsertAllocs(100, []*structs.Allocation{alloc})
-	assert.Nil(err)
+	require.Nil(err)
 
 	// Attempt update
 	clientAlloc := new(structs.Allocation)

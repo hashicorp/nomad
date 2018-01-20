@@ -820,7 +820,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return fmt.Errorf("must update at least one allocation")
 	}
 
-	// Ensure that evals field is empty.
+	// Ensure that evals aren't set from client RPCs
+	// We create them here before the raft update
 	if len(args.Evals) != 0 {
 		return fmt.Errorf("evals field must not be set ")
 	}
@@ -843,7 +844,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			if job == nil {
 				return fmt.Errorf("[ERR] nomad.client: Unable to find jobid %v", alloc.JobID)
 			}
-			// Only create evaluations if this is an existing alloc and eligible as per its task group's ReschedulePolicy
+			// Only create evaluations if this is an existing alloc,
+			// and eligible as per its task group's ReschedulePolicy
 			if existingAlloc, _ := n.srv.State().AllocByID(ws, alloc.ID); existingAlloc != nil {
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
 				if taskGroup != nil && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
@@ -861,7 +863,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		}
 	}
 	if len(evals) > 0 {
-		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling", len(evals))
+		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling failed allocations", len(evals))
 	}
 	// Add this to the batch
 	n.updatesLock.Lock()
