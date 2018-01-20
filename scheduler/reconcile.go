@@ -305,9 +305,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
+	// Determine what set of terminal allocations need to be rescheduled
+	untainted, reschedule := untainted.filterByRescheduleable(a.batch, tg.ReschedulePolicy)
+
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
-	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate))
+	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate, reschedule))
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// included stopped allocations.
@@ -364,7 +367,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// * The deployment is not paused or failed
 	// * Not placing any canaries
 	// * If there are any canaries that they have been promoted
-	place := a.computePlacements(tg, nameIndex, untainted, migrate)
+	place := a.computePlacements(tg, nameIndex, untainted, migrate, reschedule)
 	if !existingDeployment {
 		dstate.DesiredTotal += len(place)
 	}
@@ -608,22 +611,38 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 }
 
 // computePlacement returns the set of allocations to place given the group
-// definition, the set of untainted and migrating allocations for the group.
+// definition, the set of untainted, migrating and reschedule allocations for the group.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
-	nameIndex *allocNameIndex, untainted, migrate allocSet) []allocPlaceResult {
+	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet) []allocPlaceResult {
 
 	// Hot path the nothing to do case
 	existing := len(untainted) + len(migrate)
 	if existing >= group.Count {
 		return nil
 	}
-
 	var place []allocPlaceResult
-	for _, name := range nameIndex.Next(uint(group.Count - existing)) {
+	// Add rescheduled placement results
+	// Any allocations being rescheduled will remain at DesiredStatusRun ClientStatusFailed
+	for _, alloc := range reschedule {
 		place = append(place, allocPlaceResult{
-			name:      name,
-			taskGroup: group,
+			name:          alloc.Name,
+			taskGroup:     group,
+			previousAlloc: alloc,
+			reschedule:    true,
 		})
+		existing += 1
+		if existing == group.Count {
+			break
+		}
+	}
+	// Add remaining placement results
+	if existing < group.Count {
+		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
+			place = append(place, allocPlaceResult{
+				name:      name,
+				taskGroup: group,
+			})
+		}
 	}
 
 	return place
@@ -651,6 +670,10 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	if remove <= 0 {
 		return stop
 	}
+
+	// Filter out any terminal allocations from the untainted set
+	// This is so that we don't try to mark them as stopped redundantly
+	untainted = filterByTerminal(untainted)
 
 	// Prefer stopping any alloc that has the same name as the canaries if we
 	// are promoted

@@ -275,7 +275,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option, _ := s.stack.Select(missing.TaskGroup)
+		option, _ := s.stack.Select(missing.TaskGroup, nil)
 
 		if option == nil {
 			// If nodes were filtered because of constraint mismatches and we
