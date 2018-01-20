@@ -1708,11 +1708,18 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	assert.Equal(structs.AllocClientStatusFailed, out.ClientStatus)
 	assert.True(out.ModifyTime > 0)
 
-	// Lookup evals, should have created one
+	// Assert that one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
 	evaluations, err := state.EvalsByJob(ws, job.Namespace, job.ID)
 	assert.Nil(err)
-	assert.Equal(1, len(evaluations))
-	assert.Equal(structs.EvalTriggerRetryFailedAlloc, evaluations[0].TriggeredBy)
+	assert.True(len(evaluations) != 0)
+	found := false
+	for _, resultEval := range evaluations {
+		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc {
+			found = true
+		}
+	}
+	assert.True(found, "Should create an eval for failed alloc")
+
 }
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
