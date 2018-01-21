@@ -13,7 +13,9 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -36,6 +38,8 @@ const (
 	// while leader.
 	barrierWriteTimeout = 2 * time.Minute
 )
+
+var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
@@ -167,6 +171,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			s.workers[i].SetPause(true)
 		}
 	}
+
+	// Initialize and start the autopilot routine
+	s.getOrCreateAutopilotConfig()
+	s.autopilot.Start()
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -635,6 +643,9 @@ func (s *Server) revokeLeadership() error {
 	// Clear the leader token since we are no longer the leader.
 	s.setLeaderAcl("")
 
+	// Disable autopilot
+	s.autopilot.Stop()
+
 	// Disable the plan queue, since we are no longer leader
 	s.planQueue.SetEnabled(false)
 
@@ -776,7 +787,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	// but we want to avoid doing that if possible to prevent useless Raft
 	// log entries. If the address is the same but the ID changed, remove the
 	// old server before adding the new one.
-	minRaftProtocol, err := MinRaftProtocol(s.config.Region, members)
+	minRaftProtocol, err := s.autopilot.MinRaftProtocol()
 	if err != nil {
 		return err
 	}
@@ -810,8 +821,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	// Attempt to add as a peer
 	switch {
 	case minRaftProtocol >= 3:
-		// todo(kyhavlov): change this to AddNonVoter when adding autopilot
-		addFuture := s.raft.AddVoter(raft.ServerID(parts.ID), raft.ServerAddress(addr), 0, 0)
+		addFuture := s.raft.AddNonvoter(raft.ServerID(parts.ID), raft.ServerAddress(addr), 0, 0)
 		if err := addFuture.Error(); err != nil {
 			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
 			return err
@@ -836,7 +846,6 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 // removeRaftPeer is used to remove a Raft peer when a Nomad server leaves
 // or is reaped
 func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
-	// TODO (alexdadgar) - This will need to be changed once we support node IDs.
 	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 
 	// See if it's already in the configuration. It's harmless to re-remove it
@@ -848,7 +857,7 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 		return err
 	}
 
-	minRaftProtocol, err := MinRaftProtocol(s.config.Region, s.serf.Members())
+	minRaftProtocol, err := s.autopilot.MinRaftProtocol()
 	if err != nil {
 		return err
 	}
@@ -1162,4 +1171,32 @@ func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*struc
 		}
 	}
 	return
+}
+
+// getOrCreateAutopilotConfig is used to get the autopilot config, initializing it if necessary
+func (s *Server) getOrCreateAutopilotConfig() *autopilot.Config {
+	state := s.fsm.State()
+	_, config, err := state.AutopilotConfig()
+	if err != nil {
+		s.logger.Printf("[ERR] autopilot: failed to get config: %v", err)
+		return nil
+	}
+	if config != nil {
+		return config
+	}
+
+	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion) {
+		s.logger.Printf("[INFO] autopilot: version %v", s.Members()[0].Tags)
+		s.logger.Printf("[WARN] autopilot: can't initialize until all servers are >= %s", minAutopilotVersion.String())
+		return nil
+	}
+
+	config = s.config.AutopilotConfig
+	req := structs.AutopilotSetConfigRequest{Config: *config}
+	if _, _, err = s.raftApply(structs.AutopilotRequestType, req); err != nil {
+		s.logger.Printf("[ERR] autopilot: failed to initialize config: %v", err)
+		return nil
+	}
+
+	return config
 }

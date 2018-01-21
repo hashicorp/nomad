@@ -1,9 +1,9 @@
-import Ember from 'ember';
-
-const { Controller, computed } = Ember;
+import { alias } from '@ember/object/computed';
+import Controller from '@ember/controller';
+import { computed } from '@ember/object';
 
 export default Controller.extend({
-  network: computed.alias('model.resources.networks.firstObject'),
+  network: alias('model.resources.networks.firstObject'),
   ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
     return (this.get('network.reservedPorts') || [])
       .map(port => ({

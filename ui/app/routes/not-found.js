@@ -1,6 +1,5 @@
-import Ember from 'ember';
-
-const { Route, Error: EmberError } = Ember;
+import Route from '@ember/routing/route';
+import EmberError from '@ember/error';
 
 export default Route.extend({
   model() {

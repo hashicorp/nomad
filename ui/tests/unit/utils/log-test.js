@@ -1,10 +1,10 @@
-import Ember from 'ember';
+import EmberObject from '@ember/object';
+import RSVP from 'rsvp';
+import { run } from '@ember/runloop';
 import sinon from 'sinon';
 import wait from 'ember-test-helpers/wait';
 import { module, test } from 'ember-qunit';
 import _Log from 'nomad-ui/utils/classes/log';
-
-const { Object: EmberObject, RSVP, run } = Ember;
 
 let startSpy, stopSpy, initSpy, fetchSpy;
 

@@ -1,7 +1,7 @@
-import Ember from 'ember';
+import Service from '@ember/service';
+import { computed } from '@ember/object';
+import { assign } from '@ember/polyfills';
 import fetch from 'nomad-ui/utils/fetch';
-
-const { Service, computed, assign } = Ember;
 
 export default Service.extend({
   secret: computed({

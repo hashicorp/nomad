@@ -55,7 +55,7 @@ func testACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken) 
 func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
-	config.Build = "0.7.0+unittest"
+	config.Build = "0.8.0+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
@@ -73,6 +73,11 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.HeartbeatTimeout = 50 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 50 * time.Millisecond
 	config.RaftTimeout = 500 * time.Millisecond
+
+	// Tighten the autopilot timing
+	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
+	config.ServerHealthInterval = 50 * time.Millisecond
+	config.AutopilotInterval = 100 * time.Millisecond
 
 	// Disable Vault
 	f := false

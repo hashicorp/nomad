@@ -67,6 +67,7 @@ server {
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3
+	raft_protocol = 3
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
 	node_gc_threshold = "12h"
@@ -81,6 +82,7 @@ server {
 	retry_max = 3
 	retry_interval = "15s"
 	rejoin_after_leave = true
+	non_voting_server = true
     encrypt = "abc"
 }
 acl {
@@ -158,4 +160,13 @@ sentinel {
         path = "bar"
         args = ["x", "y", "z"]
     }
+}
+autopilot {
+    cleanup_dead_servers = true
+    disable_upgrade_migration = true
+    last_contact_threshold = "12705s"
+    max_trailing_logs = 17849
+    redundancy_zone_tag = "foo"
+    server_stabilization_time = "23057s"
+    upgrade_version_tag = "bar"
 }

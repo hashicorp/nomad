@@ -310,7 +310,7 @@ job "example" {
       #     https://www.nomadproject.io/docs/job-specification/service.html
       #
       service {
-        name = "global-redis-check"
+        name = "redis-cache"
         tags = ["global", "cache"]
         port = "db"
         check {

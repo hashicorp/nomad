@@ -18,6 +18,7 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/cors"
 	"github.com/ugorji/go/codec"
 )
@@ -183,7 +184,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
 
-	s.mux.HandleFunc("/v1/operator/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
+	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
@@ -335,6 +338,24 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 func decodeBody(req *http.Request, out interface{}) error {
 	dec := json.NewDecoder(req.Body)
 	return dec.Decode(&out)
+}
+
+// decodeBodyFunc is used to decode a JSON request body invoking
+// a given callback function
+func decodeBodyFunc(req *http.Request, out interface{}, cb func(interface{}) error) error {
+	var raw interface{}
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&raw); err != nil {
+		return err
+	}
+
+	// Invoke the callback prior to decode
+	if cb != nil {
+		if err := cb(raw); err != nil {
+			return err
+		}
+	}
+	return mapstructure.Decode(raw, out)
 }
 
 // setIndex is used to set the index response header

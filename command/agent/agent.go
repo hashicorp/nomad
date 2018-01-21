@@ -160,6 +160,32 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Sentinel != nil {
 		conf.SentinelConfig = agentConfig.Sentinel
 	}
+	if agentConfig.Server.NonVotingServer {
+		conf.NonVoter = true
+	}
+	if agentConfig.Autopilot != nil {
+		if agentConfig.Autopilot.CleanupDeadServers != nil {
+			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers
+		}
+		if agentConfig.Autopilot.ServerStabilizationTime != 0 {
+			conf.AutopilotConfig.ServerStabilizationTime = agentConfig.Autopilot.ServerStabilizationTime
+		}
+		if agentConfig.Autopilot.LastContactThreshold != 0 {
+			conf.AutopilotConfig.LastContactThreshold = agentConfig.Autopilot.LastContactThreshold
+		}
+		if agentConfig.Autopilot.MaxTrailingLogs != 0 {
+			conf.AutopilotConfig.MaxTrailingLogs = uint64(agentConfig.Autopilot.MaxTrailingLogs)
+		}
+		if agentConfig.Autopilot.RedundancyZoneTag != "" {
+			conf.AutopilotConfig.RedundancyZoneTag = agentConfig.Autopilot.RedundancyZoneTag
+		}
+		if agentConfig.Autopilot.DisableUpgradeMigration != nil {
+			conf.AutopilotConfig.DisableUpgradeMigration = *agentConfig.Autopilot.DisableUpgradeMigration
+		}
+		if agentConfig.Autopilot.UpgradeVersionTag != "" {
+			conf.AutopilotConfig.UpgradeVersionTag = agentConfig.Autopilot.UpgradeVersionTag
+		}
+	}
 
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)

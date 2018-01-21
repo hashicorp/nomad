@@ -78,6 +78,7 @@ const (
 	ACLTokenUpsertRequestType
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
+	AutopilotRequestType
 )
 
 const (

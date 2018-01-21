@@ -1,10 +1,8 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
 import ApplicationSerializer from './application';
 
-const { inject } = Ember;
-
 export default ApplicationSerializer.extend({
-  config: inject.service(),
+  config: service(),
 
   attrs: {
     httpAddr: 'HTTPAddr',
