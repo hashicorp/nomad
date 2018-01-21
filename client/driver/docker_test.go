@@ -1055,27 +1055,120 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
 	}
-
-	task, _, _ := dockerTask(t)
-	task.Config["cap_add"] = []string{"ALL"}
-	task.Config["cap_drop"] = []string{"MKNOD", "NET_ADMIN"}
-
-	client, handle, cleanup := dockerSetup(t, task)
-	defer cleanup()
-
-	waitForExist(t, client, handle)
-
-	container, err := client.InspectContainer(handle.ContainerID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	if runtime.GOOS == "windows" {
+		t.Skip("Capabilities not supported on windows")
 	}
 
-	if !reflect.DeepEqual(task.Config["cap_add"], container.HostConfig.CapAdd) {
-		t.Errorf("CapAdd doesn't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["cap_add"], container.HostConfig.CapAdd)
+	testCases := []struct {
+		Name       string
+		CapAdd     []string
+		CapDrop    []string
+		Whitelist  string
+		StartError string
+	}{
+		{
+			Name:    "default-whitelist-add-allowed",
+			CapAdd:  []string{"fowner", "mknod"},
+			CapDrop: []string{"all"},
+		},
+		{
+			Name:       "default-whitelist-add-forbidden",
+			CapAdd:     []string{"net_admin"},
+			StartError: "net_admin",
+		},
+		{
+			Name:    "default-whitelist-drop-existing",
+			CapDrop: []string{"fowner", "mknod"},
+		},
+		{
+			Name:      "restrictive-whitelist-drop-all",
+			CapDrop:   []string{"all"},
+			Whitelist: "fowner,mknod",
+		},
+		{
+			Name:      "restrictive-whitelist-add-allowed",
+			CapAdd:    []string{"fowner", "mknod"},
+			CapDrop:   []string{"all"},
+			Whitelist: "fowner,mknod",
+		},
+		{
+			Name:       "restrictive-whitelist-add-forbidden",
+			CapAdd:     []string{"net_admin", "mknod"},
+			CapDrop:    []string{"all"},
+			Whitelist:  "fowner,mknod",
+			StartError: "net_admin",
+		},
+		{
+			Name:      "permissive-whitelist",
+			CapAdd:    []string{"net_admin", "mknod"},
+			Whitelist: "all",
+		},
+		{
+			Name:      "permissive-whitelist-add-all",
+			CapAdd:    []string{"all"},
+			Whitelist: "all",
+		},
 	}
 
-	if !reflect.DeepEqual(task.Config["cap_drop"], container.HostConfig.CapDrop) {
-		t.Errorf("CapDrop doesn't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["cap_drop"], container.HostConfig.CapDrop)
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			client := newTestDockerClient(t)
+			task, _, _ := dockerTask(t)
+			if len(tc.CapAdd) > 0 {
+				task.Config["cap_add"] = tc.CapAdd
+			}
+			if len(tc.CapDrop) > 0 {
+				task.Config["cap_drop"] = tc.CapDrop
+			}
+
+			tctx := testDockerDriverContexts(t, task)
+			if tc.Whitelist != "" {
+				tctx.DriverCtx.config.Options[dockerCapsWhitelistConfigOption] = tc.Whitelist
+			}
+
+			driver := NewDockerDriver(tctx.DriverCtx)
+			copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
+			defer tctx.AllocDir.Destroy()
+
+			presp, err := driver.Prestart(tctx.ExecCtx, task)
+			defer driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+			if err != nil {
+				t.Fatalf("Error in prestart: %v", err)
+			}
+
+			sresp, err := driver.Start(tctx.ExecCtx, task)
+			if err == nil && tc.StartError != "" {
+				t.Fatalf("Expected error in start: %v", tc.StartError)
+			} else if err != nil {
+				if tc.StartError == "" {
+					t.Fatalf("Failed to start driver: %s\nStack\n%s", err, debug.Stack())
+				} else if !strings.Contains(err.Error(), tc.StartError) {
+					t.Fatalf("Expect error containing \"%s\", got %v", tc.StartError, err)
+				}
+				return
+			}
+
+			if sresp.Handle == nil {
+				t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
+			}
+			defer sresp.Handle.Kill()
+			handle := sresp.Handle.(*DockerHandle)
+
+			waitForExist(t, client, handle)
+
+			container, err := client.InspectContainer(handle.ContainerID())
+			if err != nil {
+				t.Fatalf("Error inspecting container: %v", err)
+			}
+
+			if !reflect.DeepEqual(tc.CapAdd, container.HostConfig.CapAdd) {
+				t.Errorf("CapAdd doesn't match.\nExpected:\n%s\nGot:\n%s\n", tc.CapAdd, container.HostConfig.CapAdd)
+			}
+
+			if !reflect.DeepEqual(tc.CapDrop, container.HostConfig.CapDrop) {
+				t.Errorf("CapDrop doesn't match.\nExpected:\n%s\nGot:\n%s\n", tc.CapDrop, container.HostConfig.CapDrop)
+			}
+		})
 	}
 }
 

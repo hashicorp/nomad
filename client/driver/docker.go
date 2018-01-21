@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/moby/moby/daemon/caps"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
@@ -100,6 +99,8 @@ const (
 	dockerImageRemoveDelayConfigOption  = "docker.cleanup.image.delay"
 	dockerImageRemoveDelayConfigDefault = 3 * time.Minute
 
+	// dockerCapsWhitelistConfigOption is the key for setting the list of
+	// allowed Linux capabilities
 	dockerCapsWhitelistConfigOption  = "docker.caps.whitelist"
 	dockerCapsWhitelistConfigDefault = dockerBasicCaps
 
@@ -114,8 +115,11 @@ const (
 	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
 	dockerAuthHelperPrefix = "docker-credential-"
 
-	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD," +
-		"NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
+	// dockerBasicCaps is comma-separated list of Linux capabilities that are
+	// allowed by docker by default, as documented in
+	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
+	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
+		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 )
 
 type DockerDriver struct {
@@ -1133,10 +1137,16 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.Privileged = driverConfig.Privileged
 
 	// set capabilities
-	hostCapsWhitelist := d.config.ReadDefault(dockerCapsWhitelistConfigOption, dockerCapsWhitelistConfigDefault)
-	hostCapsWhitelist = strings.ToLower(hostCapsWhitelist)
-	if !strings.Contains(hostCapsWhitelist, "all") {
-		effectiveCaps, err := caps.TweakCapabilities(
+	hostCapsWhitelistConfig := d.config.ReadDefault(
+		dockerCapsWhitelistConfigOption, dockerCapsWhitelistConfigDefault)
+	hostCapsWhitelist := make(map[string]struct{})
+	for _, cap := range strings.Split(hostCapsWhitelistConfig, ",") {
+		cap = strings.ToLower(strings.TrimSpace(cap))
+		hostCapsWhitelist[cap] = struct{}{}
+	}
+
+	if _, ok := hostCapsWhitelist["all"]; !ok {
+		effectiveCaps, err := tweakCapabilities(
 			strings.Split(dockerBasicCaps, ","),
 			driverConfig.CapAdd,
 			driverConfig.CapDrop,
@@ -1146,8 +1156,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		}
 		var missingCaps []string
 		for _, cap := range effectiveCaps {
-			cap = strings.ToLower(cap[len("CAP_"):])
-			if !strings.Contains(hostCapsWhitelist, cap) {
+			cap = strings.ToLower(cap)
+			if _, ok := hostCapsWhitelist[cap]; !ok {
 				missingCaps = append(missingCaps, cap)
 			}
 		}
@@ -1155,6 +1165,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 			return c, fmt.Errorf("Docker driver doesn't have the following caps whitelisted on this Nomad agent: %s", missingCaps)
 		}
 	}
+
 	hostConfig.CapAdd = driverConfig.CapAdd
 	hostConfig.CapDrop = driverConfig.CapDrop
 
