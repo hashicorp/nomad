@@ -9,6 +9,23 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// RpcError is used for serializing errors with a potential error code
+type RpcError struct {
+	Message string
+	Code    *int64
+}
+
+func NewRpcError(err error, code *int64) *RpcError {
+	return &RpcError{
+		Message: err.Error(),
+		Code:    code,
+	}
+}
+
+func (r *RpcError) Error() string {
+	return r.Message
+}
+
 // ClientStatsRequest is used to request stats about a Node.
 type ClientStatsRequest struct {
 	NodeID string
@@ -19,6 +36,42 @@ type ClientStatsRequest struct {
 type ClientStatsResponse struct {
 	HostStats *stats.HostStats
 	structs.QueryMeta
+}
+
+// FsLogsRequest is the initial request for accessing allocation logs.
+type FsLogsRequest struct {
+	// AllocID is the allocation to stream logs from
+	AllocID string
+
+	// Task is the task to stream logs from
+	Task string
+
+	// LogType indicates whether "stderr" or "stdout" should be streamed
+	LogType string
+
+	// Offset is the offset to start streaming data at.
+	Offset int64
+
+	// Origin can either be "start" or "end" and determines where the offset is
+	// applied.
+	Origin string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	// Follow follows logs.
+	Follow bool
+
+	structs.QueryOptions
+}
+
+// StreamErrWrapper is used to serialize output of a stream of a file or logs.
+type StreamErrWrapper struct {
+	// Error stores any error that may have occured.
+	Error *RpcError
+
+	// Payload is the payload
+	Payload []byte
 }
 
 // MemoryStats holds memory usage related stats

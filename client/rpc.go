@@ -19,6 +19,7 @@ import (
 // rpcEndpoints holds the RPC endpoints
 type rpcEndpoints struct {
 	ClientStats *ClientStats
+	FileSystem  *FileSystem
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -32,6 +33,12 @@ func (c *Client) ClientRPC(method string, args interface{}, reply interface{}) e
 		return err
 	}
 	return codec.Err
+}
+
+// ClientStreamingRpcHandler is used to make a local, client only streaming RPC
+// call.
+func (c *Client) ClientStreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	return c.streamingRpcs.GetHandler(method)
 }
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers.
@@ -101,6 +108,10 @@ func canRetry(args interface{}, err error) bool {
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
+	c.endpoints.FileSystem = &FileSystem{c}
+
+	// Initialize the streaming RPC handlers.
+	c.endpoints.FileSystem.Register()
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
