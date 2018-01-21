@@ -28,10 +28,14 @@ func IsErrUnknownMethod(err error) bool {
 type StreamingRpcHeader struct {
 	// Method is the name of the method to invoke.
 	Method string
+
+	// QueryOptions and WriteRequest provide metadata about the RPC request.
+	QueryOptions *QueryOptions
+	WriteRequest *WriteRequest
 }
 
 // StreamingRpcHandler defines the handler for a streaming RPC.
-type StreamingRpcHandler func(io.ReadWriter)
+type StreamingRpcHandler func(conn io.ReadWriteCloser)
 
 // StreamingRpcRegistery is used to add and retrieve handlers
 type StreamingRpcRegistery struct {
