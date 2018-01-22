@@ -24,19 +24,29 @@ func NewMemoryFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *MemoryFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	memInfo, err := mem.VirtualMemory()
-	if err != nil {
-		f.logger.Printf("[WARN] Error reading memory information: %s", err)
-		return false, err
+	var totalMemory int
+
+	if cfg.MemoryMB != 0 {
+		totalMemory = cfg.MemoryMB
+		node.Attributes["memory.totalbytes"] = fmt.Sprintf("%d", totalMemory*1024*1024)
+	} else {
+		memInfo, err := mem.VirtualMemory()
+		if err != nil {
+			f.logger.Printf("[WARN] Error reading memory information: %s", err)
+			return false, err
+		}
+
+		if memInfo.Total > 0 {
+			node.Attributes["memory.totalbytes"] = fmt.Sprintf("%d", memInfo.Total)
+			totalMemory = int(memInfo.Total / 1024 / 1024)
+		}
 	}
 
-	if memInfo.Total > 0 {
-		node.Attributes["memory.totalbytes"] = fmt.Sprintf("%d", memInfo.Total)
-
+	if totalMemory > 0 {
 		if node.Resources == nil {
 			node.Resources = &structs.Resources{}
 		}
-		node.Resources.MemoryMB = int(memInfo.Total / 1024 / 1024)
+		node.Resources.MemoryMB = totalMemory
 	}
 
 	return true, nil
