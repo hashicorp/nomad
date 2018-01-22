@@ -80,11 +80,9 @@ func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *co
 		return
 	}
 
-	if sendErr := encoder.Encode(&cstructs.StreamErrWrapper{
+	encoder.Encode(&cstructs.StreamErrWrapper{
 		Error: cstructs.NewRpcError(err, code),
-	}); sendErr != nil {
-		f.c.logger.Printf("[WARN] client.fs_endpoint: failed to send error %q: %v", err, sendErr)
-	}
+	})
 }
 
 // Stats is used to retrieve the Clients stats.
@@ -212,6 +210,20 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		}
 	}()
 
+	// Create a goroutine to detect the remote side closing
+	go func() {
+		for {
+			if _, err := conn.Read(nil); err != nil {
+				if err == io.EOF {
+					f.c.logger.Printf("--------- FileSystem:  remote side closed")
+					cancel()
+					return
+				}
+				errCh <- err
+			}
+		}
+	}()
+
 	var streamErr error
 OUTER:
 	for {
@@ -243,6 +255,7 @@ OUTER:
 			}
 
 			if err := encoder.Encode(resp); err != nil {
+				f.c.logger.Printf("--------- FileSystem:  Err sending payload: %v", err)
 				streamErr = err
 				break OUTER
 			}

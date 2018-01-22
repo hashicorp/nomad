@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -60,9 +59,9 @@ const (
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if s.agent.client == nil {
-		return nil, clientNotRunning
-	}
+	//if s.agent.client == nil {
+	//return nil, clientNotRunning
+	//}
 
 	var secret string
 	s.parseToken(req, &secret)
@@ -70,32 +69,32 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	var namespace string
 	parseNamespace(req, &namespace)
 
-	aclObj, err := s.agent.Client().ResolveToken(secret)
-	if err != nil {
-		return nil, err
-	}
+	//aclObj, err := s.agent.Client().ResolveToken(secret)
+	//if err != nil {
+	//return nil, err
+	//}
 
 	path := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/")
 	switch {
 	case strings.HasPrefix(path, "ls/"):
-		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
+		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+		//return nil, structs.ErrPermissionDenied
+		//}
 		return s.DirectoryListRequest(resp, req)
 	case strings.HasPrefix(path, "stat/"):
-		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
+		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+		//return nil, structs.ErrPermissionDenied
+		//}
 		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
-		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
+		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+		//return nil, structs.ErrPermissionDenied
+		//}
 		return s.FileReadAtRequest(resp, req)
 	case strings.HasPrefix(path, "cat/"):
-		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
+		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+		//return nil, structs.ErrPermissionDenied
+		//}
 		return s.FileCatRequest(resp, req)
 	//case strings.HasPrefix(path, "stream/"):
 	//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
@@ -507,7 +506,7 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 
 	// TODO make work for both
 	// Get the client's handler
-	handler, err := s.agent.Client().ClientStreamingRpcHandler("FileSystem.Logs")
+	handler, err := s.agent.Server().StreamingRpcHandler("FileSystem.Logs")
 	if err != nil {
 		return nil, err
 	}
