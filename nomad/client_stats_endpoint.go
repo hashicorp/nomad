@@ -93,6 +93,7 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 	if err != nil {
 		return err
 	}
+	defer stream.Close()
 
 	// Write the RpcNomad byte to set the mode
 	if _, err := stream.Write([]byte{byte(pool.RpcNomad)}); err != nil {

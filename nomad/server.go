@@ -226,6 +226,7 @@ type endpoints struct {
 
 	// Client endpoints
 	ClientStats *ClientStats
+	FileSystem  *FileSystem
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -926,6 +927,10 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{s}
+
+		// Streaming endpoints
+		s.staticEndpoints.FileSystem = &FileSystem{s}
+		s.staticEndpoints.FileSystem.Register()
 	}
 
 	// Register the static handlers
@@ -1278,6 +1283,11 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 		return err
 	}
 	return codec.Err
+}
+
+// StreamingRpcHandler is used to make a streaming RPC call.
+func (s *Server) StreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	return s.streamingRpcs.GetHandler(method)
 }
 
 // Stats is used to return statistics for debugging and insight
