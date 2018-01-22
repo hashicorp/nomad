@@ -134,7 +134,7 @@
 		{"path":"github.com/hashicorp/errwrap","revision":"7554cd9344cec97297fa6649b055a8c98c2a1e55"},
 		{"path":"github.com/hashicorp/go-checkpoint","checksumSHA1":"D267IUMW2rcb+vNe3QU+xhfSrgY=","revision":"1545e56e46dec3bba264e41fde2c1e2aa65b5dd4","revisionTime":"2017-10-09T17:35:28Z"},
 		{"path":"github.com/hashicorp/go-cleanhttp","checksumSHA1":"6ihdHMkDfFx/rJ1A36com2F6bQk=","revision":"a45970658e51fea2c41445ff0f7e07106d007617","revisionTime":"2017-02-11T00:33:01Z"},
-		{"path":"github.com/hashicorp/go-envparse","checksumSHA1":"mB5JzxaVCPIvbwADY0acdnkhmT8=","revision":"7953113a2936d8e5f7e2a0a3dd8089565c39ef21","revisionTime":"2017-06-02T22:43:19Z"},
+		{"path":"github.com/hashicorp/go-envparse","checksumSHA1":"FKmqR4DC3nCXtnT9pe02z5CLNWo=","revision":"310ca1881b22af3522e3a8638c0b426629886196","revisionTime":"2018-01-19T21:58:41Z"},
 		{"path":"github.com/hashicorp/go-getter","checksumSHA1":"wCKbbnwvVEoKAE5TWunloLhErm4=","revision":"994f50a6f071b07cfbea9eca9618c9674091ca51","revisionTime":"2017-12-04T19:28:26Z"},
 		{"path":"github.com/hashicorp/go-getter/helper/url","checksumSHA1":"9J+kDr29yDrwsdu2ULzewmqGjpA=","revision":"994f50a6f071b07cfbea9eca9618c9674091ca51","revisionTime":"2017-12-04T19:28:26Z"},
 		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"miVF4/7JP0lRwZvFJGKwZWk7aAQ=","revision":"b4e5765d1e5f00a0550911084f45f8214b5b83b9","revisionTime":"2017-07-16T17:45:23Z"},
