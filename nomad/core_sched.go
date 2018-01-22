@@ -241,16 +241,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// Create a watchset
 	ws := memdb.NewWatchSet()
 
+	// Look up the job
+	job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
+	if err != nil {
+		return false, nil, err
+	}
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
-		job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
-		if err != nil {
-			return false, nil, err
-		}
 
 		// Can collect if:
 		// Job doesn't exist
@@ -286,7 +288,13 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
+		var reschedulePolicy *structs.ReschedulePolicy
+		tg := job.LookupTaskGroup(alloc.TaskGroup)
+
+		if tg != nil {
+			reschedulePolicy = tg.ReschedulePolicy
+		}
+		if !alloc.GCEligible(reschedulePolicy, time.Now(), thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
