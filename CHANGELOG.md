@@ -7,9 +7,10 @@ __BACKWARDS INCOMPATIBILITIES:__
 
 IMPROVEMENTS:
  * core: A set of features (Autopilot) has been added to allow for automatic operator-friendly management of Nomad servers. For more information about Autopilot, see the [Autopilot Guide](https://www.nomadproject.io/guides/cluster/autopilot.html). [[GH-3670](https://github.com/hashicorp/nomad/pull/3670)]
+ * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
  * discovery: Allow `check_restart` to be specified in the `service` stanza.
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
- * driver/lxc: Add volumes config to LXC driver [GH-3687]
+ * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
 
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]
