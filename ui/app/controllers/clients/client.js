@@ -5,6 +5,26 @@ import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 
 export default Controller.extend(Sortable, Searchable, {
+  // ideally this would concat from the clients controller
+  breadcrumbs: computed(
+    'model.shortId',
+    function()
+    {
+      return [
+        {
+          label: 'Clients',
+          params: ['clients.index']
+        },
+        {
+          label: this.get('model.shortId'),
+          params: [
+            'clients.client',
+            this.get('model')
+          ],
+        },
+      ];
+    }
+  ),
   queryParams: {
     currentPage: 'page',
     searchTerm: 'search',

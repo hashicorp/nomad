@@ -6,6 +6,13 @@ export default Controller.extend(Sortable, {
   nodes: alias('model.nodes'),
   agents: alias('model.agents'),
 
+  breadcrumbs: [
+    {
+      label: 'Servers',
+      params: ['servers.index'],
+    },
+  ],
+
   queryParams: {
     currentPage: 'page',
     sortProperty: 'sort',

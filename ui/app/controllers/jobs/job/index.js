@@ -9,6 +9,8 @@ export default Controller.extend(Sortable, WithNamespaceResetting, {
   system: service(),
   jobController: controller('jobs.job'),
 
+  breadcrumbs: alias('jobController.breadcrumbs'),
+
   queryParams: {
     currentPage: 'page',
     sortProperty: 'sort',
@@ -21,7 +23,6 @@ export default Controller.extend(Sortable, WithNamespaceResetting, {
   sortProperty: 'name',
   sortDescending: false,
 
-  breadcrumbs: alias('jobController.breadcrumbs'),
   job: alias('model'),
 
   taskGroups: computed('model.taskGroups.[]', function() {

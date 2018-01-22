@@ -10,6 +10,13 @@ export default Controller.extend(Sortable, Searchable, {
   nodes: alias('model.nodes'),
   agents: alias('model.agents'),
 
+  breadcrumbs: [
+    {
+      label: 'Clients',
+      params: ['clients.index'],
+    },
+  ],
+
   queryParams: {
     currentPage: 'page',
     searchTerm: 'search',

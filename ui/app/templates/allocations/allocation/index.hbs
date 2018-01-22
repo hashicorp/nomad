@@ -1,8 +1,5 @@
 {{#global-header class="page-header"}}
-  <li><a href="#">Allocations</a></li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation" model}}{{model.shortId}}{{/link-to}}
-  </li>
+  {{breadcrumb-trail items=breadcrumbs}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">

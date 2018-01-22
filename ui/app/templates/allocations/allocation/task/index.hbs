@@ -1,15 +1,5 @@
 {{#global-header class="page-header"}}
-  <li><a href="#" data-test-breadcrumb="allocations">Allocations</a></li>
-  <li>
-    {{#link-to "allocations.allocation" model.allocation data-test-breadcrumb="allocation"}}
-      {{model.allocation.shortId}}
-    {{/link-to}}
-  </li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation.task" model.allocation model data-test-breadcrumb="task"}}
-      {{model.name}}
-    {{/link-to}}
-  </li>
+  {{breadcrumb-trail items=breadcrumbs}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   {{partial "allocations/allocation/task/subnav"}}

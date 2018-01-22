@@ -6,12 +6,13 @@ import ipParts from 'nomad-ui/utils/ip-parts';
 
 let allocation;
 let task;
+let job;
 
 moduleForAcceptance('Acceptance | task detail', {
   beforeEach() {
     server.create('agent');
     server.create('node');
-    server.create('job', { createAllocations: false });
+    job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', {
       useMessagePassthru: true,
     });
@@ -37,32 +38,37 @@ test('/allocation/:id/:task_name should name the task and list high-level task i
 
 test('breadcrumbs includes allocations and link to the allocation detail page', function(assert) {
   assert.equal(
-    find('[data-test-breadcrumb="allocations"]').textContent.trim(),
-    'Allocations',
-    'Allocations is the first breadcrumb'
+    find('[data-test-breadcrumb="jobs"]').textContent.trim(),
+    'Jobs',
+    'Jobs is in the breadcrumb trail'
   );
   assert.equal(
-    find('[data-test-breadcrumb="allocations"]').getAttribute('href'),
-    '#',
-    "Allocations breadcrumb doesn't link anywhere"
+    find('[data-test-breadcrumb="jobs.job"]').textContent.trim(),
+    job.name,
+    'Job name is in the breadcrumb trail'
   );
   assert.equal(
-    find('[data-test-breadcrumb="allocation"]').textContent.trim(),
+    find('[data-test-breadcrumb="jobs.job.task-group"]').textContent.trim(),
+    allocation.taskGroup, // not taskGroupName ?
+    'Task Group is in the breadcrumb trail'
+  );
+  assert.equal(
+    find('[data-test-breadcrumb="allocations.allocation"]').textContent.trim(),
     allocation.id.split('-')[0],
-    'Allocation short id is the second breadcrumb'
+    'Allocation short id is in the breadcrumb trail'
   );
   assert.equal(
-    find('[data-test-breadcrumb="task"]').textContent.trim(),
+    find('[data-test-breadcrumb="allocations.allocation.task"]').textContent.trim(),
     task.name,
-    'Task name is the third breadcrumb'
+    'Task name is in the breadcrumb trail'
   );
 
-  click('[data-test-breadcrumb="allocation"]');
+  click('[data-test-breadcrumb="allocations.allocation"]');
   andThen(() => {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
-      'Second breadcrumb links back to the allocation detail'
+      'The allocation breadcrumb links back to the allocation detail'
     );
   });
 });

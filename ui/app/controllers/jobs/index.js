@@ -49,6 +49,13 @@ export default Controller.extend(Sortable, Searchable, {
 
   isShowingDeploymentDetails: false,
 
+  breadcrumbs: [
+    {
+      label: 'Jobs',
+      params: ['jobs'],
+    },
+  ],
+
   actions: {
     gotoJob(job) {
       this.transitionToRoute('jobs.job', job);
