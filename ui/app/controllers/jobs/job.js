@@ -1,6 +1,6 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
-import queryParams from 'nomad-ui/utils/queryParams';
+import queryParams from 'nomad-ui/utils/query-params';
 
 export default Controller.extend({
   breadcrumbs: computed('model', 'model.{name,id}', 'model.namespace.name', function() {

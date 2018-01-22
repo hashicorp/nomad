@@ -1,6 +1,6 @@
 import Controller, { inject as controller } from '@ember/controller';
 import { computed } from '@ember/object';
-import queryParams from 'nomad-ui/utils/queryParams';
+import queryParams from 'nomad-ui/utils/query-params';
 
 export default Controller.extend({
   jobController: controller('jobs.job'),
@@ -11,7 +11,7 @@ export default Controller.extend({
     'model.job.namespace.name',
     function() {
       const jobBreadcrumbs = this.get('jobController.breadcrumbs');
-      if(typeof jobBreadcrumbs[1].label === 'undefined') {
+      if (typeof jobBreadcrumbs[1].label === 'undefined') {
         jobBreadcrumbs[1] = {
           label: this.get('model.job.name'),
           params: [
@@ -20,7 +20,7 @@ export default Controller.extend({
             queryParams({
               jobNamespace: this.get('model.job.namespace.name'),
             }),
-          ]
+          ],
         };
       }
       return jobBreadcrumbs.concat([
