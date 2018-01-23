@@ -15,6 +15,19 @@ export default ApplicationSerializer.extend({
     hash.PlainId = hash.ID;
     hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
 
+    // ParentID comes in as "" instead of null
+    if (!hash.ParentID) {
+      hash.ParentID = null;
+    } else {
+      hash.ParentID = JSON.stringify([hash.ParentID, hash.NamespaceID || 'default']);
+    }
+
+    // Periodic is a boolean on list and an object on single
+    if (hash.Periodic instanceof Object) {
+      hash.PeriodicDetails = hash.Periodic;
+      hash.Periodic = true;
+    }
+
     // Transform the map-based JobSummary object into an array-based
     // JobSummary fragment list
     hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary') || {}).map(key => {
