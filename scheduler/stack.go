@@ -17,8 +17,17 @@ const (
 	// serviceJobAntiAffinityPenalty but for batch type jobs.
 	batchJobAntiAffinityPenalty = 10.0
 
-	// previousFailedAllocNodePenalty is a scoring penalty for nodes that a failed allocation was previously run on
+	// previousFailedAllocNodePenalty is a scoring penalty for nodes
+	// that a failed allocation was previously run on
 	previousFailedAllocNodePenalty = 50.0
+
+	// skipScoreThreshold is a threshold used in the limit iterator to skip nodes
+	// that have a score lower than this. This threshold ensures skipping nodes
+	// that have more than one anti affinity penalty (job and node) applied to them
+	skipScoreThreshold = -250.0
+
+	// maxSkip limits the number of nodes that can be skipped in the limit iterator
+	maxSkip = 3
 )
 
 // Stack is a chained collection of iterators. The stack is used to
@@ -123,7 +132,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	s.nodeAntiAff = NewNodeAntiAffinityIterator(ctx, s.jobAntiAff, previousFailedAllocNodePenalty)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
-	s.limit = NewLimitIterator(ctx, s.nodeAntiAff, 2)
+	s.limit = NewLimitIterator(ctx, s.nodeAntiAff, 2, skipScoreThreshold, maxSkip)
 
 	// Select the node with the maximum score for placement
 	s.maxScore = NewMaxScoreIterator(ctx, s.limit)
