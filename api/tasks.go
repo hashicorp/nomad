@@ -106,21 +106,6 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 	return nrp
 }
 
-func (r *ReschedulePolicy) Empty() bool {
-	if r == nil {
-		return true
-	}
-
-	if r.Attempts != nil && *r.Attempts != 0 {
-		return false
-	}
-
-	if r.Interval != nil && *r.Interval != 0 {
-		return false
-	}
-	return true
-}
-
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
