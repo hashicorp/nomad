@@ -57,7 +57,7 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 	}
 
 	// Get the connection to the client
-	session, ok := s.srv.getNodeConn(args.NodeID)
+	state, ok := s.srv.getNodeConn(args.NodeID)
 	if !ok {
 		// Check if the node even exists
 		snap, err := s.srv.State().Snapshot()
@@ -74,12 +74,21 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 			return fmt.Errorf("Unknown node %q", args.NodeID)
 		}
 
-		// TODO Handle forwarding to other servers
-		return ErrNoNodeConn
+		// Determine the Server that has a connection to the node.
+		srv, err := s.srv.serverWithNodeConn(args.NodeID)
+		if err != nil {
+			return err
+		}
+
+		if srv == nil {
+			return ErrNoNodeConn
+		}
+
+		return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
 	}
 
 	// Open a new session
-	stream, err := session.Open()
+	stream, err := state.Session.Open()
 	if err != nil {
 		return err
 	}

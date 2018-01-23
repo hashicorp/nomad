@@ -30,7 +30,6 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
-	"github.com/hashicorp/yamux"
 )
 
 const (
@@ -120,7 +119,7 @@ type Server struct {
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
-	nodeConns     map[string]*yamux.Session
+	nodeConns     map[string]*nodeConnState
 	nodeConnsLock sync.RWMutex
 
 	// peers is used to track the known Nomad servers. This is
@@ -271,7 +270,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
 		rpcServer:     rpc.NewServer(),
-		nodeConns:     make(map[string]*yamux.Session),
+		nodeConns:     make(map[string]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:   make(chan serf.Member, 32),
@@ -1152,49 +1151,6 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 		return err
 	}
 	return codec.Err
-}
-
-// getNodeConn returns the connection to the given node and whether it exists.
-func (s *Server) getNodeConn(nodeID string) (*yamux.Session, bool) {
-	s.nodeConnsLock.RLock()
-	defer s.nodeConnsLock.RUnlock()
-	session, ok := s.nodeConns[nodeID]
-	return session, ok
-}
-
-// connectedNodes returns the set of nodes we have a connection with.
-func (s *Server) connectedNodes() []string {
-	s.nodeConnsLock.RLock()
-	defer s.nodeConnsLock.RUnlock()
-	nodes := make([]string, 0, len(s.nodeConns))
-	for nodeID := range s.nodeConns {
-		nodes = append(nodes, nodeID)
-	}
-	return nodes
-}
-
-// addNodeConn adds the mapping between a node and its session.
-func (s *Server) addNodeConn(ctx *RPCContext) {
-	// Hotpath the no-op
-	if ctx == nil || ctx.NodeID == "" {
-		return
-	}
-
-	s.nodeConnsLock.Lock()
-	defer s.nodeConnsLock.Unlock()
-	s.nodeConns[ctx.NodeID] = ctx.Session
-}
-
-// removeNodeConn removes the mapping between a node and its session.
-func (s *Server) removeNodeConn(ctx *RPCContext) {
-	// Hotpath the no-op
-	if ctx == nil || ctx.NodeID == "" {
-		return
-	}
-
-	s.nodeConnsLock.Lock()
-	defer s.nodeConnsLock.Unlock()
-	delete(s.nodeConns, ctx.NodeID)
 }
 
 // Stats is used to return statistics for debugging and insight

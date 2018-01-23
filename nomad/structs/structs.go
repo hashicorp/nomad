@@ -1032,6 +1032,18 @@ type DeploymentUpdateResponse struct {
 	WriteMeta
 }
 
+// NodeConnQueryResponse is used to respond to a query of whether a server has
+// a connection to a specific Node
+type NodeConnQueryResponse struct {
+	// Connected indicates whether a connection to the Client exists
+	Connected bool
+
+	// Established marks the time at which the connection was established
+	Established time.Time
+
+	QueryMeta
+}
+
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"

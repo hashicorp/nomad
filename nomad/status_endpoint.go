@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"errors"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -102,5 +104,22 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 		ServerDC:     s.srv.config.Datacenter,
 		Members:      members,
 	}
+	return nil
+}
+
+// HasNodeConn returns whether the server has a connection to the requested
+// Node.
+func (s *Status) HasNodeConn(args *structs.NodeSpecificRequest, reply *structs.NodeConnQueryResponse) error {
+	// Validate the args
+	if args.NodeID == "" {
+		return errors.New("Must provide the NodeID")
+	}
+
+	state, ok := s.srv.getNodeConn(args.NodeID)
+	if ok {
+		reply.Connected = true
+		reply.Established = state.Established
+	}
+
 	return nil
 }
