@@ -840,11 +840,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			if existingAlloc, _ := n.srv.State().AllocByID(nil, alloc.ID); existingAlloc != nil {
 				job, err := n.srv.State().JobByID(nil, existingAlloc.Namespace, existingAlloc.JobID)
 				if err != nil {
-					n.srv.logger.Printf("[WARN] nomad.client: UpdateAlloc unable to find job ID %q :%v", existingAlloc.JobID, err)
+					n.srv.logger.Printf("[ERR] nomad.client: UpdateAlloc unable to find job ID %q :%v", existingAlloc.JobID, err)
 					continue
 				}
 				if job == nil {
-					n.srv.logger.Printf("[WARN] nomad.client: UpdateAlloc unable to find job ID %q", existingAlloc.JobID)
+					n.srv.logger.Printf("[DEBUG] nomad.client: UpdateAlloc unable to find job ID %q", existingAlloc.JobID)
 					continue
 				}
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
