@@ -625,7 +625,8 @@ options](/docs/agent/configuration/client.html#options):
   which is the list of capabilities allowed by docker by default, as 
   [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Allows the operator to control which capabilities can be obtained by 
-  tasks using `cap_add` and `cap_drop` options.
+  tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a 
+  shortcut for whitelisting all capabilities.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
