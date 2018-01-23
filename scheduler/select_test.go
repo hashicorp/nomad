@@ -64,7 +64,7 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 	}
 
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		nodes = append(nodes, mock.Node())
 	}
 
@@ -269,6 +269,32 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			threshold: -1,
 			limit:     2,
 			maxSkip:   2,
+		},
+		{
+			desc: "maxSkip is more than available nodes",
+			nodes: []*RankedNode{
+				{
+					Node:  nodes[0],
+					Score: -2,
+				},
+				{
+					Node:  nodes[1],
+					Score: 1,
+				},
+			},
+			expectedOut: []*RankedNode{
+				{
+					Node:  nodes[1],
+					Score: 1,
+				},
+				{
+					Node:  nodes[0],
+					Score: -2,
+				},
+			},
+			threshold: -1,
+			limit:     2,
+			maxSkip:   10,
 		},
 	}
 
