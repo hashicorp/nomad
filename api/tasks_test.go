@@ -296,8 +296,8 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			},
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Attempts: helper.IntToPtr(0),
+				Interval: helper.TimeToPtr(0),
 			},
 		},
 		{
@@ -335,6 +335,19 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			expected: &ReschedulePolicy{
 				Attempts: helper.IntToPtr(1),
 				Interval: helper.TimeToPtr(5 * time.Minute),
+			},
+		},
+		{
+			desc: "Override from group",
+			jobReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(1),
+			},
+			taskReschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(5),
+			},
+			expected: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(5),
+				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
 			},
 		},
 		{
