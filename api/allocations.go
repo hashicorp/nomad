@@ -92,12 +92,12 @@ type Allocation struct {
 	DeploymentStatus   *AllocDeploymentStatus
 	PreviousAllocation string
 	NextAllocation     string
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	AllocModifyIndex   uint64
 	CreateTime         int64
 	ModifyTime         int64
-	RescheduleTracker  *RescheduleTracker
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
@@ -132,11 +132,11 @@ type AllocationListStub struct {
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
 	ModifyTime         int64
-	RescheduleTracker  *RescheduleTracker
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the

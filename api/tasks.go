@@ -321,7 +321,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		jobReschedule := job.Reschedule.Copy()
 		jobReschedule.Merge(g.ReschedulePolicy)
 		g.ReschedulePolicy = jobReschedule
-	} else if jr && !job.Reschedule.Empty() {
+	} else if jr {
 		jobReschedule := job.Reschedule.Copy()
 		g.ReschedulePolicy = jobReschedule
 	}
