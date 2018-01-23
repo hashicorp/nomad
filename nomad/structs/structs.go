@@ -5195,7 +5195,6 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 // GCEligible returns if the allocation is eligible to be garbage collected
 // according to its terminal status and its reschedule trackers
 func (a *Allocation) GCEligible(reschedulePolicy *ReschedulePolicy, gcTime time.Time, thresholdIndex uint64) bool {
-
 	// Not in a terminal status and old enough
 	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
 		return false
@@ -5216,7 +5215,6 @@ func (a *Allocation) GCEligible(reschedulePolicy *ReschedulePolicy, gcTime time.
 	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
 
 	return timeDiff > interval.Nanoseconds()
-
 }
 
 // Terminated returns if the allocation is in a terminal state on a client.
