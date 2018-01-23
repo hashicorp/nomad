@@ -866,7 +866,7 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	}
 
 	if n := len(c.NetworkSettings.Networks); n > 1 {
-		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
+		d.logger.Printf("[WARN] driver.docker: task %s multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", d.taskName, n, c.ID, ipName)
 	}
 
 	return ip, auto

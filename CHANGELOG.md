@@ -17,6 +17,7 @@ BUG FIXES:
  * core: Fix an issue in which batch jobs with queued placements and lost
    allocations could result in improper placement counts [[GH-3717](https://github.com/hashicorp/nomad/issues/3717)]
  * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
+ * client: Always advertise driver IP when in driver address mode [[GH-3682](https://github.com/hashicorp/nomad/issues/3682)]
  * client/vault: Recognize renewing non-renewable Vault lease as fatal [[GH-3727](https://github.com/hashicorp/nomad/issues/3727)]
  * config: Revert minimum CPU limit back to 20 from 100.
  * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
