@@ -21,6 +21,7 @@ func NewLimitIterator(ctx Context, source RankIterator, limit int, scoreThreshol
 		limit:          limit,
 		maxSkip:        maxSkip,
 		scoreThreshold: scoreThreshold,
+		skippedNodes:   make([]*RankedNode, 0, limit+maxSkip),
 	}
 	return iter
 }
