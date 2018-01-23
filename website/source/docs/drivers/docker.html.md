@@ -324,6 +324,36 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
+* `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.cap.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_add = [
+        "SYS_TIME",
+      ]
+    }
+    ```
+
+* `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_drop = [
+        "MKNOD",
+      ]
+    }
+    ```
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
@@ -589,6 +619,14 @@ options](/docs/agent/configuration/client.html#options):
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
+
+* `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
+  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`,
+  which is the list of capabilities allowed by docker by default, as 
+  [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Allows the operator to control which capabilities can be obtained by 
+  tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a 
+  shortcut for whitelisting all capabilities.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
