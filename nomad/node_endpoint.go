@@ -835,26 +835,27 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
 		if alloc.ClientStatus == structs.AllocClientStatusFailed {
-			ws := memdb.NewWatchSet()
-			job, err := n.srv.State().JobByID(ws, alloc.Namespace, alloc.JobID)
-			if err != nil {
-				n.srv.logger.Printf("[ERR] nomad.client: Unable to find jobid %v", alloc.JobID)
-				return err
-			}
-			if job == nil {
-				return fmt.Errorf("[ERR] nomad.client: Unable to find jobid %v", alloc.JobID)
-			}
 			// Only create evaluations if this is an existing alloc,
 			// and eligible as per its task group's ReschedulePolicy
-			if existingAlloc, _ := n.srv.State().AllocByID(ws, alloc.ID); existingAlloc != nil {
+			if existingAlloc, _ := n.srv.State().AllocByID(nil, alloc.ID); existingAlloc != nil {
+				job, err := n.srv.State().JobByID(nil, existingAlloc.Namespace, existingAlloc.JobID)
+				if err != nil {
+					n.srv.logger.Printf("[WARN] nomad.client: UpdateAlloc unable to find job ID %q :%v", existingAlloc.JobID, err)
+					continue
+				}
+				if job == nil {
+					n.srv.logger.Printf("[ERR] nomad.client: UpdateAlloc unable to find job ID %q", existingAlloc.JobID)
+					continue
+				}
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
 				if taskGroup != nil && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
 					eval := &structs.Evaluation{
 						ID:          uuid.Generate(),
-						Namespace:   alloc.Namespace,
+						Namespace:   existingAlloc.Namespace,
 						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-						JobID:       alloc.JobID,
+						JobID:       existingAlloc.JobID,
 						Type:        job.Type,
+						Priority:    job.Priority,
 						Status:      structs.EvalStatusPending,
 					}
 					evals = append(evals, eval)

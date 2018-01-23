@@ -588,7 +588,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	// Update any evals
 	if len(req.Evals) > 0 {
 		if err := n.upsertEvals(index, req.Evals); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
+			n.logger.Printf("[ERR] nomad.fsm: applyAllocClientUpdate failed to update evaluations: %v", err)
 			return err
 		}
 	}
