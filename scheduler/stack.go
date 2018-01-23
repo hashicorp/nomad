@@ -22,9 +22,8 @@ const (
 	previousFailedAllocNodePenalty = 50.0
 
 	// skipScoreThreshold is a threshold used in the limit iterator to skip nodes
-	// that have a score lower than this. This threshold ensures skipping nodes
-	// that have more than one anti affinity penalty (job and node) applied to them
-	skipScoreThreshold = -250.0
+	// that have a score lower than this.
+	skipScoreThreshold = -10.0
 
 	// maxSkip limits the number of nodes that can be skipped in the limit iterator
 	maxSkip = 3
