@@ -210,16 +210,16 @@ func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, er
 
 // Start starts the LXC Driver
 func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
-	sresp, err, errCleanup := d.StartWithCleanup(ctx, task)
+	sresp, err, errCleanup := d.startWithCleanup(ctx, task)
 	if err != nil {
 		if cleanupErr := errCleanup(); cleanupErr != nil {
-			d.logger.Printf("[ERR] error occured:\n%v\nwhile cleaning up from error in Start: %v", cleanupErr, err)
+			d.logger.Printf("[ERR] error occured while cleaning up from error in Start: %v", cleanupErr)
 		}
 	}
 	return sresp, err
 }
 
-func (d *LxcDriver) StartWithCleanup(ctx *ExecContext, task *structs.Task) (*StartResponse, error, func() error) {
+func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*StartResponse, error, func() error) {
 	noCleanup := func() error { return nil }
 	var driverConfig LxcDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
@@ -326,10 +326,7 @@ func (d *LxcDriver) StartWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 		if err := c.Stop(); err != nil {
 			return err
 		}
-		if err := c.Destroy(); err != nil {
-			return err
-		}
-		return nil
+		return c.Destroy()
 	}
 
 	// Set the resource limits
