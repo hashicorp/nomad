@@ -377,7 +377,7 @@ using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc. ...) in ord
 Nomad token.
 
 ~> Hashicorp Vault is a standalone product with it's own set of deployment and configuration best
-practices. Please review Vault's documentation before deploying it in production.
+practices. Please review [Vault's documentation](https://www.vaultproject.io/docs/index.html) before deploying it in production.
 
 For evaluation purposes, a Vault server in "dev" mode can be used.
 
@@ -420,7 +420,7 @@ Root Token: f84b587e-5882-bba1-a3f0-d1a3d90ca105
 - A management token (the bootstrap token can be used, but for production systems it's recommended to
 have a separate token)
 - A set of policies created in Nomad
-- An unsealed Vault server
+- An unsealed Vault server (Vault running in `dev` mode is unsealed automatically upon startup)
 
 ### Configuration
 Mount the "nomad" secret backend in Vault:
@@ -439,23 +439,24 @@ $ vault write nomad/config/access \
 Success! Data written to: nomad/config/access
 ```
 
-Vault secret backends have the concept of roles, configuration unit that group one or more policies
-to a potential identity based on Vault's policy. The name of the role is specified on the path, while
-the mapping to Nomad policies is done by naming them in a comma separated list, for example:
+Vault secret backends have the concept of roles, which are configuration units that group one or more 
+Vault policies to a potential identity attribute, (Like an LDAP Group membership). The name of the role 
+is specified on the path, while the mapping to policies is done by naming them in a comma separated list, 
+for example:
 
 ```
 $ vault write nomad/role/role-name policy=policyone,policytwo
 Success! Data written to: nomad/roles/role-name
 ```
 
-Alternatively, to create management tokens, or global tokens:
+Similarly, to create management tokens, or global tokens:
 
 ```
-$ vault write nomad/role/role-name token_type=management global=true
+$ vault write nomad/role/role-name type=management global=true
 Success! Data written to: nomad/roles/role-name
 ```
 
-A Vault policy is required to allow different identities to get tokens associated with a particular
+Create a Vault policy to allow different identities to get tokens associated with a particular
 role:
 
 ```
@@ -467,7 +468,7 @@ Policy 'nomad-user-policy' written.
 
 If you have an existing authentication backend (like LDAP), follow the relevant instructions to create
 a role available on the [Authentication backends page](https://www.vaultproject.io/docs/auth/index.html).
-Otherwise, for testing purposes, a token can be generated associated with the policy:
+Otherwise, for testing purposes, a Vault token can be generated associated with the policy:
 
 ```
 $ vault token-create -policy=nomad-user-policy
@@ -477,7 +478,7 @@ token           deedfa83-99b5-34a1-278d-e8fb76809a5b
 token_accessor  fd185371-7d80-8011-4f45-1bb3af2c2733
 token_duration  768h0m0s
 token_renewable true
-token_policies  [nomad-user-policy]
+token_policies  [default nomad-user-policy]
 ```
 
 Finally obtain a Nomad Token using the existing Vault Token:
@@ -493,8 +494,7 @@ accessor_id     10b8fb49-7024-2126-8683-ab355b581db2
 secret_id       8898d19c-e5b3-35e4-649e-4153d63fbea9
 ```
 
-Verify that the token is created correctly in Nomad, referring to it by its accessor:
-
+Verify that the token is created correctly in Nomad, looking it up by its accessor:
 
 ```
 $ nomad acl token info 10b8fb49-7024-2126-8683-ab355b581db2
@@ -508,3 +508,6 @@ Create Time  = 2017-10-06 16:26:04.170633207 +0000 UTC
 Create Index = 228
 Modify Index = 228
 ```
+
+Any user or process with access to Vault can now obtain short lived Nomad Tokens in order to
+carry out operations, thus centralising the access to Nomad tokens.
