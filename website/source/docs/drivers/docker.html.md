@@ -83,6 +83,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
 
+* `entrypoint` - (Optional) A string list overriding the image's entrypoint.
+
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
 
