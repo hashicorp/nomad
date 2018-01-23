@@ -12,5 +12,11 @@
   {{/if}}
 </td>
 <td data-test-job-allocations>
-  <div class="inline-chart">{{allocation-status-bar allocationContainer=job isNarrow=true}}</div>
+  <div class="inline-chart">
+    {{#if job.hasChildren}}
+      {{children-status-bar job=job isNarrow=true}}
+    {{else}}
+      {{allocation-status-bar allocationContainer=job isNarrow=true}}
+    {{/if}}
+  </div>
 </td>

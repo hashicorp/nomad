@@ -28,7 +28,7 @@
             {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
             {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
             <th>Groups</th>
-            <th class="is-3">Allocation Status</th>
+            <th class="is-3">Summary</th>
           {{/t.head}}
           {{#t.body key="model.id" as |row|}}
             {{job-row data-test-job-row job=row.model onClick=(action "gotoJob" row.model)}}
