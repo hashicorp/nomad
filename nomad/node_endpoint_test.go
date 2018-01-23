@@ -1649,7 +1649,6 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
 	require := require.New(t)
 
 	// Create the register request
@@ -1694,8 +1693,8 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	var resp2 structs.NodeAllocsResponse
 	start := time.Now()
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
-	assert.Nil(err)
-	assert.NotEqual(0, resp2.Index)
+	require.Nil(err)
+	require.NotEqual(0, resp2.Index)
 
 	if diff := time.Since(start); diff < batchUpdateInterval {
 		t.Fatalf("too fast: %v", diff)
@@ -1704,21 +1703,21 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Lookup the alloc
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
-	assert.Nil(err)
-	assert.Equal(structs.AllocClientStatusFailed, out.ClientStatus)
-	assert.True(out.ModifyTime > 0)
+	require.Nil(err)
+	require.Equal(structs.AllocClientStatusFailed, out.ClientStatus)
+	require.True(out.ModifyTime > 0)
 
 	// Assert that one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
 	evaluations, err := state.EvalsByJob(ws, job.Namespace, job.ID)
-	assert.Nil(err)
-	assert.True(len(evaluations) != 0)
+	require.Nil(err)
+	require.True(len(evaluations) != 0)
 	found := false
 	for _, resultEval := range evaluations {
 		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc {
 			found = true
 		}
 	}
-	assert.True(found, "Should create an eval for failed alloc")
+	require.True(found, "Should create an eval for failed alloc")
 
 }
 
