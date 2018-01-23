@@ -2842,6 +2842,120 @@ func TestRescheduleTracker_Copy(t *testing.T) {
 	}
 }
 
+func TestAllocation_GCEligible(t *testing.T) {
+	type testCase struct {
+		Desc               string
+		GCTime             time.Time
+		ClientStatus       string
+		DesiredStatus      string
+		ModifyIndex        uint64
+		ReschedulePolicy   *ReschedulePolicy
+		RescheduleTrackers []*RescheduleEvent
+		ThresholdIndex     uint64
+		ShouldGC           bool
+	}
+
+	fail := time.Now()
+
+	harness := []testCase{
+		{
+			Desc:           "GC when non terminal",
+			ClientStatus:   AllocClientStatusPending,
+			DesiredStatus:  AllocDesiredStatusRun,
+			GCTime:         fail,
+			ModifyIndex:    90,
+			ThresholdIndex: 90,
+			ShouldGC:       false,
+		},
+		{
+			Desc:             "GC when threshold not met",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusStop,
+			GCTime:           fail,
+			ModifyIndex:      100,
+			ThresholdIndex:   90,
+			ReschedulePolicy: nil,
+			ShouldGC:         false,
+		},
+		{
+			Desc:             "GC when no reschedule policy",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: nil,
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			ShouldGC:         true,
+		},
+		{
+			Desc:             "GC when empty policy",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &ReschedulePolicy{0, 0 * time.Minute},
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			ShouldGC:         true,
+		},
+		{
+			Desc:             "GC with no previous attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			GCTime:           fail,
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
+			ShouldGC:         false,
+		},
+		{
+			Desc:             "GC with prev reschedule attempt within interval",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{2, 30 * time.Minute},
+			GCTime:           fail,
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			RescheduleTrackers: []*RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-5 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldGC: false,
+		},
+		{
+			Desc:             "GC with prev reschedule attempt outside interval",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &ReschedulePolicy{5, 30 * time.Minute},
+			RescheduleTrackers: []*RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-45 * time.Minute).UTC().UnixNano(),
+				},
+				{
+					RescheduleTime: fail.Add(-60 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldGC: true,
+		},
+	}
+
+	for _, tc := range harness {
+		alloc := Allocation{}
+		alloc.ModifyIndex = tc.ModifyIndex
+		alloc.DesiredStatus = tc.DesiredStatus
+		alloc.ClientStatus = tc.ClientStatus
+		alloc.RescheduleTracker = &RescheduleTracker{tc.RescheduleTrackers}
+
+		t.Run(tc.Desc, func(t *testing.T) {
+			if got := alloc.GCEligible(tc.ReschedulePolicy, tc.GCTime, tc.ThresholdIndex); got != tc.ShouldGC {
+				t.Fatalf("expected %v but got %v", tc.ShouldGC, got)
+			}
+		})
+
+	}
+}
+
 func TestVault_Validate(t *testing.T) {
 	v := &Vault{
 		Env:        true,
