@@ -116,7 +116,7 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
 	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !cgroupsMounted(node)) {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
-			d.logger.Printf("[DEBUG] driver.java: root priviledges and mounted cgroups required on linux, disabling")
+			d.logger.Printf("[DEBUG] driver.java: root privileges and mounted cgroups required on linux, disabling")
 		}
 		delete(node.Attributes, "driver.java")
 		d.fingerprintSuccess = helper.BoolToPtr(false)
@@ -251,7 +251,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: ctx.TaskEnv,
 		Driver:  "java",
-		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
@@ -266,12 +265,18 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
+	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
+		TaskKillSignal: taskKillSignal,
 	}
 	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {

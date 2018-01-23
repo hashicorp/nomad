@@ -58,6 +58,23 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
+	DriverOpts          map[string]string
+}
+
+// Task carries the information about one backend task
+type Task struct {
+	Name       string
+	EndpointID string
+	EndpointIP string
+	Info       map[string]string
+}
+
+// ServiceInfo represents service parameters with the list of service's tasks
+type ServiceInfo struct {
+	VIP          string
+	Ports        []string
+	LocalLBIndex int
+	Tasks        []Task
 }
 
 // Copy makes a deep copy of `EndpointSettings`
@@ -83,4 +100,9 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 // Carries the networking configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {
 	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each connecting network
+}
+
+// ConfigReference specifies the source which provides a network's configuration
+type ConfigReference struct {
+	Network string
 }

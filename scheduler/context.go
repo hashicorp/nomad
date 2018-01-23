@@ -185,6 +185,10 @@ type EvalEligibility struct {
 	// tgEscapedConstraints is a map of task groups to whether constraints have
 	// escaped.
 	tgEscapedConstraints map[string]bool
+
+	// quotaReached marks that the quota limit has been reached for the given
+	// quota
+	quotaReached string
 }
 
 // NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
@@ -327,4 +331,15 @@ func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg, class strin
 	} else {
 		e.taskGroups[tg] = map[string]ComputedClassFeasibility{class: eligibility}
 	}
+}
+
+// SetQuotaLimitReached marks that the quota limit has been reached for the
+// given quota
+func (e *EvalEligibility) SetQuotaLimitReached(quota string) {
+	e.quotaReached = quota
+}
+
+// QuotaLimitReached returns the quota name if the quota limit has been reached.
+func (e *EvalEligibility) QuotaLimitReached() string {
+	return e.quotaReached
 }

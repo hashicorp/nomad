@@ -12,12 +12,12 @@
           </tr>
         </thead>
         <tbody>
-          {{#each-in model.tags as |name value|}}
-            <tr>
-              <td>{{name}}</td>
-              <td>{{value}}</td>
+          {{#each sortedTags as |tag|}}
+            <tr data-test-server-tag>
+              <td>{{tag.name}}</td>
+              <td>{{tag.value}}</td>
             </tr>
-          {{/each-in}}
+          {{/each}}
         </tbody>
       </table>
     </div>

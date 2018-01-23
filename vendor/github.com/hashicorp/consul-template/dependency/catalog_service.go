@@ -15,7 +15,7 @@ var (
 	_ Dependency = (*CatalogServiceQuery)(nil)
 
 	// CatalogServiceQueryRe is the regular expression to use.
-	CatalogServiceQueryRe = regexp.MustCompile(`\A` + tagRe + nameRe + dcRe + nearRe + `\z`)
+	CatalogServiceQueryRe = regexp.MustCompile(`\A` + tagRe + serviceNameRe + dcRe + nearRe + `\z`)
 )
 
 func init() {

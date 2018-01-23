@@ -1,9 +1,18 @@
 {{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb|}}
-    <a href="{{href-to-spread breadcrumb.args}}" class="breadcrumb">{{breadcrumb.label}}</a>
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to
+        data-test-breadcrumb=breadcrumb.label
+        params=(append
+          breadcrumb.args
+          (query-params jobNamespace=(or model.namespace.id "default"))
+        )}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    </li>
   {{/each}}
 {{/global-header}}
-{{#gutter-menu class="page-body"}}
+{{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
   <div class="tabs is-subnav">
     <ul>
       <li>{{#link-to "jobs.job.task-group" model.job model activeClass="is-active"}}Overview{{/link-to}}</li>
@@ -18,10 +27,10 @@
       <div class="boxed-section-body inline-definitions">
         <span class="label">Task Group Details</span>
 
-        <span class="pair"><span class="term"># Tasks</span> {{model.tasks.length}}</span>
-        <span class="pair"><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
-        <span class="pair"><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
-        <span class="pair"><span class="term">Reserved Disk</span> {{model.reservedEphemeralDisk}} MiB</span>
+        <span class="pair" data-test-task-group-tasks><span class="term"># Tasks</span> {{model.tasks.length}}</span>
+        <span class="pair" data-test-task-group-cpu><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
+        <span class="pair" data-test-task-group-mem><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
+        <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{model.reservedEphemeralDisk}} MiB</span>
       </div>
     </div>
 
@@ -64,36 +73,36 @@
           {{#list-table
             source=p.list
             sortProperty=sortProperty
-            sortDescending=sortDescending as |t|}}
+            sortDescending=sortDescending
+            class="with-foot" as |t|}}
             {{#t.head}}
               {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+              {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
               {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-              {{#t.sort-by prop="clientStatus"}}Status{{/t.sort-by}}
-              {{#t.sort-by prop="node.shortId"}}Node{{/t.sort-by}}
+              {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
+              {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
+              {{#t.sort-by prop="node.shortId"}}Client{{/t.sort-by}}
               <th>CPU</th>
               <th>Memory</th>
             {{/t.head}}
             {{#t.body as |row|}}
-              {{allocation-row allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
+              {{allocation-row data-test-allocation allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
             {{/t.body}}
           {{/list-table}}
-          <nav class="pagination is-centered">
-            <ul class="pagination-list">
-              {{#p.first class="pagination-link"}} |&lt; {{/p.first}}
-              {{#p.prev class="pagination-link"}} &lt; {{/p.prev}}
-              {{#each p.pageLinks as |link|}}
-                {{#link-to (query-params currentPage=link.pageNumber) class="pagination-link" activeClass="is-current"}}
-                  {{link.pageNumber}}
-                {{/link-to}}
-              {{/each}}
-              {{#p.next class="pagination-link"}} &gt; {{/p.next}}
-              {{#p.last class="pagination-link"}} &gt;| {{/p.last}}
-            </ul>
-          </nav>
+          <div class="table-foot">
+            <nav class="pagination">
+              <div class="pagination-numbers">
+                {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
+              </div>
+              {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+              {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+              <ul class="pagination-list"></ul>
+            </nav>
+          </div>
         {{else}}
           <div class="boxed-section-body">
-            <div class="empty-message">
-              <h3 class="empty-message-headline">No Matches</h3>
+            <div class="empty-message" data-test-empty-allocations-list>
+              <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
               <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
             </div>
           </div>

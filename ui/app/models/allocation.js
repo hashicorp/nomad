@@ -1,16 +1,26 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { readOnly } from '@ember/object/computed';
+import { computed } from '@ember/object';
+import RSVP from 'rsvp';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import fetch from 'fetch';
 import PromiseObject from '../utils/classes/promise-object';
 import timeout from '../utils/timeout';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
-const { computed, RSVP } = Ember;
+const STATUS_ORDER = {
+  pending: 1,
+  running: 2,
+  complete: 3,
+  failed: 4,
+  lost: 5,
+};
 
 export default Model.extend({
+  token: service(),
+
   shortId: shortUUIDProperty('id'),
   job: belongsTo('job'),
   node: belongsTo('node'),
@@ -18,30 +28,56 @@ export default Model.extend({
   taskGroupName: attr('string'),
   resources: fragment('resources'),
   modifyIndex: attr('number'),
+  modifyTime: attr('date'),
+  jobVersion: attr('number'),
+
+  // TEMPORARY: https://github.com/emberjs/data/issues/5209
+  originalJobId: attr('string'),
 
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
+  statusIndex: computed('clientStatus', function() {
+    return STATUS_ORDER[this.get('clientStatus')] || 100;
+  }),
+
+  statusClass: computed('clientStatus', function() {
+    const classMap = {
+      pending: 'is-pending',
+      running: 'is-primary',
+      complete: 'is-complete',
+      failed: 'is-error',
+      lost: 'is-light',
+    };
+
+    return classMap[this.get('clientStatus')] || 'is-dark';
+  }),
 
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
   }),
 
-  percentMemory: computed(
-    'taskGroup.reservedMemory',
-    'stats.ResourceUsage.MemoryStats.Cache',
-    function() {
-      const used = this.get('stats.ResourceUsage.MemoryStats.Cache');
-      const total = this.get('taskGroup.reservedMemory');
-      if (!total || !used) {
-        return 0;
-      }
-      return used / total;
-    }
-  ),
+  memoryUsed: readOnly('stats.ResourceUsage.MemoryStats.RSS'),
+  cpuUsed: computed('stats.ResourceUsage.CpuStats.TotalTicks', function() {
+    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks') || 0);
+  }),
 
-  percentCPU: computed('stats.ResourceUsage.CpuStats.Percent', function() {
-    return this.get('stats.ResourceUsage.CpuStats.Percent') || 0;
+  percentMemory: computed('taskGroup.reservedMemory', 'memoryUsed', function() {
+    const used = this.get('memoryUsed') / 1024 / 1024;
+    const total = this.get('taskGroup.reservedMemory');
+    if (!total || !used) {
+      return 0;
+    }
+    return used / total;
+  }),
+
+  percentCPU: computed('cpuUsed', 'taskGroup.reservedCPU', function() {
+    const used = this.get('cpuUsed');
+    const total = this.get('taskGroup.reservedCPU');
+    if (!total || !used) {
+      return 0;
+    }
+    return used / total;
   }),
 
   stats: computed('node.{isPartial,httpAddr}', function() {
@@ -58,7 +94,12 @@ export default Model.extend({
 
     const url = `//${this.get('node.httpAddr')}/v1/client/allocation/${this.get('id')}/stats`;
     return PromiseObject.create({
-      promise: RSVP.Promise.race([fetch(url).then(res => res.json()), timeout(2000)]),
+      promise: RSVP.Promise.race([
+        this.get('token')
+          .authorizedRequest(url)
+          .then(res => res.json()),
+        timeout(2000),
+      ]),
     });
   }),
 

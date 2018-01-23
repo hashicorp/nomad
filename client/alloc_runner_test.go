@@ -152,7 +152,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	assert.NotNil(state)
 	assert.NotEmpty(state.Events)
 	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Equal(allocHealthEventSource, last.Type)
 	assert.Contains(last.Message, "failed task")
 }
 
@@ -202,7 +202,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	assert.NotNil(state)
 	assert.NotEmpty(state.Events)
 	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Equal(allocHealthEventSource, last.Type)
 	assert.Contains(last.Message, "not running by deadline")
 }
 
@@ -412,7 +412,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	assert.NotNil(state)
 	assert.NotEmpty(state.Events)
 	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.GenericSource)
+	assert.Equal(allocHealthEventSource, last.Type)
 	assert.Contains(last.Message, "Services not healthy by deadline")
 }
 
@@ -749,7 +749,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("----- ar2:  ")
 	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
-	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2)
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2, "")
 	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
 		alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
@@ -844,7 +844,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("ar2: ")
 	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
-	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2)
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, ar.config, l2, "")
 	ar2 := NewAllocRunner(l2, ar.config, ar.stateDB, upd.Update,
 		alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
@@ -959,7 +959,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	// Create a new alloc runner
 	l2 := prefixedTestLogger("ar2: ")
 	alloc2 := &structs.Allocation{ID: ar.alloc.ID}
-	prevAlloc := newAllocWatcher(alloc2, ar, nil, origConfig, l2)
+	prevAlloc := newAllocWatcher(alloc2, ar, nil, origConfig, l2, "")
 	ar2 := NewAllocRunner(l2, origConfig, ar.stateDB, upd.Update, alloc2, ar.vaultClient, ar.consulClient, prevAlloc)
 	err = ar2.RestoreState()
 	if err != nil {
@@ -1365,6 +1365,97 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	})
 }
 
+// TestAllocRunner_TaskLeader_StopRestoredTG asserts that when stopping a
+// restored task group with a leader that failed before restoring the leader is
+// not stopped as it does not exist.
+// See https://github.com/hashicorp/nomad/issues/3420#issuecomment-341666932
+func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
+	t.Parallel()
+	_, ar := testAllocRunner(false)
+	defer ar.Destroy()
+
+	// Create a leader and follower task in the task group
+	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
+	task.Name = "follower1"
+	task.Driver = "mock_driver"
+	task.KillTimeout = 10 * time.Second
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	task2 := ar.alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "leader"
+	task2.Driver = "mock_driver"
+	task2.Leader = true
+	task2.KillTimeout = 10 * time.Millisecond
+	task2.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+
+	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
+	ar.alloc.TaskResources[task2.Name] = task2.Resources
+
+	// Mimic Nomad exiting before the leader stopping is able to stop other tasks.
+	ar.tasks = map[string]*TaskRunner{
+		"leader": NewTaskRunner(ar.logger, ar.config, ar.stateDB, ar.setTaskState,
+			ar.allocDir.NewTaskDir(task2.Name), ar.Alloc(), task2.Copy(),
+			ar.vaultClient, ar.consulClient),
+		"follower1": NewTaskRunner(ar.logger, ar.config, ar.stateDB, ar.setTaskState,
+			ar.allocDir.NewTaskDir(task.Name), ar.Alloc(), task.Copy(),
+			ar.vaultClient, ar.consulClient),
+	}
+	ar.taskStates = map[string]*structs.TaskState{
+		"leader":    {State: structs.TaskStateDead},
+		"follower1": {State: structs.TaskStateRunning},
+	}
+	if err := ar.SaveState(); err != nil {
+		t.Fatalf("error saving state: %v", err)
+	}
+
+	// Create a new AllocRunner to test RestoreState and Run
+	upd2 := &MockAllocStateUpdater{}
+	ar2 := NewAllocRunner(ar.logger, ar.config, ar.stateDB, upd2.Update, ar.alloc,
+		ar.vaultClient, ar.consulClient, ar.prevAlloc)
+	defer ar2.Destroy()
+
+	if err := ar2.RestoreState(); err != nil {
+		t.Fatalf("error restoring state: %v", err)
+	}
+	go ar2.Run()
+
+	// Wait for tasks to be stopped because leader is dead
+	testutil.WaitForResult(func() (bool, error) {
+		_, last := upd2.Last()
+		if last == nil {
+			return false, fmt.Errorf("no updates yet")
+		}
+		if actual := last.TaskStates["leader"].State; actual != structs.TaskStateDead {
+			return false, fmt.Errorf("Task leader is not dead yet (it's %q)", actual)
+		}
+		if actual := last.TaskStates["follower1"].State; actual != structs.TaskStateDead {
+			return false, fmt.Errorf("Task follower1 is not dead yet (it's %q)", actual)
+		}
+		return true, nil
+	}, func(err error) {
+		count, last := upd2.Last()
+		t.Logf("Updates: %d", count)
+		for name, state := range last.TaskStates {
+			t.Logf("%s: %s", name, state.State)
+		}
+		t.Fatalf("err: %v", err)
+	})
+
+	// Make sure it GCs properly
+	ar2.Destroy()
+
+	select {
+	case <-ar2.WaitCh():
+		// exited as expected
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for AR to GC")
+	}
+}
+
 // TestAllocRunner_MoveAllocDir asserts that a file written to an alloc's
 // local/ dir will be moved to a replacement alloc's local/ dir if sticky
 // volumes is on.
@@ -1413,7 +1504,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	upd2, ar2 := testAllocRunnerFromAlloc(alloc2, false)
 
 	// Set prevAlloc like Client does
-	ar2.prevAlloc = newAllocWatcher(alloc2, ar, nil, ar2.config, ar2.logger)
+	ar2.prevAlloc = newAllocWatcher(alloc2, ar, nil, ar2.config, ar2.logger, "")
 
 	go ar2.Run()
 	defer ar2.Destroy()

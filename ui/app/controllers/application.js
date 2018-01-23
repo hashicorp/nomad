@@ -1,8 +1,13 @@
+import { inject as service } from '@ember/service';
+import Controller from '@ember/controller';
+import { run } from '@ember/runloop';
+import { observer, computed } from '@ember/object';
 import Ember from 'ember';
-
-const { Controller, computed } = Ember;
+import codesForError from '../utils/codes-for-error';
 
 export default Controller.extend({
+  config: service(),
+
   error: null,
 
   errorStr: computed('error', function() {
@@ -10,19 +15,11 @@ export default Controller.extend({
   }),
 
   errorCodes: computed('error', function() {
-    const error = this.get('error');
-    const codes = [error.code];
+    return codesForError(this.get('error'));
+  }),
 
-    if (error.errors) {
-      error.errors.forEach(err => {
-        codes.push(err.status);
-      });
-    }
-
-    return codes
-      .compact()
-      .uniq()
-      .map(code => '' + code);
+  is403: computed('errorCodes.[]', function() {
+    return this.get('errorCodes').includes('403');
   }),
 
   is404: computed('errorCodes.[]', function() {
@@ -31,5 +28,18 @@ export default Controller.extend({
 
   is500: computed('errorCodes.[]', function() {
     return this.get('errorCodes').includes('500');
+  }),
+
+  throwError: observer('error', function() {
+    if (this.get('config.isDev')) {
+      run.next(() => {
+        throw this.get('error');
+      });
+    } else if (!Ember.testing) {
+      run.next(() => {
+        // eslint-disable-next-line
+        console.warn('UNRECOVERABLE ERROR:', this.get('error'));
+      });
+    }
   }),
 });

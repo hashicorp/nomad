@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/raft"
 )
 
 const (
@@ -43,7 +44,9 @@ const (
 // scheduled to, and are responsible for interfacing with
 // servers to run allocations.
 type Agent struct {
-	config    *Config
+	config     *Config
+	configLock sync.Mutex
+
 	logger    *log.Logger
 	logOutput io.Writer
 
@@ -139,6 +142,9 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Server.ProtocolVersion != 0 {
 		conf.ProtocolVersion = uint8(agentConfig.Server.ProtocolVersion)
 	}
+	if agentConfig.Server.RaftProtocol != 0 {
+		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
+	}
 	if agentConfig.Server.NumSchedulers != 0 {
 		conf.NumSchedulers = agentConfig.Server.NumSchedulers
 	}
@@ -153,6 +159,32 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	}
 	if agentConfig.Sentinel != nil {
 		conf.SentinelConfig = agentConfig.Sentinel
+	}
+	if agentConfig.Server.NonVotingServer {
+		conf.NonVoter = true
+	}
+	if agentConfig.Autopilot != nil {
+		if agentConfig.Autopilot.CleanupDeadServers != nil {
+			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers
+		}
+		if agentConfig.Autopilot.ServerStabilizationTime != 0 {
+			conf.AutopilotConfig.ServerStabilizationTime = agentConfig.Autopilot.ServerStabilizationTime
+		}
+		if agentConfig.Autopilot.LastContactThreshold != 0 {
+			conf.AutopilotConfig.LastContactThreshold = agentConfig.Autopilot.LastContactThreshold
+		}
+		if agentConfig.Autopilot.MaxTrailingLogs != 0 {
+			conf.AutopilotConfig.MaxTrailingLogs = uint64(agentConfig.Autopilot.MaxTrailingLogs)
+		}
+		if agentConfig.Autopilot.RedundancyZoneTag != "" {
+			conf.AutopilotConfig.RedundancyZoneTag = agentConfig.Autopilot.RedundancyZoneTag
+		}
+		if agentConfig.Autopilot.DisableUpgradeMigration != nil {
+			conf.AutopilotConfig.DisableUpgradeMigration = *agentConfig.Autopilot.DisableUpgradeMigration
+		}
+		if agentConfig.Autopilot.UpgradeVersionTag != "" {
+			conf.AutopilotConfig.UpgradeVersionTag = agentConfig.Autopilot.UpgradeVersionTag
+		}
 	}
 
 	// Set up the bind addresses
@@ -232,6 +264,11 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
+
+	// Setup telemetry related config
+	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
+	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
+	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	return conf, nil
 }
@@ -534,7 +571,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	check := structs.ServiceCheck{
 		Name:      "Nomad Client HTTP Check",
 		Type:      "http",
-		Path:      "/v1/agent/servers",
+		Path:      "/v1/agent/health?type=client",
 		Protocol:  "http",
 		Interval:  agentHttpCheckInterval,
 		Timeout:   agentHttpCheckTimeout,
@@ -543,7 +580,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	// Switch to endpoint that doesn't require a leader for servers
 	if server {
 		check.Name = "Nomad Server HTTP Check"
-		check.Path = "/v1/status/peers"
+		check.Path = "/v1/agent/health?type=server"
 	}
 	if !a.config.TLSConfig.EnableHTTP {
 		// No HTTPS, return a plain http check
@@ -717,6 +754,40 @@ func (a *Agent) Stats() map[string]map[string]string {
 		}
 	}
 	return stats
+}
+
+// Reload handles configuration changes for the agent. Provides a method that
+// is easier to unit test, as this action is invoked via SIGHUP.
+func (a *Agent) Reload(newConfig *Config) error {
+	a.configLock.Lock()
+	defer a.configLock.Unlock()
+
+	if newConfig.TLSConfig != nil {
+
+		// TODO(chelseakomlo) In a later PR, we will introduce the ability to reload
+		// TLS configuration if the agent is not running with TLS enabled.
+		if a.config.TLSConfig != nil {
+			// Reload the certificates on the keyloader and on success store the
+			// updated TLS config. It is important to reuse the same keyloader
+			// as this allows us to dynamically reload configurations not only
+			// on the Agent but on the Server and Client too (they are
+			// referencing the same keyloader).
+			keyloader := a.config.TLSConfig.GetKeyLoader()
+			_, err := keyloader.LoadKeyPair(newConfig.TLSConfig.CertFile, newConfig.TLSConfig.KeyFile)
+			if err != nil {
+				return err
+			}
+			a.config.TLSConfig = newConfig.TLSConfig
+			a.config.TLSConfig.KeyLoader = keyloader
+		}
+	}
+
+	return nil
+}
+
+// GetConfigCopy creates a replica of the agent's config, excluding locks
+func (a *Agent) GetConfig() *Config {
+	return a.config
 }
 
 // setupConsul creates the Consul client and starts its main Run loop.

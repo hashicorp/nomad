@@ -74,15 +74,15 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Check job submission permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
 		// Check if override is set and we do not have permissions
 		if args.PolicyOverride {
-			if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
 				j.srv.logger.Printf("[WARN] nomad.job: policy override attempted without permissions for Job %q", args.Job.ID)
 				return structs.ErrPermissionDenied
 			}
@@ -303,7 +303,7 @@ func getSignalConstraint(signals []string) *structs.Constraint {
 	}
 }
 
-// Summary retreives the summary of a job
+// Summary retrieves the summary of a job
 func (j *Job) Summary(args *structs.JobSummaryRequest,
 	reply *structs.JobSummaryResponse) error {
 
@@ -313,7 +313,7 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job_summary", "get_job_summary"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -355,7 +355,7 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -395,7 +395,7 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	defer metrics.MeasureSince([]string{"nomad", "job", "revert"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
@@ -460,7 +460,7 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	defer metrics.MeasureSince([]string{"nomad", "job", "stable"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
@@ -506,7 +506,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluate"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -576,7 +576,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	defer metrics.MeasureSince([]string{"nomad", "job", "deregister"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
@@ -655,7 +655,7 @@ func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -701,7 +701,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "get_job_versions"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -759,7 +759,7 @@ func (j *Job) List(args *structs.JobListRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
 	// Check for list-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) {
 		return structs.ErrPermissionDenied
@@ -820,7 +820,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "allocations"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -869,7 +869,7 @@ func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluations"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -911,7 +911,7 @@ func (j *Job) Deployments(args *structs.JobSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "deployments"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -953,7 +953,7 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "job", "latest_deployment"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -1020,15 +1020,15 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
 
 	// Check job submission permissions, which we assume is the same for plan
-	if aclObj, err := j.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySubmitJob) {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
 		// Check if override is set and we do not have permissions
 		if args.PolicyOverride {
-			if !aclObj.AllowNsOp(structs.DefaultNamespace, acl.NamespaceCapabilitySentinelOverride) {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
 				return structs.ErrPermissionDenied
 			}
 		}
@@ -1087,6 +1087,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		Status:         structs.EvalStatusPending,
 		AnnotatePlan:   true,
 	}
+
+	snap.UpsertEvals(100, []*structs.Evaluation{eval})
 
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.
@@ -1213,10 +1215,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 
 	// Transitioning to/from periodic is disallowed
 	if old.IsPeriodic() && !new.IsPeriodic() {
-		return fmt.Errorf("cannot update non-periodic job to being periodic")
+		return fmt.Errorf("cannot update periodic job to being non-periodic")
 	}
 	if new.IsPeriodic() && !old.IsPeriodic() {
-		return fmt.Errorf("cannot update periodic job to being non-periodic")
+		return fmt.Errorf("cannot update non-periodic job to being periodic")
 	}
 
 	// Transitioning to/from parameterized is disallowed
@@ -1236,6 +1238,13 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
+
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityDispatchJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Lookup the parameterized job
 	if args.JobID == "" {

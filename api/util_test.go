@@ -62,3 +62,19 @@ func testNamespace() *Namespace {
 		Description: "Testing namespaces",
 	}
 }
+
+func testQuotaSpec() *QuotaSpec {
+	return &QuotaSpec{
+		Name:        "test-namespace",
+		Description: "Testing namespaces",
+		Limits: []*QuotaLimit{
+			{
+				Region: "global",
+				RegionLimit: &Resources{
+					CPU:      helper.IntToPtr(2000),
+					MemoryMB: helper.IntToPtr(2000),
+				},
+			},
+		},
+	}
+}

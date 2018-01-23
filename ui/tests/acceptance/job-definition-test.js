@@ -18,11 +18,13 @@ test('visiting /jobs/:job_id/definition', function(assert) {
 });
 
 test('the job definition page contains a json viewer component', function(assert) {
-  assert.ok(findAll('.json-viewer').length, 'JSON viewer found');
+  assert.ok(findAll('[data-test-definition-view]').length, 'JSON viewer found');
 });
 
 test('the job definition page requests the job to display in an unmutated form', function(assert) {
   const jobURL = `/v1/job/${job.id}`;
-  const jobRequests = server.pretender.handledRequests.filter(req => req.url === jobURL);
+  const jobRequests = server.pretender.handledRequests
+    .map(req => req.url.split('?')[0])
+    .filter(url => url === jobURL);
   assert.ok(jobRequests.length === 2, 'Two requests for the job were made');
 });

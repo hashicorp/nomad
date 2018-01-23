@@ -43,7 +43,7 @@ Update stanza Tests:
 √  Stopped job cancels any active deployment
 √  Stopped job doesn't cancel terminal deployment
 √  JobIndex change cancels any active deployment
-√  JobIndex change doens't cancels any terminal deployment
+√  JobIndex change doesn't cancels any terminal deployment
 √  Destructive changes create deployment and get rolled out via max_parallelism
 √  Don't create a deployment if there are no changes
 √  Deployment created by all inplace updates
@@ -3101,4 +3101,50 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(7, 9), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 0), destructiveResultsToNames(r.destructiveUpdate))
+}
+
+// Tests that the reconciler handles rerunning a batch job in the case that the
+// allocations are from an older instance of the job.
+func TestReconciler_Batch_Rerun(t *testing.T) {
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.TaskGroups[0].Update = nil
+
+	// Create 10 allocations from the old job and have them be complete
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.ClientStatus = structs.AllocClientStatusComplete
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
+		allocs = append(allocs, alloc)
+	}
+
+	// Create a copy of the job that is "new"
+	job2 := job.Copy()
+	job2.CreateIndex++
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job2.ID, job2, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             10,
+		destructive:       0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:             10,
+				DestructiveUpdate: 0,
+				Ignore:            10,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 9), placeResultsToNames(r.place))
 }

@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -61,6 +62,17 @@ type MockDriverConfig struct {
 
 	// SignalErr is the error message that the task returns if signalled
 	SignalErr string `mapstructure:"signal_error"`
+
+	// DriverIP will be returned as the DriverNetwork.IP from Start()
+	DriverIP string `mapstructure:"driver_ip"`
+
+	// DriverAdvertise will be returned as DriverNetwork.AutoAdvertise from
+	// Start().
+	DriverAdvertise bool `mapstructure:"driver_advertise"`
+
+	// DriverPortMap will parse a label:number pair and return it in
+	// DriverNetwork.PortMap from Start().
+	DriverPortMap string `mapstructure:"driver_port_map"`
 }
 
 // MockDriver is a driver which is used for testing purposes
@@ -114,6 +126,23 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, structs.NewRecoverableError(errors.New(driverConfig.StartErr), driverConfig.StartErrRecoverable)
 	}
 
+	// Create the driver network
+	net := &cstructs.DriverNetwork{
+		IP:            driverConfig.DriverIP,
+		AutoAdvertise: driverConfig.DriverAdvertise,
+	}
+	if raw := driverConfig.DriverPortMap; len(raw) > 0 {
+		parts := strings.Split(raw, ":")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("malformed port map: %q", raw)
+		}
+		port, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("malformed port map: %q -- error: %v", raw, err)
+		}
+		net.PortMap = map[string]int{parts[0]: port}
+	}
+
 	h := mockDriverHandle{
 		taskName:    task.Name,
 		runFor:      driverConfig.RunFor,
@@ -133,7 +162,8 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	}
 	m.logger.Printf("[DEBUG] driver.mock: starting task %q", task.Name)
 	go h.run()
-	return &StartResponse{Handle: &h}, nil
+
+	return &StartResponse{Handle: &h, Network: net}, nil
 }
 
 // Cleanup deletes all keys except for Config.Options["cleanup_fail_on"] for
@@ -265,10 +295,20 @@ func (h *mockDriverHandle) Kill() error {
 	select {
 	case <-h.doneCh:
 	case <-time.After(h.killAfter):
-		close(h.doneCh)
+		select {
+		case <-h.doneCh:
+			// already closed
+		default:
+			close(h.doneCh)
+		}
 	case <-time.After(h.killTimeout):
 		h.logger.Printf("[DEBUG] driver.mock: terminating task %q", h.taskName)
-		close(h.doneCh)
+		select {
+		case <-h.doneCh:
+			// already closed
+		default:
+			close(h.doneCh)
+		}
 	}
 	return nil
 }
@@ -286,7 +326,12 @@ func (h *mockDriverHandle) run() {
 	for {
 		select {
 		case <-timer.C:
-			close(h.doneCh)
+			select {
+			case <-h.doneCh:
+				// already closed
+			default:
+				close(h.doneCh)
+			}
 		case <-h.doneCh:
 			h.logger.Printf("[DEBUG] driver.mock: finished running task %q", h.taskName)
 			h.waitCh <- dstructs.NewWaitResult(h.exitCode, h.exitSignal, h.exitErr)

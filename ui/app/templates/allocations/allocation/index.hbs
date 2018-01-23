@@ -1,0 +1,82 @@
+{{#global-header class="page-header"}}
+  <li><a href="#">Allocations</a></li>
+  <li class="is-active">
+    {{#link-to "allocations.allocation" model}}{{model.shortId}}{{/link-to}}
+  </li>
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  <section class="section">
+    <h1 data-test-title class="title">
+      Allocation {{model.name}}
+      <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
+      <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
+    </h1>
+
+    <div class="boxed-section is-small">
+      <div data-test-allocation-details class="boxed-section-body inline-definitions">
+        <span class="label">Allocation Details</span>
+        <span class="pair job-link"><span class="term">Job</span>
+          {{#link-to "jobs.job" model.job (query-params jobNamespace=model.job.namespace.id) data-test-job-link}}{{model.job.name}}{{/link-to}}
+        </span>
+        <span class="pair node-link"><span class="term">Client</span>
+          {{#link-to "clients.client" model.node data-test-client-link}}{{model.node.shortId}}{{/link-to}}
+        </span>
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Tasks
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table
+          source=sortedStates
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="is-striped" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="state"}}State{{/t.sort-by}}
+            <th>Last Event</th>
+            {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
+            <th>Addresses</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-task-row={{row.model.task.name}}>
+              <td data-test-name>
+                {{#link-to "allocations.allocation.task" row.model.allocation row.model}}
+                  {{row.model.task.name}}
+                {{/link-to}}
+              </td>
+              <td data-test-state>{{row.model.state}}</td>
+              <td data-test-message>
+                {{#if row.model.events.lastObject.displayMessage}}
+                  {{row.model.events.lastObject.displayMessage}}
+                {{else}}
+                  <em>No message</em>
+                {{/if}}
+              </td>
+              <td data-test-time>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
+              <td data-test-ports>
+                <ul>
+                  {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
+                    <li>
+                      <strong>{{port.Label}}:</strong>
+                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                    </li>
+                  {{/each}}
+                  {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
+                    <li>
+                      <strong>{{port.Label}}:</strong>
+                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                    </li>
+                  {{/each}}
+                </ul>
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  </section>
+{{/gutter-menu}}

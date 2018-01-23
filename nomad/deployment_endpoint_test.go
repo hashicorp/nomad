@@ -63,10 +63,10 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	// Lookup the deployments without a token and expect failure
 	get := &structs.DeploymentSpecificRequest{
@@ -80,19 +80,19 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 
 	// Try with a good token
-	get.SecretID = validToken.SecretID
+	get.AuthToken = validToken.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
 
 	// Try with a bad token
-	get.SecretID = invalidToken.SecretID
+	get.AuthToken = invalidToken.SecretID
 	err := msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp)
 	assert.NotNil(err, "RPC")
 	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 
 	// Try with a root token
-	get.SecretID = root.SecretID
+	get.AuthToken = root.SecretID
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.GetDeployment", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1000, "resp.Index")
 	assert.Equal(d, resp.Deployment, "Returned deployment not equal")
@@ -216,10 +216,10 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentFailRequest{
@@ -237,7 +237,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp)
 		assert.NotNil(err)
@@ -246,7 +246,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 	// Try with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Fail", req, &resp), "RPC")
 		assert.NotEqual(resp.Index, uint64(0), "bad response index")
@@ -293,6 +293,8 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
 	j2.Stable = false
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 
 	d := mock.Deployment()
 	d.TaskGroups["web"].AutoRevert = true
@@ -408,10 +410,10 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentPauseRequest{
@@ -430,7 +432,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp)
 		assert.NotNil(err)
@@ -439,7 +441,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Pause", req, &resp), "RPC")
 		assert.NotEqual(resp.Index, uint64(0), "bad response index")
@@ -551,10 +553,10 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Promote the deployment
 	req := &structs.DeploymentPromoteRequest{
@@ -573,7 +575,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp)
 		assert.NotNil(err)
@@ -582,7 +584,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Promote", req, &resp), "RPC")
 		assert.NotEqual(resp.Index, uint64(0), "bad response index")
@@ -703,10 +705,10 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	// Set the alloc as healthy
 	req := &structs.DeploymentAllocHealthRequest{
@@ -725,7 +727,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		req.SecretID = invalidToken.SecretID
+		req.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp)
 		assert.NotNil(err)
@@ -734,7 +736,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	{
-		req.SecretID = validToken.SecretID
+		req.AuthToken = validToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp), "RPC")
 		assert.NotZero(resp.Index, "bad response index")
@@ -792,7 +794,8 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
 	j2.Stable = false
-
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 	d := mock.Deployment()
 	d.TaskGroups["web"].AutoRevert = true
 	d.JobID = j2.ID
@@ -855,6 +858,93 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	assert.Nil(err, "JobByID")
 	assert.NotNil(jout, "job")
 	assert.EqualValues(2, jout.Version, "reverted job version")
+}
+
+// tests rollback upon alloc health failure to job with identical spec does not succeed
+func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+	state := s1.fsm.State()
+
+	// Create the original job
+	j := mock.Job()
+	j.Stable = true
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
+
+	// Create the second job, deployment and alloc. Job has same spec as original
+	j2 := j.Copy()
+	j2.Stable = false
+
+	d := mock.Deployment()
+	d.TaskGroups["web"].AutoRevert = true
+	d.JobID = j2.ID
+	d.JobVersion = j2.Version
+
+	a := mock.Alloc()
+	a.JobID = j.ID
+	a.DeploymentID = d.ID
+
+	assert.Nil(state.UpsertJob(999, j2), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Set the alloc as unhealthy
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:           d.ID,
+		UnhealthyAllocationIDs: []string{a.ID},
+		WriteRequest:           structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.DeploymentUpdateResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp), "RPC")
+	assert.NotZero(resp.Index, "bad response index")
+	assert.Nil(resp.RevertedJobVersion, "revert version must be nil")
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
+	assert.Nil(err, "EvalByID failed")
+	assert.NotNil(eval, "Expect eval")
+	assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+	assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+	assert.Equal(eval.JobID, d.JobID, "eval job id")
+	assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+	assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+	// Lookup the deployment
+	expectedDesc := structs.DeploymentStatusDescriptionRollbackNoop(structs.DeploymentStatusDescriptionFailedAllocations, 0)
+	dout, err := state.DeploymentByID(ws, d.ID)
+	assert.Nil(err, "DeploymentByID failed")
+	assert.Equal(dout.Status, structs.DeploymentStatusFailed, "wrong status")
+	assert.Equal(dout.StatusDescription, expectedDesc, "wrong status description")
+	assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
+	assert.Len(dout.TaskGroups, 1, "should have one group")
+	assert.Contains(dout.TaskGroups, "web", "should have web group")
+	assert.Equal(1, dout.TaskGroups["web"].UnhealthyAllocs, "should have one healthy")
+
+	// Lookup the allocation
+	aout, err := state.AllocByID(ws, a.ID)
+	assert.Nil(err, "AllocByID")
+	assert.NotNil(aout, "alloc")
+	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
+	assert.NotNil(aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+	assert.False(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+
+	// Lookup the job, its version should not have changed
+	jout, err := state.JobByID(ws, j.Namespace, j.ID)
+	assert.Nil(err, "JobByID")
+	assert.NotNil(jout, "job")
+	assert.EqualValues(1, jout.Version, "original job version")
 }
 
 func TestDeploymentEndpoint_List(t *testing.T) {
@@ -921,10 +1011,10 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get := &structs.DeploymentListRequest{
 		QueryOptions: structs.QueryOptions{
@@ -943,7 +1033,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
 		assert.NotNil(err)
@@ -952,7 +1042,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 	// Lookup the deployments with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.DeploymentListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "Wrong Index")
@@ -962,7 +1052,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 	// Lookup the deployments with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.DeploymentListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "Wrong Index")
@@ -1088,10 +1178,10 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
-	validToken := CreatePolicyAndToken(t, state, 1001, "test-valid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := CreatePolicyAndToken(t, state, 1003, "test-invalid",
-		NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
 	get := &structs.DeploymentSpecificRequest{
 		DeploymentID: d.ID,
@@ -1111,7 +1201,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	{
-		get.SecretID = invalidToken.SecretID
+		get.AuthToken = invalidToken.SecretID
 		var resp structs.DeploymentUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp)
 		assert.NotNil(err)
@@ -1120,7 +1210,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the allocations with a valid token
 	{
-		get.SecretID = validToken.SecretID
+		get.AuthToken = validToken.SecretID
 		var resp structs.AllocListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
 		assert.EqualValues(1001, resp.Index, "Wrong Index")
@@ -1130,7 +1220,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 	// Lookup the allocations with a root token
 	{
-		get.SecretID = root.SecretID
+		get.AuthToken = root.SecretID
 		var resp structs.AllocListResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Allocations", get, &resp), "RPC")
 		assert.EqualValues(1001, resp.Index, "Wrong Index")

@@ -75,6 +75,120 @@ func formatTimeDifference(first, second time.Time, d time.Duration) string {
 	return second.Truncate(d).Sub(first.Truncate(d)).String()
 }
 
+// fmtInt formats v into the tail of buf.
+// It returns the index where the output begins.
+func fmtInt(buf []byte, v uint64) int {
+	w := len(buf)
+	for v > 0 {
+		w--
+		buf[w] = byte(v%10) + '0'
+		v /= 10
+	}
+	return w
+}
+
+// prettyTimeDiff prints a human readable time difference.
+// It uses abbreviated forms for each period - s for seconds, m for minutes, h for hours,
+// d for days, mo for months, and y for years. Time difference is rounded to the nearest second,
+// and the top two least granular periods are returned. For example, if the time difference
+// is 10 months, 12 days, 3 hours and 2 seconds, the string "10mo12d" is returned. Zero values return the empty string
+func prettyTimeDiff(first, second time.Time) string {
+	// handle zero values
+	if first.IsZero() || first.UnixNano() == 0 {
+		return ""
+	}
+	// round to the nearest second
+	first = first.Round(time.Second)
+	second = second.Round(time.Second)
+
+	// calculate time difference in seconds
+	d := second.Sub(first)
+	u := uint64(d.Seconds())
+
+	var buf [32]byte
+	w := len(buf)
+	secs := u % 60
+
+	// track indexes of various periods
+	var indexes []int
+
+	if secs > 0 {
+		w--
+		buf[w] = 's'
+		// u is now seconds
+		w = fmtInt(buf[:w], secs)
+		indexes = append(indexes, w)
+	}
+	u /= 60
+	// u is now minutes
+	if u > 0 {
+		mins := u % 60
+		if mins > 0 {
+			w--
+			buf[w] = 'm'
+			w = fmtInt(buf[:w], mins)
+			indexes = append(indexes, w)
+		}
+		u /= 60
+		// u is now hours
+		if u > 0 {
+			hrs := u % 24
+			if hrs > 0 {
+				w--
+				buf[w] = 'h'
+				w = fmtInt(buf[:w], hrs)
+				indexes = append(indexes, w)
+			}
+			u /= 24
+		}
+		// u is now days
+		if u > 0 {
+			days := u % 30
+			if days > 0 {
+				w--
+				buf[w] = 'd'
+				w = fmtInt(buf[:w], days)
+				indexes = append(indexes, w)
+			}
+			u /= 30
+		}
+		// u is now months
+		if u > 0 {
+			months := u % 12
+			if months > 0 {
+				w--
+				buf[w] = 'o'
+				w--
+				buf[w] = 'm'
+				w = fmtInt(buf[:w], months)
+				indexes = append(indexes, w)
+			}
+			u /= 12
+		}
+		// u is now years
+		if u > 0 {
+			w--
+			buf[w] = 'y'
+			w = fmtInt(buf[:w], u)
+			indexes = append(indexes, w)
+		}
+	}
+	start := w
+	end := len(buf)
+
+	// truncate to the first two periods
+	num_periods := len(indexes)
+	if num_periods > 2 {
+		end = indexes[num_periods-3]
+	}
+	if start == end { //edge case when time difference is less than a second
+		return "0s ago"
+	} else {
+		return string(buf[start:end]) + " ago"
+	}
+
+}
+
 // getLocalNodeID returns the node ID of the local Nomad Client and an error if
 // it couldn't be determined or the Agent is not running in Client mode.
 func getLocalNodeID(client *api.Client) (string, error) {

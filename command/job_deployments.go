@@ -16,7 +16,7 @@ func (c *JobDeploymentsCommand) Help() string {
 	helpText := `
 Usage: nomad job deployments [options] <job>
 
-Deployments is used to display the deployments for a particular job.
+  Deployments is used to display the deployments for a particular job.
 
 General Options:
 

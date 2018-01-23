@@ -11,7 +11,8 @@ description: >
 The `alloc-status` command displays status information and metadata about an
 existing allocation and its tasks. It can be useful while debugging to reveal
 the underlying reasons for scheduling decisions or failures, as well as the
-current state of its tasks.
+current state of its tasks. As of Nomad 0.7.1, alloc status also shows allocation
+modification time in addition to create time.
 
 ## Usage
 
@@ -74,7 +75,8 @@ Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 07/25/17 16:12:48 UTC
+Created             = 5m ago
+Modified            = 5m ago
 Deployment ID       = 0c83a3b1
 Deployment Health   = healthy
 
@@ -127,7 +129,8 @@ Client Status       = running
 Client Description  = <none>
 Desired Status      = run
 Desired Description = <none>
-Created At          = 07/25/17 16:12:48 UTC
+Created             = 07/25/17 16:12:48 UTC
+Modified            = 07/25/17 16:12:48 UTC
 Deployment ID       = 0c83a3b1-8a7b-136b-0e11-8383dc6c9276
 Deployment Health   = healthy
 Evaluated Nodes     = 1

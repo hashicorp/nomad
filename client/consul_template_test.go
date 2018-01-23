@@ -1112,6 +1112,86 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 	}
 }
 
+func TestTaskTemplateManager_Rerender_Env(t *testing.T) {
+	t.Parallel()
+	// Make a template that renders based on a key in Consul and sends restart
+	key1 := "bam"
+	key2 := "bar"
+	content1_1 := "cat"
+	content1_2 := "dog"
+	t1 := &structs.Template{
+		EmbeddedTmpl: `
+FOO={{key "bam"}}
+`,
+		DestPath:   "test.env",
+		ChangeMode: structs.TemplateChangeModeRestart,
+		Envvars:    true,
+	}
+	t2 := &structs.Template{
+		EmbeddedTmpl: `
+BAR={{key "bar"}}
+`,
+		DestPath:   "test2.env",
+		ChangeMode: structs.TemplateChangeModeRestart,
+		Envvars:    true,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should have not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// Write the key to Consul
+	harness.consul.SetKV(t, key1, []byte(content1_1))
+	harness.consul.SetKV(t, key2, []byte(content1_1))
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	env := harness.envBuilder.Build().Map()
+	if v, ok := env["FOO"]; !ok || v != content1_1 {
+		t.Fatalf("Bad env for FOO: %v %v", v, ok)
+	}
+	if v, ok := env["BAR"]; !ok || v != content1_1 {
+		t.Fatalf("Bad env for BAR: %v %v", v, ok)
+	}
+
+	// Update the keys in Consul
+	harness.consul.SetKV(t, key1, []byte(content1_2))
+
+	// Wait for restart
+	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			break OUTER
+		case <-harness.mockHooks.SignalCh:
+			t.Fatalf("Signal with restart policy: %+v", harness.mockHooks)
+		case <-timeout:
+			t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+		}
+	}
+
+	env = harness.envBuilder.Build().Map()
+	if v, ok := env["FOO"]; !ok || v != content1_2 {
+		t.Fatalf("Bad env for FOO: %v %v", v, ok)
+	}
+	if v, ok := env["BAR"]; !ok || v != content1_1 {
+		t.Fatalf("Bad env for BAR: %v %v", v, ok)
+	}
+}
+
 // TestTaskTemplateManager_Config_ServerName asserts the tls_server_name
 // setting is propogated to consul-template's configuration. See #2776
 func TestTaskTemplateManager_Config_ServerName(t *testing.T) {

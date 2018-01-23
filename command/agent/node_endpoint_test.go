@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTP_NodesList(t *testing.T) {
@@ -187,6 +188,14 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
+		// Create a test event for the allocation
+		testEvent := structs.NewTaskEvent(structs.TaskStarted)
+		var events []*structs.TaskEvent
+		events = append(events, testEvent)
+		taskState := &structs.TaskState{Events: events}
+		alloc1.TaskStates = make(map[string]*structs.TaskState)
+		alloc1.TaskStates["test"] = taskState
+
 		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -221,6 +230,9 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		if len(allocs) != 1 || allocs[0].ID != alloc1.ID {
 			t.Fatalf("bad: %#v", allocs)
 		}
+		expectedDisplayMsg := "Task started by client"
+		displayMsg := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(t, expectedDisplayMsg, displayMsg)
 	})
 }
 
@@ -272,6 +284,71 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		upd := obj.(structs.NodeDrainUpdateResponse)
 		if len(upd.EvalIDs) == 0 {
 			t.Fatalf("bad: %v", upd)
+		}
+	})
+}
+
+func TestHTTP_NodePurge(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the node
+		node := mock.Node()
+		args := structs.NodeRegisterRequest{
+			Node:         node,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.NodeUpdateResponse
+		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Add some allocations to the node
+		state := s.Agent.server.State()
+		alloc1 := mock.Alloc()
+		alloc1.NodeID = node.ID
+		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
+			t.Fatal(err)
+		}
+		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to purge it
+		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/purge", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.NodeSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Check the response
+		upd := obj.(structs.NodeUpdateResponse)
+		if len(upd.EvalIDs) == 0 {
+			t.Fatalf("bad: %v", upd)
+		}
+
+		// Ensure that the node is not present anymore
+		args1 := structs.NodeSpecificRequest{
+			NodeID:       node.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp1 structs.SingleNodeResponse
+		if err := s.Agent.RPC("Node.GetNode", &args1, &resp1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if resp1.Node != nil {
+			t.Fatalf("node still exists after purging: %#v", resp1.Node)
 		}
 	})
 }

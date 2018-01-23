@@ -55,6 +55,22 @@ func TestBlockedEvals_Block_SameJob(t *testing.T) {
 	}
 }
 
+func TestBlockedEvals_Block_Quota(t *testing.T) {
+	t.Parallel()
+	blocked, _ := testBlockedEvals(t)
+
+	// Create a blocked evals on quota
+	e := mock.Eval()
+	e.QuotaLimitReached = "foo"
+	blocked.Block(e)
+
+	// Verify block did track both
+	bs := blocked.Stats()
+	if bs.TotalBlocked != 1 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 1 {
+		t.Fatalf("bad: %#v", bs)
+	}
+}
+
 func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
 	t.Parallel()
 	blocked, _ := testBlockedEvals(t)
@@ -263,6 +279,78 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	})
 }
 
+func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
+	t.Parallel()
+	blocked, broker := testBlockedEvals(t)
+
+	// Create a blocked eval that is eligible for a particular quota
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.QuotaLimitReached = "foo"
+	blocked.Block(e)
+
+	// Verify block caused the eval to be tracked
+	bs := blocked.Stats()
+	if bs.TotalBlocked != 1 || bs.TotalQuotaLimit != 1 {
+		t.Fatalf("bad: %#v", bs)
+	}
+
+	blocked.UnblockQuota("foo", 1000)
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		// Verify Unblock updates the stats
+		bs := blocked.Stats()
+		if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
+			return false, fmt.Errorf("bad: %#v", bs)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
+func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
+	t.Parallel()
+	blocked, broker := testBlockedEvals(t)
+
+	// Create a blocked eval that is eligible on a specific quota
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.QuotaLimitReached = "foo"
+	blocked.Block(e)
+
+	// Verify block caused the eval to be tracked
+	bs := blocked.Stats()
+	if bs.TotalBlocked != 1 || bs.TotalQuotaLimit != 1 {
+		t.Fatalf("bad: %#v", bs)
+	}
+
+	// Should do nothing
+	blocked.UnblockQuota("bar", 1000)
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock didn't cause an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 0 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		bs := blocked.Stats()
+		if bs.TotalBlocked != 1 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 1 {
+			return false, fmt.Errorf("bad: %#v", bs)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
 func TestBlockedEvals_Reblock(t *testing.T) {
 	t.Parallel()
 	blocked, broker := testBlockedEvals(t)
@@ -454,6 +542,42 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 	})
 }
 
+// Test the block case in which the eval should be immediately unblocked since
+// it a quota has changed that it is using
+func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
+	t.Parallel()
+	blocked, broker := testBlockedEvals(t)
+
+	// Do an unblock prior to blocking
+	blocked.UnblockQuota("my-quota", 1000)
+
+	// Create a blocked eval that is eligible on a specific node class and add
+	// it to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.QuotaLimitReached = "my-quota"
+	e.SnapshotIndex = 900
+	blocked.Block(e)
+
+	// Verify block caused the eval to be immediately unblocked
+	bs := blocked.Stats()
+	if bs.TotalBlocked != 0 && bs.TotalEscaped != 0 && bs.TotalQuotaLimit != 0 {
+		t.Fatalf("bad: %#v", bs)
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Verify Unblock caused an enqueue
+		brokerStats := broker.Stats()
+		if brokerStats.TotalReady != 1 {
+			return false, fmt.Errorf("bad: %#v", brokerStats)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
 func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	t.Parallel()
 	blocked, broker := testBlockedEvals(t)
@@ -471,19 +595,25 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	e2.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	blocked.Block(e2)
 
+	e3 := mock.Eval()
+	e3.Status = structs.EvalStatusBlocked
+	e3.TriggeredBy = structs.EvalTriggerMaxPlans
+	e3.QuotaLimitReached = "foo"
+	blocked.Block(e3)
+
 	// Trigger an unblock fail
 	blocked.UnblockFailed()
 
 	// Verify UnblockFailed caused the eval to be immediately unblocked
-	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
+	bs := blocked.Stats()
+	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
+		t.Fatalf("bad: %#v", bs)
 	}
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock caused an enqueue
 		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 2 {
+		if brokerStats.TotalReady != 3 {
 			return false, fmt.Errorf("bad: %#v", brokerStats)
 		}
 		return true, nil
@@ -493,9 +623,9 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 
 	// Reblock an eval for the same job and check that it gets tracked.
 	blocked.Block(e)
-	blockedStats = blocked.Stats()
-	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 1 {
-		t.Fatalf("bad: %#v", blockedStats)
+	bs = blocked.Stats()
+	if bs.TotalBlocked != 1 || bs.TotalEscaped != 1 {
+		t.Fatalf("bad: %#v", bs)
 	}
 }
 
@@ -521,5 +651,30 @@ func TestBlockedEvals_Untrack(t *testing.T) {
 	bStats = blocked.Stats()
 	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
 		t.Fatalf("bad: %#v", bStats)
+	}
+}
+
+func TestBlockedEvals_Untrack_Quota(t *testing.T) {
+	t.Parallel()
+	blocked, _ := testBlockedEvals(t)
+
+	// Create a blocked evals and add it to the blocked tracker.
+	e := mock.Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.QuotaLimitReached = "foo"
+	e.SnapshotIndex = 1000
+	blocked.Block(e)
+
+	// Verify block did track
+	bs := blocked.Stats()
+	if bs.TotalBlocked != 1 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 1 {
+		t.Fatalf("bad: %#v", bs)
+	}
+
+	// Untrack and verify
+	blocked.Untrack(e.JobID)
+	bs = blocked.Stats()
+	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
+		t.Fatalf("bad: %#v", bs)
 	}
 }

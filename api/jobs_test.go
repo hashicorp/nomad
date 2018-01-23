@@ -139,7 +139,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 							},
 						},
 					},
@@ -201,7 +201,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 							},
 						},
@@ -238,9 +238,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Driver: "docker",
 								Config: map[string]interface{}{
 									"image": "redis:3.2",
-									"port_map": map[string]int{
+									"port_map": []map[string]int{{
 										"db": 6379,
-									},
+									}},
 								},
 								Resources: &Resources{
 									CPU:      helper.IntToPtr(500),
@@ -258,7 +258,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:      "global-redis-check",
+										Name:      "redis-cache",
 										Tags:      []string{"global", "cache"},
 										PortLabel: "db",
 										Checks: []ServiceCheck{
@@ -347,9 +347,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Driver: "docker",
 								Config: map[string]interface{}{
 									"image": "redis:3.2",
-									"port_map": map[string]int{
+									"port_map": []map[string]int{{
 										"db": 6379,
-									},
+									}},
 								},
 								Resources: &Resources{
 									CPU:      helper.IntToPtr(500),
@@ -368,7 +368,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:        "global-redis-check",
+										Name:        "redis-cache",
 										Tags:        []string{"global", "cache"},
 										PortLabel:   "db",
 										AddressMode: "auto",
@@ -396,7 +396,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    helper.StringToPtr("{{"),
 										RightDelim:   helper.StringToPtr("}}"),
 										Envvars:      helper.BoolToPtr(false),
-										VaultGrace:   helper.TimeToPtr(5 * time.Minute),
+										VaultGrace:   helper.TimeToPtr(15 * time.Second),
 									},
 									{
 										SourcePath:   helper.StringToPtr(""),
@@ -550,7 +550,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 							},
 						},
@@ -582,7 +582,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
-								Resources:   MinResources(),
+								Resources:   DefaultResources(),
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
 							},
 						},

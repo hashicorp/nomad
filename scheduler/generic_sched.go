@@ -55,7 +55,7 @@ func (s *SetStatusError) Error() string {
 }
 
 // GenericScheduler is used for 'service' and 'batch' type jobs. This scheduler is
-// designed for long-lived services, and as such spends more time attemping
+// designed for long-lived services, and as such spends more time attempting
 // to make a high quality placement. This is the primary scheduler for
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
@@ -154,6 +154,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		newEval := s.eval.Copy()
 		newEval.EscapedComputedClass = e.HasEscaped()
 		newEval.ClassEligibility = e.GetClasses()
+		newEval.QuotaLimitReached = e.QuotaLimitReached()
 		return s.planner.ReblockEval(newEval)
 	}
 
@@ -175,7 +176,7 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 		classEligibility = e.GetClasses()
 	}
 
-	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped)
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached())
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = blockedEvalMaxPlanDesc
@@ -442,7 +443,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 		deploymentID = s.deployment.ID
 	}
 
-	// Update the set of placement ndoes
+	// Update the set of placement nodes
 	s.stack.SetNodes(nodes)
 
 	// Have to handle destructive changes first as we need to discount their

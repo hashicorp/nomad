@@ -16,6 +16,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -219,8 +220,8 @@ func TestConsul_ChangeTags(t *testing.T) {
 }
 
 // TestConsul_ChangePorts asserts that changing the ports on a service updates
-// it in Consul. Since ports are not part of the service ID this is a slightly
-// different code path than changing tags.
+// it in Consul. Pre-0.7.1 ports were not part of the service ID and this was a
+// slightly different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
 	ctx := setupFake()
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -348,8 +349,8 @@ func TestConsul_ChangePorts(t *testing.T) {
 	}
 
 	for k, v := range ctx.FakeConsul.services {
-		if k != origServiceKey {
-			t.Errorf("unexpected key change; was: %q -- but found %q", origServiceKey, k)
+		if k == origServiceKey {
+			t.Errorf("expected key change; still: %q", k)
 		}
 		if v.Name != ctx.Task.Services[0].Name {
 			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
@@ -369,15 +370,15 @@ func TestConsul_ChangePorts(t *testing.T) {
 	for k, v := range ctx.FakeConsul.checks {
 		switch v.Name {
 		case "c1":
-			if k != origTCPKey {
-				t.Errorf("unexpected key change for %s from %q to %q", v.Name, origTCPKey, k)
+			if k == origTCPKey {
+				t.Errorf("expected key change for %s from %q", v.Name, origTCPKey)
 			}
 			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
 				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
 			}
 		case "c2":
-			if k != origScriptKey {
-				t.Errorf("unexpected key change for %s from %q to %q", v.Name, origScriptKey, k)
+			if k == origScriptKey {
+				t.Errorf("expected key change for %s from %q", v.Name, origScriptKey)
 			}
 			select {
 			case <-ctx.execs:
@@ -1382,9 +1383,16 @@ func TestIsNomadService(t *testing.T) {
 	}{
 		{"_nomad-client-nomad-client-http", false},
 		{"_nomad-server-nomad-serf", false},
+
+		// Pre-0.7.1 style IDs still match
 		{"_nomad-executor-abc", true},
 		{"_nomad-executor", true},
+
+		// Post-0.7.1 style IDs match
+		{"_nomad-task-FBBK265QN4TMT25ND4EP42TJVMYJ3HR4", true},
+
 		{"not-nomad", false},
+		{"_nomad", false},
 	}
 
 	for _, test := range tests {
@@ -1438,5 +1446,184 @@ func TestCreateCheckReg(t *testing.T) {
 
 	if diff := pretty.Diff(actual, expected); len(diff) > 0 {
 		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
+	}
+}
+
+// TestGetAddress asserts Nomad uses the correct ip and port for services and
+// checks depending on port labels, driver networks, and address mode.
+func TestGetAddress(t *testing.T) {
+	const HostIP = "127.0.0.1"
+
+	cases := []struct {
+		Name string
+
+		// Parameters
+		Mode      string
+		PortLabel string
+		Host      map[string]int // will be converted to structs.Networks
+		Driver    *cstructs.DriverNetwork
+
+		// Results
+		ExpectedIP   string
+		ExpectedPort int
+		ExpectedErr  string
+	}{
+		// Valid Configurations
+		{
+			Name:      "ExampleService",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12435},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12435,
+		},
+		{
+			Name:      "Host",
+			Mode:      structs.AddressModeHost,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "Driver",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "AutoDriver",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap:       map[string]int{"db": 6379},
+				IP:            "10.1.2.3",
+				AutoAdvertise: true,
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "DriverCustomPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "7890",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 7890,
+		},
+
+		// Invalid Configurations
+		{
+			Name:        "DriverWithoutNetwork",
+			Mode:        structs.AddressModeDriver,
+			PortLabel:   "db",
+			Host:        map[string]int{"db": 12345},
+			Driver:      nil,
+			ExpectedErr: "no driver network exists",
+		},
+		{
+			Name:      "DriverBadPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "bad-port-label",
+			Host:      map[string]int{"db": 12345},
+			Driver: &cstructs.DriverNetwork{
+				PortMap: map[string]int{"db": 6379},
+				IP:      "10.1.2.3",
+			},
+			ExpectedErr: "invalid port",
+		},
+		{
+			Name:      "DriverZeroPort",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "0",
+			Driver: &cstructs.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			ExpectedErr: "invalid port",
+		},
+		{
+			Name:        "HostBadPort",
+			Mode:        structs.AddressModeHost,
+			PortLabel:   "bad-port-label",
+			ExpectedErr: "invalid port",
+		},
+		{
+			Name:        "InvalidMode",
+			Mode:        "invalid-mode",
+			PortLabel:   "80",
+			ExpectedErr: "invalid address mode",
+		},
+		{
+			Name:       "NoPort_AutoMode",
+			Mode:       structs.AddressModeAuto,
+			ExpectedIP: HostIP,
+		},
+		{
+			Name:       "NoPort_HostMode",
+			Mode:       structs.AddressModeHost,
+			ExpectedIP: HostIP,
+		},
+		{
+			Name: "NoPort_DriverMode",
+			Mode: structs.AddressModeDriver,
+			Driver: &cstructs.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			ExpectedIP: "10.1.2.3",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			// convert host port map into a structs.Networks
+			networks := []*structs.NetworkResource{
+				{
+					IP:            HostIP,
+					ReservedPorts: make([]structs.Port, len(tc.Host)),
+				},
+			}
+
+			i := 0
+			for label, port := range tc.Host {
+				networks[0].ReservedPorts[i].Label = label
+				networks[0].ReservedPorts[i].Value = port
+				i++
+			}
+
+			// Run getAddress
+			ip, port, err := getAddress(tc.Mode, tc.PortLabel, networks, tc.Driver)
+
+			// Assert the results
+			assert.Equal(t, tc.ExpectedIP, ip, "IP mismatch")
+			assert.Equal(t, tc.ExpectedPort, port, "Port mismatch")
+			if tc.ExpectedErr == "" {
+				assert.Nil(t, err)
+			} else {
+				if err == nil {
+					t.Fatalf("expected error containing %q but err=nil", tc.ExpectedErr)
+				} else {
+					assert.Contains(t, err.Error(), tc.ExpectedErr)
+				}
+			}
+		})
 	}
 }

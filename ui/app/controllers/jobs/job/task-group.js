@@ -1,11 +1,12 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
+import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
-const { Controller, computed, inject } = Ember;
-
-export default Controller.extend(Sortable, Searchable, {
-  jobController: inject.controller('jobs.job'),
+export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
+  jobController: controller('jobs.job'),
 
   queryParams: {
     currentPage: 'page',
@@ -17,18 +18,18 @@ export default Controller.extend(Sortable, Searchable, {
   currentPage: 1,
   pageSize: 10,
 
-  sortProperty: 'name',
-  sortDescending: false,
+  sortProperty: 'modifyIndex',
+  sortDescending: true,
 
-  searchProps: computed(() => ['id', 'name']),
+  searchProps: computed(() => ['shortId', 'name']),
 
   allocations: computed('model.allocations.[]', function() {
     return this.get('model.allocations') || [];
   }),
 
-  listToSort: computed.alias('allocations'),
-  listToSearch: computed.alias('listSorted'),
-  sortedAllocations: computed.alias('listSearched'),
+  listToSort: alias('allocations'),
+  listToSearch: alias('listSorted'),
+  sortedAllocations: alias('listSearched'),
 
   breadcrumbs: computed('jobController.breadcrumbs.[]', 'model.{name}', function() {
     return this.get('jobController.breadcrumbs').concat([

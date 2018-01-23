@@ -51,10 +51,11 @@ test('The JobSummary object is transformed from a map to a list', function(asser
     JobModifyIndex: 7,
   };
 
-  const normalized = this.subject().normalize(JobModel, original);
+  const { data } = this.subject().normalize(JobModel, original);
 
-  assert.deepEqual(normalized.data.attributes, {
+  assert.deepEqual(data.attributes, {
     name: 'example',
+    plainId: 'example',
     type: 'service',
     priority: 50,
     periodic: false,
@@ -116,6 +117,7 @@ test('The children stats are lifted out of the JobSummary object', function(asse
 
   assert.deepEqual(normalized.data.attributes, {
     name: 'example',
+    plainId: 'example',
     type: 'service',
     priority: 50,
     periodic: false,
@@ -129,4 +131,30 @@ test('The children stats are lifted out of the JobSummary object', function(asse
     createIndex: 7,
     modifyIndex: 9,
   });
+});
+
+test('`default` is used as the namespace in the job ID when there is no namespace in the payload', function(
+  assert
+) {
+  const original = {
+    ID: 'example',
+    Name: 'example',
+  };
+
+  const { data } = this.subject().normalize(JobModel, original);
+  assert.equal(data.id, JSON.stringify([data.attributes.name, 'default']));
+});
+
+test('The ID of the record is a composite of both the name and the namespace', function(assert) {
+  const original = {
+    ID: 'example',
+    Name: 'example',
+    Namespace: 'special-namespace',
+  };
+
+  const { data } = this.subject().normalize(JobModel, original);
+  assert.equal(
+    data.id,
+    JSON.stringify([data.attributes.name, data.relationships.namespace.data.id])
+  );
 });

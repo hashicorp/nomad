@@ -43,6 +43,7 @@ func init() {
 		vaultAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		autopilotConfigTableSchema,
 	}...)
 }
 
@@ -97,6 +98,14 @@ func nodeTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "ID",
+				},
+			},
+			"secret_id": {
+				Name:         "secret_id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SecretID",
 				},
 			},
 		},

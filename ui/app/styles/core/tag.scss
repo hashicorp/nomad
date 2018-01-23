@@ -1,4 +1,6 @@
-.tag {
+// Strange selector mirrors selector used in Bulma
+// https://github.com/jgthms/bulma/issues/912
+.tag:not(body) {
   text-transform: uppercase;
   border-radius: 200px;
   font-weight: $weight-normal;
@@ -14,6 +16,16 @@
   &.is-running {
     background: $blue;
     color: $blue-invert;
+  }
+
+  &.is-primary {
+    background: $primary;
+    color: $primary-invert;
+  }
+
+  &.is-complete {
+    background: $nomad-green-dark;
+    color: findColorInvert($nomad-green-dark);
   }
 
   &.is-error {

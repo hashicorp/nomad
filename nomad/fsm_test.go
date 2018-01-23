@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -40,27 +41,27 @@ func (m *MockSink) Close() error {
 }
 
 func testStateStore(t *testing.T) *state.StateStore {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
-	return state
+	return state.TestStateStore(t)
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	p, _ := testPeriodicDispatcher()
 	broker := testBroker(t, 0)
-	blocked := NewBlockedEvals(broker)
-	fsm, err := NewFSM(broker, p, blocked, os.Stderr)
+	dispatcher, _ := testPeriodicDispatcher()
+	fsmConfig := &FSMConfig{
+		EvalBroker: broker,
+		Periodic:   dispatcher,
+		Blocked:    NewBlockedEvals(broker),
+		LogOutput:  os.Stderr,
+		Region:     "global",
+	}
+	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fsm == nil {
 		t.Fatalf("missing fsm")
 	}
+	state.TestInitState(t, fsm.state)
 	return fsm
 }
 
@@ -316,6 +317,65 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 	if _, ok := fsm.periodicDispatcher.tracked[tuple]; !ok {
 		t.Fatal("job not added to periodic runner")
+	}
+
+	// Verify the launch time was tracked.
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if launchOut == nil {
+		t.Fatalf("not found!")
+	}
+	if launchOut.Launch.IsZero() {
+		t.Fatalf("bad launch time: %v", launchOut.Launch)
+	}
+}
+
+func TestFSM_RegisterPeriodicJob_NonLeader(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	// Disable the dispatcher
+	fsm.periodicDispatcher.SetEnabled(false)
+
+	job := mock.PeriodicJob()
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if jobOut == nil {
+		t.Fatalf("not found!")
+	}
+	if jobOut.CreateIndex != 1 {
+		t.Fatalf("bad index: %d", jobOut.CreateIndex)
+	}
+
+	// Verify it wasn't added to the periodic runner.
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
+		t.Fatal("job added to periodic runner")
 	}
 
 	// Verify the launch time was tracked.
@@ -885,9 +945,14 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+
+	// Need to remove mock dynamic port from alloc as it won't be computed
+	// in this test
+	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 0
+
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
-	resources := alloc.Resources
+	origResources := alloc.Resources
 	alloc.Resources = nil
 	req := structs.AllocUpdateRequest{
 		Job:   job,
@@ -914,10 +979,10 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Resources should be recomputed
-	resources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
-	alloc.Resources = resources
+	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
+	alloc.Resources = origResources
 	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
+		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))
 	}
 }
 
@@ -1154,6 +1219,10 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	alloc.DeploymentID = d.ID
 
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
+
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -1161,6 +1230,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 			Alloc: []*structs.Allocation{alloc},
 		},
 		Deployment: d,
+		EvalID:     eval.ID,
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
 	if err != nil {
@@ -1174,32 +1244,32 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	// Verify the allocation is registered
 	ws := memdb.NewWatchSet()
+	assert := assert.New(t)
 	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 	alloc.CreateIndex = out.CreateIndex
 	alloc.ModifyIndex = out.ModifyIndex
 	alloc.AllocModifyIndex = out.AllocModifyIndex
 
 	// Job should be re-attached
 	alloc.Job = job
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
+	assert.Equal(alloc, out)
 
 	dout, err := fsm.State().DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tg, ok := dout.TaskGroups[alloc.TaskGroup]; !ok || tg.PlacedAllocs != 1 {
-		t.Fatalf("err: %v %v", tg, err)
-	}
+	assert.Nil(err)
+	tg, ok := dout.TaskGroups[alloc.TaskGroup]
+	assert.True(ok)
+	assert.NotNil(tg)
+	assert.Equal(1, tg.PlacedAllocs)
 
 	// Ensure that the original job is used
 	evictAlloc := alloc.Copy()
 	job = mock.Job()
 	job.Priority = 123
+	eval = mock.Eval()
+	eval.JobID = job.ID
+
+	fsm.State().UpsertEvals(2, []*structs.Evaluation{eval})
 
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
@@ -1208,28 +1278,28 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 			Job:   job,
 			Alloc: []*structs.Allocation{evictAlloc},
 		},
+		EvalID: eval.ID,
 	}
 	buf, err = structs.Encode(structs.ApplyPlanResultsRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 
-	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	log := makeLog(buf)
+	//set the index to something other than 1
+	log.Index = 25
+	resp = fsm.Apply(log)
+	assert.Nil(resp)
 
 	// Verify we are evicted
 	out, err = fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("alloc found!")
-	}
-	if out.Job == nil || out.Job.Priority == 123 {
-		t.Fatalf("bad job")
-	}
+	assert.Nil(err)
+	assert.Equal(structs.AllocDesiredStatusEvict, out.DesiredStatus)
+	assert.NotNil(out.Job)
+	assert.NotEqual(123, out.Job.Priority)
+
+	evalOut, err := fsm.State().EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.Equal(log.Index, evalOut.ModifyIndex)
+
 }
 
 func TestFSM_DeploymentStatusUpdate(t *testing.T) {
@@ -2239,5 +2309,64 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 	if !reflect.DeepEqual(&expected, out2) {
 		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
+	}
+}
+
+func TestFSM_Autopilot(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	// Set the autopilot config using a request.
+	req := structs.AutopilotSetConfigRequest{
+		Datacenter: "dc1",
+		Config: autopilot.Config{
+			CleanupDeadServers:   true,
+			LastContactThreshold: 10 * time.Second,
+			MaxTrailingLogs:      300,
+		},
+	}
+	buf, err := structs.Encode(structs.AutopilotRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp := fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	// Verify key is set directly in the state store.
+	_, config, err := fsm.state.AutopilotConfig()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if config.CleanupDeadServers != req.Config.CleanupDeadServers {
+		t.Fatalf("bad: %v", config.CleanupDeadServers)
+	}
+	if config.LastContactThreshold != req.Config.LastContactThreshold {
+		t.Fatalf("bad: %v", config.LastContactThreshold)
+	}
+	if config.MaxTrailingLogs != req.Config.MaxTrailingLogs {
+		t.Fatalf("bad: %v", config.MaxTrailingLogs)
+	}
+
+	// Now use CAS and provide an old index
+	req.CAS = true
+	req.Config.CleanupDeadServers = false
+	req.Config.ModifyIndex = config.ModifyIndex - 1
+	buf, err = structs.Encode(structs.AutopilotRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	resp = fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	_, config, err = fsm.state.AutopilotConfig()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !config.CleanupDeadServers {
+		t.Fatalf("bad: %v", config.CleanupDeadServers)
 	}
 }

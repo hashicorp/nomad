@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { RSVP } = Ember;
+import RSVP from 'rsvp';
 
 // An always failing promise used to race against other promises
 export default function timeout(duration) {

@@ -74,7 +74,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
       command = "my-command"
     }
     ```
-
+    
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
@@ -96,6 +96,34 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
+
+* `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
+   containers on start.
+
+    ```hcl
+    config {
+      sysctl {
+        net.core.somaxconn = "16384"
+      }
+    }
+    ```
+
+* `ulimit` - (Optional) A key-value map of ulimit configurations to set to the
+  containers on start.
+
+    ```hcl
+    config {
+      ulimit {
+        nproc = "4242"
+        nofile = "2048:4096"
+      }
+    }
+    ```
+
+* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
+  the container access to devices on the host. Note that this also requires the
+  nomad agent and docker daemon to be configured to allow privileged
+  containers.
 
 * `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
   is `none` for a private IPC namespace. Other values are `host` for sharing
@@ -182,11 +210,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
-* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
-  the container access to devices on the host. Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
-
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
@@ -247,7 +270,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
         "name-of-the-volume:/path/in/container"
       ]
       # Name of the Docker Volume Driver used by the container
-      volume_driver = "flocker"
+      volume_driver = "pxd"
     }
     ```
 
@@ -270,12 +293,32 @@ The `docker` driver supports the following configuration in the job spec.  Only
               foo = "bar"
             }
             driver_config {
-              name = "flocker"
+              name = "pxd"
               options = {
                 foo = "bar"
               }
             }
           }
+        }
+      ]
+    }
+    ```
+* `devices` - (Optional) A list of
+  [devices](https://docs.docker.com/engine/reference/commandline/run/#add-host-device-to-container-device)
+  to be exposed the container. `host_path` is the only required field. By default, the container will be able to
+  `read`, `write` and `mknod` these devices. Use the optional `cgroup_permissions` field to restrict permissions.
+
+    ```hcl
+    config {
+      devices = [
+        {
+          host_path = "/dev/sda1"
+          container_path = "/dev/xvdc"
+          cgroup_permissions = "r"
+        },
+        {
+          host_path = "/dev/sda2"
+          container_path = "/dev/xvdd"
         }
       ]
     }
@@ -346,7 +389,17 @@ Example docker-config, using two helper scripts in $PATH,
 }
 ```
 
+Example agent configuration, using a helper script "docker-credential-ecr" in
+$PATH
 
+```hcl
+client {
+  enabled = true
+  options {
+    "docker.auth.helper" = "ecr"
+  }
+}
+```
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
 
@@ -480,9 +533,12 @@ of the Linux Kernel and Docker daemon.
 The `docker` driver has the following [client configuration
 options](/docs/agent/configuration/client.html#options):
 
-* `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
-  to customize this if you use a non-standard socket (HTTP or another
-  location).
+* `docker.endpoint` - If using a non-standard socket, HTTP or another location,
+  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
+  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
+  variable and then fall back to the default listen address for the given
+  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
+  and `npipe:////./pipe/docker_engine` for Windows.
 
 * `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
   JSON file which is in the dockercfg format containing authentication
@@ -492,7 +548,8 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify
   a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
   -like script on $PATH to lookup authentication information from external
-  sources.
+  sources. The script's name must begin with `docker-credential-` and this
+  option should include only the basename of the script, not the path.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
@@ -512,10 +569,11 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
-* `docker.cleanup.image.delay` A time duration that defaults to `3m`. The delay
-  controls how long Nomad will wait between an image being unused and deleting
-  it. If a tasks is received that uses the same image within the delay, the
-  image will be reused.
+* `docker.cleanup.image.delay` A time duration, as [defined
+  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
+  delay controls how long Nomad will wait between an image being unused and
+  deleting it. If a tasks is received that uses the same image within the delay,
+  the image will be reused.
 
 * `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container and use volume drivers (`volume_driver`).

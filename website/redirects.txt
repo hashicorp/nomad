@@ -36,6 +36,9 @@
 # - Items are case-sensitive (please use all lowercase)
 #
 
+# Website
+/community.html                               /resources.html
+
 # Docs
 /docs/agent/config.html                       /docs/agent/configuration/index.html
 /docs/jobops                                  /docs/operating-a-job/index.html

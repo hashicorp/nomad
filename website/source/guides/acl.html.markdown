@@ -20,9 +20,9 @@ The ACL system is designed to be easy to use and fast to enforce while providing
 
  * **ACL Policies**. No permissions are granted by default, making Nomad a default-deny or whitelist system. Policies allow a set of capabilities or actions to be granted or whitelisted. For example, a "readonly" policy might only grant the ability to list and inspect running jobs, but not to submit new ones.
 
- * **ACL Tokens**. Requests to Nomad are authenticated by using bearer token. Each ACL token has a public Accessor ID which is used to name a token, and a Secret ID which is used to make requests to Nomad. The Secret ID is provided using a request header (`X-Nomad-Token`) and is used to authenticate the caller. Token are either `management` or `client` types. The `management` tokens are effectively "root" in the system, and can perform any operation. The `client` tokens are associated with one or more ACL policies which grant specific capabilities.
+ * **ACL Tokens**. Requests to Nomad are authenticated by using bearer token. Each ACL token has a public Accessor ID which is used to name a token, and a Secret ID which is used to make requests to Nomad. The Secret ID is provided using a request header (`X-Nomad-Token`) and is used to authenticate the caller. Tokens are either `management` or `client` types. The `management` tokens are effectively "root" in the system, and can perform any operation. The `client` tokens are associated with one or more ACL policies which grant specific capabilities.
 
- * **Capabilities**. Capabilties are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilties via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
+ * **Capabilities**. Capabilities are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilities via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
 
 ### ACL Policies
 
@@ -48,6 +48,7 @@ The following table summarizes the ACL Rules that are available for constructing
 | [agent](#agent-rules) | Utility operations in the Agent API          |
 | [node](#node-rules) | Node-level catalog operations                |
 | [operator](#operator-rules) | Cluster-level operations in the Operator API |
+| [quota](#quota-rules) | Quota specification related operations |
 
 Constructing rules from these policies is covered in detail in the Rule Specification section below.
 
@@ -55,7 +56,7 @@ Constructing rules from these policies is covered in detail in the Rule Specific
 
 Nomad supports multi-datacenter and multi-region configurations. A single region is able to service multiple datacenters, and all servers in a region replicate their state between each other. In a multi-region configuration, there is a set of servers per region. Each region operates independently and is loosely coupled to allow jobs to be scheduled in any region and requests to flow transparently to the correct region.
 
-When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies and global ACL tokens. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single a single authoritative source. Any ACL policies or global ACL tokens are created in the authoritative region first. All other regions replicate ACL policies and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
+When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies and global ACL tokens. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single authoritative source. Any ACL policies or global ACL tokens are created in the authoritative region first. All other regions replicate ACL policies and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
 
 Global ACL tokens are used to allow cross region requests. Standard ACL tokens are created in a single target region and not replicated. This means if a request takes place between regions, global tokens must be used so that both regions will have the token registered.
 
@@ -71,12 +72,12 @@ Bootstrapping ACLs on a new cluster requires a few steps, outlined below:
 
 ### Enable ACLs on Nomad Servers
 
-The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritiative region should be enabled first. For each server:
+The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritative region should be enabled first. For each server:
 
 1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html#enabled).
 1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html#authoritative_region).
 1. For servers outside the authoritative region, set `replication_token` in the [`acl` stanza](/docs/agent/configuration/acl.html#replication_token). Replication tokens should be `management` type tokens which are either created in the authoritative region, or created as Global tokens.
-1. Restarting the Nomad server to pick the new configuration.
+1. Restart the Nomad server to pick up the new configuration.
 
 Please take care to restart the servers one at a time, and ensure each server has joined and is operating correctly before restarting another.
 
@@ -178,6 +179,10 @@ agent {
 node {
     policy = "read"
 }
+
+quota {
+    policy = "read"
+}
 ```
 
 This is equivalent to the following JSON input:
@@ -196,6 +201,9 @@ This is equivalent to the following JSON input:
         "policy": "read"
     },
     "node": {
+        "policy": "read"
+    },
+    "quota": {
         "policy": "read"
     }
 }
@@ -217,12 +225,13 @@ namespace "sensitive" {
 }
 ```
 
-Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants writeaccess to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
+Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants write access to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
 
 * `deny` - When multiple policies are associated with a token, deny will take precedence and prevent any capabilities.
 * `list-jobs` - Allows listing the jobs and seeing coarse grain status.
 * `read-job` - Allows inspecting a job and seeing fine grain status.
 * `submit-job` - Allows jobs to be submitted or modified.
+* `dispatch-job` - Allows jobs to be dispatched
 * `read-logs` - Allows the logs associated with a job to be viewed.
 * `read-fs` - Allows the filesystem of allocations associated to be viewed.
 * `sentinel-override` - Allows soft mandatory policies to be overridden.
@@ -231,7 +240,7 @@ The coarse grained policy dispositions are shorthand for the fine grained capabi
 
 * `deny` policy - ["deny"]
 * `read` policy - ["list-jobs", "read-job"]
-* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs"]
+* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs", "dispatch-job"]
 
 When both the policy short hand and a capabilities list are provided, the capabilities are merged:
 
@@ -283,9 +292,22 @@ operator {
 
 There's only one operator policy allowed per rule set, and its value is set to one of the policy dispositions. In the example above, the token could be used to query the operator endpoints for diagnostic purposes but not make any changes.
 
+### Quota Rules
+
+The `quota` policy controls access to the quota specification operations in the [Quota API](/api/quotas.html), such as quota creation and deletion.
+Quota rules are specified for all quotas using the `quota` key:
+
+```
+quota {
+    policy = "write"
+}
+```
+
+There's only one quota policy allowed per rule set, and its value is set to one of the policy dispositions.
+
 # Advanced Topics
 
-### Outages and Mulit-Region Replication
+### Outages and Multi-Region Replication
 
 The ACL system takes some steps to ensure operation during outages. Clients nodes maintain a limited
 cache of ACL tokens and ACL policies that have recently or frequently been used, associated with a time-to-live (TTL).
@@ -299,12 +321,12 @@ quorum is lost. The tokens and policies may become stale during this period as d
 replicating, but will be automatically fixed when the outage has been resolved.
 
 In a multi-region setup, there is a single authoritative region which is the source of truth for
-ACL policies and global ACL tokens. All other regions asychronously replicate from the authoritative
+ACL policies and global ACL tokens. All other regions asynchronously replicate from the authoritative
 region. When replication is interrupted, the existing data is used for request processing and may
 become stale. When the authoritative region is reachable, replication will resume and repair any
 inconsistency.
 
-### Reseting ACL Bootstrap
+### Resetting ACL Bootstrap
 
 If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again.
 First, we need to determine the reset index, this can be done by calling the reset endpoint:
@@ -315,7 +337,8 @@ $ nomad acl bootstrap
 Error bootstrapping: Unexpected response code: 500 (ACL bootstrap already done (reset index: 7))
 ```
 
-Here we can see the `reset index`. To reset the ACL system, we create the `acl-bootstrap-reset` file in the data directory:
+Here we can see the `reset index`. To reset the ACL system, we create the
+`acl-bootstrap-reset` file in the data directory of the **leader** node:
 
 ```
 $ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset

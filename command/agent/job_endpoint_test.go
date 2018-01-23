@@ -200,7 +200,7 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		respW := httptest.NewRecorder()
-		setToken(req, s.Token)
+		setToken(req, s.RootToken)
 
 		// Make the request
 		obj, err := s.Server.JobsRequest(respW, req)
@@ -646,6 +646,13 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		}
 
 		// Directly manipulate the state
+		expectedDisplayMsg := "test message"
+		testEvent := structs.NewTaskEvent("test event").SetMessage(expectedDisplayMsg)
+		var events []*structs.TaskEvent
+		events = append(events, testEvent)
+		taskState := &structs.TaskState{Events: events}
+		alloc1.TaskStates = make(map[string]*structs.TaskState)
+		alloc1.TaskStates["test"] = taskState
 		state := s.Agent.server.State()
 		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
 		if err != nil {
@@ -670,6 +677,8 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		if len(allocs) != 1 && allocs[0].ID != alloc1.ID {
 			t.Fatalf("bad: %v", allocs)
 		}
+		displayMsg := allocs[0].TaskStates["test"].Events[0].DisplayMessage
+		assert.Equal(t, expectedDisplayMsg, displayMsg)
 
 		// Check for the index
 		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
@@ -1203,6 +1212,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Name:      "serviceA",
 								Tags:      []string{"1", "2"},
 								PortLabel: "foo",
+								CheckRestart: &api.CheckRestart{
+									Limit: 4,
+									Grace: helper.TimeToPtr(11 * time.Second),
+								},
 								Checks: []api.ServiceCheck{
 									{
 										Id:            "hello",
@@ -1213,14 +1226,22 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Path:          "/check",
 										Protocol:      "http",
 										PortLabel:     "foo",
+										AddressMode:   "driver",
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
 										CheckRestart: &api.CheckRestart{
 											Limit:          3,
-											Grace:          helper.TimeToPtr(10 * time.Second),
 											IgnoreWarnings: true,
 										},
+									},
+									{
+										Id:        "check2id",
+										Name:      "check2",
+										Type:      "tcp",
+										PortLabel: "foo",
+										Interval:  4 * time.Second,
+										Timeout:   2 * time.Second,
 									},
 								},
 							},
@@ -1251,6 +1272,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							"lol": "code",
 						},
 						KillTimeout: helper.TimeToPtr(10 * time.Second),
+						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
 							MaxFiles:      helper.IntToPtr(10),
 							MaxFileSizeMB: helper.IntToPtr(100),
@@ -1408,13 +1430,25 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Path:          "/check",
 										Protocol:      "http",
 										PortLabel:     "foo",
+										AddressMode:   "driver",
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
-											Grace:          10 * time.Second,
+											Grace:          11 * time.Second,
 											IgnoreWarnings: true,
+										},
+									},
+									{
+										Name:      "check2",
+										Type:      "tcp",
+										PortLabel: "foo",
+										Interval:  4 * time.Second,
+										Timeout:   2 * time.Second,
+										CheckRestart: &structs.CheckRestart{
+											Limit: 4,
+											Grace: 11 * time.Second,
 										},
 									},
 								},
@@ -1446,6 +1480,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							"lol": "code",
 						},
 						KillTimeout: 10 * time.Second,
+						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,

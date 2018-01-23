@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -19,17 +18,11 @@ import (
 )
 
 func testStateStore(t *testing.T) *StateStore {
-	state, err := NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
-	return state
+	return TestStateStore(t)
 }
 
 func TestStateStore_Blocking_Error(t *testing.T) {
+	t.Parallel()
 	expected := fmt.Errorf("test error")
 	errFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
 		return nil, 0, expected
@@ -42,19 +35,20 @@ func TestStateStore_Blocking_Error(t *testing.T) {
 }
 
 func TestStateStore_Blocking_Timeout(t *testing.T) {
+	t.Parallel()
 	noopFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
 		return nil, 5, nil
 	}
 
 	state := testStateStore(t)
-	timeout := time.Now().Add(50 * time.Millisecond)
+	timeout := time.Now().Add(250 * time.Millisecond)
 	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
 	defer cancel()
 
 	_, idx, err := state.BlockingQuery(noopFn, 10, deadlineCtx)
 	assert.EqualError(t, err, context.DeadlineExceeded.Error())
 	assert.EqualValues(t, 5, idx)
-	assert.WithinDuration(t, timeout, time.Now(), 25*time.Millisecond)
+	assert.WithinDuration(t, timeout, time.Now(), 100*time.Millisecond)
 }
 
 func TestStateStore_Blocking_MinQuery(t *testing.T) {
@@ -77,7 +71,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	}
 
 	state := testStateStore(t)
-	timeout := time.Now().Add(10 * time.Millisecond)
+	timeout := time.Now().Add(100 * time.Millisecond)
 	deadlineCtx, cancel := context.WithDeadline(context.Background(), timeout)
 	defer cancel()
 
@@ -86,10 +80,11 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	})
 
 	resp, idx, err := state.BlockingQuery(queryFn, 10, deadlineCtx)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, count)
-	assert.EqualValues(t, 11, idx)
-	assert.True(t, resp.(bool))
+	if assert.Nil(t, err) {
+		assert.Equal(t, 2, count)
+		assert.EqualValues(t, 11, idx)
+		assert.True(t, resp.(bool))
+	}
 }
 
 // This test checks that:
@@ -105,40 +100,43 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 		t.Fatalf("err: %v", err)
 	}
 
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			Alloc: []*structs.Allocation{alloc},
 			Job:   job,
 		},
+		EvalID: eval.ID,
 	}
-
+	assert := assert.New(t)
 	err := state.UpsertPlanResults(1000, &res)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
+	assert.Nil(err)
+	assert.Equal(alloc, out)
 
 	index, err := state.Index("allocs")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1000 {
-		t.Fatalf("bad: %d", index)
-	}
+	assert.Nil(err)
+	assert.EqualValues(1000, index)
 
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+
+	evalOut, err := state.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.EqualValues(1000, evalOut.ModifyIndex)
 }
 
 // This test checks that the deployment is created and allocations count towards
@@ -159,6 +157,14 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -166,6 +172,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 			Job:   job,
 		},
 		Deployment: d,
+		EvalID:     eval.ID,
 	}
 
 	err := state.UpsertPlanResults(1000, &res)
@@ -174,31 +181,24 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
+	assert := assert.New(t)
 	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
+	assert.Nil(err)
+	assert.Equal(alloc, out)
 
 	dout, err := state.DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if dout == nil {
-		t.Fatalf("bad: nil deployment")
-	}
+	assert.Nil(err)
+	assert.NotNil(dout)
 
 	tg, ok := dout.TaskGroups[alloc.TaskGroup]
-	if !ok {
-		t.Fatalf("bad: nil deployment state")
-	}
-	if tg == nil || tg.PlacedAllocs != 2 {
-		t.Fatalf("bad: %v", dout)
-	}
+	assert.True(ok)
+	assert.NotNil(tg)
+	assert.Equal(2, tg.PlacedAllocs)
+
+	evalOut, err := state.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.EqualValues(1000, evalOut.ModifyIndex)
 
 	if watchFired(ws) {
 		t.Fatalf("bad")
@@ -220,6 +220,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 			Job:   job,
 		},
 		Deployment: d2,
+		EvalID:     eval.ID,
 	}
 
 	err = state.UpsertPlanResults(1001, &res)
@@ -228,21 +229,18 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	}
 
 	dout, err = state.DeploymentByID(ws, d2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if dout == nil {
-		t.Fatalf("bad: nil deployment")
-	}
+	assert.Nil(err)
+	assert.NotNil(dout)
 
 	tg, ok = dout.TaskGroups[alloc.TaskGroup]
-	if !ok {
-		t.Fatalf("bad: nil deployment state")
-	}
-	if tg == nil || tg.PlacedAllocs != 2 {
-		t.Fatalf("bad: %v", dout)
-	}
+	assert.True(ok)
+	assert.NotNil(tg)
+	assert.Equal(2, tg.PlacedAllocs)
+
+	evalOut, err = state.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.EqualValues(1001, evalOut.ModifyIndex)
 }
 
 // This test checks that deployment updates are applied correctly
@@ -263,6 +261,13 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	alloc := mock.Alloc()
 	alloc.Job = nil
 
@@ -285,41 +290,37 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 		},
 		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
+		EvalID:            eval.ID,
 	}
 
 	err := state.UpsertPlanResults(1000, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
+	assert := assert.New(t)
 	ws := memdb.NewWatchSet()
 
 	// Check the deployments are correctly updated.
 	dout, err := state.DeploymentByID(ws, dnew.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if dout == nil {
-		t.Fatalf("bad: nil deployment")
-	}
+	assert.Nil(err)
+	assert.NotNil(dout)
 
 	tg, ok := dout.TaskGroups[alloc.TaskGroup]
-	if !ok {
-		t.Fatalf("bad: nil deployment state")
-	}
-	if tg == nil || tg.PlacedAllocs != 1 {
-		t.Fatalf("bad: %v", dout)
-	}
+	assert.True(ok)
+	assert.NotNil(tg)
+	assert.Equal(1, tg.PlacedAllocs)
 
 	doutstandingout, err := state.DeploymentByID(ws, doutstanding.ID)
-	if err != nil || doutstandingout == nil {
-		t.Fatalf("bad: %v %v", err, doutstandingout)
-	}
-	if doutstandingout.Status != update.Status || doutstandingout.StatusDescription != update.StatusDescription || doutstandingout.ModifyIndex != 1000 {
-		t.Fatalf("bad: %v", doutstandingout)
-	}
+	assert.Nil(err)
+	assert.NotNil(doutstandingout)
+	assert.Equal(update.Status, doutstandingout.Status)
+	assert.Equal(update.StatusDescription, doutstandingout.StatusDescription)
+	assert.EqualValues(1000, doutstandingout.ModifyIndex)
 
+	evalOut, err := state.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.EqualValues(1000, evalOut.ModifyIndex)
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
@@ -571,6 +572,15 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	out2, err := state.NodeBySecretID(ws, node.SecretID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(node, out2) {
+		t.Fatalf("bad: %#v %#v", node, out2)
 	}
 
 	if !reflect.DeepEqual(node, out) {
@@ -1226,7 +1236,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	// Create a job and mark it as stable
 	job := mock.Job()
 	job.Stable = true
-	job.Priority = 0
+	job.Name = "0"
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
@@ -1244,10 +1254,10 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	}
 
 	var finalJob *structs.Job
-	for i := 1; i < 20; i++ {
+	for i := 1; i < 300; i++ {
 		finalJob = mock.Job()
 		finalJob.ID = job.ID
-		finalJob.Priority = i
+		finalJob.Name = fmt.Sprintf("%d", i)
 		err = state.UpsertJob(uint64(1000+i), finalJob)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -1267,10 +1277,10 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	if out.CreateIndex != 1000 {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.ModifyIndex != 1019 {
+	if out.ModifyIndex != 1299 {
 		t.Fatalf("bad: %#v", out)
 	}
-	if out.Version != 19 {
+	if out.Version != 299 {
 		t.Fatalf("bad: %#v", out)
 	}
 
@@ -1278,7 +1288,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if index != 1019 {
+	if index != 1299 {
 		t.Fatalf("bad: %d", index)
 	}
 
@@ -1288,19 +1298,19 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if len(allVersions) != structs.JobTrackedVersions {
-		t.Fatalf("got %d; want 1", len(allVersions))
+		t.Fatalf("got %d; want %d", len(allVersions), structs.JobTrackedVersions)
 	}
 
-	if a := allVersions[0]; a.ID != job.ID || a.Version != 19 || a.Priority != 19 {
+	if a := allVersions[0]; a.ID != job.ID || a.Version != 299 || a.Name != "299" {
 		t.Fatalf("bad: %+v", a)
 	}
-	if a := allVersions[1]; a.ID != job.ID || a.Version != 18 || a.Priority != 18 {
+	if a := allVersions[1]; a.ID != job.ID || a.Version != 298 || a.Name != "298" {
 		t.Fatalf("bad: %+v", a)
 	}
 
 	// Ensure we didn't delete the stable job
 	if a := allVersions[structs.JobTrackedVersions-1]; a.ID != job.ID ||
-		a.Version != 0 || a.Priority != 0 || !a.Stable {
+		a.Version != 0 || a.Name != "0" || !a.Stable {
 		t.Fatalf("bad: %+v", a)
 	}
 
@@ -2316,13 +2326,24 @@ func TestStateStore_Indexes(t *testing.T) {
 		out = append(out, raw.(*IndexEntry))
 	}
 
-	expect := []*IndexEntry{
-		{"nodes", 1000},
+	expect := &IndexEntry{"nodes", 1000}
+	if l := len(out); l != 1 && l != 2 {
+		t.Fatalf("unexpected number of index entries: %v", out)
 	}
 
-	if !reflect.DeepEqual(expect, out) {
-		t.Fatalf("bad: %#v %#v", expect, out)
+	for _, index := range out {
+		if index.Key != expect.Key {
+			continue
+		}
+		if index.Value != expect.Value {
+			t.Fatalf("bad index; got %d; want %d", index.Value, expect.Value)
+		}
+
+		// We matched
+		return
 	}
+
+	t.Fatal("did not find expected index entry")
 }
 
 func TestStateStore_LatestIndex(t *testing.T) {

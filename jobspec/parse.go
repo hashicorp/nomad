@@ -51,7 +51,7 @@ func Parse(r io.Reader) (*api.Job, error) {
 	valid := []string{
 		"job",
 	}
-	if err := checkHCLKeys(list, valid); err != nil {
+	if err := helper.CheckHCLKeys(list, valid); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +146,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"vault",
 		"vault_token",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
 	}
 
@@ -276,7 +276,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"update",
 			"vault",
 		}
-		if err := checkHCLKeys(listVal, valid); err != nil {
+		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
 		}
 
@@ -391,7 +391,7 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 		"delay",
 		"mode",
 	}
-	if err := checkHCLKeys(obj.Val, valid); err != nil {
+	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -430,7 +430,7 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 			"value",
 			"version",
 		}
-		if err := checkHCLKeys(o.Val, valid); err != nil {
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -513,7 +513,7 @@ func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error 
 		"size",
 		"migrate",
 	}
-	if err := checkHCLKeys(obj.Val, valid); err != nil {
+	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -591,8 +591,9 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"template",
 			"user",
 			"vault",
+			"kill_signal",
 		}
-		if err := checkHCLKeys(listVal, valid); err != nil {
+		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
 		}
 
@@ -623,6 +624,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			WeaklyTypedInput: true,
 			Result:           &t,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -708,7 +710,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 				"max_files",
 				"max_file_size",
 			}
-			if err := checkHCLKeys(logsBlock.Val, valid); err != nil {
+			if err := helper.CheckHCLKeys(logsBlock.Val, valid); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', logs ->", n))
 			}
 
@@ -764,7 +766,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			valid := []string{
 				"file",
 			}
-			if err := checkHCLKeys(dispatchBlock.Val, valid); err != nil {
+			if err := helper.CheckHCLKeys(dispatchBlock.Val, valid); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', dispatch_payload ->", n))
 			}
 
@@ -793,7 +795,7 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 			"mode",
 			"destination",
 		}
-		if err := checkHCLKeys(o.Val, valid); err != nil {
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -867,7 +869,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"env",
 			"vault_grace",
 		}
-		if err := checkHCLKeys(o.Val, valid); err != nil {
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -910,8 +912,9 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"port",
 			"check",
 			"address_mode",
+			"check_restart",
 		}
-		if err := checkHCLKeys(o.Val, valid); err != nil {
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
 		}
 
@@ -979,8 +982,9 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"header",
 			"method",
 			"check_restart",
+			"address_mode",
 		}
-		if err := checkHCLKeys(co.Val, valid); err != nil {
+		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
 		}
 
@@ -1066,7 +1070,7 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 		"ignore_warnings",
 	}
 
-	if err := checkHCLKeys(cro.Val, valid); err != nil {
+	if err := helper.CheckHCLKeys(cro.Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "check_restart ->")
 	}
 
@@ -1119,7 +1123,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"memory",
 		"network",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
 	}
 
@@ -1144,7 +1148,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 			"mbits",
 			"port",
 		}
-		if err := checkHCLKeys(o.Items[0].Val, valid); err != nil {
+		if err := helper.CheckHCLKeys(o.Items[0].Val, valid); err != nil {
 			return multierror.Prefix(err, "resources, network ->")
 		}
 
@@ -1179,7 +1183,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 		"mbits",
 		"port",
 	}
-	if err := checkHCLKeys(networkObj, valid); err != nil {
+	if err := helper.CheckHCLKeys(networkObj, valid); err != nil {
 		return err
 	}
 
@@ -1241,7 +1245,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"auto_revert",
 		"canary",
 	}
-	if err := checkHCLKeys(o.Val, valid); err != nil {
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -1277,7 +1281,7 @@ func parsePeriodic(result **api.PeriodicConfig, list *ast.ObjectList) error {
 		"prohibit_overlap",
 		"time_zone",
 	}
-	if err := checkHCLKeys(o.Val, valid); err != nil {
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -1331,7 +1335,7 @@ func parseVault(result *api.Vault, list *ast.ObjectList) error {
 		"change_mode",
 		"change_signal",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "vault ->")
 	}
 
@@ -1367,7 +1371,7 @@ func parseParameterizedJob(result **api.ParameterizedJobConfig, list *ast.Object
 		"meta_required",
 		"meta_optional",
 	}
-	if err := checkHCLKeys(o.Val, valid); err != nil {
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -1379,32 +1383,4 @@ func parseParameterizedJob(result **api.ParameterizedJobConfig, list *ast.Object
 
 	*result = &d
 	return nil
-}
-
-func checkHCLKeys(node ast.Node, valid []string) error {
-	var list *ast.ObjectList
-	switch n := node.(type) {
-	case *ast.ObjectList:
-		list = n
-	case *ast.ObjectType:
-		list = n.List
-	default:
-		return fmt.Errorf("cannot check HCL keys of type %T", n)
-	}
-
-	validMap := make(map[string]struct{}, len(valid))
-	for _, v := range valid {
-		validMap[v] = struct{}{}
-	}
-
-	var result error
-	for _, item := range list.Items {
-		key := item.Keys[0].Token.Value().(string)
-		if _, ok := validMap[key]; !ok {
-			result = multierror.Append(result, fmt.Errorf(
-				"invalid key: %s", key))
-		}
-	}
-
-	return result
 }

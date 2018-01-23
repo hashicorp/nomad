@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -23,10 +24,6 @@ import (
 var (
 	nodeNumber uint32 = 0
 )
-
-func getPort() int {
-	return 1030 + int(rand.Int31n(6440))
-}
 
 func testLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
@@ -58,7 +55,7 @@ func testACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken) 
 func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
-	config.Build = "0.7.0+unittest"
+	config.Build = "0.8.0+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
@@ -76,6 +73,11 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.HeartbeatTimeout = 50 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 50 * time.Millisecond
 	config.RaftTimeout = 500 * time.Millisecond
+
+	// Tighten the autopilot timing
+	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
+	config.ServerHealthInterval = 50 * time.Millisecond
+	config.AutopilotInterval = 100 * time.Millisecond
 
 	// Disable Vault
 	f := false
@@ -99,11 +101,12 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports
+		ports := freeport.GetT(t, 2)
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
-			Port: getPort(),
+			Port: ports[0],
 		}
-		config.SerfConfig.MemberlistConfig.BindPort = getPort()
+		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
 		// Create server
 		server, err := NewServer(config, catalog, logger)

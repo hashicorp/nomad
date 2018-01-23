@@ -1,15 +1,13 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import Controller from '@ember/controller';
 import Sortable from 'nomad-ui/mixins/sortable';
 
-const { Controller, computed } = Ember;
-
 export default Controller.extend(Sortable, {
-  nodes: computed.alias('model.nodes'),
-  agents: computed.alias('model.agents'),
+  nodes: alias('model.nodes'),
+  agents: alias('model.agents'),
 
   queryParams: {
     currentPage: 'page',
-    searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
   },
@@ -20,6 +18,8 @@ export default Controller.extend(Sortable, {
   sortProperty: 'isLeader',
   sortDescending: true,
 
-  listToSort: computed.alias('agents'),
-  sortedAgents: computed.alias('listSorted'),
+  isForbidden: false,
+
+  listToSort: alias('agents'),
+  sortedAgents: alias('listSorted'),
 });

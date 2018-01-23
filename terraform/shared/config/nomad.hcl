@@ -7,8 +7,6 @@ server {
   bootstrap_expect = SERVER_COUNT
 }
 
-name = "nomad@IP_ADDRESS"
-
 consul {
   address = "127.0.0.1:8500"
 }

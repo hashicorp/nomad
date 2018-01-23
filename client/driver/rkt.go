@@ -1,4 +1,4 @@
-//+build linux
+// +build linux
 
 package driver
 
@@ -227,6 +227,22 @@ func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[
 	return portMap, nil
 }
 
+// rktRemove pod after it has exited.
+func rktRemove(uuid string) error {
+	errBuf := &bytes.Buffer{}
+	cmd := exec.Command(rktCmd, "rm", uuid)
+	cmd.Stdout = ioutil.Discard
+	cmd.Stderr = errBuf
+	if err := cmd.Run(); err != nil {
+		if msg := errBuf.String(); len(msg) > 0 {
+			return fmt.Errorf("error removing pod %q: %s", uuid, msg)
+		}
+		return err
+	}
+
+	return nil
+}
+
 // NewRktDriver is used to create a new rkt driver
 func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
@@ -322,17 +338,23 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
+	minVersion, _ := version.NewVersion(minRktVersion)
+	currentVersion, _ := version.NewVersion(rktMatches[1])
+	if currentVersion.LessThan(minVersion) {
+		// Do not allow ancient rkt versions
+		if d.fingerprintSuccess == nil {
+			// Only log on first failure
+			d.logger.Printf("[WARN] driver.rkt: unsupported rkt version %s; please upgrade to >= %s",
+				currentVersion, minVersion)
+		}
+		delete(node.Attributes, rktDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
+		return false, nil
+	}
+
 	node.Attributes[rktDriverAttr] = "1"
 	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
-
-	minVersion, _ := version.NewVersion(minRktVersion)
-	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
-	if currentVersion.LessThan(minVersion) {
-		// Do not allow ancient rkt versions
-		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
-		node.Attributes[rktDriverAttr] = "0"
-	}
 
 	// Advertise if this node supports rkt volumes
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
@@ -507,6 +529,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		if len(driverConfig.PortMap) > 0 {
 			return nil, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
+	} else if network == "host" {
+		// Port mapping is skipped when host networking is used.
+		d.logger.Println("[DEBUG] driver.rkt: Ignoring port_map when using --net=host")
 	} else {
 		// TODO add support for more than one network
 		network := task.Resources.Networks[0]
@@ -545,6 +570,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
 		}
 
+	}
+
+	// If a user has been specified for the task, pass it through to the user
+	if task.User != "" {
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--user=%s", task.User))
 	}
 
 	// Add user passed arguments.
@@ -598,7 +628,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: rktEnv,
 		Driver:  "rkt",
-		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
@@ -611,7 +640,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	execCmd := &executor.ExecCommand{
 		Cmd:  absPath,
 		Args: runArgs,
-		User: task.User,
 	}
 	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {
@@ -636,15 +664,19 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 	go h.run()
 
-	d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
-	driverNetwork, err := rktGetDriverNetwork(uuid, driverConfig.PortMap)
-	if err != nil && !pluginClient.Exited() {
-		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
+	// Only return a driver network if *not* using host networking
+	var driverNetwork *cstructs.DriverNetwork
+	if network != "host" {
+		d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
+		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap)
+		if err != nil && !pluginClient.Exited() {
+			d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
 
-		// If a portmap was given, this turns into a fatal error
-		if len(driverConfig.PortMap) != 0 {
-			pluginClient.Kill()
-			return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+			// If a portmap was given, this turns into a fatal error
+			if len(driverConfig.PortMap) != 0 {
+				pluginClient.Kill()
+				return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+			}
 		}
 	}
 
@@ -666,9 +698,9 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	}
 	exec, pluginClient, err := createExecutorWithConfig(pluginConfig, d.config.LogOutput)
 	if err != nil {
-		d.logger.Println("[ERROR] driver.rkt: error connecting to plugin so destroying plugin pid and user pid")
+		d.logger.Println("[ERR] driver.rkt: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.ExecutorPid); e != nil {
-			d.logger.Printf("[ERROR] driver.rkt: error destroying plugin and executor pid: %v", e)
+			d.logger.Printf("[ERR] driver.rkt: error destroying plugin and executor pid: %v", e)
 		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", err)
 	}
@@ -766,7 +798,7 @@ func (h *rktHandle) run() {
 	close(h.doneCh)
 	if ps.ExitCode == 0 && werr != nil {
 		if e := killProcess(h.executorPid); e != nil {
-			h.logger.Printf("[ERROR] driver.rkt: error killing user process: %v", e)
+			h.logger.Printf("[ERR] driver.rkt: error killing user process: %v", e)
 		}
 	}
 
@@ -775,6 +807,13 @@ func (h *rktHandle) run() {
 		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()
+
+	// Remove the pod
+	if err := rktRemove(h.uuid); err != nil {
+		h.logger.Printf("[ERR] driver.rkt: error removing pod %q - must gc manually: %v", h.uuid, err)
+	} else {
+		h.logger.Printf("[DEBUG] driver.rkt: removed pod %q", h.uuid)
+	}
 
 	// Send the results
 	h.waitCh <- dstructs.NewWaitResult(ps.ExitCode, 0, werr)

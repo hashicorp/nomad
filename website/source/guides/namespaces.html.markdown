@@ -3,16 +3,16 @@ layout: "guides"
 page_title: "Namespaces"
 sidebar_current: "guides-namespaces"
 description: |-
-  Nomad Enterprise provides support for namespaces, which allows jobs and their
+  Nomad Enterprise provides support for namespaces, which allow jobs and their
   associated objects to be segmented from each other and other users of the
   cluster.
 ---
 
 # Namespaces
 
-Nomad Enterprise has support for namespaces, which allows jobs and their
-associated objects to be segmented from each other and other users of the
-cluster.
+[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) has support for 
+namespaces, which allow jobs and their associated objects to be segmented from 
+each other and other users of the cluster.
 
 ~> **Enterprise Only!** This functionality only exists in Nomad Enterprise.
 This is not present in the open source version of Nomad.
@@ -27,10 +27,10 @@ When combined with ACLs, the isolation of namespaces can be enforced, only
 allowing designated users access to read or modify the jobs and associated
 objects in a namespace.
 
-When quotas are applied to a namespace they provide a means to limit resource
-consumption by the jobs in the namespace. This can prevent a single actor from
-consuming excessive cluster resources and negatively impacting other teams and
-applications sharing the cluster.
+When [resource quotas](/guides/quotas.html) are applied to a namespace they
+provide a means to limit resource consumption by the jobs in the namespace. This
+can prevent a single actor from consuming excessive cluster resources and
+negatively impacting other teams and applications sharing the cluster.
 
 ## Namespaced Objects
 
@@ -39,7 +39,8 @@ jobs, allocations, deployments, and evaluations.
 
 Nomad does not namespace objects that are shared across multiple namespaces.
 This includes nodes, [ACL policies](/guides/acl.html), [Sentinel
-policies](/guides/sentinel-policy.html), and quota specifications.
+policies](/guides/sentinel-policy.html), and [quota
+specifications](/guides/quotas.html).
 
 ## Working with Namespaces
 

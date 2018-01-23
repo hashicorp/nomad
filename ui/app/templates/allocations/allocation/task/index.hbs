@@ -1,0 +1,98 @@
+{{#global-header class="page-header"}}
+  <li><a href="#" data-test-breadcrumb="allocations">Allocations</a></li>
+  <li>
+    {{#link-to "allocations.allocation" model.allocation data-test-breadcrumb="allocation"}}
+      {{model.allocation.shortId}}
+    {{/link-to}}
+  </li>
+  <li class="is-active">
+    {{#link-to "allocations.allocation.task" model.allocation model data-test-breadcrumb="task"}}
+      {{model.name}}
+    {{/link-to}}
+  </li>
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "allocations/allocation/task/subnav"}}
+  <section class="section">
+    <h1 class="title" data-test-title>
+      {{model.name}}
+      <span class="bumper-left tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
+    </h1>
+
+    <div class="boxed-section is-small">
+      <div class="boxed-section-body inline-definitions">
+        <span class="label">Task Details</span>
+        <span class="pair" data-test-started-at>
+          <span class="term">Started At</span>
+          {{moment-format model.startedAt "MM/DD/YY HH:mm:ss"}}
+        </span>
+        {{#if model.finishedAt}}
+          <span class="pair">
+            <span class="term">Finished At</span>
+            {{moment-format model.finishedAt "MM/DD/YY HH:mm:ss"}}
+          </span>
+        {{/if}}
+        <span class="pair">
+          <span class="term">Driver</span>
+          {{model.task.driver}}
+        </span>
+      </div>
+    </div>
+
+    {{#if ports.length}}
+      <div class="boxed-section" data-test-task-addresses>
+        <div class="boxed-section-head">
+          Addresses
+        </div>
+        <div class="boxed-section-body is-full-bleed">
+          {{#list-table source=ports as |t|}}
+            {{#t.head}}
+              <th class="is-1">Dynamic?</th>
+              <th class="is-2">Name</th>
+              <th>Address</th>
+            {{/t.head}}
+            {{#t.body as |row|}}
+              <tr data-test-task-address>
+                <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+                <td data-test-task-address-name>{{row.model.name}}</td>
+                <td data-test-task-address-address>
+                  <a href="http://{{model.allocation.node.address}}:{{row.model.port}}" target="_blank">
+                    {{model.allocation.node.address}}:{{row.model.port}}
+                  </a>
+                </td>
+              </tr>
+            {{/t.body}}
+          {{/list-table}}
+        </div>
+      </div>
+    {{/if}}
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Recent Events
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=(reverse model.events) class="is-striped" as |t|}}
+          {{#t.head}}
+            <th class="is-3">Time</th>
+            <th class="is-1">Type</th>
+            <th>Description</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-task-event>
+              <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
+              <td data-test-task-event-type>{{row.model.type}}</td>
+              <td data-test-task-event-message>
+                {{#if row.model.displayMessage}}
+                  {{row.model.displayMessage}}
+                {{else}}
+                  <em>No message</em>
+                {{/if}}
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  </section>
+{{/gutter-menu}}

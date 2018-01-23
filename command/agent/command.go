@@ -23,11 +23,10 @@ import (
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
-	"github.com/hashicorp/nomad/helper/flag-helpers"
-	"github.com/hashicorp/nomad/helper/gated-writer"
+	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
-	"github.com/hashicorp/scada-client/scada"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -50,9 +49,6 @@ type Command struct {
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
-
-	scadaProvider *scada.Provider
-	scadaHttp     *HTTPServer
 }
 
 func (c *Command) readConfig() *Config {
@@ -63,12 +59,12 @@ func (c *Command) readConfig() *Config {
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Atlas:  &AtlasConfig{},
 		Client: &ClientConfig{},
 		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
 		Server: &ServerConfig{},
 		Vault:  &config.VaultConfig{},
+		ACL:    &ACLConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -87,6 +83,7 @@ func (c *Command) readConfig() *Config {
 	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
 	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
+	flags.IntVar(&cmdConfig.Server.RaftProtocol, "raft-protocol", 0, "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -105,11 +102,6 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
-
-	// Atlas options
-	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
-	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
-	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -143,6 +135,7 @@ func (c *Command) readConfig() *Config {
 		cmdConfig.Consul.VerifySSL = &b
 		return nil
 	}), "consul-verify-ssl", "")
+	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
 
 	// Vault options
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
@@ -165,6 +158,10 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "vault-tls-skip-verify", "")
 	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
+
+	// ACL options
+	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
+	flags.StringVar(&cmdConfig.ACL.ReplicationToken, "acl-replication-token", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -219,9 +216,6 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Ensure the sub-structs at least exist
-	if config.Atlas == nil {
-		config.Atlas = &AtlasConfig{}
-	}
 	if config.Client == nil {
 		config.Client = &ClientConfig{}
 	}
@@ -375,13 +369,6 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 	}
 	c.agent = agent
 
-	// Enable the SCADA integration
-	if err := c.setupSCADA(config); err != nil {
-		agent.Shutdown()
-		c.Ui.Error(fmt.Sprintf("Error starting SCADA: %s", err))
-		return err
-	}
-
 	// Setup the HTTP server
 	http, err := NewHTTPServer(agent, config)
 	if err != nil {
@@ -492,16 +479,10 @@ func (c *Command) Run(args []string) int {
 	}
 	defer c.agent.Shutdown()
 
-	// Check and shut down the SCADA listeners at the end
+	// Shudown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
-		}
-		if c.scadaHttp != nil {
-			c.scadaHttp.Shutdown()
-		}
-		if c.scadaProvider != nil {
-			c.scadaProvider.Shutdown()
 		}
 	}()
 
@@ -549,11 +530,11 @@ func (c *Command) Run(args []string) int {
 	go c.retryJoin(config)
 
 	// Wait for exit
-	return c.handleSignals(config)
+	return c.handleSignals()
 }
 
 // handleSignals blocks until we get an exit-causing signal
-func (c *Command) handleSignals(config *Config) int {
+func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
@@ -568,26 +549,25 @@ WAIT:
 	case <-c.retryJoinErrCh:
 		return 1
 	}
-	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
-	// Skip any SIGPIPE signal (See issue #1798)
+	// Skip any SIGPIPE signal and don't try to log it (See issues #1798, #3554)
 	if sig == syscall.SIGPIPE {
 		goto WAIT
 	}
 
+	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
+
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		if conf := c.handleReload(config); conf != nil {
-			*config = *conf
-		}
+		c.handleReload()
 		goto WAIT
 	}
 
 	// Check if we should do a graceful leave
 	graceful := false
-	if sig == os.Interrupt && config.LeaveOnInt {
+	if sig == os.Interrupt && c.agent.GetConfig().LeaveOnInt {
 		graceful = true
-	} else if sig == syscall.SIGTERM && config.LeaveOnTerm {
+	} else if sig == syscall.SIGTERM && c.agent.GetConfig().LeaveOnTerm {
 		graceful = true
 	}
 
@@ -619,12 +599,12 @@ WAIT:
 }
 
 // handleReload is invoked when we should reload our configs, e.g. SIGHUP
-func (c *Command) handleReload(config *Config) *Config {
+func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
 		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
-		return config
+		return
 	}
 
 	// Change the log level
@@ -637,7 +617,13 @@ func (c *Command) handleReload(config *Config) *Config {
 			minLevel, c.logFilter.Levels))
 
 		// Keep the current log level
-		newConf.LogLevel = config.LogLevel
+		newConf.LogLevel = c.agent.GetConfig().LogLevel
+	}
+
+	// Reloads configuration for an agent running in both client and server mode
+	err := c.agent.Reload(newConf)
+	if err != nil {
+		c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 	}
 
 	if s := c.agent.Server(); s != nil {
@@ -650,8 +636,6 @@ func (c *Command) handleReload(config *Config) *Config {
 			}
 		}
 	}
-
-	return newConf
 }
 
 // setupTelemetry is used ot setup the telemetry sub-systems
@@ -672,6 +656,11 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
+
+	// Prefer the hostname as a label.
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
+		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
 		metricsConf.EnableHostname = true
@@ -760,52 +749,6 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metrics.NewGlobal(metricsConf, inm)
 	}
 	return inm, nil
-}
-
-// setupSCADA is used to start a new SCADA provider and listener,
-// replacing any existing listeners.
-func (c *Command) setupSCADA(config *Config) error {
-	// Shut down existing SCADA listeners
-	if c.scadaProvider != nil {
-		c.scadaProvider.Shutdown()
-	}
-	if c.scadaHttp != nil {
-		c.scadaHttp.Shutdown()
-	}
-
-	// No-op if we don't have an infrastructure
-	if config.Atlas == nil || config.Atlas.Infrastructure == "" {
-		return nil
-	}
-
-	// Create the new provider and listener
-	c.Ui.Output("Connecting to Atlas: " + config.Atlas.Infrastructure)
-
-	scadaConfig := &scada.Config{
-		Service:      "nomad",
-		Version:      config.Version.VersionNumber(),
-		ResourceType: "nomad-cluster",
-		Meta: map[string]string{
-			"auto-join":  strconv.FormatBool(config.Atlas.Join),
-			"region":     config.Region,
-			"datacenter": config.Datacenter,
-			"client":     strconv.FormatBool(config.Client != nil && config.Client.Enabled),
-			"server":     strconv.FormatBool(config.Server != nil && config.Server.Enabled),
-		},
-		Atlas: scada.AtlasConfig{
-			Endpoint:       config.Atlas.Endpoint,
-			Infrastructure: config.Atlas.Infrastructure,
-			Token:          config.Atlas.Token,
-		},
-	}
-
-	provider, list, err := scada.NewHTTPProvider(scadaConfig, c.logOutput)
-	if err != nil {
-		return err
-	}
-	c.scadaProvider = provider
-	c.scadaHttp = newScadaHttp(c.agent, list)
-	return nil
 }
 
 func (c *Command) startupJoin(config *Config) error {
@@ -934,6 +877,10 @@ Server Options:
     Address of an agent to join at start time. Can be specified
     multiple times.
 
+  -raft-protocol=<num>
+    The Raft protocol version to use. Used for enabling certain Autopilot
+    features. Defaults to 2.
+
   -retry-join=<address>
     Address of an agent to join at start time with retries enabled.
     Can be specified multiple times.
@@ -983,6 +930,16 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+ACL Options:
+
+  -acl-enabled
+    Specifies whether the agent should enable ACLs.
+
+  -acl-replication-token
+    The replication token for servers to use when replicating from the
+    authoratative region. The token must be a valid management token from the
+    authoratative region.
 
 Consul Options:
 
@@ -1085,22 +1042,6 @@ Vault Options:
 
   -vault-tls-server-name=<token>
     Used to set the SNI host when connecting over TLS.
-
-Atlas Options:
-
-  -atlas=<infrastructure>
-    The Atlas infrastructure name to configure. This enables the SCADA
-    client and attempts to connect Nomad to the HashiCorp Atlas service
-    using the provided infrastructure name and token.
-
-  -atlas-token=<token>
-    The Atlas token to use when connecting to the HashiCorp Atlas
-    service. This must be provided to successfully connect your Nomad
-    agent to Atlas.
-
-  -atlas-join
-    Enable the Atlas join feature. This mode allows agents to discover
-    eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
 }

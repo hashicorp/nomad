@@ -1,120 +1,74 @@
 <div id="styleguide">
-  {{#freestyle-guide title='Nomad UI'subtitle='Styles and Patterns'}}
-    {{#freestyle-section name='Buttons' as |section|}}
-      {{#freestyle-subsection name='Standard' section=section}}
-        {{#freestyle-usage 'buttons-standard' title='Standard Buttons'}}
-          <div class="block">
-            <a class="button">Button</a>
-            <a class="button is-white">White</a>
-            <a class="button is-light">Light</a>
-            <a class="button is-dark">Dark</a>
-            <a class="button is-black">Black</a>
-            <a class="button is-link">Link</a>
-          </div>
-          <div class="block">
-            <a class="button is-primary">Primary</a>
-            <a class="button is-info">Info</a>
-            <a class="button is-success">Success</a>
-            <a class="button is-warning">Warning</a>
-            <a class="button is-danger">Danger</a>
-          </div>
-        {{/freestyle-usage}}
-      {{/freestyle-subsection}}
+  {{#freestyle-guide title='Nomad UI' subtitle='Styles and Patterns'}}
+    {{#freestyle-section name="Theme" as |section|}}
+      {{#section.subsection name="Font Stacks"}}
+        {{freestyle/sg-font-stacks}}
+      {{/section.subsection}}
 
-      {{#freestyle-subsection name='Outlines' section=section}}
-        {{#freestyle-usage 'buttons-outlines' title='Outline Buttons'}}
-          <div class="block">
-            <a class="button is-outlined">Outlined</a>
-            <a class="button is-primary is-outlined">Primary</a>
-            <a class="button is-info is-outlined">Info</a>
-            <a class="button is-success is-outlined">Success</a>
-            <a class="button is-warning is-outlined">Warning</a>
-            <a class="button is-danger is-outlined is-important">Danger</a>
-          </div>
-        {{/freestyle-usage}}
-      {{/freestyle-subsection}}
+      {{#section.subsection name="Text Sizing"}}
+        {{freestyle/sg-font-sizing}}
+      {{/section.subsection}}
 
-      {{#freestyle-subsection name='Hollow' section=section}}
-        {{#freestyle-usage 'buttons-hollow' title='Hollow Buttons'}}
-          <div class="block" style="background:#25BA81; padding:30px">
-            <a class="button is-primary is-inverted is-outlined">Primary</a>
-            <a class="button is-info is-inverted is-outlined">Info</a>
-            <a class="button is-success is-inverted is-outlined">Success</a>
-            <a class="button is-warning is-inverted is-outlined">Warning</a>
-            <a class="button is-danger is-inverted is-outlined">Danger</a>
-          </div>
-        {{/freestyle-usage}}
-      {{/freestyle-subsection}}
-
-      {{#freestyle-subsection name='Sizing' section=section}}
-        {{#freestyle-usage 'buttons-sizing' title='Button Sizes'}}
-          <div class="block">
-            <a class="button is-small">Small</a>
-            <a class="button">Normal</a>
-            <a class="button is-medium">Medium</a>
-            <a class="button is-large">Large</a>
-          </div>
-        {{/freestyle-usage}}
-      {{/freestyle-subsection}}
+      {{#section.subsection name="Colors"}}
+        {{freestyle/sg-colors}}
+      {{/section.subsection}}
     {{/freestyle-section}}
 
-    {{#freestyle-section name='Distribution Bar' as |section|}}
-      {{#freestyle-subsection name='Standard' section=section}}
-        {{#freestyle-usage 'distribution-bar-standard'}}
-          <div class="block" style="height:50px; width:200px;">
-            {{distribution-bar data=distributionBarData}}
-          </div>
-        {{/freestyle-usage}}
-        {{#freestyle-annotation}}
-          <div class="block">
-            The distribution bar chart proportionally show data in a single bar. It includes a tooltip out of the box, assumes the size of the container element, and is designed to be styled with CSS.
-          </div>
-        {{/freestyle-annotation}}
-      {{/freestyle-subsection}}
+    {{#freestyle-section name="Components" as |section|}}
+      {{#section.subsection name="Boxed section"}}
+        {{freestyle/sg-boxed-section}}
+      {{/section.subsection}}
 
-      {{#freestyle-subsection name='With Classes' section=section}}
-        {{#freestyle-usage 'distribution-bar-with-classes'}}
-          <div class="block" style="height:50px; width:200px;">
-            {{distribution-bar data=distributionBarDataWithClasses}}
-          </div>
-        {{/freestyle-usage}}
-        {{#freestyle-annotation}}
-          <div class="block">
-            If a datum provides a <code>className</code> property, it will be assigned to the corresponding <code>rect</code> element, allowing for custom colorization.
-          </div>
-        {{/freestyle-annotation}}
-      {{/freestyle-subsection}}
+      {{#section.subsection name="Breadcrumbs"}}
+        {{freestyle/sg-breadcrumbs}}
+      {{/section.subsection}}
 
-      {{#freestyle-subsection name='Flexible Sizing' section=section}}
-        {{#freestyle-usage 'distribution-bar-sizing-1'}}
-          <div class="block" style="height:10px; width:600px;">
-            {{distribution-bar data=distributionBarData}}
-          </div>
-        {{/freestyle-usage}}
-        {{#freestyle-usage 'distribution-bar-sizing-2'}}
-          <div class="block" style="height:200px; width:30px;">
-            {{distribution-bar data=distributionBarData}}
-          </div>
-        {{/freestyle-usage}}
-        {{#freestyle-annotation}}
-          <div class="block">
-          Distribution bar assumes the dimensions of the container.
-          </div>
-        {{/freestyle-annotation}}
-      {{/freestyle-subsection}}
+      {{#section.subsection name="Buttons"}}
+        {{freestyle/sg-buttons}}
+      {{/section.subsection}}
 
-      {{#freestyle-subsection name='Updating Data' section=section}}
-        {{#freestyle-usage 'distribution-bar-updating'}}
-          <div class="block" style="height:50px; width:600px;">
-            {{distribution-bar data=distributionBarDataRotating}}
-          </div>
-        {{/freestyle-usage}}
-        {{#freestyle-annotation}}
-          <div class="block">
-          Distribution bar animates with data changes.
-          </div>
-        {{/freestyle-annotation}}
-      {{/freestyle-subsection}}
+      {{#section.subsection name="Diff Viewer"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Dropdown"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Event stream"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Gutter navigation"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Header"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Inline definitions"}}
+      {{/section.subsection}}
+      {{#section.subsection name="JSON Viewer"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Log Stream"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Metric"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Page tabs"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Page title"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Search box"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Table"}}
+      {{/section.subsection}}
+      {{#section.subsection name="Table, Configuration"}}
+      {{/section.subsection}}
     {{/freestyle-section}}
-{{/freestyle-guide}}
+
+    {{#freestyle-section name="Charts" as |section|}}
+      {{#section.subsection name="Distribution Bar"}}
+        {{freestyle/sg-distribution-bar}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Jumbo Distribution Bar"}}
+        {{freestyle/sg-distribution-bar-jumbo}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Progress Bar"}}
+      {{/section.subsection}}
+    {{/freestyle-section}}
+  {{/freestyle-guide}}
 </div>
+

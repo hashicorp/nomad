@@ -1,10 +1,7 @@
-import Ember from 'ember';
-import { findAll, visit } from 'ember-native-dom-helpers';
+import { find, findAll, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
-
-const { $ } = Ember;
 
 let job;
 let versions;
@@ -20,7 +17,7 @@ moduleForAcceptance('Acceptance | job versions', {
 
 test('/jobs/:id/versions should list all job versions', function(assert) {
   assert.ok(
-    findAll('.timeline-object').length,
+    findAll('[data-test-version]').length,
     versions.length,
     'Each version gets a row in the timeline'
   );
@@ -30,17 +27,17 @@ test('each version mentions the version number, the stability, and the submitted
   assert
 ) {
   const version = versions.sortBy('submitTime').reverse()[0];
-  const versionRow = $(findAll('.timeline-object')[0]);
+  const versionRow = find('[data-test-version]');
 
-  assert.ok(versionRow.text().includes(`Version #${version.version}`), 'Version #');
+  assert.ok(versionRow.textContent.includes(`Version #${version.version}`), 'Version #');
   assert.equal(
-    versionRow.find('.version-stability .badge').text(),
+    versionRow.querySelector('[data-test-version-stability]').textContent,
     version.stable.toString(),
     'Stability'
   );
   assert.equal(
-    versionRow.find('.version-submit-date .submit-date').text(),
-    moment(version.submitTime / 1000000).format('MM/DD/YY HH:mm:ss [UTC]'),
+    versionRow.querySelector('[data-test-version-submit-date]').textContent,
+    moment(version.submitTime / 1000000).format('MM/DD/YY HH:mm:ss'),
     'Submit time'
   );
 });

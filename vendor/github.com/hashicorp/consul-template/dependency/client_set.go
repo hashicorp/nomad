@@ -310,7 +310,7 @@ func (c *ClientSet) Consul() *consulapi.Client {
 	return c.consul.client
 }
 
-// Vault returns the Consul client for this set.
+// Vault returns the Vault client for this set.
 func (c *ClientSet) Vault() *vaultapi.Client {
 	c.RLock()
 	defer c.RUnlock()

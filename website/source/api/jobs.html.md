@@ -141,7 +141,7 @@ The table below shows this endpoint's support for
                 },
                 "Services": [{
                     "Id": "",
-                    "Name": "global-redis-check",
+                    "Name": "redis-cache",
                     "Tags": [
                         "global",
                         "cache"
@@ -519,7 +519,7 @@ $ curl \
             "Env": null,
             "Services": [
               {
-                "Name": "global-redis-check",
+                "Name": "redis-cache",
                 "PortLabel": "db",
                 "Tags": [
                   "global",
@@ -761,7 +761,8 @@ $ curl \
     },
     "CreateIndex": 9,
     "ModifyIndex": 13,
-    "CreateTime": 1495755675944527600
+    "CreateTime": 1495755675944527600,
+    "ModifyTime": 1495755675944527600
   }
 ]
 ```
@@ -1103,9 +1104,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                   |
+| ---------------- | ------------------------------ |
+| `NO`             | `namespace:dispatch-job`       |
 
 ### Parameters
 
@@ -1476,7 +1477,7 @@ $ curl \
       "NodesExhausted": 1,
       "ClassExhausted": null,
       "DimensionExhausted": {
-        "cpu exhausted": 1
+        "cpu": 1
       }
     }
   },
@@ -1533,9 +1534,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServiceSched_JobRegister(t *testing.T) {
@@ -35,7 +36,10 @@ func TestServiceSched_JobRegister(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -118,7 +122,9 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	if err := h.Process(NewServiceScheduler, eval); err != nil {
@@ -149,7 +155,9 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 	h1 := NewHarnessWithState(t, h.State)
 	if err := h1.Process(NewServiceScheduler, eval); err != nil {
 		t.Fatalf("err: %v", err)
@@ -206,7 +214,10 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -275,7 +286,10 @@ func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -364,7 +378,10 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -456,7 +473,9 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -548,7 +567,9 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
@@ -602,7 +623,9 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 		TriggeredBy:  structs.EvalTriggerJobRegister,
 		JobID:        job.ID,
 		AnnotatePlan: true,
+		Status:       structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -679,7 +702,9 @@ func TestServiceSched_JobRegister_CountZero(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -720,7 +745,10 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -802,7 +830,10 @@ func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -899,8 +930,9 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
-
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
 	if err != nil {
@@ -1016,7 +1048,10 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1245,7 +1280,9 @@ func TestServiceSched_JobModify(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1329,7 +1366,9 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1436,7 +1475,9 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1530,7 +1571,9 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1635,7 +1678,9 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1736,7 +1781,9 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1844,7 +1891,9 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1893,7 +1942,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
 	// Verify the network did not change
-	rp := structs.Port{Label: "main", Value: 5000}
+	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
 		for _, resources := range alloc.TaskResources {
 			if resources.Networks[0].ReservedPorts[0] != rp {
@@ -1958,7 +2007,9 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2044,7 +2095,9 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobDeregister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2111,7 +2164,9 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobDeregister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2201,7 +2256,9 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2267,7 +2324,9 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2318,7 +2377,9 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2419,7 +2480,10 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2493,7 +2557,9 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2550,7 +2616,9 @@ func TestServiceSched_NodeDrain_UpdateStrategy(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2608,7 +2676,9 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2664,7 +2734,9 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -2719,7 +2791,9 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -2748,6 +2822,94 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	if queued != 0 {
 		t.Fatalf("expected: %v, actual: %v", 1, queued)
 	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestBatchSched_Run_LostAlloc(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job
+	job := mock.Job()
+	job.ID = "my-job"
+	job.Type = structs.JobTypeBatch
+	job.TaskGroups[0].Count = 3
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Desired = 3
+	// Mark one as lost and then schedule
+	// [(0, run, running), (1, run, running), (1, stop, lost)]
+
+	// Create two running allocations
+	var allocs []*structs.Allocation
+	for i := 0; i <= 1; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, alloc)
+	}
+
+	// Create a failed alloc
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[1]"
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	alloc.ClientStatus = structs.AllocClientStatusComplete
+	allocs = append(allocs, alloc)
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewBatchScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Ensure a replacement alloc was placed.
+	if len(out) != 4 {
+		t.Fatalf("bad: %#v", out)
+	}
+
+	// Assert that we have the correct number of each alloc name
+	expected := map[string]int{
+		"my-job.web[0]": 1,
+		"my-job.web[1]": 2,
+		"my-job.web[2]": 1,
+	}
+	actual := make(map[string]int, 3)
+	for _, alloc := range out {
+		actual[alloc.Name] += 1
+	}
+	require.Equal(t, actual, expected)
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
@@ -2781,7 +2943,9 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -2841,7 +3005,9 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -2904,7 +3070,9 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -2985,7 +3153,9 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3039,7 +3209,10 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3093,6 +3266,16 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusComplete
+	alloc.TaskStates = make(map[string]*structs.TaskState)
+	alloc.TaskStates["web"] = &structs.TaskState{
+		State: structs.TaskStateDead,
+		Events: []*structs.TaskEvent{
+			{
+				Type:     structs.TaskTerminated,
+				ExitCode: 0,
+			},
+		},
+	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
@@ -3102,7 +3285,10 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3154,7 +3340,10 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3197,7 +3386,9 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 		Priority:    job.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 	// Process the evaluation
 	if err := h.Process(NewServiceScheduler, eval); err != nil {
 		t.Fatalf("err: %v", err)
@@ -3226,7 +3417,10 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 		Priority:    job1.Priority,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job1.ID,
+		Status:      structs.EvalStatusPending,
 	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1}))
+
 	// Process the evaluation
 	if err := h1.Process(NewServiceScheduler, eval1); err != nil {
 		t.Fatalf("err: %v", err)
@@ -3287,7 +3481,10 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 		TriggeredBy: structs.EvalTriggerNodeUpdate,
 		JobID:       alloc.Job.ID,
 		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -3344,7 +3541,10 @@ func TestServiceSched_CancelDeployment_Stopped(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobDeregister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -3413,7 +3613,10 @@ func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
 		Priority:    50,
 		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
 	}
+
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)

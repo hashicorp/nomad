@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
-
-const { makeArray } = Ember;
 
 export default JSONSerializer.extend({
   primaryKey: 'ID',
@@ -11,7 +9,10 @@ export default JSONSerializer.extend({
   },
 
   keyForRelationship(attr, relationshipType) {
-    const key = `${attr.camelize().capitalize()}ID`;
+    const key = `${attr
+      .singularize()
+      .camelize()
+      .capitalize()}ID`;
     return relationshipType === 'hasMany' ? key.pluralize() : key;
   },
 

@@ -1,12 +1,15 @@
 package client
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func gcConfig() *GCConfig {
@@ -128,9 +131,7 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 	close(ar1.waitCh)
 	close(ar2.waitCh)
 
-	if err := gc.Collect(ar1.Alloc().ID); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.Collect(ar1.Alloc().ID)
 	gcAlloc := gc.allocRunners.Pop()
 	if gcAlloc == nil || gcAlloc.allocRunner != ar2 {
 		t.Fatalf("bad gcAlloc: %v", gcAlloc)
@@ -147,9 +148,7 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
 
-	if err := gc.CollectAll(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.CollectAll()
 	gcAlloc := gc.allocRunners.Pop()
 	if gcAlloc != nil {
 		t.Fatalf("bad gcAlloc: %v", gcAlloc)
@@ -290,40 +289,132 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 	}
 }
 
-func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
+// TestAllocGarbageCollector_MaxAllocs asserts that when making room for new
+// allocs, terminal allocs are GC'd until old_allocs + new_allocs <= limit
+func TestAllocGarbageCollector_MaxAllocs(t *testing.T) {
 	t.Parallel()
-	const (
-		liveAllocs   = 3
-		maxAllocs    = 6
-		gcAllocs     = 4
-		gcAllocsLeft = 1
-	)
+	server, serverAddr := testServer(t, nil)
+	defer server.Shutdown()
+	testutil.WaitForLeader(t, server.RPC)
 
-	logger := testLogger()
-	statsCollector := &MockStatsCollector{
-		availableValues: []uint64{10 * 1024 * MB},
-		usedPercents:    []float64{0},
-		inodePercents:   []float64{0},
-	}
-	allocCounter := &MockAllocCounter{allocs: liveAllocs}
-	conf := gcConfig()
-	conf.MaxAllocs = maxAllocs
-	gc := NewAllocGarbageCollector(logger, statsCollector, allocCounter, conf)
+	const maxAllocs = 6
+	client := testClient(t, func(c *config.Config) {
+		c.GCMaxAllocs = maxAllocs
+		c.GCDiskUsageThreshold = 100
+		c.GCInodeUsageThreshold = 100
+		c.GCParallelDestroys = 1
+		c.GCInterval = time.Hour
 
-	for i := 0; i < gcAllocs; i++ {
-		_, ar := testAllocRunnerFromAlloc(mock.Alloc(), false)
-		close(ar.waitCh)
-		gc.MarkForCollection(ar)
+		c.RPCHandler = server
+		c.Servers = []string{serverAddr}
+		c.ConsulConfig.ClientAutoJoin = new(bool) // squelch logs
+	})
+	defer client.Shutdown()
+	waitTilNodeReady(client, t)
+
+	callN := 0
+	assertAllocs := func(expectedAll, expectedDestroyed int) {
+		// Wait for allocs to be started
+		callN++
+		client.logger.Printf("[TEST] %d -- Waiting for %d total allocs, %d GC'd", callN, expectedAll, expectedDestroyed)
+		testutil.WaitForResult(func() (bool, error) {
+			all, destroyed := 0, 0
+			for _, ar := range client.getAllocRunners() {
+				all++
+				if ar.IsDestroyed() {
+					destroyed++
+				}
+			}
+			return all == expectedAll && destroyed == expectedDestroyed, fmt.Errorf(
+				"expected %d allocs (found %d); expected %d destroy (found %d)",
+				expectedAll, all, expectedDestroyed, destroyed,
+			)
+		}, func(err error) {
+			client.logger.Printf("[TEST] %d -- FAILED to find %d total allocs, %d GC'd!", callN, expectedAll, expectedDestroyed)
+			t.Fatalf("%d alloc state: %v", callN, err)
+		})
+		client.logger.Printf("[TEST] %d -- Found %d total allocs, %d GC'd!", callN, expectedAll, expectedDestroyed)
 	}
 
-	if err := gc.MakeRoomFor([]*structs.Allocation{mock.Alloc(), mock.Alloc()}); err != nil {
-		t.Fatalf("error making room for 2 new allocs: %v", err)
+	// Create a job
+	state := server.State()
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Config["run_for"] = "30s"
+	nodeID := client.Node().ID
+	if err := state.UpsertJob(98, job); err != nil {
+		t.Fatalf("error upserting job: %v", err)
+	}
+	if err := state.UpsertJobSummary(99, mock.JobSummary(job.ID)); err != nil {
+		t.Fatalf("error upserting job summary: %v", err)
 	}
 
-	// There should be gcAllocsLeft alloc runners left to be collected
-	if n := len(gc.allocRunners.index); n != gcAllocsLeft {
-		t.Fatalf("expected %d remaining GC-able alloc runners but found %d", gcAllocsLeft, n)
+	newAlloc := func() *structs.Allocation {
+		alloc := mock.Alloc()
+		alloc.JobID = job.ID
+		alloc.Job = job
+		alloc.NodeID = nodeID
+		return alloc
 	}
+
+	// Create the allocations
+	allocs := make([]*structs.Allocation, 7)
+	for i := 0; i < len(allocs); i++ {
+		allocs[i] = newAlloc()
+	}
+
+	// Upsert a copy of the allocs as modifying the originals later would
+	// cause a race
+	{
+		allocsCopy := make([]*structs.Allocation, len(allocs))
+		for i, a := range allocs {
+			allocsCopy[i] = a.Copy()
+		}
+		if err := state.UpsertAllocs(100, allocsCopy); err != nil {
+			t.Fatalf("error upserting initial allocs: %v", err)
+		}
+	}
+
+	// 7 total, 0 GC'd
+	assertAllocs(7, 0)
+
+	// Set the first few as terminal so they're marked for gc
+	const terminalN = 4
+	for i := 0; i < terminalN; i++ {
+		// Copy the alloc so the pointers aren't shared
+		alloc := allocs[i].Copy()
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
+		allocs[i] = alloc
+	}
+	if err := state.UpsertAllocs(101, allocs[:terminalN]); err != nil {
+		t.Fatalf("error upserting stopped allocs: %v", err)
+	}
+
+	// 7 total, 1 GC'd to get down to limit of 6
+	assertAllocs(7, 1)
+
+	// Add one more alloc
+	if err := state.UpsertAllocs(102, []*structs.Allocation{newAlloc()}); err != nil {
+		t.Fatalf("error upserting new alloc: %v", err)
+	}
+
+	// 8 total, 1 GC'd to get down to limit of 6
+	// If this fails it may be due to the gc's Run and MarkRoomFor methods
+	// gc'ing concurrently. May have to disable gc's run loop if this test
+	// is flaky.
+	assertAllocs(8, 2)
+
+	// Add new allocs to cause the gc of old terminal ones
+	newAllocs := make([]*structs.Allocation, 4)
+	for i := 0; i < len(newAllocs); i++ {
+		newAllocs[i] = newAlloc()
+	}
+	if err := state.UpsertAllocs(200, newAllocs); err != nil {
+		t.Fatalf("error upserting %d new allocs: %v", len(newAllocs), err)
+	}
+
+	// 12 total, 4 GC'd total because all other allocs are alive
+	assertAllocs(12, 4)
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
@@ -389,41 +480,5 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 
 	if gcAlloc := gc.allocRunners.Pop(); gcAlloc != nil {
 		t.Fatalf("gcAlloc: %v", gcAlloc)
-	}
-}
-
-func TestAllocGarbageCollector_MaxAllocsThreshold(t *testing.T) {
-	t.Parallel()
-	const (
-		liveAllocs   = 3
-		maxAllocs    = 6
-		gcAllocs     = 4
-		gcAllocsLeft = 1
-	)
-
-	logger := testLogger()
-	statsCollector := &MockStatsCollector{
-		availableValues: []uint64{1000},
-		usedPercents:    []float64{0},
-		inodePercents:   []float64{0},
-	}
-	allocCounter := &MockAllocCounter{allocs: liveAllocs}
-	conf := gcConfig()
-	conf.MaxAllocs = 4
-	gc := NewAllocGarbageCollector(logger, statsCollector, allocCounter, conf)
-
-	for i := 0; i < gcAllocs; i++ {
-		_, ar := testAllocRunnerFromAlloc(mock.Alloc(), false)
-		close(ar.waitCh)
-		gc.MarkForCollection(ar)
-	}
-
-	if err := gc.keepUsageBelowThreshold(); err != nil {
-		t.Fatalf("error gc'ing: %v", err)
-	}
-
-	// We should have gc'd down to MaxAllocs
-	if n := len(gc.allocRunners.index); n != gcAllocsLeft {
-		t.Fatalf("expected remaining gc allocs (%d) to equal %d", n, gcAllocsLeft)
 	}
 }

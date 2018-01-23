@@ -1,12 +1,12 @@
 <div class="boxed-section-head is-light inline-definitions">
   Version #{{version.number}}
-  <span class="bumper-left pair is-faded version-stability">
+  <span class="bumper-left pair is-faded">
     <span class="term">Stable</span>
-    <span class="badge is-light is-faded"><code>{{version.stable}}</code></span>
+    <span class="badge is-light is-faded" data-test-version-stability><code>{{version.stable}}</code></span>
   </span>
-  <span class="pair is-faded version-submit-date">
+  <span class="pair is-faded">
     <span class="term">Submitted</span>
-    <span class="submit-date">{{moment-format version.submitTime "MM/DD/YY HH:mm:ss [UTC]"}}</span>
+    <span data-test-version-submit-date class="submit-date">{{moment-format version.submitTime "MM/DD/YY HH:mm:ss"}}</span>
   </span>
   {{#if version.diff}}
     <button class="button is-light is-compact pull-right" {{action "toggleDiff"}}>{{changeCount}} {{pluralize "Change" changeCount}}</button>

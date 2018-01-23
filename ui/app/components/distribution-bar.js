@@ -1,10 +1,13 @@
-import Ember from 'ember';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { run } from '@ember/runloop';
+import { assign } from '@ember/polyfills';
+import { guidFor } from '@ember/object/internals';
 import d3 from 'npm:d3-selection';
 import 'npm:d3-transition';
 import WindowResizable from '../mixins/window-resizable';
 import styleStringProperty from '../utils/properties/style-string';
 
-const { Component, computed, run, assign, guidFor } = Ember;
 const sumAggregate = (total, val) => total + val;
 
 export default Component.extend(WindowResizable, {
@@ -96,7 +99,7 @@ export default Component.extend(WindowResizable, {
       });
 
     slices = slices.merge(slicesEnter);
-    slices.attr('class', d => d.className || `slice-${filteredData.indexOf(d)}`);
+    slices.attr('class', d => d.className || `slice-${_data.indexOf(d)}`);
 
     const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
     const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
@@ -125,7 +128,7 @@ export default Component.extend(WindowResizable, {
         .attr('y', () => isNarrow ? '50%' : 0)
         .attr('clip-path', `url(#${this.get('maskId')})`)
         .attr('height', () => isNarrow ? '6px' : '100%')
-        .attr('transform', () => isNarrow && 'translate(0, -3)')
+        .attr('transform', () => isNarrow ? 'translate(0, -3)' : '')
       .merge(layers)
         .attr('class', (d, i) => `bar layer-${i}`)
       .transition()

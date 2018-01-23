@@ -2,11 +2,14 @@ package nomad
 
 import (
 	"context"
+	"crypto/subtle"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/armon/go-metrics"
@@ -72,14 +75,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if len(args.Node.Attributes) == 0 {
 		return fmt.Errorf("missing attributes for client registration")
 	}
-
-	// COMPAT: Remove after 0.6
-	// Need to check if this node is <0.4.x since SecretID is new in 0.5
-	pre, err := nodePreSecretID(args.Node)
-	if err != nil {
-		return err
-	}
-	if args.Node.SecretID == "" && !pre {
+	if args.Node.SecretID == "" {
 		return fmt.Errorf("missing node secret ID for client registration")
 	}
 
@@ -112,7 +108,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	// Check if the SecretID has been tampered with
-	if !pre && originalNode != nil {
+	if originalNode != nil {
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
@@ -169,22 +165,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	return nil
 }
 
-// nodePreSecretID is a helper that returns whether the node is on a version
-// that is before SecretIDs were introduced
-func nodePreSecretID(node *structs.Node) (bool, error) {
-	a := node.Attributes
-	if a == nil {
-		return false, fmt.Errorf("node doesn't have attributes set")
-	}
-
-	v, ok := a["nomad.version"]
-	if !ok {
-		return false, fmt.Errorf("missing Nomad version in attributes")
-	}
-
-	return !strings.HasPrefix(v, "0.5"), nil
-}
-
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
 func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
 	reply.LeaderRPCAddr = string(n.srv.raft.Leader())
@@ -229,9 +209,30 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
+	// Check node permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client deregistration")
+	}
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
 	}
 
 	// Commit this update via Raft
@@ -252,8 +253,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	// Determine if there are any Vault accessors on the node
-	ws := memdb.NewWatchSet()
-	accessors, err := n.srv.State().VaultAccessorsByNode(ws, args.NodeID)
+	accessors, err := snap.VaultAccessorsByNode(ws, args.NodeID)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.client: looking up accessors for node %q failed: %v", args.NodeID, err)
 		return err
@@ -389,7 +389,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -451,7 +451,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	defer metrics.MeasureSince([]string{"nomad", "client", "evaluate"}, time.Now())
 
 	// Check node write permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
@@ -506,8 +506,26 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
-		return err
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		// If ResolveToken had an unexpected error return that
+		if err != structs.ErrTokenNotFound {
+			return err
+		}
+
+		// Attempt to lookup AuthToken as a Node.SecretID since nodes
+		// call this endpoint and don't have an ACL token.
+		node, stateErr := n.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
+		if stateErr != nil {
+			// Return the original ResolveToken error with this err
+			var merr multierror.Error
+			merr.Errors = append(merr.Errors, err, stateErr)
+			return merr.ErrorOrNil()
+		}
+
+		// Not a node or a valid ACL token
+		if node == nil {
+			return structs.ErrTokenNotFound
+		}
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
@@ -560,7 +578,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_allocs"}, time.Now())
 
 	// Check node read and namespace job read permissions
-	aclObj, err := n.srv.resolveToken(args.SecretID)
+	aclObj, err := n.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -640,6 +658,33 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
+// GenerateMigrateToken will create a token for a client to access an
+// authenticated volume of another client to migrate data for sticky volumes.
+func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(allocID))
+	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// CompareMigrateToken returns true if two migration tokens can be computed and
+// are equal.
+func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return false
+	}
+	h.Write([]byte(allocID))
+
+	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
+}
+
 // GetClientAllocs is used to request a lightweight list of alloc modify indexes
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
@@ -654,6 +699,12 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		return fmt.Errorf("missing node ID")
 	}
 
+	// numOldAllocs is used to detect if there is a garbage collection event
+	// that effects the node. When an allocation is garbage collected, that does
+	// not change the modify index changes and thus the query won't unblock,
+	// even though the set of allocations on the node has changed.
+	var numOldAllocs int
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -667,14 +718,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			var allocs []*structs.Allocation
 			if node != nil {
-				// COMPAT: Remove in 0.6
-				// Check if the node should have a SecretID set
 				if args.SecretID == "" {
-					if pre, err := nodePreSecretID(node); err != nil {
-						return err
-					} else if !pre {
-						return fmt.Errorf("missing node secret ID for client status update")
-					}
+					return fmt.Errorf("missing node secret ID for client status update")
 				} else if args.SecretID != node.SecretID {
 					return fmt.Errorf("node secret ID does not match")
 				}
@@ -687,13 +732,63 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			}
 
 			reply.Allocs = make(map[string]uint64)
+			reply.MigrateTokens = make(map[string]string)
+
+			// preferTableIndex is used to determine whether we should build the
+			// response index based on the full table indexes versus the modify
+			// indexes of the allocations on the specific node. This is
+			// preferred in the case that the node doesn't yet have allocations
+			// or when we detect a GC that effects the node.
+			preferTableIndex := true
+
 			// Setup the output
-			if len(allocs) != 0 {
+			if numAllocs := len(allocs); numAllocs != 0 {
+				preferTableIndex = false
+
 				for _, alloc := range allocs {
 					reply.Allocs[alloc.ID] = alloc.AllocModifyIndex
+
+					// If the allocation is going to do a migration, create a
+					// migration token so that the client can authenticate with
+					// the node hosting the previous allocation.
+					if alloc.ShouldMigrate() {
+						prevAllocation, err := state.AllocByID(ws, alloc.PreviousAllocation)
+						if err != nil {
+							return err
+						}
+
+						if prevAllocation != nil && prevAllocation.NodeID != alloc.NodeID {
+							allocNode, err := state.NodeByID(ws, prevAllocation.NodeID)
+							if err != nil {
+								return err
+							}
+							if allocNode == nil {
+								// Node must have been GC'd so skip the token
+								continue
+							}
+
+							token, err := GenerateMigrateToken(prevAllocation.ID, allocNode.SecretID)
+							if err != nil {
+								return err
+							}
+							reply.MigrateTokens[alloc.ID] = token
+						}
+					}
+
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
-			} else {
+
+				// Determine if we have less allocations than before. This
+				// indicates there was a garbage collection
+				if numAllocs < numOldAllocs {
+					preferTableIndex = true
+				}
+
+				// Store the new number of allocations
+				numOldAllocs = numAllocs
+			}
+
+			if preferTableIndex {
 				// Use the last index that affected the nodes table
 				index, err := state.Index("allocs")
 				if err != nil {
@@ -725,6 +820,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		return fmt.Errorf("must update at least one allocation")
 	}
 
+	// Update modified timestamp for client initiated allocation updates
+	now := time.Now().UTC().UnixNano()
+	for _, alloc := range args.Alloc {
+		alloc.ModifyTime = now
+	}
 	// Add this to the batch
 	n.updatesLock.Lock()
 	n.updates = append(n.updates, args.Alloc...)
@@ -817,7 +917,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "list"}, time.Now())
 
 	// Check node read permissions
-	if aclObj, err := n.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied

@@ -28,7 +28,7 @@ export default ApplicationSerializer.extend({
   },
 
   normalizeResponse(store, typeClass, hash, ...args) {
-    return this._super(store, typeClass, hash.Members, ...args);
+    return this._super(store, typeClass, hash.Members || [], ...args);
   },
 
   normalizeSingleResponse(store, typeClass, hash, id, ...args) {

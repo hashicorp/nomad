@@ -70,7 +70,7 @@ distributed to every node that requires access.
 
 ### Node Certificates
 
-Once you have a CA certifacte and key you can generate and sign the
+Once you have a CA certificate and key you can generate and sign the
 certificates Nomad will use directly. TLS certificates commonly use the
 fully-qualified domain name of the system being identified as the certificate's
 Common Name (CN). However, hosts (and therefore hostnames and IPs) are often
@@ -113,7 +113,7 @@ $ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cf
     -hostname="client.global.nomad,localhost,127.0.0.1" - | cfssljson -bare client
 
 # Generate a certificate for the CLI
-$ echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
+$ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -profile=client \
     - | cfssljson -bare cli
 ```
 
@@ -217,16 +217,16 @@ tls {
 
 These two settings are important for ensuring all of Nomad's mTLS security
 properties are met. If [`verify_server_hostname`][verify_server_hostname] is
-set to `false` the node's cerificate will be checked to ensure it is signed by
+set to `false` the node's certificate will be checked to ensure it is signed by
 the same CA, but its role and region will not be verified. This means any
 service with a certificate signed by same CA as Nomad can act as a client or
 server of any region.
 
 [`verify_https_client`][verify_https_client] requires HTTP API clients to
 present a certificate signed by the same CA as Nomad's certificate. It may be
-disabled to allow HTTP API clients (eg Nomad CLI, Consul, or curl) to
+disabled to allow HTTP API clients (e.g. Nomad CLI, Consul, or curl) to
 communicate with the HTTPS API without presenting a client-side certificate. If
-`verify_https_client` is enabled ony HTTP API clients presenting a certificate
+`verify_https_client` is enabled only HTTP API clients presenting a certificate
 signed by the same CA as Nomad's certificate are allowed to access Nomad.
 
 ~> Enabling `verify_https_client` effectively protects Nomad from unauthorized
@@ -299,7 +299,7 @@ HTTPS. We can configure the local Nomad client to connect using TLS and specify
 our custom keys and certificates using the command line:
 
 ```shell
-$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -addr=https://127.0.0.1:4646
+$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -address=https://127.0.0.1:4646
 ```
 
 This process can be cumbersome to type each time, so the Nomad CLI also
@@ -430,6 +430,48 @@ configuration setting before restarting their servers:
 Jobs running in the cluster will _not_ be affected and will continue running
 throughout the switch as long as all clients can restart within their heartbeat
 TTL.
+
+## Changing Nomad certificates on the fly
+
+As of 0.7.1, Nomad supports dynamic certificate reloading via SIGHUP.
+
+Given a prior TLS configuration as follows:
+
+```hcl
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "nomad-ca.pem"
+  cert_file = "server.pem"
+  key_file  = "server-key.pem"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+
+Nomad's cert_file and key_file can be reloaded via SIGHUP simply by
+updating the TLS stanza to:
+
+```hcl
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "nomad-ca.pem"
+  cert_file = "new_server.pem"
+  key_file  = "new_server_key.pem"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+
+NOTE: Dynamically reloading certificates will _not_ close existing connections.
+If you need to rotate certificates due to a security incident, you will still
+need to completely shutdown and restart the Nomad agent.
+
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json

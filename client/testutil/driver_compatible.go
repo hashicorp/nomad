@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+// RequireRoot skips tests unless running on a Unix as root.
+func RequireRoot(t *testing.T) {
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must run as root on Unix")
+	}
+}
+
 func ExecCompatible(t *testing.T) {
 	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
 		t.Skip("Test only available running as root on linux")

@@ -173,7 +173,7 @@ func TestSetQueryOptions(t *testing.T) {
 		AllowStale: true,
 		WaitIndex:  1000,
 		WaitTime:   100 * time.Second,
-		SecretID:   "foobar",
+		AuthToken:  "foobar",
 	}
 	r.setQueryOptions(q)
 
@@ -206,7 +206,7 @@ func TestSetWriteOptions(t *testing.T) {
 	q := &WriteOptions{
 		Region:    "foo",
 		Namespace: "bar",
-		SecretID:  "foobar",
+		AuthToken: "foobar",
 	}
 	r.setWriteOptions(q)
 
@@ -230,7 +230,7 @@ func TestRequestToHTTP(t *testing.T) {
 	q := &QueryOptions{
 		Region:    "foo",
 		Namespace: "bar",
-		SecretID:  "foobar",
+		AuthToken: "foobar",
 	}
 	r.setQueryOptions(q)
 	req, err := r.toHTTP()

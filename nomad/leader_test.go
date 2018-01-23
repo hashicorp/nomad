@@ -3,10 +3,10 @@ package nomad
 import (
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/testutil/retry"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -41,17 +41,30 @@ func TestLeader_LeftServer(t *testing.T) {
 	}
 
 	// Kill any server
-	servers[0].Shutdown()
+	var peer *Server
+	for _, s := range servers {
+		if !s.IsLeader() {
+			peer = s
+			break
+		}
+	}
+	if peer == nil {
+		t.Fatalf("Should have a non-leader")
+	}
+	peer.Shutdown()
+	name := fmt.Sprintf("%s.%s", peer.config.NodeName, peer.config.Region)
 
 	testutil.WaitForResult(func() (bool, error) {
-		// Force remove the non-leader (transition to left state)
-		name := fmt.Sprintf("%s.%s",
-			servers[0].config.NodeName, servers[0].config.Region)
-		if err := servers[1].RemoveFailedNode(name); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		for _, s := range servers {
+			if s == peer {
+				continue
+			}
 
-		for _, s := range servers[1:] {
+			// Force remove the non-leader (transition to left state)
+			if err := s.RemoveFailedNode(name); err != nil {
+				return false, err
+			}
+
 			peers, _ := s.numPeers()
 			return peers == 2, errors.New(fmt.Sprintf("%v", peers))
 		}
@@ -696,17 +709,13 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 func TestLeader_DiffACLPolicies(t *testing.T) {
 	t.Parallel()
 
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 
 	// Populate the local state
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
 	p3 := mock.ACLPolicy()
-	err = state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3})
-	assert.Nil(t, err)
+	assert.Nil(t, state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -769,10 +778,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 func TestLeader_DiffACLTokens(t *testing.T) {
 	t.Parallel()
 
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 
 	// Populate the local state
 	p0 := mock.ACLToken()
@@ -782,8 +788,7 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	p2.Global = true
 	p3 := mock.ACLToken()
 	p3.Global = true
-	err = state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3})
-	assert.Nil(t, err)
+	assert.Nil(t, state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -806,4 +811,170 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 
 	// P2 is un-modified - ignore. P3 modified, P4 new.
 	assert.Equal(t, []string{p3.AccessorID, p4.AccessorID}, update)
+}
+
+func TestLeader_UpgradeRaftVersion(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 1
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s3.Shutdown()
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	testJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.numPeers()
+			return peers == 3, nil
+		}, func(err error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
+	// Kill the v1 server
+	if err := s2.Leave(); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range []*Server{s1, s3} {
+		minVer, err := s.autopilot.MinRaftProtocol()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := minVer, 2; got != want {
+			t.Fatalf("got min raft version %d want %d", got, want)
+		}
+	}
+
+	// Replace the dead server with one running raft protocol v3
+	s4 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.Datacenter = "dc1"
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s4.Shutdown()
+	testJoin(t, s1, s4)
+	servers[1] = s4
+
+	// Make sure we're back to 3 total peers with the new one added via ID
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			addrs := 0
+			ids := 0
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				return false, err
+			}
+			for _, server := range future.Configuration().Servers {
+				if string(server.ID) == string(server.Address) {
+					addrs++
+				} else {
+					ids++
+				}
+			}
+			if got, want := addrs, 2; got != want {
+				return false, fmt.Errorf("got %d server addresses want %d", got, want)
+			}
+			if got, want := ids, 1; got != want {
+				return false, fmt.Errorf("got %d server ids want %d", got, want)
+			}
+
+			return true, nil
+		}, func(err error) {
+			t.Fatal(err)
+		})
+	}
+}
+
+func TestLeader_RollRaftServer(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 1
+	})
+	defer s2.Shutdown()
+
+	s3 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s3.Shutdown()
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	testJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
+	}
+
+	// Kill the v1 server
+	s2.Shutdown()
+
+	for _, s := range []*Server{s1, s3} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 2; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+
+	// Replace the dead server with one running raft protocol v3
+	s4 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s4.Shutdown()
+	testJoin(t, s4, s1)
+	servers[1] = s4
+
+	// Make sure the dead server is removed and we're back to 3 total peers
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) {
+			addrs := 0
+			ids := 0
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				r.Fatal(err)
+			}
+			for _, server := range future.Configuration().Servers {
+				if string(server.ID) == string(server.Address) {
+					addrs++
+				} else {
+					ids++
+				}
+			}
+			if got, want := addrs, 2; got != want {
+				r.Fatalf("got %d server addresses want %d", got, want)
+			}
+			if got, want := ids, 1; got != want {
+				r.Fatalf("got %d server ids want %d", got, want)
+			}
+		})
+	}
 }

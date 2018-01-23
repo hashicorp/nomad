@@ -212,7 +212,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
 	}
 
-	// Lost allocations should be transistioned to desired status stop and client
+	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
@@ -278,7 +278,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		option, _ := s.stack.Select(missing.TaskGroup)
 
 		if option == nil {
-			// If nodes were filtered because of constain mismatches and we
+			// If nodes were filtered because of constraint mismatches and we
 			// couldn't create an allocation then decrementing queued for that
 			// task group
 			if s.ctx.metrics.NodesFiltered > 0 {

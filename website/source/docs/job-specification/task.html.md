@@ -54,6 +54,10 @@ job "docs" {
   [`max_kill_timeout`][max_kill] on the agent running the task, which has a
   default value of 30 seconds.
 
+- `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
+  where the default is SIGINT. Note that this is only supported for drivers
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
+
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other
   tasks within the task group will be gracefully shutdown.

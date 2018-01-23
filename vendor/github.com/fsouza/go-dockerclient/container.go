@@ -300,6 +300,7 @@ type Config struct {
 	ExposedPorts      map[Port]struct{}   `json:"ExposedPorts,omitempty" yaml:"ExposedPorts,omitempty" toml:"ExposedPorts,omitempty"`
 	PublishService    string              `json:"PublishService,omitempty" yaml:"PublishService,omitempty" toml:"PublishService,omitempty"`
 	StopSignal        string              `json:"StopSignal,omitempty" yaml:"StopSignal,omitempty" toml:"StopSignal,omitempty"`
+	StopTimeout       int                 `json:"StopTimeout,omitempty" yaml:"StopTimeout,omitempty" toml:"StopTimeout,omitempty"`
 	Env               []string            `json:"Env,omitempty" yaml:"Env,omitempty" toml:"Env,omitempty"`
 	Cmd               []string            `json:"Cmd" yaml:"Cmd" toml:"Cmd"`
 	Healthcheck       *HealthConfig       `json:"Healthcheck,omitempty" yaml:"Healthcheck,omitempty" toml:"Healthcheck,omitempty"`
@@ -426,8 +427,9 @@ type HealthConfig struct {
 	Test []string `json:"Test,omitempty" yaml:"Test,omitempty" toml:"Test,omitempty"`
 
 	// Zero means to inherit. Durations are expressed as integer nanoseconds.
-	Interval time.Duration `json:"Interval,omitempty" yaml:"Interval,omitempty" toml:"Interval,omitempty"` // Interval is the time to wait between checks.
-	Timeout  time.Duration `json:"Timeout,omitempty" yaml:"Timeout,omitempty" toml:"Timeout,omitempty"`    // Timeout is the time to wait before considering the check to have hung.
+	Interval    time.Duration `json:"Interval,omitempty" yaml:"Interval,omitempty" toml:"Interval,omitempty"`          // Interval is the time to wait between checks.
+	Timeout     time.Duration `json:"Timeout,omitempty" yaml:"Timeout,omitempty" toml:"Timeout,omitempty"`             // Timeout is the time to wait before considering the check to have hung.
+	StartPeriod time.Duration `json:"StartPeriod,omitempty" yaml:"StartPeriod,omitempty" toml:"StartPeriod,omitempty"` // The start period for the container to initialize before the retries starts to count down.
 
 	// Retries is the number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.
@@ -630,6 +632,11 @@ func (c *Client) CreateContainer(opts CreateContainerOptions) (*Container, error
 		if e.Status == http.StatusConflict {
 			return nil, ErrContainerAlreadyExists
 		}
+		// Workaround for 17.09 bug returning 400 instead of 409.
+		// See https://github.com/moby/moby/issues/35021
+		if e.Status == http.StatusBadRequest && strings.Contains(e.Message, "Conflict.") {
+			return nil, ErrContainerAlreadyExists
+		}
 	}
 
 	if err != nil {
@@ -737,6 +744,7 @@ type HostConfig struct {
 	UTSMode              string                 `json:"UTSMode,omitempty" yaml:"UTSMode,omitempty" toml:"UTSMode,omitempty"`
 	RestartPolicy        RestartPolicy          `json:"RestartPolicy,omitempty" yaml:"RestartPolicy,omitempty" toml:"RestartPolicy,omitempty"`
 	Devices              []Device               `json:"Devices,omitempty" yaml:"Devices,omitempty" toml:"Devices,omitempty"`
+	DeviceCgroupRules    []string               `json:"DeviceCgroupRules,omitempty" yaml:"DeviceCgroupRules,omitempty" toml:"DeviceCgroupRules,omitempty"`
 	LogConfig            LogConfig              `json:"LogConfig,omitempty" yaml:"LogConfig,omitempty" toml:"LogConfig,omitempty"`
 	SecurityOpt          []string               `json:"SecurityOpt,omitempty" yaml:"SecurityOpt,omitempty" toml:"SecurityOpt,omitempty"`
 	Cgroup               string                 `json:"Cgroup,omitempty" yaml:"Cgroup,omitempty" toml:"Cgroup,omitempty"`
@@ -778,6 +786,7 @@ type HostConfig struct {
 	IOMaximumBandwidth   int64                  `json:"IOMaximumBandwidth,omitempty" yaml:"IOMaximumBandwidth,omitempty"`
 	IOMaximumIOps        int64                  `json:"IOMaximumIOps,omitempty" yaml:"IOMaximumIOps,omitempty"`
 	Mounts               []HostMount            `json:"Mounts,omitempty" yaml:"Mounts,omitempty" toml:"Mounts,omitempty"`
+	Init                 bool                   `json:",omitempty" yaml:",omitempty"`
 }
 
 // NetworkingConfig represents the container's networking configuration for each of its interfaces
@@ -1472,7 +1481,7 @@ type LogsOptions struct {
 // stderr to LogsOptions.ErrorStream.
 //
 // When LogsOptions.RawTerminal is true, callers will get the raw stream on
-// LogOptions.OutputStream. The caller can use libraries such as dlog
+// LogsOptions.OutputStream. The caller can use libraries such as dlog
 // (github.com/ahmetalpbalkan/dlog).
 //
 // See https://goo.gl/krK0ZH for more details.

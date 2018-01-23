@@ -21,7 +21,6 @@ var (
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"VAULT_TOKEN",
-		"ATLAS_TOKEN",
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
@@ -357,6 +356,7 @@ func (c *Config) TLSConfiguration() *tlsutil.Config {
 		CAFile:               c.TLSConfig.CAFile,
 		CertFile:             c.TLSConfig.CertFile,
 		KeyFile:              c.TLSConfig.KeyFile,
+		KeyLoader:            c.TLSConfig.GetKeyLoader(),
 	}
 	return tlsConf
 }
