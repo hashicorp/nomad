@@ -1001,3 +1001,156 @@ func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 
 	assert.Equal(c.ValidateMigrateToken("", ""), true)
 }
+
+func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.Region = "regionFoo"
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+	})
+	defer c1.Shutdown()
+
+	// Registering a node over plaintext should succeed
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return false, fmt.Errorf("client RPC failed when it should have succeeded:\n%+v", err)
+			}
+			return true, nil
+		},
+			func(err error) {
+				t.Fatalf(err.Error())
+			},
+		)
+	}
+
+	newConfig := &nconfig.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
+	}
+
+	err := c1.reloadTLSConnections(newConfig)
+	assert.Nil(err)
+
+	// Registering a node over plaintext should fail after the node has upgraded
+	// to TLS
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", err)
+			}
+			return true, nil
+		},
+			func(err error) {
+				t.Fatalf(err.Error())
+			},
+		)
+	}
+}
+
+func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.Region = "regionFoo"
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	c1 := testClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer c1.Shutdown()
+
+	// assert that when one node is running in encrypted mode, a RPC request to a
+	// node running in plaintext mode should fail
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed :\n%+v", err)
+			}
+			return true, nil
+		},
+			func(err error) {
+				t.Fatalf(err.Error())
+			},
+		)
+	}
+
+	newConfig := &nconfig.TLSConfig{}
+
+	err := c1.reloadTLSConnections(newConfig)
+	assert.Nil(err)
+
+	// assert that when both nodes are in plaintext mode, a RPC request should
+	// succeed
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return false, fmt.Errorf("client RPC failed when it should have succeeded:\n%+v", err)
+			}
+			return true, nil
+		},
+			func(err error) {
+				t.Fatalf(err.Error())
+			},
+		)
+	}
+}

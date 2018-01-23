@@ -68,26 +68,40 @@ func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
 }
 
 // listen is used to listen for incoming RPC connections
-func (s *Server) listen() {
+func (s *Server) listen(ctx context.Context) {
 	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Println("[INFO] nomad.rpc: Closing server RPC connection")
+			return
+		default:
+		}
+
 		// Accept a connection
 		conn, err := s.rpcListener.Accept()
 		if err != nil {
 			if s.shutdown {
 				return
 			}
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			s.logger.Printf("[ERR] nomad.rpc: failed to accept RPC conn: %v", err)
 			continue
 		}
 
-		go s.handleConn(conn, false)
+		go s.handleConn(ctx, conn, false)
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
 
 // handleConn is used to determine if this is a Raft or
 // Nomad type RPC connection and invoke the correct handler
-func (s *Server) handleConn(conn net.Conn, isTLS bool) {
+func (s *Server) handleConn(ctx context.Context, conn net.Conn, isTLS bool) {
 	// Read a single byte
 	buf := make([]byte, 1)
 	if _, err := conn.Read(buf); err != nil {
@@ -110,14 +124,14 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 	// Switch on the byte
 	switch RPCType(buf[0]) {
 	case rpcNomad:
-		s.handleNomadConn(conn)
+		s.handleNomadConn(ctx, conn)
 
 	case rpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
-		s.raftLayer.Handoff(conn)
+		s.raftLayer.Handoff(ctx, conn)
 
 	case rpcMultiplex:
-		s.handleMultiplex(conn)
+		s.handleMultiplex(ctx, conn)
 
 	case rpcTLS:
 		if s.rpcTLS == nil {
@@ -126,7 +140,7 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 			return
 		}
 		conn = tls.Server(conn, s.rpcTLS)
-		s.handleConn(conn, true)
+		s.handleConn(ctx, conn, true)
 
 	default:
 		s.logger.Printf("[ERR] nomad.rpc: unrecognized RPC byte: %v", buf[0])
@@ -137,7 +151,7 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 
 // handleMultiplex is used to multiplex a single incoming connection
 // using the Yamux multiplexer
-func (s *Server) handleMultiplex(conn net.Conn) {
+func (s *Server) handleMultiplex(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	conf := yamux.DefaultConfig()
 	conf.LogOutput = s.config.LogOutput
@@ -150,16 +164,19 @@ func (s *Server) handleMultiplex(conn net.Conn) {
 			}
 			return
 		}
-		go s.handleNomadConn(sub)
+		go s.handleNomadConn(ctx, sub)
 	}
 }
 
 // handleNomadConn is used to service a single Nomad RPC connection
-func (s *Server) handleNomadConn(conn net.Conn) {
+func (s *Server) handleNomadConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	rpcCodec := NewServerCodec(conn)
 	for {
 		select {
+		case <-ctx.Done():
+			s.logger.Println("[INFO] nomad.rpc: Closing server RPC connection")
+			return
 		case <-s.shutdownCh:
 			return
 		default:

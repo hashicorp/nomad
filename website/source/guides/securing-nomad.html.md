@@ -472,6 +472,18 @@ NOTE: Dynamically reloading certificates will _not_ close existing connections.
 If you need to rotate certificates due to a security incident, you will still
 need to completely shutdown and restart the Nomad agent.
 
+## Migrating a cluster to TLS
+
+Nomad supports dynamically reloading it's TLS configuration. To reload Nomad's
+configuration, first update the configuration file and then send the Nomad
+agent a SIGHUP signal. Note that this will only reload a subset of the
+configuration file, including the TLS configuration.
+
+When reloading the configuration, if there is a change to the TLS
+configuration, the agent will reload all network connections and when
+establishing new connections, will use the new configuration. This process
+works for both upgrading and downgrading TLS (but we recommend upgrading).
+
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
@@ -84,6 +86,7 @@ const (
 // schedulers, and notification bus for agents.
 type Server struct {
 	config *Config
+
 	logger *log.Logger
 
 	// Connection pool to other Nomad servers
@@ -108,12 +111,15 @@ type Server struct {
 	fsm *nomadFSM
 
 	// rpcListener is used to listen for incoming connections
-	rpcListener  net.Listener
+	rpcListener net.Listener
+	listenerCh  chan struct{}
+
 	rpcServer    *rpc.Server
 	rpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
-	rpcTLS *tls.Config
+	rpcTLS    *tls.Config
+	rpcCancel context.CancelFunc
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
@@ -234,21 +240,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	}
 
 	// Configure TLS
-	var tlsWrap tlsutil.RegionWrapper
-	var incomingTLS *tls.Config
-	if config.TLSConfig.EnableRPC {
-		tlsConf := config.tlsConfig()
-		tw, err := tlsConf.OutgoingTLSWrapper()
-		if err != nil {
-			return nil, err
-		}
-		tlsWrap = tw
-
-		itls, err := tlsConf.IncomingTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-		incomingTLS = itls
+	tlsConf := config.tlsConfig()
+	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create the ACL object cache
@@ -339,8 +334,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Start ingesting events for Serf
 	go s.serfEventHandler()
 
-	// Start the RPC listeners
-	go s.listen()
+	// start the RPC listener for the server
+	s.startRPCListener()
 
 	// Emit metrics for the eval broker
 	go evalBroker.EmitStats(time.Second, s.shutdownCh)
@@ -365,6 +360,98 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Done
 	return s, nil
+}
+
+// startRPCListener starts the server's  the RPC listener
+func (s *Server) startRPCListener() {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.rpcCancel = cancel
+	go func() {
+		defer close(s.listenerCh)
+		s.listen(ctx)
+	}()
+}
+
+// createRPCListener creates the server's RPC listener
+func (s *Server) createRPCListener() (*net.TCPListener, error) {
+	s.listenerCh = make(chan struct{})
+	listener, err := net.ListenTCP("tcp", s.config.RPCAddr)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: error when initializing TLS listener %s", err)
+		return listener, err
+	}
+
+	s.rpcListener = listener
+	return listener, nil
+}
+
+// getTLSConf gets the server's TLS configuration based on the config supplied
+// by the operator
+func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.RegionWrapper, error) {
+	var tlsWrap tlsutil.RegionWrapper
+	var incomingTLS *tls.Config
+	if enableRPC {
+		tw, err := tlsConf.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, nil, err
+		}
+		tlsWrap = tw
+
+		itls, err := tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, nil, err
+		}
+		incomingTLS = itls
+	}
+	return incomingTLS, tlsWrap, nil
+}
+
+// reloadTLSConnections updates a server's TLS configuration and reloads RPC
+// connections.
+func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
+	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
+
+	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
+	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)
+		return err
+	}
+
+	if s.rpcCancel == nil {
+		err = fmt.Errorf("No existing RPC server to reset.")
+		s.logger.Printf("[ERR] nomad: %s", err)
+		return err
+	}
+
+	s.rpcCancel()
+
+	// Keeping configuration in sync is important for other places that require
+	// access to config information, such as rpc.go, where we decide on what kind
+	// of network connections to accept depending on the server configuration
+	s.config.TLSConfig = newTLSConfig
+
+	s.rpcTLS = incomingTLS
+	s.connPool.ReloadTLS(tlsWrap)
+
+	// reinitialize our rpc listener
+	s.rpcListener.Close()
+	<-s.listenerCh
+	s.startRPCListener()
+
+	listener, err := s.createRPCListener()
+	if err != nil {
+		listener.Close()
+		return err
+	}
+
+	// Close and reload existing Raft connections
+	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
+	s.raftLayer.ReloadTLS(wrapper)
+	s.raftTransport.CloseStreams()
+
+	s.logger.Printf("[DEBUG] nomad: finished reloading server connections")
+	return nil
 }
 
 // Shutdown is used to shutdown the server
@@ -521,9 +608,10 @@ func (s *Server) Leave() error {
 	return nil
 }
 
-// Reload handles a config reload. Not all config fields can handle a reload.
-func (s *Server) Reload(config *Config) error {
-	if config == nil {
+// Reload handles a config reload specific to server-only configuration. Not
+// all config fields can handle a reload.
+func (s *Server) Reload(newConfig *Config) error {
+	if newConfig == nil {
 		return fmt.Errorf("Reload given a nil config")
 	}
 
@@ -531,7 +619,14 @@ func (s *Server) Reload(config *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
-		if err := s.vault.SetConfig(config.VaultConfig); err != nil {
+		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
+			multierror.Append(&mErr, err)
+		}
+	}
+
+	if !newConfig.TLSConfig.Equals(s.config.TLSConfig) {
+		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
+			s.logger.Printf("[ERR] nomad: error reloading server TLS configuration: %s", err)
 			multierror.Append(&mErr, err)
 		}
 	}
@@ -795,11 +890,11 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Search)
 	s.endpoints.Enterprise.Register(s)
 
-	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
+	listener, err := s.createRPCListener()
 	if err != nil {
+		listener.Close()
 		return err
 	}
-	s.rpcListener = list
 
 	s.logger.Printf("[INFO] nomad: RPC listening on %q", s.rpcListener.Addr().String())
 
@@ -812,11 +907,11 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Verify that we have a usable advertise address
 	addr, ok := s.rpcAdvertise.(*net.TCPAddr)
 	if !ok {
-		list.Close()
+		listener.Close()
 		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
 	}
 	if addr.IP.IsUnspecified() {
-		list.Close()
+		listener.Close()
 		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
 	}
 

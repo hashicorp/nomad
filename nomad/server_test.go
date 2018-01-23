@@ -8,17 +8,20 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -280,4 +283,187 @@ func TestServer_Reload_Vault(t *testing.T) {
 	if !s1.vault.Running() {
 		t.Fatalf("Vault client should be running")
 	}
+}
+
+func connectionReset(msg string) bool {
+	return strings.Contains(msg, "EOF") || strings.Contains(msg, "connection reset by peer")
+}
+
+// Tests that the server will successfully reload its network connections,
+// upgrading from plaintext to TLS if the server's TLS configuration changes.
+func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := testServer(t, func(c *Config) {
+		c.DataDir = path.Join(dir, "nodeA")
+	})
+	defer s1.Shutdown()
+
+	// assert that the server started in plaintext mode
+	assert.Equal(s1.config.TLSConfig.CertFile, "")
+
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
+	}
+
+	err := s1.reloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
+
+	codec := rpcClient(t, s1)
+
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	assert.NotNil(err)
+	assert.True(connectionReset(err.Error()))
+}
+
+// Tests that the server will successfully reload its network connections,
+// downgrading from TLS to plaintext if the server's TLS configuration changes.
+func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := testServer(t, func(c *Config) {
+		c.DataDir = path.Join(dir, "nodeB")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	newTLSConfig := &config.TLSConfig{}
+
+	err := s1.reloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
+
+	codec := rpcClient(t, s1)
+
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	assert.Nil(err)
+}
+
+// Test that Raft connections are reloaded as expected when a Nomad server is
+// upgraded from plaintext to TLS
+func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		barcert = "../dev/tls_cluster/certs/nomad.pem"
+		barkey  = "../dev/tls_cluster/certs/nomad-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+		c.NodeName = "node1"
+		c.Region = "regionFoo"
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+		c.NodeName = "node2"
+		c.Region = "regionFoo"
+	})
+	defer s2.Shutdown()
+
+	testJoin(t, s1, s2)
+	servers := []*Server{s1, s2}
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:        true,
+		VerifyHTTPSClient: true,
+		CAFile:            cafile,
+		CertFile:          foocert,
+		KeyFile:           fookey,
+	}
+
+	err := s1.reloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+
+	{
+		for _, serv := range servers {
+			testutil.WaitForResult(func() (bool, error) {
+				args := &structs.GenericRequest{}
+				var leader string
+				err := serv.RPC("Status.Leader", args, &leader)
+				if leader != "" && err != nil {
+					return false, fmt.Errorf("Should not have found leader but got %s", leader)
+				}
+				return true, nil
+			}, func(err error) {
+				t.Fatalf("err: %v", err)
+			})
+		}
+	}
+
+	secondNewTLSConfig := &config.TLSConfig{
+		EnableHTTP:        true,
+		VerifyHTTPSClient: true,
+		CAFile:            cafile,
+		CertFile:          barcert,
+		KeyFile:           barkey,
+	}
+
+	// Now, transition the other server to TLS, which should restore their
+	// ability to communicate.
+	err = s2.reloadTLSConnections(secondNewTLSConfig)
+	assert.Nil(err)
+
+	testutil.WaitForLeader(t, s2.RPC)
 }
