@@ -177,6 +177,7 @@ type DockerDriverConfig struct {
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
 	Command          string              `mapstructure:"command"`            // The Command to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command
+	Entrypoint       []string            `mapstructure:"entrypoint"`         // Override the containers entrypoint
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
 	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
@@ -299,6 +300,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	// Interpolate everything that is a string
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
+	dconf.Entrypoint = env.ParseAndReplace(dconf.Entrypoint)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
 	dconf.NetworkMode = env.ReplaceEnv(dconf.NetworkMode)
 	dconf.NetworkAliases = env.ParseAndReplace(dconf.NetworkAliases)
@@ -557,6 +559,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"args": {
+				Type: fields.TypeArray,
+			},
+			"entrypoint": {
 				Type: fields.TypeArray,
 			},
 			"ipc_mode": {
@@ -1070,6 +1075,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
 		Image:       d.imageID,
+		Entrypoint:  driverConfig.Entrypoint,
 		Hostname:    driverConfig.Hostname,
 		User:        task.User,
 		Tty:         driverConfig.TTY,

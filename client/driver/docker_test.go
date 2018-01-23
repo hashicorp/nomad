@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func dockerIsRemote(t *testing.T) bool {
@@ -106,13 +107,14 @@ func testDockerDriverContexts(t *testing.T, task *structs.Task) *testContext {
 func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Client) (*docker.Client, *DockerHandle, func()) {
 	t.Helper()
 	tctx := testDockerDriverContexts(t, task)
-	//tctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	driver := NewDockerDriver(tctx.DriverCtx)
 	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
 
 	presp, err := driver.Prestart(tctx.ExecCtx, task)
 	if err != nil {
-		driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		if presp != nil && presp.CreatedResources != nil {
+			driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		}
 		tctx.AllocDir.Destroy()
 		t.Fatalf("error in prestart: %v", err)
 	}
@@ -2171,7 +2173,32 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 
 	assert.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
 	assert.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
+}
 
+func TestDockerDriver_Entrypoint(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	entrypoint := []string{"/bin/sh", "-c"}
+	task, _, _ := dockerTask(t)
+	task.Config["entrypoint"] = entrypoint
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	require.Len(t, container.Config.Entrypoint, 2, "Expected one entrypoint")
+	require.Equal(t, entrypoint, container.Config.Entrypoint, "Incorrect entrypoint ")
 }
 
 func TestDockerDriver_Kill(t *testing.T) {
