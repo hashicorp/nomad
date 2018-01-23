@@ -352,9 +352,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	// Emit metrics
 	go s.heartbeatStats()
 
-	// Start the server health checking.
-	go s.autopilot.ServerHealthLoop(s.shutdownCh)
-
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
 

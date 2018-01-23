@@ -1186,7 +1186,6 @@ func (s *Server) getOrCreateAutopilotConfig() *autopilot.Config {
 	}
 
 	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion) {
-		s.logger.Printf("[INFO] autopilot: version %v", s.Members()[0].Tags)
 		s.logger.Printf("[WARN] autopilot: can't initialize until all servers are >= %s", minAutopilotVersion.String())
 		return nil
 	}
