@@ -1,4 +1,4 @@
-import { collect, sum, bool, equal } from '@ember/object/computed';
+import { collect, sum, bool, equal, or } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
@@ -19,8 +19,15 @@ export default Model.extend({
   createIndex: attr('number'),
   modifyIndex: attr('number'),
 
+  // True when the job is the parent periodic or parameterized jobs
+  // Instances of periodic or parameterized jobs are false for both properties
   periodic: attr('boolean'),
   parameterized: attr('boolean'),
+
+  hasChildren: or('periodic', 'parameterized'),
+
+  parent: belongsTo('job', { inverse: 'children' }),
+  children: hasMany('job', { inverse: 'parent' }),
 
   datacenters: attr(),
   taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
