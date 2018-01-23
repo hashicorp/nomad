@@ -80,6 +80,10 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 			return err
 		}
 
+		if srv == nil {
+			return ErrNoNodeConn
+		}
+
 		return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
 	}
 

@@ -142,4 +142,5 @@ func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
 	srv, err := s1.serverWithNodeConn(uuid.Generate())
 	require.Nil(srv)
 	require.NotNil(err)
+	require.Contains(err.Error(), "failed querying")
 }
