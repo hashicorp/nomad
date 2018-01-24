@@ -217,6 +217,7 @@ type DockerDriverConfig struct {
 	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
 	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
 	ReadonlyRootfs   bool                `mapstructure:"readonly_rootfs"`    // Mount the container’s root filesystem as read only
+	UseIPv6Address   bool                `mapstructure:"use_ipv6_address"`   // Flag to use the GlobalIPv6Address from the container as the detected IP
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -674,6 +675,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"readonly_rootfs": {
 				Type: fields.TypeBool,
 			},
+			"use_ipv6_address": {
+				Type: fields.TypeBool,
+			},
 		},
 	}
 
@@ -884,6 +888,9 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		}
 
 		ip = net.IPAddress
+		if d.driverConfig.UseIPv6Address {
+			ip = net.GlobalIPv6Address
+		}
 		ipName = name
 
 		// Don't auto-advertise IPs for default networks (bridge on

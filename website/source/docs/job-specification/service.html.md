@@ -104,6 +104,9 @@ does not automatically enable service discovery.
   `address_mode="driver"`. Numeric ports may be used when in driver addressing
    mode.
 
+   Docker and IPv6 containers: This setting is required if you want to register 
+   the port of the (IPv6) service. See [below for examples.](#IPv6 docker containers)
+
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
   when it is registered.
@@ -124,6 +127,10 @@ does not automatically enable service discovery.
     addresses. Task will fail if driver network cannot be determined. Only
     implemented for Docker and rkt.
 
+    Docker and IPv6 containers: If you want to register the IPv6 address 
+    of the container you'll have to enable this and specify `use_ipv6_address` 
+    in the docker driver configuration. See [below for examples.](#IPv6 docker containers)
+
   - `host` - Use the host IP and port.
 
 ### `check` Parameters
@@ -139,6 +146,10 @@ scripts.
   access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
   [below for details.](#using-driver-address-mode) Unlike `port`, this setting
   is *not* inherited from the `service`.
+
+  Docker and IPv6 containers: If you want to check the IPv6 address 
+  of the container you'll have to enable this and specify `use_ipv6_address` 
+  in the docker driver configuration. See [below for examples.](#IPv6 docker containers)
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -185,6 +196,9 @@ scripts.
   port while `script` checks do not. Checks will use the host IP and ports by
   default. In Nomad 0.7.1 or later numeric ports may be used if
   `address_mode="driver"` is set on the check.
+
+  Docker and IPv6 containers: Using a numeric port is required if you want to 
+  check the port of (IPv6) service. See [below for examples.](#IPv6 docker containers)
 
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
@@ -460,6 +474,62 @@ job "example" {
 ```
 
 In this case Nomad doesn't need to assign Redis any host ports. The `service`
+and `check` stanzas can both specify the port number to advertise and check
+directly since Nomad isn't managing any port assignments.
+
+### IPv6 docker containers
+
+The [Docker](/docs/drivers/docker.html#use_ipv6_address) driver support the
+`use_ipv6_address` parameter in it's configuration.
+
+Besides enabling this parameter you have to set `address_mode` parameter in 
+both `service` and `check` stanzas to `driver`.
+
+You also have explicily specify the `port` that will be registered and checked.
+
+For example
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        use_ipv6_address = true
+        # No port map required!
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+        }
+      }
+
+      service {
+        name = "ipv6-redis"
+        port = 6379
+        address_mode = "driver"
+        check {
+          name     = "ipv6-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = 6379
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+With IPv6 Nomad doesn't need to assign Redis any host ports. The `service`
 and `check` stanzas can both specify the port number to advertise and check
 directly since Nomad isn't managing any port assignments.
 
