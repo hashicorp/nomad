@@ -91,6 +91,7 @@ type Allocation struct {
 	DeploymentID       string
 	DeploymentStatus   *AllocDeploymentStatus
 	PreviousAllocation string
+	NextAllocation     string
 	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
