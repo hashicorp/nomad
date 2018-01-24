@@ -274,6 +274,11 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		}
 	}
 
+	if alloc.NextAllocation != "" {
+		basic = append(basic,
+			fmt.Sprintf("Rescheduled Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
+	}
+
 	if verbose {
 		basic = append(basic,
 			fmt.Sprintf("Evaluated Nodes|%d", alloc.Metrics.NodesEvaluated),
@@ -281,6 +286,10 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 			fmt.Sprintf("Exhausted Nodes|%d", alloc.Metrics.NodesExhausted),
 			fmt.Sprintf("Allocation Time|%s", alloc.Metrics.AllocationTime),
 			fmt.Sprintf("Failures|%d", alloc.Metrics.CoalescedFailures))
+		if alloc.RescheduleTracker != nil && len(alloc.RescheduleTracker.Events) > 0 {
+			basic = append(basic,
+				fmt.Sprintf("Previous Reschedule Attempts|%d", len(alloc.RescheduleTracker.Events)))
+		}
 	}
 
 	return formatKV(basic), nil
