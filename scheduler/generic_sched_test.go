@@ -3443,7 +3443,7 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 	}
 	sort.Strings(prevAllocs)
 
-	// Ensure that the new allocations has their corresponging original
+	// Ensure that the new allocations has their corresponding original
 	// allocation ids
 	if !reflect.DeepEqual(prevAllocs, allocIDs) {
 		t.Fatalf("expected: %v, actual: %v", len(allocIDs), len(prevAllocs))
