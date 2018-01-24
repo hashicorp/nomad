@@ -97,6 +97,7 @@ func Job() *structs.Job {
 					Delay:         5 * time.Second,
 					DelayFunction: "linear",
 				},
+				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",

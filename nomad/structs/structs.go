@@ -1142,6 +1142,7 @@ const (
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
+//TODO(schmichael) Update for drainv2?!
 func ShouldDrainNode(status string) bool {
 	switch status {
 	case NodeStatusInit, NodeStatusReady:
@@ -1161,6 +1162,44 @@ func ValidNodeStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+const (
+	NodeSchedulingEligible   = "eligbile"
+	NodeSchedulingIneligible = "ineligible"
+)
+
+// DrainStrategy describes a Node's drain behavior.
+type DrainStrategy struct {
+	// StartTime as nanoseconds since Unix epoch indicating when a drain
+	// began for deadline calcuations.
+	StartTime int64
+
+	// Deadline is the duration after StartTime when the remaining
+	// allocations on a draining Node should be told to stop.
+	Deadline time.Duration
+}
+
+func (d *DrainStrategy) Copy() *DrainStrategy {
+	if d == nil {
+		return nil
+	}
+
+	nd := new(DrainStrategy)
+	*nd = *d
+	return nd
+}
+
+// DeadlineTime returns the Time this drain's deadline will be reached or the
+// zero value for Time if DrainStrategy is nil or Duration is <= 0.
+func (d *DrainStrategy) DeadlineTime() time.Time {
+	if d == nil {
+		return time.Time{}
+	}
+	if d.Deadline <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, d.StartTime).Add(d.Deadline)
 }
 
 // Node is a representation of a schedulable client node
@@ -1224,8 +1263,17 @@ type Node struct {
 
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained.
+	// allocations will be drained. Superceded by DrainStrategy in Nomad
+	// 0.8 but kept for backward compat.
 	Drain bool
+
+	// DrainStrategy determines the node's draining behavior. Will be nil
+	// when Drain=false.
+	DrainStrategy *DrainStrategy
+
+	// SchedulingEligibility determines whether this node will receive new
+	// placements.
+	SchedulingEligibility string
 
 	// Status of this node
 	Status string
@@ -1249,9 +1297,10 @@ type Node struct {
 	ModifyIndex uint64
 }
 
-// Ready returns if the node is ready for running allocations
+// Ready returns true if the node is ready for running allocations
 func (n *Node) Ready() bool {
-	return n.Status == NodeStatusReady && !n.Drain
+	// Drain is checked directly to support pre-0.8 Node data
+	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
 func (n *Node) Copy() *Node {
@@ -1261,6 +1310,7 @@ func (n *Node) Copy() *Node {
 	nn := new(Node)
 	*nn = *n
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
+	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
@@ -1300,34 +1350,36 @@ func (n *Node) Stub() *NodeListStub {
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	return &NodeListStub{
-		Address:           addr,
-		ID:                n.ID,
-		Datacenter:        n.Datacenter,
-		Name:              n.Name,
-		NodeClass:         n.NodeClass,
-		Version:           n.Attributes["nomad.version"],
-		Drain:             n.Drain,
-		Status:            n.Status,
-		StatusDescription: n.StatusDescription,
-		CreateIndex:       n.CreateIndex,
-		ModifyIndex:       n.ModifyIndex,
+		Address:    addr,
+		ID:         n.ID,
+		Datacenter: n.Datacenter,
+		Name:       n.Name,
+		NodeClass:  n.NodeClass,
+		Version:    n.Attributes["nomad.version"],
+		Drain:      n.Drain,
+		SchedulingEligibility: n.SchedulingEligibility,
+		Status:                n.Status,
+		StatusDescription:     n.StatusDescription,
+		CreateIndex:           n.CreateIndex,
+		ModifyIndex:           n.ModifyIndex,
 	}
 }
 
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
-	Address           string
-	ID                string
-	Datacenter        string
-	Name              string
-	NodeClass         string
-	Version           string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	Address               string
+	ID                    string
+	Datacenter            string
+	Name                  string
+	NodeClass             string
+	Version               string
+	Drain                 bool
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	CreateIndex           uint64
+	ModifyIndex           uint64
 }
 
 // Networks defined for a task on the Resources struct.
@@ -2898,6 +2950,64 @@ func NewReschedulePolicy(jobType string) *ReschedulePolicy {
 	return nil
 }
 
+const (
+	MigrateStrategyHealthChecks = "checks"
+	MigrateStrategyHealthStates = "task_states"
+)
+
+type MigrateStrategy struct {
+	MaxParallel     int
+	HealthCheck     string
+	MinHealthyTime  time.Duration
+	HealthyDeadline time.Duration
+}
+
+// DefaultMigrateStrategy is used for backwards compat with pre-0.8 Allocations
+// that lack an update strategy.
+//
+// This function should match its counterpart in api/tasks.go
+func DefaultMigrateStrategy() *MigrateStrategy {
+	return &MigrateStrategy{
+		MaxParallel:     1,
+		HealthCheck:     MigrateStrategyHealthChecks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 5 * time.Minute,
+	}
+}
+
+func (m *MigrateStrategy) Validate() error {
+	var mErr multierror.Error
+
+	if m.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("MaxParallel must be >= 0 but found %d", m.MaxParallel))
+	}
+
+	switch m.HealthCheck {
+	case MigrateStrategyHealthChecks, MigrateStrategyHealthStates:
+		// ok
+	case "":
+		if m.MaxParallel > 0 {
+			multierror.Append(&mErr, fmt.Errorf("Missing HealthCheck"))
+		}
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Invalid HealthCheck: %q", m.HealthCheck))
+	}
+
+	if m.MinHealthyTime < 0 {
+		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime is %s and must be >= 0", m.MinHealthyTime))
+	}
+
+	if m.HealthyDeadline < 0 {
+		multierror.Append(&mErr, fmt.Errorf("HealthyDeadline is %s and must be >= 0", m.HealthyDeadline))
+	}
+
+	if m.MinHealthyTime > m.HealthyDeadline {
+		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime must be less than HealthyDeadline"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -2911,6 +3021,9 @@ type TaskGroup struct {
 
 	// Update is used to control the update strategy for this task group
 	Update *UpdateStrategy
+
+	// Migrate is used to control the migration strategy for this task group
+	Migrate *MigrateStrategy
 
 	// Constraints can be specified at a task group level and apply to
 	// all the tasks contained.
@@ -3056,6 +3169,20 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	// Validate the migration strategy
+	switch j.Type {
+	case JobTypeService:
+		if tg.Count == 1 && tg.Migrate != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should not have a migration strategy with a count = 1", tg.Name))
+		} else if err := tg.Migrate.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	default:
+		if tg.Migrate != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow migrate block", j.Type))
 		}
 	}
 
@@ -5837,6 +5964,7 @@ const (
 	EvalTriggerJobRegister       = "job-register"
 	EvalTriggerJobDeregister     = "job-deregister"
 	EvalTriggerPeriodicJob       = "periodic-job"
+	EvalTriggerNodeDrain         = "node-drain"
 	EvalTriggerNodeUpdate        = "node-update"
 	EvalTriggerScheduled         = "scheduled"
 	EvalTriggerRollingUpdate     = "rolling-update"
