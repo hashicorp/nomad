@@ -1142,6 +1142,7 @@ const (
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
+//TODO(schmichael) Update for drainv2?!
 func ShouldDrainNode(status string) bool {
 	switch status {
 	case NodeStatusInit, NodeStatusReady:
@@ -1161,6 +1162,32 @@ func ValidNodeStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+const (
+	NodeSchedulingEligible   = "eligbile"
+	NodeSchedulingIneligible = "ineligible"
+)
+
+// DrainStrategy describes a Node's drain behavior.
+type DrainStrategy struct {
+	// StartTime as nanoseconds since Unix epoch indicating when a drain
+	// began for deadline calcuations.
+	StartTime int64
+
+	// Deadline is the duration after StartTime when the remaining
+	// allocations on a draining Node should be told to stop.
+	Deadline time.Duration
+}
+
+func (d *DrainStrategy) Copy() *DrainStrategy {
+	if d == nil {
+		return nil
+	}
+
+	nd := new(DrainStrategy)
+	*nd = *d
+	return nd
 }
 
 // Node is a representation of a schedulable client node
@@ -1224,8 +1251,17 @@ type Node struct {
 
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained.
+	// allocations will be drained. Superceded by DrainStrategy in Nomad
+	// 0.8 but kept for backward compat.
 	Drain bool
+
+	// DrainStrategy determines the node's draining behavior. Will be nil
+	// when Drain=false.
+	DrainStrategy *DrainStrategy
+
+	// SchedulingEligibility determines whether this node will receive new
+	// placements.
+	SchedulingEligibility string
 
 	// Status of this node
 	Status string
@@ -1246,9 +1282,10 @@ type Node struct {
 	ModifyIndex uint64
 }
 
-// Ready returns if the node is ready for running allocations
+// Ready returns true if the node is ready for running allocations
 func (n *Node) Ready() bool {
-	return n.Status == NodeStatusReady && !n.Drain
+	// Drain is checked directly to support pre-0.8 Node data
+	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
 func (n *Node) Copy() *Node {
@@ -1258,6 +1295,7 @@ func (n *Node) Copy() *Node {
 	nn := new(Node)
 	*nn = *n
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
+	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
@@ -1297,34 +1335,36 @@ func (n *Node) Stub() *NodeListStub {
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	return &NodeListStub{
-		Address:           addr,
-		ID:                n.ID,
-		Datacenter:        n.Datacenter,
-		Name:              n.Name,
-		NodeClass:         n.NodeClass,
-		Version:           n.Attributes["nomad.version"],
-		Drain:             n.Drain,
-		Status:            n.Status,
-		StatusDescription: n.StatusDescription,
-		CreateIndex:       n.CreateIndex,
-		ModifyIndex:       n.ModifyIndex,
+		Address:    addr,
+		ID:         n.ID,
+		Datacenter: n.Datacenter,
+		Name:       n.Name,
+		NodeClass:  n.NodeClass,
+		Version:    n.Attributes["nomad.version"],
+		Drain:      n.Drain,
+		SchedulingEligibility: n.SchedulingEligibility,
+		Status:                n.Status,
+		StatusDescription:     n.StatusDescription,
+		CreateIndex:           n.CreateIndex,
+		ModifyIndex:           n.ModifyIndex,
 	}
 }
 
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
-	Address           string
-	ID                string
-	Datacenter        string
-	Name              string
-	NodeClass         string
-	Version           string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	Address               string
+	ID                    string
+	Datacenter            string
+	Name                  string
+	NodeClass             string
+	Version               string
+	Drain                 bool
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	CreateIndex           uint64
+	ModifyIndex           uint64
 }
 
 // Networks defined for a task on the Resources struct.
