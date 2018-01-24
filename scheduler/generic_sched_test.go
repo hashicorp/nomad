@@ -2891,9 +2891,14 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 
 		// Find the new alloc with ClientStatusPending
 		var pendingAllocs []*structs.Allocation
+		var prevFailedAlloc *structs.Allocation
+
 		for _, alloc := range out {
 			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				pendingAllocs = append(pendingAllocs, alloc)
+			}
+			if alloc.ID == failedAllocId {
+				prevFailedAlloc = alloc
 			}
 		}
 		assert.Equal(1, len(pendingAllocs))
@@ -2904,6 +2909,9 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 		reschedEvents := newAlloc.RescheduleTracker.Events
 		assert.Equal(failedAllocId, reschedEvents[len(reschedEvents)-1].PrevAllocID)
 		assert.Equal(failedNodeID, reschedEvents[len(reschedEvents)-1].PrevNodeID)
+
+		// Verify that the next alloc of the failed alloc is the newly rescheduled alloc
+		assert.Equal(newAlloc.ID, prevFailedAlloc.NextAllocation)
 
 		// Mark this alloc as failed again
 		newAlloc.ClientStatus = structs.AllocClientStatusFailed
