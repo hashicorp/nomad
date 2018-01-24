@@ -930,6 +930,12 @@ func (c *Client) fingerprint() error {
 	whitelistEnabled := len(whitelist) > 0
 	blacklist := c.config.ReadStringListToMap("fingerprint.blacklist")
 
+	driverManager := &DriverManager{
+		fingerprinters: make(map[string]fingerprint.Fingerprint, 0),
+		client:         c,
+		logger:         c.logger,
+	}
+
 	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
 
 	var applied []string
@@ -946,6 +952,7 @@ func (c *Client) fingerprint() error {
 			continue
 		}
 		f, err := fingerprint.NewFingerprint(name, c.logger)
+
 		if err != nil {
 			return err
 		}
@@ -975,13 +982,14 @@ func (c *Client) fingerprint() error {
 		// add the diff found from each fingerprinter
 		c.updateNodeFromFingerprint(response)
 
-		p, period := f.Periodic()
+		p, _ := f.Periodic()
 		if p {
-			// TODO: If more periodic fingerprinters are added, then
-			// fingerprintPeriodic should be used to handle all the periodic
-			// fingerprinters by using a priority queue.
-			go c.fingerprintPeriodic(name, f, period)
+			// append the fingerprinter to the client's driver manager
+			// TODO this should handle the period before assigning it?
+			driverManager.fingerprinters[name] = f
 		}
+
+		driverManager.Fingerprint()
 	}
 
 	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
@@ -991,39 +999,18 @@ func (c *Client) fingerprint() error {
 	return nil
 }
 
-// fingerprintPeriodic runs a fingerprinter at the specified duration.
-func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d time.Duration) {
-	c.logger.Printf("[DEBUG] client: fingerprinting %v every %v", name, d)
-	for {
-		select {
-		case <-time.After(d):
-			request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-			response := &cstructs.FingerprintResponse{
-				Attributes: make(map[string]string, 0),
-				Links:      make(map[string]string, 0),
-				Resources:  &structs.Resources{},
-			}
-
-			err := f.Fingerprint(request, response)
-
-			if err != nil {
-				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
-			} else {
-				c.updateNodeFromFingerprint(response)
-			}
-
-		case <-c.shutdownCh:
-			return
-		}
-	}
-}
-
 // setupDrivers is used to find the available drivers
 func (c *Client) setupDrivers() error {
 	// Build the white/blacklists of drivers.
 	whitelist := c.config.ReadStringListToMap("driver.whitelist")
 	whitelistEnabled := len(whitelist) > 0
 	blacklist := c.config.ReadStringListToMap("driver.blacklist")
+
+	driverManager := &DriverManager{
+		fingerprinters: make(map[string]fingerprint.Fingerprint, 0),
+		client:         c,
+		logger:         c.logger,
+	}
 
 	var avail []string
 	var skipped []string
@@ -1069,15 +1056,17 @@ func (c *Client) setupDrivers() error {
 
 		c.updateNodeFromFingerprint(response)
 
-		p, period := d.Periodic()
+		p, _ := d.Periodic()
 		if p {
-			go c.fingerprintPeriodic(name, d, period)
+			// append the fingerprinter to the client's driver manager
+			// TODO this should handle the period before assigning it?
+			driverManager.fingerprinters[name] = d
 		}
 
+		driverManager.Fingerprint()
 	}
 
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
-	c.logger.Printf("[DEBUG] client: skipped attributes %v", skipped)
 
 	if len(skipped) != 0 {
 		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skipped)
