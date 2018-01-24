@@ -1190,6 +1190,18 @@ func (d *DrainStrategy) Copy() *DrainStrategy {
 	return nd
 }
 
+// DeadlineTime returns the Time this drain's deadline will be reached or the
+// zero value for Time if DrainStrategy is nil or Duration is <= 0.
+func (d *DrainStrategy) DeadlineTime() time.Time {
+	if d == nil {
+		return time.Time{}
+	}
+	if d.Deadline <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, d.StartTime).Add(d.Deadline)
+}
+
 // Node is a representation of a schedulable client node
 type Node struct {
 	// ID is a unique identifier for the node. It can be constructed
