@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -49,14 +50,20 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 			"unique.cgroup.mountpoint": "/sys/fs/cgroups",
 		},
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	response := &cstructs.FingerprintResponse{
+		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
+	}
+
+	err := d.Fingerprint(request, response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply != javaLocated() {
-		t.Fatalf("Fingerprinter should detect Java when it is installed")
-	}
-	if node.Attributes["driver.java"] != "1" {
+
+	if response.Attributes["driver.java"] != "1" && javaLocated() {
 		if v, ok := osJavaDriverSupport[runtime.GOOS]; v && ok {
 			t.Fatalf("missing java driver")
 		} else {
@@ -64,7 +71,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
-		if node.Attributes[key] == "" {
+		if response.Attributes[key] == "" {
 			t.Fatalf("missing driver key (%s)", key)
 		}
 	}

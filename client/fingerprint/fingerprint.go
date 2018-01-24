@@ -6,8 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // EmptyDuration is to be used by fingerprinters that are not periodic.
@@ -92,8 +91,8 @@ type Factory func(*log.Logger) Fingerprint
 // many of them can be applied on a particular host.
 type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
-	// and returns if the fingerprint was applicable and a potential error.
-	Fingerprint(*config.Config, *structs.Node) (bool, error)
+	// and returns a diff of updated node attributes and a potential error.
+	Fingerprint(*cstructs.FingerprintRequest, *cstructs.FingerprintResponse) error
 
 	// Periodic is a mechanism for the fingerprinter to indicate that it should
 	// be run periodically. The return value is a boolean indicating if it

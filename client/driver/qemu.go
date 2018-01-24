@@ -17,7 +17,6 @@ import (
 
 	"github.com/coreos/go-semver/semver"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -155,7 +154,7 @@ func (d *QemuDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationImage
 }
 
-func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *QemuDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	bin := "qemu-system-x86_64"
 	if runtime.GOOS == "windows" {
 		// On windows, the "qemu-system-x86_64" command does not respond to the
@@ -164,22 +163,20 @@ func (d *QemuDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	}
 	outBytes, err := exec.Command(bin, "--version").Output()
 	if err != nil {
-		delete(node.Attributes, qemuDriverAttr)
-		return false, nil
+		return nil
 	}
 	out := strings.TrimSpace(string(outBytes))
 
 	matches := reQemuVersion.FindStringSubmatch(out)
 	if len(matches) != 2 {
-		delete(node.Attributes, qemuDriverAttr)
-		return false, fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
+		return fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
 	}
 	currentQemuVersion := matches[1]
 
-	node.Attributes[qemuDriverAttr] = "1"
-	node.Attributes[qemuDriverVersionAttr] = currentQemuVersion
+	resp.Attributes[qemuDriverAttr] = "1"
+	resp.Attributes[qemuDriverVersionAttr] = currentQemuVersion
 
-	return true, nil
+	return nil
 }
 
 func (d *QemuDriver) Prestart(_ *ExecContext, task *structs.Task) (*PrestartResponse, error) {

@@ -311,31 +311,28 @@ func (d *RktDriver) Abilities() DriverAbilities {
 	}
 }
 
-func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	// Only enable if we are root when running on non-windows systems.
 	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.rkt: must run as root user, disabling")
 		}
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
 	outBytes, err := exec.Command(rktCmd, "version").Output()
 	if err != nil {
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 	out := strings.TrimSpace(string(outBytes))
 
 	rktMatches := reRktVersion.FindStringSubmatch(out)
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
+		return fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
 	minVersion, _ := version.NewVersion(minRktVersion)
@@ -347,21 +344,20 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 			d.logger.Printf("[WARN] driver.rkt: unsupported rkt version %s; please upgrade to >= %s",
 				currentVersion, minVersion)
 		}
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
-	node.Attributes[rktDriverAttr] = "1"
-	node.Attributes["driver.rkt.version"] = rktMatches[1]
-	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
+	resp.Attributes[rktDriverAttr] = "1"
+	resp.Attributes["driver.rkt.version"] = rktMatches[1]
+	resp.Attributes["driver.rkt.appc.version"] = appcMatches[1]
 
 	// Advertise if this node supports rkt volumes
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
-		node.Attributes["driver."+rktVolumesConfigOption] = "1"
+		resp.Attributes["driver."+rktVolumesConfigOption] = "1"
 	}
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	return true, nil
+	return nil
 }
 
 func (d *RktDriver) Periodic() (bool, time.Duration) {

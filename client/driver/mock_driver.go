@@ -15,7 +15,6 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/hashicorp/nomad/client/config"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -194,9 +193,9 @@ func (m *MockDriver) Validate(map[string]interface{}) error {
 }
 
 // Fingerprint fingerprints a node and returns if MockDriver is enabled
-func (m *MockDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	node.Attributes["driver.mock_driver"] = "1"
-	return true, nil
+func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	resp.Attributes["driver.mock_driver"] = "1"
+	return nil
 }
 
 // MockDriverHandle is a driver handler which supervises a mock task

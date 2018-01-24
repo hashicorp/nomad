@@ -5,8 +5,7 @@ package fingerprint
 import (
 	"fmt"
 
-	client "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
@@ -28,30 +27,30 @@ func FindCgroupMountpointDir() (string, error) {
 }
 
 // Fingerprint tries to find a valid cgroup moint point
-func (f *CGroupFingerprint) Fingerprint(cfg *client.Config, node *structs.Node) (bool, error) {
+func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	mount, err := f.mountPointDetector.MountPoint()
 	if err != nil {
-		f.clearCGroupAttributes(node)
-		return false, fmt.Errorf("Failed to discover cgroup mount point: %s", err)
+		resp.Attributes = f.clearCGroupAttributes(resp.Attributes)
+		return fmt.Errorf("Failed to discover cgroup mount point: %s", err)
 	}
 
 	// Check if a cgroup mount point was found
 	if mount == "" {
 		// Clear any attributes from the previous fingerprint.
-		f.clearCGroupAttributes(node)
+		resp.Attributes = f.clearCGroupAttributes(resp.Attributes)
 
 		if f.lastState == cgroupAvailable {
 			f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are unavailable")
 		}
 		f.lastState = cgroupUnavailable
-		return true, nil
+		return nil
 	}
 
-	node.Attributes["unique.cgroup.mountpoint"] = mount
+	resp.Attributes["unique.cgroup.mountpoint"] = mount
 
 	if f.lastState == cgroupUnavailable {
 		f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are available")
 	}
 	f.lastState = cgroupAvailable
-	return true, nil
+	return nil
 }

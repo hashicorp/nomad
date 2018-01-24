@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/helper/fields"
@@ -184,24 +183,26 @@ func (d *LxcDriver) FSIsolation() cstructs.FSIsolation {
 }
 
 // Fingerprint fingerprints the lxc driver configuration
-func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *LxcDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
+
 	enabled := cfg.ReadBoolDefault(lxcConfigOption, true)
 	if !enabled && !cfg.DevMode {
-		return false, nil
+		return nil
 	}
 	version := lxc.Version()
 	if version == "" {
-		return false, nil
+		return nil
 	}
-	node.Attributes["driver.lxc.version"] = version
-	node.Attributes["driver.lxc"] = "1"
+	resp.Attributes["driver.lxc.version"] = version
+	resp.Attributes["driver.lxc"] = "1"
 
 	// Advertise if this node supports lxc volumes
 	if d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault) {
-		node.Attributes["driver."+lxcVolumesConfigOption] = "1"
+		resp.Attributes["driver."+lxcVolumesConfigOption] = "1"
 	}
 
-	return true, nil
+	return nil
 }
 
 func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {

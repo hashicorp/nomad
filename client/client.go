@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -949,15 +950,31 @@ func (c *Client) fingerprint() error {
 			return err
 		}
 
-		c.configLock.Lock()
-		applies, err := f.Fingerprint(c.config, c.config.Node)
-		c.configLock.Unlock()
+		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
+		response := &cstructs.FingerprintResponse{
+			Attributes: make(map[string]string, 0),
+			Links:      make(map[string]string, 0),
+			Resources:  &structs.Resources{},
+		}
+
+		err = f.Fingerprint(request, response)
 		if err != nil {
 			return err
 		}
-		if applies {
+
+		// if an attribute should be skipped, remove it from the list which we will
+		// later apply to the node
+		for _, e := range skipped {
+			delete(response.Attributes, e)
+		}
+
+		for name := range response.Attributes {
 			applied = append(applied, name)
 		}
+
+		// add the diff found from each fingerprinter
+		c.updateNodeFromFingerprint(response)
+
 		p, period := f.Periodic()
 		if p {
 			// TODO: If more periodic fingerprinters are added, then
@@ -966,6 +983,7 @@ func (c *Client) fingerprint() error {
 			go c.fingerprintPeriodic(name, f, period)
 		}
 	}
+
 	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
 	if len(skipped) != 0 {
 		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to white/blacklist: %v", skipped)
@@ -979,11 +997,21 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 	for {
 		select {
 		case <-time.After(d):
-			c.configLock.Lock()
-			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
-				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
+			request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
+			response := &cstructs.FingerprintResponse{
+				Attributes: make(map[string]string, 0),
+				Links:      make(map[string]string, 0),
+				Resources:  &structs.Resources{},
 			}
-			c.configLock.Unlock()
+
+			err := f.Fingerprint(request, response)
+
+			if err != nil {
+				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
+			} else {
+				c.updateNodeFromFingerprint(response)
+			}
+
 		case <-c.shutdownCh:
 			return
 		}
@@ -1017,15 +1045,29 @@ func (c *Client) setupDrivers() error {
 		if err != nil {
 			return err
 		}
-		c.configLock.Lock()
-		applies, err := d.Fingerprint(c.config, c.config.Node)
-		c.configLock.Unlock()
+
+		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
+		response := &cstructs.FingerprintResponse{
+			Attributes: make(map[string]string, 0),
+			Links:      make(map[string]string, 0),
+			Resources:  &structs.Resources{},
+		}
+
+		err = d.Fingerprint(request, response)
 		if err != nil {
 			return err
 		}
-		if applies {
+
+		// remove attributes we are supposed to skip
+		for _, attr := range skipped {
+			delete(response.Attributes, attr)
+		}
+
+		for name := range response.Attributes {
 			avail = append(avail, name)
 		}
+
+		c.updateNodeFromFingerprint(response)
 
 		p, period := d.Periodic()
 		if p {
@@ -1035,12 +1077,31 @@ func (c *Client) setupDrivers() error {
 	}
 
 	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
+	c.logger.Printf("[DEBUG] client: skipped attributes %v", skipped)
 
 	if len(skipped) != 0 {
 		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skipped)
 	}
 
 	return nil
+}
+
+// updateNodeFromFingerprint updates the node with the result of
+// fingerprinting the node from the diff that was created
+func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+	for name, val := range response.Attributes {
+		c.config.Node.Attributes[name] = val
+	}
+
+	// update node links and resources from the diff created from
+	// fingerprinting
+	for name, val := range response.Links {
+		c.config.Node.Links[name] = val
+	}
+
+	c.config.Node.Resources.Merge(response.Resources)
 }
 
 // retryIntv calculates a retry interval value given the base
