@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -4342,6 +4343,49 @@ func TestStateStore_Allocs(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
+	state := testStateStore(t)
+	var allocs []*structs.Allocation
+
+	require := require.New(t)
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		allocs = append(allocs, alloc)
+	}
+	for i, alloc := range allocs {
+		state.UpsertJobSummary(uint64(900+i), mock.JobSummary(alloc.JobID))
+	}
+	// Set some previous alloc ids
+	allocs[1].PreviousAllocation = allocs[0].ID
+	allocs[2].PreviousAllocation = allocs[1].ID
+
+	err := state.UpsertAllocs(1000, allocs)
+	require.Nil(err)
+
+	ws := memdb.NewWatchSet()
+	iter, err := state.Allocs(ws)
+	require.Nil(err)
+
+	var out []*structs.Allocation
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		out = append(out, raw.(*structs.Allocation))
+	}
+
+	// Set expected NextAllocation fields
+	allocs[0].NextAllocation = allocs[1].ID
+	allocs[1].NextAllocation = allocs[2].ID
+
+	sort.Sort(AllocIDSort(allocs))
+	sort.Sort(AllocIDSort(out))
+
+	require.Equal(allocs, out)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_RestoreAlloc(t *testing.T) {
