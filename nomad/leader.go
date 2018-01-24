@@ -257,6 +257,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		go s.replicateACLTokens(stopCh)
 	}
 
+	// Start Node Drainer
+	go s.startNodeDrainer(stopCh)
+
 	// Setup any enterprise systems required.
 	if err := s.establishEnterpriseLeadership(stopCh); err != nil {
 		return err
