@@ -531,7 +531,7 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
 		}
 	}
-	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, alloc.NodeID)
+	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, prev.NodeID)
 	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
 	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 }

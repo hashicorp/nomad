@@ -2867,6 +2867,9 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 	expectedNumAllocs := 3
 	expectedNumReschedTrackers := 1
 
+	failedAllocId := allocs[1].ID
+	failedNodeID := allocs[1].NodeID
+
 	assert := assert.New(t)
 	for i := 0; i < maxRestartAttempts; i++ {
 		// Process the evaluation
@@ -2897,8 +2900,16 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 		newAlloc := pendingAllocs[0]
 		assert.Equal(expectedNumReschedTrackers, len(newAlloc.RescheduleTracker.Events))
 
+		// Verify the previous NodeID in the most recent reschedule event
+		reschedEvents := newAlloc.RescheduleTracker.Events
+		assert.Equal(failedAllocId, reschedEvents[len(reschedEvents)-1].PrevAllocID)
+		assert.Equal(failedNodeID, reschedEvents[len(reschedEvents)-1].PrevNodeID)
+
 		// Mark this alloc as failed again
 		newAlloc.ClientStatus = structs.AllocClientStatusFailed
+
+		failedAllocId = newAlloc.ID
+		failedNodeID = newAlloc.NodeID
 
 		noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
 
