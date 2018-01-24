@@ -5,12 +5,16 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
@@ -168,6 +172,42 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatal("expected to find alloc id in output")
 	}
 	ui.OutputWriter.Reset()
+
+	// Test reschedule attempt info
+	require := require.New(t)
+	state := srv.Agent.Server().State()
+	a := mock.Alloc()
+	a.Metrics = &structs.AllocMetric{}
+	nextAllocId := uuid.Generate()
+	a.NextAllocation = nextAllocId
+	a.RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{
+				RescheduleTime: time.Now().Add(-5 * time.Minute).UTC().UnixNano(),
+				PrevAllocID:    uuid.Generate(),
+				PrevNodeID:     uuid.Generate(),
+			},
+			{
+				RescheduleTime: time.Now().Add(-5 * time.Minute).UTC().UnixNano(),
+				PrevAllocID:    uuid.Generate(),
+				PrevNodeID:     uuid.Generate(),
+			},
+		},
+	}
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	require.Contains(out, "Rescheduled Alloc ID")
+
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	require.Contains(out, "Previous Reschedule Attempts")
+
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
