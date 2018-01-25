@@ -1062,6 +1062,15 @@ func ValidNodeStatus(status string) bool {
 	}
 }
 
+// DriverInfo is the current state of a single driver. This is updated
+// regularly as driver health changes on the node.
+type DriverInfo struct {
+	Enabled           bool
+	Healthy           bool
+	HealthDescription string
+	UpdateTime        time.Time
+}
+
 // Node is a representation of a schedulable client node
 type Node struct {
 	// ID is a unique identifier for the node. It can be constructed
@@ -1139,6 +1148,9 @@ type Node struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// Drivers is a map of driver names to current driver information
+	Drivers map[string]*DriverInfo
 }
 
 // Ready returns if the node is ready for running allocations

@@ -30,6 +30,8 @@ const (
 	// to "stop" a previously functioning driver after the specified duration
 	// (specified in seconds) for testing of periodic drivers and fingerprinters.
 	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
+
+	mockDriverName = "driver.mock_driver"
 )
 
 // Add the mock driver to the list of builtin drivers
@@ -225,12 +227,41 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	// current time is after the time which the node should shut down, simulate
 	// driver failure
 	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
-		resp.RemoveAttribute("driver.mock_driver")
+		resp.RemoveAttribute(mockDriverName)
 	default:
-		resp.AddAttribute("driver.mock_driver", "1")
+		resp.AddAttribute(mockDriverName, "1")
 		resp.Detected = true
 	}
 	return nil
+}
+
+// Check implements the interface for HealthCheck, and indicates the current
+// health status of the mock driver.
+func (m *MockDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+	if !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime) {
+		notHealthy := &structs.DriverInfo{
+			Healthy:           false,
+			HealthDescription: "not running",
+			UpdateTime:        time.Now(),
+		}
+		resp.AddDriverInfo(mockDriverName, notHealthy)
+		return nil
+	}
+	healthy := &structs.DriverInfo{
+		Healthy:           true,
+		HealthDescription: "running",
+		UpdateTime:        time.Now(),
+	}
+	resp.AddDriverInfo(mockDriverName, healthy)
+	return nil
+}
+
+// CheckHealthPeriodic implements the interface for HealthCheck and indicates
+// that mock driver should be checked periodically. Returns a boolean
+// indicating if ti should be checked, and the duration at which to do this
+// check.
+func (m *MockDriver) CheckHealthPeriodic() (bool, time.Duration) {
+	return true, 1 * time.Second
 }
 
 // MockDriverHandle is a driver handler which supervises a mock task

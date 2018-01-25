@@ -492,7 +492,6 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		resp.RemoveAttribute(dockerDriverAttr)
 		return nil
 	}
 
@@ -550,6 +549,33 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 
 	d.fingerprintSuccess = helper.BoolToPtr(true)
 	return nil
+}
+
+func (d *DockerDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+	unhealthy := &structs.DriverInfo{
+		HealthDescription: "Docker driver is available but unresponsive",
+		UpdateTime:        time.Now(),
+	}
+
+	_, err := client.ListContainers(docker.ListContainersOptions{})
+	if err != nil {
+		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
+		resp.AddDriverInfo("driver.docker", unhealthy)
+		return err
+	}
+
+	d.logger.Printf("[DEBUG] driver.docker: docker driver is available and is responsive to `docker ps`")
+	healthy := &structs.DriverInfo{
+		Healthy:           true,
+		HealthDescription: "Docker driver is available and responsive",
+		UpdateTime:        time.Now(),
+	}
+	resp.AddDriverInfo("driver.docker", healthy)
+	return nil
+}
+
+func (d *DockerDriver) CheckHealthPeriodic() (bool, time.Duration) {
+	return true, 1 * time.Minute
 }
 
 // Validate is used to validate the driver configuration
