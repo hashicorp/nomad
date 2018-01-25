@@ -183,12 +183,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	a.RescheduleTracker = &structs.RescheduleTracker{
 		Events: []*structs.RescheduleEvent{
 			{
-				RescheduleTime: time.Now().Add(-5 * time.Minute).UTC().UnixNano(),
-				PrevAllocID:    uuid.Generate(),
-				PrevNodeID:     uuid.Generate(),
-			},
-			{
-				RescheduleTime: time.Now().Add(-5 * time.Minute).UTC().UnixNano(),
+				RescheduleTime: time.Now().Add(-2 * time.Minute).UTC().UnixNano(),
 				PrevAllocID:    uuid.Generate(),
 				PrevNodeID:     uuid.Generate(),
 			},
@@ -206,7 +201,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out = ui.OutputWriter.String()
-	require.Contains(out, "Previous Reschedule Attempts")
+	require.Contains(out, "Remaining Reschedule Attempts = 1/2")
 
 }
 
