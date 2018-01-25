@@ -100,7 +100,8 @@ type LxcExecuteDriverConfig struct {
 
 // NewLxcDriver returns a new instance of the LXC driver
 func NewLxcDriver(ctx *DriverContext) Driver {
-	return &LxcDriver{DriverContext: *ctx}
+	d := &LxcDriver{DriverContext: *ctx}
+	return d
 }
 
 // Validate validates the lxc driver configuration
@@ -306,6 +307,11 @@ func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 		return nil, err, noCleanup
 	}
 
+	d.lxcPath = lxc.DefaultConfigPath()
+	if path := d.config.Read("driver.lxc.path"); path != "" {
+		d.lxcPath = path
+	}
+
 	containerName := d.getContainerName(task)
 	c, err := lxc.NewContainer(containerName, d.lxcPath)
 	if err != nil {
@@ -437,7 +443,9 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 	}
 
 	vgName := baseLvName[:strings.Index(baseLvName, "/")]
-
+	if len(vgName) == 0 {
+		return nil, fmt.Errorf("could not parse volume group name from '%v':, baseLvName")
+	}
 	tr := func(s string) string {
 		return strings.Replace(s, "-", "--", -1)
 	}
