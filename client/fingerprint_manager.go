@@ -22,8 +22,9 @@ type FingerprintManager struct {
 
 	// updateNode is a callback to the client to update the state of its
 	// associated node
-	updateNode func(*cstructs.FingerprintResponse) *structs.Node
-	logger     *log.Logger
+	updateNode        func(*cstructs.FingerprintResponse) *structs.Node
+	updateHealthCheck func(*cstructs.HealthCheckResponse) *structs.Node
+	logger            *log.Logger
 }
 
 // NewFingerprintManager is a constructor that creates and returns an instance
@@ -32,18 +33,20 @@ func NewFingerprintManager(getConfig func() *config.Config,
 	node *structs.Node,
 	shutdownCh chan struct{},
 	updateNode func(*cstructs.FingerprintResponse) *structs.Node,
+	updateHealthCheck func(*cstructs.HealthCheckResponse) *structs.Node,
 	logger *log.Logger) *FingerprintManager {
 	return &FingerprintManager{
-		getConfig:  getConfig,
-		updateNode: updateNode,
-		node:       node,
-		shutdownCh: shutdownCh,
-		logger:     logger,
+		getConfig:         getConfig,
+		updateNode:        updateNode,
+		updateHealthCheck: updateHealthCheck,
+		node:              node,
+		shutdownCh:        shutdownCh,
+		logger:            logger,
 	}
 }
 
-// run runs each fingerprinter individually on an ongoing basis
-func (fm *FingerprintManager) run(f fingerprint.Fingerprint, period time.Duration, name string) {
+// runFingerprint runs each fingerprinter individually on an ongoing basis
+func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period time.Duration, name string) {
 	fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting %s every %v", name, period)
 
 	for {
@@ -52,6 +55,25 @@ func (fm *FingerprintManager) run(f fingerprint.Fingerprint, period time.Duratio
 			_, err := fm.fingerprint(name, f)
 			if err != nil {
 				fm.logger.Printf("[DEBUG] client.fingerprint_manager: periodic fingerprinting for %v failed: %+v", name, err)
+				continue
+			}
+
+		case <-fm.shutdownCh:
+			return
+		}
+	}
+}
+
+// runHealthCheck runs each health check individually on an ongoing basis
+func (fm *FingerprintManager) runHealthCheck(hc fingerprint.HealthCheck, period time.Duration, name string) {
+	fm.logger.Printf("[DEBUG] client.fingerprint_manager: healthchecking %s every %v", name, period)
+
+	for {
+		select {
+		case <-time.After(period):
+			err := fm.healthCheck(name, hc)
+			if err != nil {
+				fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %+v", name, err)
 				continue
 			}
 
@@ -86,7 +108,13 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 
 		p, period := d.Periodic()
 		if p {
-			go fm.run(d, period, name)
+			go fm.runFingerprint(d, period, name)
+		}
+
+		if hc, ok := d.(fingerprint.HealthCheck); ok {
+			if checkPeriodic, interval := hc.CheckHealthPeriodic(); checkPeriodic {
+				go fm.runHealthCheck(hc, interval, name)
+			}
 		}
 	}
 
@@ -111,6 +139,21 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 	fm.nodeLock.Unlock()
 
 	return response.Detected, nil
+}
+
+// healthcheck checks the health of the specified resource.
+func (fm *FingerprintManager) healthCheck(name string, hc fingerprint.HealthCheck) error {
+	request := &cstructs.HealthCheckRequest{}
+	var response cstructs.HealthCheckResponse
+	if err := hc.Check(request, &response); err != nil {
+		return err
+	}
+
+	if node := fm.updateHealthCheck(&response); node != nil {
+		fm.node = node
+	}
+
+	return nil
 }
 
 // setupFingerprints is used to fingerprint the node to see if these attributes are
@@ -138,7 +181,16 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 
 		p, period := f.Periodic()
 		if p {
-			go fm.run(f, period, name)
+			go fm.runFingerprint(f, period, name)
+		}
+
+		//if hc, ok := f.(fingerprint.HealthCheck); ok {
+		switch hc := f.(type) {
+		case fingerprint.HealthCheck:
+			if checkPeriodic, interval := hc.CheckHealthPeriodic(); checkPeriodic {
+				go fm.runHealthCheck(hc, interval, name)
+			}
+		default:
 		}
 	}
 
