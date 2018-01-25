@@ -213,7 +213,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	sresp, err, errCleanup := d.startWithCleanup(ctx, task)
 	if err != nil {
 		if cleanupErr := errCleanup(); cleanupErr != nil {
-			d.logger.Printf("[ERR] error occured while cleaning up from error in Start: %v", cleanupErr)
+			d.logger.Printf("[ERR] error occurred while cleaning up from error in Start: %v", cleanupErr)
 		}
 	}
 	return sresp, err
