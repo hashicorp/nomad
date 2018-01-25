@@ -28,6 +28,12 @@ export default ApplicationSerializer.extend({
       hash.Periodic = true;
     }
 
+    // Parameterized behaves like Periodic
+    if (hash.ParameterizedJob instanceof Object) {
+      hash.ParameterizedDetails = hash.ParameterizedJob;
+      hash.ParameterizedJob = true;
+    }
+
     // Transform the map-based JobSummary object into an array-based
     // JobSummary fragment list
     hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary') || {}).map(key => {
