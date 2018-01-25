@@ -11,14 +11,21 @@ export default Component.extend(Sortable, {
   // Provide a value that is bound to a query param
   sortProperty: null,
   sortDescending: null,
+  currentPage: null,
 
   // Provide an action with access to the router
-  gotoTaskGroup() {},
+  gotoJob() {},
+
+  pageSize: 10,
 
   taskGroups: computed('job.taskGroups.[]', function() {
     return this.get('job.taskGroups') || [];
   }),
 
-  listToSort: alias('taskGroups'),
-  sortedTaskGroups: alias('listSorted'),
+  children: computed('job.children.[]', function() {
+    return this.get('job.children') || [];
+  }),
+
+  listToSort: alias('children'),
+  sortedChildren: alias('listSorted'),
 });

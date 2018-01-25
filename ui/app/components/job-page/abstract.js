@@ -11,6 +11,7 @@ export default Component.extend({
   // Provide actions that require routing
   onNamespaceChange() {},
   gotoTaskGroup() {},
+  gotoJob() {},
 
   breadcrumbs: computed('job.{name,id}', function() {
     const job = this.get('job');
