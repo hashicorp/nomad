@@ -1,0 +1,42 @@
+<div class="boxed-section-head">
+  Job Launches
+</div>
+<div class="boxed-section-body {{if sortedChildren.length "is-full-bleed"}}">
+  {{#list-pagination
+    source=sortedChildren
+    size=pageSize
+    page=currentPage as |p|}}
+    {{#list-table
+      source=p.list
+      sortProperty=sortProperty
+      sortDescending=sortDescending
+      class="with-foot" as |t|}}
+      {{#t.head}}
+        {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+        {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
+        {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
+        {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
+        <th>Groups</th>
+        <th class="is-3">Summary</th>
+      {{/t.head}}
+      {{#t.body key="model.id" as |row|}}
+        {{job-row data-test-job-row job=row.model onClick=(action gotoJob row.model)}}
+      {{/t.body}}
+    {{/list-table}}
+    <div class="table-foot">
+      <nav class="pagination">
+        <div class="pagination-numbers">
+          {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedChildren.length}}
+        </div>
+        {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+        {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+        <ul class="pagination-list"></ul>
+      </nav>
+    </div>
+  {{else}}
+    <div class="empty-message">
+      <h3 class="empty-message-headline">No Job Launches</h3>
+      <p class="empty-message-body">No remaining living job launches.</p>
+    </div>
+  {{/list-pagination}}
+</div>
