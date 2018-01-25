@@ -259,7 +259,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
-		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
+		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromHealthCheck, c.logger)
 
 	// Fingerprint the node and scan for drivers
 	if err := fingerprintManager.Run(); err != nil {
@@ -894,6 +894,9 @@ func (c *Client) setupNode() error {
 	if node.Links == nil {
 		node.Links = make(map[string]string)
 	}
+	if node.Drivers == nil {
+		node.Drivers = make(map[string]*structs.DriverInfo)
+	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
 	}
@@ -1003,9 +1006,48 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		c.config.Node.Resources.Merge(response.Resources)
 	}
 
+	for name, new_val := range response.Drivers {
+		old_val := c.config.Node.Drivers[name]
+		if new_val.Equals(old_val) {
+			continue
+		}
+		if old_val == nil {
+			c.config.Node.Drivers[name] = new_val
+		} else {
+			c.config.Node.Drivers[name].MergeFingerprintInfo(new_val)
+		}
+	}
 	if nodeHasChanged {
 		c.updateNode()
 	}
+
+	return c.config.Node
+}
+
+func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckResponse) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	nodeHasChanged := false
+
+	// update the node with the latest driver health information
+	for name, new_val := range response.Drivers {
+		old_val := c.config.Node.Drivers[name]
+		if new_val.Equals(old_val) {
+			continue
+		}
+		nodeHasChanged = true
+		if old_val == nil {
+			c.config.Node.Drivers[name] = new_val
+		} else {
+			c.config.Node.Drivers[name].MergeHealthCheck(new_val)
+		}
+	}
+
+	if nodeHasChanged {
+		c.updateNode()
+	}
+
 	return c.config.Node
 }
 

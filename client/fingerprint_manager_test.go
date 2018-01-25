@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -34,6 +36,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 		node,
 		make(chan struct{}),
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -51,6 +54,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -65,6 +69,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 		node,
 		make(chan struct{}),
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -83,6 +88,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -98,6 +104,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 		node,
 		make(chan struct{}),
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -105,6 +112,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	require.Nil(err)
 
 	require.NotEqual("", node.Attributes["driver.raw_exec"])
+	require.True(node.Drivers["raw_exec"].Detected)
 }
 
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
@@ -115,6 +123,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -138,13 +147,14 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
 	err := fm.Run()
 	require.Nil(err)
 
-	// Ensure the mock driver is registered on the client
+	// Ensure the mock driver is registered and healthy on the client
 	testutil.WaitForResult(func() (bool, error) {
 		mockDriverStatus := node.Attributes["driver.mock_driver"]
 		if mockDriverStatus == "" {
@@ -155,7 +165,8 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Ensure that the client fingerprinter eventually removes this attribute
+	// Ensure that the client fingerprinter eventually removes this attribute and
+	// marks the driver as unhealthy
 	testutil.WaitForResult(func() (bool, error) {
 		mockDriverStatus := node.Attributes["driver.mock_driver"]
 		if mockDriverStatus != "" {
@@ -167,7 +178,187 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	})
 }
 
-func TestFingerprintManager_Run_InWhitelist(t *testing.T) {
+// This is a temporary measure to check that a driver has both attributes on a
+// node set as well as DriverInfo.
+func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	node := &structs.Node{
+		Attributes: make(map[string]string, 0),
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
+	}
+	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
+		if r.Attributes != nil {
+			for k, v := range r.Attributes {
+				node.Attributes[k] = v
+			}
+		}
+		return node
+	}
+	updateHealthCheck := func(resp *cstructs.HealthCheckResponse) *structs.Node {
+		if resp.Drivers != nil {
+			for k, v := range resp.Drivers {
+				node.Drivers[k] = v
+			}
+		}
+		return node
+	}
+	conf := config.DefaultConfig()
+	conf.Options = map[string]string{
+		"driver.raw_exec.enable":          "1",
+		"test.shutdown_periodic_after":    "true",
+		"test.shutdown_periodic_duration": "2",
+	}
+	getConfig := func() *config.Config {
+		return conf
+	}
+
+	shutdownCh := make(chan struct{})
+	defer (func() {
+		close(shutdownCh)
+	})()
+
+	fm := NewFingerprintManager(
+		getConfig,
+		node,
+		shutdownCh,
+		updateNode,
+		updateHealthCheck,
+		testLogger(),
+	)
+
+	err := fm.Run()
+	require.Nil(err)
+
+	// Ensure the mock driver is registered and healthy on the client
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverAttribute := node.Attributes["driver.mock_driver"]
+		if mockDriverAttribute == "" {
+			return false, fmt.Errorf("mock driver info should be set on the client attributes")
+		}
+		mockDriverInfo := node.Drivers["mock_driver"]
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver info should be set on the client")
+		}
+		if !mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver info should be healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Ensure that a default driver without health checks enabled is registered and healthy on the client
+	testutil.WaitForResult(func() (bool, error) {
+		rawExecAttribute := node.Attributes["driver.raw_exec"]
+		if rawExecAttribute == "" {
+			return false, fmt.Errorf("raw exec info should be set on the client attributes")
+		}
+		rawExecInfo := node.Drivers["raw_exec"]
+		if rawExecInfo == nil {
+			return false, fmt.Errorf("raw exec driver info should be set on the client")
+		}
+		if !rawExecInfo.Detected {
+			return false, fmt.Errorf("raw exec driver should be detected")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	node := &structs.Node{
+		Drivers: make(map[string]*structs.DriverInfo, 0),
+	}
+	updateNode := func(resp *cstructs.FingerprintResponse) *structs.Node {
+		for k, v := range resp.Drivers {
+			if node.Drivers[k] == nil {
+				node.Drivers[k] = v
+			} else {
+				node.Drivers[k].MergeFingerprintInfo(v)
+			}
+		}
+		return node
+	}
+	updateHealthCheck := func(resp *cstructs.HealthCheckResponse) *structs.Node {
+		for k, v := range resp.Drivers {
+			if node.Drivers[k] == nil {
+				node.Drivers[k] = v
+			} else {
+				node.Drivers[k].MergeHealthCheck(v)
+			}
+		}
+		return node
+	}
+	conf := config.DefaultConfig()
+	conf.Options = map[string]string{
+		"test.shutdown_periodic_after":    "true",
+		"test.shutdown_periodic_duration": "2",
+	}
+	getConfig := func() *config.Config {
+		return conf
+	}
+
+	shutdownCh := make(chan struct{})
+	defer (func() {
+		close(shutdownCh)
+	})()
+
+	fm := NewFingerprintManager(
+		getConfig,
+		node,
+		shutdownCh,
+		updateNode,
+		updateHealthCheck,
+		testLogger(),
+	)
+
+	err := fm.Run()
+	require.Nil(err)
+
+	// Ensure the mock driver is registered and healthy on the client
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverInfo := node.Drivers["mock_driver"]
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver info should be set on the client")
+		}
+		if !mockDriverInfo.Detected {
+			return false, fmt.Errorf("mock driver info should be detected")
+		}
+		if !mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver info should be healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Ensure that the client health check eventually removes this attribute and
+	// marks the driver as unhealthy
+	testutil.WaitForResult(func() (bool, error) {
+
+		mockDriverInfo := node.Drivers["mock_driver"]
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver info should be set on the client")
+		}
+		if !mockDriverInfo.Detected {
+			return false, fmt.Errorf("mock driver should be detected")
+		}
+		if mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver should not be healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -175,6 +366,7 @@ func TestFingerprintManager_Run_InWhitelist(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -195,6 +387,7 @@ func TestFingerprintManager_Run_InWhitelist(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -211,6 +404,7 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -232,6 +426,7 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -249,6 +444,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -270,6 +466,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -289,6 +486,7 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -312,6 +510,7 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -328,6 +527,7 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -350,6 +550,7 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -368,6 +569,7 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	testConfig := config.Config{Node: node}
 	testClient := &Client{config: &testConfig}
@@ -392,6 +594,7 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
@@ -412,6 +615,7 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 		Attributes: make(map[string]string, 0),
 		Links:      make(map[string]string, 0),
 		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
@@ -433,6 +637,7 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 		node,
 		shutdownCh,
 		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 

@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -164,6 +165,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+
 	ctx := testDockerDriverContexts(t, &structs.Task{Name: "foo", Driver: "docker", Resources: basicResources})
 	//ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	defer ctx.AllocDir.Destroy()
@@ -227,6 +229,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: conf.Node}
 	var response cstructs.FingerprintResponse
+
 	err = dd.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("error fingerprinting docker: %v", err)
@@ -249,6 +252,46 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
 	}
 	t.Logf("docker bridge ip: %q", attributes["driver.docker.bridge_ip"])
+}
+
+func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("requires Docker")
+	}
+	if runtime.GOOS != "linux" {
+		t.Skip("expect only on linux")
+	}
+
+	require := require.New(t)
+
+	// This seems fragile, so we might need to reconsider this test if it
+	// proves flaky
+	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
+	if err != nil {
+		t.Fatalf("unable to get ip for docker0: %v", err)
+	}
+	if expectedAddr == "" {
+		t.Fatalf("unable to get ip for docker bridge")
+	}
+
+	conf := testConfig(t)
+	conf.Node = mock.Node()
+	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
+
+	request := &cstructs.HealthCheckRequest{}
+	var response cstructs.HealthCheckResponse
+
+	dc, ok := dd.(fingerprint.HealthCheck)
+	require.True(ok)
+	err = dc.HealthCheck(request, &response)
+	require.Nil(err)
+
+	driverInfo := response.Drivers["docker"]
+	require.NotNil(driverInfo)
+	require.True(driverInfo.Healthy)
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {

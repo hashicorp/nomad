@@ -30,6 +30,8 @@ const (
 	// to "stop" a previously functioning driver after the specified duration
 	// (specified in seconds) for testing of periodic drivers and fingerprinters.
 	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
+
+	mockDriverName = "driver.mock_driver"
 )
 
 // MockDriverConfig is the driver configuration for the MockDriver
@@ -234,9 +236,9 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	// current time is after the time which the node should shut down, simulate
 	// driver failure
 	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
-		resp.RemoveAttribute("driver.mock_driver")
+		resp.RemoveAttribute(mockDriverName)
 	default:
-		resp.AddAttribute("driver.mock_driver", "1")
+		resp.AddAttribute(mockDriverName, "1")
 		resp.Detected = true
 	}
 	return nil
@@ -245,6 +247,39 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 // When testing, poll for updates
 func (m *MockDriver) Periodic() (bool, time.Duration) {
 	return true, 500 * time.Millisecond
+}
+
+// HealthCheck implements the interface for HealthCheck, and indicates the current
+// health status of the mock driver.
+func (m *MockDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+	switch {
+	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
+		notHealthy := &structs.DriverInfo{
+			Healthy:           false,
+			HealthDescription: "not running",
+			UpdateTime:        time.Now(),
+		}
+		resp.AddDriverInfo("mock_driver", notHealthy)
+		return nil
+	default:
+		healthy := &structs.DriverInfo{
+			Healthy:           true,
+			HealthDescription: "running",
+			UpdateTime:        time.Now(),
+		}
+		resp.AddDriverInfo("mock_driver", healthy)
+		return nil
+	}
+}
+
+// GetHealthCheckInterval implements the interface for HealthCheck and indicates
+// that mock driver should be checked periodically. Returns a boolean
+// indicating if ti should be checked, and the duration at which to do this
+// check.
+func (m *MockDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
+	resp.Eligible = true
+	resp.Period = 1 * time.Second
+	return nil
 }
 
 // MockDriverHandle is a driver handler which supervises a mock task

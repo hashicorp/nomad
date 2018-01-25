@@ -1163,6 +1163,50 @@ func ValidNodeStatus(status string) bool {
 	}
 }
 
+// DriverInfo is the current state of a single driver. This is updated
+// regularly as driver health changes on the node.
+type DriverInfo struct {
+	Attributes        map[string]string
+	Detected          bool
+	Healthy           bool
+	HealthDescription string
+	UpdateTime        time.Time
+}
+
+func (di *DriverInfo) MergeHealthCheck(other *DriverInfo) {
+	di.Healthy = other.Healthy
+	di.HealthDescription = other.HealthDescription
+	di.UpdateTime = other.UpdateTime
+}
+
+func (di *DriverInfo) MergeFingerprintInfo(other *DriverInfo) {
+	di.Detected = other.Detected
+	di.Attributes = other.Attributes
+}
+
+func (di *DriverInfo) Equals(other *DriverInfo) bool {
+	if di == nil && other == nil {
+		return true
+	}
+
+	if di == nil && other != nil || di != nil && other == nil {
+		return false
+	}
+	if !di.Detected == other.Detected {
+		return false
+	}
+
+	if !di.Healthy == other.Healthy {
+		return false
+	}
+
+	if strings.Compare(di.HealthDescription, other.HealthDescription) != 0 {
+		return false
+	}
+
+	return true
+}
+
 // Node is a representation of a schedulable client node
 type Node struct {
 	// ID is a unique identifier for the node. It can be constructed
@@ -1240,6 +1284,9 @@ type Node struct {
 	// Events is the most recent set of events generated for the node,
 	// retaining only MaxRetainedNodeEvents number at a time
 	Events []*NodeEvent
+
+	// Drivers is a map of driver names to current driver information
+	Drivers map[string]*DriverInfo
 
 	// Raft Indexes
 	CreateIndex uint64
