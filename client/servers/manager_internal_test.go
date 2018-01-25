@@ -44,7 +44,6 @@ func testManager(t *testing.T) (m *Manager) {
 
 func testManagerFailProb(failPct float64) (m *Manager) {
 	logger := log.New(os.Stderr, "", 0)
-	logger = log.New(os.Stderr, "", log.LstdFlags)
 	shutdownCh := make(chan struct{})
 	m = New(logger, shutdownCh, &fauxConnPool{failPct: failPct})
 	return m
