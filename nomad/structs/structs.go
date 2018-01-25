@@ -4910,6 +4910,9 @@ type Allocation struct {
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
 
+	// NextAllocation is the allocation that this allocation is being replaced by
+	NextAllocation string
+
 	// DeploymentID identifies an allocation as being created from a
 	// particular deployment
 	DeploymentID string

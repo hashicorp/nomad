@@ -1889,6 +1889,21 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			return fmt.Errorf("alloc insert failed: %v", err)
 		}
 
+		if alloc.PreviousAllocation != "" {
+			prevAlloc, err := txn.First("allocs", "id", alloc.PreviousAllocation)
+			if err != nil {
+				return fmt.Errorf("alloc lookup failed: %v", err)
+			}
+			existingPrevAlloc, _ := prevAlloc.(*structs.Allocation)
+			if existingPrevAlloc != nil {
+				prevAllocCopy := existingPrevAlloc.Copy()
+				prevAllocCopy.NextAllocation = alloc.ID
+				if err := txn.Insert("allocs", prevAllocCopy); err != nil {
+					return fmt.Errorf("alloc insert failed: %v", err)
+				}
+			}
+		}
+
 		// If the allocation is running, force the job to running status.
 		forceStatus := ""
 		if !alloc.TerminalStatus() {
