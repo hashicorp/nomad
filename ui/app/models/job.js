@@ -6,6 +6,8 @@ import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 
+const JOB_TYPES = ['service', 'batch', 'system'];
+
 export default Model.extend({
   region: attr('string'),
   name: attr('string'),
@@ -24,10 +26,43 @@ export default Model.extend({
   periodic: attr('boolean'),
   parameterized: attr('boolean'),
 
+  periodicDetails: attr(),
+  parameterizedDetails: attr(),
+
   hasChildren: or('periodic', 'parameterized'),
 
   parent: belongsTo('job', { inverse: 'children' }),
   children: hasMany('job', { inverse: 'parent' }),
+
+  // A composite of type and other job attributes to determine
+  // type for templating rather than scheduling
+  templateType: computed(
+    'type',
+    'periodic',
+    'parameterized',
+    'parent.periodic',
+    'parent.parameterized',
+    function() {
+      const type = this.get('type');
+
+      if (this.get('periodic')) {
+        return 'periodic';
+      } else if (this.get('parameterized')) {
+        return 'parameterized';
+      } else if (this.get('parent.periodic')) {
+        return 'periodic-child';
+      } else if (this.get('parent.parameterized')) {
+        return 'parameterized-child';
+      } else if (JOB_TYPES.includes(type)) {
+        // Guard against the API introducing a new type before the UI
+        // is prepared to handle it.
+        return this.get('type');
+      } else {
+        // A fail-safe in the event the API introduces a new type.
+        return 'service';
+      }
+    }
+  ),
 
   datacenters: attr(),
   taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
@@ -55,6 +90,12 @@ export default Model.extend({
   pendingChildren: attr('number'),
   runningChildren: attr('number'),
   deadChildren: attr('number'),
+
+  childrenList: collect('pendingChildren', 'runningChildren', 'deadChildren'),
+
+  totalChildren: sum('childrenList'),
+
+  version: attr('number'),
 
   versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
