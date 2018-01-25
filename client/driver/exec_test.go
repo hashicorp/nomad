@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -37,14 +38,19 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 			"unique.cgroup.mountpoint": "/sys/fs/cgroup",
 		},
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	response := &cstructs.FingerprintResponse{
+		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
+	}
+
+	err := d.Fingerprint(request, response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
-	}
-	if node.Attributes["driver.exec"] == "" {
+	if response.Attributes["driver.exec"] == "" {
 		t.Fatalf("missing driver")
 	}
 }

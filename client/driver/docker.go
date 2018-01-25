@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -476,16 +475,14 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
 }
 
-func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Initialize docker API clients
+func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	client, _, err := d.dockerClients()
 	if err != nil {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
 		}
-		delete(node.Attributes, dockerDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
 	// This is the first operation taken on the client so we'll try to
@@ -493,25 +490,24 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	// Docker isn't available so we'll simply disable the docker driver.
 	env, err := client.Version()
 	if err != nil {
-		delete(node.Attributes, dockerDriverAttr)
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
-	node.Attributes[dockerDriverAttr] = "1"
-	node.Attributes["driver.docker.version"] = env.Get("Version")
+	resp.Attributes[dockerDriverAttr] = "1"
+	resp.Attributes["driver.docker.version"] = env.Get("Version")
 
 	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
 	if privileged {
-		node.Attributes[dockerPrivilegedConfigOption] = "1"
+		resp.Attributes[dockerPrivilegedConfigOption] = "1"
 	}
 
 	// Advertise if this node supports Docker volumes
 	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
-		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
+		resp.Attributes["driver."+dockerVolumesConfigOption] = "1"
 	}
 
 	// Detect bridge IP address - #2785
@@ -529,7 +525,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 			}
 
 			if n.IPAM.Config[0].Gateway != "" {
-				node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+				resp.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
 			} else if d.fingerprintSuccess == nil {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
@@ -540,7 +536,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	}
 
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	return true, nil
+	return nil
 }
 
 // Validate is used to validate the driver configuration

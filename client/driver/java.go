@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -112,15 +111,15 @@ func (d *JavaDriver) Abilities() DriverAbilities {
 	}
 }
 
-func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
-	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !cgroupsMounted(node)) {
+	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !cgroupsMounted(req.Node)) {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.java: root privileges and mounted cgroups required on linux, disabling")
 		}
-		delete(node.Attributes, "driver.java")
+		resp.Attributes[javaDriverAttr] = ""
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
 	// Find java version
@@ -132,9 +131,9 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	err := cmd.Run()
 	if err != nil {
 		// assume Java wasn't found
-		delete(node.Attributes, javaDriverAttr)
+		resp.Attributes[javaDriverAttr] = ""
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
 	// 'java -version' returns output on Stderr typically.
@@ -152,9 +151,9 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
 		}
-		delete(node.Attributes, javaDriverAttr)
+		resp.Attributes[javaDriverAttr] = ""
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 
 	// Assume 'java -version' returns 3 lines:
@@ -166,13 +165,13 @@ func (d *JavaDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, 
 	versionString := info[0]
 	versionString = strings.TrimPrefix(versionString, "java version ")
 	versionString = strings.Trim(versionString, "\"")
-	node.Attributes[javaDriverAttr] = "1"
-	node.Attributes["driver.java.version"] = versionString
-	node.Attributes["driver.java.runtime"] = info[1]
-	node.Attributes["driver.java.vm"] = info[2]
+	resp.Attributes[javaDriverAttr] = "1"
+	resp.Attributes["driver.java.version"] = versionString
+	resp.Attributes["driver.java.runtime"] = info[1]
+	resp.Attributes["driver.java.vm"] = info[2]
 	d.fingerprintSuccess = helper.BoolToPtr(true)
 
-	return true, nil
+	return nil
 }
 
 func (d *JavaDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {

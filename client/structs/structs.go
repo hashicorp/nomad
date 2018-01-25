@@ -4,6 +4,9 @@ import (
 	"crypto/md5"
 	"io"
 	"strconv"
+
+	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // MemoryStats holds memory usage related stats
@@ -183,4 +186,15 @@ func (d *DriverNetwork) Hash() []byte {
 		io.WriteString(h, strconv.Itoa(v))
 	}
 	return h.Sum(nil)
+}
+
+type FingerprintRequest struct {
+	Config *config.Config
+	Node   *structs.Node
+}
+
+type FingerprintResponse struct {
+	Attributes map[string]string
+	Links      map[string]string
+	Resources  *structs.Resources
 }

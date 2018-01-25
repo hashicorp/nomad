@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -57,20 +58,26 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	response := &cstructs.FingerprintResponse{
+		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
+	}
+
+	err := d.Fingerprint(request, response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
-	}
-	if node.Attributes["driver.rkt"] != "1" {
+
+	if response.Attributes["driver.rkt"] != "1" {
 		t.Fatalf("Missing Rkt driver")
 	}
-	if node.Attributes["driver.rkt.version"] == "" {
+	if response.Attributes["driver.rkt.version"] == "" {
 		t.Fatalf("Missing Rkt driver version")
 	}
-	if node.Attributes["driver.rkt.appc.version"] == "" {
+	if response.Attributes["driver.rkt.appc.version"] == "" {
 		t.Fatalf("Missing appc version for the Rkt driver")
 	}
 }

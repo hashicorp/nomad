@@ -6,8 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const bytesPerMegabyte = 1024 * 1024
@@ -24,15 +23,13 @@ func NewStorageFingerprint(logger *log.Logger) Fingerprint {
 	return fp
 }
 
-func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
 
 	// Initialize these to empty defaults
-	node.Attributes["unique.storage.volume"] = ""
-	node.Attributes["unique.storage.bytestotal"] = ""
-	node.Attributes["unique.storage.bytesfree"] = ""
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
+	resp.Attributes["unique.storage.volume"] = ""
+	resp.Attributes["unique.storage.bytestotal"] = ""
+	resp.Attributes["unique.storage.bytesfree"] = ""
 
 	// Guard against unset AllocDir
 	storageDir := cfg.AllocDir
@@ -40,20 +37,20 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		var err error
 		storageDir, err = os.Getwd()
 		if err != nil {
-			return false, fmt.Errorf("unable to get CWD from filesystem: %s", err)
+			return fmt.Errorf("unable to get CWD from filesystem: %s", err)
 		}
 	}
 
 	volume, total, free, err := f.diskFree(storageDir)
 	if err != nil {
-		return false, fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
+		return fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
 	}
 
-	node.Attributes["unique.storage.volume"] = volume
-	node.Attributes["unique.storage.bytestotal"] = strconv.FormatUint(total, 10)
-	node.Attributes["unique.storage.bytesfree"] = strconv.FormatUint(free, 10)
+	resp.Attributes["unique.storage.volume"] = volume
+	resp.Attributes["unique.storage.bytestotal"] = strconv.FormatUint(total, 10)
+	resp.Attributes["unique.storage.bytesfree"] = strconv.FormatUint(free, 10)
 
-	node.Resources.DiskMB = int(free / bytesPerMegabyte)
+	resp.Resources.DiskMB = int(free / bytesPerMegabyte)
 
-	return true, nil
+	return nil
 }
