@@ -69,7 +69,7 @@ TRY:
 
 	// We can wait a bit and retry!
 	if time.Since(firstCheck) < c.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(5 * time.Second / nomad.JitterFraction)
+		jitter := lib.RandomStagger(c.config.RPCHoldTimeout / nomad.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto TRY
@@ -198,8 +198,8 @@ func resolveServer(s string) (net.Addr, error) {
 
 // Ping is used to ping a particular server and returns whether it is healthy or
 // a potential error.
-func (c *Client) Ping(srv net.Addr) (bool, error) {
+func (c *Client) Ping(srv net.Addr) error {
 	var reply struct{}
 	err := c.connPool.RPC(c.Region(), srv, c.RPCMajorVersion(), "Status.Ping", struct{}{}, &reply)
-	return err == nil, err
+	return err
 }
