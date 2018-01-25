@@ -253,7 +253,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 	c.SetLogLevel(logLevel)
 
-	logFile := filepath.Join(ctx.TaskDir.LogDir, fmt.Sprintf("%v-lxc.log", task.Name))
+	logFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%v-lxc.log", task.Name))
 	c.SetLogFile(logFile)
 
 	options := lxc.TemplateOptions{
