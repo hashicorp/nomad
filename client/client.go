@@ -603,12 +603,8 @@ func (c *Client) SetServers(in []string) error {
 		}
 
 		// Try to ping to check if it is a real server
-		ok, err := c.Ping(addr)
-		if err != nil {
+		if err := c.Ping(addr); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
-			continue
-		} else if !ok {
-			merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s didn't respond to ping", addr))
 			continue
 		}
 
@@ -1194,7 +1190,7 @@ func (c *Client) updateNodeStatus() error {
 		nomadServers = append(nomadServers, e)
 	}
 	if len(nomadServers) == 0 {
-		return fmt.Errorf("server returned no valid servers")
+		return fmt.Errorf("heartbeat response returned no valid servers")
 	}
 	c.servers.SetServers(nomadServers)
 

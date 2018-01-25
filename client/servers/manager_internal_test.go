@@ -27,13 +27,12 @@ type fauxConnPool struct {
 	failPct float64
 }
 
-func (cp *fauxConnPool) Ping(net.Addr) (bool, error) {
-	var success bool
+func (cp *fauxConnPool) Ping(net.Addr) error {
 	successProb := rand.Float64()
 	if successProb > cp.failPct {
-		success = true
+		return nil
 	}
-	return success, nil
+	return fmt.Errorf("bad server")
 }
 
 func testManager(t *testing.T) (m *Manager) {
@@ -131,116 +130,6 @@ func TestManagerInternal_New(t *testing.T) {
 	}
 }
 
-// func (m *Manager) reconcileServerList(l *serverList) bool {
-func TestManagerInternal_reconcileServerList(t *testing.T) {
-	tests := []int{0, 1, 2, 3, 4, 5, 10, 100}
-	for _, n := range tests {
-		ok, err := test_reconcileServerList(n)
-		if !ok {
-			t.Errorf("Expected %d to pass: %v", n, err)
-		}
-	}
-}
-
-func test_reconcileServerList(maxServers int) (bool, error) {
-	// Build a server list, reconcile, verify the missing servers are
-	// missing, the added have been added, and the original server is
-	// present.
-	const failPct = 0.5
-	m := testManagerFailProb(failPct)
-
-	var failedServers, healthyServers []*Server
-	for i := 0; i < maxServers; i++ {
-		nodeName := fmt.Sprintf("s%02d", i)
-		node := &Server{Addr: &fauxAddr{nodeName}}
-		// Add 66% of servers to Manager
-		if rand.Float64() > 0.33 {
-			m.AddServer(node)
-
-			// Of healthy servers, (ab)use connPoolPinger to
-			// failPct of the servers for the reconcile.  This
-			// allows for the selected server to no longer be
-			// healthy for the reconcile below.
-			if ok, _ := m.connPoolPinger.Ping(node.Addr); ok {
-				// Will still be present
-				healthyServers = append(healthyServers, node)
-			} else {
-				// Will be missing
-				failedServers = append(failedServers, node)
-			}
-		} else {
-			// Will be added from the call to reconcile
-			healthyServers = append(healthyServers, node)
-		}
-	}
-
-	// Randomize Manager's server list
-	m.RebalanceServers()
-	selectedServer := m.FindServer()
-
-	var selectedServerFailed bool
-	for _, s := range failedServers {
-		if selectedServer.String() == s.String() {
-			selectedServerFailed = true
-			break
-		}
-	}
-
-	// Update Manager's server list to be "healthy" based on Serf.
-	// Reconcile this with origServers, which is shuffled and has a live
-	// connection, but possibly out of date.
-	origServers := m.getServerList()
-	m.saveServerList(serverList{servers: healthyServers})
-
-	// This should always succeed with non-zero server lists
-	if !selectedServerFailed && !m.reconcileServerList(&origServers) &&
-		len(m.getServerList().servers) != 0 &&
-		len(origServers.servers) != 0 {
-		// If the random gods are unfavorable and we end up with zero
-		// length lists, expect things to fail and retry the test.
-		return false, fmt.Errorf("Expected reconcile to succeed: %v %d %d",
-			selectedServerFailed,
-			len(m.getServerList().servers),
-			len(origServers.servers))
-	}
-
-	// If we have zero-length server lists, test succeeded in degenerate
-	// case.
-	if len(m.getServerList().servers) == 0 &&
-		len(origServers.servers) == 0 {
-		// Failed as expected w/ zero length list
-		return true, nil
-	}
-
-	resultingServerMap := make(map[string]bool)
-	for _, s := range m.getServerList().servers {
-		resultingServerMap[s.String()] = true
-	}
-
-	// Test to make sure no failed servers are in the Manager's
-	// list.  Error if there are any failedServers in l.servers
-	for _, s := range failedServers {
-		_, ok := resultingServerMap[s.String()]
-		if ok {
-			return false, fmt.Errorf("Found failed server %v in merged list %v", s, resultingServerMap)
-		}
-	}
-
-	// Test to make sure all healthy servers are in the healthy list.
-	if len(healthyServers) != len(m.getServerList().servers) {
-		return false, fmt.Errorf("Expected healthy map and servers to match: %d/%d", len(healthyServers), len(healthyServers))
-	}
-
-	// Test to make sure all healthy servers are in the resultingServerMap list.
-	for _, s := range healthyServers {
-		_, ok := resultingServerMap[s.String()]
-		if !ok {
-			return false, fmt.Errorf("Server %v missing from healthy map after merged lists", s)
-		}
-	}
-	return true, nil
-}
-
 // func (l *serverList) refreshServerRebalanceTimer() {
 func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 	type clusterSizes struct {
@@ -288,10 +177,12 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 	for _, s := range clusters {
 		m := New(logger, shutdownCh, &fauxConnPool{})
 		m.SetNumNodes(s.numNodes)
+		servers := make([]*Server, 0, s.numServers)
 		for i := 0; i < s.numServers; i++ {
 			nodeName := fmt.Sprintf("s%02d", i)
-			m.AddServer(&Server{Addr: &fauxAddr{nodeName}})
+			servers = append(servers, &Server{Addr: &fauxAddr{nodeName}})
 		}
+		m.SetServers(servers)
 
 		d := m.refreshServerRebalanceTimer()
 		t.Logf("Nodes: %d; Servers: %d; Refresh: %v; Min: %v", s.numNodes, s.numServers, d, s.minRebalance)
