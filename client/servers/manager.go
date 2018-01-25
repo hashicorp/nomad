@@ -52,6 +52,14 @@ type Server struct {
 	DC string
 }
 
+func (s *Server) Copy() *Server {
+	return &Server{
+		Addr: s.Addr,
+		addr: s.addr,
+		DC:   s.DC,
+	}
+}
+
 func (s *Server) String() string {
 	s.Lock()
 	defer s.Unlock()
@@ -224,9 +232,7 @@ func (m *Manager) GetServers() Servers {
 
 	copy := make([]*Server, 0, len(m.servers))
 	for _, s := range m.servers {
-		ns := new(Server)
-		*ns = *s
-		copy = append(copy, ns)
+		copy = append(copy, s.Copy())
 	}
 
 	return copy
@@ -263,8 +269,7 @@ func (m *Manager) RebalanceServers() {
 	}
 
 	if !foundHealthyServer {
-		m.logger.Printf("[DEBUG] manager: No healthy servers during rebalance, aborting")
-		return
+		m.logger.Printf("[DEBUG] manager: No healthy servers during rebalance")
 	}
 
 	return
