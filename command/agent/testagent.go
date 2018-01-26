@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,8 +18,11 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib/freeport"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -115,7 +119,10 @@ func (a *TestAgent) Start() *TestAgent {
 		a.Config.NomadConfig.DataDir = d
 	}
 
-	for i := 10; i >= 0; i-- {
+	i := 10
+
+RETRY:
+	for ; i >= 0; i-- {
 		a.pickRandomPorts(a.Config)
 		if a.Config.NodeName == "" {
 			a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
@@ -137,14 +144,14 @@ func (a *TestAgent) Start() *TestAgent {
 			a.Agent = agent
 			break
 		} else if i == 0 {
-			fmt.Println(a.Name, "Error starting agent:", err)
+			a.T.Logf(a.Name, "Error starting agent:", err)
 			runtime.Goexit()
 		} else {
 			if agent != nil {
 				agent.Shutdown()
 			}
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			fmt.Println(a.Name, "retrying in", wait)
+			a.T.Logf("%s: retrying in %v", a.Name, wait)
 			time.Sleep(wait)
 		}
 
@@ -153,20 +160,35 @@ func (a *TestAgent) Start() *TestAgent {
 		// the data dir, such as in the Raft configuration.
 		if a.DataDir != "" {
 			if err := os.RemoveAll(a.DataDir); err != nil {
-				fmt.Println(a.Name, "Error resetting data dir:", err)
+				a.T.Logf("%s: Error resetting data dir: %v", a.Name, err)
 				runtime.Goexit()
 			}
 		}
 	}
 
+	failed := false
 	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
+		addr := a.Config.AdvertiseAddrs.RPC
 		testutil.WaitForResult(func() (bool, error) {
+			conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+			if err != nil {
+				return false, err
+			}
+			defer conn.Close()
+
+			// Write the Consul RPC byte to set the mode
+			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+				return false, err
+			}
+
+			codec := pool.NewClientCodec(conn)
 			args := &structs.GenericRequest{}
 			var leader string
-			err := a.RPC("Status.Leader", args, &leader)
+			err = msgpackrpc.CallWithCodec(codec, "Status.Leader", args, &leader)
 			return leader != "", err
 		}, func(err error) {
-			a.T.Fatalf("failed to find leader: %v", err)
+			a.T.Logf("failed to find leader: %v", err)
+			failed = true
 		})
 	} else {
 		testutil.WaitForResult(func() (bool, error) {
@@ -175,8 +197,13 @@ func (a *TestAgent) Start() *TestAgent {
 			_, err := a.Server.AgentSelfRequest(resp, req)
 			return err == nil && resp.Code == 200, err
 		}, func(err error) {
-			a.T.Fatalf("failed OK response: %v", err)
+			a.T.Logf("failed to find leader: %v", err)
+			failed = true
 		})
+	}
+	if failed {
+		a.Agent.Shutdown()
+		goto RETRY
 	}
 
 	// Check if ACLs enabled. Use special value of PolicyTTL 0s
@@ -194,7 +221,7 @@ func (a *TestAgent) Start() *TestAgent {
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = os.Stderr
+		a.LogOutput = testlog.NewWriter(a.T)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -263,6 +290,15 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 	c.Ports.HTTP = ports[0]
 	c.Ports.RPC = ports[1]
 	c.Ports.Serf = ports[2]
+
+	// Clear out the advertise addresses such that through retries we
+	// re-normalize the addresses correctly instead of using the values from the
+	// last port selection that had a port conflict.
+	if c.AdvertiseAddrs != nil {
+		c.AdvertiseAddrs.HTTP = ""
+		c.AdvertiseAddrs.RPC = ""
+		c.AdvertiseAddrs.Serf = ""
+	}
 
 	if err := c.normalizeAddrs(); err != nil {
 		a.T.Fatalf("error normalizing config: %v", err)
