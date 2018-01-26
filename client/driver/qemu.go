@@ -464,7 +464,7 @@ func (h *qemuHandle) Kill() error {
 	// If Nomad did not send a graceful shutdown signal, issue an interrupt to
 	// the qemu process as a last resort
 	if gracefulShutdownSent == false {
-		h.logger.Printf("[DEBUG] driver.qemu: graceful shutdown is not enabled, sending an interrupt signal to QEMU")
+		h.logger.Printf("[DEBUG] driver.qemu: graceful shutdown is not enabled, sending an interrupt signal to pid: %d", h.userPid)
 		if err := h.executor.ShutDown(); err != nil {
 			if h.pluginClient.Exited() {
 				return nil
