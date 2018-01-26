@@ -144,7 +144,7 @@ RETRY:
 			a.Agent = agent
 			break
 		} else if i == 0 {
-			a.T.Logf(a.Name, "Error starting agent:", err)
+			a.T.Logf("%s: Error starting agent: %v", a.Name, err)
 			runtime.Goexit()
 		} else {
 			if agent != nil {
