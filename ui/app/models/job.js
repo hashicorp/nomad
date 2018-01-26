@@ -35,6 +35,18 @@ export default Model.extend({
   children: hasMany('job', { inverse: 'parent' }),
 
   // A composite of type and other job attributes to determine
+  // a better type descriptor for human interpretation rather
+  // than for scheduling.
+  displayType: computed('type', 'periodic', 'parameterized', function() {
+    if (this.get('periodic')) {
+      return 'periodic';
+    } else if (this.get('parameterized')) {
+      return 'parameterized';
+    }
+    return this.get('type');
+  }),
+
+  // A composite of type and other job attributes to determine
   // type for templating rather than scheduling
   templateType: computed(
     'type',
@@ -57,10 +69,10 @@ export default Model.extend({
         // Guard against the API introducing a new type before the UI
         // is prepared to handle it.
         return this.get('type');
-      } else {
-        // A fail-safe in the event the API introduces a new type.
-        return 'service';
       }
+
+      // A fail-safe in the event the API introduces a new type.
+      return 'service';
     }
   ),
 
