@@ -10,6 +10,7 @@
     {{job.name}}
     <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
     <span class="tag is-hollow">periodic</span>
+    <button class="button is-primary" onclick={{action "forceLaunch"}}>Force Launch</button>
   </h1>
 
   <div class="boxed-section job-stats">
