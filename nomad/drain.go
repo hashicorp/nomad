@@ -8,6 +8,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type drainingNode struct {
+	deadline        bool
+	remainingAllocs int
+}
+
 // startNodeDrainer should be called in establishLeadership by the leader.
 func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	state := s.fsm.State()
@@ -20,27 +25,110 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 	//TODO need a chan to watch for alloc & job updates on if len(drainingallocs)>0
 	_ = drainingAllocs
+	var nodeUpdateCh chan struct{}
+	var allocUpdateCh chan struct{}
 
 	for {
 		select {
-		// case <-NodeDrainStrategyChanging:
-		// case <-Alloc running with Previous alloc in list
+		case <-nodeUpdateCh:
+			// update draining nodes
+		case <-allocUpdateCh:
+			// update draining allocs
 		case <-deadlineTimer.C:
+			// deadline for a node was reached
 		}
 
+		now := time.Now()
+
+		// collect all draining nodes and whether or not their deadline is reached
+		drainingNodes = map[string]drainingNode{}
+		nodes, err := state.Nodes(nil)
+		if err != nil {
+			//FIXME
+			panic(err)
+		}
+
+		for {
+			raw := nodes.Next()
+			if raw == nil {
+				break
+			}
+
+			node := raw.(*structs.Node)
+			if !node.Drain {
+				continue
+			}
+
+			drainingNodes[node.ID] = drainingNode{
+				deadline: now.After(node.DrainStrategy.DeadlineTime()),
+			}
+
+		}
+
+		// iterate over all allocs to clean drainingAllocs and stop
+		// allocs with count==1 or whose node has reached its deadline
+		allocs, err := state.Allocs(nil)
+		if err != nil {
+			//FIXME
+			panic(err)
+		}
+
+		for {
+			raw := allocs.Next()
+			if raw == nil {
+				break
+			}
+
+			alloc := raw.(*structs.Allocation)
+
+			// If running remove the alloc this one replaced from the drained list
+			if alloc.ClientStatus == structs.AllocClientStatusRunning {
+				delete(drainingAllocs, alloc.PreviousAllocation)
+				continue
+			}
+
+			job, err := state.JobByID(nil, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				//FIXME
+				panic(err)
+			}
+
+			// Do nothing for System jobs
+			if job.Type == structs.JobTypeSystem {
+				continue
+			}
+
+			// No action needed for allocs for stopped jobs. The
+			// scheduler will take care of them.
+			if job.Stopped() {
+				// Clean out of drainingAllocs list since all
+				// allocs for the job will be stopped by the
+				// scheduler.
+				delete(drainingAllocs, alloc.ID)
+				continue
+			}
+
+			// See if this alloc is on a node which has met its drain deadline
+			if drainingNodes[alloc.NodeID] {
+				// No need to track draining allocs for nodes
+				// who have reached their deadline as all
+				// allocs on that node will be stopped
+				delete(drainingAllocs, alloc.ID)
+
+				//TODO is it safe to mutate this alloc or do I need to copy it first
+				//alloc.DesiredStatus = structs.
+			}
+		}
+
+		//TODO: emit node update evaluation for all nodes who reached their deadline
+		//TODO: unset drain for nodes with no allocs
 	}
 }
 
 // newDeadlineTimer returns a Timer that will tick when the next Node Drain
 // Deadline is reached.
 //TODO kinda ugly to return both a timer and a map from this but it saves an extra iteration over nodes
-func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (*time.Timer, map[string]struct{}) {
-	// Create a stopped timer to return if no deadline is found
-	deadlineTimer := time.NewTimer(0)
-	if !deadlineTimer.Stop() {
-		<-deadlineTimer.C
-	}
-
+func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (*nodeDeadline, map[string]struct{}) {
 	drainingNodes := make(map[string]struct{})
 
 	iter, err := state.Nodes(nil)
@@ -74,11 +162,10 @@ func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (*time.Timer,
 		}
 	}
 
-	// Enable the timer if a deadline was found
-	if !nextDeadline.IsZero() {
-		deadlineTimer.Reset(nextDeadline.Sub(time.Now()))
+	if nextDeadline.IsZero() {
+		return nil, drainingNodes
 	}
-	return deadlineTimer, drainingNodes
+	return timer.After(nextDeadline.Sub(timer.Now())), drainingNodes
 }
 
 func gatherDrainingAllocs(logger *log.Logger, state *state.StateStore, drainingNodes map[string]struct{}) map[string]struct{} {
