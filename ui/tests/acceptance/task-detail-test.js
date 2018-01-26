@@ -12,18 +12,14 @@ moduleForAcceptance('Acceptance | task detail', {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
-      useMessagePassthru: true,
-    });
+    allocation = server.create('allocation', 'withTaskWithPorts');
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     visit(`/allocations/${allocation.id}/${task.name}`);
   },
 });
 
-test('/allocation/:id/:task_name should name the task and list high-level task information', function(
-  assert
-) {
+test('/allocation/:id/:task_name should name the task and list high-level task information', function(assert) {
   assert.ok(find('[data-test-title]').textContent.includes(task.name), 'Task name');
   assert.ok(find('[data-test-state]').textContent.includes(task.state), 'Task state');
 
@@ -119,9 +115,7 @@ test('the events table lists all recent events', function(assert) {
   );
 });
 
-test('each recent event should list the time, type, and description of the event', function(
-  assert
-) {
+test('each recent event should list the time, type, and description of the event', function(assert) {
   const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
   const recentEvent = findAll('[data-test-task-event]').get('lastObject');
 

@@ -24,7 +24,5 @@ export default Fragment.extend({
   taskSignal: attr('string'),
   taskSignalReason: attr('string'),
   validationError: attr('string'),
-  vaultError: attr('string'),
   message: attr('string'),
-  failedSibling: attr('string'),
 });
