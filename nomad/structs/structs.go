@@ -2725,6 +2725,51 @@ func NewReshedulePolicy(jobType string) *ReschedulePolicy {
 	return nil
 }
 
+const (
+	MigrateStrategyHealthChecks = "checks"
+	MigrateStrategyHealthStates = "task_states"
+)
+
+type MigrateStrategy struct {
+	MaxParallel     int
+	HealthCheck     string
+	MinHealthyTime  time.Duration
+	HealthyDeadline time.Duration
+}
+
+func (m *MigrateStrategy) Validate() error {
+	var mErr multierror.Error
+
+	if m.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("MaxParallel must be >= 0 but found %d", m.MaxParallel))
+	}
+
+	switch m.HealthCheck {
+	case MigrateStrategyHealthChecks, MigrateStrategyHealthStates:
+		// ok
+	case "":
+		if m.MaxParallel > 0 {
+			multierror.Append(&mErr, fmt.Errorf("Missing HealthCheck"))
+		}
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Invalid HealthCheck: %q", m.HealthCheck))
+	}
+
+	if m.MinHealthyTime < 0 {
+		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime is %s and must be >= 0", m.MinHealthyTime))
+	}
+
+	if m.HealthyDeadline < 0 {
+		multierror.Append(&mErr, fmt.Errorf("HealthyDeadline is %s and must be >= 0", m.HealthyDeadline))
+	}
+
+	if m.MinHealthyTime > m.HealthyDeadline {
+		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime must be less than HealthyDeadline"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -2738,6 +2783,9 @@ type TaskGroup struct {
 
 	// Update is used to control the update strategy for this task group
 	Update *UpdateStrategy
+
+	// Migrate is used to control the migration strategy for this task group
+	Migrate *MigrateStrategy
 
 	// Constraints can be specified at a task group level and apply to
 	// all the tasks contained.
@@ -2881,6 +2929,20 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	// Validate the migration strategy
+	switch j.Type {
+	case JobTypeService:
+		if tg.Count == 1 && tg.Migrate != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should not have a migration strategy with a count = 1", tg.Name))
+		} else if err := tg.Migrate.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	default:
+		if tg.Migrate != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow migrate block", j.Type))
 		}
 	}
 
