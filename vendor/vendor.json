@@ -124,6 +124,7 @@
 		{"path":"github.com/hashicorp/consul-template/version","checksumSHA1":"NB5+D4AuCNV9Bsqh3YFdPi4AJ6U=","revision":"26d029ad37335b3827a9fde5569b2c5e10dcac8f","revisionTime":"2017-10-31T14:25:17Z"},
 		{"path":"github.com/hashicorp/consul-template/watch","checksumSHA1":"b4+Y+02pY2Y5620F9ALzKg8Zmdw=","revision":"26d029ad37335b3827a9fde5569b2c5e10dcac8f","revisionTime":"2017-10-31T14:25:17Z"},
 		{"path":"github.com/hashicorp/consul/agent/consul/autopilot","checksumSHA1":"/nyemJLkxBXKqI9xpLFyTyvOaYY=","revision":"bfeb09983befa337a3b2ebbafb7567913773e40b","revisionTime":"2018-01-23T20:52:17Z"},
+		{"path":"github.com/hashicorp/consul/agent/consul/autopilot_ent","checksumSHA1":"CQU6a7RQF/LgvfeyTCf9Z5Ti7nw=","revision":"543ee9c655b6b6e807ac371f2b8a70a223c15e99","revisionTime":"2018-01-26T01:07:28Z"},
 		{"path":"github.com/hashicorp/consul/api","checksumSHA1":"XLfcIX2qpRr0o26aFMjCOzvw6jo=","revision":"51ea240df8476e02215d53fbfad5838bf0d44d21","revisionTime":"2017-10-16T16:22:40Z"},
 		{"path":"github.com/hashicorp/consul/command/flags","checksumSHA1":"XTQIYV+DPUVRKpVp0+y/78bWH3I=","revision":"d08ab9fd199434e5220276356ecf9617cfec1eb2","revisionTime":"2017-12-18T20:26:35Z"},
 		{"path":"github.com/hashicorp/consul/lib","checksumSHA1":"HGljdtVaqi/e3DgIHymLRLfPYhw=","revision":"bcafded4e60982d0b71e730f0b8564d73cb1d715","revisionTime":"2017-10-31T16:39:15Z"},
