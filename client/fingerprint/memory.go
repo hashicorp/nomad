@@ -30,9 +30,10 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	}
 
 	if memInfo.Total > 0 {
-		resp.Attributes["memory.totalbytes"] = fmt.Sprintf("%d", memInfo.Total)
+		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", memInfo.Total))
 
-		resp.Resources.MemoryMB = int(memInfo.Total / 1024 / 1024)
+		res := resp.GetResources()
+		res.MemoryMB = int(memInfo.Total / 1024 / 1024)
 	}
 
 	return nil

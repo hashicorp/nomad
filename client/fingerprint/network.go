@@ -95,14 +95,15 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 		return err
 	}
 
-	resp.Resources.Networks = nwResources
+	res := resp.GetResources()
+	res.Networks = nwResources
 	for _, nwResource := range nwResources {
 		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
 	}
 
 	// Deprecated, setting the first IP as unique IP for the node
 	if len(nwResources) > 0 {
-		resp.Attributes["unique.network.ip-address"] = nwResources[0].IP
+		resp.AddAttribute("unique.network.ip-address", nwResources[0].IP)
 	}
 
 	return nil

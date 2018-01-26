@@ -15,15 +15,17 @@ func TestStorageFingerprint(t *testing.T) {
 
 	response := assertFingerprintOK(t, fp, node)
 
-	assertNodeAttributeContains(t, response.Attributes, "unique.storage.volume")
-	assertNodeAttributeContains(t, response.Attributes, "unique.storage.bytestotal")
-	assertNodeAttributeContains(t, response.Attributes, "unique.storage.bytesfree")
+	attributes := response.GetAttributes()
 
-	total, err := strconv.ParseInt(response.Attributes["unique.storage.bytestotal"], 10, 64)
+	assertNodeAttributeContains(t, attributes, "unique.storage.volume")
+	assertNodeAttributeContains(t, attributes, "unique.storage.bytestotal")
+	assertNodeAttributeContains(t, attributes, "unique.storage.bytesfree")
+
+	total, err := strconv.ParseInt(attributes["unique.storage.bytestotal"], 10, 64)
 	if err != nil {
 		t.Fatalf("Failed to parse unique.storage.bytestotal: %s", err)
 	}
-	free, err := strconv.ParseInt(response.Attributes["unique.storage.bytesfree"], 10, 64)
+	free, err := strconv.ParseInt(attributes["unique.storage.bytesfree"], 10, 64)
 	if err != nil {
 		t.Fatalf("Failed to parse unique.storage.bytesfree: %s", err)
 	}
@@ -32,10 +34,11 @@ func TestStorageFingerprint(t *testing.T) {
 		t.Fatalf("unique.storage.bytesfree %d is larger than unique.storage.bytestotal %d", free, total)
 	}
 
-	if response.Resources == nil {
+	resources := response.GetResources()
+	if resources == nil {
 		t.Fatalf("Node Resources was nil")
 	}
-	if response.Resources.DiskMB == 0 {
+	if resources.DiskMB == 0 {
 		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
 	}
 }

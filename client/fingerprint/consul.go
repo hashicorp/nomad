@@ -9,7 +9,6 @@ import (
 	consul "github.com/hashicorp/consul/api"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -60,35 +59,36 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	}
 
 	if s, ok := info["Config"]["Server"].(bool); ok {
-		resp.Attributes["consul.server"] = strconv.FormatBool(s)
+		resp.AddAttribute("consul.server", strconv.FormatBool(s))
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.server")
 	}
 	if v, ok := info["Config"]["Version"].(string); ok {
-		resp.Attributes["consul.version"] = v
+		resp.AddAttribute("consul.version", v)
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.version")
 	}
 	if r, ok := info["Config"]["Revision"].(string); ok {
-		resp.Attributes["consul.revision"] = r
+		resp.AddAttribute("consul.revision", r)
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.revision")
 	}
 	if n, ok := info["Config"]["NodeName"].(string); ok {
-		resp.Attributes["unique.consul.name"] = n
+		resp.AddAttribute("unique.consul.name", n)
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint unique.consul.name")
 	}
 	if d, ok := info["Config"]["Datacenter"].(string); ok {
-		resp.Attributes["consul.datacenter"] = d
+		resp.AddAttribute("consul.datacenter", d)
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.datacenter")
 	}
 
-	if resp.Attributes["consul.datacenter"] != "" || resp.Attributes["unique.consul.name"] != "" {
-		resp.Links["consul"] = fmt.Sprintf("%s.%s",
-			resp.Attributes["consul.datacenter"],
-			resp.Attributes["unique.consul.name"])
+	attributes := resp.GetAttributes()
+	if attributes["consul.datacenter"] != "" || attributes["unique.consul.name"] != "" {
+		resp.AddLink("consul", fmt.Sprintf("%s.%s",
+			attributes["consul.datacenter"],
+			attributes["unique.consul.name"]))
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: malformed Consul response prevented linking")
 	}
@@ -100,12 +100,6 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	}
 	f.lastState = consulAvailable
 	return nil
-}
-
-// clearConsulAttributes removes consul attributes and links from the passed
-// Node.
-func (f *ConsulFingerprint) clearConsulAttributes(n *structs.Node) {
-	delete(n.Links, "consul")
 }
 
 func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {

@@ -955,19 +955,14 @@ func (c *Client) fingerprint() error {
 		appliedFingerprints = append(appliedFingerprints, name)
 
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-
-		err = f.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err = f.Fingerprint(request, &response)
 		if err != nil {
 			return err
 		}
 
 		// add the diff found from each fingerprinter
-		c.updateNodeFromFingerprint(response)
+		c.updateNodeFromFingerprint(&response)
 
 		p, period := f.Periodic()
 		if p {
@@ -992,18 +987,13 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 		select {
 		case <-time.After(d):
 			request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-			response := &cstructs.FingerprintResponse{
-				Attributes: make(map[string]string, 0),
-				Links:      make(map[string]string, 0),
-				Resources:  &structs.Resources{},
-			}
-
-			err := f.Fingerprint(request, response)
+			var response cstructs.FingerprintResponse
+			err := f.Fingerprint(request, &response)
 
 			if err != nil {
 				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
 			} else {
-				c.updateNodeFromFingerprint(response)
+				c.updateNodeFromFingerprint(&response)
 			}
 
 		case <-c.shutdownCh:
@@ -1045,17 +1035,12 @@ func (c *Client) setupDrivers() error {
 		}
 
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-
-		if err := d.Fingerprint(request, response); err != nil {
+		var response cstructs.FingerprintResponse
+		if err := d.Fingerprint(request, &response); err != nil {
 			return err
 		}
 
-		c.updateNodeFromFingerprint(response)
+		c.updateNodeFromFingerprint(&response)
 
 		p, period := d.Periodic()
 		if p {
@@ -1077,7 +1062,7 @@ func (c *Client) setupDrivers() error {
 func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
-	for name, val := range response.Attributes {
+	for name, val := range response.GetAttributes() {
 		if val == "" {
 			delete(c.config.Node.Attributes, name)
 		} else {
@@ -1087,7 +1072,7 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 
 	// update node links and resources from the diff created from
 	// fingerprinting
-	for name, val := range response.Links {
+	for name, val := range response.GetLinks() {
 		if val == "" {
 			delete(c.config.Node.Links, name)
 		} else {
@@ -1095,7 +1080,7 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		}
 	}
 
-	c.config.Node.Resources.Merge(response.Resources)
+	c.config.Node.Resources.Merge(response.GetResources())
 }
 
 // retryIntv calculates a retry interval value given the base

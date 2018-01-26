@@ -52,18 +52,14 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Attributes["driver.java"] != "1" && javaLocated() {
+	attributes := response.GetAttributes()
+	if attributes["driver.java"] != "1" && javaLocated() {
 		if v, ok := osJavaDriverSupport[runtime.GOOS]; v && ok {
 			t.Fatalf("missing java driver")
 		} else {
@@ -71,7 +67,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
-		if response.Attributes[key] == "" {
+		if attributes[key] == "" {
 			t.Fatalf("missing driver key (%s)", key)
 		}
 	}

@@ -27,13 +27,13 @@ func (f *HostFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cs
 		return err
 	}
 
-	resp.Attributes["os.name"] = hostInfo.Platform
-	resp.Attributes["os.version"] = hostInfo.PlatformVersion
+	resp.AddAttribute("os.name", hostInfo.Platform)
+	resp.AddAttribute("os.version", hostInfo.PlatformVersion)
 
-	resp.Attributes["kernel.name"] = runtime.GOOS
-	resp.Attributes["kernel.version"] = hostInfo.KernelVersion
+	resp.AddAttribute("kernel.name", runtime.GOOS)
+	resp.AddAttribute("kernel.version", hostInfo.KernelVersion)
 
-	resp.Attributes["unique.hostname"] = hostInfo.Hostname
+	resp.AddAttribute("unique.hostname", hostInfo.Hostname)
 
 	return nil
 }

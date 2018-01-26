@@ -31,7 +31,7 @@ func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	if d.fingerprintSuccess == nil || !*d.fingerprintSuccess {
 		d.logger.Printf("[DEBUG] driver.exec: exec driver is enabled")
 	}
-	resp.Attributes[execDriverAttr] = "1"
+	resp.AddAttribute(execDriverAttr, "1")
 	d.fingerprintSuccess = helper.BoolToPtr(true)
 	return nil
 }

@@ -191,34 +191,32 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 	cfg := &config.Config{NetworkSpeed: 101}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(response.Attributes) == 0 {
+
+	attributes := response.GetAttributes()
+	if len(attributes) == 0 {
 		t.Fatalf("should apply (HINT: working offline? Set env %q=y", skipOnlineTestsEnvVar)
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+	assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
 
-	ip := response.Attributes["unique.network.ip-address"]
+	ip := attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	resources := response.GetResources()
+	if resources == nil || len(resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -241,19 +239,14 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth0"}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err == nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.Attributes) != 0 {
-		t.Fatalf("attributes should be zero but instead are: %v", response.Attributes)
+	if len(response.GetAttributes()) != 0 {
+		t.Fatalf("attributes should be zero but instead are: %v", response.GetAttributes())
 	}
 }
 
@@ -265,33 +258,32 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(response.Attributes) == 0 {
+
+	attributes := response.GetAttributes()
+	if len(attributes) == 0 {
 		t.Fatalf("should apply")
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+	assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
 
-	ip := response.Attributes["unique.network.ip-address"]
+	ip := attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	resources := response.GetResources()
+	if len(resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -314,30 +306,28 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth3"}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+	attributes := response.GetAttributes()
+	assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
 
-	ip := response.Attributes["unique.network.ip-address"]
+	ip := attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	resources := response.GetResources()
+	if resources == nil || len(resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -360,33 +350,32 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth4"}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(response.Attributes) == 0 {
-		t.Fatalf("should apply")
+
+	attributes := response.GetAttributes()
+	if len(attributes) == 0 {
+		t.Fatalf("should apply attributes")
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+	assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
 
-	ip := response.Attributes["unique.network.ip-address"]
+	ip := attributes["unique.network.ip-address"]
 	match := net.ParseIP(ip)
 	if match == nil {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	resources := response.GetResources()
+	if resources == nil || len(resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -418,16 +407,12 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(response.Attributes) != 0 {
-		t.Fatalf("should not apply")
+	if len(response.GetAttributes()) != 0 {
+		t.Fatalf("should not apply attributes")
 	}
 }

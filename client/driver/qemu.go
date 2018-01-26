@@ -173,8 +173,8 @@ func (d *QemuDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	}
 	currentQemuVersion := matches[1]
 
-	resp.Attributes[qemuDriverAttr] = "1"
-	resp.Attributes[qemuDriverVersionAttr] = currentQemuVersion
+	resp.AddAttribute(qemuDriverAttr, "1")
+	resp.AddAttribute(qemuDriverVersionAttr, currentQemuVersion)
 
 	return nil
 }

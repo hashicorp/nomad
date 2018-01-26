@@ -15,18 +15,11 @@ func TestArchFingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Attributes["cpu.arch"] == "" {
-		t.Fatalf("missing arch")
-	}
+	assertNodeAttributeContains(t, response.GetAttributes(), "cpu.arch")
 }

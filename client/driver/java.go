@@ -117,7 +117,6 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.java: root privileges and mounted cgroups required on linux, disabling")
 		}
-		resp.Attributes[javaDriverAttr] = ""
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return nil
 	}
@@ -131,7 +130,6 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	err := cmd.Run()
 	if err != nil {
 		// assume Java wasn't found
-		resp.Attributes[javaDriverAttr] = ""
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return nil
 	}
@@ -151,7 +149,6 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
 		}
-		resp.Attributes[javaDriverAttr] = ""
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		return nil
 	}
@@ -165,10 +162,10 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	versionString := info[0]
 	versionString = strings.TrimPrefix(versionString, "java version ")
 	versionString = strings.Trim(versionString, "\"")
-	resp.Attributes[javaDriverAttr] = "1"
-	resp.Attributes["driver.java.version"] = versionString
-	resp.Attributes["driver.java.runtime"] = info[1]
-	resp.Attributes["driver.java.vm"] = info[2]
+	resp.AddAttribute(javaDriverAttr, "1")
+	resp.AddAttribute("driver.java.version", versionString)
+	resp.AddAttribute("driver.java.runtime", info[1])
+	resp.AddAttribute("driver.java.vm", info[2])
 	d.fingerprintSuccess = helper.BoolToPtr(true)
 
 	return nil

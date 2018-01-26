@@ -194,7 +194,58 @@ type FingerprintRequest struct {
 }
 
 type FingerprintResponse struct {
-	Attributes map[string]string
-	Links      map[string]string
-	Resources  *structs.Resources
+	attributes map[string]string
+	links      map[string]string
+	resources  *structs.Resources
+}
+
+// AddAttribute adds the name and value for a node attribute to the fingerprint
+// response
+func (f *FingerprintResponse) AddAttribute(name, value string) {
+	// initialize attributes if it has not been already
+	if f.attributes == nil {
+		f.attributes = make(map[string]string, 0)
+	}
+
+	f.attributes[name] = value
+}
+
+// GetAttributes fetches the attributes for the fingerprint response
+func (f *FingerprintResponse) GetAttributes() map[string]string {
+	// initialize attributes if it has not been already
+	if f.attributes == nil {
+		f.attributes = make(map[string]string, 0)
+	}
+
+	return f.attributes
+}
+
+// AddLink adds a link entry to the fingerprint response
+func (f *FingerprintResponse) AddLink(name, value string) {
+	// initialize links if it has not been already
+	if f.links == nil {
+		f.links = make(map[string]string, 0)
+	}
+
+	f.links[name] = value
+}
+
+// GetLinks returns the links for the fingerprint response
+func (f *FingerprintResponse) GetLinks() map[string]string {
+	// initialize links if it has not been already
+	if f.links == nil {
+		f.links = make(map[string]string, 0)
+	}
+
+	return f.links
+}
+
+// GetResources returns the resources for a fingerprint response
+func (f *FingerprintResponse) GetResources() *structs.Resources {
+	// initialize resourcesif it has not been already
+	if f.resources == nil {
+		f.resources = &structs.Resources{}
+	}
+
+	return f.resources
 }

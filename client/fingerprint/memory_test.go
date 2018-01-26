@@ -15,22 +15,16 @@ func TestMemoryFingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
+	assertNodeAttributeContains(t, response.GetAttributes(), "memory.totalbytes")
 
-	if response.Resources == nil {
-		t.Fatalf("Node Resources was nil")
-	}
-	if response.Resources.MemoryMB == 0 {
+	res := response.GetResources()
+	if res.MemoryMB == 0 {
 		t.Errorf("Expected node.Resources.MemoryMB to be non-zero")
 	}
 

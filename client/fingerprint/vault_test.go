@@ -22,18 +22,15 @@ func TestVaultFingerprint(t *testing.T) {
 	conf.VaultConfig = tv.Config
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := fp.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "vault.accessible")
-	assertNodeAttributeContains(t, response.Attributes, "vault.version")
-	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
-	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
+	attributes := response.GetAttributes()
+	assertNodeAttributeContains(t, attributes, "vault.accessible")
+	assertNodeAttributeContains(t, attributes, "vault.version")
+	assertNodeAttributeContains(t, attributes, "vault.cluster_id")
+	assertNodeAttributeContains(t, attributes, "vault.cluster_name")
 }

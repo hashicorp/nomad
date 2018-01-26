@@ -15,36 +15,32 @@ func TestCPUFingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// CPU info
-	if response.Attributes["cpu.numcores"] == "" {
+	attributes := response.GetAttributes()
+	if attributes["cpu.numcores"] == "" {
 		t.Fatalf("Missing Num Cores")
 	}
-	if response.Attributes["cpu.modelname"] == "" {
+	if attributes["cpu.modelname"] == "" {
 		t.Fatalf("Missing Model Name")
 	}
 
-	if response.Attributes["cpu.frequency"] == "" {
+	if attributes["cpu.frequency"] == "" {
 		t.Fatalf("Missing CPU Frequency")
 	}
-	if response.Attributes["cpu.totalcompute"] == "" {
+	if attributes["cpu.totalcompute"] == "" {
 		t.Fatalf("Missing CPU Total Compute")
 	}
 
-	if response.Resources == nil || response.Resources.CPU == 0 {
+	resources := response.GetResources()
+	if resources.CPU == 0 {
 		t.Fatalf("Expected to find CPU Resources")
 	}
-
 }
 
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in
@@ -59,20 +55,18 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 
 	{
 		request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-		err := f.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if response.Resources.CPU == 0 {
+
+		resources := response.GetResources()
+		if resources.CPU == 0 {
 			t.Fatalf("expected fingerprint of cpu of but found 0")
 		}
 
-		originalCPU = response.Resources.CPU
+		originalCPU = resources.CPU
 	}
 
 	{
@@ -81,18 +75,15 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 
 		// Make sure the Fingerprinter applies the override to the node resources
 		request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-		err := f.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
-		if response.Resources.CPU != cfg.CpuCompute {
-			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
+		resources := response.GetResources()
+		if resources.CPU != cfg.CpuCompute {
+			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, resources.CPU)
 		}
 	}
 }

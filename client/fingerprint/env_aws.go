@@ -131,12 +131,12 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 			key = structs.UniqueNamespace(key)
 		}
 
-		response.Attributes[key] = strings.Trim(string(resp), "\n")
+		response.AddAttribute(key, strings.Trim(string(resp), "\n"))
 	}
 
 	// copy over network specific information
-	if val := response.Attributes["unique.platform.aws.local-ipv4"]; val != "" {
-		response.Attributes["unique.network.ip-address"] = val
+	if val := response.GetAttributes()["unique.platform.aws.local-ipv4"]; val != "" {
+		response.AddAttribute("unique.network.ip-address", val)
 		newNetwork.IP = val
 		newNetwork.CIDR = newNetwork.IP + "/32"
 	}
@@ -165,12 +165,14 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 	}
 
 	newNetwork.MBits = throughput
-	response.Resources.Networks = []*structs.NetworkResource{newNetwork}
+	res := response.GetResources()
+	res.Networks = []*structs.NetworkResource{newNetwork}
 
 	// populate Links
-	response.Links["aws.ec2"] = fmt.Sprintf("%s.%s",
-		response.Attributes["platform.aws.placement.availability-zone"],
-		response.Attributes["unique.platform.aws.instance-id"])
+	attributes := response.GetAttributes()
+	response.AddLink("aws.ec2", fmt.Sprintf("%s.%s",
+		attributes["platform.aws.placement.availability-zone"],
+		attributes["unique.platform.aws.instance-id"]))
 
 	return nil
 }

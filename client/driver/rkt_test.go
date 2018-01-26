@@ -60,24 +60,20 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Attributes["driver.rkt"] != "1" {
+	attributes := response.GetAttributes()
+	if attributes["driver.rkt"] != "1" {
 		t.Fatalf("Missing Rkt driver")
 	}
-	if response.Attributes["driver.rkt.version"] == "" {
+	if attributes["driver.rkt.version"] == "" {
 		t.Fatalf("Missing Rkt driver version")
 	}
-	if response.Attributes["driver.rkt.appc.version"] == "" {
+	if attributes["driver.rkt.appc.version"] == "" {
 		t.Fatalf("Missing appc version for the Rkt driver")
 	}
 }

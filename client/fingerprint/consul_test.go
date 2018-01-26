@@ -29,24 +29,21 @@ func TestConsulFingerprint(t *testing.T) {
 	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := fp.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "consul.server")
-	assertNodeAttributeContains(t, response.Attributes, "consul.version")
-	assertNodeAttributeContains(t, response.Attributes, "consul.revision")
-	assertNodeAttributeContains(t, response.Attributes, "unique.consul.name")
-	assertNodeAttributeContains(t, response.Attributes, "consul.datacenter")
+	attributes := response.GetAttributes()
+	assertNodeAttributeContains(t, attributes, "consul.server")
+	assertNodeAttributeContains(t, attributes, "consul.version")
+	assertNodeAttributeContains(t, attributes, "consul.revision")
+	assertNodeAttributeContains(t, attributes, "unique.consul.name")
+	assertNodeAttributeContains(t, attributes, "consul.datacenter")
 
-	if _, ok := response.Links["consul"]; !ok {
+	links := response.GetLinks()
+	if _, ok := links["consul"]; !ok {
 		t.Errorf("Expected a link to consul, none found")
 	}
 }
@@ -186,13 +183,8 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := fp.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	assert.Nil(err)
 
 	attrs := []string{
@@ -202,8 +194,10 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 		"unique.consul.name",
 		"consul.datacenter",
 	}
+
+	returnedAttrs := response.GetAttributes()
 	for _, attr := range attrs {
-		if v, ok := response.Attributes[attr]; ok {
+		if v, ok := returnedAttrs[attr]; ok {
 			t.Errorf("unexpected node attribute %q with vlaue %q", attr, v)
 		}
 	}

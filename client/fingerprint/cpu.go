@@ -22,8 +22,9 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 
 func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	cfg := req.Config
-	setResources := func(totalCompute int) {
-		resp.Resources.CPU = totalCompute
+	setResourcesCPU := func(totalCompute int) {
+		resources := resp.GetResources()
+		resources.CPU = totalCompute
 	}
 
 	if err := stats.Init(); err != nil {
@@ -31,21 +32,21 @@ func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cst
 	}
 
 	if cfg.CpuCompute != 0 {
-		setResources(cfg.CpuCompute)
+		setResourcesCPU(cfg.CpuCompute)
 		return nil
 	}
 
 	if modelName := stats.CPUModelName(); modelName != "" {
-		resp.Attributes["cpu.modelname"] = modelName
+		resp.AddAttribute("cpu.modelname", modelName)
 	}
 
 	if mhz := stats.CPUMHzPerCore(); mhz > 0 {
-		resp.Attributes["cpu.frequency"] = fmt.Sprintf("%.0f", mhz)
+		resp.AddAttribute("cpu.frequency", fmt.Sprintf("%.0f", mhz))
 		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
 	}
 
 	if numCores := stats.CPUNumCores(); numCores > 0 {
-		resp.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
+		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
 		f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
 	}
 
@@ -63,8 +64,8 @@ func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cst
 			"cpu_total_compute")
 	}
 
-	resp.Attributes["cpu.totalcompute"] = fmt.Sprintf("%d", tt)
-	resp.Resources.CPU = tt
+	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
+	setResourcesCPU(tt)
 
 	return nil
 }

@@ -20,6 +20,6 @@ func NewArchFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *ArchFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
-	resp.Attributes["cpu.arch"] = runtime.GOARCH
+	resp.AddAttribute("cpu.arch", runtime.GOARCH)
 	return nil
 }

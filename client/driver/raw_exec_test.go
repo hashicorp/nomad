@@ -36,29 +36,24 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	cfg := &config.Config{Options: map[string]string{rawExecConfigOption: "false"}}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Attributes["driver.raw_exec"] != "" {
+	if response.GetAttributes()["driver.raw_exec"] != "" {
 		t.Fatalf("driver incorrectly enabled")
 	}
 
 	// Enable raw exec.
 	request.Config.Options[rawExecConfigOption] = "true"
-	err = d.Fingerprint(request, response)
+	err = d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Attributes["driver.raw_exec"] != "1" {
+	if response.GetAttributes()["driver.raw_exec"] != "1" {
 		t.Fatalf("driver not enabled")
 	}
 }

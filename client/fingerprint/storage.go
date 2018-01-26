@@ -26,11 +26,6 @@ func NewStorageFingerprint(logger *log.Logger) Fingerprint {
 func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	cfg := req.Config
 
-	// Initialize these to empty defaults
-	resp.Attributes["unique.storage.volume"] = ""
-	resp.Attributes["unique.storage.bytestotal"] = ""
-	resp.Attributes["unique.storage.bytesfree"] = ""
-
 	// Guard against unset AllocDir
 	storageDir := cfg.AllocDir
 	if storageDir == "" {
@@ -46,11 +41,13 @@ func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 		return fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
 	}
 
-	resp.Attributes["unique.storage.volume"] = volume
-	resp.Attributes["unique.storage.bytestotal"] = strconv.FormatUint(total, 10)
-	resp.Attributes["unique.storage.bytesfree"] = strconv.FormatUint(free, 10)
+	resp.AddAttribute("unique.storage.volume", volume)
+	resp.AddAttribute("unique.storage.bytestotal", strconv.FormatUint(total, 10))
+	resp.AddAttribute("unique.storage.bytesfree", strconv.FormatUint(free, 10))
 
-	resp.Resources.DiskMB = int(free / bytesPerMegabyte)
+	// set the disk size for the response
+	res := resp.GetResources()
+	res.DiskMB = int(free / bytesPerMegabyte)
 
 	return nil
 }

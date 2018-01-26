@@ -27,6 +27,6 @@ func (f *SignalFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		sigs = append(sigs, signal)
 	}
 
-	resp.Attributes["os.signals"] = strings.Join(sigs, ",")
+	resp.AddAttribute("os.signals", strings.Join(sigs, ","))
 	return nil
 }

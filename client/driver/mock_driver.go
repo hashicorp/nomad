@@ -194,7 +194,7 @@ func (m *MockDriver) Validate(map[string]interface{}) error {
 
 // Fingerprint fingerprints a node and returns if MockDriver is enabled
 func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
-	resp.Attributes["driver.mock_driver"] = "1"
+	resp.AddAttribute("driver.mock_driver", "1")
 	return nil
 }
 

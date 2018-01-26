@@ -21,18 +21,13 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.Attributes) > 0 {
+	if len(response.GetAttributes()) > 0 {
 		t.Fatalf("Should not apply")
 	}
 }
@@ -60,13 +55,8 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -85,16 +75,16 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 
 	for _, k := range keys {
-		assertNodeAttributeContains(t, response.Attributes, k)
+		assertNodeAttributeContains(t, response.GetAttributes(), k)
 	}
 
-	if len(response.Links) == 0 {
+	if len(response.GetLinks()) == 0 {
 		t.Fatalf("Empty links for Node in AWS Fingerprint test")
 	}
 
 	// confirm we have at least instance-id and ami-id
 	for _, k := range []string{"aws.ec2"} {
-		assertNodeLinksContains(t, response.Links, k)
+		assertNodeLinksContains(t, response.GetLinks(), k)
 	}
 }
 
@@ -183,25 +173,21 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+	assertNodeAttributeContains(t, response.GetAttributes(), "unique.network.ip-address")
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	res := response.GetResources()
+	if len(res.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := res.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to have an IP")
 	}
@@ -238,25 +224,21 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 		}
 
 		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-
-		err := f.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
-		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+		assertNodeAttributeContains(t, response.GetAttributes(), "unique.network.ip-address")
 
-		if response.Resources == nil || len(response.Resources.Networks) == 0 {
+		res := response.GetResources()
+		if len(res.Networks) == 0 {
 			t.Fatal("Expected to find Network Resources")
 		}
 
 		// Test at least the first Network Resource
-		net := response.Resources.Networks[0]
+		net := res.Networks[0]
 		if net.IP == "" {
 			t.Fatal("Expected Network Resource to have an IP")
 		}
@@ -282,24 +264,21 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 		}
 
 		request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-		err := f.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
-		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+		assertNodeAttributeContains(t, response.GetAttributes(), "unique.network.ip-address")
 
-		if response.Resources == nil || len(response.Resources.Networks) == 0 {
+		res := response.GetResources()
+		if len(res.Networks) == 0 {
 			t.Fatal("Expected to find Network Resources")
 		}
 
 		// Test at least the first Network Resource
-		net := response.Resources.Networks[0]
+		net := res.Networks[0]
 		if net.IP == "" {
 			t.Fatal("Expected Network Resource to have an IP")
 		}
@@ -323,18 +302,13 @@ func TestNetworkFingerprint_notAWS(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.Attributes) > 0 {
+	if len(response.GetAttributes()) > 0 {
 		t.Fatalf("Should not apply")
 	}
 }

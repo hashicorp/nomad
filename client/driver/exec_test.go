@@ -40,17 +40,12 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if response.Attributes["driver.exec"] == "" {
+	if response.GetAttributes()["driver.exec"] == "" {
 		t.Fatalf("missing driver")
 	}
 }

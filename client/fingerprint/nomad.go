@@ -19,7 +19,7 @@ func NewNomadFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *NomadFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
-	resp.Attributes["nomad.version"] = req.Config.Version.VersionNumber()
-	resp.Attributes["nomad.revision"] = req.Config.Version.Revision
+	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
+	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
 	return nil
 }

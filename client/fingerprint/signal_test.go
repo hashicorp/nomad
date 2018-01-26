@@ -13,5 +13,5 @@ func TestSignalFingerprint(t *testing.T) {
 	}
 
 	response := assertFingerprintOK(t, fp, node)
-	assertNodeAttributeContains(t, response.Attributes, "os.signals")
+	assertNodeAttributeContains(t, response.GetAttributes(), "os.signals")
 }

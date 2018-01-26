@@ -497,17 +497,17 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 		return nil
 	}
 
-	resp.Attributes[dockerDriverAttr] = "1"
-	resp.Attributes["driver.docker.version"] = env.Get("Version")
+	resp.AddAttribute(dockerDriverAttr, "1")
+	resp.AddAttribute("driver.docker.version", env.Get("Version"))
 
 	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
 	if privileged {
-		resp.Attributes[dockerPrivilegedConfigOption] = "1"
+		resp.AddAttribute(dockerPrivilegedConfigOption, "1")
 	}
 
 	// Advertise if this node supports Docker volumes
 	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
-		resp.Attributes["driver."+dockerVolumesConfigOption] = "1"
+		resp.AddAttribute("driver."+dockerVolumesConfigOption, "1")
 	}
 
 	// Detect bridge IP address - #2785
@@ -525,7 +525,7 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 			}
 
 			if n.IPAM.Config[0].Gateway != "" {
-				resp.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+				resp.AddAttribute("driver.docker.bridge_ip", n.IPAM.Config[0].Gateway)
 			} else if d.fingerprintSuccess == nil {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648

@@ -45,13 +45,6 @@ func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-// clearCGroupAttributes clears any node attributes related to cgroups that might
-// have been set in a previous fingerprint run.
-func (f *CGroupFingerprint) clearCGroupAttributes(n map[string]string) map[string]string {
-	n["unique.cgroup.mountpoint"] = ""
-	return n
-}
-
 // Periodic determines the interval at which the periodic fingerprinter will run.
 func (f *CGroupFingerprint) Periodic() (bool, time.Duration) {
 	return true, interval * time.Second

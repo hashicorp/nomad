@@ -173,26 +173,22 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if testutil.DockerIsConnected(t) && response.Attributes["driver.docker"] == "" {
+	attributes := response.GetAttributes()
+	if testutil.DockerIsConnected(t) && attributes["driver.docker"] == "" {
 		t.Fatalf("Fingerprinter should detect when docker is available")
 	}
 
-	if response.Attributes["driver.docker"] != "1" {
+	if attributes["driver.docker"] != "1" {
 		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
 	}
 
-	t.Logf("Found docker version %s", response.Attributes["driver.docker.version"])
+	t.Logf("Found docker version %s", attributes["driver.docker.version"])
 }
 
 // TestDockerDriver_Fingerprint_Bridge asserts that if Docker is running we set
@@ -223,24 +219,21 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: conf.Node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err = dd.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err = dd.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("error fingerprinting docker: %v", err)
 	}
-	if response.Attributes["driver.docker"] == "" {
+
+	attributes := response.GetAttributes()
+	if attributes["driver.docker"] == "" {
 		t.Fatalf("expected Docker to be enabled but false was returned")
 	}
 
-	if found := response.Attributes["driver.docker.bridge_ip"]; found != expectedAddr {
+	if found := attributes["driver.docker.bridge_ip"]; found != expectedAddr {
 		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
 	}
-	t.Logf("docker bridge ip: %q", response.Attributes["driver.docker.bridge_ip"])
+	t.Logf("docker bridge ip: %q", attributes["driver.docker.bridge_ip"])
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {

@@ -15,22 +15,19 @@ func TestHostFingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.Attributes) == 0 {
+	attributes := response.GetAttributes()
+	if len(attributes) == 0 {
 		t.Fatalf("should generate a diff of node attributes")
 	}
 
 	// Host info
 	for _, key := range []string{"os.name", "os.version", "unique.hostname", "kernel.name"} {
-		assertNodeAttributeContains(t, response.Attributes, key)
+		assertNodeAttributeContains(t, attributes, key)
 	}
 }

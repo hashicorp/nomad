@@ -60,12 +60,12 @@ func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *c
 		return nil
 	}
 
-	resp.Attributes["vault.accessible"] = strconv.FormatBool(true)
+	resp.AddAttribute("vault.accessible", strconv.FormatBool(true))
 	// We strip the Vault prefix because < 0.6.2 the version looks like:
 	// status.Version = "Vault v0.6.1"
-	resp.Attributes["vault.version"] = strings.TrimPrefix(status.Version, "Vault ")
-	resp.Attributes["vault.cluster_id"] = status.ClusterID
-	resp.Attributes["vault.cluster_name"] = status.ClusterName
+	resp.AddAttribute("vault.version", strings.TrimPrefix(status.Version, "Vault "))
+	resp.AddAttribute("vault.cluster_id", status.ClusterID)
+	resp.AddAttribute("vault.cluster_name", status.ClusterName)
 
 	// If Vault was previously unavailable print a message to indicate the Agent
 	// is available now

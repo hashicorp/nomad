@@ -18,22 +18,17 @@ func testLogger() *log.Logger {
 
 func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *cstructs.FingerprintResponse {
 	request := &cstructs.FingerprintRequest{Config: new(config.Config), Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := fp.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
 
-	if len(response.Attributes) == 0 {
+	if len(response.GetAttributes()) == 0 {
 		t.Fatalf("Failed to apply node attributes")
 	}
 
-	return response
+	return &response
 }
 
 func assertNodeAttributeContains(t *testing.T, nodeAttributes map[string]string, attribute string) {

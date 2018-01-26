@@ -30,15 +30,11 @@ func FindCgroupMountpointDir() (string, error) {
 func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	mount, err := f.mountPointDetector.MountPoint()
 	if err != nil {
-		resp.Attributes = f.clearCGroupAttributes(resp.Attributes)
 		return fmt.Errorf("Failed to discover cgroup mount point: %s", err)
 	}
 
 	// Check if a cgroup mount point was found
 	if mount == "" {
-		// Clear any attributes from the previous fingerprint.
-		resp.Attributes = f.clearCGroupAttributes(resp.Attributes)
-
 		if f.lastState == cgroupAvailable {
 			f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are unavailable")
 		}
@@ -46,7 +42,7 @@ func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		return nil
 	}
 
-	resp.Attributes["unique.cgroup.mountpoint"] = mount
+	resp.AddAttribute("unique.cgroup.mountpoint", mount)
 
 	if f.lastState == cgroupUnavailable {
 		f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are available")

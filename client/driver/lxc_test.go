@@ -43,13 +43,8 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 	// test with an empty config
 	{
 		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-
-		err := d.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err := d.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -59,17 +54,12 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 	{
 		conf := &config.Config{Options: map[string]string{lxcConfigOption: "1"}}
 		request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-		response := &cstructs.FingerprintResponse{
-			Attributes: make(map[string]string, 0),
-			Links:      make(map[string]string, 0),
-			Resources:  &structs.Resources{},
-		}
-
-		err := d.Fingerprint(request, response)
+		var response cstructs.FingerprintResponse
+		err := d.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if response.Attributes["driver.lxc"] == "" {
+		if response.GetAttributes()["driver.lxc"] == "" {
 			t.Fatalf("missing driver")
 		}
 	}

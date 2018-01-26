@@ -37,22 +37,19 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Attributes[qemuDriverAttr] == "" {
+	attributes := response.GetAttributes()
+
+	if attributes[qemuDriverAttr] == "" {
 		t.Fatalf("Missing Qemu driver")
 	}
 
-	if response.Attributes[qemuDriverVersionAttr] == "" {
+	if attributes[qemuDriverVersionAttr] == "" {
 		t.Fatalf("Missing Qemu driver version")
 	}
 }
@@ -173,17 +170,13 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	d := NewQemuDriver(ctx.DriverCtx)
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: ctx.DriverCtx.node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-	err := d.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	for name, value := range response.Attributes {
+	for name, value := range response.GetAttributes() {
 		ctx.DriverCtx.node.Attributes[name] = value
 	}
 

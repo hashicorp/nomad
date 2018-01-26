@@ -165,7 +165,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}
-		resp.Attributes[key] = strings.Trim(value, "\n")
+		resp.AddAttribute(key, strings.Trim(value, "\n"))
 	}
 
 	// These keys need everything before the final slash removed to be usable.
@@ -183,7 +183,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}
-		resp.Attributes[key] = strings.Trim(lastToken(value), "\n")
+		resp.AddAttribute(key, strings.Trim(lastToken(value), "\n"))
 	}
 
 	// Get internal and external IPs (if they exist)
@@ -200,10 +200,10 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		for _, intf := range interfaces {
 			prefix := "platform.gce.network." + lastToken(intf.Network)
 			uniquePrefix := "unique." + prefix
-			resp.Attributes[prefix] = "true"
-			resp.Attributes[uniquePrefix+".ip"] = strings.Trim(intf.Ip, "\n")
+			resp.AddAttribute(prefix, "true")
+			resp.AddAttribute(uniquePrefix+".ip", strings.Trim(intf.Ip, "\n"))
 			for index, accessConfig := range intf.AccessConfigs {
-				resp.Attributes[uniquePrefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
+				resp.AddAttribute(uniquePrefix+".external-ip."+strconv.Itoa(index), accessConfig.ExternalIp)
 			}
 		}
 	}
@@ -229,7 +229,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 			key = fmt.Sprintf("%s%s", attr, tag)
 		}
 
-		resp.Attributes[key] = "true"
+		resp.AddAttribute(key, "true")
 	}
 
 	var attrDict map[string]string
@@ -253,11 +253,11 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 			key = fmt.Sprintf("%s%s", attr, k)
 		}
 
-		resp.Attributes[key] = strings.Trim(v, "\n")
+		resp.AddAttribute(key, strings.Trim(v, "\n"))
 	}
 
 	// populate Links
-	resp.Links["gce"] = resp.Attributes["unique.platform.gce.id"]
+	resp.AddLink("gce", resp.GetAttributes()["unique.platform.gce.id"])
 
 	return nil
 }

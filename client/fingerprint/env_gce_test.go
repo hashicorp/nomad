@@ -21,18 +21,13 @@ func TestGCEFingerprint_nonGCE(t *testing.T) {
 	}
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.Attributes) > 0 {
+	if len(response.GetAttributes()) > 0 {
 		t.Fatalf("Should have zero attributes without test server")
 	}
 }
@@ -85,13 +80,8 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	f := NewEnvGCEFingerprint(testLogger())
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	response := &cstructs.FingerprintResponse{
-		Attributes: make(map[string]string, 0),
-		Links:      make(map[string]string, 0),
-		Resources:  &structs.Resources{},
-	}
-
-	err := f.Fingerprint(request, response)
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -110,41 +100,44 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		"unique.platform.gce.attr.bar",
 	}
 
+	attributes := response.GetAttributes()
+	links := response.GetLinks()
+
 	for _, k := range keys {
-		assertNodeAttributeContains(t, response.Attributes, k)
+		assertNodeAttributeContains(t, attributes, k)
 	}
 
-	if len(response.Links) == 0 {
+	if len(links) == 0 {
 		t.Fatalf("Empty links for Node in GCE Fingerprint test")
 	}
 
 	// Make sure Links contains the GCE ID.
 	for _, k := range []string{"gce"} {
-		assertNodeLinksContains(t, response.Links, k)
+		assertNodeLinksContains(t, links, k)
 	}
 
-	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.id", "12345")
-	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.hostname", "instance-1.c.project.internal")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.zone", "us-central1-f")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.machine-type", "n1-standard-1")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.network.default", "true")
-	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.network.default.ip", "10.240.0.5")
+	assertNodeAttributeEquals(t, attributes, "unique.platform.gce.id", "12345")
+	assertNodeAttributeEquals(t, attributes, "unique.platform.gce.hostname", "instance-1.c.project.internal")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.zone", "us-central1-f")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.machine-type", "n1-standard-1")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.network.default", "true")
+	assertNodeAttributeEquals(t, attributes, "unique.platform.gce.network.default.ip", "10.240.0.5")
 	if withExternalIp {
-		assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.network.default.external-ip.0", "104.44.55.66")
-		assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.network.default.external-ip.1", "104.44.55.67")
-	} else if _, ok := response.Attributes["unique.platform.gce.network.default.external-ip.0"]; ok {
+		assertNodeAttributeEquals(t, attributes, "unique.platform.gce.network.default.external-ip.0", "104.44.55.66")
+		assertNodeAttributeEquals(t, attributes, "unique.platform.gce.network.default.external-ip.1", "104.44.55.67")
+	} else if _, ok := attributes["unique.platform.gce.network.default.external-ip.0"]; ok {
 		t.Fatal("unique.platform.gce.network.default.external-ip is set without an external IP")
 	}
 
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.automatic-restart", "TRUE")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.on-host-maintenance", "MIGRATE")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.cpu-platform", "Intel Ivy Bridge")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.tag.abc", "true")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.tag.def", "true")
-	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.tag.foo", "true")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.attr.ghi", "111")
-	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.attr.jkl", "222")
-	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.attr.bar", "333")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.scheduling.automatic-restart", "TRUE")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.scheduling.on-host-maintenance", "MIGRATE")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.cpu-platform", "Intel Ivy Bridge")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.tag.abc", "true")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.tag.def", "true")
+	assertNodeAttributeEquals(t, attributes, "unique.platform.gce.tag.foo", "true")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.attr.ghi", "111")
+	assertNodeAttributeEquals(t, attributes, "platform.gce.attr.jkl", "222")
+	assertNodeAttributeEquals(t, attributes, "unique.platform.gce.attr.bar", "333")
 }
 
 const GCE_routes = `
