@@ -1,4 +1,7 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { readOnly } from '@ember/object/computed';
+import { computed } from '@ember/object';
+import RSVP from 'rsvp';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
@@ -6,8 +9,6 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import PromiseObject from '../utils/classes/promise-object';
 import timeout from '../utils/timeout';
 import shortUUIDProperty from '../utils/properties/short-uuid';
-
-const { computed, RSVP, inject } = Ember;
 
 const STATUS_ORDER = {
   pending: 1,
@@ -18,7 +19,7 @@ const STATUS_ORDER = {
 };
 
 export default Model.extend({
-  token: inject.service(),
+  token: service(),
 
   shortId: shortUUIDProperty('id'),
   job: belongsTo('job'),
@@ -56,7 +57,7 @@ export default Model.extend({
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
   }),
 
-  memoryUsed: computed.readOnly('stats.ResourceUsage.MemoryStats.RSS'),
+  memoryUsed: readOnly('stats.ResourceUsage.MemoryStats.RSS'),
   cpuUsed: computed('stats.ResourceUsage.CpuStats.TotalTicks', function() {
     return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks') || 0);
   }),

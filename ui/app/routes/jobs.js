@@ -1,12 +1,12 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import { run } from '@ember/runloop';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
-const { Route, inject, run } = Ember;
-
 export default Route.extend(WithForbiddenState, {
-  system: inject.service(),
-  store: inject.service(),
+  system: service(),
+  store: service(),
 
   beforeModel() {
     return this.get('system.namespaces');

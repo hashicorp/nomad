@@ -102,9 +102,18 @@ Nomad binary in the `bin` and `$GOPATH/bin` folders:
 
 ```sh
 $ make dev
-...
-$ bin/nomad
-...
+```
+
+Optionally run Consul to enable service discovery and health checks:
+
+```sh
+$ sudo consul agent -dev
+```
+
+And finally start the nomad agent:
+
+```sh
+$ sudo bin/nomad agent -dev
 ```
 
 If the Nomad UI is desired in the development version, run `make dev-ui`. This will build the UI from source and compile it into the dev binary.

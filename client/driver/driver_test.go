@@ -24,13 +24,6 @@ var basicResources = &structs.Resources{
 	CPU:      250,
 	MemoryMB: 256,
 	DiskMB:   20,
-	Networks: []*structs.NetworkResource{
-		{
-			IP:            "0.0.0.0",
-			ReservedPorts: []structs.Port{{Label: "main", Value: 12345}},
-			DynamicPorts:  []structs.Port{{Label: "HTTP", Value: 43330}},
-		},
-	},
 }
 
 func init() {

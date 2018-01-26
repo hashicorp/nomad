@@ -1,8 +1,6 @@
-import Ember from 'ember';
+import { getOwner } from '@ember/application';
 import { moduleForModel } from 'ember-qunit';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-
-const { getOwner } = Ember;
 
 export default function(modelName, description, options = { needs: [] }) {
   // moduleForModel correctly wires up #Serializer.store,

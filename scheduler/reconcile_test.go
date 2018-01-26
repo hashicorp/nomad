@@ -43,7 +43,7 @@ Update stanza Tests:
 √  Stopped job cancels any active deployment
 √  Stopped job doesn't cancel terminal deployment
 √  JobIndex change cancels any active deployment
-√  JobIndex change doens't cancels any terminal deployment
+√  JobIndex change doesn't cancels any terminal deployment
 √  Destructive changes create deployment and get rolled out via max_parallelism
 √  Don't create a deployment if there are no changes
 √  Deployment created by all inplace updates

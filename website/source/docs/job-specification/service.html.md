@@ -74,12 +74,13 @@ does not automatically enable service discovery.
   define multiple checks for the service. At this time, Nomad supports the
   `script`<sup><small>1</small></sup>, `http` and `tcp` checks.
 
-- `name` `(string: "<job>-<group>-<task>")` - Specifies the name of this
-  service. If not supplied, this will default to the name of the job, group, and
-  task concatenated together with a dash, like `"docs-example-server"`. Each
-  service must have a unique name within the cluster. Names must adhere to
-  [RFC-1123 §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are limited
-  to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be less than 64
+- `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
+  will be advertised as in Consul.  If not supplied, this will default to the
+  name of the job, group, and task concatenated together with a dash, like
+  `"docs-example-server"`. Each service must have a unique name within the
+  cluster. Names must adhere to [RFC-1123
+  §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are limited to
+  alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be less than 64
   characters in length.
 
     In addition to the standard [Nomad interpolation][interpolation], the

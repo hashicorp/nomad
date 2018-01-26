@@ -1,9 +1,8 @@
-import Ember from 'ember';
-
-const { Route, inject } = Ember;
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
 
 export default Route.extend({
-  config: inject.service(),
+  config: service(),
 
   resetController(controller, isExiting) {
     if (isExiting) {

@@ -347,9 +347,10 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 	return list
 }
 
-// TLSConfig returns a TLSUtil Config based on the client configuration
+// TLSConfiguration returns a TLSUtil Config based on the existing client
+// configuration
 func (c *Config) TLSConfiguration() *tlsutil.Config {
-	tlsConf := &tlsutil.Config{
+	return &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
 		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
@@ -358,5 +359,4 @@ func (c *Config) TLSConfiguration() *tlsutil.Config {
 		KeyFile:              c.TLSConfig.KeyFile,
 		KeyLoader:            c.TLSConfig.GetKeyLoader(),
 	}
-	return tlsConf
 }

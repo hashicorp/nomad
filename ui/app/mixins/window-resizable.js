@@ -1,8 +1,8 @@
-import Ember from 'ember';
+import Mixin from '@ember/object/mixin';
+import { run } from '@ember/runloop';
+import $ from 'jquery';
 
-const { run, $ } = Ember;
-
-export default Ember.Mixin.create({
+export default Mixin.create({
   setupWindowResize: function() {
     run.scheduleOnce('afterRender', this, () => {
       this.set('_windowResizeHandler', this.get('windowResizeHandler').bind(this));

@@ -22,6 +22,13 @@ ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
 endif
 
+ifeq ($(TRAVIS),true)
+$(info Running in Travis, verbose mode is disabled)
+else
+VERBOSE="true"
+endif
+
+
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
 	linux_arm \
@@ -145,6 +152,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/jteeuwen/go-bindata/...
 	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/a8m/tree/cmd/tree
+	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -191,12 +199,21 @@ progenerate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 progenerate: ## Update generated code
 	@go generate -tags="pro" $(LOCAL_PACKAGES)
 
+vendorfmt:
+	@echo "--> Formatting vendor/vendor.json"
+	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+		vendorfmt
+changelogfmt:
+	@echo "--> Making [GH-xxxx] references clickable..."
+	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+
+
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
-dev: ## Build for the current development platform
+dev: vendorfmt changelogfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
@@ -256,8 +273,7 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@NOMAD_TEST_RKT=1 \
-		go test \
-			-v \
+		go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=900s \
 			-tags="nomad_test ent $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
@@ -309,8 +325,8 @@ static-assets: ## Compile the static routes to serve alongside the API
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
+	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
-	@cd ui && npm install phantomjs-prebuilt
 	@echo "--> Running ember tests"
 	@cd ui && phantomjs --version
 	@cd ui && npm test

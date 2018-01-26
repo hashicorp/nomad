@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -77,6 +78,7 @@ const (
 	ACLTokenUpsertRequestType
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
+	AutopilotRequestType
 )
 
 const (
@@ -290,14 +292,14 @@ type NodeUpdateStatusRequest struct {
 	WriteRequest
 }
 
-// NodeUpdateDrainRequest is used for updatin the drain status
+// NodeUpdateDrainRequest is used for updating the drain status
 type NodeUpdateDrainRequest struct {
 	NodeID string
 	Drain  bool
 	WriteRequest
 }
 
-// NodeEvaluateRequest is used to re-evaluate the ndoe
+// NodeEvaluateRequest is used to re-evaluate the node
 type NodeEvaluateRequest struct {
 	NodeID string
 	WriteRequest
@@ -1069,7 +1071,7 @@ type Node struct {
 
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
-	// conducting priviledged activities.
+	// conducting privileged activities.
 	SecretID string
 
 	// Datacenter for this node
@@ -1253,7 +1255,7 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      100,
+		CPU:      20,
 		MemoryMB: 10,
 		IOPS:     0,
 	}
@@ -2937,6 +2939,13 @@ func (sc *ServiceCheck) validate() error {
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
 		}
+		url, err := url.Parse(sc.Path)
+		if err != nil {
+			return fmt.Errorf("http type must have a valid http path")
+		}
+		if url.IsAbs() {
+			return fmt.Errorf("http type must have a relative http path")
+		}
 
 	case ServiceCheckScript:
 		if sc.Command == "" {
@@ -3635,7 +3644,7 @@ type Template struct {
 	DestPath string
 
 	// EmbeddedTmpl store the raw template. This is useful for smaller templates
-	// where they are embedded in the job file rather than sent as an artificat
+	// where they are embedded in the job file rather than sent as an artifact
 	EmbeddedTmpl string
 
 	// ChangeMode indicates what should be done if the template is re-rendered
@@ -3805,7 +3814,9 @@ func (ts *TaskState) Copy() *TaskState {
 	return copy
 }
 
-// Successful returns whether a task finished successfully.
+// Successful returns whether a task finished successfully. This doesn't really
+// have meaning on a non-batch allocation because a service and system
+// allocation should not finish.
 func (ts *TaskState) Successful() bool {
 	l := len(ts.Events)
 	if ts.State != TaskStateDead || l == 0 {
@@ -4899,6 +4910,9 @@ type Allocation struct {
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
 
+	// NextAllocation is the allocation that this allocation is being replaced by
+	NextAllocation string
+
 	// DeploymentID identifies an allocation as being created from a
 	// particular deployment
 	DeploymentID string
@@ -5011,9 +5025,25 @@ func (a *Allocation) Terminated() bool {
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all
-// tasks finished successfully
+// tasks finished successfully. Critically this function returns whether the
+// allocation has ran to completion and not just that the alloc has converged to
+// its desired state. That is to say that a batch allocation must have finished
+// with exit code 0 on all task groups. This doesn't really have meaning on a
+// non-batch allocation because a service and system allocation should not
+// finish.
 func (a *Allocation) RanSuccessfully() bool {
-	return a.ClientStatus == AllocClientStatusComplete
+	// Handle the case the client hasn't started the allocation.
+	if len(a.TaskStates) == 0 {
+		return false
+	}
+
+	// Check to see if all the tasks finised successfully in the allocation
+	allSuccess := true
+	for _, state := range a.TaskStates {
+		allSuccess = allSuccess && state.Successful()
+	}
+
+	return allSuccess
 }
 
 // ShouldMigrate returns if the allocation needs data migration
@@ -5328,7 +5358,7 @@ const (
 // potentially taking action (allocation of work) or doing nothing if the state
 // of the world does not require it.
 type Evaluation struct {
-	// ID is a randonly generated UUID used for this evaluation. This
+	// ID is a randomly generated UUID used for this evaluation. This
 	// is assigned upon the creation of the evaluation.
 	ID string
 

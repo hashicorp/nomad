@@ -1,11 +1,8 @@
-import Ember from 'ember';
 import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
 import ipParts from 'nomad-ui/utils/ip-parts';
-
-const { $ } = Ember;
 
 function minimumSetup() {
   server.createList('node', 1);
@@ -25,14 +22,15 @@ test('/clients should list one page of clients', function(assert) {
   visit('/clients');
 
   andThen(() => {
-    assert.equal(findAll('.client-node-row').length, pageSize);
-    assert.ok(findAll('.pagination').length, 'Pagination found on the page');
+    assert.equal(findAll('[data-test-client-node-row]').length, pageSize);
+    assert.ok(find('[data-test-pagination]'), 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
 
     for (var nodeNumber = 0; nodeNumber < pageSize; nodeNumber++) {
+      const nodeRow = findAll('[data-test-client-node-row]')[nodeNumber];
       assert.equal(
-        $(`.client-node-row:eq(${nodeNumber}) td:eq(0)`).text(),
+        nodeRow.querySelector('[data-test-client-id]').textContent.trim(),
         sortedNodes[nodeNumber].id.split('-')[0],
         'Clients are ordered'
       );
@@ -47,17 +45,41 @@ test('each client record should show high-level info of the client', function(as
   visit('/clients');
 
   andThen(() => {
-    const nodeRow = $(findAll('.client-node-row')[0]);
+    const nodeRow = find('[data-test-client-node-row]');
     const allocations = server.db.allocations.where({ nodeId: node.id });
     const { address, port } = ipParts(node.httpAddr);
 
-    assert.equal(nodeRow.find('td:eq(0)').text(), node.id.split('-')[0], 'ID');
-    assert.equal(nodeRow.find('td:eq(1)').text(), node.name, 'Name');
-    assert.equal(nodeRow.find('td:eq(2)').text(), node.status, 'Status');
-    assert.equal(nodeRow.find('td:eq(3)').text(), address, 'Address');
-    assert.equal(nodeRow.find('td:eq(4)').text(), port, 'Port');
-    assert.equal(nodeRow.find('td:eq(5)').text(), node.datacenter, 'Datacenter');
-    assert.equal(nodeRow.find('td:eq(6)').text(), allocations.length, '# Allocations');
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-id]').textContent.trim(),
+      node.id.split('-')[0],
+      'ID'
+    );
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-name]').textContent.trim(),
+      node.name,
+      'Name'
+    );
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-status]').textContent.trim(),
+      node.status,
+      'Status'
+    );
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-address]').textContent.trim(),
+      address,
+      'Address'
+    );
+    assert.equal(nodeRow.querySelector('[data-test-client-port]').textContent.trim(), port, 'Port');
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-datacenter]').textContent.trim(),
+      node.datacenter,
+      'Datacenter'
+    );
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-allocations]').textContent.trim(),
+      allocations.length,
+      '# Allocations'
+    );
   });
 });
 
@@ -67,7 +89,7 @@ test('each client should link to the client detail page', function(assert) {
 
   visit('/clients');
   andThen(() => {
-    click(findAll('.client-node-row')[0]);
+    click('[data-test-client-node-row]');
   });
 
   andThen(() => {
@@ -81,8 +103,8 @@ test('when there are no clients, there is an empty message', function(assert) {
   visit('/clients');
 
   andThen(() => {
-    assert.ok(find('.empty-message'));
-    assert.equal(find('.empty-message-headline').textContent, 'No Clients');
+    assert.ok(find('[data-test-empty-clients-list]'));
+    assert.equal(find('[data-test-empty-clients-list-headline]').textContent, 'No Clients');
   });
 });
 
@@ -99,8 +121,8 @@ test('when there are clients, but no matches for a search term, there is an empt
   });
 
   andThen(() => {
-    assert.ok(find('.empty-message'));
-    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
+    assert.ok(find('[data-test-empty-clients-list]'));
+    assert.equal(find('[data-test-empty-clients-list-headline]').textContent, 'No Matches');
   });
 });
 
@@ -114,11 +136,11 @@ test('when accessing clients is forbidden, show a message with a link to the tok
   visit('/clients');
 
   andThen(() => {
-    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+    assert.equal(find('[data-test-error-title]').textContent, 'Not Authorized');
   });
 
   andThen(() => {
-    click('.empty-message-body a');
+    click('[data-test-error-message] a');
   });
 
   andThen(() => {
@@ -138,7 +160,7 @@ test('/servers should list all servers', function(assert) {
   visit('/servers');
 
   andThen(() => {
-    assert.equal(findAll('.server-agent-row').length, pageSize);
+    assert.equal(findAll('[data-test-server-agent-row]').length, pageSize);
 
     const sortedAgents = server.db.agents
       .sort((a, b) => {
@@ -152,10 +174,11 @@ test('/servers should list all servers', function(assert) {
       .reverse();
 
     for (var agentNumber = 0; agentNumber < 8; agentNumber++) {
+      const serverRow = findAll('[data-test-server-agent-row]')[agentNumber];
       assert.equal(
-        $(`.server-agent-row:eq(${agentNumber}) td:eq(0)`).text(),
+        serverRow.querySelector('[data-test-server-name]').textContent.trim(),
         sortedAgents[agentNumber].name,
-        'Clients are ordered'
+        'Servers are ordered'
       );
     }
   });
@@ -168,14 +191,34 @@ test('each server should show high-level info of the server', function(assert) {
   visit('/servers');
 
   andThen(() => {
-    const agentRow = $(findAll('.server-agent-row')[0]);
+    const agentRow = find('[data-test-server-agent-row]');
 
-    assert.equal(agentRow.find('td:eq(0)').text(), agent.name, 'Name');
-    assert.equal(agentRow.find('td:eq(1)').text(), agent.status, 'Status');
-    assert.equal(agentRow.find('td:eq(2)').text(), 'True', 'Leader?');
-    assert.equal(agentRow.find('td:eq(3)').text(), agent.address, 'Address');
-    assert.equal(agentRow.find('td:eq(4)').text(), agent.serf_port, 'Serf Port');
-    assert.equal(agentRow.find('td:eq(5)').text(), agent.tags.dc, 'Datacenter');
+    assert.equal(agentRow.querySelector('[data-test-server-name]').textContent, agent.name, 'Name');
+    assert.equal(
+      agentRow.querySelector('[data-test-server-status]').textContent,
+      agent.status,
+      'Status'
+    );
+    assert.equal(
+      agentRow.querySelector('[data-test-server-is-leader]').textContent,
+      'True',
+      'Leader?'
+    );
+    assert.equal(
+      agentRow.querySelector('[data-test-server-address]').textContent,
+      agent.address,
+      'Address'
+    );
+    assert.equal(
+      agentRow.querySelector('[data-test-server-port]').textContent,
+      agent.serf_port,
+      'Serf Port'
+    );
+    assert.equal(
+      agentRow.querySelector('[data-test-server-datacenter]').textContent,
+      agent.tags.dc,
+      'Datacenter'
+    );
   });
 });
 
@@ -185,7 +228,7 @@ test('each server should link to the server detail page', function(assert) {
 
   visit('/servers');
   andThen(() => {
-    click(findAll('.server-agent-row')[0]);
+    click('[data-test-server-agent-row]');
   });
 
   andThen(() => {
@@ -202,11 +245,11 @@ test('when accessing servers is forbidden, show a message with a link to the tok
   visit('/servers');
 
   andThen(() => {
-    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+    assert.equal(find('[data-test-error-title]').textContent, 'Not Authorized');
   });
 
   andThen(() => {
-    click('.empty-message-body a');
+    click('[data-test-error-message] a');
   });
 
   andThen(() => {

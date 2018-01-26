@@ -1,6 +1,8 @@
 {{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb|}}
-    {{#link-to params=breadcrumb.args class="breadcrumb"}}{{breadcrumb.label}}{{/link-to}}
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to params=breadcrumb.args}}{{breadcrumb.label}}{{/link-to}}
+    </li>
   {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
@@ -8,7 +10,7 @@
   <section class="section">
     <div class="boxed-section">
       <div class="boxed-section-body is-dark">
-        {{json-viewer json=model.definition}}
+        {{json-viewer data-test-definition-view json=model.definition}}
       </div>
     </div>
   </section>

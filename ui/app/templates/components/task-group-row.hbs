@@ -1,12 +1,12 @@
-<td>
+<td data-test-task-group-name>
   {{#link-to "jobs.job.task-group" taskGroup.job taskGroup class="is-primary"}}
     {{taskGroup.name}}
   {{/link-to}}
 </td>
-<td>{{taskGroup.count}}</td>
-<td>
+<td data-test-task-group-count>{{taskGroup.count}}</td>
+<td data-test-task-group-allocs>
   <div class="inline-chart">{{allocation-status-bar allocationContainer=taskGroup.summary isNarrow=true}}</div>
 </td>
-<td>{{taskGroup.reservedCPU}} MHz</td>
-<td>{{taskGroup.reservedMemory}} MiB</td>
-<td>{{taskGroup.reservedEphemeralDisk}} MiB</td>
+<td data-test-task-group-cpu>{{taskGroup.reservedCPU}} MHz</td>
+<td data-test-task-group-mem>{{taskGroup.reservedMemory}} MiB</td>
+<td data-test-task-group-disk>{{taskGroup.reservedEphemeralDisk}} MiB</td>

@@ -1,12 +1,13 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { run } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import { logger } from 'nomad-ui/utils/classes/log';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 
-const { Component, computed, inject, run } = Ember;
-
 export default Component.extend(WindowResizable, {
-  token: inject.service(),
+  token: service(),
 
   classNames: ['boxed-section', 'task-log'],
 

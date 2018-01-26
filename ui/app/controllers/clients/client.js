@@ -1,8 +1,8 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import Controller from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
-
-const { Controller, computed } = Ember;
 
 export default Controller.extend(Sortable, Searchable, {
   queryParams: {
@@ -20,9 +20,9 @@ export default Controller.extend(Sortable, Searchable, {
 
   searchProps: computed(() => ['shortId', 'name']),
 
-  listToSort: computed.alias('model.allocations'),
-  listToSearch: computed.alias('listSorted'),
-  sortedAllocations: computed.alias('listSearched'),
+  listToSort: alias('model.allocations'),
+  listToSearch: alias('listSorted'),
+  sortedAllocations: alias('listSearched'),
 
   actions: {
     gotoAllocation(allocation) {

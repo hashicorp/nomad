@@ -91,6 +91,7 @@ type Allocation struct {
 	DeploymentID       string
 	DeploymentStatus   *AllocDeploymentStatus
 	PreviousAllocation string
+	NextAllocation     string
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	AllocModifyIndex   uint64

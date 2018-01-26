@@ -11,12 +11,14 @@ import (
 	"net/http/pprof"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/cors"
 	"github.com/ugorji/go/codec"
 )
@@ -47,11 +49,12 @@ var (
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
-	agent    *Agent
-	mux      *http.ServeMux
-	listener net.Listener
-	logger   *log.Logger
-	Addr     string
+	agent      *Agent
+	mux        *http.ServeMux
+	listener   net.Listener
+	listenerCh chan struct{}
+	logger     *log.Logger
+	Addr       string
 }
 
 // NewHTTPServer starts new HTTP server over the agent
@@ -89,11 +92,12 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// Create the server
 	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: ln,
-		logger:   agent.logger,
-		Addr:     ln.Addr().String(),
+		agent:      agent,
+		mux:        mux,
+		listener:   ln,
+		listenerCh: make(chan struct{}),
+		logger:     agent.logger,
+		Addr:       ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
 
@@ -103,7 +107,10 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		return nil, err
 	}
 
-	go http.Serve(ln, gzip(mux))
+	go func() {
+		defer close(srv.listenerCh)
+		http.Serve(ln, gzip(mux))
+	}()
 
 	return srv, nil
 }
@@ -130,6 +137,7 @@ func (s *HTTPServer) Shutdown() {
 	if s != nil {
 		s.logger.Printf("[DEBUG] http: Shutting down http server")
 		s.listener.Close()
+		<-s.listenerCh // block until http.Serve has returned.
 	}
 }
 
@@ -182,7 +190,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
 
-	s.mux.HandleFunc("/v1/operator/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
+	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
@@ -281,17 +291,22 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		if err != nil {
 			s.logger.Printf("[ERR] http: Request %v, error: %v", reqURL, err)
 			code := 500
+			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
 			} else {
-				switch err.Error() {
-				case structs.ErrPermissionDenied.Error(), structs.ErrTokenNotFound.Error():
+				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+					errMsg = structs.ErrPermissionDenied.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+					errMsg = structs.ErrTokenNotFound.Error()
 					code = 403
 				}
 			}
 
 			resp.WriteHeader(code)
-			resp.Write([]byte(err.Error()))
+			resp.Write([]byte(errMsg))
 			return
 		}
 
@@ -329,6 +344,24 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 func decodeBody(req *http.Request, out interface{}) error {
 	dec := json.NewDecoder(req.Body)
 	return dec.Decode(&out)
+}
+
+// decodeBodyFunc is used to decode a JSON request body invoking
+// a given callback function
+func decodeBodyFunc(req *http.Request, out interface{}, cb func(interface{}) error) error {
+	var raw interface{}
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&raw); err != nil {
+		return err
+	}
+
+	// Invoke the callback prior to decode
+	if cb != nil {
+		if err := cb(raw); err != nil {
+			return err
+		}
+	}
+	return mapstructure.Decode(raw, out)
 }
 
 // setIndex is used to set the index response header

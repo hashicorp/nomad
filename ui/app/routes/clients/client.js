@@ -1,10 +1,9 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-const { Route, inject } = Ember;
-
 export default Route.extend({
-  store: inject.service(),
+  store: service(),
 
   model() {
     return this._super(...arguments).catch(notifyError(this));

@@ -712,3 +712,47 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
 	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 }
+
+func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
+	assert := assert.New(t)
+
+	jobName := "exampleexample"
+
+	t.Parallel()
+	s1 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "foo"
+	})
+	defer s1.Shutdown()
+
+	s2 := testServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "bar"
+	})
+	defer s2.Shutdown()
+
+	testJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	job := registerAndVerifyJob(s1, t, jobName, 0)
+
+	req := &structs.SearchRequest{
+		Prefix:  "",
+		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "foo",
+			Namespace: job.Namespace,
+		},
+	}
+
+	codec := rpcClient(t, s2)
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+	assert.Equal(uint64(jobIndex), resp.Index)
+}

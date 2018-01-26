@@ -1,5 +1,7 @@
 {{#global-header class="page-header"}}
-  Clients
+  <li class="is-active">
+    {{#link-to "clients.index"}}Clients{{/link-to}}
+  </li>
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
@@ -30,11 +32,11 @@
             <th># Allocs</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            {{client-node-row node=row.model onClick=(action "gotoNode" row.model)}}
+            {{client-node-row data-test-client-node-row node=row.model onClick=(action "gotoNode" row.model)}}
           {{/t.body}}
         {{/list-table}}
         <div class="table-foot">
-          <nav class="pagination">
+          <nav class="pagination" data-test-pagination>
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedNodes.length}}
             </div>
@@ -44,14 +46,14 @@
           </nav>
         </div>
       {{else}}
-        <div class="empty-message">
+        <div class="empty-message" data-test-empty-clients-list>
           {{#if (eq nodes.length 0)}}
-            <h3 class="empty-message-headline">No Clients</h3>
+            <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Clients</h3>
             <p class="empty-message-body">
               The cluster currently has no client nodes.
             </p>
           {{else if searchTerm}}
-            <h3 class="empty-message-headline">No Matches</h3>
+            <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Matches</h3>
             <p class="empty-message-body">No clients match the term <strong>{{searchTerm}}</strong></p>
           {{/if}}
         </div>

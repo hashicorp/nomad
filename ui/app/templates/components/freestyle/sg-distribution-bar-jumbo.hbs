@@ -1,0 +1,25 @@
+{{#freestyle-usage "jumbo-distribution-bar"}}
+  {{#distribution-bar data=distributionBarData class="split-view" as |chart|}}
+    <ol class="legend">
+      {{#each chart.data as |datum index|}}
+        <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
+          <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+          <span class="value" data-test-legend-value="{{datum.className}}">{{datum.value}}</span>
+          <span class="label">
+            {{datum.label}}
+          </span>
+        </li>
+      {{/each}}
+    </ol>
+  {{/distribution-bar}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <div class="block">
+    A variation of the Distribution Bar component for when the distribution bar is the central component of the page. It's a larger format that requires no interaction to see the data labels and values.
+  </div>
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{json-viewer json=distributionBarData}}
+    </div>
+  </div>
+{{/freestyle-annotation}}
