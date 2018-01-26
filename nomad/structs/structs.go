@@ -115,6 +115,12 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace            = "default"
 	DefaultNamespaceDescription = "Default shared namespace"
+
+	// JitterFraction is a the limit to the amount of jitter we apply
+	// to a user specified MaxQueryTime. We divide the specified time by
+	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
+	// applied to RPCHoldTimeout.
+	JitterFraction = 16
 )
 
 // Context defines the scope in which a search for Nomad object operates, and

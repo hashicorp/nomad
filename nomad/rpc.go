@@ -31,12 +31,6 @@ const (
 	// if no time is specified. Previously we would wait the maxQueryTime.
 	defaultQueryTime = 300 * time.Second
 
-	// JitterFraction is a the limit to the amount of jitter we apply
-	// to a user specified MaxQueryTime. We divide the specified time by
-	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
-	// applied to RPCHoldTimeout.
-	JitterFraction = 16
-
 	// Warn if the Raft command is larger than this.
 	// If it's over 1MB something is probably being abusive.
 	raftWarnSize = 1024 * 1024
@@ -262,7 +256,7 @@ CHECK_LEADER:
 		firstCheck = time.Now()
 	}
 	if time.Now().Sub(firstCheck) < s.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(s.config.RPCHoldTimeout / JitterFraction)
+		jitter := lib.RandomStagger(s.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto CHECK_LEADER
@@ -415,7 +409,7 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	}
 
 	// Apply a small amount of jitter to the request
-	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / JitterFraction)
+	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
 
 	// Setup a query timeout
 	ctx, cancel = context.WithTimeout(context.Background(), opts.queryOpts.MaxQueryTime)
