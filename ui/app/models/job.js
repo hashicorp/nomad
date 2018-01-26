@@ -148,4 +148,10 @@ export default Model.extend({
 
     return classMap[this.get('status')] || 'is-dark';
   }),
+
+  payload: attr('string'),
+  decodedPayload: computed('payload', function() {
+    // Lazily decode the base64 encoded payload
+    return window.atob(this.get('payload') || '');
+  }),
 });
