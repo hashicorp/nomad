@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// placementResult is an allocation that must be placed. It potentionally has a
+// placementResult is an allocation that must be placed. It potentially has a
 // previous allocation attached to it that should be stopped only if the
 // paired placement is complete. This gives an atomic place/stop behavior to
 // prevent an impossible resource ask as part of a rolling update to wipe the
@@ -181,7 +181,7 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 	return from
 }
 
-// fitlerByTainted takes a set of tainted nodes and filters the allocation set
+// filterByTainted takes a set of tainted nodes and filters the allocation set
 // into three groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
@@ -296,7 +296,7 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	return bitmap
 }
 
-// RemoveHighest removes and returns the hightest n used names. The returned set
+// RemoveHighest removes and returns the highest n used names. The returned set
 // can be less than n if there aren't n names set in the index
 func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 	h := make(map[string]struct{}, n)

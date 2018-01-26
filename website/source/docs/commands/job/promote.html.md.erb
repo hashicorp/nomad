@@ -174,7 +174,7 @@ cee52788  6240eed6  web         0        run      running  07/25/17 18:37:08 UTC
 ee8f972e  6240eed6  web         0        run      running  07/25/17 18:37:08 UTC
 
 # Promote only the cache canaries
-$ nomad job promote example
+$ nomad job promote -group=cache example
 ==> Monitoring evaluation "37383564"
     Evaluation triggered by job "example"
     Evaluation within deployment: "a6b87a6c"

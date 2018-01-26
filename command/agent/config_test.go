@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -33,6 +35,7 @@ func TestConfig_Merge(t *testing.T) {
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
+		Autopilot:      &config.AutopilotConfig{},
 	}
 
 	c2 := &Config{
@@ -98,6 +101,7 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        1,
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
+			RaftProtocol:           1,
 			NumSchedulers:          1,
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
@@ -155,6 +159,15 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:     &falseValue,
 			ClientAutoJoin:     &falseValue,
 			ChecksUseAdvertise: &falseValue,
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &falseValue,
+			ServerStabilizationTime: 1 * time.Second,
+			LastContactThreshold:    1 * time.Second,
+			MaxTrailingLogs:         1,
+			RedundancyZoneTag:       "1",
+			DisableUpgradeMigration: &falseValue,
+			UpgradeVersionTag:       "1",
 		},
 	}
 
@@ -234,6 +247,7 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        2,
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
+			RaftProtocol:           2,
 			NumSchedulers:          2,
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
@@ -245,6 +259,7 @@ func TestConfig_Merge(t *testing.T) {
 			RetryJoin:              []string{"1.1.1.1"},
 			RetryInterval:          "10s",
 			retryInterval:          time.Second * 10,
+			NonVotingServer:        true,
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -307,6 +322,15 @@ func TestConfig_Merge(t *testing.T) {
 					Args: []string{"a", "b", "c"},
 				},
 			},
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &trueValue,
+			ServerStabilizationTime: 2 * time.Second,
+			LastContactThreshold:    2 * time.Second,
+			MaxTrailingLogs:         2,
+			RedundancyZoneTag:       "2",
+			DisableUpgradeMigration: &trueValue,
+			UpgradeVersionTag:       "2",
 		},
 	}
 
@@ -519,7 +543,8 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ln, err := config.Listener("tcp", "127.0.0.1", 24000)
+	ports := freeport.GetT(t, 2)
+	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -528,20 +553,22 @@ func TestConfig_Listener(t *testing.T) {
 	if net := ln.Addr().Network(); net != "tcp" {
 		t.Fatalf("expected tcp, got: %q", net)
 	}
-	if addr := ln.Addr().String(); addr != "127.0.0.1:24000" {
-		t.Fatalf("expected 127.0.0.1:4646, got: %q", addr)
+	want := fmt.Sprintf("127.0.0.1:%d", ports[0])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 
 	// Falls back to default bind address if non provided
 	config.BindAddr = "0.0.0.0"
-	ln, err = config.Listener("tcp4", "", 24000)
+	ln, err = config.Listener("tcp4", "", ports[1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	ln.Close()
 
-	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
-		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
+	want = fmt.Sprintf("0.0.0.0:%d", ports[1])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 }
 

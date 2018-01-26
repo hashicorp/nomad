@@ -43,6 +43,7 @@ func init() {
 		vaultAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		autopilotConfigTableSchema,
 	}...)
 }
 

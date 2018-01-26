@@ -14,6 +14,7 @@ export default function() {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
+  this.trackRequests = Ember.testing;
 
   this.get('/jobs', function({ jobs }, { queryParams }) {
     const json = this.serialize(jobs.all());

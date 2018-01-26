@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
-
-const { computed } = Ember;
 
 export default Model.extend({
   secret: attr('string'),
@@ -14,5 +12,5 @@ export default Model.extend({
   policies: hasMany('policy'),
   policyNames: attr(),
 
-  accessor: computed.alias('id'),
+  accessor: alias('id'),
 });

@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/hashstructure"
 	"github.com/shirou/gopsutil/host"
@@ -362,6 +363,34 @@ func (c *Client) init() error {
 
 	c.logger.Printf("[INFO] client: using alloc directory %v", c.config.AllocDir)
 	return nil
+}
+
+// reloadTLSConnections allows a client to reload its TLS configuration on the
+// fly
+func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
+	var tlsWrap tlsutil.RegionWrapper
+	if newConfig != nil && newConfig.EnableRPC {
+		tw, err := tlsutil.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
+		if err != nil {
+			return err
+		}
+		tlsWrap = tw
+	}
+
+	// Keep the client configuration up to date as we use configuration values to
+	// decide on what type of connections to accept
+	c.configLock.Lock()
+	c.config.TLSConfig = newConfig
+	c.configLock.Unlock()
+
+	c.connPool.ReloadTLS(tlsWrap)
+
+	return nil
+}
+
+// Reload allows a client to reload its configuration on the fly
+func (c *Client) Reload(newConfig *config.Config) error {
+	return c.reloadTLSConnections(newConfig.TLSConfig)
 }
 
 // Leave is used to prepare the client to leave the cluster

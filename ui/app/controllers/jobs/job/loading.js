@@ -1,8 +1,7 @@
-import Ember from 'ember';
-
-const { Controller, computed, inject } = Ember;
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
 
 export default Controller.extend({
-  jobController: inject.controller('jobs.job'),
-  breadcrumbs: computed.alias('jobController.breadcrumbs'),
+  jobController: controller('jobs.job'),
+  breadcrumbs: alias('jobController.breadcrumbs'),
 });

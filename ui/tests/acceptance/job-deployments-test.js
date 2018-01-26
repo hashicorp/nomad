@@ -1,10 +1,10 @@
+import { get } from '@ember/object';
+import $ from 'jquery';
 import { click, findAll, find, visit } from 'ember-native-dom-helpers';
-import Ember from 'ember';
 import { test } from 'qunit';
 import moment from 'moment';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
-const { get, $ } = Ember;
 const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
 let job;
@@ -33,7 +33,7 @@ test('/jobs/:id/deployments should list all job deployments', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
   andThen(() => {
     assert.ok(
-      findAll('.timeline-object').length,
+      findAll('[data-test-deployment]').length,
       deployments.length,
       'Each deployment gets a row in the timeline'
     );
@@ -51,17 +51,32 @@ test('each deployment mentions the deployment shortId, status, version, and time
       jobId: deployment.jobId,
       version: deployment.versionNumber,
     });
-    const deploymentRow = $(findAll('.timeline-object')[0]);
+    const deploymentRow = $(find('[data-test-deployment]'));
 
     assert.ok(deploymentRow.text().includes(deployment.id.split('-')[0]), 'Short ID');
-    assert.equal(deploymentRow.find('.tag').text(), deployment.status, 'Status');
+    assert.equal(
+      deploymentRow.find('[data-test-deployment-status]').text(),
+      deployment.status,
+      'Status'
+    );
     assert.ok(
-      deploymentRow.find('.tag').hasClass(classForStatus(deployment.status)),
+      deploymentRow
+        .find('[data-test-deployment-status]')
+        .hasClass(classForStatus(deployment.status)),
       'Status Class'
     );
-    assert.ok(deploymentRow.text().includes(deployment.versionNumber), 'Version #');
     assert.ok(
-      deploymentRow.text().includes(moment(version.submitTime / 1000000).fromNow()),
+      deploymentRow
+        .find('[data-test-deployment-version]')
+        .text()
+        .includes(deployment.versionNumber),
+      'Version #'
+    );
+    assert.ok(
+      deploymentRow
+        .find('[data-test-deployment-submit-time]')
+        .text()
+        .includes(moment(version.submitTime / 1000000).fromNow()),
       'Submit time ago'
     );
   });
@@ -90,9 +105,9 @@ test('when the deployment is running and needs promotion, the deployment item sa
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {
-    const deploymentRow = $(findAll('.timeline-object')[0]);
+    const deploymentRow = find('[data-test-deployment]');
     assert.ok(
-      deploymentRow.find('.badge:contains("Requires Promotion")').length,
+      deploymentRow.querySelector('[data-test-promotion-required]'),
       'Requires Promotion badge found'
     );
   });
@@ -104,14 +119,20 @@ test('each deployment item can be opened to show details', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {
-    deploymentRow = $(findAll('.timeline-object')[0]);
+    deploymentRow = find('[data-test-deployment]');
 
-    assert.ok(deploymentRow.find('.boxed-section-body').length === 0, 'No deployment body');
+    assert.notOk(
+      deploymentRow.querySelector('[data-test-deployment-details]'),
+      'No deployment body'
+    );
 
-    click(deploymentRow.find('button').get(0));
+    click(deploymentRow.querySelector('[data-test-deployment-toggle-details]'));
 
     andThen(() => {
-      assert.ok(deploymentRow.find('.boxed-section-body').length, 'Deployment body found');
+      assert.ok(
+        deploymentRow.querySelector('[data-test-deployment-details]'),
+        'Deployment body found'
+      );
     });
   });
 });
@@ -121,18 +142,16 @@ test('when open, a deployment shows the deployment metrics', function(assert) {
 
   andThen(() => {
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = $(findAll('.timeline-object')[0]);
+    const deploymentRow = find('[data-test-deployment]');
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
-    click(deploymentRow.find('button').get(0));
+    click(deploymentRow.querySelector('[data-test-deployment-toggle-details]'));
 
     andThen(() => {
       assert.equal(
-        $('.deployment-metrics .label:contains("Canaries") + .value')
-          .get(0)
-          .textContent.trim(),
+        find('[data-test-deployment-metric="canaries"]').textContent.trim(),
         `${sum(taskGroupSummaries, 'placedCanaries')} / ${sum(
           taskGroupSummaries,
           'desiredCanaries'
@@ -141,39 +160,31 @@ test('when open, a deployment shows the deployment metrics', function(assert) {
       );
 
       assert.equal(
-        $('.deployment-metrics .label:contains("Placed") + .value')
-          .get(0)
-          .textContent.trim(),
+        find('[data-test-deployment-metric="placed"]').textContent.trim(),
         sum(taskGroupSummaries, 'placedAllocs'),
         'Placed allocs aggregates across task groups'
       );
 
       assert.equal(
-        $('.deployment-metrics .label:contains("Desired") + .value')
-          .get(0)
-          .textContent.trim(),
+        find('[data-test-deployment-metric="desired"]').textContent.trim(),
         sum(taskGroupSummaries, 'desiredTotal'),
         'Desired allocs aggregates across task groups'
       );
 
       assert.equal(
-        $('.deployment-metrics .label:contains("Healthy") + .value')
-          .get(0)
-          .textContent.trim(),
+        find('[data-test-deployment-metric="healthy"]').textContent.trim(),
         sum(taskGroupSummaries, 'healthyAllocs'),
         'Healthy allocs aggregates across task groups'
       );
 
       assert.equal(
-        $('.deployment-metrics .label:contains("Unhealthy") + .value')
-          .get(0)
-          .textContent.trim(),
+        find('[data-test-deployment-metric="unhealthy"]').textContent.trim(),
         sum(taskGroupSummaries, 'unhealthyAllocs'),
         'Unhealthy allocs aggregates across task groups'
       );
 
       assert.equal(
-        find('.deployment-metrics .notification').textContent.trim(),
+        find('[data-test-deployment-notification]').textContent.trim(),
         deployment.statusDescription,
         'Status description is in the metrics block'
       );
@@ -188,85 +199,65 @@ test('when open, a deployment shows a list of all task groups and their respecti
 
   andThen(() => {
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = $(findAll('.timeline-object')[0]);
+    const deploymentRow = find('[data-test-deployment]');
     const taskGroupSummaries = deployment.deploymentTaskGroupSummaryIds.map(id =>
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
-    click(deploymentRow.find('button').get(0));
+    click(deploymentRow.querySelector('[data-test-deployment-toggle-details]'));
 
     andThen(() => {
-      assert.ok(
-        deploymentRow.find('.boxed-section-head:contains("Task Groups")').length,
-        'Task groups found'
-      );
+      const taskGroupTable = deploymentRow.querySelector('[data-test-deployment-task-groups]');
 
-      const taskGroupTable = deploymentRow.find(
-        '.boxed-section-head:contains("Task Groups") + .boxed-section-body tbody'
-      );
+      assert.ok(taskGroupTable, 'Task groups found');
 
       assert.equal(
-        taskGroupTable.find('tr').length,
+        taskGroupTable.querySelectorAll('[data-test-deployment-task-group]').length,
         taskGroupSummaries.length,
         'One row per task group'
       );
 
       const taskGroup = taskGroupSummaries[0];
-      const taskGroupRow = taskGroupTable.find('tr:eq(0)');
+      const taskGroupRow = taskGroupTable.querySelector('[data-test-deployment-task-group]');
 
       assert.equal(
-        taskGroupRow
-          .find('td:eq(0)')
-          .text()
-          .trim(),
+        taskGroupRow.querySelector('[data-test-deployment-task-group-name]').textContent.trim(),
         taskGroup.name,
         'Name'
       );
       assert.equal(
         taskGroupRow
-          .find('td:eq(1)')
-          .text()
-          .trim(),
+          .querySelector('[data-test-deployment-task-group-promotion]')
+          .textContent.trim(),
         promotionTestForTaskGroup(taskGroup),
         'Needs Promotion'
       );
       assert.equal(
         taskGroupRow
-          .find('td:eq(2)')
-          .text()
-          .trim(),
+          .querySelector('[data-test-deployment-task-group-auto-revert]')
+          .textContent.trim(),
         taskGroup.autoRevert ? 'Yes' : 'No',
         'Auto Revert'
       );
       assert.equal(
-        taskGroupRow
-          .find('td:eq(3)')
-          .text()
-          .trim(),
+        taskGroupRow.querySelector('[data-test-deployment-task-group-canaries]').textContent.trim(),
         `${taskGroup.placedCanaries} / ${taskGroup.desiredCanaries}`,
         'Canaries'
       );
       assert.equal(
-        taskGroupRow
-          .find('td:eq(4)')
-          .text()
-          .trim(),
+        taskGroupRow.querySelector('[data-test-deployment-task-group-allocs]').textContent.trim(),
         `${taskGroup.placedAllocs} / ${taskGroup.desiredTotal}`,
         'Allocs'
       );
       assert.equal(
-        taskGroupRow
-          .find('td:eq(5)')
-          .text()
-          .trim(),
+        taskGroupRow.querySelector('[data-test-deployment-task-group-healthy]').textContent.trim(),
         taskGroup.healthyAllocs,
         'Healthy Allocs'
       );
       assert.equal(
         taskGroupRow
-          .find('td:eq(6)')
-          .text()
-          .trim(),
+          .querySelector('[data-test-deployment-task-group-unhealthy]')
+          .textContent.trim(),
         taskGroup.unhealthyAllocs,
         'Unhealthy Allocs'
       );
@@ -281,38 +272,31 @@ test('when open, a deployment shows a list of all allocations for the deployment
 
   andThen(() => {
     const deployment = sortedDeployments.models[0];
-    const deploymentRow = $(findAll('.timeline-object')[0]);
+    const deploymentRow = find('[data-test-deployment]');
 
     // TODO: Make this less brittle. This logic is copied from the mirage config,
     // since there is no reference to allocations on the deployment model.
     const allocations = server.db.allocations.where({ jobId: deployment.jobId }).slice(0, 3);
 
-    click(deploymentRow.find('button').get(0));
+    click(deploymentRow.querySelector('[data-test-deployment-toggle-details]'));
 
     andThen(() => {
       assert.ok(
-        deploymentRow.find('.boxed-section-head:contains("Allocations")').length,
+        deploymentRow.querySelector('[data-test-deployment-allocations]'),
         'Allocations found'
       );
 
-      const allocationsTable = deploymentRow.find(
-        '.boxed-section-head:contains("Allocations") + .boxed-section-body tbody'
-      );
-
       assert.equal(
-        allocationsTable.find('tr').length,
+        deploymentRow.querySelectorAll('[data-test-deployment-allocation]').length,
         allocations.length,
         'One row per allocation'
       );
 
       const allocation = allocations[0];
-      const allocationRow = allocationsTable.find('tr:eq(0)');
+      const allocationRow = deploymentRow.querySelector('[data-test-deployment-allocation]');
 
       assert.equal(
-        allocationRow
-          .find('td:eq(0)')
-          .text()
-          .trim(),
+        allocationRow.querySelector('[data-test-short-id]').textContent.trim(),
         allocation.id.split('-')[0],
         'Allocation is as expected'
       );

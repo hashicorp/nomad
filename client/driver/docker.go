@@ -99,6 +99,11 @@ const (
 	dockerImageRemoveDelayConfigOption  = "docker.cleanup.image.delay"
 	dockerImageRemoveDelayConfigDefault = 3 * time.Minute
 
+	// dockerCapsWhitelistConfigOption is the key for setting the list of
+	// allowed Linux capabilities
+	dockerCapsWhitelistConfigOption  = "docker.caps.whitelist"
+	dockerCapsWhitelistConfigDefault = dockerBasicCaps
+
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
@@ -109,6 +114,12 @@ const (
 	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
 	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
 	dockerAuthHelperPrefix = "docker-credential-"
+
+	// dockerBasicCaps is comma-separated list of Linux capabilities that are
+	// allowed by docker by default, as documented in
+	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
+	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
+		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 )
 
 type DockerDriver struct {
@@ -166,6 +177,7 @@ type DockerDriverConfig struct {
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
 	Command          string              `mapstructure:"command"`            // The Command to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command
+	Entrypoint       []string            `mapstructure:"entrypoint"`         // Override the containers entrypoint
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
 	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
@@ -202,6 +214,8 @@ type DockerDriverConfig struct {
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
 	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
+	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
+	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -286,6 +300,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	// Interpolate everything that is a string
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
+	dconf.Entrypoint = env.ParseAndReplace(dconf.Entrypoint)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
 	dconf.NetworkMode = env.ReplaceEnv(dconf.NetworkMode)
 	dconf.NetworkAliases = env.ParseAndReplace(dconf.NetworkAliases)
@@ -304,6 +319,8 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
+	dconf.CapAdd = env.ParseAndReplace(dconf.CapAdd)
+	dconf.CapDrop = env.ParseAndReplace(dconf.CapDrop)
 
 	for _, m := range dconf.SysctlRaw {
 		for k, v := range m {
@@ -544,6 +561,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"args": {
 				Type: fields.TypeArray,
 			},
+			"entrypoint": {
+				Type: fields.TypeArray,
+			},
 			"ipc_mode": {
 				Type: fields.TypeString,
 			},
@@ -642,6 +662,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"devices": {
+				Type: fields.TypeArray,
+			},
+			"cap_add": {
+				Type: fields.TypeArray,
+			},
+			"cap_drop": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -866,7 +892,7 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	}
 
 	if n := len(c.NetworkSettings.Networks); n > 1 {
-		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
+		d.logger.Printf("[WARN] driver.docker: task %s multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", d.taskName, n, c.ID, ipName)
 	}
 
 	return ip, auto
@@ -1049,6 +1075,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
 		Image:       d.imageID,
+		Entrypoint:  driverConfig.Entrypoint,
 		Hostname:    driverConfig.Hostname,
 		User:        task.User,
 		Tty:         driverConfig.TTY,
@@ -1114,6 +1141,39 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, fmt.Errorf(`Docker privileged mode is disabled on this Nomad agent`)
 	}
 	hostConfig.Privileged = driverConfig.Privileged
+
+	// set capabilities
+	hostCapsWhitelistConfig := d.config.ReadDefault(
+		dockerCapsWhitelistConfigOption, dockerCapsWhitelistConfigDefault)
+	hostCapsWhitelist := make(map[string]struct{})
+	for _, cap := range strings.Split(hostCapsWhitelistConfig, ",") {
+		cap = strings.ToLower(strings.TrimSpace(cap))
+		hostCapsWhitelist[cap] = struct{}{}
+	}
+
+	if _, ok := hostCapsWhitelist["all"]; !ok {
+		effectiveCaps, err := tweakCapabilities(
+			strings.Split(dockerBasicCaps, ","),
+			driverConfig.CapAdd,
+			driverConfig.CapDrop,
+		)
+		if err != nil {
+			return c, err
+		}
+		var missingCaps []string
+		for _, cap := range effectiveCaps {
+			cap = strings.ToLower(cap)
+			if _, ok := hostCapsWhitelist[cap]; !ok {
+				missingCaps = append(missingCaps, cap)
+			}
+		}
+		if len(missingCaps) > 0 {
+			return c, fmt.Errorf("Docker driver doesn't have the following caps whitelisted on this Nomad agent: %s", missingCaps)
+		}
+	}
+
+	hostConfig.CapAdd = driverConfig.CapAdd
+	hostConfig.CapDrop = driverConfig.CapDrop
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {

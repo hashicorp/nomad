@@ -45,7 +45,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 },
                 "Services": [{
                     "Id": "",
-                    "Name": "global-redis-check",
+                    "Name": "redis-cache",
                     "Tags": [
                         "global",
                         "cache"
@@ -69,7 +69,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                         "TLSSkipVerify": false,
                         "CheckRestart": {
                             "Limit": 3,
-                            "Grace": "30s",
+                            "Grace": 30000000000,
                             "IgnoreWarnings": false
                         }
                     }]
@@ -114,7 +114,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
 The example JSON could be submitted as a job using the following:
 
 ```text
-$ curl -XPUT @d example.json http://127.0.0.1:4646/v1/job/example
+$ curl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
 {
   "EvalID": "5d6ded54-0b2a-8858-6583-be5f476dec9d",
   "EvalCreateIndex": 12,
@@ -412,7 +412,8 @@ The `Task` object supports the following keys:
          - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
-           to add the relative URL of the health check endpoint.
+           to add the relative URL of the health check endpoint. Absolute paths
+           are not allowed.
 
          - `Protocol`: This indicates the protocol for the HTTP checks. Valid
            options are `http` and `https`. We default it to `http`.

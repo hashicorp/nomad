@@ -1,20 +1,20 @@
 <div class="boxed-section-head is-light inline-definitions">
   <span>{{deployment.shortId}}</span>
-  <span class="bumper-left tag {{deployment.statusClass}}">{{deployment.status}}</span>
+  <span class="bumper-left tag {{deployment.statusClass}}" data-test-deployment-status="{{deployment.statusClass}}">{{deployment.status}}</span>
   {{#if deployment.requiresPromotion}}
-    <span class="bumper-left badge is-warning is-hollow">Requires Promotion</span>
+    <span data-test-promotion-required class="bumper-left badge is-warning is-hollow">Requires Promotion</span>
   {{/if}}
   <span class="pull-right">
     <span class="pair is-faded">
       <span class="term">Version</span>
-      <span class="has-emphasis">#{{deployment.version.number}}</span>
-      <span>| {{moment-from-now deployment.version.submitTime}}</span>
+      <span class="has-emphasis" data-test-deployment-version>#{{deployment.version.number}}</span>
+      <span data-test-deployment-submit-time>| {{moment-from-now deployment.version.submitTime}}</span>
     </span>
-    <button class="button is-light is-compact pull-right" {{action (toggle "isOpen" this)}}>details</button>
+    <button data-test-deployment-toggle-details class="button is-light is-compact pull-right" {{action (toggle "isOpen" this)}}>details</button>
  </span>
 </div>
 {{#if isOpen}}
-  <div class="boxed-section-body">
+  <div data-test-deployment-details class="boxed-section-body">
     {{#job-deployment-details deployment=deployment as |d|}}
       {{d.metrics}}
       {{d.taskGroups}}

@@ -113,7 +113,7 @@ $ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cf
     -hostname="client.global.nomad,localhost,127.0.0.1" - | cfssljson -bare client
 
 # Generate a certificate for the CLI
-$ echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
+$ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -profile=client \
     - | cfssljson -bare cli
 ```
 
@@ -433,7 +433,7 @@ TTL.
 
 ## Changing Nomad certificates on the fly
 
-As of 0.7.1, Nomad supports dynamic certificate reloading via SIHUP.
+As of 0.7.1, Nomad supports dynamic certificate reloading via SIGHUP.
 
 Given a prior TLS configuration as follows:
 
@@ -471,6 +471,18 @@ tls {
 NOTE: Dynamically reloading certificates will _not_ close existing connections.
 If you need to rotate certificates due to a security incident, you will still
 need to completely shutdown and restart the Nomad agent.
+
+## Migrating a cluster to TLS
+
+Nomad supports dynamically reloading it's TLS configuration. To reload Nomad's
+configuration, first update the configuration file and then send the Nomad
+agent a SIGHUP signal. Note that this will only reload a subset of the
+configuration file, including the TLS configuration.
+
+When reloading the configuration, if there is a change to the TLS
+configuration, the agent will reload all network connections and when
+establishing new connections, will use the new configuration. This process
+works for both upgrading and downgrading TLS (but we recommend upgrading).
 
 
 [cfssl]: https://cfssl.org/

@@ -160,8 +160,8 @@ function generateDiff(version) {
                   {
                     Annotations: null,
                     Name: 'Name',
-                    New: 'global-redis-check',
-                    Old: 'global-redis-check',
+                    New: 'redis-cache',
+                    Old: 'redis-cache',
                     Type: 'None',
                   },
                   {

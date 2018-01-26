@@ -631,6 +631,42 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"service-check-restart.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service_check_restart"),
+				Name: helper.StringToPtr("service_check_restart"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name: "http-service",
+										CheckRestart: &api.CheckRestart{
+											Limit:          3,
+											Grace:          helper.TimeToPtr(10 * time.Second),
+											IgnoreWarnings: true,
+										},
+										Checks: []api.ServiceCheck{
+											{
+												Name:      "random-check",
+												Type:      "tcp",
+												PortLabel: "9001",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

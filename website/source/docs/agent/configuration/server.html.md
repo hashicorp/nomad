@@ -102,6 +102,9 @@ server {
   second is a tradeoff as it lowers failure detection time of nodes at the
   tradeoff of false positives and increased load on the leader.
 
+- `non_voting_server` `(bool: false)` - is whether this server will act as
+  a non-voting member of the cluster to help provide read scalability. (Enterprise-only)
+
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
   disallow this server from making any scheduling decisions. This defaults to
@@ -111,6 +114,11 @@ server {
   when communicating with other Nomad servers. This value is typically not
   required as the agent internally knows the latest version, but may be useful
   in some upgrade scenarios.
+
+- `raft_protocol` `(int: 2)` - Specifies the Raft protocol version to use when
+  communicating with other Nomad servers. This affects available Autopilot
+  features and is typically not required as the agent internally knows the
+  latest version, but may be useful in some upgrade scenarios.
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,

@@ -2,7 +2,9 @@ package nomad
 
 import (
 	"strings"
+	"time"
 
+	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -114,6 +116,11 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
 func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
+	if done, err := s.srv.forward("Search.PrefixSearch", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "search", "prefix_search"}, time.Now())
+
 	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err

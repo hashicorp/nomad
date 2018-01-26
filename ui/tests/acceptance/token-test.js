@@ -1,9 +1,6 @@
 import { find, findAll, fillIn, click, visit } from 'ember-native-dom-helpers';
-import Ember from 'ember';
 import { test, skip } from 'ember-qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { $ } = Ember;
 
 let job;
 let node;
@@ -28,8 +25,8 @@ test('the token form sets the token in session storage', function(assert) {
   andThen(() => {
     assert.ok(window.sessionStorage.nomadTokenSecret == null, 'No token secret set');
 
-    fillIn('.token-secret', secretId);
-    click('.token-submit');
+    fillIn('[data-test-token-secret]', secretId);
+    click('[data-test-token-submit]');
 
     andThen(() => {
       assert.equal(window.sessionStorage.nomadTokenSecret, secretId, 'Token secret was set');
@@ -57,8 +54,8 @@ skip('the X-Nomad-Token header gets sent with requests once it is set', function
 
   visit('/settings/tokens');
   andThen(() => {
-    fillIn('.token-secret', secretId);
-    click('.token-submit');
+    fillIn('[data-test-token-secret]', secretId);
+    click('[data-test-token-submit]');
   });
 
   visit(`/jobs/${job.id}`);
@@ -87,17 +84,17 @@ test('an error message is shown when authenticating a token fails', function(ass
   visit('/settings/tokens');
 
   andThen(() => {
-    fillIn('.token-secret', bogusSecret);
-    click('.token-submit');
+    fillIn('[data-test-token-secret]', bogusSecret);
+    click('[data-test-token-submit]');
 
     andThen(() => {
       assert.ok(
         window.sessionStorage.nomadTokenSecret == null,
         'Token secret is discarded on failure'
       );
-      assert.ok(find('.token-error'), 'Token error message is shown');
-      assert.notOk(find('.token-success'), 'Token success message is not shown');
-      assert.notOk(find('.token-policy'), 'No token policies are shown');
+      assert.ok(find('[data-test-token-error]'), 'Token error message is shown');
+      assert.notOk(find('[data-test-token-success]'), 'Token success message is not shown');
+      assert.notOk(find('[data-test-token-policy]'), 'No token policies are shown');
     });
   });
 });
@@ -110,14 +107,14 @@ test('a success message and a special management token message are shown when au
   visit('/settings/tokens');
 
   andThen(() => {
-    fillIn('.token-secret', secretId);
-    click('.token-submit');
+    fillIn('[data-test-token-secret]', secretId);
+    click('[data-test-token-submit]');
 
     andThen(() => {
-      assert.ok(find('.token-success'), 'Token success message is shown');
-      assert.notOk(find('.token-error'), 'Token error message is not shown');
-      assert.ok(find('.token-management-message'), 'Token management message is shown');
-      assert.notOk(find('.token-policy'), 'No token policies are shown');
+      assert.ok(find('[data-test-token-success]'), 'Token success message is shown');
+      assert.notOk(find('[data-test-token-error]'), 'Token error message is not shown');
+      assert.ok(find('[data-test-token-management-message]'), 'Token management message is shown');
+      assert.notOk(find('[data-test-token-policy]'), 'No token policies are shown');
     });
   });
 });
@@ -132,39 +129,36 @@ test('a success message and associated policies are shown when authenticating su
   visit('/settings/tokens');
 
   andThen(() => {
-    fillIn('.token-secret', secretId);
-    click('.token-submit');
+    fillIn('[data-test-token-secret]', secretId);
+    click('[data-test-token-submit]');
 
     andThen(() => {
-      assert.ok(find('.token-success'), 'Token success message is shown');
-      assert.notOk(find('.token-error'), 'Token error message is not shown');
-      assert.notOk(find('.token-management-message'), 'Token management message is not shown');
+      assert.ok(find('[data-test-token-success]'), 'Token success message is shown');
+      assert.notOk(find('[data-test-token-error]'), 'Token error message is not shown');
+      assert.notOk(
+        find('[data-test-token-management-message]'),
+        'Token management message is not shown'
+      );
       assert.equal(
-        findAll('.token-policy').length,
+        findAll('[data-test-token-policy]').length,
         clientToken.policies.length,
         'Each policy associated with the token is listed'
       );
 
-      const policyElement = $(find('.token-policy'));
+      const policyElement = find('[data-test-token-policy]');
 
       assert.equal(
-        policyElement
-          .find('.boxed-section-head')
-          .text()
-          .trim(),
+        policyElement.querySelector('[data-test-policy-name]').textContent.trim(),
         policy.name,
         'Policy Name'
       );
       assert.equal(
-        policyElement
-          .find('.boxed-section-body p.content')
-          .text()
-          .trim(),
+        policyElement.querySelector('[data-test-policy-description]').textContent.trim(),
         policy.description,
         'Policy Description'
       );
       assert.equal(
-        policyElement.find('.boxed-section-body pre code').text(),
+        policyElement.querySelector('[data-test-policy-rules]').textContent,
         policy.rules,
         'Policy Rules'
       );
@@ -184,8 +178,8 @@ test('setting a token clears the store', function(assert) {
   visit('/settings/tokens');
 
   andThen(() => {
-    fillIn('.token-secret', secretId);
-    click('.token-submit');
+    fillIn('[data-test-token-secret]', secretId);
+    click('[data-test-token-submit]');
   });
 
   // Don't return jobs from the API the second time around
@@ -198,7 +192,7 @@ test('setting a token clears the store', function(assert) {
   visit('/jobs');
 
   // If jobs are lingering in the store, they would show up
-  assert.notOk(find('.job-row'), 'No jobs found');
+  assert.notOk(find('[data-test-job-row]'), 'No jobs found');
 });
 
 function getHeader({ requestHeaders }, name) {

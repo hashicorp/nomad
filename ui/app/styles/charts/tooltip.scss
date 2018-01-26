@@ -18,7 +18,7 @@
     &::before {
       pointer-events: none;
       display: inline-block;
-      content: "";
+      content: '';
       width: 0;
       height: 0;
       border-top: 7px solid $grey;
@@ -34,7 +34,7 @@
     &::after {
       pointer-events: none;
       display: inline-block;
-      content: "";
+      content: '';
       width: 0;
       height: 0;
       border-top: 6px solid $white;

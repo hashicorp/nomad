@@ -36,3 +36,18 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 }
+
+func TestOperator_RaftRemovePeerByID(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// If we get this error, it proves we sent the address all the way
+	// through.
+	operator := c.Operator()
+	err := operator.RaftRemovePeerByID("nope", nil)
+	if err == nil || !strings.Contains(err.Error(),
+		"id \"nope\" was not found in the Raft configuration") {
+		t.Fatalf("err: %v", err)
+	}
+}

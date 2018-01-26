@@ -83,6 +83,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
 
+* `entrypoint` - (Optional) A string list overriding the image's entrypoint.
+
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
 
@@ -210,11 +212,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
-* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
-  the container access to devices on the host. Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
-
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
@@ -275,7 +272,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
         "name-of-the-volume:/path/in/container"
       ]
       # Name of the Docker Volume Driver used by the container
-      volume_driver = "flocker"
+      volume_driver = "pxd"
     }
     ```
 
@@ -298,7 +295,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
               foo = "bar"
             }
             driver_config {
-              name = "flocker"
+              name = "pxd"
               options = {
                 foo = "bar"
               }
@@ -325,6 +322,36 @@ The `docker` driver supports the following configuration in the job spec.  Only
           host_path = "/dev/sda2"
           container_path = "/dev/xvdd"
         }
+      ]
+    }
+    ```
+
+* `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.cap.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_add = [
+        "SYS_TIME",
+      ]
+    }
+    ```
+
+* `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_drop = [
+        "MKNOD",
       ]
     }
     ```
@@ -594,6 +621,14 @@ options](/docs/agent/configuration/client.html#options):
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
+
+* `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
+  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`,
+  which is the list of capabilities allowed by docker by default, as 
+  [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Allows the operator to control which capabilities can be obtained by 
+  tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a 
+  shortcut for whitelisting all capabilities.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If

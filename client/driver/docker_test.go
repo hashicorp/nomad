@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func dockerIsRemote(t *testing.T) bool {
@@ -106,13 +107,14 @@ func testDockerDriverContexts(t *testing.T, task *structs.Task) *testContext {
 func dockerSetupWithClient(t *testing.T, task *structs.Task, client *docker.Client) (*docker.Client, *DockerHandle, func()) {
 	t.Helper()
 	tctx := testDockerDriverContexts(t, task)
-	//tctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	driver := NewDockerDriver(tctx.DriverCtx)
 	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
 
 	presp, err := driver.Prestart(tctx.ExecCtx, task)
 	if err != nil {
-		driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		if presp != nil && presp.CreatedResources != nil {
+			driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		}
 		tctx.AllocDir.Destroy()
 		t.Fatalf("error in prestart: %v", err)
 	}
@@ -1045,6 +1047,130 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 
 	if !reflect.DeepEqual(task.Config["security_opt"], container.HostConfig.SecurityOpt) {
 		t.Errorf("Security Opts don't match.\nExpected:\n%s\nGot:\n%s\n", task.Config["security_opt"], container.HostConfig.SecurityOpt)
+	}
+}
+
+func TestDockerDriver_Capabilities(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Capabilities not supported on windows")
+	}
+
+	testCases := []struct {
+		Name       string
+		CapAdd     []string
+		CapDrop    []string
+		Whitelist  string
+		StartError string
+	}{
+		{
+			Name:    "default-whitelist-add-allowed",
+			CapAdd:  []string{"fowner", "mknod"},
+			CapDrop: []string{"all"},
+		},
+		{
+			Name:       "default-whitelist-add-forbidden",
+			CapAdd:     []string{"net_admin"},
+			StartError: "net_admin",
+		},
+		{
+			Name:    "default-whitelist-drop-existing",
+			CapDrop: []string{"fowner", "mknod"},
+		},
+		{
+			Name:      "restrictive-whitelist-drop-all",
+			CapDrop:   []string{"all"},
+			Whitelist: "fowner,mknod",
+		},
+		{
+			Name:      "restrictive-whitelist-add-allowed",
+			CapAdd:    []string{"fowner", "mknod"},
+			CapDrop:   []string{"all"},
+			Whitelist: "fowner,mknod",
+		},
+		{
+			Name:       "restrictive-whitelist-add-forbidden",
+			CapAdd:     []string{"net_admin", "mknod"},
+			CapDrop:    []string{"all"},
+			Whitelist:  "fowner,mknod",
+			StartError: "net_admin",
+		},
+		{
+			Name:      "permissive-whitelist",
+			CapAdd:    []string{"net_admin", "mknod"},
+			Whitelist: "all",
+		},
+		{
+			Name:      "permissive-whitelist-add-all",
+			CapAdd:    []string{"all"},
+			Whitelist: "all",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			client := newTestDockerClient(t)
+			task, _, _ := dockerTask(t)
+			if len(tc.CapAdd) > 0 {
+				task.Config["cap_add"] = tc.CapAdd
+			}
+			if len(tc.CapDrop) > 0 {
+				task.Config["cap_drop"] = tc.CapDrop
+			}
+
+			tctx := testDockerDriverContexts(t, task)
+			if tc.Whitelist != "" {
+				tctx.DriverCtx.config.Options[dockerCapsWhitelistConfigOption] = tc.Whitelist
+			}
+
+			driver := NewDockerDriver(tctx.DriverCtx)
+			copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
+			defer tctx.AllocDir.Destroy()
+
+			presp, err := driver.Prestart(tctx.ExecCtx, task)
+			defer driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+			if err != nil {
+				t.Fatalf("Error in prestart: %v", err)
+			}
+
+			sresp, err := driver.Start(tctx.ExecCtx, task)
+			if err == nil && tc.StartError != "" {
+				t.Fatalf("Expected error in start: %v", tc.StartError)
+			} else if err != nil {
+				if tc.StartError == "" {
+					t.Fatalf("Failed to start driver: %s\nStack\n%s", err, debug.Stack())
+				} else if !strings.Contains(err.Error(), tc.StartError) {
+					t.Fatalf("Expect error containing \"%s\", got %v", tc.StartError, err)
+				}
+				return
+			}
+
+			if sresp.Handle == nil {
+				t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
+			}
+			defer sresp.Handle.Kill()
+			handle := sresp.Handle.(*DockerHandle)
+
+			waitForExist(t, client, handle)
+
+			container, err := client.InspectContainer(handle.ContainerID())
+			if err != nil {
+				t.Fatalf("Error inspecting container: %v", err)
+			}
+
+			if !reflect.DeepEqual(tc.CapAdd, container.HostConfig.CapAdd) {
+				t.Errorf("CapAdd doesn't match.\nExpected:\n%s\nGot:\n%s\n", tc.CapAdd, container.HostConfig.CapAdd)
+			}
+
+			if !reflect.DeepEqual(tc.CapDrop, container.HostConfig.CapDrop) {
+				t.Errorf("CapDrop doesn't match.\nExpected:\n%s\nGot:\n%s\n", tc.CapDrop, container.HostConfig.CapDrop)
+			}
+		})
 	}
 }
 
@@ -2047,7 +2173,32 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 
 	assert.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
 	assert.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
+}
 
+func TestDockerDriver_Entrypoint(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	entrypoint := []string{"/bin/sh", "-c"}
+	task, _, _ := dockerTask(t)
+	task.Config["entrypoint"] = entrypoint
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	require.Len(t, container.Config.Entrypoint, 2, "Expected one entrypoint")
+	require.Equal(t, entrypoint, container.Config.Entrypoint, "Incorrect entrypoint ")
 }
 
 func TestDockerDriver_Kill(t *testing.T) {

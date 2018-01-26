@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
-
-const { makeArray } = Ember;
 
 export default JSONSerializer.extend({
   primaryKey: 'ID',

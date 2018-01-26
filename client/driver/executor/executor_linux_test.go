@@ -69,7 +69,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 
 	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
-	execCmd.User = dstructs.DefaultUnpriviledgedUser
+	execCmd.User = dstructs.DefaultUnprivilegedUser
 
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 

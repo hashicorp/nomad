@@ -1,14 +1,14 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-const { Controller, computed, inject } = Ember;
-
 export default Controller.extend(Sortable, Searchable, {
-  clientsController: inject.controller('clients'),
+  clientsController: controller('clients'),
 
-  nodes: computed.alias('model.nodes'),
-  agents: computed.alias('model.agents'),
+  nodes: alias('model.nodes'),
+  agents: alias('model.agents'),
 
   queryParams: {
     currentPage: 'page',
@@ -25,11 +25,11 @@ export default Controller.extend(Sortable, Searchable, {
 
   searchProps: computed(() => ['id', 'name', 'datacenter']),
 
-  listToSort: computed.alias('nodes'),
-  listToSearch: computed.alias('listSorted'),
-  sortedNodes: computed.alias('listSearched'),
+  listToSort: alias('nodes'),
+  listToSearch: alias('listSorted'),
+  sortedNodes: alias('listSearched'),
 
-  isForbidden: computed.alias('clientsController.isForbidden'),
+  isForbidden: alias('clientsController.isForbidden'),
 
   actions: {
     gotoNode(node) {
