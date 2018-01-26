@@ -90,8 +90,6 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "file_system", "logs"}, time.Now())
 	defer conn.Close()
 
-	f.c.logger.Printf("--------- FileSystem:  Logs called")
-
 	// Decode the arguments
 	var req cstructs.FsLogsRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
@@ -101,8 +99,6 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		f.handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
-
-	f.c.logger.Printf("--------- FileSystem:  Read request: %+v", req)
 
 	// Check node read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
@@ -204,9 +200,6 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 			case errCh <- err:
 			case <-ctx.Done():
 			}
-			f.c.logger.Printf("--------- FileSystem:  logs finished, err \"%v\" sent", err)
-		} else {
-			f.c.logger.Printf("--------- FileSystem:  logs finished")
 		}
 	}()
 
@@ -215,7 +208,6 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		for {
 			if _, err := conn.Read(nil); err != nil {
 				if err == io.EOF {
-					f.c.logger.Printf("--------- FileSystem:  remote side closed")
 					cancel()
 					return
 				}
@@ -232,13 +224,8 @@ OUTER:
 			break OUTER
 		case frame, ok := <-frames:
 			if !ok {
-				f.c.logger.Printf("--------- FileSystem:  Frame stream closed")
 				break OUTER
-			} else if frame == nil {
-				f.c.logger.Printf("--------- FileSystem:  Got nil frame")
 			}
-
-			f.c.logger.Printf("--------- FileSystem:  Got frame w/ payload size %d", len(frame.Data))
 
 			var resp cstructs.StreamErrWrapper
 			if req.PlainText {
@@ -250,26 +237,20 @@ OUTER:
 				}
 
 				resp.Payload = buf.Bytes()
-				f.c.logger.Printf("--------- FileSystem:  filled payload with %d bytes", len(resp.Payload))
 				buf.Reset()
 			}
 
 			if err := encoder.Encode(resp); err != nil {
-				f.c.logger.Printf("--------- FileSystem:  Err sending payload: %v", err)
 				streamErr = err
 				break OUTER
 			}
-
-			f.c.logger.Printf("--------- FileSystem:  Sent frame with payload of size: %d", len(resp.Payload))
 		}
 	}
 
 	if streamErr != nil {
-		f.c.logger.Printf("--------- FileSystem:  Logs finished w/ err: %v", streamErr)
 		f.handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
 		return
 	}
-	f.c.logger.Printf("--------- FileSystem:  Logs finished with no error")
 }
 
 func (f *FileSystem) logs(ctx context.Context, follow, plain bool, offset int64,

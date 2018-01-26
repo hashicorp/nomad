@@ -43,8 +43,6 @@ func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *co
 func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 	defer conn.Close()
 
-	f.srv.logger.Printf("--------- Server FileSystem:  Logs called")
-
 	// Decode the arguments
 	var args cstructs.FsLogsRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
@@ -116,8 +114,6 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 
 		// TODO Forward streaming
 		//return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
-		f.srv.logger.Printf("ALEX: No connection to node %q", nodeID)
-		f.srv.logger.Printf("ALEX: Have: %v", f.srv.connectedNodes())
 		return
 	}
 
@@ -128,12 +124,7 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		f.handleStreamResultError(err, nil, encoder)
 		return
 	}
-	defer func() {
-		f.srv.logger.Printf("ALEX: Closing stream")
-		if err := stream.Close(); err != nil {
-			f.srv.logger.Printf("ALEX: Failed to close stream: %v", err)
-		}
-	}()
+	defer stream.Close()
 
 	// Write the RpcNomad byte to set the mode
 	if _, err := stream.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
@@ -157,10 +148,7 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// TODO Somehow the client keeps streaming
-	f.srv.logger.Printf("ALEX: STARTED BRIDGING")
 	Bridge(conn, stream)
-	f.srv.logger.Printf("ALEX: FINISHED BRIDGING")
 	return
 }
 
