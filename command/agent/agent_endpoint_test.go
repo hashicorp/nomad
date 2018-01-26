@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -298,6 +302,28 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
+		addr := s.Config.AdvertiseAddrs.RPC
+		testutil.WaitForResult(func() (bool, error) {
+			conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+			if err != nil {
+				return false, err
+			}
+			defer conn.Close()
+
+			// Write the Consul RPC byte to set the mode
+			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+				return false, err
+			}
+
+			codec := pool.NewClientCodec(conn)
+			args := &structs.GenericRequest{}
+			var leader string
+			err = msgpackrpc.CallWithCodec(codec, "Status.Leader", args, &leader)
+			return leader != "", err
+		}, func(err error) {
+			t.Fatalf("failed to find leader: %v", err)
+		})
+
 		// Create the request
 		req, err := http.NewRequest("PUT", "/v1/agent/servers", nil)
 		require.Nil(err)
@@ -340,6 +366,27 @@ func TestHTTP_AgentSetServers_ACL(t *testing.T) {
 
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
+		addr := s.Config.AdvertiseAddrs.RPC
+		testutil.WaitForResult(func() (bool, error) {
+			conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+			if err != nil {
+				return false, err
+			}
+			defer conn.Close()
+
+			// Write the Consul RPC byte to set the mode
+			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+				return false, err
+			}
+
+			codec := pool.NewClientCodec(conn)
+			args := &structs.GenericRequest{}
+			var leader string
+			err = msgpackrpc.CallWithCodec(codec, "Status.Leader", args, &leader)
+			return leader != "", err
+		}, func(err error) {
+			t.Fatalf("failed to find leader: %v", err)
+		})
 
 		// Make the HTTP request
 		path := fmt.Sprintf("/v1/agent/servers?address=%s", url.QueryEscape(s.GetConfig().AdvertiseAddrs.RPC))

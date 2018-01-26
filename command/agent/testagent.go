@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,10 +17,8 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib/freeport"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -168,23 +165,10 @@ RETRY:
 
 	failed := false
 	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
-		addr := a.Config.AdvertiseAddrs.RPC
 		testutil.WaitForResult(func() (bool, error) {
-			conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
-			if err != nil {
-				return false, err
-			}
-			defer conn.Close()
-
-			// Write the Consul RPC byte to set the mode
-			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
-				return false, err
-			}
-
-			codec := pool.NewClientCodec(conn)
 			args := &structs.GenericRequest{}
 			var leader string
-			err = msgpackrpc.CallWithCodec(codec, "Status.Leader", args, &leader)
+			err := a.RPC("Status.Leader", args, &leader)
 			return leader != "", err
 		}, func(err error) {
 			a.T.Logf("failed to find leader: %v", err)
