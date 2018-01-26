@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -383,7 +384,7 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 	eval := raw.(*structs.Evaluation)
 
 	// Generate a UUID for the token
-	token := structs.GenerateUUID()
+	token := uuid.Generate()
 
 	// Setup Nack timer
 	nackTimer := time.AfterFunc(b.nackTimeout, func() {

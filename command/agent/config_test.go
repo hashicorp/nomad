@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -31,10 +32,10 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
+		Autopilot:      &config.AutopilotConfig{},
 	}
 
 	c2 := &Config{
@@ -100,6 +101,7 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        1,
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
+			RaftProtocol:           1,
 			NumSchedulers:          1,
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
@@ -125,12 +127,6 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.1",
 			Serf: "127.0.0.1",
-		},
-		Atlas: &AtlasConfig{
-			Infrastructure: "hashicorp/test1",
-			Token:          "abc",
-			Join:           false,
-			Endpoint:       "foo",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
@@ -163,6 +159,15 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:     &falseValue,
 			ClientAutoJoin:     &falseValue,
 			ChecksUseAdvertise: &falseValue,
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &falseValue,
+			ServerStabilizationTime: 1 * time.Second,
+			LastContactThreshold:    1 * time.Second,
+			MaxTrailingLogs:         1,
+			RedundancyZoneTag:       "1",
+			DisableUpgradeMigration: &falseValue,
+			UpgradeVersionTag:       "1",
 		},
 	}
 
@@ -242,6 +247,7 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        2,
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
+			RaftProtocol:           2,
 			NumSchedulers:          2,
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
@@ -253,6 +259,7 @@ func TestConfig_Merge(t *testing.T) {
 			RetryJoin:              []string{"1.1.1.1"},
 			RetryInterval:          "10s",
 			retryInterval:          time.Second * 10,
+			NonVotingServer:        true,
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -273,12 +280,6 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.2",
 			Serf: "127.0.0.2",
-		},
-		Atlas: &AtlasConfig{
-			Infrastructure: "hashicorp/test2",
-			Token:          "xyz",
-			Join:           true,
-			Endpoint:       "bar",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin":  "*",
@@ -321,6 +322,15 @@ func TestConfig_Merge(t *testing.T) {
 					Args: []string{"a", "b", "c"},
 				},
 			},
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &trueValue,
+			ServerStabilizationTime: 2 * time.Second,
+			LastContactThreshold:    2 * time.Second,
+			MaxTrailingLogs:         2,
+			RedundancyZoneTag:       "2",
+			DisableUpgradeMigration: &trueValue,
+			UpgradeVersionTag:       "2",
 		},
 	}
 
@@ -533,7 +543,8 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ln, err := config.Listener("tcp", "127.0.0.1", 24000)
+	ports := freeport.GetT(t, 2)
+	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -542,20 +553,22 @@ func TestConfig_Listener(t *testing.T) {
 	if net := ln.Addr().Network(); net != "tcp" {
 		t.Fatalf("expected tcp, got: %q", net)
 	}
-	if addr := ln.Addr().String(); addr != "127.0.0.1:24000" {
-		t.Fatalf("expected 127.0.0.1:4646, got: %q", addr)
+	want := fmt.Sprintf("127.0.0.1:%d", ports[0])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 
 	// Falls back to default bind address if non provided
 	config.BindAddr = "0.0.0.0"
-	ln, err = config.Listener("tcp4", "", 24000)
+	ln, err = config.Listener("tcp4", "", ports[1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	ln.Close()
 
-	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
-		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
+	want = fmt.Sprintf("0.0.0.0:%d", ports[1])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 }
 
@@ -764,7 +777,7 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		},
 		Addresses: &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{
-			RPC: "{{ GetPrivateIP }}:8888",
+			RPC: "{{ GetPrivateIP }}",
 		},
 		Server: &ServerConfig{
 			Enabled: true,
@@ -775,16 +788,19 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		t.Fatalf("unable to normalize addresses: %s", err)
 	}
 
-	if c.AdvertiseAddrs.HTTP != fmt.Sprintf("%s:4646", c.BindAddr) {
-		t.Fatalf("expected HTTP advertise address %s:4646, got %s", c.BindAddr, c.AdvertiseAddrs.HTTP)
+	exp := net.JoinHostPort(c.BindAddr, "4646")
+	if c.AdvertiseAddrs.HTTP != exp {
+		t.Fatalf("expected HTTP advertise address %s, got %s", exp, c.AdvertiseAddrs.HTTP)
 	}
 
-	if c.AdvertiseAddrs.RPC != fmt.Sprintf("%s:8888", c.BindAddr) {
-		t.Fatalf("expected RPC advertise address %s:8888, got %s", c.BindAddr, c.AdvertiseAddrs.RPC)
+	exp = net.JoinHostPort(c.BindAddr, "4647")
+	if c.AdvertiseAddrs.RPC != exp {
+		t.Fatalf("expected RPC advertise address %s, got %s", exp, c.AdvertiseAddrs.RPC)
 	}
 
-	if c.AdvertiseAddrs.Serf != fmt.Sprintf("%s:4648", c.BindAddr) {
-		t.Fatalf("expected Serf advertise address %s:4648, got %s", c.BindAddr, c.AdvertiseAddrs.Serf)
+	exp = net.JoinHostPort(c.BindAddr, "4648")
+	if c.AdvertiseAddrs.Serf != exp {
+		t.Fatalf("expected Serf advertise address %s, got %s", exp, c.AdvertiseAddrs.Serf)
 	}
 
 	// allow to advertise 127.0.0.1 in non-dev mode, if explicitly configured to do so

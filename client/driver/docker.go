@@ -99,6 +99,11 @@ const (
 	dockerImageRemoveDelayConfigOption  = "docker.cleanup.image.delay"
 	dockerImageRemoveDelayConfigDefault = 3 * time.Minute
 
+	// dockerCapsWhitelistConfigOption is the key for setting the list of
+	// allowed Linux capabilities
+	dockerCapsWhitelistConfigOption  = "docker.caps.whitelist"
+	dockerCapsWhitelistConfigDefault = dockerBasicCaps
+
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
@@ -109,6 +114,12 @@ const (
 	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
 	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
 	dockerAuthHelperPrefix = "docker-credential-"
+
+	// dockerBasicCaps is comma-separated list of Linux capabilities that are
+	// allowed by docker by default, as documented in
+	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
+	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
+		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 )
 
 type DockerDriver struct {
@@ -142,6 +153,12 @@ type DockerMount struct {
 	VolumeOptions []*DockerVolumeOptions `mapstructure:"volume_options"`
 }
 
+type DockerDevice struct {
+	HostPath          string `mapstructure:"host_path"`
+	ContainerPath     string `mapstructure:"container_path"`
+	CgroupPermissions string `mapstructure:"cgroup_permissions"`
+}
+
 type DockerVolumeOptions struct {
 	NoCopy       bool                       `mapstructure:"no_copy"`
 	Labels       []map[string]string        `mapstructure:"labels"`
@@ -154,11 +171,13 @@ type DockerVolumeDriverConfig struct {
 	Options []map[string]string `mapstructure:"options"`
 }
 
+// DockerDriverConfig defines the user specified config block in a jobspec
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
 	Command          string              `mapstructure:"command"`            // The Command to run when the container starts up
 	Args             []string            `mapstructure:"args"`               // The arguments to the Command
+	Entrypoint       []string            `mapstructure:"entrypoint"`         // Override the containers entrypoint
 	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
 	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
 	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
@@ -170,6 +189,10 @@ type DockerDriverConfig struct {
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
+	SysctlRaw        []map[string]string `mapstructure:"sysctl"`             //
+	Sysctl           map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
+	UlimitRaw        []map[string]string `mapstructure:"ulimit"`             //
+	Ulimit           []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
 	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
@@ -190,6 +213,44 @@ type DockerDriverConfig struct {
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
 	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
+	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
+	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
+	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
+}
+
+func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
+	var ulimits []docker.ULimit
+
+	for name, ulimitRaw := range ulimitsRaw {
+		if len(ulimitRaw) == 0 {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit specification %v: %q, cannot be empty", name, ulimitRaw)
+		}
+		// hard limit is optional
+		if strings.Contains(ulimitRaw, ":") == false {
+			ulimitRaw = ulimitRaw + ":" + ulimitRaw
+		}
+
+		splitted := strings.SplitN(ulimitRaw, ":", 2)
+		if len(splitted) < 2 {
+			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit specification %v: %v", name, ulimitRaw)
+		}
+		soft, err := strconv.Atoi(splitted[0])
+		if err != nil {
+			return []docker.ULimit{}, fmt.Errorf("Malformed soft ulimit %v: %v", name, ulimitRaw)
+		}
+		hard, err := strconv.Atoi(splitted[1])
+		if err != nil {
+			return []docker.ULimit{}, fmt.Errorf("Malformed hard ulimit %v: %v", name, ulimitRaw)
+		}
+
+		ulimit := docker.ULimit{
+			Name: name,
+			Soft: int64(soft),
+			Hard: int64(hard),
+		}
+		ulimits = append(ulimits, ulimit)
+	}
+	return ulimits, nil
 }
 
 // Validate validates a docker driver config
@@ -197,6 +258,33 @@ func (c *DockerDriverConfig) Validate() error {
 	if c.ImageName == "" {
 		return fmt.Errorf("Docker Driver needs an image name")
 	}
+	if len(c.Devices) > 0 {
+		for _, dev := range c.Devices {
+			if dev.HostPath == "" {
+				return fmt.Errorf("host path must be set in configuration for devices")
+			}
+			if dev.CgroupPermissions != "" {
+				for _, c := range dev.CgroupPermissions {
+					ch := string(c)
+					if ch != "r" && ch != "w" && ch != "m" {
+						return fmt.Errorf("invalid cgroup permission string: %q", dev.CgroupPermissions)
+					}
+				}
+			}
+		}
+	}
+	c.Sysctl = mapMergeStrStr(c.SysctlRaw...)
+	c.Labels = mapMergeStrStr(c.LabelsRaw...)
+	if len(c.Logging) > 0 {
+		c.Logging[0].Config = mapMergeStrStr(c.Logging[0].ConfigRaw...)
+	}
+
+	mergedUlimitsRaw := mapMergeStrStr(c.UlimitRaw...)
+	ulimit, err := sliceMergeUlimit(mergedUlimitsRaw)
+	if err != nil {
+		return err
+	}
+	c.Ulimit = ulimit
 	return nil
 }
 
@@ -212,6 +300,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	// Interpolate everything that is a string
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
+	dconf.Entrypoint = env.ParseAndReplace(dconf.Entrypoint)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
 	dconf.NetworkMode = env.ReplaceEnv(dconf.NetworkMode)
 	dconf.NetworkAliases = env.ParseAndReplace(dconf.NetworkAliases)
@@ -230,6 +319,22 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
+	dconf.CapAdd = env.ParseAndReplace(dconf.CapAdd)
+	dconf.CapDrop = env.ParseAndReplace(dconf.CapDrop)
+
+	for _, m := range dconf.SysctlRaw {
+		for k, v := range m {
+			delete(m, k)
+			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+		}
+	}
+
+	for _, m := range dconf.UlimitRaw {
+		for k, v := range m {
+			delete(m, k)
+			m[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+		}
+	}
 
 	for _, m := range dconf.LabelsRaw {
 		for k, v := range m {
@@ -323,6 +428,16 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		dconf.ImageName = strings.Replace(dconf.ImageName, "https://", "", 1)
 	}
 
+	// If devices are configured set default cgroup permissions
+	if len(dconf.Devices) > 0 {
+		for i, dev := range dconf.Devices {
+			if dev.CgroupPermissions == "" {
+				dev.CgroupPermissions = "rwm"
+			}
+			dconf.Devices[i] = dev
+		}
+	}
+
 	if err := dconf.Validate(); err != nil {
 		return nil, err
 	}
@@ -413,7 +528,14 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 				break
 			}
 
-			node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+			if n.IPAM.Config[0].Gateway != "" {
+				node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+			} else if d.fingerprintSuccess == nil {
+				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
+				// See https://github.com/moby/moby/issues/32648
+				d.logger.Printf("[DEBUG] driver.docker: bridge_ip could not be discovered")
+			}
+			break
 		}
 	}
 
@@ -437,6 +559,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeString,
 			},
 			"args": {
+				Type: fields.TypeArray,
+			},
+			"entrypoint": {
 				Type: fields.TypeArray,
 			},
 			"ipc_mode": {
@@ -465,6 +590,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"userns_mode": {
 				Type: fields.TypeString,
+			},
+			"sysctl": {
+				Type: fields.TypeArray,
+			},
+			"ulimit": {
+				Type: fields.TypeArray,
 			},
 			"port_map": {
 				Type: fields.TypeArray,
@@ -528,6 +659,15 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeBool,
 			},
 			"security_opt": {
+				Type: fields.TypeArray,
+			},
+			"devices": {
+				Type: fields.TypeArray,
+			},
+			"cap_add": {
+				Type: fields.TypeArray,
+			},
+			"cap_drop": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -599,7 +739,6 @@ func (d *DockerDriver) Prestart(ctx *ExecContext, task *structs.Task) (*Prestart
 }
 
 func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
-
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
 		LogFile:  pluginLogFile,
@@ -614,7 +753,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		TaskEnv:        ctx.TaskEnv,
 		Task:           task,
 		Driver:         "docker",
-		AllocID:        d.DriverContext.allocID,
 		LogDir:         ctx.TaskDir.LogDir,
 		TaskDir:        ctx.TaskDir.Dir,
 		PortLowerBound: d.config.ClientMinPort,
@@ -754,7 +892,7 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	}
 
 	if n := len(c.NetworkSettings.Networks); n > 1 {
-		d.logger.Printf("[WARN] driver.docker: multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", n, c.ID, ipName)
+		d.logger.Printf("[WARN] driver.docker: task %s multiple (%d) Docker networks for container %q but Nomad only supports 1: choosing %q", d.taskName, n, c.ID, ipName)
 	}
 
 	return ip, auto
@@ -934,12 +1072,16 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, err
 	}
 
+	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
-		Image:     d.imageID,
-		Hostname:  driverConfig.Hostname,
-		User:      task.User,
-		Tty:       driverConfig.TTY,
-		OpenStdin: driverConfig.Interactive,
+		Image:       d.imageID,
+		Entrypoint:  driverConfig.Entrypoint,
+		Hostname:    driverConfig.Hostname,
+		User:        task.User,
+		Tty:         driverConfig.TTY,
+		OpenStdin:   driverConfig.Interactive,
+		StopTimeout: int(task.KillTimeout.Seconds()),
+		StopSignal:  task.KillSignal,
 	}
 
 	if driverConfig.WorkDir != "" {
@@ -1000,6 +1142,39 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
+	// set capabilities
+	hostCapsWhitelistConfig := d.config.ReadDefault(
+		dockerCapsWhitelistConfigOption, dockerCapsWhitelistConfigDefault)
+	hostCapsWhitelist := make(map[string]struct{})
+	for _, cap := range strings.Split(hostCapsWhitelistConfig, ",") {
+		cap = strings.ToLower(strings.TrimSpace(cap))
+		hostCapsWhitelist[cap] = struct{}{}
+	}
+
+	if _, ok := hostCapsWhitelist["all"]; !ok {
+		effectiveCaps, err := tweakCapabilities(
+			strings.Split(dockerBasicCaps, ","),
+			driverConfig.CapAdd,
+			driverConfig.CapDrop,
+		)
+		if err != nil {
+			return c, err
+		}
+		var missingCaps []string
+		for _, cap := range effectiveCaps {
+			cap = strings.ToLower(cap)
+			if _, ok := hostCapsWhitelist[cap]; !ok {
+				missingCaps = append(missingCaps, cap)
+			}
+		}
+		if len(missingCaps) > 0 {
+			return c, fmt.Errorf("Docker driver doesn't have the following caps whitelisted on this Nomad agent: %s", missingCaps)
+		}
+	}
+
+	hostConfig.CapAdd = driverConfig.CapAdd
+	hostConfig.CapDrop = driverConfig.CapDrop
+
 	// set SHM size
 	if driverConfig.ShmSize != 0 {
 		hostConfig.ShmSize = driverConfig.ShmSize
@@ -1012,6 +1187,18 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		} else {
 			d.logger.Printf("[ERR] driver.docker: invalid ip address for container dns server: %s", ip)
 		}
+	}
+
+	if len(driverConfig.Devices) > 0 {
+		var devices []docker.Device
+		for _, device := range driverConfig.Devices {
+			dev := docker.Device{
+				PathOnHost:        device.HostPath,
+				PathInContainer:   device.ContainerPath,
+				CgroupPermissions: device.CgroupPermissions}
+			devices = append(devices, dev)
+		}
+		hostConfig.Devices = devices
 	}
 
 	// Setup mounts
@@ -1054,6 +1241,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.UTSMode = driverConfig.UTSMode
 	hostConfig.UsernsMode = driverConfig.UsernsMode
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
+	hostConfig.Sysctls = driverConfig.Sysctl
+	hostConfig.Ulimits = driverConfig.Ulimit
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
@@ -1549,6 +1738,10 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 		return fmt.Errorf("Failed to determine signal number")
 	}
 
+	// TODO When we expose signals we will need a mapping layer that converts
+	// MacOS signals to the correct signal number for docker. Or we change the
+	// interface to take a signal string and leave it up to driver to map?
+
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
 		ID:     h.containerID,
@@ -1597,6 +1790,13 @@ func (h *DockerHandle) run() {
 
 	if exitCode != 0 {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
+	}
+
+	container, ierr := h.waitClient.InspectContainer(h.containerID)
+	if ierr != nil {
+		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
+	} else if container.State.OOMKilled {
+		werr = fmt.Errorf("OOM Killed")
 	}
 
 	close(h.doneCh)

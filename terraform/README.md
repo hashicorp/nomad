@@ -1,6 +1,6 @@
-# Provision a Nomad cluster on AWS with Packer & Terraform
+# Provision a Nomad cluster in the Cloud
 
-Use this to easily provision a Nomad sandbox environment on AWS with 
+Use this repo to easily provision a Nomad sandbox environment on AWS or Azure with 
 [Packer](https://packer.io) and [Terraform](https://terraform.io). 
 [Consul](https://www.consul.io/intro/index.html) and 
 [Vault](https://www.vaultproject.io/intro/index.html) are also installed 
@@ -11,79 +11,28 @@ integration](examples/spark/README.md) is included.
 
 ## Setup
 
-Clone this repo and (optionally) use [Vagrant](https://www.vagrantup.com/intro/index.html) 
+Clone the repo and optionally use [Vagrant](https://www.vagrantup.com/intro/index.html) 
 to bootstrap a local staging environment:
 
 ```bash
 $ git clone git@github.com:hashicorp/nomad.git
-$ cd terraform/aws
+$ cd terraform
 $ vagrant up && vagrant ssh
 ```
 
-The Vagrant staging environment pre-installs Packer, Terraform, and Docker.
-
-### Pre-requisites
-
-You will need the following:
-
-- AWS account
-- [API access keys](http://aws.amazon.com/developers/access-keys/)
-- [SSH key pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
-
-Set environment variables for your AWS credentials:
-
-```bash
-$ export AWS_ACCESS_KEY_ID=[ACCESS_KEY_ID]
-$ export AWS_SECRET_ACCESS_KEY=[SECRET_ACCESS_KEY]
-```
+The Vagrant staging environment pre-installs Packer, Terraform, Docker and the 
+Azure CLI.
 
 ## Provision a cluster
 
-`cd` to an environment subdirectory:
+- Follow the steps [here](aws/README.md) to provision a cluster on AWS.
+- Follow the steps [here](azure/README.md) to provision a cluster on Azure.
 
-```bash
-$ cd env/us-east
-```
+Continue with the steps below after a cluster has been provisioned.
 
-Update `terraform.tfvars` with your SSH key name:
+## Test
 
-```bash
-region                  = "us-east-1"
-ami                     = "ami-a780afdc"
-instance_type           = "t2.medium"
-key_name                = "KEY_NAME"
-server_count            = "3"
-client_count            = "4"
-```
-
-Note that a pre-provisioned, publicly available AMI is used by default 
-(for the `us-east-1` region). To provision your own customized AMI with 
-[Packer](https://www.packer.io/intro/index.html), follow the instructions 
-[here](aws/packer/README.md). You will need to replace the AMI ID in 
-`terraform.tfvars` with your own. You can also modify the `region`, 
-`instance_type`, `server_count`, and `client_count`. At least one client and
-one server are required.
-
-Provision the cluster:
-
-```bash
-$ terraform get
-$ terraform plan
-$ terraform apply
-```
-
-## Access the cluster
-
-SSH to one of the servers using its public IP:
-
-```bash
-$ ssh -i /path/to/key ubuntu@PUBLIC_IP
-```
-
-Note that the AWS security group is configured by default to allow all traffic 
-over port 22. This is *not* recommended for production deployments.
-
-Run a few basic commands to verify that Consul and Nomad are up and running 
+Run a few basic status commands to verify that Consul and Nomad are up and running 
 properly:
 
 ```bash
@@ -92,7 +41,9 @@ $ nomad server-members
 $ nomad node-status
 ```
 
-Optionally, initialize and unseal Vault:
+## Unseal the Vault cluster (optional)
+
+To initialize and unseal Vault, run:
 
 ```bash
 $ vault init -key-shares=1 -key-threshold=1
@@ -106,23 +57,26 @@ convenience. For a production environment, it is recommended that you create at
 least five unseal key shares and securely distribute them to independent 
 operators. The `vault init` command defaults to five key shares and a key 
 threshold of three. If you provisioned more than one server, the others will 
-become standby nodes (but should still be unsealed). You can query the active 
+become standby nodes but should still be unsealed. You can query the active 
 and standby nodes independently:
 
 ```bash
 $ dig active.vault.service.consul
 $ dig active.vault.service.consul SRV
 $ dig standby.vault.service.consul
-``` 
+```
+
+See the [Getting Started guide](https://www.vaultproject.io/intro/getting-started/first-secret.html) 
+for an introduction to Vault.
 
 ## Getting started with Nomad & the HashiCorp stack
 
-See:
+Use the following links to get started with Nomad and its HashiCorp integrations:
 
 * [Getting Started with Nomad](https://www.nomadproject.io/intro/getting-started/jobs.html)
 * [Consul integration](https://www.nomadproject.io/docs/service-discovery/index.html)
 * [Vault integration](https://www.nomadproject.io/docs/vault-integration/index.html)
-* [consul-template integration](https://www.nomadproject.io/docs/job-specification/template.html) 
+* [consul-template integration](https://www.nomadproject.io/docs/job-specification/template.html)
 
 ## Apache Spark integration
 

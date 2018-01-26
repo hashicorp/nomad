@@ -56,6 +56,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl policy list": func() (cli.Command, error) {
+			return &command.ACLPolicyListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl token": func() (cli.Command, error) {
 			return &command.ACLTokenCommand{
 				Meta: meta,
@@ -78,6 +83,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 		"acl token info": func() (cli.Command, error) {
 			return &command.ACLTokenInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"acl token self": func() (cli.Command, error) {
+			return &command.ACLTokenSelfCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -233,8 +243,18 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"namespace inspect": func() (cli.Command, error) {
+			return &command.NamespaceInspectCommand{
+				Meta: meta,
+			}, nil
+		},
 		"namespace list": func() (cli.Command, error) {
 			return &command.NamespaceListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"namespace status": func() (cli.Command, error) {
+			return &command.NamespaceStatusCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -251,6 +271,24 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 		"operator": func() (cli.Command, error) {
 			return &command.OperatorCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator autopilot": func() (cli.Command, error) {
+			return &command.OperatorAutopilotCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator autopilot get-config": func() (cli.Command, error) {
+			return &command.OperatorAutopilotGetCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator autopilot set-config": func() (cli.Command, error) {
+			return &command.OperatorAutopilotSetCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -275,6 +313,48 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 
 		"plan": func() (cli.Command, error) {
 			return &command.PlanCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota": func() (cli.Command, error) {
+			return &command.QuotaCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota apply": func() (cli.Command, error) {
+			return &command.QuotaApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota delete": func() (cli.Command, error) {
+			return &command.QuotaDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota init": func() (cli.Command, error) {
+			return &command.QuotaInitCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota inspect": func() (cli.Command, error) {
+			return &command.QuotaInspectCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota list": func() (cli.Command, error) {
+			return &command.QuotaListCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"quota status": func() (cli.Command, error) {
+			return &command.QuotaStatusCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -331,6 +411,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 		"stop": func() (cli.Command, error) {
 			return &command.StopCommand{
+				Meta: meta,
+			}, nil
+		},
+		"ui": func() (cli.Command, error) {
+			return &command.UiCommand{
 				Meta: meta,
 			}, nil
 		},

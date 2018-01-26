@@ -21,3 +21,8 @@ func ReplaceEnv(arg string, environments ...map[string]string) string {
 		return arg
 	})
 }
+
+// ReplaceEnvWithPlaceHolder replaces all occurrences of environment variables with the placeholder string.
+func ReplaceEnvWithPlaceHolder(arg string, placeholder string) string {
+	return envRe.ReplaceAllString(arg, placeholder)
+}

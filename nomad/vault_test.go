@@ -15,6 +15,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -539,7 +540,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	conf := &config.VaultConfig{
 		Enabled: &tr,
 		Addr:    "http://foobar:12345",
-		Token:   structs.GenerateUUID(),
+		Token:   uuid.Generate(),
 	}
 
 	// Enable vault but use a bad address so it never establishes a conn
@@ -696,15 +697,16 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	}
 	client.SetActive(true)
 	defer client.Stop()
-	client.setLimit(rate.Limit(1.0))
 
 	waitForConnection(client, t)
+
+	client.setLimit(rate.Limit(1.0))
 
 	// Spin up many requests. These should block
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cancels := 0
-	numRequests := 10
+	numRequests := 20
 	unblock := make(chan struct{})
 	for i := 0; i < numRequests; i++ {
 		go func() {
@@ -733,13 +735,13 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 
 	desired := numRequests - 1
 	testutil.WaitForResult(func() (bool, error) {
-		if cancels != desired {
+		if desired-cancels > 2 {
 			return false, fmt.Errorf("Incorrect number of cancels; got %d; want %d", cancels, desired)
 		}
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("Connection not established")
+		t.Fatal(err)
 	})
 }
 
@@ -1024,7 +1026,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	t.Parallel()
 	vconfig := &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
-		Token:   structs.GenerateUUID(),
+		Token:   uuid.Generate(),
 		Addr:    "http://127.0.0.1:0",
 	}
 
@@ -1057,7 +1059,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	t.Parallel()
 	vconfig := &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
-		Token:   structs.GenerateUUID(),
+		Token:   uuid.Generate(),
 		Addr:    "http://127.0.0.1:0",
 	}
 	logger := log.New(os.Stderr, "", log.LstdFlags)

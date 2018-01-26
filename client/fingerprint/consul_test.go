@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConsulFingerprint(t *testing.T) {
@@ -159,3 +160,44 @@ const mockConsulResponse = `
   }
 }
 `
+
+// TestConsulFingerprint_UnexpectedResponse asserts that the Consul
+// fingerprinter does not panic when it encounters an unexpected response.
+// See https://github.com/hashicorp/nomad/issues/3326
+func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
+	assert := assert.New(t)
+	fp := NewConsulFingerprint(testLogger())
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, "{}")
+	}))
+	defer ts.Close()
+
+	config := config.DefaultConfig()
+	config.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
+
+	ok, err := fp.Fingerprint(config, node)
+	assert.Nil(err)
+	assert.True(ok)
+
+	attrs := []string{
+		"consul.server",
+		"consul.version",
+		"consul.revision",
+		"unique.consul.name",
+		"consul.datacenter",
+	}
+	for _, attr := range attrs {
+		if v, ok := node.Attributes[attr]; ok {
+			t.Errorf("unexpected node attribute %q with vlaue %q", attr, v)
+		}
+	}
+
+	if v, ok := node.Links["consul"]; ok {
+		t.Errorf("Unexpected link to consul: %v", v)
+	}
+}

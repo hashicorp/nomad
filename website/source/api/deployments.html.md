@@ -22,9 +22,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `namespace:read-job` |
 
 ### Parameters
 
@@ -139,9 +139,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `namespace:read-job` |
 
 ### Parameters
 
@@ -253,7 +253,8 @@ $ curl \
     "DeploymentStatus": null,
     "CreateIndex": 19,
     "ModifyIndex": 22,
-    "CreateTime": 1498775380678486300
+    "CreateTime": 1498775380678486300,
+    "ModifyTime": 1498775380678486300
   }
 ]
 ```
@@ -262,7 +263,9 @@ $ curl \
 
 This endpoint is used to mark a deployment as failed. This should be done to
 force the scheduler to stop creating allocations as part of the deployment or to
-cause a rollback to a previous job version.
+cause a rollback to a previous job version. This endpoint only triggers a rollback
+if the most recent stable version of the job has a different specification than
+the job being reverted.
 
 | Method  | Path                                 | Produces                   |
 | ------- | ------------------------------------ | -------------------------- |
@@ -272,9 +275,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 
@@ -315,9 +318,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 
@@ -369,9 +372,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 
@@ -427,7 +430,8 @@ may not be desired. As such those task groups can be marked with an upgrade
 policy that uses `health_check = "manual"`. Those allocations must have their
 health marked manually using this endpoint. Marking an allocation as healthy
 will allow the rolling upgrade to proceed. Marking it as failed will cause the
-deployment to fail.
+deployment to fail. This endpoint only triggers a rollback if the most recent stable
+version of the job has a different specification than the job being reverted.
 
 | Method  | Path                                              | Produces                   |
 | ------- | ------------------------------------------------- | -------------------------- |
@@ -437,9 +441,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 

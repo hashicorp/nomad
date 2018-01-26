@@ -1,15 +1,15 @@
-import Ember from 'ember';
+import { collect, sum, bool, equal } from '@ember/object/computed';
+import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
-import { hasMany } from 'ember-data/relationships';
+import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
-
-const { computed } = Ember;
 
 export default Model.extend({
   region: attr('string'),
   name: attr('string'),
+  plainId: attr('string'),
   type: attr('string'),
   priority: attr('number'),
   allAtOnce: attr('boolean'),
@@ -34,7 +34,7 @@ export default Model.extend({
   failedAllocs: sumAggregation('taskGroupSummaries', 'failedAllocs'),
   lostAllocs: sumAggregation('taskGroupSummaries', 'lostAllocs'),
 
-  allocsList: computed.collect(
+  allocsList: collect(
     'queuedAllocs',
     'startingAllocs',
     'runningAllocs',
@@ -43,7 +43,7 @@ export default Model.extend({
     'lostAllocs'
   ),
 
-  totalAllocs: computed.sum('allocsList'),
+  totalAllocs: sum('allocsList'),
 
   pendingChildren: attr('number'),
   runningChildren: attr('number'),
@@ -52,6 +52,36 @@ export default Model.extend({
   versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
   deployments: hasMany('deployments'),
+  evaluations: hasMany('evaluations'),
+  namespace: belongsTo('namespace'),
+
+  hasPlacementFailures: bool('latestFailureEvaluation'),
+
+  latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
+    const evaluations = this.get('evaluations');
+    if (!evaluations || evaluations.get('isPending')) {
+      return null;
+    }
+    return evaluations.sortBy('modifyIndex').get('lastObject');
+  }),
+
+  latestFailureEvaluation: computed(
+    'evaluations.@each.modifyIndex',
+    'evaluations.isPending',
+    function() {
+      const evaluations = this.get('evaluations');
+      if (!evaluations || evaluations.get('isPending')) {
+        return null;
+      }
+
+      const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
+      if (failureEvaluations) {
+        return failureEvaluations.sortBy('modifyIndex').get('lastObject');
+      }
+    }
+  ),
+
+  supportsDeployments: equal('type', 'service'),
 
   runningDeployment: computed('deployments.@each.status', function() {
     return this.get('deployments').findBy('status', 'running');

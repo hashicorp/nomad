@@ -71,9 +71,6 @@ type ExecutorContext struct {
 	// Task is the task whose executor is being launched
 	Task *structs.Task
 
-	// AllocID is the allocation id to which the task belongs
-	AllocID string
-
 	// TaskDir is the host path to the task's root
 	TaskDir string
 
@@ -100,6 +97,9 @@ type ExecCommand struct {
 
 	// Args is the args of the command that the user wants to run.
 	Args []string
+
+	// TaskKillSignal is an optional field which signal to kill the process
+	TaskKillSignal os.Signal
 
 	// FSIsolation determines whether the command would be run in a chroot.
 	FSIsolation bool
@@ -499,9 +499,20 @@ func (e *UniversalExecutor) ShutDown() error {
 		}
 		return nil
 	}
-	if err = proc.Signal(os.Interrupt); err != nil && err.Error() != finishedErr {
+
+	// Set default kill signal, as some drivers don't support configurable
+	// signals (such as rkt)
+	var osSignal os.Signal
+	if e.command.TaskKillSignal != nil {
+		osSignal = e.command.TaskKillSignal
+	} else {
+		osSignal = os.Interrupt
+	}
+
+	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
 		return fmt.Errorf("executor.shutdown error: %v", err)
 	}
+
 	return nil
 }
 

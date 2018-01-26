@@ -1,14 +1,16 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
+import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
-const { Controller, computed, inject } = Ember;
-
-export default Controller.extend(Sortable, {
-  jobController: inject.controller('jobs.job'),
+export default Controller.extend(Sortable, WithNamespaceResetting, {
+  system: service(),
+  jobController: controller('jobs.job'),
 
   queryParams: {
     currentPage: 'page',
-    searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
   },
@@ -19,15 +21,19 @@ export default Controller.extend(Sortable, {
   sortProperty: 'name',
   sortDescending: false,
 
-  breadcrumbs: computed.alias('jobController.breadcrumbs'),
-  job: computed.alias('model'),
+  breadcrumbs: alias('jobController.breadcrumbs'),
+  job: alias('model'),
 
   taskGroups: computed('model.taskGroups.[]', function() {
     return this.get('model.taskGroups') || [];
   }),
 
-  listToSort: computed.alias('taskGroups'),
-  sortedTaskGroups: computed.alias('listSorted'),
+  listToSort: alias('taskGroups'),
+  sortedTaskGroups: alias('listSorted'),
+
+  sortedEvaluations: computed('model.evaluations.@each.modifyIndex', function() {
+    return (this.get('model.evaluations') || []).sortBy('modifyIndex').reverse();
+  }),
 
   actions: {
     gotoTaskGroup(taskGroup) {

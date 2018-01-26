@@ -9,6 +9,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -317,7 +318,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval, structs.GenerateUUID())
+	err := w.invokeScheduler(eval, uuid.Generate())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -336,8 +337,11 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
+	job := mock.Job()
 	eval1 := mock.Eval()
-	s1.fsm.State().UpsertJobSummary(1000, mock.JobSummary(eval1.JobID))
+	eval1.JobID = job.ID
+	s1.fsm.State().UpsertJob(1000, job)
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
 
 	// Create the register request
 	s1.evalBroker.Enqueue(eval1)
@@ -352,8 +356,8 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 	// Create an allocation plan
 	alloc := mock.Alloc()
-	s1.fsm.State().UpsertJobSummary(1200, mock.JobSummary(alloc.JobID))
 	plan := &structs.Plan{
+		Job:    job,
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -398,8 +402,13 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
+	// Create the job
+	job := mock.Job()
+	s1.fsm.State().UpsertJob(1000, job)
+
 	// Create the register request
 	eval1 := mock.Eval()
+	eval1.JobID = job.ID
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
@@ -414,6 +423,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node2 := mock.Node()
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job:    job,
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node2.ID: {alloc},

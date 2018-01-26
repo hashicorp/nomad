@@ -15,7 +15,7 @@ func (c *ACLTokenUpdateCommand) Help() string {
 	helpText := `
 Usage: nomad acl token update <token_accessor_id>
 
-Update is used to update an existing ACL token. Requires a management token.
+  Update is used to update an existing ACL token. Requires a management token.
 
 General Options:
 

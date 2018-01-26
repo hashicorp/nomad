@@ -20,15 +20,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"sync/atomic"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
 	testing "github.com/mitchellh/go-testing-interface"
 )
-
-// offset is used to atomically increment the port numbers.
-var offset uint64
 
 // TestServerConfig is the main server configuration struct.
 type TestServerConfig struct {
@@ -65,6 +62,7 @@ type PortsConfig struct {
 type ServerConfig struct {
 	Enabled         bool `json:"enabled"`
 	BootstrapExpect int  `json:"bootstrap_expect"`
+	RaftProtocol    int  `json:"raft_protocol,omitempty"`
 }
 
 // ClientConfig is used to configure the client
@@ -88,11 +86,10 @@ type ServerConfigCallback func(c *TestServerConfig)
 
 // defaultServerConfig returns a new TestServerConfig struct
 // with all of the listen ports incremented by one.
-func defaultServerConfig() *TestServerConfig {
-	idx := int(atomic.AddUint64(&offset, 1))
-
+func defaultServerConfig(t testing.T) *TestServerConfig {
+	ports := freeport.GetT(t, 3)
 	return &TestServerConfig{
-		NodeName:          fmt.Sprintf("node%d", idx),
+		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
 		LogLevel:          "DEBUG",
 		// Advertise can't be localhost
@@ -102,9 +99,9 @@ func defaultServerConfig() *TestServerConfig {
 			Serf: "169.254.42.42",
 		},
 		Ports: &PortsConfig{
-			HTTP: 20000 + idx,
-			RPC:  21000 + idx,
-			Serf: 22000 + idx,
+			HTTP: ports[0],
+			RPC:  ports[1],
+			Serf: ports[2],
 		},
 		Server: &ServerConfig{
 			Enabled:         true,
@@ -161,7 +158,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	}
 	defer configFile.Close()
 
-	nomadConfig := defaultServerConfig()
+	nomadConfig := defaultServerConfig(t)
 	nomadConfig.DataDir = dataDir
 
 	if cb != nil {

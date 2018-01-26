@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
-
-const { assign } = Ember;
 
 export default ApplicationSerializer.extend({
   attrs: {

@@ -1,0 +1,41 @@
+.page-layout {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .page-header {
+    position: fixed;
+    width: 100%;
+    z-index: $z-header;
+
+    // Defensive styles in case header height goes over 100px, causing
+    // the left gutter menu to be on top of the header.
+    height: $header-height;
+    overflow: hidden;
+  }
+
+  .page-body {
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: $header-height;
+
+    .page-column {
+      flex: 1;
+
+      &.is-left {
+        min-width: $gutter-width;
+        max-width: $gutter-width;
+        position: fixed;
+        bottom: 0;
+        top: $header-height;
+        z-index: $z-gutter;
+      }
+
+      &.is-right {
+        margin-left: $gutter-width;
+      }
+    }
+  }
+}

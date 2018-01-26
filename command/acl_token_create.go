@@ -16,7 +16,7 @@ func (c *ACLTokenCreateCommand) Help() string {
 	helpText := `
 Usage: nomad acl token create [options]
 
-Create is used to issue new ACL tokens. Requires a management token.
+  Create is used to issue new ACL tokens. Requires a management token.
 
 General Options:
 

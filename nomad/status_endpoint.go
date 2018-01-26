@@ -1,6 +1,12 @@
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // Status endpoint is used to check on server status
 type Status struct {
@@ -70,6 +76,13 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // Members return the list of servers in a cluster that a particular server is
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
+	// Check node read permissions
+	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
 	serfMembers := s.srv.Members()
 	members := make([]*structs.ServerMember, len(serfMembers))
 	for i, mem := range serfMembers {
@@ -93,5 +106,23 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 		ServerDC:     s.srv.config.Datacenter,
 		Members:      members,
 	}
+	return nil
+}
+
+// Used by Autopilot to query the raft stats of the local server.
+func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
+	stats := s.srv.raft.Stats()
+
+	var err error
+	reply.LastContact = stats["last_contact"]
+	reply.LastIndex, err = strconv.ParseUint(stats["last_log_index"], 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing server's last_log_index value: %s", err)
+	}
+	reply.LastTerm, err = strconv.ParseUint(stats["last_log_term"], 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing server's last_log_term value: %s", err)
+	}
+
 	return nil
 }

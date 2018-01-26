@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -28,25 +32,52 @@ const (
 	// replicationRateLimit is used to rate limit how often data is replicated
 	// between the authoritative region and the local region
 	replicationRateLimit rate.Limit = 10.0
+
+	// barrierWriteTimeout is used to give Raft a chance to process a
+	// possible loss of leadership event if we are unable to get a barrier
+	// while leader.
+	barrierWriteTimeout = 2 * time.Minute
 )
+
+var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
 func (s *Server) monitorLeadership() {
-	var stopCh chan struct{}
+	var weAreLeaderCh chan struct{}
+	var leaderLoop sync.WaitGroup
 	for {
 		select {
 		case isLeader := <-s.leaderCh:
-			if isLeader {
-				stopCh = make(chan struct{})
-				go s.leaderLoop(stopCh)
+			switch {
+			case isLeader:
+				if weAreLeaderCh != nil {
+					s.logger.Printf("[ERR] nomad: attempted to start the leader loop while running")
+					continue
+				}
+
+				weAreLeaderCh = make(chan struct{})
+				leaderLoop.Add(1)
+				go func(ch chan struct{}) {
+					defer leaderLoop.Done()
+					s.leaderLoop(ch)
+				}(weAreLeaderCh)
 				s.logger.Printf("[INFO] nomad: cluster leadership acquired")
-			} else if stopCh != nil {
-				close(stopCh)
-				stopCh = nil
+
+			default:
+				if weAreLeaderCh == nil {
+					s.logger.Printf("[ERR] nomad: attempted to stop the leader loop while not running")
+					continue
+				}
+
+				s.logger.Printf("[DEBUG] nomad: shutting down leader loop")
+				close(weAreLeaderCh)
+				leaderLoop.Wait()
+				weAreLeaderCh = nil
 				s.logger.Printf("[INFO] nomad: cluster leadership lost")
 			}
+
 		case <-s.shutdownCh:
 			return
 		}
@@ -56,9 +87,6 @@ func (s *Server) monitorLeadership() {
 // leaderLoop runs as long as we are the leader to run various
 // maintence activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
-	// Ensure we revoke leadership on stepdown
-	defer s.revokeLeadership()
-
 	var reconcileCh chan serf.Member
 	establishedLeader := false
 
@@ -69,7 +97,7 @@ RECONCILE:
 
 	// Apply a raft barrier to ensure our FSM is caught up
 	start := time.Now()
-	barrier := s.raft.Barrier(0)
+	barrier := s.raft.Barrier(barrierWriteTimeout)
 	if err := barrier.Error(); err != nil {
 		s.logger.Printf("[ERR] nomad: failed to wait for barrier: %v", err)
 		goto WAIT
@@ -83,6 +111,11 @@ RECONCILE:
 			goto WAIT
 		}
 		establishedLeader = true
+		defer func() {
+			if err := s.revokeLeadership(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to revoke leadership: %v", err)
+			}
+		}()
 	}
 
 	// Reconcile any missing data
@@ -94,6 +127,15 @@ RECONCILE:
 	// Initial reconcile worked, now we can process the channel
 	// updates
 	reconcileCh = s.reconcileCh
+
+	// Poll the stop channel to give it priority so we don't waste time
+	// trying to perform the other operations if we have been asked to shut
+	// down.
+	select {
+	case <-stopCh:
+		return
+	default:
+	}
 
 WAIT:
 	// Wait until leadership is lost
@@ -116,6 +158,10 @@ WAIT:
 // previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	// Generate a leader ACL token. This will allow the leader to issue work
+	// that requires a valid ACL token.
+	s.setLeaderAcl(uuid.Generate())
+
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
 	if numWorkers := len(s.workers); numWorkers > 1 {
@@ -125,6 +171,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			s.workers[i].SetPause(true)
 		}
 	}
+
+	// Initialize and start the autopilot routine
+	s.getOrCreateAutopilotConfig()
+	s.autopilot.Start()
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -137,6 +187,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Enable the blocked eval tracker, since we are now the leader
 	s.blockedEvals.SetEnabled(true)
+	s.blockedEvals.SetTimetable(s.fsm.TimeTable())
 
 	// Enable the deployment watcher, since we are now the leader
 	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {
@@ -173,6 +224,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Periodically unblock failed allocations
 	go s.periodicUnblockFailedEvals(stopCh)
+
+	// Periodically publish job summary metrics
+	go s.publishJobSummaryMetrics(stopCh)
 
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
@@ -314,14 +368,12 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		added, err := s.periodicDispatcher.Add(job)
-		if err != nil {
+		if err := s.periodicDispatcher.Add(job); err != nil {
 			return err
 		}
 
-		// We did not add the job to the tracker, this can be for a variety of
-		// reasons, but it means that we do not need to force run it.
-		if !added {
+		// We do not need to force run the job since it isn't active.
+		if !job.IsPeriodicActive() {
 			continue
 		}
 
@@ -329,8 +381,12 @@ func (s *Server) restorePeriodicDispatcher() error {
 		// the time the periodic job was added. Otherwise it has the last launch
 		// time of the periodic job.
 		launch, err := s.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
-		if err != nil || launch == nil {
+		if err != nil {
 			return fmt.Errorf("failed to get periodic launch time: %v", err)
+		}
+		if launch == nil {
+			return fmt.Errorf("no recorded periodic launch time for job %q in namespace %q",
+				job.ID, job.Namespace)
 		}
 
 		// nextLaunch is the next launch that should occur.
@@ -406,12 +462,13 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 // coreJobEval returns an evaluation for a core job
 func (s *Server) coreJobEval(job string, modifyIndex uint64) *structs.Evaluation {
 	return &structs.Evaluation{
-		ID:          structs.GenerateUUID(),
+		ID:          uuid.Generate(),
 		Namespace:   "-",
 		Priority:    structs.CoreJobPriority,
 		Type:        structs.JobTypeCore,
 		TriggeredBy: structs.EvalTriggerScheduled,
 		JobID:       job,
+		LeaderACL:   s.getLeaderAcl(),
 		Status:      structs.EvalStatusPending,
 		ModifyIndex: modifyIndex,
 	}
@@ -512,9 +569,83 @@ func (s *Server) periodicUnblockFailedEvals(stopCh chan struct{}) {
 	}
 }
 
+// publishJobSummaryMetrics publishes the job summaries as metrics
+func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-timer.C:
+			timer.Reset(s.config.StatsCollectionInterval)
+			state, err := s.State().Snapshot()
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to get state: %v", err)
+				continue
+			}
+			ws := memdb.NewWatchSet()
+			iter, err := state.JobSummaries(ws)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad: failed to get job summaries: %v", err)
+				continue
+			}
+
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				summary := raw.(*structs.JobSummary)
+				for name, tgSummary := range summary.Summary {
+					if !s.config.DisableTaggedMetrics {
+						labels := []metrics.Label{
+							{
+								Name:  "job",
+								Value: summary.JobID,
+							},
+							{
+								Name:  "task_group",
+								Value: name,
+							},
+						}
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+							float32(tgSummary.Queued), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+							float32(tgSummary.Complete), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+							float32(tgSummary.Failed), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+							float32(tgSummary.Running), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+							float32(tgSummary.Starting), labels)
+						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+							float32(tgSummary.Lost), labels)
+					}
+					if s.config.BackwardsCompatibleMetrics {
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+					}
+				}
+			}
+		}
+	}
+}
+
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	// Clear the leader token since we are no longer the leader.
+	s.setLeaderAcl("")
+
+	// Disable autopilot
+	s.autopilot.Stop()
+
 	// Disable the plan queue, since we are no longer leader
 	s.planQueue.SetEnabled(false)
 
@@ -626,8 +757,8 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	}
 
 	// Check for possibility of multiple bootstrap nodes
+	members := s.serf.Members()
 	if parts.Bootstrap {
-		members := s.serf.Members()
 		for _, member := range members {
 			valid, p := isNomadServer(member)
 			if valid && member.Name != m.Name && p.Bootstrap {
@@ -637,12 +768,10 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 		}
 	}
 
-	// TODO (alexdadgar) - This will need to be changed once we support node IDs.
-	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
-
 	// See if it's already in the configuration. It's harmless to re-add it
 	// but we want to avoid doing that if possible to prevent useless Raft
 	// log entries.
+	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
 		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
@@ -654,21 +783,69 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 		}
 	}
 
-	// Attempt to add as a peer
-	addFuture := s.raft.AddPeer(raft.ServerAddress(addr))
-	if err := addFuture.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+	// See if it's already in the configuration. It's harmless to re-add it
+	// but we want to avoid doing that if possible to prevent useless Raft
+	// log entries. If the address is the same but the ID changed, remove the
+	// old server before adding the new one.
+	minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+	if err != nil {
 		return err
-	} else if err == nil {
-		s.logger.Printf("[INFO] nomad: added raft peer: %v", parts)
 	}
+	for _, server := range configFuture.Configuration().Servers {
+		// No-op if the raft version is too low
+		if server.Address == raft.ServerAddress(addr) && (minRaftProtocol < 2 || parts.RaftVersion < 3) {
+			return nil
+		}
+
+		// If the address or ID matches an existing server, see if we need to remove the old one first
+		if server.Address == raft.ServerAddress(addr) || server.ID == raft.ServerID(parts.ID) {
+			// Exit with no-op if this is being called on an existing server
+			if server.Address == raft.ServerAddress(addr) && server.ID == raft.ServerID(parts.ID) {
+				return nil
+			}
+			future := s.raft.RemoveServer(server.ID, 0, 0)
+			if server.Address == raft.ServerAddress(addr) {
+				if err := future.Error(); err != nil {
+					return fmt.Errorf("error removing server with duplicate address %q: %s", server.Address, err)
+				}
+				s.logger.Printf("[INFO] nomad: removed server with duplicate address: %s", server.Address)
+			} else {
+				if err := future.Error(); err != nil {
+					return fmt.Errorf("error removing server with duplicate ID %q: %s", server.ID, err)
+				}
+				s.logger.Printf("[INFO] nomad: removed server with duplicate ID: %s", server.ID)
+			}
+		}
+	}
+
+	// Attempt to add as a peer
+	switch {
+	case minRaftProtocol >= 3:
+		addFuture := s.raft.AddNonvoter(raft.ServerID(parts.ID), raft.ServerAddress(addr), 0, 0)
+		if err := addFuture.Error(); err != nil {
+			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+			return err
+		}
+	case minRaftProtocol == 2 && parts.RaftVersion >= 3:
+		addFuture := s.raft.AddVoter(raft.ServerID(parts.ID), raft.ServerAddress(addr), 0, 0)
+		if err := addFuture.Error(); err != nil {
+			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+			return err
+		}
+	default:
+		addFuture := s.raft.AddPeer(raft.ServerAddress(addr))
+		if err := addFuture.Error(); err != nil {
+			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
 // removeRaftPeer is used to remove a Raft peer when a Nomad server leaves
 // or is reaped
 func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
-	// TODO (alexdadgar) - This will need to be changed once we support node IDs.
 	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 
 	// See if it's already in the configuration. It's harmless to re-remove it
@@ -679,21 +856,37 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
 		return err
 	}
-	for _, server := range configFuture.Configuration().Servers {
-		if server.Address == raft.ServerAddress(addr) {
-			goto REMOVE
-		}
-	}
-	return nil
 
-REMOVE:
-	// Attempt to remove as a peer.
-	future := s.raft.RemovePeer(raft.ServerAddress(addr))
-	if err := future.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to remove raft peer '%v': %v",
-			parts, err)
+	minRaftProtocol, err := s.autopilot.MinRaftProtocol()
+	if err != nil {
 		return err
 	}
+
+	// Pick which remove API to use based on how the server was added.
+	for _, server := range configFuture.Configuration().Servers {
+		// If we understand the new add/remove APIs and the server was added by ID, use the new remove API
+		if minRaftProtocol >= 2 && server.ID == raft.ServerID(parts.ID) {
+			s.logger.Printf("[INFO] nomad: removing server by ID: %q", server.ID)
+			future := s.raft.RemoveServer(raft.ServerID(parts.ID), 0, 0)
+			if err := future.Error(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to remove raft peer '%v': %v",
+					server.ID, err)
+				return err
+			}
+			break
+		} else if server.Address == raft.ServerAddress(addr) {
+			// If not, use the old remove API
+			s.logger.Printf("[INFO] nomad: removing server by address: %q", server.Address)
+			future := s.raft.RemovePeer(raft.ServerAddress(addr))
+			if err := future.Error(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to remove raft peer '%v': %v",
+					addr, err)
+				return err
+			}
+			break
+		}
+	}
+
 	return nil
 }
 
@@ -720,7 +913,7 @@ START:
 
 			// Fetch the list of policies
 			var resp structs.ACLPolicyListResponse
-			req.SecretID = s.ReplicationToken()
+			req.AuthToken = s.ReplicationToken()
 			err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"ACL.ListPolicies", &req, &resp)
 			if err != nil {
@@ -750,7 +943,7 @@ START:
 					Names: update,
 					QueryOptions: structs.QueryOptions{
 						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
+						AuthToken:     s.ReplicationToken(),
 						AllowStale:    true,
 						MinQueryIndex: resp.Index - 1,
 					},
@@ -862,7 +1055,7 @@ START:
 
 			// Fetch the list of tokens
 			var resp structs.ACLTokenListResponse
-			req.SecretID = s.ReplicationToken()
+			req.AuthToken = s.ReplicationToken()
 			err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"ACL.ListTokens", &req, &resp)
 			if err != nil {
@@ -892,7 +1085,7 @@ START:
 					AccessorIDS: update,
 					QueryOptions: structs.QueryOptions{
 						Region:        s.config.AuthoritativeRegion,
-						SecretID:      s.ReplicationToken(),
+						AuthToken:     s.ReplicationToken(),
 						AllowStale:    true,
 						MinQueryIndex: resp.Index - 1,
 					},
@@ -978,4 +1171,31 @@ func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*struc
 		}
 	}
 	return
+}
+
+// getOrCreateAutopilotConfig is used to get the autopilot config, initializing it if necessary
+func (s *Server) getOrCreateAutopilotConfig() *autopilot.Config {
+	state := s.fsm.State()
+	_, config, err := state.AutopilotConfig()
+	if err != nil {
+		s.logger.Printf("[ERR] autopilot: failed to get config: %v", err)
+		return nil
+	}
+	if config != nil {
+		return config
+	}
+
+	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion) {
+		s.logger.Printf("[WARN] autopilot: can't initialize until all servers are >= %s", minAutopilotVersion.String())
+		return nil
+	}
+
+	config = s.config.AutopilotConfig
+	req := structs.AutopilotSetConfigRequest{Config: *config}
+	if _, _, err = s.raftApply(structs.AutopilotRequestType, req); err != nil {
+		s.logger.Printf("[ERR] autopilot: failed to initialize config: %v", err)
+		return nil
+	}
+
+	return config
 }

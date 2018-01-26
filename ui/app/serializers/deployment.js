@@ -1,7 +1,6 @@
-import Ember from 'ember';
+import { get } from '@ember/object';
+import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
-
-const { get, assign } = Ember;
 
 export default ApplicationSerializer.extend({
   attrs: {
@@ -13,6 +12,14 @@ export default ApplicationSerializer.extend({
       const deploymentStats = get(hash, `TaskGroups.${key}`);
       return assign({ Name: key }, deploymentStats);
     });
+
+    hash.PlainJobId = hash.JobID;
+    hash.Namespace =
+      hash.Namespace ||
+      get(hash, 'Job.Namespace') ||
+      this.get('system.activeNamespace.id') ||
+      'default';
+    hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
     return this._super(typeHash, hash);
   },

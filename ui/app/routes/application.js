@@ -1,5 +1,28 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
 
-const { Route } = Ember;
+export default Route.extend({
+  config: service(),
 
-export default Route.extend({});
+  resetController(controller, isExiting) {
+    if (isExiting) {
+      controller.set('error', null);
+    }
+  },
+
+  actions: {
+    didTransition() {
+      if (!this.get('config.isTest')) {
+        window.scrollTo(0, 0);
+      }
+    },
+
+    willTransition() {
+      this.controllerFor('application').set('error', null);
+    },
+
+    error(error) {
+      this.controllerFor('application').set('error', error);
+    },
+  },
+});

@@ -5,9 +5,15 @@ import { provide, pickOne } from '../utils';
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
 const DESIRED_STATUSES = ['run', 'stop', 'evict'];
+const REF_TIME = new Date();
 
 export default Factory.extend({
   id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
+
+  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
+  jobVersion: () => faker.random.number(10),
+
+  modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
 
   clientStatus: faker.list.random(...CLIENT_STATUSES),
   desiredStatus: faker.list.random(...DESIRED_STATUSES),
@@ -26,6 +32,24 @@ export default Factory.extend({
             name: server.db.tasks.find(id).name,
           },
           'withReservedPorts'
+        )
+      );
+
+      allocation.update({ taskResourcesIds: resources.mapBy('id') });
+    },
+  }),
+
+  withoutTaskWithPorts: trait({
+    afterCreate(allocation, server) {
+      const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
+      const resources = taskGroup.taskIds.map(id =>
+        server.create(
+          'task-resources',
+          {
+            allocation,
+            name: server.db.tasks.find(id).name,
+          },
+          'withoutReservedPorts'
         )
       );
 

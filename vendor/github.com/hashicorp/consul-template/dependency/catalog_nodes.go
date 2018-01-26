@@ -92,7 +92,11 @@ func (d *CatalogNodesQuery) Fetch(clients *ClientSet, opts *QueryOptions) (inter
 			Meta:            node.Meta,
 		})
 	}
-	sort.Stable(ByNode(nodes))
+
+	// Sort unless the user explicitly asked for nearness
+	if d.near == "" {
+		sort.Stable(ByNode(nodes))
+	}
 
 	rm := &ResponseMetadata{
 		LastIndex:   qm.LastIndex,

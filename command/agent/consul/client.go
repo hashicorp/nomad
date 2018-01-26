@@ -21,9 +21,13 @@ import (
 )
 
 const (
-	// nomadServicePrefix is the first prefix that scopes all Nomad registered
-	// services
+	// nomadServicePrefix is the prefix that scopes all Nomad registered
+	// services (both agent and task entries).
 	nomadServicePrefix = "_nomad"
+
+	// nomadTaskPrefix is the prefix that scopes Nomad registered services
+	// for tasks.
+	nomadTaskPrefix = nomadServicePrefix + "-task-"
 
 	// defaultRetryInterval is how quickly to retry syncing services and
 	// checks to Consul when an error occurs. Will backoff up to a max.
@@ -288,8 +292,13 @@ func (c *ServiceClient) Run() {
 
 		if err := c.sync(); err != nil {
 			if failures == 0 {
+				// Log on the first failure
 				c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
+			} else if failures%10 == 0 {
+				// Log every 10th consecutive failure
+				c.logger.Printf("[ERR] consul.sync: still unable to update services in Consul after %d failures; latest error: %v", failures, err)
 			}
+
 			failures++
 			if !retryTimer.Stop() {
 				// Timer already expired, since the timer may
@@ -389,38 +398,31 @@ func (c *ServiceClient) sync() error {
 			// Not managed by Nomad, skip
 			continue
 		}
+
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
+			if isOldNomadService(id) {
+				// Don't hard-fail on old entries. See #3620
+				continue
+			}
+
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		sdereg++
-		metrics.IncrCounter([]string{"client", "consul", "service_deregisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "service_deregistrations"}, 1)
 	}
-
-	// Track services whose ports have changed as their checks may also
-	// need updating
-	portsChanged := make(map[string]struct{}, len(c.services))
 
 	// Add Nomad services missing from Consul
 	for id, locals := range c.services {
-		if remotes, ok := consulServices[id]; ok {
-			// Make sure Port and Address are stable since
-			// PortLabel and AddressMode aren't included in the
-			// service ID.
-			if locals.Port == remotes.Port && locals.Address == remotes.Address {
-				// Already exists in Consul; skip
-				continue
+		if _, ok := consulServices[id]; !ok {
+			if err = c.client.ServiceRegister(locals); err != nil {
+				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+				return err
 			}
-			// Port changed, reregister it and its checks
-			portsChanged[id] = struct{}{}
+			sreg++
+			metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 		}
-		if err = c.client.ServiceRegister(locals); err != nil {
-			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return err
-		}
-		sreg++
-		metrics.IncrCounter([]string{"client", "consul", "service_regisrations"}, 1)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -433,29 +435,34 @@ func (c *ServiceClient) sync() error {
 			// Service not managed by Nomad, skip
 			continue
 		}
-		// Unknown Nomad managed check; kill
+
+		// Unknown Nomad managed check; remove
 		if err := c.client.CheckDeregister(id); err != nil {
+			if isOldNomadService(check.ServiceID) {
+				// Don't hard-fail on old entries.
+				continue
+			}
+
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		cdereg++
-		metrics.IncrCounter([]string{"client", "consul", "check_deregisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "check_deregistrations"}, 1)
 	}
 
 	// Add Nomad checks missing from Consul
 	for id, check := range c.checks {
-		if check, ok := consulChecks[id]; ok {
-			if _, changed := portsChanged[check.ServiceID]; !changed {
-				// Already in Consul and ports didn't change; skipping
-				continue
-			}
+		if _, ok := consulChecks[id]; ok {
+			// Already in Consul; skipping
+			continue
 		}
+
 		if err := c.client.CheckRegister(check); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
 		creg++
-		metrics.IncrCounter([]string{"client", "consul", "check_regisrations"}, 1)
+		metrics.IncrCounter([]string{"client", "consul", "check_registrations"}, 1)
 
 		// Handle starting scripts
 		if script, ok := c.scripts[id]; ok {
@@ -569,23 +576,16 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
 	}
 
-	// Determine the address to advertise
+	// Service address modes default to auto
 	addrMode := service.AddressMode
-	if addrMode == structs.AddressModeAuto {
-		if net.Advertise() {
-			addrMode = structs.AddressModeDriver
-		} else {
-			// No driver network or shouldn't default to driver's network
-			addrMode = structs.AddressModeHost
-		}
+	if addrMode == "" {
+		addrMode = structs.AddressModeAuto
 	}
-	ip, port := task.Resources.Networks.Port(service.PortLabel)
-	if addrMode == structs.AddressModeDriver {
-		if net == nil {
-			return nil, fmt.Errorf("service %s cannot use driver's IP because driver didn't set one", service.Name)
-		}
-		ip = net.IP
-		port = net.PortMap[service.PortLabel]
+
+	// Determine the address to advertise based on the mode
+	ip, port, err := getAddress(addrMode, service.PortLabel, task.Resources.Networks, net)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get address for service %q: %v", service.Name, err)
 	}
 
 	// Build the Consul Service registration request
@@ -639,15 +639,33 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 			ops.scripts = append(ops.scripts, newScriptCheck(
 				allocID, task.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
 
+			// Skip getAddress for script checks
+			checkReg, err := createCheckReg(serviceID, checkID, check, "", 0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add script check %q: %v", check.Name, err)
+			}
+			ops.regChecks = append(ops.regChecks, checkReg)
+			continue
 		}
 
-		// Checks should always use the host ip:port
+		// Default to the service's port but allow check to override
 		portLabel := check.PortLabel
 		if portLabel == "" {
 			// Default to the service's port label
 			portLabel = service.PortLabel
 		}
-		ip, port := task.Resources.Networks.Port(portLabel)
+
+		// Checks address mode defaults to host for pre-#3380 backward compat
+		addrMode := check.AddressMode
+		if addrMode == "" {
+			addrMode = structs.AddressModeHost
+		}
+
+		ip, port, err := getAddress(addrMode, portLabel, task.Resources.Networks, net)
+		if err != nil {
+			return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
+		}
+
 		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
@@ -709,8 +727,8 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restart
 func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	ops := &operations{}
 
-	t := new(TaskRegistration)
-	t.Services = make(map[string]*ServiceRegistration, len(newTask.Services))
+	taskReg := new(TaskRegistration)
+	taskReg.Services = make(map[string]*ServiceRegistration, len(newTask.Services))
 
 	existingIDs := make(map[string]*structs.Service, len(existing.Services))
 	for _, s := range existing.Services {
@@ -740,22 +758,17 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			continue
 		}
 
+		// Service exists and hasn't changed, don't re-add it later
+		delete(newIDs, existingID)
+
 		// Service still exists so add it to the task's registration
 		sreg := &ServiceRegistration{
 			serviceID: existingID,
 			checkIDs:  make(map[string]struct{}, len(newSvc.Checks)),
 		}
-		t.Services[existingID] = sreg
+		taskReg.Services[existingID] = sreg
 
-		// PortLabel and AddressMode aren't included in the ID, so we
-		// have to compare manually.
-		serviceUnchanged := newSvc.PortLabel == existingSvc.PortLabel && newSvc.AddressMode == existingSvc.AddressMode
-		if serviceUnchanged {
-			// Service exists and hasn't changed, don't add it later
-			delete(newIDs, existingID)
-		}
-
-		// Check to see what checks were updated
+		// See if any checks were updated
 		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
 			existingChecks[makeCheckID(existingID, check)] = check
@@ -768,17 +781,16 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 				// Check exists, so don't remove it
 				delete(existingChecks, checkID)
 				sreg.checkIDs[checkID] = struct{}{}
-			} else if serviceUnchanged {
-				// New check on an unchanged service; add them now
-				newCheckIDs, err := c.checkRegs(ops, allocID, existingID, newSvc, newTask, exec, net)
-				if err != nil {
-					return err
-				}
+			}
 
-				for _, checkID := range newCheckIDs {
-					sreg.checkIDs[checkID] = struct{}{}
+			// New check on an unchanged service; add them now
+			newCheckIDs, err := c.checkRegs(ops, allocID, existingID, newSvc, newTask, exec, net)
+			if err != nil {
+				return err
+			}
 
-				}
+			for _, checkID := range newCheckIDs {
+				sreg.checkIDs[checkID] = struct{}{}
 
 			}
 
@@ -806,11 +818,11 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			return err
 		}
 
-		t.Services[sreg.serviceID] = sreg
+		taskReg.Services[sreg.serviceID] = sreg
 	}
 
 	// Add the task to the allocation's registration
-	c.addTaskRegistration(allocID, newTask.Name, t)
+	c.addTaskRegistration(allocID, newTask.Name, taskReg)
 
 	c.commit(ops)
 
@@ -988,36 +1000,21 @@ func (c *ServiceClient) removeTaskRegistration(allocID, taskName string) {
 //
 // Agent service IDs are of the form:
 //
-//	{nomadServicePrefix}-{ROLE}-{Service.Name}-{Service.Tags...}
-//	Example Server ID: _nomad-server-nomad-serf
-//	Example Client ID: _nomad-client-nomad-client-http
+//	{nomadServicePrefix}-{ROLE}-b32(sha1({Service.Name}-{Service.Tags...})
+//	Example Server ID: _nomad-server-fbbk265qn4tmt25nd4ep42tjvmyj3hr4
+//	Example Client ID: _nomad-client-ggnjpgl7yn7rgmvxzilmpvrzzvrszc7l
 //
 func makeAgentServiceID(role string, service *structs.Service) string {
-	parts := make([]string, len(service.Tags)+3)
-	parts[0] = nomadServicePrefix
-	parts[1] = role
-	parts[2] = service.Name
-	copy(parts[3:], service.Tags)
-	return strings.Join(parts, "-")
+	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, service.Hash(role, ""))
 }
 
 // makeTaskServiceID creates a unique ID for identifying a task service in
-// Consul.
+// Consul. All structs.Service fields are included in the ID's hash except
+// Checks. This allows updates to merely compare IDs.
 //
-// Task service IDs are of the form:
-//
-//	{nomadServicePrefix}-executor-{ALLOC_ID}-{Service.Name}-{Service.Tags...}
-//	Example Service ID: _nomad-executor-1234-echo-http-tag1-tag2-tag3
-//
+//	Example Service ID: _nomad-task-TNM333JKJPM5AK4FAS3VXQLXFDWOF4VH
 func makeTaskServiceID(allocID, taskName string, service *structs.Service) string {
-	parts := make([]string, len(service.Tags)+5)
-	parts[0] = nomadServicePrefix
-	parts[1] = "executor"
-	parts[2] = allocID
-	parts[3] = taskName
-	parts[4] = service.Name
-	copy(parts[5:], service.Tags)
-	return strings.Join(parts, "-")
+	return nomadTaskPrefix + service.Hash(allocID, taskName)
 }
 
 // makeCheckID creates a unique ID for a check.
@@ -1038,6 +1035,11 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 	chkReg.Status = check.InitialStatus
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()
+
+	// Require an address for http or tcp checks
+	if port == 0 && check.RequiresPort() {
+		return nil, fmt.Errorf("%s checks require an address", check.Type)
+	}
 
 	switch check.Type {
 	case structs.ServiceCheckHTTP:
@@ -1064,6 +1066,8 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
+		// As of Consul 1.0.0 setting TTL and Interval is a 400
+		chkReg.Interval = ""
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
@@ -1071,9 +1075,89 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 }
 
 // isNomadService returns true if the ID matches the pattern of a Nomad managed
-// service. Agent services return false as independent client and server agents
-// may be running on the same machine. #2827
+// service (new or old formats). Agent services return false as independent
+// client and server agents may be running on the same machine. #2827
 func isNomadService(id string) bool {
+	return strings.HasPrefix(id, nomadTaskPrefix) || isOldNomadService(id)
+}
+
+// isOldNomadService returns true if the ID matches an old pattern managed by
+// Nomad.
+//
+// Pre-0.7.1 task service IDs are of the form:
+//
+//	{nomadServicePrefix}-executor-{ALLOC_ID}-{Service.Name}-{Service.Tags...}
+//	Example Service ID: _nomad-executor-1234-echo-http-tag1-tag2-tag3
+//
+func isOldNomadService(id string) bool {
 	const prefix = nomadServicePrefix + "-executor"
 	return strings.HasPrefix(id, prefix)
+}
+
+// getAddress returns the IP and port to use for a service or check. If no port
+// label is specified (an empty value), zero values are returned because no
+// address could be resolved.
+func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *cstructs.DriverNetwork) (string, int, error) {
+	switch addrMode {
+	case structs.AddressModeAuto:
+		if driverNet.Advertise() {
+			addrMode = structs.AddressModeDriver
+		} else {
+			addrMode = structs.AddressModeHost
+		}
+		return getAddress(addrMode, portLabel, networks, driverNet)
+	case structs.AddressModeHost:
+		if portLabel == "" {
+			if len(networks) != 1 {
+				// If no networks are specified return zero
+				// values. Consul will advertise the host IP
+				// with no port. This is the pre-0.7.1 behavior
+				// some people rely on.
+				return "", 0, nil
+			}
+
+			return networks[0].IP, 0, nil
+		}
+
+		// Default path: use host ip:port
+		ip, port := networks.Port(portLabel)
+		if ip == "" && port <= 0 {
+			return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
+		}
+		return ip, port, nil
+
+	case structs.AddressModeDriver:
+		// Require a driver network if driver address mode is used
+		if driverNet == nil {
+			return "", 0, fmt.Errorf(`cannot use address_mode="driver": no driver network exists`)
+		}
+
+		// If no port label is specified just return the IP
+		if portLabel == "" {
+			return driverNet.IP, 0, nil
+		}
+
+		// If the port is a label, use the driver's port (not the host's)
+		if port, ok := driverNet.PortMap[portLabel]; ok {
+			return driverNet.IP, port, nil
+		}
+
+		// If port isn't a label, try to parse it as a literal port number
+		port, err := strconv.Atoi(portLabel)
+		if err != nil {
+			// Don't include Atoi error message as user likely
+			// never intended it to be a numeric and it creates a
+			// confusing error message
+			return "", 0, fmt.Errorf("invalid port label %q: port labels in driver address_mode must be numeric or in the driver's port map", portLabel)
+		}
+		if port <= 0 {
+			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
+		}
+
+		return driverNet.IP, port, nil
+
+	default:
+		// Shouldn't happen due to validation, but enforce invariants
+		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
+	}
 }

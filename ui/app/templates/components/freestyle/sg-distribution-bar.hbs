@@ -1,0 +1,70 @@
+{{#freestyle-collection as |collection|}}
+  {{#collection.variant key="standard"}}
+    {{#freestyle-usage 'distribution-bar-standard'}}
+      <div class="block" style="height:50px; width:200px;">
+        {{distribution-bar data=distributionBarData}}
+      </div>
+    {{/freestyle-usage}}
+    {{#freestyle-annotation}}
+      <div class="block">
+        The distribution bar chart proportionally show data in a single bar. It includes a tooltip out of the box, assumes the size of the container element, and is designed to be styled with CSS.
+      </div>
+      <div class="boxed-section">
+        <div class="boxed-section-body is-dark">
+          {{json-viewer json=distributionBarData}}
+        </div>
+      </div>
+    {{/freestyle-annotation}}
+  {{/collection.variant}}
+  {{#collection.variant key="with classes"}}
+    {{#freestyle-usage 'distribution-bar-with-classes'}}
+      <div class="block" style="height:50px; width:200px;">
+        {{distribution-bar data=distributionBarDataWithClasses}}
+      </div>
+    {{/freestyle-usage}}
+    {{#freestyle-annotation}}
+      <div class="block">
+        If a datum provides a <code>className</code> property, it will be assigned to the corresponding <code>rect</code> element, allowing for custom colorization.
+      </div>
+      <div class="boxed-section">
+        <div class="boxed-section-body is-dark">
+          {{json-viewer json=distributionBarDataWithClasses}}
+        </div>
+      </div>
+    {{/freestyle-annotation}}
+  {{/collection.variant}}
+  {{#collection.variant key="flexibility"}}
+    {{#freestyle-usage 'distribution-bar-sizing-1'}}
+      <div class="block" style="height:10px; width:600px;">
+        {{distribution-bar data=distributionBarData}}
+      </div>
+    {{/freestyle-usage}}
+    {{#freestyle-usage 'distribution-bar-sizing-2'}}
+      <div class="block" style="height:200px; width:30px;">
+        {{distribution-bar data=distributionBarData}}
+      </div>
+    {{/freestyle-usage}}
+    {{#freestyle-annotation}}
+      <div class="block">
+      Distribution bar assumes the dimensions of the container.
+      </div>
+    {{/freestyle-annotation}}
+  {{/collection.variant}}
+  {{#collection.variant key="live updating"}}
+    {{#freestyle-usage 'distribution-bar-updating'}}
+      <div class="block" style="height:50px; width:600px;">
+        {{distribution-bar data=distributionBarDataRotating}}
+      </div>
+    {{/freestyle-usage}}
+    {{#freestyle-annotation}}
+      <div class="block">
+      Distribution bar animates with data changes.
+      </div>
+      <div class="boxed-section">
+        <div class="boxed-section-body is-dark">
+          {{json-viewer json=distributionBarDataRotating}}
+        </div>
+      </div>
+    {{/freestyle-annotation}}
+  {{/collection.variant}}
+{{/freestyle-collection}}

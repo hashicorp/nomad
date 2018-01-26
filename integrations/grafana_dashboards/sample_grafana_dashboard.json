@@ -81,10 +81,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "nomad_client_consul_check_regisrations",
+              "expr": "nomad_client_consul_check_registrations",
               "format": "time_series",
               "intervalFactor": 2,
-              "metric": "nomad_client_consul_check_regisrations",
+              "metric": "nomad_client_consul_check_registrations",
               "refId": "B",
               "step": 20
             }

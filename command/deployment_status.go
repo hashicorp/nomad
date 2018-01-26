@@ -18,8 +18,8 @@ func (c *DeploymentStatusCommand) Help() string {
 	helpText := `
 Usage: nomad deployment status [options] <deployment id>
 
-Status is used to display the status of a deployment. The status will display
-the number of desired changes as well as the currently applied changes.
+  Status is used to display the status of a deployment. The status will display
+  the number of desired changes as well as the currently applied changes.
 
 General Options:
 

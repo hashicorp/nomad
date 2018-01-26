@@ -1,5 +1,5 @@
 import { Factory, faker } from 'ember-cli-mirage';
-import { provide, provider } from '../utils';
+import { provide, provider, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
@@ -14,7 +14,7 @@ export default Factory.extend({
 
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
-  priority: () => faker.random.number(200),
+  priority: () => faker.random.number(100),
   all_at_once: faker.random.boolean,
   status: faker.list.random(...JOB_STATUSES),
   datacenters: provider(
@@ -41,6 +41,12 @@ export default Factory.extend({
   // When true, deployments for the job will always have a 'running' status
   activeDeployment: false,
 
+  // When true, an evaluation with a high modify index and placement failures is created
+  failedPlacements: false,
+
+  // When true, no evaluations have failed placements
+  noFailedPlacements: false,
+
   afterCreate(job, server) {
     const groups = server.createList('task-group', job.groupsCount, {
       job,
@@ -51,6 +57,18 @@ export default Factory.extend({
       taskGroupIds: groups.mapBy('id'),
       task_group_ids: groups.mapBy('id'),
     });
+
+    if (!job.namespaceId) {
+      const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
+      job.update({
+        namespace,
+        namespaceId: namespace,
+      });
+    } else {
+      job.update({
+        namespace: job.namespaceId,
+      });
+    }
 
     const jobSummary = server.create('job-summary', {
       groupNames: groups.mapBy('name'),
@@ -72,5 +90,17 @@ export default Factory.extend({
           activeDeployment: job.activeDeployment,
         });
       });
+
+    server.createList('evaluation', faker.random.number({ min: 1, max: 5 }), { job });
+    if (!job.noFailedPlacements) {
+      server.createList('evaluation', faker.random.number(3), 'withPlacementFailures', { job });
+    }
+
+    if (job.failedPlacements) {
+      server.create('evaluation', 'withPlacementFailures', {
+        job,
+        modifyIndex: 4000,
+      });
+    }
   },
 });

@@ -3,19 +3,19 @@ layout: "guides"
 page_title: "Sentinel Policies"
 sidebar_current: "guides-sentinel"
 description: |-
- Nomad integrates with Sentinel for fine grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the ACL System.
+ Nomad integrates with Sentinel for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the ACL System.
 ---
 
 # Sentinel Policies
 
-Nomad integrates with Sentinel for fine grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
+[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) integrates with [HashiCorp Sentinel](https://docs.hashicorp.com/sentinel) for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
 
 ~> **Enterprise Only!** This functionality only exists in Nomad Enterprise.
 This is not present in the open source version of Nomad.
 
 # Sentinel Overview
 
-Sentinel integrates with the ACL system, and provides the ability to do fine grained policy enforcment. Users must have appropriate permissions to perform an action, and then are subject to any applicable Sentinel policies:
+Sentinel integrates with the ACL system, and provides the ability to do fine grained policy enforcement. Users must have appropriate permissions to perform an action, and then are subject to any applicable Sentinel policies:
 
 ![Sentinel Overview](/assets/images/sentinel.jpg)
 
@@ -61,7 +61,7 @@ The [`sentinel-override` capability](/guides/acl.html#sentinel-override) is requ
 
 Nomad supports multi-datacenter and multi-region configurations. A single region is able to service multiple datacenters, and all servers in a region replicate their state between each other. In a multi-region configuration, there is a set of servers per region. Each region operates independently and is loosely coupled to allow jobs to be scheduled in any region and requests to flow transparently to the correct region.
 
-When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies, global ACL tokens, and Sentinel policies. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single a single authoritative source. Any Sentinel policies are created in the authoritative region first. All other regions replicate Sentinel policies, ACL policies, and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
+When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies, global ACL tokens, and Sentinel policies. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single authoritative source. Any Sentinel policies are created in the authoritative region first. All other regions replicate Sentinel policies, ACL policies, and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
 
 ## Configuring Sentinel Policies
 
@@ -188,9 +188,11 @@ This time, the job was accepted but with a warning that our policy is failing bu
 
 # Policy Specification
 
-Sentinel policies are specified in the [Sentinel Language](#). The language is designed to be easy to read and write,
-while being fast to evaluate. There is no limitation on how complex policies can be, but they are in the execution path so
-care should be taken to avoid adversely impacting performance.
+Sentinel policies are specified in the [Sentinel
+Language](https://docs.hashicorp.com/sentinel/). The language is designed to be
+easy to read and write, while being fast to evaluate. There is no limitation on
+how complex policies can be, but they are in the execution path so care should
+be taken to avoid adversely impacting performance.
 
 In each scope, there are different objects made available for introspection, such a job being submitted. Policies can
 inspect these objects to apply fine-grained policies.

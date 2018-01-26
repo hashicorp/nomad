@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul/lib"
@@ -51,7 +52,7 @@ type prevAllocWatcher interface {
 // newAllocWatcher creates a prevAllocWatcher appropriate for whether this
 // alloc's previous allocation was local or remote. If this alloc has no
 // previous alloc then a noop implementation is returned.
-func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger) prevAllocWatcher {
+func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) prevAllocWatcher {
 	if alloc.PreviousAllocation == "" {
 		// No previous allocation, use noop transitioner
 		return noopPrevAlloc{}
@@ -75,13 +76,14 @@ func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, 
 	}
 
 	return &remotePrevAlloc{
-		allocID:     alloc.ID,
-		prevAllocID: alloc.PreviousAllocation,
-		tasks:       tg.Tasks,
-		config:      config,
-		migrate:     tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate,
-		rpc:         rpc,
-		logger:      l,
+		allocID:      alloc.ID,
+		prevAllocID:  alloc.PreviousAllocation,
+		tasks:        tg.Tasks,
+		config:       config,
+		migrate:      tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate,
+		rpc:          rpc,
+		logger:       l,
+		migrateToken: migrateToken,
 	}
 }
 
@@ -214,7 +216,7 @@ type remotePrevAlloc struct {
 	// tasks on the new alloc
 	tasks []*structs.Task
 
-	// config for the Client to get AllocDir and Region
+	// config for the Client to get AllocDir, Region, and Node.SecretID
 	config *config.Config
 
 	// migrate is true if data should be moved between nodes
@@ -236,6 +238,10 @@ type remotePrevAlloc struct {
 	waitingLock sync.RWMutex
 
 	logger *log.Logger
+
+	// migrateToken allows a client to migrate data in an ACL-protected remote
+	// volume
+	migrateToken string
 }
 
 // IsWaiting returns true if there's a concurrent call inside Wait
@@ -271,6 +277,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		QueryOptions: structs.QueryOptions{
 			Region:     p.config.Region,
 			AllowStale: true,
+			AuthToken:  p.config.Node.SecretID,
 		},
 	}
 
@@ -370,6 +377,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 		QueryOptions: structs.QueryOptions{
 			Region:     p.config.Region,
 			AllowStale: true,
+			AuthToken:  p.config.Node.SecretID,
 		},
 	}
 
@@ -423,7 +431,8 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	}
 
 	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", p.prevAllocID)
-	resp, err := apiClient.Raw().Response(url, nil)
+	qo := &nomadapi.QueryOptions{AuthToken: p.migrateToken}
+	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()
 		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %v", p.prevAllocID, err)
@@ -444,6 +453,9 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 	tr := tar.NewReader(resp)
 	defer resp.Close()
 
+	// Cache effective uid as we only run Chown if we're root
+	euid := syscall.Geteuid()
+
 	canceled := func() bool {
 		select {
 		case <-ctx.Done():
@@ -454,6 +466,9 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			return false
 		}
 	}
+
+	// if we see this file, there was an error on the remote side
+	errorFilename := allocdir.SnapshotErrorFilename(p.prevAllocID)
 
 	buf := make([]byte, 1024)
 	for !canceled() {
@@ -470,9 +485,29 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				p.prevAllocID, p.allocID, err)
 		}
 
+		if hdr.Name == errorFilename {
+			// Error snapshotting on the remote side, try to read
+			// the message out of the file and return it.
+			errBuf := make([]byte, int(hdr.Size))
+			if _, err := tr.Read(errBuf); err != nil {
+				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %v",
+					p.prevAllocID, p.allocID, err)
+			}
+			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %s",
+				p.prevAllocID, p.allocID, string(errBuf))
+		}
+
 		// If the header is for a directory we create the directory
 		if hdr.Typeflag == tar.TypeDir {
-			os.MkdirAll(filepath.Join(dest, hdr.Name), os.FileMode(hdr.Mode))
+			name := filepath.Join(dest, hdr.Name)
+			os.MkdirAll(name, os.FileMode(hdr.Mode))
+
+			// Can't change owner if not root or on Windows.
+			if euid == 0 {
+				if err := os.Chown(name, hdr.Uid, hdr.Gid); err != nil {
+					return fmt.Errorf("error chowning directory %v", err)
+				}
+			}
 			continue
 		}
 		// If the header is for a symlink we create the symlink
@@ -494,9 +529,13 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				f.Close()
 				return fmt.Errorf("error chmoding file %v", err)
 			}
-			if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
-				f.Close()
-				return fmt.Errorf("error chowning file %v", err)
+
+			// Can't change owner if not root or on Windows.
+			if euid == 0 {
+				if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
+					f.Close()
+					return fmt.Errorf("error chowning file %v", err)
+				}
 			}
 
 			// We write in chunks so that we can test if the client

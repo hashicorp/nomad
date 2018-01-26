@@ -18,9 +18,9 @@ func (c *SentinelApplyCommand) Help() string {
 	helpText := `
 Usage: nomad sentinel apply [options] <name> <file>
 
-Apply is used to write a new Sentinel policy or update an existing one.
-The name of the policy and file must be specified. The file will be read
-from stdin by specifying "-".
+  Apply is used to write a new Sentinel policy or update an existing one.
+  The name of the policy and file must be specified. The file will be read
+  from stdin by specifying "-".
 
 General Options:
 

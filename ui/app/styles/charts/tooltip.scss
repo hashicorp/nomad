@@ -1,7 +1,7 @@
 .chart {
   position: relative;
 
-  .tooltip {
+  .chart-tooltip {
     position: absolute;
     top: 0;
     display: none;
@@ -18,7 +18,7 @@
     &::before {
       pointer-events: none;
       display: inline-block;
-      content: "";
+      content: '';
       width: 0;
       height: 0;
       border-top: 7px solid $grey;
@@ -28,13 +28,13 @@
       transform: translateX(-7px);
       left: 50%;
       bottom: -8px;
-      z-index: 2;
+      z-index: $z-tooltip;
     }
 
     &::after {
       pointer-events: none;
       display: inline-block;
-      content: "";
+      content: '';
       width: 0;
       height: 0;
       border-top: 6px solid $white;
@@ -44,7 +44,7 @@
       transform: translateX(-6px);
       left: 50%;
       bottom: -6px;
-      z-index: 2;
+      z-index: $z-tooltip;
     }
 
     &.active {

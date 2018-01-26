@@ -237,7 +237,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	// Build the restart tracker.
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
-		logger.Printf("[ERR] client: alloc '%s' for missing task group '%s'", alloc.ID, alloc.TaskGroup)
+		logger.Printf("[ERR] client: alloc %q for missing task group %q", alloc.ID, alloc.TaskGroup)
 		return nil
 	}
 	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
@@ -542,6 +542,8 @@ func (r *TaskRunner) DestroyState() error {
 
 // setState is used to update the state of the task runner
 func (r *TaskRunner) setState(state string, event *structs.TaskEvent, lazySync bool) {
+	event.PopulateEventDisplayMessage()
+
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
 		r.logger.Printf("[ERR] client: failed to save state of Task Runner for task %q: %v", r.task.Name, err)
@@ -1438,6 +1440,21 @@ func (r *TaskRunner) startTask() error {
 
 	}
 
+	// Log driver network information
+	if sresp.Network != nil && sresp.Network.IP != "" {
+		if sresp.Network.AutoAdvertise {
+			r.logger.Printf("[INFO] client: alloc %s task %s auto-advertising detected IP %s",
+				r.alloc.ID, r.task.Name, sresp.Network.IP)
+		} else {
+			r.logger.Printf("[TRACE] client: alloc %s task %s detected IP %s but not auto-advertising",
+				r.alloc.ID, r.task.Name, sresp.Network.IP)
+		}
+	}
+
+	if sresp.Network == nil || sresp.Network.IP == "" {
+		r.logger.Printf("[TRACE] client: alloc %s task %s could not detect a driver IP", r.alloc.ID, r.task.Name)
+	}
+
 	// Update environment with the network defined by the driver's Start method.
 	r.envBuilder.SetDriverNetwork(sresp.Network)
 
@@ -1629,7 +1646,12 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	// Merge in the task resources
 	updatedTask.Resources = update.TaskResources[updatedTask.Name]
 
-	// Update the task's environment for interpolating in services/checks
+	// Interpolate the old task with the old env before updating the env as
+	// updating services in Consul need both the old and new interpolations
+	// to find differences.
+	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
+
+	// Now it's safe to update the environment
 	r.envBuilder.UpdateTask(update, updatedTask)
 
 	var mErr multierror.Error
@@ -1648,7 +1670,8 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 		}
 
 		// Update services in Consul
-		if err := r.updateServices(drv, r.handle, r.task, updatedTask); err != nil {
+		newInterpolatedTask := interpolateServices(r.envBuilder.Build(), updatedTask)
+		if err := r.updateServices(drv, r.handle, oldInterpolatedTask, newInterpolatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1665,19 +1688,17 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	return mErr.ErrorOrNil()
 }
 
-// updateServices and checks with Consul.
-func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, old, new *structs.Task) error {
+// updateServices and checks with Consul. Tasks must be interpolated!
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, oldTask, newTask *structs.Task) error {
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	newInterpolatedTask := interpolateServices(r.envBuilder.Build(), new)
-	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), old)
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, r, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldTask, newTask, r, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
@@ -1751,8 +1772,8 @@ func (r *TaskRunner) Kill(source, reason string, fail bool) {
 }
 
 func (r *TaskRunner) EmitEvent(source, message string) {
-	event := structs.NewTaskEvent(structs.TaskGenericMessage).
-		SetGenericSource(source).SetMessage(message)
+	event := structs.NewTaskEvent(source).
+		SetMessage(message)
 	r.setState("", event, false)
 	r.logger.Printf("[DEBUG] client: event from %q for task %q in alloc %q: %v",
 		source, r.task.Name, r.alloc.ID, message)
@@ -1886,6 +1907,14 @@ func (r *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 // sinks
 func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 	if !r.config.PublishAllocationMetrics {
+		return
+	}
+
+	// If the task is not running don't emit anything
+	r.runningLock.Lock()
+	running := r.running
+	r.runningLock.Unlock()
+	if !running {
 		return
 	}
 

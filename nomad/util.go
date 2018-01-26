@@ -36,6 +36,7 @@ func RuntimeStats() map[string]string {
 // serverParts is used to return the parts of a server role
 type serverParts struct {
 	Name         string
+	ID           string
 	Region       string
 	Datacenter   string
 	Port         int
@@ -44,7 +45,10 @@ type serverParts struct {
 	MajorVersion int
 	MinorVersion int
 	Build        version.Version
+	RaftVersion  int
+	NonVoter     bool
 	Addr         net.Addr
+	RPCAddr      net.Addr
 	Status       serf.MemberStatus
 }
 
@@ -60,27 +64,38 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		return false, nil
 	}
 
+	id := "unknown"
+	if v, ok := m.Tags["id"]; ok {
+		id = v
+	}
 	region := m.Tags["region"]
 	datacenter := m.Tags["dc"]
 	_, bootstrap := m.Tags["bootstrap"]
+	_, nonVoter := m.Tags["nonvoter"]
 
 	expect := 0
-	expect_str, ok := m.Tags["expect"]
+	expectStr, ok := m.Tags["expect"]
 	var err error
 	if ok {
-		expect, err = strconv.Atoi(expect_str)
+		expect, err = strconv.Atoi(expectStr)
 		if err != nil {
 			return false, nil
 		}
 	}
 
-	port_str := m.Tags["port"]
-	port, err := strconv.Atoi(port_str)
+	// If the server is missing the rpc_addr tag, default to the serf advertise addr
+	rpcIP := net.ParseIP(m.Tags["rpc_addr"])
+	if rpcIP == nil {
+		rpcIP = m.Addr
+	}
+
+	portStr := m.Tags["port"]
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return false, nil
 	}
 
-	build_version, err := version.NewVersion(m.Tags["build"])
+	buildVersion, err := version.NewVersion(m.Tags["build"])
 	if err != nil {
 		return false, nil
 	}
@@ -100,18 +115,32 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		minorVersion = 0
 	}
 
+	raftVsn := 0
+	raftVsnString, ok := m.Tags["raft_vsn"]
+	if ok {
+		raftVsn, err = strconv.Atoi(raftVsnString)
+		if err != nil {
+			return false, nil
+		}
+	}
+
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
+	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
 		Name:         m.Name,
+		ID:           id,
 		Region:       region,
 		Datacenter:   datacenter,
 		Port:         port,
 		Bootstrap:    bootstrap,
 		Expect:       expect,
 		Addr:         addr,
+		RPCAddr:      rpcAddr,
 		MajorVersion: majorVersion,
 		MinorVersion: minorVersion,
-		Build:        *build_version,
+		Build:        *buildVersion,
+		RaftVersion:  raftVsn,
+		NonVoter:     nonVoter,
 		Status:       m.Status,
 	}
 	return true, parts
@@ -122,9 +151,34 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version) bool {
 	for _, member := range members {
 		if valid, parts := isNomadServer(member); valid && parts.Status == serf.StatusAlive {
-			if parts.Build.LessThan(minVersion) {
+			// Check if the versions match - version.LessThan will return true for
+			// 0.8.0-rc1 < 0.8.0, so we want to ignore the metadata
+			versionsMatch := slicesMatch(minVersion.Segments(), parts.Build.Segments())
+			if parts.Build.LessThan(minVersion) && !versionsMatch {
 				return false
 			}
+		}
+	}
+
+	return true
+}
+
+func slicesMatch(a, b []int) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
 
@@ -140,9 +194,20 @@ func shuffleStrings(list []string) {
 }
 
 // maxUint64 returns the maximum value
-func maxUint64(a, b uint64) uint64 {
-	if a >= b {
-		return a
+func maxUint64(inputs ...uint64) uint64 {
+	l := len(inputs)
+	if l == 0 {
+		return 0
+	} else if l == 1 {
+		return inputs[0]
 	}
-	return b
+
+	max := inputs[0]
+	for i := 1; i < l; i++ {
+		cur := inputs[i]
+		if cur > max {
+			max = cur
+		}
+	}
+	return max
 }

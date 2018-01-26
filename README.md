@@ -39,11 +39,11 @@ The key features of Nomad are:
   optimistic concurrency allowing all servers to make scheduling decisions to
   maximize throughput.
 
-* **HashiCorp Ecosystem**: Nomad integrates with the entire HashiCorp
-  ecosystem of tools. Along with all HashiCorp tools, Nomad is designed
-  in the unix philosophy of doing something specific and doing it well.
-  Nomad integrates with tools like Packer, Consul, and Terraform to support
-  building artifacts, service discovery, monitoring and capacity management.
+* **HashiCorp Ecosystem**: HashiCorp Ecosystem: Nomad integrates with the 
+entire HashiCorp ecosystem of tools. Like all HashiCorp tools, Nomad follows 
+the UNIX design philosophy of doing something specific and doing it well. 
+Nomad integrates with Terraform, Consul, and Vault for provisioning, service 
+discovery, and secrets management.
 
 For more information, see the [introduction section](https://www.nomadproject.io/intro)
 of the Nomad website.
@@ -102,9 +102,18 @@ Nomad binary in the `bin` and `$GOPATH/bin` folders:
 
 ```sh
 $ make dev
-...
-$ bin/nomad
-...
+```
+
+Optionally run Consul to enable service discovery and health checks:
+
+```sh
+$ sudo consul agent -dev
+```
+
+And finally start the nomad agent:
+
+```sh
+$ sudo bin/nomad agent -dev
 ```
 
 If the Nomad UI is desired in the development version, run `make dev-ui`. This will build the UI from source and compile it into the dev binary.

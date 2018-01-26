@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/test/porter"
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-uuid"
@@ -47,15 +48,20 @@ type TestPortConfig struct {
 	SerfLan int `json:"serf_lan,omitempty"`
 	SerfWan int `json:"serf_wan,omitempty"`
 	Server  int `json:"server,omitempty"`
-
-	// Deprecated
-	RPC int `json:"rpc,omitempty"`
 }
 
 // TestAddressConfig contains the bind addresses for various
 // components of the Consul server.
 type TestAddressConfig struct {
 	HTTP string `json:"http,omitempty"`
+}
+
+// TestNetworkSegment contains the configuration for a network segment.
+type TestNetworkSegment struct {
+	Name      string `json:"name"`
+	Bind      string `json:"bind"`
+	Port      int    `json:"port"`
+	Advertise string `json:"advertise"`
 }
 
 // TestServerConfig is the main server configuration struct.
@@ -68,6 +74,7 @@ type TestServerConfig struct {
 	Server              bool                   `json:"server,omitempty"`
 	DataDir             string                 `json:"data_dir,omitempty"`
 	Datacenter          string                 `json:"datacenter,omitempty"`
+	Segments            []TestNetworkSegment   `json:"segments"`
 	DisableCheckpoint   bool                   `json:"disable_update_check"`
 	LogLevel            string                 `json:"log_level,omitempty"`
 	Bind                string                 `json:"bind_addr,omitempty"`
@@ -104,8 +111,19 @@ func defaultServerConfig() *TestServerConfig {
 		panic(err)
 	}
 
+	ports, err := porter.RandomPorts(6)
+	if err != nil {
+		if _, ok := err.(*porter.PorterExistErr); ok {
+			// Fall back in the case that the testutil server is being used
+			// without porter. This should NEVER be used for Consul's own
+			// unit tests. See comments for getRandomPorts() for more details.
+			ports = getRandomPorts(6)
+		} else {
+			panic(err)
+		}
+	}
 	return &TestServerConfig{
-		NodeName:          fmt.Sprintf("node%d", randomPort()),
+		NodeName:          "node-" + nodeID,
 		NodeID:            nodeID,
 		DisableCheckpoint: true,
 		Performance: &TestPerformanceConfig{
@@ -117,26 +135,15 @@ func defaultServerConfig() *TestServerConfig {
 		Bind:      "127.0.0.1",
 		Addresses: &TestAddressConfig{},
 		Ports: &TestPortConfig{
-			DNS:     randomPort(),
-			HTTP:    randomPort(),
-			HTTPS:   randomPort(),
-			SerfLan: randomPort(),
-			SerfWan: randomPort(),
-			Server:  randomPort(),
-			RPC:     randomPort(),
+			DNS:     ports[0],
+			HTTP:    ports[1],
+			HTTPS:   ports[2],
+			SerfLan: ports[3],
+			SerfWan: ports[4],
+			Server:  ports[5],
 		},
 		ReadyTimeout: 10 * time.Second,
 	}
-}
-
-// randomPort asks the kernel for a random port to use.
-func randomPort() int {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		panic(err)
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
 }
 
 // TestService is used to serialize a service definition.
@@ -191,15 +198,7 @@ func NewTestServerConfig(cb ServerConfigCallback) (*TestServer, error) {
 // configuring or starting the server, the server will NOT be running when the
 // function returns (thus you do not need to stop it).
 func NewTestServerConfigT(t *testing.T, cb ServerConfigCallback) (*TestServer, error) {
-	var server *TestServer
-	retry.Run(t, func(r *retry.R) {
-		var err error
-		server, err = newTestServerConfigT(t, cb)
-		if err != nil {
-			r.Fatalf("failed starting test server: %v", err)
-		}
-	})
-	return server, nil
+	return newTestServerConfigT(t, cb)
 }
 
 // newTestServerConfigT is the internal helper for NewTestServerConfigT.
@@ -390,4 +389,23 @@ func (s *TestServer) waitForLeader() error {
 		return errors.New("failed waiting for leader")
 	}
 	return nil
+}
+
+// getRandomPorts returns a set of random port or panics on error. This
+// is here to support external uses of testutil which may not have porter,
+// but this has been shown not to work well with parallel tests (such as
+// Consul's unit tests). This fallback should NEVER be used for Consul's
+// own tests.
+func getRandomPorts(n int) []int {
+	ports := make([]int, n)
+	for i := 0; i < n; i++ {
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			panic(err)
+		}
+		l.Close()
+		ports[i] = l.Addr().(*net.TCPAddr).Port
+	}
+
+	return ports
 }

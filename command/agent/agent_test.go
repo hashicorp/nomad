@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -15,20 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func getPort() int {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-	if err != nil {
-		panic(err)
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
-}
-
 func tmpDir(t testing.TB) string {
 	dir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
@@ -37,9 +22,9 @@ func tmpDir(t testing.TB) string {
 	return dir
 }
 
-func TestAgent_RPCPing(t *testing.T) {
+func TestAgent_RPC_Ping(t *testing.T) {
 	t.Parallel()
-	agent := NewTestAgent(t.Name(), nil)
+	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
 	var out struct{}
@@ -371,7 +356,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		if check.Type != "http" {
 			t.Errorf("expected http check not: %q", check.Type)
 		}
-		if expected := "/v1/agent/servers"; check.Path != expected {
+		if expected := "/v1/agent/health?type=client"; check.Path != expected {
 			t.Errorf("expected %q path not: %q", expected, check.Path)
 		}
 		if check.Protocol != "http" {
@@ -554,23 +539,404 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		a.logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
-	// Assert server check uses /v1/status/peers
+	// Assert server check uses /v1/agent/health?type=server
 	isServer := true
 	check := a.agentHTTPCheck(isServer)
 	if expected := "Nomad Server HTTP Check"; check.Name != expected {
 		t.Errorf("expected server check name to be %q but found %q", expected, check.Name)
 	}
-	if expected := "/v1/status/peers"; check.Path != expected {
+	if expected := "/v1/agent/health?type=server"; check.Path != expected {
 		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
 	}
 
-	// Assert client check uses /v1/agent/servers
+	// Assert client check uses /v1/agent/health?type=client
 	isServer = false
 	check = a.agentHTTPCheck(isServer)
 	if expected := "Nomad Client HTTP Check"; check.Name != expected {
 		t.Errorf("expected client check name to be %q but found %q", expected, check.Name)
 	}
-	if expected := "/v1/agent/servers"; check.Path != expected {
+	if expected := "/v1/agent/health?type=client"; check.Path != expected {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
+}
+
+// This test asserts that the keyloader embedded in the TLS config is shared
+// across the Agent, Server, and Client. This is essential for certificate
+// reloading to work.
+func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	// We will start out with a bad cert and then reload with a good one.
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer agent.Shutdown()
+
+	originalKeyloader := agent.Config.TLSConfig.GetKeyLoader()
+	originalCert, err := originalKeyloader.GetOutgoingCertificate(nil)
+	assert.NotNil(originalKeyloader)
+	if assert.Nil(err) {
+		assert.NotNil(originalCert)
+	}
+
+	// Switch to the correct certificates and reload
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		},
+	}
+
+	assert.Nil(agent.Reload(newConfig))
+	assert.Equal(agent.Config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.Config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+	assert.Equal(agent.Config.TLSConfig.GetKeyLoader(), originalKeyloader)
+
+	// Assert is passed through on the server correctly
+	if assert.NotNil(agent.server.GetConfig().TLSConfig) {
+		serverKeyloader := agent.server.GetConfig().TLSConfig.GetKeyLoader()
+		assert.Equal(serverKeyloader, originalKeyloader)
+		newCert, err := serverKeyloader.GetOutgoingCertificate(nil)
+		assert.Nil(err)
+		assert.NotEqual(originalCert, newCert)
+	}
+
+	// Assert is passed through on the client correctly
+	if assert.NotNil(agent.client.GetConfig().TLSConfig) {
+		clientKeyloader := agent.client.GetConfig().TLSConfig.GetKeyLoader()
+		assert.Equal(clientKeyloader, originalKeyloader)
+		newCert, err := clientKeyloader.GetOutgoingCertificate(nil)
+		assert.Nil(err)
+		assert.NotEqual(originalCert, newCert)
+	}
+}
+
+func TestServer_Reload_TLS_Certificate(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		},
+	}
+
+	originalKeyloader := agentConfig.TLSConfig.GetKeyLoader()
+	assert.NotNil(originalKeyloader)
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+	assert.Equal(agent.config.TLSConfig.GetKeyLoader(), originalKeyloader)
+}
+
+func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "invalid_cert_path"
+		fookey2  = "invalid_key_path"
+	)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		},
+	}
+
+	err := agent.Reload(newConfig)
+	assert.NotNil(err)
+	assert.NotEqual(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.NotEqual(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+}
+
+func Test_GetConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	agentConfig := &Config{
+		Telemetry:      &Telemetry{},
+		Client:         &ClientConfig{},
+		Server:         &ServerConfig{},
+		ACL:            &ACLConfig{},
+		Ports:          &Ports{},
+		Addresses:      &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{},
+		Vault:          &sconfig.VaultConfig{},
+		Consul:         &sconfig.ConsulConfig{},
+		Sentinel:       &sconfig.SentinelConfig{},
+	}
+
+	agent := &Agent{
+		config: agentConfig,
+	}
+
+	actualAgentConfig := agent.GetConfig()
+	assert.Equal(actualAgentConfig, agentConfig)
+}
+
+func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agent := &Agent{
+		logger: logger,
+		config: &Config{},
+	}
+
+	err := agent.Reload(nil)
+	assert.NotNil(err)
+	assert.Equal(err.Error(), "cannot reload agent with nil configuration")
+}
+
+func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+
+	assert.Equal(agent.config.TLSConfig.CAFile, newConfig.TLSConfig.CAFile)
+	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
+	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+}
+
+func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{},
+	}
+
+	assert.False(agentConfig.TLSConfig.IsEmpty())
+
+	err := agent.Reload(newConfig)
+	assert.Nil(err)
+
+	assert.True(agentConfig.TLSConfig.IsEmpty())
+}
+
+func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	sameAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(sameAgentConfig)
+	assert.False(shouldReloadAgent)
+	assert.False(shouldReloadHTTPServer)
+}
+
+func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "any_cert_path"
+		fookey2  = "any_key_path"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	newConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(newConfig)
+	assert.True(shouldReloadAgent)
+	assert.True(shouldReloadHTTPServer)
 }

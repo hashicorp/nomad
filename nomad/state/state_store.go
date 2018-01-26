@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -19,6 +20,15 @@ type IndexEntry struct {
 	Value uint64
 }
 
+// StateStoreConfig is used to configure a new state store
+type StateStoreConfig struct {
+	// LogOutput is used to configure the output of the state store's logs
+	LogOutput io.Writer
+
+	// Region is the region of the server embedding the state store.
+	Region string
+}
+
 // The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
@@ -30,13 +40,16 @@ type StateStore struct {
 	logger *log.Logger
 	db     *memdb.MemDB
 
+	// config is the passed in configuration
+	config *StateStoreConfig
+
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
 }
 
 // NewStateStore is used to create a new state store
-func NewStateStore(logOutput io.Writer) (*StateStore, error) {
+func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -45,11 +58,17 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(logOutput, "", log.LstdFlags),
+		logger:    log.New(config.LogOutput, "", log.LstdFlags),
 		db:        db,
+		config:    config,
 		abandonCh: make(chan struct{}),
 	}
 	return s, nil
+}
+
+// Config returns the state store configuration.
+func (s *StateStore) Config() *StateStoreConfig {
+	return s.config
 }
 
 // Snapshot is used to create a point in time snapshot. Because
@@ -59,6 +78,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
 			logger: s.logger,
+			config: s.config,
 			db:     s.db.Snapshot(),
 		},
 	}
@@ -174,6 +194,16 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	// Upsert the allocations
 	if err := s.upsertAllocsImpl(index, results.Alloc, txn); err != nil {
 		return err
+	}
+
+	// COMPAT: Nomad versions before 0.7.1 did not include the eval ID when
+	// applying the plan. Thus while we are upgrading, we ignore updating the
+	// modify index of evaluations from older plans.
+	if results.EvalID != "" {
+		// Update the modify index of the eval id
+		if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
+			return err
+		}
 	}
 
 	txn.Commit()
@@ -638,6 +668,22 @@ func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.Re
 	return iter, nil
 }
 
+// NodeBySecretID is used to lookup a node by SecretID
+func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*structs.Node, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup by SecretID failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Node), nil
+	}
+	return nil, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -1017,10 +1063,10 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespac
 		all = append(all, j)
 	}
 
-	// Reverse so that highest versions first
-	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
-		all[i], all[j] = all[j], all[i]
-	}
+	// Sort in reverse order so that the highest version is first
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version > all[j].Version
+	})
 
 	return all, nil
 }
@@ -1450,6 +1496,34 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 	return nil
 }
 
+// updateEvalModifyIndex is used to update the modify index of an evaluation that has been
+// through a scheduler pass. This is done as part of plan apply. It ensures that when a subsequent
+// scheduler workers process a re-queued evaluation it sees any partial updates from the plan apply.
+func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID string) error {
+	// Lookup the evaluation
+	existing, err := txn.First("evals", "id", evalID)
+	if err != nil {
+		return fmt.Errorf("eval lookup failed: %v", err)
+	}
+	if existing == nil {
+		err := fmt.Errorf("unable to find eval id %q", evalID)
+		s.logger.Printf("[ERR] state_store: %v", err)
+		return err
+	}
+	eval := existing.(*structs.Evaluation).Copy()
+	// Update the indexes
+	eval.ModifyIndex = index
+
+	// Insert the eval
+	if err := txn.Insert("evals", eval); err != nil {
+		return fmt.Errorf("eval insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return nil
+}
+
 // DeleteEval is used to delete an evaluation
 func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) error {
 	txn := s.db.Txn(true)
@@ -1477,14 +1551,14 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	}
 
 	for _, alloc := range allocs {
-		existing, err := txn.First("allocs", "id", alloc)
+		raw, err := txn.First("allocs", "id", alloc)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
-		if existing == nil {
+		if raw == nil {
 			continue
 		}
-		if err := txn.Delete("allocs", existing); err != nil {
+		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
 	}
@@ -1682,12 +1756,19 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
 
+	// Update the modify time
+	copyAlloc.ModifyTime = alloc.ModifyTime
+
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating deployment: %v", err)
 	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating job summary: %v", err)
+	}
+
+	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return err
 	}
 
 	// Update the allocation
@@ -1782,12 +1863,20 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.Namespace = structs.DefaultNamespace
 		}
 
+		// OPTIMIZATION:
+		// These should be given a map of new to old allocation and the updates
+		// should be one on all changes. The current implementation causes O(n)
+		// lookups/copies/insertions rather than O(1)
 		if err := s.updateDeploymentWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
 
 		if err := s.updateSummaryWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
+		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
+			return err
 		}
 
 		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -1798,6 +1887,21 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
+		}
+
+		if alloc.PreviousAllocation != "" {
+			prevAlloc, err := txn.First("allocs", "id", alloc.PreviousAllocation)
+			if err != nil {
+				return fmt.Errorf("alloc lookup failed: %v", err)
+			}
+			existingPrevAlloc, _ := prevAlloc.(*structs.Allocation)
+			if existingPrevAlloc != nil {
+				prevAllocCopy := existingPrevAlloc.Copy()
+				prevAllocCopy.NextAllocation = alloc.ID
+				if err := txn.Insert("allocs", prevAllocCopy); err != nil {
+					return fmt.Errorf("alloc insert failed: %v", err)
+				}
+			}
 		}
 
 		// If the allocation is running, force the job to running status.
@@ -2030,7 +2134,12 @@ func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 // namespace
 func (s *StateStore) AllocsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
+	return s.allocsByNamespaceImpl(ws, txn, namespace)
+}
 
+// allocsByNamespaceImpl returns an iterator over all the allocations in the
+// namespace
+func (s *StateStore) allocsByNamespaceImpl(ws memdb.WatchSet, txn *memdb.Txn, namespace string) (memdb.ResultIterator, error) {
 	// Walk the entire table
 	iter, err := txn.Get("allocs", "namespace", namespace)
 	if err != nil {
@@ -2786,6 +2895,16 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		job.Namespace = structs.DefaultNamespace
 	}
 
+	// System, Periodic and Parameterized jobs are running until explicitly
+	// stopped
+	if job.Type == structs.JobTypeSystem || job.IsParameterized() || job.IsPeriodic() {
+		if job.Stop {
+			return structs.JobStatusDead, nil
+		}
+
+		return structs.JobStatusRunning, nil
+	}
+
 	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
 	if err != nil {
 		return "", err
@@ -2820,33 +2939,12 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		}
 	}
 
-	// system jobs are running until explicitly stopped (which is handled elsewhere)
-	if job.Type == structs.JobTypeSystem {
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
-
-		// Pending until at least one eval has completed
-		return structs.JobStatusRunning, nil
-	}
-
 	// The job is dead if all the allocations and evals are terminal or if there
 	// are no evals because of garbage collection.
 	if evalDelete || hasEval || hasAlloc {
 		return structs.JobStatusDead, nil
 	}
 
-	// If there are no allocations or evaluations it is a new job. If the
-	// job is periodic or is a parameterized job, we mark it as running as
-	// it will never have an allocation/evaluation against it.
-	if job.IsPeriodic() || job.IsParameterized() {
-		// If the job is stopped mark it as dead
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
-
-		return structs.JobStatusRunning, nil
-	}
 	return structs.JobStatusPending, nil
 }
 

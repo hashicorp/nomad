@@ -1,3 +1,5 @@
+// +build linux
+
 package driver
 
 import (
@@ -6,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -16,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -164,16 +168,16 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	defer resp.Handle.Kill()
+	handle := resp.Handle.(*rktHandle)
+	defer handle.Kill()
 
 	// Update should be a no-op
-	err = resp.Handle.Update(task)
-	if err != nil {
+	if err := handle.Update(task); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Signal should be an error
-	if err = resp.Handle.Signal(syscall.SIGTERM); err == nil {
+	if err := resp.Handle.Signal(syscall.SIGTERM); err == nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -184,6 +188,18 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		}
 	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		t.Fatalf("timeout")
+	}
+
+	// Make sure pod was removed #3561
+	var stderr bytes.Buffer
+	cmd := exec.Command(rktCmd, "status", handle.uuid)
+	cmd.Stdout = ioutil.Discard
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err == nil {
+		t.Fatalf("expected error running 'rkt status %s' on removed container", handle.uuid)
+	}
+	if out := stderr.String(); !strings.Contains(out, "no matches found") {
+		t.Fatalf("expected 'no matches found' but received: %s", out)
 	}
 }
 
@@ -319,6 +335,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
+	assert := assert.New(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -351,18 +368,19 @@ func TestRktDriverUser(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
-	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("error in prestart: %v", err)
-	}
+	_, err := d.Prestart(ctx.ExecCtx, task)
+	assert.Nil(err)
 	resp, err := d.Start(ctx.ExecCtx, task)
-	if err == nil {
-		resp.Handle.Kill()
-		t.Fatalf("Should've failed")
+	assert.Nil(err)
+	defer resp.Handle.Kill()
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		assert.False(res.Successful())
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
 	}
-	msg := "unknown user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
-	}
+
 }
 
 func TestRktTrustPrefix(t *testing.T) {
@@ -504,6 +522,72 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	}
 }
 
+// TestRktDriver_PortsMapping_Host asserts that port_map isn't required when
+// host networking is used.
+func TestRktDriver_PortsMapping_Host(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+	task := &structs.Task{
+		Name:   "etcd",
+		Driver: "rkt",
+		Config: map[string]interface{}{
+			"image": "docker://redis:latest",
+			"net":   []string{"host"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+			Networks: []*structs.NetworkResource{
+				{
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{Label: "main", Value: 8080}},
+				},
+			},
+		},
+	}
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewRktDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	resp, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Network != nil {
+		t.Fatalf("No network should be returned with --net=host but found: %#v", resp.Network)
+	}
+
+	failCh := make(chan error, 1)
+	go func() {
+		time.Sleep(1 * time.Second)
+		if err := resp.Handle.Kill(); err != nil {
+			failCh <- err
+		}
+	}()
+
+	select {
+	case err := <-failCh:
+		t.Fatalf("failed to kill handle: %v", err)
+	case <-resp.Handle.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+}
+
 func TestRktDriver_HandlerExec(t *testing.T) {
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -572,5 +656,25 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 
 	if err := resp.Handle.Kill(); err != nil {
 		t.Fatalf("error killing handle: %v", err)
+	}
+}
+
+func TestRktDriver_Remove_Error(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if os.Getenv("NOMAD_TEST_RKT") == "" {
+		t.Skip("skipping rkt tests")
+	}
+
+	ctestutils.RktCompatible(t)
+
+	// Removing a non-existent pod should return an error
+	if err := rktRemove("00000000-0000-0000-0000-000000000000"); err == nil {
+		t.Fatalf("expected an error")
+	}
+
+	if err := rktRemove("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"); err == nil {
+		t.Fatalf("expected an error")
 	}
 }

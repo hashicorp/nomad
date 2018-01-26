@@ -1,0 +1,16 @@
+<div class="boxed-section-head">
+  <span>
+    <button data-test-log-action="stdout" class="button {{if (eq mode "stdout") "is-info"}}" {{action "setMode" "stdout"}}>stdout</button>
+    <button data-test-log-action="stderr" class="button {{if (eq mode "stderr") "is-danger"}}" {{action "setMode" "stderr"}}>stderr</button>
+  </span>
+  <span class="pull-right">
+    <button data-test-log-action="head" class="button is-white" onclick={{perform head}}>Head</button>
+    <button data-test-log-action="tail" class="button is-white" onclick={{perform tail}}>Tail</button>
+    <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}}>
+      {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
+    </button>
+  </span>
+</div>
+<div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
+  <pre data-test-log-cli class="cli-window"><code>{{logger.output}}</code></pre>
+</div>

@@ -1,22 +1,9 @@
-import Ember from 'ember';
-
-const { Service, computed } = Ember;
+import Service from '@ember/service';
+import { computed } from '@ember/object';
+import { assign } from '@ember/polyfills';
+import fetch from 'nomad-ui/utils/fetch';
 
 export default Service.extend({
-  accessor: computed({
-    get() {
-      return window.sessionStorage.nomadTokenAccessor;
-    },
-    set(key, value) {
-      if (value == null) {
-        window.sessionStorage.removeItem('nomadTokenAccessor');
-      } else {
-        window.sessionStorage.nomadTokenAccessor = value;
-      }
-      return value;
-    },
-  }),
-
   secret: computed({
     get() {
       return window.sessionStorage.nomadTokenSecret;
@@ -31,4 +18,15 @@ export default Service.extend({
       return value;
     },
   }),
+
+  authorizedRequest(url, options = { credentials: 'include' }) {
+    const headers = {};
+    const token = this.get('secret');
+
+    if (token) {
+      headers['X-Nomad-Token'] = token;
+    }
+
+    return fetch(url, assign(options, { headers }));
+  },
 });

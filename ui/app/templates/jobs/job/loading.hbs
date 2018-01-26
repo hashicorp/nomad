@@ -1,0 +1,11 @@
+{{#global-header class="page-header"}}
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to params=breadcrumb.args}}{{breadcrumb.label}}{{/link-to}}
+    </li>
+  {{/each}}
+{{/global-header}}
+{{#gutter-menu class="page-body"}}
+  {{partial "jobs/job/subnav"}}
+  <section class="section has-text-centered">{{partial "partials/loading-spinner"}}</section>
+{{/gutter-menu}}

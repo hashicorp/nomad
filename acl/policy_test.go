@@ -55,6 +55,9 @@ func TestParse(t *testing.T) {
 			operator {
 				policy = "deny"
 			}
+			quota {
+				policy = "read"
+			}
 			`,
 			"",
 			&Policy{
@@ -74,6 +77,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilitySubmitJob,
+							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
 						},
@@ -94,6 +98,9 @@ func TestParse(t *testing.T) {
 				},
 				Operator: &OperatorPolicy{
 					Policy: PolicyDeny,
+				},
+				Quota: &QuotaPolicy{
+					Policy: PolicyRead,
 				},
 			},
 		},
@@ -140,6 +147,26 @@ func TestParse(t *testing.T) {
 			}
 			`,
 			"Invalid operator policy",
+			nil,
+		},
+		{
+			`
+			quota {
+				policy = "foo"
+			}
+			`,
+			"Invalid quota policy",
+			nil,
+		},
+		{
+			`
+			{
+				"Name": "my-policy",
+				"Description": "This is a great policy",
+				"Rules": "anything"
+			}
+			`,
+			"Invalid policy",
 			nil,
 		},
 		{

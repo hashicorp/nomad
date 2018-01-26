@@ -58,7 +58,6 @@ func TestNamespaceListCommand_List(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// List json
-	t.Log(url)
 	if code := cmd.Run([]string{"-address=" + url, "-json"}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 	}

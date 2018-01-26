@@ -56,11 +56,7 @@ type Harness struct {
 
 // NewHarness is used to make a new testing harness
 func NewHarness(t testing.T) *Harness {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	state := state.TestStateStore(t)
 	h := &Harness{
 		State:     state,
 		nextIndex: 1,
@@ -126,6 +122,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		},
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
+		EvalID:            plan.EvalID,
 	}
 
 	// Apply the full plan

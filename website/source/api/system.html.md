@@ -26,7 +26,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `management` |
 
 ### Sample Request
 
@@ -50,7 +50,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `management` |
 ### Sample Request
 
 ```text

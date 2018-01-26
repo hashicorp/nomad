@@ -162,6 +162,10 @@ func (t *TaskEnv) All() map[string]string {
 // ParseAndReplace takes the user supplied args replaces any instance of an
 // environment variable or Nomad variable in the args with the actual value.
 func (t *TaskEnv) ParseAndReplace(args []string) []string {
+	if args == nil {
+		return nil
+	}
+
 	replaced := make([]string, len(args))
 	for i, arg := range args {
 		replaced[i] = hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)

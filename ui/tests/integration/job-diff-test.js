@@ -1,5 +1,7 @@
+import { findAll, find } from 'ember-native-dom-helpers';
 import { test, moduleForComponent } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
+import cleanWhitespace from '../utils/clean-whitespace';
 
 moduleForComponent('job-diff', 'Integration | Component | job diff', {
   integration: true,
@@ -28,22 +30,28 @@ test('job field diffs', function(assert) {
   this.render(commonTemplate);
 
   assert.equal(
-    this.$('.diff-section-label').length,
+    findAll('[data-test-diff-section-label]').length,
     5,
     'A section label for each line, plus one for the group'
   );
   assert.equal(
-    cleanWhitespace(this.$('.diff-section-label .diff-section-label.is-added').text()),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="field"][data-test-diff-field="added"]').textContent
+    ),
     '+ Added Field: "Foobar"',
     'Added field is rendered correctly'
   );
   assert.equal(
-    cleanWhitespace(this.$('.diff-section-label .diff-section-label.is-edited').text()),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="field"][data-test-diff-field="edited"]').textContent
+    ),
     '+/- Edited Field: "256" => "512"',
     'Edited field is rendered correctly'
   );
   assert.equal(
-    cleanWhitespace(this.$('.diff-section-label .diff-section-label.is-deleted').text()),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="field"][data-test-diff-field="deleted"]').textContent
+    ),
     '- Removed Field: "12"',
     'Removed field is rendered correctly'
   );
@@ -96,52 +104,54 @@ test('job object diffs', function(assert) {
   this.render(commonTemplate);
 
   assert.ok(
-    cleanWhitespace(this.$('.diff-section-label > .diff-section-label.is-added').text()).startsWith(
-      '+ DeepConfiguration {'
-    ),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="object"][data-test-diff-field="added"]').textContent
+    ).startsWith('+ DeepConfiguration {'),
     'Added object starts with a JSON block'
   );
   assert.ok(
     cleanWhitespace(
-      this.$('.diff-section-label > .diff-section-label.is-edited').text()
+      find('[data-test-diff-section-label="object"][data-test-diff-field="edited"]').textContent
     ).startsWith('+/- ComplexProperty {'),
     'Edited object starts with a JSON block'
   );
   assert.ok(
     cleanWhitespace(
-      this.$('.diff-section-label > .diff-section-label.is-deleted').text()
+      find('[data-test-diff-section-label="object"][data-test-diff-field="deleted"]').textContent
     ).startsWith('- DatedStuff {'),
     'Removed object starts with a JSON block'
   );
 
   assert.ok(
-    cleanWhitespace(this.$('.diff-section-label > .diff-section-label.is-added').text()).endsWith(
-      '}'
-    ),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="object"][data-test-diff-field="added"]').textContent
+    ).endsWith('}'),
     'Added object ends the JSON block'
   );
   assert.ok(
-    cleanWhitespace(this.$('.diff-section-label > .diff-section-label.is-edited').text()).endsWith(
-      '}'
-    ),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="object"][data-test-diff-field="edited"]').textContent
+    ).endsWith('}'),
     'Edited object starts with a JSON block'
   );
   assert.ok(
-    cleanWhitespace(this.$('.diff-section-label > .diff-section-label.is-deleted').text()).endsWith(
-      '}'
-    ),
+    cleanWhitespace(
+      find('[data-test-diff-section-label="object"][data-test-diff-field="deleted"]').textContent
+    ).endsWith('}'),
     'Removed object ends the JSON block'
   );
 
   assert.equal(
-    this.$('.diff-section-label > .diff-section-label.is-added > .diff-section-label').length,
+    findAll(
+      '[data-test-diff-section-label="object"][data-test-diff-field="added"] > [data-test-diff-section-label]'
+    ).length,
     this.get('diff').Objects[1].Objects.length + this.get('diff').Objects[1].Fields.length,
     'Edited block contains each nested field and object'
   );
 
   assert.equal(
-    this.$(
-      '.diff-section-label > .diff-section-label.is-added > .diff-section-label > .diff-section-label .diff-section-table-row'
+    findAll(
+      '[data-test-diff-section-label="object"][data-test-diff-field="added"] [data-test-diff-section-label="object"] [data-test-diff-section-label="field"]'
     ).length,
     this.get('diff').Objects[1].Objects[0].Fields.length,
     'Objects within objects are rendered'
@@ -182,11 +192,4 @@ function field(name, type, newVal, oldVal) {
     Type: 'None',
     Name: name,
   };
-}
-
-function cleanWhitespace(string) {
-  return string
-    .replace(/\n/g, '')
-    .replace(/ +/g, ' ')
-    .trim();
 }

@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -91,15 +92,15 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"syslog_facility",
 		"disable_update_check",
 		"disable_anonymous_signature",
-		"atlas",
 		"consul",
 		"vault",
 		"tls",
 		"http_api_response_headers",
 		"acl",
 		"sentinel",
+		"autopilot",
 	}
-	if err := checkHCLKeys(list, valid); err != nil {
+	if err := helper.CheckHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")
 	}
 
@@ -115,13 +116,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "client")
 	delete(m, "server")
 	delete(m, "telemetry")
-	delete(m, "atlas")
 	delete(m, "consul")
 	delete(m, "vault")
 	delete(m, "tls")
 	delete(m, "http_api_response_headers")
 	delete(m, "acl")
 	delete(m, "sentinel")
+	delete(m, "autopilot")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -177,13 +178,6 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		}
 	}
 
-	// Parse atlas config
-	if o := list.Filter("atlas"); len(o.Items) > 0 {
-		if err := parseAtlas(&result.Atlas, o); err != nil {
-			return multierror.Prefix(err, "atlas ->")
-		}
-	}
-
 	// Parse the consul config
 	if o := list.Filter("consul"); len(o.Items) > 0 {
 		if err := parseConsulConfig(&result.Consul, o); err != nil {
@@ -209,6 +203,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("sentinel"); len(o.Items) > 0 {
 		if err := parseSentinel(&result.Sentinel, o); err != nil {
 			return multierror.Prefix(err, "sentinel->")
+		}
+	}
+
+	// Parse Autopilot config
+	if o := list.Filter("autopilot"); len(o.Items) > 0 {
+		if err := parseAutopilot(&result.Autopilot, o); err != nil {
+			return multierror.Prefix(err, "autopilot->")
 		}
 	}
 
@@ -244,7 +245,7 @@ func parsePorts(result **Ports, list *ast.ObjectList) error {
 		"rpc",
 		"serf",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -276,7 +277,7 @@ func parseAddresses(result **Addresses, list *ast.ObjectList) error {
 		"rpc",
 		"serf",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -308,7 +309,7 @@ func parseAdvertise(result **AdvertiseAddrs, list *ast.ObjectList) error {
 		"rpc",
 		"serf",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -367,7 +368,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_max_allocs",
 		"no_host_uuid",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -473,7 +474,7 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 		"iops",
 		"reserved_ports",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -517,6 +518,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"bootstrap_expect",
 		"data_dir",
 		"protocol_version",
+		"raft_protocol",
 		"num_schedulers",
 		"enabled_schedulers",
 		"node_gc_threshold",
@@ -533,8 +535,9 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"rejoin_after_leave",
 		"encrypt",
 		"authoritative_region",
+		"non_voting_server",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -584,7 +587,7 @@ func parseACL(result **ACLConfig, list *ast.ObjectList) error {
 		"policy_ttl",
 		"replication_token",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -646,7 +649,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"disable_tagged_metrics",
 		"backwards_compatible_metrics",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -667,39 +670,6 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		}
 	}
 	*result = &telemetry
-	return nil
-}
-
-func parseAtlas(result **AtlasConfig, list *ast.ObjectList) error {
-	list = list.Elem()
-	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'atlas' block allowed")
-	}
-
-	// Get our atlas object
-	listVal := list.Items[0].Val
-
-	// Check for invalid keys
-	valid := []string{
-		"infrastructure",
-		"token",
-		"join",
-		"endpoint",
-	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
-		return err
-	}
-
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, listVal); err != nil {
-		return err
-	}
-
-	var atlas AtlasConfig
-	if err := mapstructure.WeakDecode(m, &atlas); err != nil {
-		return err
-	}
-	*result = &atlas
 	return nil
 }
 
@@ -731,7 +701,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		"verify_ssl",
 	}
 
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -770,13 +740,14 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"http",
 		"rpc",
 		"verify_server_hostname",
+		"rpc_upgrade_mode",
 		"ca_file",
 		"cert_file",
 		"key_file",
 		"verify_https_client",
 	}
 
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -789,6 +760,7 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
 		return err
 	}
+
 	*result = &tlsConfig
 	return nil
 }
@@ -818,7 +790,7 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 		"token",
 	}
 
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -865,7 +837,7 @@ func parseSentinel(result **config.SentinelConfig, list *ast.ObjectList) error {
 	valid := []string{
 		"import",
 	}
-	if err := checkHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
 	}
 
@@ -878,30 +850,48 @@ func parseSentinel(result **config.SentinelConfig, list *ast.ObjectList) error {
 	return nil
 }
 
-func checkHCLKeys(node ast.Node, valid []string) error {
-	var list *ast.ObjectList
-	switch n := node.(type) {
-	case *ast.ObjectList:
-		list = n
-	case *ast.ObjectType:
-		list = n.List
-	default:
-		return fmt.Errorf("cannot check HCL keys of type %T", n)
+func parseAutopilot(result **config.AutopilotConfig, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'autopilot' block allowed")
 	}
 
-	validMap := make(map[string]struct{}, len(valid))
-	for _, v := range valid {
-		validMap[v] = struct{}{}
+	// Get our Autopilot object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"cleanup_dead_servers",
+		"server_stabilization_time",
+		"last_contact_threshold",
+		"max_trailing_logs",
+		"redundancy_zone_tag",
+		"disable_upgrade_migration",
+		"upgrade_version_tag",
 	}
 
-	var result error
-	for _, item := range list.Items {
-		key := item.Keys[0].Token.Value().(string)
-		if _, ok := validMap[key]; !ok {
-			result = multierror.Append(result, fmt.Errorf(
-				"invalid key: %s", key))
-		}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return err
 	}
 
-	return result
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	autopilotConfig := config.DefaultAutopilotConfig()
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &autopilotConfig,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = autopilotConfig
+	return nil
 }

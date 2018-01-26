@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 	"github.com/posener/complete"
 )
 
@@ -16,14 +17,17 @@ func (c *NamespaceApplyCommand) Help() string {
 	helpText := `
 Usage: nomad namespace apply [options] <namespace>
 
-Apply is used to create or update a namespace. It takes the namespace name to
-create or update as its only argument.
+  Apply is used to create or update a namespace. It takes the namespace name to
+  create or update as its only argument.
 
 General Options:
 
   ` + generalOptionsUsage() + `
 
 Apply Options:
+
+  -quota
+    The quota to attach to the namespace.
 
   -description
     An optional description for the namespace.
@@ -35,11 +39,12 @@ func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-description": complete.PredictAnything,
+			"-quota":       QuotaPredictor(c.Meta.Client),
 		})
 }
 
 func (c *NamespaceApplyCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return NamespacePredictor(c.Meta.Client, nil)
 }
 
 func (c *NamespaceApplyCommand) Synopsis() string {
@@ -47,11 +52,18 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 }
 
 func (c *NamespaceApplyCommand) Run(args []string) int {
-	var description string
+	var description, quota *string
 
 	flags := c.Meta.FlagSet("namespace apply", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&description, "description", "", "")
+	flags.Var((flaghelper.FuncVar)(func(s string) error {
+		description = &s
+		return nil
+	}), "description", "")
+	flags.Var((flaghelper.FuncVar)(func(s string) error {
+		quota = &s
+		return nil
+	}), "quota", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -79,10 +91,25 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Create the request object.
-	ns := &api.Namespace{
-		Name:        name,
-		Description: description,
+	// Lookup the given namespace
+	ns, _, err := client.Namespaces().Info(name, nil)
+	if err != nil && !strings.Contains(err.Error(), "404") {
+		c.Ui.Error(fmt.Sprintf("Error looking up namespace: %s", err))
+		return 1
+	}
+
+	if ns == nil {
+		ns = &api.Namespace{
+			Name: name,
+		}
+	}
+
+	// Add what is set
+	if description != nil {
+		ns.Description = *description
+	}
+	if quota != nil {
+		ns.Quota = *quota
 	}
 
 	_, err = client.Namespaces().Register(ns, nil)

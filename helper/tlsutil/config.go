@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 // RegionSpecificWrapper is used to invoke a static Region and turns a
@@ -60,6 +62,21 @@ type Config struct {
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
 	KeyFile string
+
+	// KeyLoader dynamically reloads TLS configuration.
+	KeyLoader *config.KeyLoader
+}
+
+func NewTLSConfiguration(newConf *config.TLSConfig) *Config {
+	return &Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: newConf.VerifyServerHostname,
+		CAFile:               newConf.CAFile,
+		CertFile:             newConf.CertFile,
+		KeyFile:              newConf.KeyFile,
+		KeyLoader:            newConf.GetKeyLoader(),
+	}
 }
 
 // AppendCA opens and parses the CA file and adds the certificates to
@@ -82,21 +99,27 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 	return nil
 }
 
-// KeyPair is used to open and parse a certificate and key file
-func (c *Config) KeyPair() (*tls.Certificate, error) {
+// LoadKeyPair is used to open and parse a certificate and key file
+func (c *Config) LoadKeyPair() (*tls.Certificate, error) {
 	if c.CertFile == "" || c.KeyFile == "" {
 		return nil, nil
 	}
-	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+
+	if c.KeyLoader == nil {
+		return nil, fmt.Errorf("No Keyloader object to perform LoadKeyPair")
+	}
+
+	cert, err := c.KeyLoader.LoadKeyPair(c.CertFile, c.KeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
 	}
-	return &cert, err
+	return cert, err
 }
 
 // OutgoingTLSConfig generates a TLS configuration for outgoing
 // requests. It will return a nil config if this configuration should
-// not use TLS for outgoing connections.
+// not use TLS for outgoing connections. Provides a callback to
+// fetch certificates, allowing for reloading on the fly.
 func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	// If VerifyServerHostname is true, that implies VerifyOutgoing
 	if c.VerifyServerHostname {
@@ -125,12 +148,12 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
-	// Add cert/key
-	cert, err := c.KeyPair()
+	cert, err := c.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	} else if cert != nil {
-		tlsConfig.Certificates = []tls.Certificate{*cert}
+		tlsConfig.GetCertificate = c.KeyLoader.GetOutgoingCertificate
+		tlsConfig.GetClientCertificate = c.KeyLoader.GetClientCertificate
 	}
 
 	return tlsConfig, nil
@@ -236,11 +259,11 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	}
 
 	// Add cert/key
-	cert, err := c.KeyPair()
+	cert, err := c.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	} else if cert != nil {
-		tlsConfig.Certificates = []tls.Certificate{*cert}
+		tlsConfig.GetCertificate = c.KeyLoader.GetOutgoingCertificate
 	}
 
 	// Check if we require verification

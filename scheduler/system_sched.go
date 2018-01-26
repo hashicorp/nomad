@@ -5,6 +5,7 @@ import (
 	"log"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -211,7 +212,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
 	}
 
-	// Lost allocations should be transistioned to desired status stop and client
+	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
@@ -277,7 +278,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		option, _ := s.stack.Select(missing.TaskGroup)
 
 		if option == nil {
-			// If nodes were filtered because of constain mismatches and we
+			// If nodes were filtered because of constraint mismatches and we
 			// couldn't create an allocation then decrementing queued for that
 			// task group
 			if s.ctx.metrics.NodesFiltered > 0 {
@@ -306,7 +307,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		if option != nil {
 			// Create an allocation for this
 			alloc := &structs.Allocation{
-				ID:            structs.GenerateUUID(),
+				ID:            uuid.Generate(),
 				Namespace:     s.job.Namespace,
 				EvalID:        s.eval.ID,
 				Name:          missing.Name,

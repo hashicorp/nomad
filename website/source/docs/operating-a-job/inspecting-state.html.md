@@ -22,11 +22,11 @@ and command largely apply to all jobs in Nomad.
 
 ## Job Status
 
-After a job is submitted, you can query the status of that job using the status
-command:
+After a job is submitted, you can query the status of that job using the job
+status command:
 
 ```shell
-$ nomad status
+$ nomad job status
 ```
 
 Here is some sample output:
@@ -37,11 +37,11 @@ docs  service  50        running
 ```
 
 At a high level, we can see that our job is currently running, but what does
-"running" actually mean. By supplying the name of a job to the status command,
-we can ask Nomad for more detailed job information:
+"running" actually mean. By supplying the name of a job to the job status
+command, we can ask Nomad for more detailed job information:
 
 ```shell
-$ nomad status docs
+$ nomad job status docs
 ```
 
 Here is some sample output
@@ -81,7 +81,7 @@ If we issue the status command with the `-evals` flag, we could see there is an
 outstanding evaluation for this hypothetical job:
 
 ```text
-$ nomad status -evals docs
+$ nomad job status -evals docs
 ID          = docs
 Name        = docs
 Type        = service
@@ -98,7 +98,7 @@ ID        Priority  Triggered By  Status    Placement Failures
 Placement Failure
 Task Group "example":
   * Resources exhausted on 1 nodes
-  * Dimension "cpu exhausted" exhausted on 1 nodes
+  * Dimension "cpu" exhausted on 1 nodes
 
 Allocations
 ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
@@ -135,7 +135,7 @@ Placement Failures = true
 Failed Placements
 Task Group "example" (failed to place 3 allocations):
   * Resources exhausted on 1 nodes
-  * Dimension "cpu exhausted" exhausted on 1 nodes
+  * Dimension "cpu" exhausted on 1 nodes
 
 Evaluation "5744eb15" waiting for additional capacity to place remainder
 ```

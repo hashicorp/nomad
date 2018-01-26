@@ -64,6 +64,31 @@ The `lxc` driver supports the following configuration in the job spec:
     }
     ```
 
+* `volumes` - (Optional) A list of `host_path:container_path` strings to bind-mount
+  host paths to container paths. Mounting host paths outside of the allocation
+  directory can be disabled on clients by setting the `lxc.volumes.enabled`
+  option set to false. This will limit volumes to directories that exist inside
+  the allocation directory.
+
+  Note that unlike the similar option for the docker driver, this
+  option must not have an absolute path as the `container_path`
+  component. This will cause an error when submitting a job.
+
+  Setting this does not affect the standard bind-mounts of `alloc`,
+  `local`, and `secrets`, which are always created.
+
+    ```hcl
+    config {
+      volumes = [
+        # Use absolute paths to mount arbitrary paths on the host
+        "/path/on/host:path/in/container",
+
+        # Use relative paths to rebind paths already in the allocation dir
+        "relative/to/task:also/in/container"
+      ]
+    }
+    ```
+
 ## Networking
 
 Currently the `lxc` driver only supports host networking. See the `none`

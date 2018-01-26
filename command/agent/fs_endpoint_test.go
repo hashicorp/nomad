@@ -18,9 +18,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/ugorji/go/codec"
 )
 
@@ -102,6 +105,126 @@ func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
 		_, err = s.Server.FileReadAtRequest(respW, req)
 		if err == nil {
 			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestAllocDirFS_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	for _, endpoint := range []string{"ls", "stat", "readat", "cat", "stream"} {
+		httpACLTest(t, nil, func(s *TestAgent) {
+			state := s.Agent.server.State()
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/fs/%s/", endpoint), nil)
+			assert.Nil(err)
+
+			// Try request without a token and expect failure
+			{
+				respW := httptest.NewRecorder()
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			}
+
+			// Try request with an invalid token and expect failure
+			{
+				respW := httptest.NewRecorder()
+				policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
+				token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
+				setToken(req, token)
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			}
+
+			// Try request with a valid token
+			// No alloc id set, so expect an error - just not a permissions error
+			{
+				respW := httptest.NewRecorder()
+				policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+				token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+				setToken(req, token)
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(allocIDNotPresentErr, err)
+			}
+
+			// Try request with a management token
+			// No alloc id set, so expect an error - just not a permissions error
+			{
+				respW := httptest.NewRecorder()
+				setToken(req, s.RootToken)
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(allocIDNotPresentErr, err)
+			}
+		})
+	}
+}
+
+func TestAllocDirFS_Logs_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
+			setToken(req, token)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token (ReadFS)
+		// No alloc id set, so expect an error - just not a permissions error
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid1", policy)
+			setToken(req, token)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(allocIDNotPresentErr, err)
+		}
+
+		// Try request with a valid token (ReadLogs)
+		// No alloc id set, so expect an error - just not a permissions error
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
+			token := mock.CreatePolicyAndToken(t, state, 1009, "valid2", policy)
+			setToken(req, token)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(allocIDNotPresentErr, err)
+		}
+
+		// Try request with a management token
+		// No alloc id set, so expect an error - just not a permissions error
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(allocIDNotPresentErr, err)
 		}
 	})
 }

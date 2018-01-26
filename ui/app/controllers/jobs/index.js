@@ -1,13 +1,19 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias, filterBy } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-const { Controller, computed } = Ember;
-
 export default Controller.extend(Sortable, Searchable, {
-  pendingJobs: computed.filterBy('model', 'status', 'pending'),
-  runningJobs: computed.filterBy('model', 'status', 'running'),
-  deadJobs: computed.filterBy('model', 'status', 'dead'),
+  system: service(),
+  jobsController: controller('jobs'),
+
+  isForbidden: alias('jobsController.isForbidden'),
+
+  pendingJobs: filterBy('model', 'status', 'pending'),
+  runningJobs: filterBy('model', 'status', 'running'),
+  deadJobs: filterBy('model', 'status', 'dead'),
 
   queryParams: {
     currentPage: 'page',
@@ -24,15 +30,32 @@ export default Controller.extend(Sortable, Searchable, {
 
   searchProps: computed(() => ['id', 'name']),
 
-  listToSort: computed.alias('model'),
-  listToSearch: computed.alias('listSorted'),
-  sortedJobs: computed.alias('listSearched'),
+  filteredJobs: computed(
+    'model.[]',
+    'system.activeNamespace',
+    'system.namespaces.length',
+    function() {
+      if (this.get('system.namespaces.length')) {
+        return this.get('model').filterBy('namespace.id', this.get('system.activeNamespace.id'));
+      } else {
+        return this.get('model');
+      }
+    }
+  ),
+
+  listToSort: alias('filteredJobs'),
+  listToSearch: alias('listSorted'),
+  sortedJobs: alias('listSearched'),
 
   isShowingDeploymentDetails: false,
 
   actions: {
     gotoJob(job) {
       this.transitionToRoute('jobs.job', job);
+    },
+
+    refresh() {
+      this.send('refreshRoute');
     },
   },
 });

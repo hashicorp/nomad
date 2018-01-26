@@ -94,9 +94,6 @@ type Config struct {
 	// for security bulletins
 	DisableAnonymousSignature bool `mapstructure:"disable_anonymous_signature"`
 
-	// AtlasConfig is used to configure Atlas
-	Atlas *AtlasConfig `mapstructure:"atlas"`
-
 	// Consul contains the configuration for the Consul Agent and
 	// parameters necessary to register services, their checks, and
 	// discover the current Nomad servers.
@@ -133,24 +130,9 @@ type Config struct {
 
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `mapstructure:"sentinel"`
-}
 
-// AtlasConfig is used to enable an parameterize the Atlas integration
-type AtlasConfig struct {
-	// Infrastructure is the name of the infrastructure
-	// we belong to. e.g. hashicorp/stage
-	Infrastructure string `mapstructure:"infrastructure"`
-
-	// Token is our authentication token from Atlas
-	Token string `mapstructure:"token" json:"-"`
-
-	// Join controls if Atlas will attempt to auto-join the node
-	// to it's cluster. Requires Atlas integration.
-	Join bool `mapstructure:"join"`
-
-	// Endpoint is the SCADA endpoint used for Atlas integration. If
-	// empty, the defaults from the provider are used.
-	Endpoint string `mapstructure:"endpoint"`
+	// Autopilot contains the configuration for Autopilot behavior.
+	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -277,6 +259,9 @@ type ServerConfig struct {
 	// ProtocolVersionMin and ProtocolVersionMax.
 	ProtocolVersion int `mapstructure:"protocol_version"`
 
+	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
+	RaftProtocol int `mapstructure:"raft_protocol"`
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -344,6 +329,10 @@ type ServerConfig struct {
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
+
+	// NonVotingServer is whether this server will act as a non-voting member
+	// of the cluster to help provide read scalability. (Enterprise-only)
+	NonVotingServer bool `mapstructure:"non_voting_server"`
 
 	// Encryption key to use for the Serf communication
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
@@ -566,6 +555,9 @@ func DevConfig() *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
+	conf.Telemetry.PrometheusMetrics = true
+	conf.Telemetry.PublishAllocationMetrics = true
+	conf.Telemetry.PublishNodeMetrics = true
 
 	return conf
 }
@@ -584,7 +576,6 @@ func DefaultConfig() *Config {
 		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
@@ -620,6 +611,7 @@ func DefaultConfig() *Config {
 		TLSConfig: &config.TLSConfig{},
 		Sentinel:  &config.SentinelConfig{},
 		Version:   version.GetVersion(),
+		Autopilot: config.DefaultAutopilotConfig(),
 	}
 }
 
@@ -702,8 +694,7 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Apply the TLS Config
 	if result.TLSConfig == nil && b.TLSConfig != nil {
-		tlsConfig := *b.TLSConfig
-		result.TLSConfig = &tlsConfig
+		result.TLSConfig = b.TLSConfig.Copy()
 	} else if b.TLSConfig != nil {
 		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
@@ -756,14 +747,6 @@ func (c *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
-	// Apply the Atlas configuration
-	if result.Atlas == nil && b.Atlas != nil {
-		atlasConfig := *b.Atlas
-		result.Atlas = &atlasConfig
-	} else if b.Atlas != nil {
-		result.Atlas = result.Atlas.Merge(b.Atlas)
-	}
-
 	// Apply the Consul Configuration
 	if result.Consul == nil && b.Consul != nil {
 		result.Consul = b.Consul.Copy()
@@ -785,6 +768,13 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Sentinel = &server
 	} else if b.Sentinel != nil {
 		result.Sentinel = result.Sentinel.Merge(b.Sentinel)
+	}
+
+	if result.Autopilot == nil && b.Autopilot != nil {
+		autopilot := *b.Autopilot
+		result.Autopilot = &autopilot
+	} else if b.Autopilot != nil {
+		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
 	}
 
 	// Merge config files lists
@@ -1004,6 +994,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.ProtocolVersion != 0 {
 		result.ProtocolVersion = b.ProtocolVersion
 	}
+	if b.RaftProtocol != 0 {
+		result.RaftProtocol = b.RaftProtocol
+	}
 	if b.NumSchedulers != 0 {
 		result.NumSchedulers = b.NumSchedulers
 	}
@@ -1037,6 +1030,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
+	}
+	if b.NonVotingServer {
+		result.NonVotingServer = true
 	}
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey
@@ -1278,25 +1274,6 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	}
 	if b.HTTP != "" {
 		result.HTTP = b.HTTP
-	}
-	return &result
-}
-
-// Merge merges two Atlas configurations together.
-func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
-	result := *a
-
-	if b.Infrastructure != "" {
-		result.Infrastructure = b.Infrastructure
-	}
-	if b.Token != "" {
-		result.Token = b.Token
-	}
-	if b.Join {
-		result.Join = true
-	}
-	if b.Endpoint != "" {
-		result.Endpoint = b.Endpoint
 	}
 	return &result
 }

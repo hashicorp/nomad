@@ -16,5 +16,11 @@ module.exports = {
     'linebreak-style': ['error', 'unix'],
     quotes: ['error', 'single', 'avoid-escape'],
     semi: ['error', 'always'],
+    'no-constant-condition': [
+      'error',
+      {
+        checkLoops: false,
+      },
+    ],
   },
 };

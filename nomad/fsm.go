@@ -10,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -66,10 +67,12 @@ type nomadFSM struct {
 	evalBroker         *EvalBroker
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
-	logOutput          io.Writer
 	logger             *log.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
+
+	// config is the FSM config
+	config *FSMConfig
 
 	// enterpriseAppliers holds the set of enterprise only LogAppliers
 	enterpriseAppliers LogAppliers
@@ -96,21 +99,44 @@ type nomadSnapshot struct {
 type snapshotHeader struct {
 }
 
+// FSMConfig is used to configure the FSM
+type FSMConfig struct {
+	// EvalBroker is the evaluation broker evaluations should be added to
+	EvalBroker *EvalBroker
+
+	// Periodic is the periodic job dispatcher that periodic jobs should be
+	// added/removed from
+	Periodic *PeriodicDispatch
+
+	// BlockedEvals is the blocked eval tracker that blocked evaulations should
+	// be added to.
+	Blocked *BlockedEvals
+
+	// LogOutput is the writer logs should be written to
+	LogOutput io.Writer
+
+	// Region is the region of the server embedding the FSM
+	Region string
+}
+
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(evalBroker *EvalBroker, periodic *PeriodicDispatch,
-	blocked *BlockedEvals, logOutput io.Writer) (*nomadFSM, error) {
+func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
-	state, err := state.NewStateStore(logOutput)
+	sconfig := &state.StateStoreConfig{
+		LogOutput: config.LogOutput,
+		Region:    config.Region,
+	}
+	state, err := state.NewStateStore(sconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	fsm := &nomadFSM{
-		evalBroker:          evalBroker,
-		periodicDispatcher:  periodic,
-		blockedEvals:        blocked,
-		logOutput:           logOutput,
-		logger:              log.New(logOutput, "", log.LstdFlags),
+		evalBroker:          config.EvalBroker,
+		periodicDispatcher:  config.Periodic,
+		blockedEvals:        config.Blocked,
+		logger:              log.New(config.LogOutput, "", log.LstdFlags),
+		config:              config,
 		state:               state,
 		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
@@ -208,6 +234,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenDelete(buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
+	case structs.AutopilotRequestType:
+		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -325,8 +353,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// We always add the job to the periodic dispatcher because there is the
 	// possibility that the periodic spec was removed and then we should stop
 	// tracking it.
-	added, err := n.periodicDispatcher.Add(req.Job)
-	if err != nil {
+	if err := n.periodicDispatcher.Add(req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
 		return err
 	}
@@ -334,12 +361,12 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// Create a watch set
 	ws := memdb.NewWatchSet()
 
-	// If it is periodic, record the time it was inserted. This is necessary for
-	// recovering during leader election. It is possible that from the time it
-	// is added to when it was suppose to launch, leader election occurs and the
-	// job was not launched. In this case, we use the insertion time to
-	// determine if a launch was missed.
-	if added {
+	// If it is an active periodic job, record the time it was inserted. This is
+	// necessary for recovering during leader election. It is possible that from
+	// the time it is added to when it was suppose to launch, leader election
+	// occurs and the job was not launched. In this case, we use the insertion
+	// time to determine if a launch was missed.
+	if req.Job.IsPeriodicActive() {
 		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
@@ -567,7 +594,15 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 				return err
 
 			}
-			n.blockedEvals.Unblock(node.ComputedClass, index)
+
+			// Unblock any associated quota
+			quota, err := n.allocQuota(alloc.ID)
+			if err != nil {
+				n.logger.Printf("[ERR] nomad.fsm: looking up quota associated with alloc %q failed: %v", alloc.ID, err)
+				return err
+			}
+
+			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
 		}
 	}
 
@@ -800,6 +835,23 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 	return nil
 }
 
+func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
+	var req structs.AutopilotSetConfigRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "autopilot"}, time.Now())
+
+	if req.CAS {
+		act, err := n.state.AutopilotCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		if err != nil {
+			return err
+		}
+		return act
+	}
+	return n.state.AutopilotSetConfig(index, &req.Config)
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -818,7 +870,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	defer old.Close()
 
 	// Create a new state store
-	newState, err := state.NewStateStore(n.logOutput)
+	config := &state.StateStoreConfig{
+		LogOutput: n.config.LogOutput,
+		Region:    n.config.Region,
+	}
+	newState, err := state.NewStateStore(config)
 	if err != nil {
 		return err
 	}
@@ -1067,7 +1123,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	return nil
 }
 
-// reconcileSummaries re-calculates the queued allocations for every job that we
+// reconcileQueuedAllocations re-calculates the queued allocations for every job that we
 // created a Job Summary during the snap shot restore
 func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	// Get all the jobs
@@ -1095,7 +1151,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 		// Create an eval and mark it as requiring annotations and insert that as well
 		eval := &structs.Evaluation{
-			ID:             structs.GenerateUUID(),
+			ID:             uuid.Generate(),
 			Namespace:      job.Namespace,
 			Priority:       job.Priority,
 			Type:           job.Type,
@@ -1105,7 +1161,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
-
+		snap.UpsertEvals(100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
 		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
 		if err != nil {

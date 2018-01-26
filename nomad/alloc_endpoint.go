@@ -5,6 +5,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -23,7 +24,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
 	// Check namespace read-job permissions
-	if aclObj, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -80,8 +81,26 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
 	// Check namespace read-job permissions
-	if aclObj, err := a.srv.resolveToken(args.SecretID); err != nil {
-		return err
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		// If ResolveToken had an unexpected error return that
+		if err != structs.ErrTokenNotFound {
+			return err
+		}
+
+		// Attempt to lookup AuthToken as a Node.SecretID since nodes
+		// call this endpoint and don't have an ACL token.
+		node, stateErr := a.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
+		if stateErr != nil {
+			// Return the original ResolveToken error with this err
+			var merr multierror.Error
+			merr.Errors = append(merr.Errors, err, stateErr)
+			return merr.ErrorOrNil()
+		}
+
+		// Not a node or a valid ACL token
+		if node == nil {
+			return structs.ErrTokenNotFound
+		}
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}

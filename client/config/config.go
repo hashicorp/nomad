@@ -21,7 +21,6 @@ var (
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"VAULT_TOKEN",
-		"ATLAS_TOKEN",
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
@@ -348,15 +347,16 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 	return list
 }
 
-// TLSConfig returns a TLSUtil Config based on the client configuration
+// TLSConfiguration returns a TLSUtil Config based on the existing client
+// configuration
 func (c *Config) TLSConfiguration() *tlsutil.Config {
-	tlsConf := &tlsutil.Config{
+	return &tlsutil.Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
 		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
 		CAFile:               c.TLSConfig.CAFile,
 		CertFile:             c.TLSConfig.CertFile,
 		KeyFile:              c.TLSConfig.KeyFile,
+		KeyLoader:            c.TLSConfig.GetKeyLoader(),
 	}
-	return tlsConf
 }

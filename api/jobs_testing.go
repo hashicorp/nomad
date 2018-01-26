@@ -4,13 +4,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 func MockJob() *Job {
 	job := &Job{
 		Region:      helper.StringToPtr("global"),
-		ID:          helper.StringToPtr(structs.GenerateUUID()),
+		ID:          helper.StringToPtr(uuid.Generate()),
 		Name:        helper.StringToPtr("my-job"),
 		Type:        helper.StringToPtr("service"),
 		Priority:    helper.IntToPtr(50),

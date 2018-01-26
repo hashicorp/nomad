@@ -1,3 +1,4 @@
+import { findAll, find } from 'ember-native-dom-helpers';
 import { test, skip, moduleForComponent } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 
@@ -12,7 +13,9 @@ const defaults = {
   spread: 2,
 };
 
-const list100 = Array(100).fill(null).map((_, i) => i);
+const list100 = Array(100)
+  .fill(null)
+  .map((_, i) => i);
 
 test('the source property', function(assert) {
   this.set('source', list100);
@@ -33,31 +36,31 @@ test('the source property', function(assert) {
     {{/list-pagination}}
   `);
 
-  assert.ok(!this.$('.first').length, 'On the first page, there is no first link');
-  assert.ok(!this.$('.prev').length, 'On the first page, there is no prev link');
+  assert.ok(!findAll('.first').length, 'On the first page, there is no first link');
+  assert.ok(!findAll('.prev').length, 'On the first page, there is no prev link');
 
   assert.equal(
-    this.$('.link').length,
+    findAll('.link').length,
     defaults.spread + 1,
     'Pages links spread to the right by the spread amount'
   );
 
   for (var pageNumber = 1; pageNumber <= defaults.spread + 1; pageNumber++) {
-    assert.ok(this.$(`.link.page-${pageNumber}`).length, `Page link includes ${pageNumber}`);
+    assert.ok(findAll(`.link.page-${pageNumber}`).length, `Page link includes ${pageNumber}`);
   }
 
-  assert.ok(this.$('.next').length, 'While not on the last page, there is a next link');
-  assert.ok(this.$('.last').length, 'While not on the last page, there is a last link');
+  assert.ok(findAll('.next').length, 'While not on the last page, there is a next link');
+  assert.ok(findAll('.last').length, 'While not on the last page, there is a last link');
 
   assert.ok(
-    this.$('.item').length,
+    findAll('.item').length,
     defaults.size,
     `Only ${defaults.size} (the default) number of items are rendered`
   );
 
   for (var item = 0; item < defaults.size; item++) {
     assert.equal(
-      this.$(`.item:eq(${item})`).text(),
+      findAll('.item')[item].textContent,
       item,
       'Rendered items are in the current page'
     );
@@ -76,7 +79,7 @@ test('the size property', function(assert) {
   `);
 
   const totalPages = Math.ceil(this.get('source').length / this.get('size'));
-  assert.equal(this.$('.page-info').text(), `1 of ${totalPages}`, `${totalPages} total pages`);
+  assert.equal(find('.page-info').textContent, `1 of ${totalPages}`, `${totalPages} total pages`);
 });
 
 test('the spread property', function(assert) {
@@ -144,14 +147,14 @@ test('there are no pagination links when source is less than page size', functio
     {{/list-pagination}}
   `);
 
-  assert.ok(!this.$('.first').length, 'No first link');
-  assert.ok(!this.$('.prev').length, 'No prev link');
-  assert.ok(!this.$('.next').length, 'No next link');
-  assert.ok(!this.$('.last').length, 'No last link');
+  assert.ok(!findAll('.first').length, 'No first link');
+  assert.ok(!findAll('.prev').length, 'No prev link');
+  assert.ok(!findAll('.next').length, 'No next link');
+  assert.ok(!findAll('.last').length, 'No last link');
 
-  assert.equal(this.$('.page-info').text(), '1 of 1', 'Only one page');
+  assert.equal(find('.page-info').textContent, '1 of 1', 'Only one page');
   assert.equal(
-    this.$('.item').length,
+    findAll('.item').length,
     this.get('source.length'),
     'Number of items equals length of source'
   );
@@ -180,10 +183,10 @@ test('when there are no items in source', function(assert) {
   `);
 
   assert.ok(
-    !this.$('.page-info, .first, .prev, .link, .next, .last, .item').length,
+    !findAll('.page-info, .first, .prev, .link, .next, .last, .item').length,
     'Nothing in the yield renders'
   );
-  assert.ok(this.$('.empty-state').length, 'Empty state is rendered');
+  assert.ok(findAll('.empty-state').length, 'Empty state is rendered');
 });
 
 // when there is less pages than the total spread amount
@@ -210,13 +213,13 @@ test('when there is less pages than the total spread amount', function(assert) {
     {{/list-pagination}}
   `);
 
-  assert.ok(this.$('.first').length, 'First page still exists');
-  assert.ok(this.$('.prev').length, 'Prev page still exists');
-  assert.ok(this.$('.next').length, 'Next page still exists');
-  assert.ok(this.$('.last').length, 'Last page still exists');
-  assert.equal(this.$('.link').length, totalPages, 'Every page gets a page link');
+  assert.ok(findAll('.first').length, 'First page still exists');
+  assert.ok(findAll('.prev').length, 'Prev page still exists');
+  assert.ok(findAll('.next').length, 'Next page still exists');
+  assert.ok(findAll('.last').length, 'Last page still exists');
+  assert.equal(findAll('.link').length, totalPages, 'Every page gets a page link');
   for (var pageNumber = 1; pageNumber < totalPages; pageNumber++) {
-    assert.ok(this.$(`.link.page-${pageNumber}`).length, `Page link for ${pageNumber} exists`);
+    assert.ok(findAll(`.link.page-${pageNumber}`).length, `Page link for ${pageNumber} exists`);
   }
 });
 
@@ -224,7 +227,7 @@ function testSpread(assert) {
   const { spread, currentPage } = this.getProperties('spread', 'currentPage');
   for (var pageNumber = currentPage - spread; pageNumber <= currentPage + spread; pageNumber++) {
     assert.ok(
-      this.$(`.link.page-${pageNumber}`).length,
+      findAll(`.link.page-${pageNumber}`).length,
       `Page links for currentPage (${currentPage}) +/- spread of ${spread} (${pageNumber})`
     );
   }
@@ -234,7 +237,7 @@ function testItems(assert) {
   const { currentPage, size } = this.getProperties('currentPage', 'size');
   for (var item = 0; item < size; item++) {
     assert.equal(
-      this.$(`.item:eq(${item})`).text(),
+      findAll('.item')[item].textContent,
       item + (currentPage - 1) * size,
       `Rendered items are in the current page, ${currentPage} (${item + (currentPage - 1) * size})`
     );

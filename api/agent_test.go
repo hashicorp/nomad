@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAgent_Self(t *testing.T) {
@@ -243,4 +244,16 @@ func TestAgents_Sort(t *testing.T) {
 			t.Errorf("\necpected: %s\nget     : %s", tt.in, tt.out)
 		}
 	}
+}
+
+func TestAgent_Health(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	health, err := a.Health()
+	assert.Nil(err)
+	assert.True(health.Server.Ok)
 }

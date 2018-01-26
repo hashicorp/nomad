@@ -1,15 +1,24 @@
-import Ember from 'ember';
-
-const { Route, inject } = Ember;
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import RSVP from 'rsvp';
+import notifyError from 'nomad-ui/utils/notify-error';
 
 export default Route.extend({
-  store: inject.service(),
+  store: service(),
 
-  model({ job_id }) {
+  serialize(model) {
+    return { job_name: model.get('plainId') };
+  },
+
+  model(params, transition) {
+    const namespace = transition.queryParams.namespace || this.get('system.activeNamespace.id');
+    const name = params.job_name;
+    const fullId = JSON.stringify([name, namespace || 'default']);
     return this.get('store')
-      .find('job', job_id)
+      .findRecord('job', fullId, { reload: true })
       .then(job => {
-        return job.get('allocations').then(() => job);
-      });
+        return RSVP.all([job.get('allocations'), job.get('evaluations')]).then(() => job);
+      })
+      .catch(notifyError(this));
   },
 });

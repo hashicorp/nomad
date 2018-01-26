@@ -1,18 +1,18 @@
 {{#each-in attributes as |key value|}}
   {{#if (is-object value)}}
-    <tr>
-      <td class="is-subheading" colspan="2">
-        {{#if prefix}}<span class="is-faded">{{prefix}}.</span>{{/if}}{{key}}
+    <tr data-test-attributes-section>
+      <td data-test-heading class="is-subheading" colspan="2">
+        {{#if prefix}}<span class="is-faded" data-test-prefix>{{prefix}}.</span>{{/if}}{{key}}
       </td>
     </tr>
     {{attributes-section prefix=(if prefix (concat prefix '.' key) key) attributes=value}}
   {{else}}
-    <tr>
-      <td>
-        {{#if prefix}}<span class="is-faded">{{prefix}}.</span>{{/if}}
+    <tr data-test-attributes-section>
+      <td data-test-key>
+        {{#if prefix}}<span class="is-faded" data-test-prefix>{{prefix}}.</span>{{/if}}
         {{~key}}
       </td>
-      <td title="{{value}}">{{value}}</td>
+      <td data-test-value title="{{value}}">{{value}}</td>
     </tr>
   {{/if}}
 {{/each-in}}
