@@ -592,24 +592,36 @@ func (c *Client) GetServers() []string {
 // SetServers sets a new list of nomad servers to connect to. As long as one
 // server is resolvable no error is returned.
 func (c *Client) SetServers(in []string) error {
-	endpoints := make([]*servers.Server, 0, len(in))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	var merr multierror.Error
+
+	endpoints := make([]*servers.Server, 0, len(in))
+	wg.Add(len(in))
+
 	for _, s := range in {
-		addr, err := resolveServer(s)
-		if err != nil {
-			c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", s, err)
-			merr.Errors = append(merr.Errors, err)
-			continue
-		}
+		go func(srv string) {
+			defer wg.Done()
+			addr, err := resolveServer(srv)
+			if err != nil {
+				c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", srv, err)
+				merr.Errors = append(merr.Errors, err)
+				return
+			}
 
-		// Try to ping to check if it is a real server
-		if err := c.Ping(addr); err != nil {
-			merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
-			continue
-		}
+			// Try to ping to check if it is a real server
+			if err := c.Ping(addr); err != nil {
+				merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
+				return
+			}
 
-		endpoints = append(endpoints, &servers.Server{Addr: addr})
+			mu.Lock()
+			endpoints = append(endpoints, &servers.Server{Addr: addr})
+			mu.Unlock()
+		}(s)
 	}
+
+	wg.Wait()
 
 	// Only return errors if no servers are valid
 	if len(endpoints) == 0 {

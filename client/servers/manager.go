@@ -53,6 +53,9 @@ type Server struct {
 }
 
 func (s *Server) Copy() *Server {
+	s.Lock()
+	defer s.Unlock()
+
 	return &Server{
 		Addr: s.Addr,
 		addr: s.addr,
@@ -243,11 +246,9 @@ func (m *Manager) GetServers() Servers {
 // to contact each server. If a server successfully responds it is used, otherwise
 // it is rotated such that it will be the last attempted server.
 func (m *Manager) RebalanceServers() {
-	m.Lock()
-	defer m.Unlock()
-
 	// Shuffle servers so we have a chance of picking a new one.
-	m.servers.shuffle()
+	servers := m.GetServers()
+	servers.shuffle()
 
 	// Iterate through the shuffled server list to find an assumed
 	// healthy server.  NOTE: Do not iterate on the list directly because
@@ -256,7 +257,7 @@ func (m *Manager) RebalanceServers() {
 	for i := 0; i < len(m.servers); i++ {
 		// Always test the first server.  Failed servers are cycled
 		// while Serf detects the node has failed.
-		srv := m.servers[0]
+		srv := servers[0]
 
 		err := m.connPoolPinger.Ping(srv.Addr)
 		if err == nil {
@@ -265,14 +266,18 @@ func (m *Manager) RebalanceServers() {
 		}
 		m.logger.Printf(`[DEBUG] manager: pinging server "%s" failed: %s`, srv, err)
 
-		m.servers.cycle()
+		servers.cycle()
 	}
 
 	if !foundHealthyServer {
 		m.logger.Printf("[DEBUG] manager: No healthy servers during rebalance")
+		return
 	}
 
-	return
+	// Save the servers
+	m.Lock()
+	m.servers = servers
+	m.Unlock()
 }
 
 // refreshServerRebalanceTimer is only called once m.rebalanceTimer expires.
