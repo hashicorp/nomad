@@ -246,7 +246,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		}
 		// This socket will be used to manage the virtual machine (for example,
 		// to perform graceful shutdowns)
-		monitorPath, err := d.getMonitorPath(ctx.TaskDir.Dir)
+		monitorPath, err = d.getMonitorPath(ctx.TaskDir.Dir)
 		if err != nil {
 			d.logger.Printf("[ERR] driver.qemu: could not get qemu monitor path: %s", err)
 			return nil, err
@@ -464,6 +464,7 @@ func (h *qemuHandle) Kill() error {
 	// If Nomad did not send a graceful shutdown signal, issue an interrupt to
 	// the qemu process as a last resort
 	if gracefulShutdownSent == false {
+		h.logger.Printf("[DEBUG] driver.qemu: graceful shutdown is not enabled, sending an interrupt signal to QEMU")
 		if err := h.executor.ShutDown(); err != nil {
 			if h.pluginClient.Exited() {
 				return nil
