@@ -77,14 +77,30 @@ type MockDriverConfig struct {
 // MockDriver is a driver which is used for testing purposes
 type MockDriver struct {
 	DriverContext
-	fingerprint.StaticFingerprinter
+
+	// isShutdown is an internal concept to use to track whether the driver
+	// should be shut down
+	isShutdown bool
 
 	cleanupFailNum int
 }
 
 // NewMockDriver is a factory method which returns a new Mock Driver
 func NewMockDriver(ctx *DriverContext) Driver {
-	return &MockDriver{DriverContext: *ctx}
+	md := &MockDriver{DriverContext: *ctx}
+
+	// if the shutdown configuration options are set, start the timer here.
+	// This config option defaults to false
+	if ctx.config != nil && ctx.config.ReadBoolDefault(fingerprint.ShutdownPeriodicAfter, false) {
+		duration, err := ctx.config.ReadInt(fingerprint.ShutdownPeriodicDuration)
+		if err != nil {
+			errMsg := fmt.Sprintf("unable to read config option for shutdown_periodic_duration %s, got err %s", duration, err.Error())
+			panic(errMsg)
+		}
+		go md.startShutdownTimer(duration)
+	}
+
+	return md
 }
 
 func (d *MockDriver) Abilities() DriverAbilities {
@@ -165,6 +181,20 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	return &StartResponse{Handle: &h, Network: net}, nil
 }
 
+// startShutdownTimer sets a timer, after which the mock driver will no loger be
+// responsive. This is used for testing periodic fingerprinting functionality
+func (m *MockDriver) startShutdownTimer(duration int) {
+	timer := time.NewTimer(time.Duration(duration) * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			m.isShutdown = true
+		default:
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
+
 // Cleanup deletes all keys except for Config.Options["cleanup_fail_on"] for
 // Config.Options["cleanup_fail_num"] times. For failures it will return a
 // recoverable error.
@@ -194,7 +224,12 @@ func (m *MockDriver) Validate(map[string]interface{}) error {
 
 // Fingerprint fingerprints a node and returns if MockDriver is enabled
 func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
-	resp.AddAttribute("driver.mock_driver", "1")
+	switch {
+	case m.isShutdown:
+		resp.RemoveAttribute("driver.mock_driver")
+	default:
+		resp.AddAttribute("driver.mock_driver", "1")
+	}
 	return nil
 }
 
@@ -337,4 +372,9 @@ func (h *mockDriverHandle) run() {
 			return
 		}
 	}
+}
+
+// When testing, poll for updates
+func (m *MockDriver) Periodic() (bool, time.Duration) {
+	return true, 500 * time.Millisecond
 }

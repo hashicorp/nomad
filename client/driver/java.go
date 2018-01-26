@@ -118,6 +118,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 			d.logger.Printf("[DEBUG] driver.java: root privileges and mounted cgroups required on linux, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(javaDriverAttr)
 		return nil
 	}
 
@@ -131,6 +132,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	if err != nil {
 		// assume Java wasn't found
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(javaDriverAttr)
 		return nil
 	}
 
@@ -150,6 +152,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 			d.logger.Println("[WARN] driver.java: error parsing Java version information, aborting")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(javaDriverAttr)
 		return nil
 	}
 

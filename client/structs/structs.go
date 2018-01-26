@@ -210,6 +210,17 @@ func (f *FingerprintResponse) AddAttribute(name, value string) {
 	f.attributes[name] = value
 }
 
+// RemoveAttribute sets the given attribute to empty, which will later remove
+// it entirely from the node
+func (f *FingerprintResponse) RemoveAttribute(name string) {
+	// initialize attributes if it has not been already
+	if f.attributes == nil {
+		f.attributes = make(map[string]string, 0)
+	}
+
+	f.attributes[name] = ""
+}
+
 // GetAttributes fetches the attributes for the fingerprint response
 func (f *FingerprintResponse) GetAttributes() map[string]string {
 	// initialize attributes if it has not been already
@@ -228,6 +239,17 @@ func (f *FingerprintResponse) AddLink(name, value string) {
 	}
 
 	f.links[name] = value
+}
+
+// RemoveLink removes a link entry from the fingerprint response. This will
+// later remove it entirely from the node
+func (f *FingerprintResponse) RemoveLink(name string) {
+	// initialize links if it has not been already
+	if f.links == nil {
+		f.links = make(map[string]string, 0)
+	}
+
+	f.links[name] = ""
 }
 
 // GetLinks returns the links for the fingerprint response

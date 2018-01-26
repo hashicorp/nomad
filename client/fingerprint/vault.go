@@ -52,6 +52,7 @@ func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *c
 	// Connect to vault and parse its information
 	status, err := f.client.Sys().SealStatus()
 	if err != nil {
+		f.clearVaultAttributes(resp)
 		// Print a message indicating that Vault is not available anymore
 		if f.lastState == vaultAvailable {
 			f.logger.Printf("[INFO] fingerprint.vault: Vault is unavailable")
@@ -78,4 +79,11 @@ func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *c
 
 func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
+}
+
+func (f *VaultFingerprint) clearVaultAttributes(r *cstructs.FingerprintResponse) {
+	r.RemoveAttribute("vault.accessible")
+	r.RemoveAttribute("vault.version")
+	r.RemoveAttribute("vault.cluster_id")
+	r.RemoveAttribute("vault.cluster_name")
 }

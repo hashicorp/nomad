@@ -163,12 +163,15 @@ func (d *QemuDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	}
 	outBytes, err := exec.Command(bin, "--version").Output()
 	if err != nil {
+		// return no error, as it isn't an error to not find qemu, it just means we
+		// can't use it.
 		return nil
 	}
 	out := strings.TrimSpace(string(outBytes))
 
 	matches := reQemuVersion.FindStringSubmatch(out)
 	if len(matches) != 2 {
+		resp.RemoveAttribute(qemuDriverAttr)
 		return fmt.Errorf("Unable to parse Qemu version string: %#v", matches)
 	}
 	currentQemuVersion := matches[1]

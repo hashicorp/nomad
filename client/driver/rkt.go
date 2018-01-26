@@ -318,6 +318,7 @@ func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 			d.logger.Printf("[DEBUG] driver.rkt: must run as root user, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(rktDriverAttr)
 		return nil
 	}
 
@@ -332,6 +333,7 @@ func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(rktDriverAttr)
 		return fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
@@ -345,6 +347,7 @@ func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 				currentVersion, minVersion)
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(rktDriverAttr)
 		return nil
 	}
 

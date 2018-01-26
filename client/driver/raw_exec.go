@@ -101,6 +101,7 @@ func (d *RawExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstr
 		return nil
 	}
 
+	resp.RemoveAttribute(rawExecDriverAttr)
 	return nil
 }
 

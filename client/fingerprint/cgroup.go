@@ -5,6 +5,8 @@ package fingerprint
 import (
 	"log"
 	"time"
+
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -43,6 +45,12 @@ func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
 		mountPointDetector: &DefaultMountPointDetector{},
 	}
 	return f
+}
+
+// clearCGroupAttributes clears any node attributes related to cgroups that might
+// have been set in a previous fingerprint run.
+func (f *CGroupFingerprint) clearCGroupAttributes(r *cstructs.FingerprintResponse) {
+	r.RemoveAttribute("unique.cgroup.mountpoint")
 }
 
 // Periodic determines the interval at which the periodic fingerprinter will run.

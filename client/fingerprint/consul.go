@@ -47,7 +47,7 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := f.client.Agent().Self()
 	if err != nil {
-		// TODO this should set consul in the response if the error is not nil
+		f.clearConsulAttributes(resp)
 
 		// Print a message indicating that the Consul Agent is not available
 		// anymore
@@ -100,6 +100,17 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	}
 	f.lastState = consulAvailable
 	return nil
+}
+
+// clearConsulAttributes removes consul attributes and links from the passed
+// Node.
+func (f *ConsulFingerprint) clearConsulAttributes(r *cstructs.FingerprintResponse) {
+	r.RemoveAttribute("consul.server")
+	r.RemoveAttribute("consul.version")
+	r.RemoveAttribute("consul.revision")
+	r.RemoveAttribute("unique.consul.name")
+	r.RemoveAttribute("consul.datacenter")
+	r.RemoveLink("consul")
 }
 
 func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {

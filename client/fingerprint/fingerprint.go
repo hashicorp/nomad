@@ -16,6 +16,16 @@ const (
 	// TightenNetworkTimeoutsConfig is a config key that can be used during
 	// tests to tighten the timeouts for fingerprinters that make network calls.
 	TightenNetworkTimeoutsConfig = "test.tighten_network_timeouts"
+
+	// ShutdownPeriodicAfter is a config key that can be used during tests to
+	// "stop" a previously-functioning driver, allowing for testing of periodic
+	// drivers and fingerprinters
+	ShutdownPeriodicAfter = "test.shutdown_periodic_after"
+
+	// ShutdownPeriodicDuration is a config option that can be used during tests
+	// to "stop" a previously functioning driver after the specified duration
+	// (specified in seconds) for testing of periodic drivers and fingerprinters.
+	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
 )
 
 func init() {

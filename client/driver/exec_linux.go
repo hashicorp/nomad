@@ -19,12 +19,14 @@ func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 			d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(execDriverAttr)
 		return nil
 	} else if unix.Geteuid() != 0 {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
+		resp.RemoveAttribute(execDriverAttr)
 		return nil
 	}
 
