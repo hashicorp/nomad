@@ -904,3 +904,27 @@ func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 
 	assert.Equal(c.ValidateMigrateToken("", ""), true)
 }
+
+// TestClient_ServerList tests client methods that interact with the internal
+// nomad server list.
+func TestClient_ServerList(t *testing.T) {
+	t.Parallel()
+	client := TestClient(t, func(c *config.Config) {})
+
+	if s := client.GetServers(); len(s) != 0 {
+		t.Fatalf("expected server lit to be empty but found: %+q", s)
+	}
+	if err := client.SetServers(nil); err != noServersErr {
+		t.Fatalf("expected setting an empty list to return a 'no servers' error but received %v", err)
+	}
+	if err := client.SetServers([]string{"123.456.13123.123.13:80"}); err == nil {
+		t.Fatalf("expected setting a bad server to return an error")
+	}
+	if err := client.SetServers([]string{"123.456.13123.123.13:80", "127.0.0.1:1234", "127.0.0.1"}); err == nil {
+		t.Fatalf("expected setting at least one good server to succeed but received: %v", err)
+	}
+	s := client.GetServers()
+	if len(s) != 0 {
+		t.Fatalf("expected 2 servers but received: %+q", s)
+	}
+}

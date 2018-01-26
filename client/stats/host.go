@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"runtime"
@@ -133,7 +134,7 @@ func (h *HostStatsCollector) collectLocked() error {
 	// Getting the disk stats for the allocation directory
 	usage, err := disk.Usage(h.allocDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find disk usage of alloc_dir %q: %v", h.allocDir, err)
 	}
 	hs.AllocDirStats = h.toDiskStats(usage, nil)
 
