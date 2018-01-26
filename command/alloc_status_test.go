@@ -196,12 +196,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	}
 	out = ui.OutputWriter.String()
 	require.Contains(out, "Rescheduled Alloc ID")
-
-	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	out = ui.OutputWriter.String()
-	require.Contains(out, "Remaining Reschedule Attempts = 1/2")
+	require.Contains(out, "Reschedule Attempts = 1/2")
 
 }
 
