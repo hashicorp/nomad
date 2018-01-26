@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
@@ -69,7 +68,7 @@ TRY:
 
 	// We can wait a bit and retry!
 	if time.Since(firstCheck) < c.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(c.config.RPCHoldTimeout / nomad.JitterFraction)
+		jitter := lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto TRY
