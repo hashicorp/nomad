@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 )
@@ -117,32 +115,15 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// TODO Refactor this out into a helper
-	// Open a new session
-	stream, err := state.Session.Open()
+	stream, err := NodeStreamingRpc(state.Session, "FileSystem.Logs")
 	if err != nil {
 		f.handleStreamResultError(err, nil, encoder)
 		return
 	}
 	defer stream.Close()
 
-	// Write the RpcNomad byte to set the mode
-	if _, err := stream.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
-		f.handleStreamResultError(err, nil, encoder)
-		return
-	}
-
-	// Send the header
-	outEncoder := codec.NewEncoder(stream, structs.MsgpackHandle)
-	header := structs.StreamingRpcHeader{
-		Method: "FileSystem.Logs",
-	}
-	if err := outEncoder.Encode(header); err != nil {
-		f.handleStreamResultError(err, nil, encoder)
-		return
-	}
-
 	// Send the request.
+	outEncoder := codec.NewEncoder(stream, structs.MsgpackHandle)
 	if err := outEncoder.Encode(args); err != nil {
 		f.handleStreamResultError(err, nil, encoder)
 		return
@@ -150,24 +131,4 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 
 	Bridge(conn, stream)
 	return
-}
-
-// Bridge is used to just link two connections together and copy traffic
-func Bridge(a, b io.ReadWriteCloser) error {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		io.Copy(a, b)
-		a.Close()
-		b.Close()
-	}()
-	go func() {
-		defer wg.Done()
-		io.Copy(b, a)
-		a.Close()
-		b.Close()
-	}()
-	wg.Wait()
-	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ func TestServerWithNodeConn_NoPath(t *testing.T) {
 	nodeID := uuid.Generate()
 	srv, err := s1.serverWithNodeConn(nodeID)
 	require.Nil(srv)
-	require.EqualError(err, ErrNoNodeConn.Error())
+	require.EqualError(err, structs.ErrNoNodeConn.Error())
 }
 
 func TestServerWithNodeConn_Path(t *testing.T) {
