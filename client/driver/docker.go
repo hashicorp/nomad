@@ -216,6 +216,7 @@ type DockerDriverConfig struct {
 	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
 	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
 	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
+	ReadonlyRootfs   bool                `mapstructure:"readonly_rootfs"`    // Mount the container’s root filesystem as read only
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -669,6 +670,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			},
 			"cap_drop": {
 				Type: fields.TypeArray,
+			},
+			"readonly_rootfs": {
+				Type: fields.TypeBool,
 			},
 		},
 	}
@@ -1243,6 +1247,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 	hostConfig.Sysctls = driverConfig.Sysctl
 	hostConfig.Ulimits = driverConfig.Ulimit
+	hostConfig.ReadonlyRootfs = driverConfig.ReadonlyRootfs
 
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 	if hostConfig.NetworkMode == "" {
