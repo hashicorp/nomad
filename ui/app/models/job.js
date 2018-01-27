@@ -34,6 +34,11 @@ export default Model.extend({
   parent: belongsTo('job', { inverse: 'children' }),
   children: hasMany('job', { inverse: 'parent' }),
 
+  // The parent job name is prepended to child launch job names
+  trimmedName: computed('name', 'parent', function() {
+    return this.get('parent.content') ? this.get('name').replace(/.+?\//, '') : this.get('name');
+  }),
+
   // A composite of type and other job attributes to determine
   // a better type descriptor for human interpretation rather
   // than for scheduling.

@@ -13,7 +13,7 @@ export default AbstractJobPage.extend({
         args: ['jobs.job', parent],
       },
       {
-        label: job.get('name'),
+        label: job.get('trimmedName'),
         args: ['jobs.job', job],
       },
     ];

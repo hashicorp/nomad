@@ -7,7 +7,7 @@
 {{/global-header}}
 {{#job-page/parts/body job=job onNamespaceChange=onNamespaceChange}}
   <h1 class="title">
-    {{job.name}}
+    {{job.trimmedName}}
     <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
   </h1>
 
