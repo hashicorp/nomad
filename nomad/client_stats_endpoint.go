@@ -3,28 +3,12 @@ package nomad
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pool"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
-
-// TODO(alexdadgar): move to errors.go
-const (
-	errNoNodeConn = "No path to node"
-)
-
-var (
-	ErrNoNodeConn = errors.New(errNoNodeConn)
-)
-
-func IsErrNoNodeConn(err error) bool {
-	return err != nil && strings.Contains(err.Error(), errNoNodeConn)
-}
 
 // ClientStats is used to forward RPC requests to the targed Nomad client's
 // ClientStats endpoint.
@@ -81,31 +65,12 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 		}
 
 		if srv == nil {
-			return ErrNoNodeConn
+			return nstructs.ErrNoNodeConn
 		}
 
 		return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
 	}
 
-	// TODO Refactor this out into a helper
-	// Open a new session
-	stream, err := state.Session.Open()
-	if err != nil {
-		return err
-	}
-	defer stream.Close()
-
-	// Write the RpcNomad byte to set the mode
-	if _, err := stream.Write([]byte{byte(pool.RpcNomad)}); err != nil {
-		stream.Close()
-		return err
-	}
-
 	// Make the RPC
-	err = msgpackrpc.CallWithCodec(pool.NewClientCodec(stream), "ClientStats.Stats", args, reply)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return NodeRpc(state.Session, "ClientStats.Stats", args, reply)
 }

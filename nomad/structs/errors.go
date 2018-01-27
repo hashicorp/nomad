@@ -10,6 +10,7 @@ const (
 	errNoRegionPath     = "No path to region"
 	errTokenNotFound    = "ACL token not found"
 	errPermissionDenied = "Permission denied"
+	errNoNodeConn       = "No path to node"
 )
 
 var (
@@ -17,6 +18,7 @@ var (
 	ErrNoRegionPath     = errors.New(errNoRegionPath)
 	ErrTokenNotFound    = errors.New(errTokenNotFound)
 	ErrPermissionDenied = errors.New(errPermissionDenied)
+	ErrNoNodeConn       = errors.New(errNoNodeConn)
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
@@ -40,4 +42,10 @@ func IsErrTokenNotFound(err error) bool {
 // being allowed due to lack of permissions.
 func IsErrPermissionDenied(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errPermissionDenied)
+}
+
+// IsErrNoNodeConn returns whether the error is due to there being no path to
+// the given node.
+func IsErrNoNodeConn(err error) bool {
+	return err != nil && strings.Contains(err.Error(), errNoNodeConn)
 }
