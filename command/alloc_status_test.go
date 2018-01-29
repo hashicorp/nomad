@@ -2,9 +2,9 @@ package command
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
-
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -196,7 +196,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	}
 	out = ui.OutputWriter.String()
 	require.Contains(out, "Rescheduled Alloc ID")
-	require.Contains(out, "Reschedule Attempts = 1/2")
+	require.Regexp(regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
 
 }
 
