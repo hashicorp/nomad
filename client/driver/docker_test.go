@@ -2247,3 +2247,25 @@ func TestDockerDriver_Kill(t *testing.T) {
 	err = handle.Kill()
 	assert.Nil(err)
 }
+
+func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	task, _, _ := dockerTask(t)
+	task.Config["readonly_rootfs"] = true
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	assert.Nil(t, err, "Error inspecting container: %v", err)
+
+	assert.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
+}

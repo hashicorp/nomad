@@ -356,6 +356,9 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
+* `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
+  the container's filesystem as read only.
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
