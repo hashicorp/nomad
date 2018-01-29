@@ -35,12 +35,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/allocations
+    https://localhost:4646/v1/allocations
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/allocations?prefix=a8198d79
+    https://localhost:4646/v1/allocations?prefix=a8198d79
 ```
 
 ### Sample Response
@@ -173,7 +173,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/allocation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/allocation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
