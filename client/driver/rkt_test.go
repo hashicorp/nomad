@@ -30,17 +30,17 @@ func TestRktVersionRegex(t *testing.T) {
 		t.Skip("NOMAD_TEST_RKT unset, skipping")
 	}
 
-	input_rkt := "rkt version 0.8.1"
-	input_appc := "appc version 1.2.0"
-	expected_rkt := "0.8.1"
-	expected_appc := "1.2.0"
-	rktMatches := reRktVersion.FindStringSubmatch(input_rkt)
-	appcMatches := reAppcVersion.FindStringSubmatch(input_appc)
-	if rktMatches[1] != expected_rkt {
-		fmt.Printf("Test failed; got %q; want %q\n", rktMatches[1], expected_rkt)
+	inputRkt := "rkt version 0.8.1"
+	inputAppc := "appc version 1.2.0"
+	expectedRkt := "0.8.1"
+	expectedAppc := "1.2.0"
+	rktMatches := reRktVersion.FindStringSubmatch(inputRkt)
+	appcMatches := reAppcVersion.FindStringSubmatch(inputAppc)
+	if rktMatches[1] != expectedRkt {
+		fmt.Printf("Test failed; got %q; want %q\n", rktMatches[1], expectedRkt)
 	}
-	if appcMatches[1] != expected_appc {
-		fmt.Printf("Test failed; got %q; want %q\n", appcMatches[1], expected_appc)
+	if appcMatches[1] != expectedAppc {
+		fmt.Printf("Test failed; got %q; want %q\n", appcMatches[1], expectedAppc)
 	}
 }
 
