@@ -13,7 +13,9 @@ type LimitIterator struct {
 	skippedNodeIndex int
 }
 
-// NewLimitIterator is returns a LimitIterator with a fixed limit of returned options
+// NewLimitIterator returns a LimitIterator with a fixed limit of returned options.
+// Up to maxSkip options whose score is below scoreThreshold are skipped
+// if there are additional options available in the source iterator
 func NewLimitIterator(ctx Context, source RankIterator, limit int, scoreThreshold float64, maxSkip int) *LimitIterator {
 	iter := &LimitIterator{
 		ctx:            ctx,
@@ -21,7 +23,7 @@ func NewLimitIterator(ctx Context, source RankIterator, limit int, scoreThreshol
 		limit:          limit,
 		maxSkip:        maxSkip,
 		scoreThreshold: scoreThreshold,
-		skippedNodes:   make([]*RankedNode, 0, limit+maxSkip),
+		skippedNodes:   make([]*RankedNode, 0, maxSkip),
 	}
 	return iter
 }
@@ -67,7 +69,7 @@ func (iter *LimitIterator) nextOption() *RankedNode {
 func (iter *LimitIterator) Reset() {
 	iter.source.Reset()
 	iter.seen = 0
-	iter.skippedNodes = nil
+	iter.skippedNodes = make([]*RankedNode, 0, iter.maxSkip)
 	iter.skippedNodeIndex = 0
 }
 
