@@ -173,6 +173,31 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
+}
+
+func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test reschedule attempt info
 	require := require.New(t)
 	state := srv.Agent.Server().State()
@@ -194,10 +219,9 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
-	out = ui.OutputWriter.String()
-	require.Contains(out, "Rescheduled Alloc ID")
+	out := ui.OutputWriter.String()
+	require.Contains(out, "Replacement Alloc ID")
 	require.Regexp(regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
-
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {

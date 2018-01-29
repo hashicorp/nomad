@@ -171,14 +171,15 @@ func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
 			reschedulePolicy = tg.ReschedulePolicy
 		}
 	}
-	var availableAttempts int
-	var interval time.Duration
-	if reschedulePolicy != nil {
-		availableAttempts = *reschedulePolicy.Attempts
-		interval = *reschedulePolicy.Interval
+	if reschedulePolicy == nil {
+		return 0, 0
 	}
+	availableAttempts := *reschedulePolicy.Attempts
+	interval := *reschedulePolicy.Interval
+	attempted := 0
+
+	// Loop over reschedule tracker to find attempts within the restart policy's interval
 	if a.RescheduleTracker != nil && availableAttempts > 0 && interval > 0 {
-		attempted := 0
 		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
 			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
 			timeDiff := t.UTC().UnixNano() - lastAttempt
@@ -186,9 +187,8 @@ func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
 				attempted += 1
 			}
 		}
-		return attempted, availableAttempts
 	}
-	return 0, availableAttempts
+	return attempted, availableAttempts
 }
 
 // RescheduleTracker encapsulates previous reschedule events
