@@ -281,7 +281,7 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 	if alloc.NextAllocation != "" {
 		basic = append(basic,
-			fmt.Sprintf("Rescheduled Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
+			fmt.Sprintf("Replacement Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
 	}
 
 	if verbose {
