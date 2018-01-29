@@ -45,7 +45,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/operator/raft/configuration
+    https://localhost:4646/v1/operator/raft/configuration
 ```
 
 ### Sample Response
@@ -123,7 +123,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/operator/raft/peer?address=1.2.3.4
+    https://localhost:4646/v1/operator/raft/peer?address=1.2.3.4
 ```
 
 ## Read Autopilot Configuration
@@ -157,7 +157,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/operator/autopilot/configuration
+    https://localhost:4646/operator/autopilot/configuration
 ```
 
 ### Sample Response
@@ -278,7 +278,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/operator/autopilot/health
+    https://localhost:4646/v1/operator/autopilot/health
 ```
 
 ### Sample response

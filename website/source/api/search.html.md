@@ -54,7 +54,7 @@ job related results will not be returned. If the token is only valid for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/search
+    https://localhost:4646/v1/search
 ```
 
 ### Sample Response
@@ -86,7 +86,7 @@ $ curl \
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/search
+    https://localhost:4646/v1/search
 ```
 
 ### Sample Response

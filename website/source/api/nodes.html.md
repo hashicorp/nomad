@@ -35,12 +35,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/nodes
+    https://localhost:4646/v1/nodes
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/nodes?prefix=prod
+    https://localhost:4646/v1/nodes?prefix=prod
 ```
 
 ### Sample Response
@@ -87,7 +87,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c
+    https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c
 ```
 
 ### Sample Response
@@ -189,7 +189,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/node/e02b6169-83bd-9df6-69bd-832765f333eb/allocations
+    https://localhost:4646/v1/node/e02b6169-83bd-9df6-69bd-832765f333eb/allocations
 ```
 
 ### Sample Response
@@ -538,7 +538,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/evaluate
+    https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/evaluate
 ```
 
 ### Sample Response
@@ -598,7 +598,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    -XPOST https://nomad.rocks/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/drain?enable=true
+    -XPOST https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/drain?enable=true
 ```
 
 ### Sample Response
@@ -643,7 +643,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    -XPOST https://nomad.rocks/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/purge
+    -XPOST https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/purge
 ```
 
 ### Sample Response

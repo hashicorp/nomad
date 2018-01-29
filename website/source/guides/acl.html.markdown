@@ -141,10 +141,10 @@ EOF
 $ curl --request POST \
     --data @payload.json \
     -H "X-Nomad-Token: $NOMAD_TOKEN" \
-    https://nomad.rocks/v1/acl/policy/anonymous
+    https://localhost:4646/v1/acl/policy/anonymous
 
 # Verify anonymous request works
-$ curl https://nomad.rocks/v1/jobs
+$ curl https://localhost:4646/v1/jobs
 ```
 
 # Rule Specification
