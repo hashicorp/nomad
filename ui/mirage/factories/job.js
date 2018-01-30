@@ -1,4 +1,4 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, provider, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
@@ -22,10 +22,48 @@ export default Factory.extend({
     faker.list.random(...DATACENTERS)
   ),
 
-  periodic: () => Math.random() > 0.5,
-  parameterized() {
-    return !this.periodic;
-  },
+  childrenCount: () => faker.random.number({ min: 1, max: 5 }),
+
+  periodic: trait({
+    type: 'batch',
+    periodic: true,
+    // periodic details object
+    // serializer update for bool vs details object
+    periodicDetails: () => ({
+      Enabled: true,
+      ProhibitOverlap: true,
+      Spec: '*/5 * * * * *',
+      SpecType: 'cron',
+      TimeZone: 'UTC',
+    }),
+  }),
+
+  parameterized: trait({
+    type: 'batch',
+    parameterized: true,
+    // parameterized details object
+    // serializer update for bool vs details object
+    parameterizedDetails: () => ({
+      MetaOptional: null,
+      MetaRequired: null,
+      Payload: Math.random() > 0.5 ? 'required' : null,
+    }),
+  }),
+
+  periodicChild: trait({
+    // Periodic children need a parent job,
+    // It is the Periodic job's responsibility to create
+    // periodicChild jobs and provide a parent job.
+    type: 'batch',
+  }),
+
+  parameterizedChild: trait({
+    // Parameterized children need a parent job,
+    // It is the Parameterized job's responsibility to create
+    // parameterizedChild jobs and provide a parent job.
+    type: 'batch',
+    payload: window.btoa(faker.lorem.sentence()),
+  }),
 
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
@@ -70,7 +108,8 @@ export default Factory.extend({
       });
     }
 
-    const jobSummary = server.create('job-summary', {
+    const hasChildren = job.periodic || job.parameterized;
+    const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
       groupNames: groups.mapBy('name'),
       job,
     });
@@ -100,6 +139,24 @@ export default Factory.extend({
       server.create('evaluation', 'withPlacementFailures', {
         job,
         modifyIndex: 4000,
+      });
+    }
+
+    if (job.periodic) {
+      // Create periodicChild jobs
+      server.createList('job', job.childrenCount, 'periodicChild', {
+        parentId: job.id,
+        namespaceId: job.namespaceId,
+        namespace: job.namespace,
+      });
+    }
+
+    if (job.parameterized) {
+      // Create parameterizedChild jobs
+      server.createList('job', job.childrenCount, 'parameterizedChild', {
+        parentId: job.id,
+        namespaceId: job.namespaceId,
+        namespace: job.namespace,
       });
     }
   },
