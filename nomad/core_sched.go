@@ -288,13 +288,20 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
+		if job == nil || job.Stop {
+			// Eligible to be GC'd because the job is not around or stopped
+			// We don't consider jobs with "dead" status here because it may still
+			// have terminal allocs that are reschedulable
+			gcAllocIDs = append(gcAllocIDs, alloc.ID)
+			continue
+		}
 		var reschedulePolicy *structs.ReschedulePolicy
 		tg := job.LookupTaskGroup(alloc.TaskGroup)
 
 		if tg != nil {
 			reschedulePolicy = tg.ReschedulePolicy
 		}
-		if !alloc.GCEligible(reschedulePolicy, time.Now(), thresholdIndex) {
+		if !gcEligible(alloc, reschedulePolicy, time.Now(), thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -566,4 +573,33 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 	}
 
 	return requests
+}
+
+// gcEligible returns if the allocation is eligible to be garbage collected
+// according to its terminal status and its reschedule trackers
+func gcEligible(a *structs.Allocation, reschedulePolicy *structs.ReschedulePolicy, gcTime time.Time, thresholdIndex uint64) bool {
+	// Not in a terminal status and old enough
+	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+	// No reschedule policy or restarts are disabled
+	if reschedulePolicy == nil || reschedulePolicy.Attempts == 0 || reschedulePolicy.Interval == 0 {
+		return true
+	}
+	// Restart tracking information has been carried forward
+	if a.NextAllocation != "" {
+		return true
+	}
+	// Eligible for restarts but none have been attempted yet
+	if a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0 {
+		return false
+	}
+
+	// Most recent reschedule attempt is within time interval
+	interval := reschedulePolicy.Interval
+	lastIndex := len(a.RescheduleTracker.Events)
+	lastRescheduleEvent := a.RescheduleTracker.Events[lastIndex-1]
+	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
+
+	return timeDiff > interval.Nanoseconds()
 }

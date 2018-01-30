@@ -200,6 +200,81 @@ func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
 
 }
 
+// Tests GC behavior on stopped job with reschedulable allocs
+func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
+	t.Parallel()
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+	require := require.New(t)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert "dead" eval
+	state := s1.fsm.State()
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusFailed
+	state.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
+	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
+	require.Nil(err)
+
+	// Insert mock stopped job with default reschedule policy of 2 in 10 minutes
+	job := mock.Job()
+	job.ID = eval.JobID
+	job.Stop = true
+
+	err = state.UpsertJob(1001, job)
+	require.Nil(err)
+
+	// Insert failed alloc with a recent reschedule attempt
+	alloc := mock.Alloc()
+	alloc.EvalID = eval.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc.ClientStatus = structs.AllocClientStatusLost
+	alloc.JobID = eval.JobID
+	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{
+				RescheduleTime: time.Now().Add(-3 * time.Minute).UTC().UnixNano(),
+				PrevNodeID:     uuid.Generate(),
+				PrevAllocID:    uuid.Generate(),
+			},
+		},
+	}
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+	require.Nil(err)
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
+	err = core.Process(gc)
+	require.Nil(err)
+
+	// Eval should not exist
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
+	require.Nil(err)
+	require.Nil(out)
+
+	// Alloc should not exist
+	outA, err := state.AllocByID(ws, alloc.ID)
+	require.Nil(err)
+	require.Nil(outA)
+
+}
+
 // An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	t.Parallel()
@@ -1678,5 +1753,135 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	second := requests[1]
 	if len(second.Deployments) != 1 {
 		t.Fatalf("Unexpected second request: %v", second)
+	}
+}
+
+// Tests various scenarios when allocations are eligible to be GCed
+func TestAllocation_GCEligible(t *testing.T) {
+	type testCase struct {
+		Desc               string
+		GCTime             time.Time
+		ClientStatus       string
+		DesiredStatus      string
+		ModifyIndex        uint64
+		NextAllocID        string
+		ReschedulePolicy   *structs.ReschedulePolicy
+		RescheduleTrackers []*structs.RescheduleEvent
+		ThresholdIndex     uint64
+		ShouldGC           bool
+	}
+
+	fail := time.Now()
+
+	harness := []testCase{
+		{
+			Desc:           "GC when non terminal",
+			ClientStatus:   structs.AllocClientStatusPending,
+			DesiredStatus:  structs.AllocDesiredStatusRun,
+			GCTime:         fail,
+			ModifyIndex:    90,
+			ThresholdIndex: 90,
+			ShouldGC:       false,
+		},
+		{
+			Desc:             "GC when threshold not met",
+			ClientStatus:     structs.AllocClientStatusComplete,
+			DesiredStatus:    structs.AllocDesiredStatusStop,
+			GCTime:           fail,
+			ModifyIndex:      100,
+			ThresholdIndex:   90,
+			ReschedulePolicy: nil,
+			ShouldGC:         false,
+		},
+		{
+			Desc:             "GC when no reschedule policy",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: nil,
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			ShouldGC:         true,
+		},
+		{
+			Desc:             "GC when empty policy",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{0, 0 * time.Minute},
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			ShouldGC:         true,
+		},
+		{
+			Desc:             "GC with no previous attempts",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			ReschedulePolicy: &structs.ReschedulePolicy{1, 1 * time.Minute},
+			ShouldGC:         false,
+		},
+		{
+			Desc:             "GC with prev reschedule attempt within interval",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			ReschedulePolicy: &structs.ReschedulePolicy{2, 30 * time.Minute},
+			GCTime:           fail,
+			ModifyIndex:      90,
+			ThresholdIndex:   90,
+			RescheduleTrackers: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-5 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldGC: false,
+		},
+		{
+			Desc:             "GC with prev reschedule attempt outside interval",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			RescheduleTrackers: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-45 * time.Minute).UTC().UnixNano(),
+				},
+				{
+					RescheduleTime: fail.Add(-60 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldGC: true,
+		},
+		{
+			Desc:             "GC when next alloc id is set",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			RescheduleTrackers: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			NextAllocID: uuid.Generate(),
+			ShouldGC:    true,
+		},
+	}
+
+	for _, tc := range harness {
+		alloc := &structs.Allocation{}
+		alloc.ModifyIndex = tc.ModifyIndex
+		alloc.DesiredStatus = tc.DesiredStatus
+		alloc.ClientStatus = tc.ClientStatus
+		alloc.RescheduleTracker = &structs.RescheduleTracker{tc.RescheduleTrackers}
+
+		t.Run(tc.Desc, func(t *testing.T) {
+			if got := gcEligible(alloc, tc.ReschedulePolicy, tc.GCTime, tc.ThresholdIndex); got != tc.ShouldGC {
+				t.Fatalf("expected %v but got %v", tc.ShouldGC, got)
+			}
+		})
+
 	}
 }
