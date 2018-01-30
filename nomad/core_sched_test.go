@@ -1774,6 +1774,8 @@ func TestAllocation_GCEligible(t *testing.T) {
 		GCTime             time.Time
 		ClientStatus       string
 		DesiredStatus      string
+		JobStatus          string
+		JobStop            bool
 		ModifyIndex        uint64
 		NextAllocID        string
 		ReschedulePolicy   *structs.ReschedulePolicy
@@ -1789,6 +1791,26 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:           "GC when non terminal",
 			ClientStatus:   structs.AllocClientStatusPending,
 			DesiredStatus:  structs.AllocDesiredStatusRun,
+			GCTime:         fail,
+			ModifyIndex:    90,
+			ThresholdIndex: 90,
+			ShouldGC:       false,
+		},
+		{
+			Desc:           "GC when non terminal and job stopped",
+			ClientStatus:   structs.AllocClientStatusPending,
+			DesiredStatus:  structs.AllocDesiredStatusRun,
+			JobStop:        true,
+			GCTime:         fail,
+			ModifyIndex:    90,
+			ThresholdIndex: 90,
+			ShouldGC:       false,
+		},
+		{
+			Desc:           "GC when non terminal and job dead",
+			ClientStatus:   structs.AllocClientStatusPending,
+			DesiredStatus:  structs.AllocDesiredStatusRun,
+			JobStatus:      structs.JobStatusDead,
 			GCTime:         fail,
 			ModifyIndex:    90,
 			ThresholdIndex: 90,
@@ -1879,6 +1901,34 @@ func TestAllocation_GCEligible(t *testing.T) {
 			NextAllocID: uuid.Generate(),
 			ShouldGC:    true,
 		},
+		{
+			Desc:             "GC when job is stopped",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			RescheduleTrackers: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			JobStop:  true,
+			ShouldGC: true,
+		},
+		{
+			Desc:             "GC when job status is dead",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusRun,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			RescheduleTrackers: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			JobStatus: structs.JobStatusDead,
+			ShouldGC:  true,
+		},
 	}
 
 	for _, tc := range harness {
@@ -1887,12 +1937,26 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.DesiredStatus = tc.DesiredStatus
 		alloc.ClientStatus = tc.ClientStatus
 		alloc.RescheduleTracker = &structs.RescheduleTracker{tc.RescheduleTrackers}
+		alloc.NextAllocation = tc.NextAllocID
+		job := mock.Job()
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		job.TaskGroups[0].ReschedulePolicy = tc.ReschedulePolicy
+		if tc.JobStatus != "" {
+			job.Status = tc.JobStatus
+		}
+		job.Stop = tc.JobStop
 
 		t.Run(tc.Desc, func(t *testing.T) {
-			if got := gcEligible(alloc, tc.ReschedulePolicy, tc.GCTime, tc.ThresholdIndex); got != tc.ShouldGC {
+			if got := allocGCEligible(alloc, job, tc.GCTime, tc.ThresholdIndex); got != tc.ShouldGC {
 				t.Fatalf("expected %v but got %v", tc.ShouldGC, got)
 			}
 		})
 
 	}
+
+	// Verify nil job
+	require := require.New(t)
+	alloc := mock.Alloc()
+	alloc.ClientStatus = structs.AllocClientStatusComplete
+	require.True(allocGCEligible(alloc, nil, time.Now(), 1000))
 }
