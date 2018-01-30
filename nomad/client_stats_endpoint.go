@@ -59,7 +59,7 @@ func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.Cli
 		}
 
 		// Determine the Server that has a connection to the node.
-		srv, err := s.srv.serverWithNodeConn(args.NodeID)
+		srv, err := s.srv.serverWithNodeConn(args.NodeID, s.srv.Region())
 		if err != nil {
 			return err
 		}

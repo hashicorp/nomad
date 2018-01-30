@@ -43,6 +43,12 @@ func (s *serverParts) String() string {
 		s.Name, s.Addr, s.Datacenter)
 }
 
+func (s *serverParts) Copy() *serverParts {
+	ns := new(serverParts)
+	*ns = *s
+	return ns
+}
+
 // Returns if a member is a Nomad server. Returns a boolean,
 // and a struct with the various important components
 func isNomadServer(m serf.Member) (bool, *serverParts) {
