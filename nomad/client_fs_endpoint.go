@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"time"
 
@@ -40,6 +41,7 @@ func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *co
 // Stats is used to retrieve the Clients stats.
 func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 	defer conn.Close()
+	defer metrics.MeasureSince([]string{"nomad", "file_system", "logs"}, time.Now())
 
 	// Decode the arguments
 	var args cstructs.FsLogsRequest
@@ -51,17 +53,50 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// TODO
-	// We only allow stale reads since the only potentially stale information is
-	// the Node registration and the cost is fairly high for adding another hope
-	// in the forwarding chain.
-	//args.QueryOptions.AllowStale = true
+	// Check if we need to forward to a different region
+	if r := args.RequestRegion(); r != f.srv.Region() {
+		// Request the allocation from the target region
+		allocReq := &structs.AllocSpecificRequest{
+			AllocID:      args.AllocID,
+			QueryOptions: args.QueryOptions,
+		}
+		var allocResp structs.SingleAllocResponse
+		if err := f.srv.forwardRegion(r, "Alloc.GetAlloc", allocReq, &allocResp); err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
 
-	// Potentially forward to a different region.
-	//if done, err := f.srv.forward("FileSystem.Logs", args, args, reply); done {
-	//return err
-	//}
-	defer metrics.MeasureSince([]string{"nomad", "file_system", "logs"}, time.Now())
+		if allocResp.Alloc == nil {
+			f.handleStreamResultError(fmt.Errorf("unknown allocation %q", args.AllocID), nil, encoder)
+			return
+		}
+
+		// Determine the Server that has a connection to the node.
+		srv, err := f.srv.serverWithNodeConn(allocResp.Alloc.NodeID, r)
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		// Get a connection to the server
+		srvConn, err := f.srv.streamingRpc(srv, "FileSystem.Logs")
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+		defer srvConn.Close()
+
+		// Send the request.
+		outEncoder := codec.NewEncoder(srvConn, structs.MsgpackHandle)
+		if err := outEncoder.Encode(args); err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		Bridge(conn, srvConn)
+		return
+
+	}
 
 	// Check node read permissions
 	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
@@ -100,35 +135,43 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 	}
 	nodeID := alloc.NodeID
 
-	// Get the connection to the client
+	// Get the connection to the client either by forwarding to another server
+	// or creating a direct stream
+	var clientConn net.Conn
 	state, ok := f.srv.getNodeConn(nodeID)
 	if !ok {
 		// Determine the Server that has a connection to the node.
-		//srv, err := f.srv.serverWithNodeConn(nodeID)
-		//if err != nil {
-		//f.handleStreamResultError(err, nil, encoder)
-		//return
-		//}
+		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
 
-		// TODO Forward streaming
-		//return s.srv.forwardServer(srv, "ClientStats.Stats", args, reply)
-		return
-	}
+		// Get a connection to the server
+		conn, err := f.srv.streamingRpc(srv, "FileSystem.Logs")
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
 
-	stream, err := NodeStreamingRpc(state.Session, "FileSystem.Logs")
-	if err != nil {
-		f.handleStreamResultError(err, nil, encoder)
-		return
+		clientConn = conn
+	} else {
+		stream, err := NodeStreamingRpc(state.Session, "FileSystem.Logs")
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+		clientConn = stream
 	}
-	defer stream.Close()
+	defer clientConn.Close()
 
 	// Send the request.
-	outEncoder := codec.NewEncoder(stream, structs.MsgpackHandle)
+	outEncoder := codec.NewEncoder(clientConn, structs.MsgpackHandle)
 	if err := outEncoder.Encode(args); err != nil {
 		f.handleStreamResultError(err, nil, encoder)
 		return
 	}
 
-	Bridge(conn, stream)
+	Bridge(conn, clientConn)
 	return
 }

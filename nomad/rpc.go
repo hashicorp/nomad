@@ -374,6 +374,59 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 	return s.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
+// streamingRpc creates a connection to the given server and conducts the
+// initial handshake, returning the connection or an error. It is the callers
+// responsibility to close the connection if there is no returned error.
+func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, error) {
+	// Try to dial the server
+	conn, err := net.DialTimeout("tcp", server.Addr.String(), 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cast to TCPConn
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetKeepAlive(true)
+		tcp.SetNoDelay(true)
+	}
+
+	// TODO TLS
+	// Check if TLS is enabled
+	//if p.tlsWrap != nil {
+	//// Switch the connection into TLS mode
+	//if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
+	//conn.Close()
+	//return nil, err
+	//}
+
+	//// Wrap the connection in a TLS client
+	//tlsConn, err := p.tlsWrap(region, conn)
+	//if err != nil {
+	//conn.Close()
+	//return nil, err
+	//}
+	//conn = tlsConn
+	//}
+
+	// Write the multiplex byte to set the mode
+	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// Send the header
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	header := structs.StreamingRpcHeader{
+		Method: method,
+	}
+	if err := encoder.Encode(header); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	return conn, nil
+}
+
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.
 func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.ApplyFuture, error) {
 	buf, err := structs.Encode(t, msg)
