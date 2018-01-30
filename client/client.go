@@ -956,7 +956,9 @@ func (c *Client) fingerprint() error {
 
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 		var response cstructs.FingerprintResponse
+		c.configLock.Lock()
 		err = f.Fingerprint(request, &response)
+		c.configLock.Unlock()
 		if err != nil {
 			return err
 		}
@@ -988,7 +990,9 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 		case <-time.After(d):
 			request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 			var response cstructs.FingerprintResponse
+			c.configLock.Lock()
 			err := f.Fingerprint(request, &response)
+			c.configLock.Unlock()
 
 			if err != nil {
 				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
@@ -1036,9 +1040,11 @@ func (c *Client) setupDrivers() error {
 
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 		var response cstructs.FingerprintResponse
+		c.configLock.Lock()
 		if err := d.Fingerprint(request, &response); err != nil {
 			return err
 		}
+		c.configLock.Unlock()
 
 		c.updateNodeFromFingerprint(&response)
 
