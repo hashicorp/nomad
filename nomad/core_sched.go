@@ -258,7 +258,16 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// Job doesn't exist
 		// Job is Stopped and dead
 		// allowBatch and the job is dead
-		collect := shouldCollect(job, allowBatch)
+		collect := false
+		if job == nil {
+			collect = true
+		} else if job.Status != structs.JobStatusDead {
+			collect = false
+		} else if job.Stop {
+			collect = true
+		} else if allowBatch {
+			collect = true
+		}
 
 		// We don't want to gc anything related to a job which is not dead
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
@@ -279,18 +288,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if job == nil || job.Stop || job.Status == structs.JobStatusDead {
-			// Eligible to be GC'd because the job is not around, stopped or dead
-			gcAllocIDs = append(gcAllocIDs, alloc.ID)
-			continue
-		}
-		var reschedulePolicy *structs.ReschedulePolicy
-		tg := job.LookupTaskGroup(alloc.TaskGroup)
-
-		if tg != nil {
-			reschedulePolicy = tg.ReschedulePolicy
-		}
-		if !gcEligible(alloc, reschedulePolicy, time.Now(), thresholdIndex) {
+		if !allocGCEligible(alloc, job, time.Now(), thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -301,21 +299,6 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	return gcEval, gcAllocIDs, nil
-}
-
-// shouldCollect is a helper function that determines whether the job is eligible for GC
-func shouldCollect(job *structs.Job, allowBatch bool) bool {
-	collect := false
-	if job == nil {
-		collect = true
-	} else if job.Status != structs.JobStatusDead {
-		collect = false
-	} else if job.Stop {
-		collect = true
-	} else if allowBatch {
-		collect = true
-	}
-	return collect
 }
 
 // evalReap contacts the leader and issues a reap on the passed evals and
@@ -579,12 +562,23 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 	return requests
 }
 
-// gcEligible returns if the allocation is eligible to be garbage collected
+// allocGCEligible returns if the allocation is eligible to be garbage collected
 // according to its terminal status and its reschedule trackers
-func gcEligible(a *structs.Allocation, reschedulePolicy *structs.ReschedulePolicy, gcTime time.Time, thresholdIndex uint64) bool {
+func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
 	// Not in a terminal status and old enough
 	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
 		return false
+	}
+
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	var reschedulePolicy *structs.ReschedulePolicy
+	tg := job.LookupTaskGroup(a.TaskGroup)
+
+	if tg != nil {
+		reschedulePolicy = tg.ReschedulePolicy
 	}
 	// No reschedule policy or restarts are disabled
 	if reschedulePolicy == nil || reschedulePolicy.Attempts == 0 || reschedulePolicy.Interval == 0 {
