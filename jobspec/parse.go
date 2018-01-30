@@ -285,6 +285,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"update",
 			"reschedule",
 			"vault",
+			"migrate",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -301,6 +302,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "ephemeral_disk")
 		delete(m, "update")
 		delete(m, "vault")
+		delete(m, "migrate")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -341,6 +343,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
 			if err := parseUpdate(&g.Update, o); err != nil {
 				return multierror.Prefix(err, "update ->")
+			}
+		}
+
+		// If we have a migration strategy, then parse that
+		if o := listVal.Filter("migrate"); len(o.Items) > 0 {
+			if err := parseMigrate(&g.Migrate, o); err != nil {
+				return multierror.Prefix(err, "migrate ->")
 			}
 		}
 
@@ -1304,6 +1313,42 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"healthy_deadline",
 		"auto_revert",
 		"canary",
+	}
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           result,
+	})
+	if err != nil {
+		return err
+	}
+	return dec.Decode(m)
+}
+
+func parseMigrate(result **api.MigrateStrategy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'migrate' block allowed")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"max_parallel",
+		"health_check",
+		"min_healthy_time",
+		"healthy_deadline",
 	}
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return err
