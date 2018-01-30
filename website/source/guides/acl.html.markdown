@@ -423,6 +423,7 @@ Root Token: f84b587e-5882-bba1-a3f0-d1a3d90ca105
 - A set of policies created in Nomad
 - An unsealed Vault server (Vault running in `dev` mode is unsealed
   automatically upon startup)
+  - Vault must be version 0.9.3 or later to have the Nomad plugin
 
 ### Configuration
 Mount the [`nomad`][nomad_backend] secret backend in Vault:
