@@ -19,9 +19,9 @@ func (c *OperatorAutopilotSetCommand) AutocompleteFlags() complete.Flags {
 			"-max-trailing-logs":         complete.PredictAnything,
 			"-last-contact-threshold":    complete.PredictAnything,
 			"-server-stabilization-time": complete.PredictAnything,
-			"-enable-redundancy-zones":   complete.PredictAnything,
-			"-disable-upgrade-migration": complete.PredictAnything,
-			"-enable-custom-upgrades":    complete.PredictAnything,
+			"-enable-redundancy-zones":   complete.PredictNothing,
+			"-disable-upgrade-migration": complete.PredictNothing,
+			"-enable-custom-upgrades":    complete.PredictNothing,
 		})
 }
 

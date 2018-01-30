@@ -53,10 +53,10 @@ EnableRedundancyZones = false
 DisableUpgradeMigration = false
 EnableCustomUpgrades = false
 
-$ Nomad operator autopilot set-config -cleanup-dead-servers=false
+$ nomad operator autopilot set-config -cleanup-dead-servers=false
 Configuration updated!
 
-$ Nomad operator autopilot get-config
+$ nomad operator autopilot get-config
 CleanupDeadServers = false
 LastContactThreshold = 200ms
 MaxTrailingLogs = 250
@@ -203,7 +203,7 @@ To check the Nomad version of the servers, either the [autopilot health]
 command can be used:
 
 ```
-$ nomad members
+$ nomad server-members
 Node   Address         Status  Type    Build  Protocol  DC
 node1  127.0.0.1:8301  alive   server  0.7.5  2         dc1
 node2  127.0.0.1:8703  alive   server  0.7.5  2         dc1

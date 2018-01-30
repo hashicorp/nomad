@@ -11,7 +11,12 @@ import (
 )
 
 const (
-	AutopilotRZTag      = "ap_zone"
+	// AutopilotRZTag is the Serf tag to use for the redundancy zone value
+	// when passing the server metadata to Autopilot.
+	AutopilotRZTag = "ap_zone"
+
+	// AutopilotRZTag is the Serf tag to use for the custom version value
+	// when passing the server metadata to Autopilot.
 	AutopilotVersionTag = "ap_version"
 )
 

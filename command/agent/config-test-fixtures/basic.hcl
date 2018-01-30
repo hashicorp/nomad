@@ -83,9 +83,9 @@ server {
 	retry_interval = "15s"
 	rejoin_after_leave = true
 	non_voting_server = true
-    redundancy_zone = "foo"
-    upgrade_version = "0.8.0"
-    encrypt = "abc"
+	redundancy_zone = "foo"
+	upgrade_version = "0.8.0"
+	encrypt = "abc"
 }
 acl {
     enabled = true
