@@ -258,16 +258,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// Job doesn't exist
 		// Job is Stopped and dead
 		// allowBatch and the job is dead
-		collect := false
-		if job == nil {
-			collect = true
-		} else if job.Status != structs.JobStatusDead {
-			collect = false
-		} else if job.Stop {
-			collect = true
-		} else if allowBatch {
-			collect = true
-		}
+		collect := shouldCollect(job, allowBatch)
 
 		// We don't want to gc anything related to a job which is not dead
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
@@ -288,10 +279,8 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if job == nil || job.Stop {
-			// Eligible to be GC'd because the job is not around or stopped
-			// We don't consider jobs with "dead" status here because it may still
-			// have terminal allocs that are reschedulable
+		if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+			// Eligible to be GC'd because the job is not around, stopped or dead
 			gcAllocIDs = append(gcAllocIDs, alloc.ID)
 			continue
 		}
@@ -312,6 +301,21 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	return gcEval, gcAllocIDs, nil
+}
+
+// shouldCollect is a helper function that determines whether the job is eligible for GC
+func shouldCollect(job *structs.Job, allowBatch bool) bool {
+	collect := false
+	if job == nil {
+		collect = true
+	} else if job.Status != structs.JobStatusDead {
+		collect = false
+	} else if job.Stop {
+		collect = true
+	} else if allowBatch {
+		collect = true
+	}
+	return collect
 }
 
 // evalReap contacts the leader and issues a reap on the passed evals and
