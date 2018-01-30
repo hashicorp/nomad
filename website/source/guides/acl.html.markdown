@@ -371,13 +371,15 @@ This is because the reset file is in place, but with the incorrect index.
 The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
 ## Vault Integration
-Hashicorp Vault has a secret backend for generating short lived Nomad tokens. As Vault has a number of
+Hashicorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
 authentication backends, it could provide a workflow where a user or orchestration system authenticates
-using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc. ...) in order to obtain a short-lived
+using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived
 Nomad token.
 
-~> Hashicorp Vault is a standalone product with it's own set of deployment and configuration best
-practices. Please review [Vault's documentation](https://www.vaultproject.io/docs/index.html) before deploying it in production.
+~> Hashicorp Vault is a standalone product with it's own set of deployment and
+   configuration best practices. Please review [Vault's
+   documentation](https://www.vaultproject.io/docs/index.html) before deploying it
+   in production.
 
 For evaluation purposes, a Vault server in "dev" mode can be used.
 
@@ -412,25 +414,25 @@ want to seal/unseal the Vault or play with authentication.
 
 Unseal Key: YzFfPgnLl9R1f6bLU7tGqi/PIDhDaAV/tlNDMV5Rrq0=
 Root Token: f84b587e-5882-bba1-a3f0-d1a3d90ca105
-
 ```
 
 ### Pre-requisites
 - Nomad ACL system bootstrapped.
-- A management token (the bootstrap token can be used, but for production systems it's recommended to
-have a separate token)
+- A management token (the bootstrap token can be used, but for production
+  systems it's recommended to have a separate token)
 - A set of policies created in Nomad
-- An unsealed Vault server (Vault running in `dev` mode is unsealed automatically upon startup)
+- An unsealed Vault server (Vault running in `dev` mode is unsealed
+  automatically upon startup)
 
 ### Configuration
-Mount the "nomad" secret backend in Vault:
+Mount the [`nomad`][nomad_backend] secret backend in Vault:
 
 ```
 $ vault mount nomad
 Successfully mounted 'nomad' at 'nomad'!
 ```
 
-Configure access with the right address and management token:
+Configure access with Nomad's address and management token:
 
 ```
 $ vault write nomad/config/access \
@@ -440,7 +442,7 @@ Success! Data written to: nomad/config/access
 ```
 
 Vault secret backends have the concept of roles, which are configuration units that group one or more 
-Vault policies to a potential identity attribute, (Like an LDAP Group membership). The name of the role 
+Vault policies to a potential identity attribute, (e.g. LDAP Group membership). The name of the role 
 is specified on the path, while the mapping to policies is done by naming them in a comma separated list, 
 for example:
 
@@ -511,3 +513,6 @@ Modify Index = 228
 
 Any user or process with access to Vault can now obtain short lived Nomad Tokens in order to
 carry out operations, thus centralising the access to Nomad tokens.
+
+
+[nomad_backend]: https://www.vaultproject.io/docs/secrets/nomad/index.html
