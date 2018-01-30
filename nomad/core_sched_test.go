@@ -125,6 +125,13 @@ func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
 	err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
 	require.Nil(err)
 
+	// Insert "pending" eval for same job
+	eval2 := mock.Eval()
+	eval2.JobID = eval.JobID
+	state.UpsertJobSummary(999, mock.JobSummary(eval2.JobID))
+	err = state.UpsertEvals(1003, []*structs.Evaluation{eval2})
+	require.Nil(err)
+
 	// Insert mock job with default reschedule policy of 2 in 10 minutes
 	job := mock.Job()
 	job.ID = eval.JobID
@@ -179,7 +186,7 @@ func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
 	}
 	core := NewCoreScheduler(s1, snap)
 
-	// Attempt the GC
+	// Attempt the GC, job has all terminal allocs and one pending eval
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
 	err = core.Process(gc)
 	require.Nil(err)
@@ -492,18 +499,13 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Insert mock job with rescheduling disabled
+	// Create mock job with id same as eval
 	job := mock.Job()
 	job.ID = eval.JobID
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts: 0,
-		Interval: 0 * time.Second,
-	}
-	err = state.UpsertJob(1001, job)
-	require.Nil(err)
 
 	// Insert "dead" alloc
 	alloc := mock.Alloc()
+	alloc.JobID = job.ID
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.TaskGroup = job.TaskGroups[0].Name
@@ -511,7 +513,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 
 	// Insert "lost" alloc
 	alloc2 := mock.Alloc()
-	alloc2.JobID = alloc.JobID
+	alloc2.JobID = job.ID
 	alloc2.EvalID = eval.ID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
@@ -525,11 +527,20 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	// Insert "running" alloc
 	alloc3 := mock.Alloc()
 	alloc3.EvalID = eval.ID
+	alloc3.JobID = job.ID
 	state.UpsertJobSummary(1003, mock.JobSummary(alloc3.JobID))
 	err = state.UpsertAllocs(1004, []*structs.Allocation{alloc3})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// Insert mock job with rescheduling disabled
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 0,
+		Interval: 0 * time.Second,
+	}
+	err = state.UpsertJob(1001, job)
+	require.Nil(err)
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
