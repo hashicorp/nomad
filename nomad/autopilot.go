@@ -64,7 +64,7 @@ func (d *AutopilotDelegate) IsServer(m serf.Member) (*autopilot.ServerInfo, erro
 	server := &autopilot.ServerInfo{
 		Name:   m.Name,
 		ID:     parts.ID,
-		Addr:   parts.Addr,
+		Addr:   parts.RPCAddr,
 		Build:  parts.Build,
 		Status: m.Status,
 	}

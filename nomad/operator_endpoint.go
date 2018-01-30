@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -43,8 +42,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 			continue
 		}
 
-		addr := (&net.TCPAddr{IP: member.Addr, Port: parts.Port}).String()
-		serverMap[raft.ServerAddress(addr)] = member
+		serverMap[raft.ServerAddress(parts.RPCAddr.String())] = member
 	}
 
 	// Fill out the reply.

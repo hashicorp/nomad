@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
@@ -57,6 +59,50 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 	if !reflect.DeepEqual(reply, expected) {
 		t.Fatalf("bad: got %+v; want %+v", reply, expected)
 	}
+}
+
+func TestOperator_RaftGetConfiguration_RpcAdvertise(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	advAddr := "127.0.1.1:1234"
+	adv, err := net.ResolveTCPAddr("tcp", advAddr)
+	require.Nil(err)
+
+	s1 := testServer(t, func(c *Config) {
+		c.RPCAdvertise = adv
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	arg := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: s1.config.Region,
+		},
+	}
+	var reply structs.RaftConfigurationResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Operator.RaftGetConfiguration", &arg, &reply))
+
+	future := s1.raft.GetConfiguration()
+	require.Nil(future.Error())
+	require.Len(future.Configuration().Servers, 1)
+
+	me := future.Configuration().Servers[0]
+	expected := structs.RaftConfigurationResponse{
+		Servers: []*structs.RaftServer{
+			{
+				ID:           me.ID,
+				Node:         fmt.Sprintf("%v.%v", s1.config.NodeName, s1.config.Region),
+				Address:      me.Address,
+				Leader:       true,
+				Voter:        true,
+				RaftProtocol: fmt.Sprintf("%d", s1.config.RaftConfig.ProtocolVersion),
+			},
+		},
+		Index: future.Index(),
+	}
+	require.EqualValues(expected, reply)
 }
 
 func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
