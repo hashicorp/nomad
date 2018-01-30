@@ -270,8 +270,11 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Add s4 to peers directly
-	addr := fmt.Sprintf("127.0.0.1:%d", s4.config.SerfConfig.MemberlistConfig.BindPort)
-	s1.raft.AddVoter(raft.ServerID(s4.config.NodeID), raft.ServerAddress(addr), 0, 0)
+	addr := fmt.Sprintf("127.0.0.1:%d", s4.config.RPCAddr.Port)
+	future := s1.raft.AddVoter(raft.ServerID(s4.config.NodeID), raft.ServerAddress(addr), 0, 0)
+	if err := future.Error(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify we have 4 peers
 	peers, err := s1.numPeers()

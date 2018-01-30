@@ -53,10 +53,10 @@ func TestOperatorAutopilotSetConfigCommmand(t *testing.T) {
 	if conf.MaxTrailingLogs != 99 {
 		t.Fatalf("bad: %#v", conf)
 	}
-	if conf.LastContactThreshold.Duration() != 123*time.Millisecond {
+	if conf.LastContactThreshold != 123*time.Millisecond {
 		t.Fatalf("bad: %#v", conf)
 	}
-	if conf.ServerStabilizationTime.Duration() != 123*time.Millisecond {
+	if conf.ServerStabilizationTime != 123*time.Millisecond {
 		t.Fatalf("bad: %#v", conf)
 	}
 }

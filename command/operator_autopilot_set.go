@@ -3,10 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/consul/command/flags"
-	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
@@ -21,9 +19,9 @@ func (c *OperatorAutopilotSetCommand) AutocompleteFlags() complete.Flags {
 			"-max-trailing-logs":         complete.PredictAnything,
 			"-last-contact-threshold":    complete.PredictAnything,
 			"-server-stabilization-time": complete.PredictAnything,
-			"-redundancy-zone-tag":       complete.PredictAnything,
+			"-enable-redundancy-zones":   complete.PredictAnything,
 			"-disable-upgrade-migration": complete.PredictAnything,
-			"-upgrade-version-tag":       complete.PredictAnything,
+			"-enable-custom-upgrades":    complete.PredictAnything,
 		})
 }
 
@@ -36,9 +34,9 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	var maxTrailingLogs flags.UintValue
 	var lastContactThreshold flags.DurationValue
 	var serverStabilizationTime flags.DurationValue
-	var redundancyZoneTag flags.StringValue
+	var enableRedundancyZones flags.BoolValue
 	var disableUpgradeMigration flags.BoolValue
-	var upgradeVersionTag flags.StringValue
+	var enableCustomUpgrades flags.BoolValue
 
 	f := c.Meta.FlagSet("autopilot", FlagSetClient)
 	f.Usage = func() { c.Ui.Output(c.Help()) }
@@ -47,9 +45,9 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	f.Var(&maxTrailingLogs, "max-trailing-logs", "")
 	f.Var(&lastContactThreshold, "last-contact-threshold", "")
 	f.Var(&serverStabilizationTime, "server-stabilization-time", "")
-	f.Var(&redundancyZoneTag, "redundancy-zone-tag", "")
+	f.Var(&enableRedundancyZones, "enable-redundancy-zones", "")
 	f.Var(&disableUpgradeMigration, "disable-upgrade-migration", "")
-	f.Var(&upgradeVersionTag, "upgrade-version-tag", "")
+	f.Var(&enableCustomUpgrades, "enable-custom-upgrades", "")
 
 	if err := f.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
@@ -73,21 +71,15 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 
 	// Update the config values based on the set flags.
 	cleanupDeadServers.Merge(&conf.CleanupDeadServers)
-	redundancyZoneTag.Merge(&conf.RedundancyZoneTag)
+	enableRedundancyZones.Merge(&conf.EnableRedundancyZones)
 	disableUpgradeMigration.Merge(&conf.DisableUpgradeMigration)
-	upgradeVersionTag.Merge(&conf.UpgradeVersionTag)
+	enableRedundancyZones.Merge(&conf.EnableCustomUpgrades)
 
 	trailing := uint(conf.MaxTrailingLogs)
 	maxTrailingLogs.Merge(&trailing)
 	conf.MaxTrailingLogs = uint64(trailing)
-
-	last := time.Duration(*conf.LastContactThreshold)
-	lastContactThreshold.Merge(&last)
-	conf.LastContactThreshold = api.NewReadableDuration(last)
-
-	stablization := time.Duration(*conf.ServerStabilizationTime)
-	serverStabilizationTime.Merge(&stablization)
-	conf.ServerStabilizationTime = api.NewReadableDuration(stablization)
+	lastContactThreshold.Merge(&conf.LastContactThreshold)
+	serverStabilizationTime.Merge(&conf.ServerStabilizationTime)
 
 	// Check-and-set the new configuration.
 	result, err := operator.AutopilotCASConfiguration(conf, nil)

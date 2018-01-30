@@ -102,8 +102,9 @@ server {
   second is a tradeoff as it lowers failure detection time of nodes at the
   tradeoff of false positives and increased load on the leader.
 
-- `non_voting_server` `(bool: false)` - is whether this server will act as
-  a non-voting member of the cluster to help provide read scalability. (Enterprise-only)
+- `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether 
+  this server will act as a non-voting member of the cluster to help provide 
+  read scalability. 
 
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
@@ -119,6 +120,10 @@ server {
   communicating with other Nomad servers. This affects available Autopilot
   features and is typically not required as the agent internally knows the
   latest version, but may be useful in some upgrade scenarios.
+
+- `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
+  zone that this server will be a part of for Autopilot management. For more
+  information, see the [Autopilot Guide](/guides/cluster/autopilot.html).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -148,6 +153,10 @@ server {
   addresses, agent startup will fail. See the
   [server address format](#server-address-format) section for more information
   on the format of the string.
+
+- `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
+  in place of the Nomad version when custom upgrades are enabled in Autopilot.
+  For more information, see the [Autopilot Guide](/guides/cluster/autopilot.html).
 
 ### Server Address Format
 

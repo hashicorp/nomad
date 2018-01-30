@@ -45,9 +45,9 @@ func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	c.Ui.Output(fmt.Sprintf("LastContactThreshold = %v", config.LastContactThreshold.String()))
 	c.Ui.Output(fmt.Sprintf("MaxTrailingLogs = %v", config.MaxTrailingLogs))
 	c.Ui.Output(fmt.Sprintf("ServerStabilizationTime = %v", config.ServerStabilizationTime.String()))
-	c.Ui.Output(fmt.Sprintf("RedundancyZoneTag = %q", config.RedundancyZoneTag))
+	c.Ui.Output(fmt.Sprintf("EnableRedundancyZones = %v", config.EnableRedundancyZones))
 	c.Ui.Output(fmt.Sprintf("DisableUpgradeMigration = %v", config.DisableUpgradeMigration))
-	c.Ui.Output(fmt.Sprintf("UpgradeVersionTag = %q", config.UpgradeVersionTag))
+	c.Ui.Output(fmt.Sprintf("EnableCustomUpgrades = %v", config.EnableCustomUpgrades))
 
 	return 0
 }

@@ -32,9 +32,9 @@ autopilot {
     last_contact_threshold = 200ms
     max_trailing_logs = 250
     server_stabilization_time = "10s"
-    redundancy_zone_tag = "az"
+    enable_redundancy_zones = false
     disable_upgrade_migration = false
-    upgrade_version_tag = ""
+    enable_custom_upgrades = false
 }
 ```
 
@@ -49,9 +49,9 @@ CleanupDeadServers = true
 LastContactThreshold = 200ms
 MaxTrailingLogs = 250
 ServerStabilizationTime = 10s
-RedundancyZoneTag = ""
+EnableRedundancyZones = false
 DisableUpgradeMigration = false
-UpgradeVersionTag = ""
+EnableCustomUpgrades = false
 
 $ Nomad operator autopilot set-config -cleanup-dead-servers=false
 Configuration updated!
@@ -61,9 +61,9 @@ CleanupDeadServers = false
 LastContactThreshold = 200ms
 MaxTrailingLogs = 250
 ServerStabilizationTime = 10s
-RedundancyZoneTag = ""
+EnableRedundancyZones = false
 DisableUpgradeMigration = false
-UpgradeVersionTag = ""
+EnableCustomUpgrades = false
 ```
 
 ## Dead Server Cleanup
@@ -164,15 +164,21 @@ isolated failure domains such as AWS Availability Zones; users would be forced t
 have an overly-large quorum (2-3 nodes per AZ) or give up redundancy within an AZ by
 deploying just one server in each.
 
-If the `RedundancyZoneTag` setting is set, Nomad will use its value to look for a
-zone in each server's specified [`-meta`](/docs/agent/configuration/client.html#meta)
-tag. For example, if `RedundancyZoneTag` is set to `zone`, and `-meta zone=east1a`
-is used when starting a server, that server's redundancy zone will be `east1a`.
+If the `EnableRedundancyZones` setting is set, Nomad will use its value to look for a
+zone in each server's specified [`redundancy_zone`]
+(/docs/agent/configuration/server.html#redundancy_zone) field.
 
 Here's an example showing how to configure this:
 
+```hcl
+/* config.hcl */
+server {
+    redundancy_zone = "west-1"
+}
 ```
-$ nomad operator autopilot set-config -redundancy-zone-tag=zone
+
+```
+$ nomad operator autopilot set-config -enable-redundancy-zones=true
 Configuration updated!
 ```
 
@@ -193,11 +199,11 @@ to voters and demoting the old servers. After this is finished, the old servers 
 safely removed from the cluster.
 
 To check the Nomad version of the servers, either the [autopilot health]
-(/api/operator.html#read-health) endpoint or the `Nomad members`
+(/api/operator.html#read-health) endpoint or the `nomad members`
 command can be used:
 
 ```
-$ Nomad members
+$ nomad members
 Node   Address         Status  Type    Build  Protocol  DC
 node1  127.0.0.1:8301  alive   server  0.7.5  2         dc1
 node2  127.0.0.1:8703  alive   server  0.7.5  2         dc1
@@ -207,13 +213,11 @@ node4  127.0.0.1:8203  alive   server  0.8.0  2         dc1
 
 ### Migrations Without a Nomad Version Change
 
-The `UpgradeVersionTag` can be used to override the version information used during
+The `EnableCustomUpgrades` field can be used to override the version information used during
 a migration, so that the migration logic can be used for updating the cluster when
 changing configuration.
 
-If the `UpgradeVersionTag` setting is set, Nomad will use its value to look for a
-version in each server's specified [`-meta`](/docs/agent/configuration/client.html#meta)
-tag. For example, if `UpgradeVersionTag` is set to `build`, and `-meta build:0.0.2`
-is used when starting a server, that server's version will be `0.0.2` when considered in
-a migration. The upgrade logic will follow semantic versioning and the version string
+If the `EnableCustomUpgrades` setting is set to `true`, Nomad will use its value to look for a
+version in each server's specified [`upgrade_version`](/docs/agent/configuration/server.html#upgrade_version)
+tag. The upgrade logic will follow semantic versioning and the `upgrade_version`
 must be in the form of either `X`, `X.Y`, or `X.Y.Z`.

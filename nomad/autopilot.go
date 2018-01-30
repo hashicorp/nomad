@@ -10,13 +10,40 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
+const (
+	AutopilotRZTag      = "ap_zone"
+	AutopilotVersionTag = "ap_version"
+)
+
 // AutopilotDelegate is a Nomad delegate for autopilot operations.
 type AutopilotDelegate struct {
 	server *Server
 }
 
 func (d *AutopilotDelegate) AutopilotConfig() *autopilot.Config {
-	return d.server.getOrCreateAutopilotConfig()
+	c := d.server.getOrCreateAutopilotConfig()
+	if c == nil {
+		return nil
+	}
+
+	conf := &autopilot.Config{
+		CleanupDeadServers:      c.CleanupDeadServers,
+		LastContactThreshold:    c.LastContactThreshold,
+		MaxTrailingLogs:         c.MaxTrailingLogs,
+		ServerStabilizationTime: c.ServerStabilizationTime,
+		DisableUpgradeMigration: c.DisableUpgradeMigration,
+		ModifyIndex:             c.ModifyIndex,
+		CreateIndex:             c.CreateIndex,
+	}
+
+	if c.EnableRedundancyZones {
+		conf.RedundancyZoneTag = AutopilotRZTag
+	}
+	if c.EnableCustomUpgrades {
+		conf.UpgradeVersionTag = AutopilotVersionTag
+	}
+
+	return conf
 }
 
 func (d *AutopilotDelegate) FetchStats(ctx context.Context, servers []serf.Member) map[string]*autopilot.ServerStats {
