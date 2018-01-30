@@ -21,8 +21,15 @@ func TestCPUFingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
 	// CPU info
-	attributes := response.GetAttributes()
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("expected attributes to be initialized")
+	}
 	if attributes["cpu.numcores"] == "" {
 		t.Fatalf("Missing Num Cores")
 	}
@@ -37,8 +44,7 @@ func TestCPUFingerprint(t *testing.T) {
 		t.Fatalf("Missing CPU Total Compute")
 	}
 
-	resources := response.GetResources()
-	if resources.CPU == 0 {
+	if response.Resources == nil || response.Resources.CPU == 0 {
 		t.Fatalf("Expected to find CPU Resources")
 	}
 }
@@ -61,12 +67,15 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		resources := response.GetResources()
-		if resources.CPU == 0 {
+		if !response.Applicable {
+			t.Fatalf("expected response to be applicable")
+		}
+
+		if response.Resources.CPU == 0 {
 			t.Fatalf("expected fingerprint of cpu of but found 0")
 		}
 
-		originalCPU = resources.CPU
+		originalCPU = response.Resources.CPU
 	}
 
 	{
@@ -81,9 +90,8 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		resources := response.GetResources()
-		if resources.CPU != cfg.CpuCompute {
-			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, resources.CPU)
+		if response.Resources.CPU != cfg.CpuCompute {
+			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
 		}
 	}
 }

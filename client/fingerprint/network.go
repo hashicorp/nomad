@@ -95,8 +95,9 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 		return err
 	}
 
-	res := resp.GetResources()
-	res.Networks = nwResources
+	resp.Resources = &structs.Resources{
+		Networks: nwResources,
+	}
 	for _, nwResource := range nwResources {
 		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
 	}
@@ -105,6 +106,7 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 	if len(nwResources) > 0 {
 		resp.AddAttribute("unique.network.ip-address", nwResources[0].IP)
 	}
+	resp.Applicable = true
 
 	return nil
 }

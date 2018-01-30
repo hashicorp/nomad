@@ -21,5 +21,9 @@ func TestArchFingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assertNodeAttributeContains(t, response.GetAttributes(), "cpu.arch")
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	assertNodeAttributeContains(t, response.Attributes, "cpu.arch")
 }

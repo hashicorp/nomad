@@ -98,6 +98,7 @@ func (d *RawExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstr
 	if enabled || req.Config.DevMode {
 		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
 		resp.AddAttribute(rawExecDriverAttr, "1")
+		resp.Applicable = true
 		return nil
 	}
 

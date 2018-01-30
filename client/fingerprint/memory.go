@@ -5,6 +5,7 @@ import (
 	"log"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shirou/gopsutil/mem"
 )
 
@@ -32,8 +33,9 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	if memInfo.Total > 0 {
 		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", memInfo.Total))
 
-		res := resp.GetResources()
-		res.MemoryMB = int(memInfo.Total / 1024 / 1024)
+		resp.Resources = &structs.Resources{
+			MemoryMB: int(memInfo.Total / 1024 / 1024),
+		}
 	}
 
 	return nil

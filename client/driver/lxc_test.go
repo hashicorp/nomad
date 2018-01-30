@@ -59,7 +59,12 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if response.GetAttributes()["driver.lxc"] == "" {
+
+		if !response.Applicable {
+			t.Fatalf("expected response to be applicable")
+		}
+
+		if response.Attributes["driver.lxc"] == "" {
 			t.Fatalf("missing driver")
 		}
 	}

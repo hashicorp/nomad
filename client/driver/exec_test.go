@@ -45,7 +45,12 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if response.GetAttributes()["driver.exec"] == "" {
+
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if response.Attributes == nil || response.Attributes["driver.exec"] == "" {
 		t.Fatalf("missing driver")
 	}
 }

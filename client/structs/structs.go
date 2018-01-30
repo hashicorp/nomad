@@ -194,80 +194,54 @@ type FingerprintRequest struct {
 }
 
 type FingerprintResponse struct {
-	attributes map[string]string
-	links      map[string]string
-	resources  *structs.Resources
+	Attributes map[string]string
+	Links      map[string]string
+	Resources  *structs.Resources
+
+	// Applicable is a boolean indicating whether the fingerprint should be
+	// applied
+	Applicable bool
 }
 
 // AddAttribute adds the name and value for a node attribute to the fingerprint
 // response
 func (f *FingerprintResponse) AddAttribute(name, value string) {
-	// initialize attributes if it has not been already
-	if f.attributes == nil {
-		f.attributes = make(map[string]string, 0)
+	// initialize Attributes if it has not been already
+	if f.Attributes == nil {
+		f.Attributes = make(map[string]string, 0)
 	}
 
-	f.attributes[name] = value
+	f.Attributes[name] = value
 }
 
 // RemoveAttribute sets the given attribute to empty, which will later remove
 // it entirely from the node
 func (f *FingerprintResponse) RemoveAttribute(name string) {
-	// initialize attributes if it has not been already
-	if f.attributes == nil {
-		f.attributes = make(map[string]string, 0)
+	// initialize Attributes if it has not been already
+	if f.Attributes == nil {
+		f.Attributes = make(map[string]string, 0)
 	}
 
-	f.attributes[name] = ""
-}
-
-// GetAttributes fetches the attributes for the fingerprint response
-func (f *FingerprintResponse) GetAttributes() map[string]string {
-	// initialize attributes if it has not been already
-	if f.attributes == nil {
-		f.attributes = make(map[string]string, 0)
-	}
-
-	return f.attributes
+	f.Attributes[name] = ""
 }
 
 // AddLink adds a link entry to the fingerprint response
 func (f *FingerprintResponse) AddLink(name, value string) {
-	// initialize links if it has not been already
-	if f.links == nil {
-		f.links = make(map[string]string, 0)
+	// initialize Links if it has not been already
+	if f.Links == nil {
+		f.Links = make(map[string]string, 0)
 	}
 
-	f.links[name] = value
+	f.Links[name] = value
 }
 
 // RemoveLink removes a link entry from the fingerprint response. This will
 // later remove it entirely from the node
 func (f *FingerprintResponse) RemoveLink(name string) {
-	// initialize links if it has not been already
-	if f.links == nil {
-		f.links = make(map[string]string, 0)
+	// initialize Links if it has not been already
+	if f.Links == nil {
+		f.Links = make(map[string]string, 0)
 	}
 
-	f.links[name] = ""
-}
-
-// GetLinks returns the links for the fingerprint response
-func (f *FingerprintResponse) GetLinks() map[string]string {
-	// initialize links if it has not been already
-	if f.links == nil {
-		f.links = make(map[string]string, 0)
-	}
-
-	return f.links
-}
-
-// GetResources returns the resources for a fingerprint response
-func (f *FingerprintResponse) GetResources() *structs.Resources {
-	// initialize resourcesif it has not been already
-	if f.resources == nil {
-		f.resources = &structs.Resources{}
-	}
-
-	return f.resources
+	f.Links[name] = ""
 }

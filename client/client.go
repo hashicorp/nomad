@@ -951,9 +951,6 @@ func (c *Client) fingerprint() error {
 			return err
 		}
 
-		// Apply the finerprint to our list so that we can log it later
-		appliedFingerprints = append(appliedFingerprints, name)
-
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 		var response cstructs.FingerprintResponse
 		c.configLock.Lock()
@@ -961,6 +958,11 @@ func (c *Client) fingerprint() error {
 		c.configLock.Unlock()
 		if err != nil {
 			return err
+		}
+
+		// log the fingerprinters which have been applied
+		if response.Applicable {
+			appliedFingerprints = append(appliedFingerprints, name)
 		}
 
 		// add the diff found from each fingerprinter
@@ -1029,10 +1031,6 @@ func (c *Client) setupDrivers() error {
 			continue
 		}
 
-		// Add this driver to our list of available drivers so that we can log it
-		// later
-		availDrivers = append(availDrivers, name)
-
 		d, err := driver.NewDriver(name, driverCtx)
 		if err != nil {
 			return err
@@ -1045,6 +1043,11 @@ func (c *Client) setupDrivers() error {
 			return err
 		}
 		c.configLock.Unlock()
+
+		// log the fingerprinters which have been applied
+		if response.Applicable {
+			availDrivers = append(availDrivers, name)
+		}
 
 		c.updateNodeFromFingerprint(&response)
 
@@ -1068,7 +1071,7 @@ func (c *Client) setupDrivers() error {
 func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
-	for name, val := range response.GetAttributes() {
+	for name, val := range response.Attributes {
 		if val == "" {
 			delete(c.config.Node.Attributes, name)
 		} else {
@@ -1078,7 +1081,7 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 
 	// update node links and resources from the diff created from
 	// fingerprinting
-	for name, val := range response.GetLinks() {
+	for name, val := range response.Links {
 		if val == "" {
 			delete(c.config.Node.Links, name)
 		} else {
@@ -1086,7 +1089,9 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		}
 	}
 
-	c.config.Node.Resources.Merge(response.GetResources())
+	if response.Resources != nil {
+		c.config.Node.Resources.Merge(response.Resources)
+	}
 }
 
 // retryIntv calculates a retry interval value given the base

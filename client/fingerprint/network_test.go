@@ -197,7 +197,11 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
 	if len(attributes) == 0 {
 		t.Fatalf("should apply (HINT: working offline? Set env %q=y", skipOnlineTestsEnvVar)
 	}
@@ -210,13 +214,12 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	resources := response.GetResources()
-	if resources == nil || len(resources.Networks) == 0 {
+	if response.Resources == nil || len(response.Resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := resources.Networks[0]
+	net := response.Resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -245,8 +248,12 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.GetAttributes()) != 0 {
-		t.Fatalf("attributes should be zero but instead are: %v", response.GetAttributes())
+	if response.Applicable {
+		t.Fatalf("expected response to not be applicable")
+	}
+
+	if len(response.Attributes) != 0 {
+		t.Fatalf("attributes should be zero but instead are: %v", response.Attributes)
 	}
 }
 
@@ -264,7 +271,11 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
 	if len(attributes) == 0 {
 		t.Fatalf("should apply")
 	}
@@ -277,13 +288,12 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	resources := response.GetResources()
-	if len(resources.Networks) == 0 {
+	if response.Resources == nil || len(response.Resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := resources.Networks[0]
+	net := response.Resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -312,7 +322,11 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
 	assertNodeAttributeContains(t, attributes, "unique.network.ip-address")
 
 	ip := attributes["unique.network.ip-address"]
@@ -321,13 +335,12 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	resources := response.GetResources()
-	if resources == nil || len(resources.Networks) == 0 {
+	if response.Resources == nil || len(response.Resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := resources.Networks[0]
+	net := response.Resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -356,7 +369,11 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
 	if len(attributes) == 0 {
 		t.Fatalf("should apply attributes")
 	}
@@ -369,13 +386,12 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	resources := response.GetResources()
-	if resources == nil || len(resources.Networks) == 0 {
+	if response.Resources == nil || len(response.Resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := resources.Networks[0]
+	net := response.Resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -412,7 +428,12 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(response.GetAttributes()) != 0 {
+
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if len(response.Attributes) != 0 {
 		t.Fatalf("should not apply attributes")
 	}
 }

@@ -30,16 +30,19 @@ func TestNomadFingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
-	if len(attributes) == 0 {
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if len(response.Attributes) == 0 {
 		t.Fatalf("should apply")
 	}
 
-	if attributes["nomad.version"] != v {
+	if response.Attributes["nomad.version"] != v {
 		t.Fatalf("incorrect version")
 	}
 
-	if attributes["nomad.revision"] != r {
+	if response.Attributes["nomad.revision"] != r {
 		t.Fatalf("incorrect revision")
 	}
 }

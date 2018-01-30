@@ -501,6 +501,7 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 
 	resp.AddAttribute(dockerDriverAttr, "1")
 	resp.AddAttribute("driver.docker.version", env.Get("Version"))
+	resp.Applicable = true
 
 	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
 	if privileged {

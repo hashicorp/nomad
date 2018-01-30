@@ -58,8 +58,11 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
-	if attributes["driver.java"] != "1" && javaLocated() {
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if response.Attributes["driver.java"] != "1" && javaLocated() {
 		if v, ok := osJavaDriverSupport[runtime.GOOS]; v && ok {
 			t.Fatalf("missing java driver")
 		} else {
@@ -67,7 +70,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
-		if attributes[key] == "" {
+		if response.Attributes[key] == "" {
 			t.Fatalf("missing driver key (%s)", key)
 		}
 	}

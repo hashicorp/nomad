@@ -43,7 +43,14 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("attributes should not be nil")
+	}
 
 	if attributes[qemuDriverAttr] == "" {
 		t.Fatalf("Missing Qemu driver")
@@ -176,7 +183,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	for name, value := range response.GetAttributes() {
+	for name, value := range response.Attributes {
 		ctx.DriverCtx.node.Attributes[name] = value
 	}
 

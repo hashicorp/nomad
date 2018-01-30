@@ -170,6 +170,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	resp.AddAttribute("driver.java.runtime", info[1])
 	resp.AddAttribute("driver.java.vm", info[2])
 	d.fingerprintSuccess = helper.BoolToPtr(true)
+	resp.Applicable = true
 
 	return nil
 }

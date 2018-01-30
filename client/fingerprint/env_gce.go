@@ -257,7 +257,11 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	}
 
 	// populate Links
-	resp.AddLink("gce", resp.GetAttributes()["unique.platform.gce.id"])
+	if id, ok := resp.Attributes["unique.platform.gce.id"]; ok {
+		resp.AddLink("gce", id)
+	}
+
+	resp.Applicable = true
 
 	return nil
 }

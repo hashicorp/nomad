@@ -21,13 +21,16 @@ func TestHostFingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
-	if len(attributes) == 0 {
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if len(response.Attributes) == 0 {
 		t.Fatalf("should generate a diff of node attributes")
 	}
 
 	// Host info
 	for _, key := range []string{"os.name", "os.version", "unique.hostname", "kernel.name"} {
-		assertNodeAttributeContains(t, attributes, key)
+		assertNodeAttributeContains(t, response.Attributes, key)
 	}
 }

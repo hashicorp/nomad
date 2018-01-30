@@ -179,13 +179,20 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	attributes := response.Attributes
 	if testutil.DockerIsConnected(t) && attributes["driver.docker"] == "" {
 		t.Fatalf("Fingerprinter should detect when docker is available")
 	}
 
 	if attributes["driver.docker"] != "1" {
 		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
+	} else {
+
+		// if docker is available, make sure that the response is tagged as
+		// applicable
+		if !response.Applicable {
+			t.Fatalf("expected response to be applicable")
+		}
 	}
 
 	t.Logf("Found docker version %s", attributes["driver.docker.version"])
@@ -225,7 +232,15 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 		t.Fatalf("error fingerprinting docker: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("expected attributes to be set")
+	}
+
 	if attributes["driver.docker"] == "" {
 		t.Fatalf("expected Docker to be enabled but false was returned")
 	}

@@ -35,5 +35,6 @@ func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	}
 	resp.AddAttribute(execDriverAttr, "1")
 	d.fingerprintSuccess = helper.BoolToPtr(true)
+	resp.Applicable = true
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const bytesPerMegabyte = 1024 * 1024
@@ -46,8 +47,10 @@ func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 	resp.AddAttribute("unique.storage.bytesfree", strconv.FormatUint(free, 10))
 
 	// set the disk size for the response
-	res := resp.GetResources()
-	res.DiskMB = int(free / bytesPerMegabyte)
+	resp.Resources = &structs.Resources{
+		DiskMB: int(free / bytesPerMegabyte),
+	}
+	resp.Applicable = true
 
 	return nil
 }

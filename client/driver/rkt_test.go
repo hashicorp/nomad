@@ -66,7 +66,14 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	attributes := response.GetAttributes()
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("expected attributes to not equal nil")
+	}
 	if attributes["driver.rkt"] != "1" {
 		t.Fatalf("Missing Rkt driver")
 	}

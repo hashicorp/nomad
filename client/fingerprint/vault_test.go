@@ -28,9 +28,12 @@ func TestVaultFingerprint(t *testing.T) {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
 
-	attributes := response.GetAttributes()
-	assertNodeAttributeContains(t, attributes, "vault.accessible")
-	assertNodeAttributeContains(t, attributes, "vault.version")
-	assertNodeAttributeContains(t, attributes, "vault.cluster_id")
-	assertNodeAttributeContains(t, attributes, "vault.cluster_name")
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	assertNodeAttributeContains(t, response.Attributes, "vault.accessible")
+	assertNodeAttributeContains(t, response.Attributes, "vault.version")
+	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
+	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
 }

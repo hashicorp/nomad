@@ -27,7 +27,7 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.GetAttributes()) > 0 {
+	if len(response.Attributes) > 0 {
 		t.Fatalf("Should not apply")
 	}
 }
@@ -75,16 +75,16 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 
 	for _, k := range keys {
-		assertNodeAttributeContains(t, response.GetAttributes(), k)
+		assertNodeAttributeContains(t, response.Attributes, k)
 	}
 
-	if len(response.GetLinks()) == 0 {
+	if len(response.Links) == 0 {
 		t.Fatalf("Empty links for Node in AWS Fingerprint test")
 	}
 
 	// confirm we have at least instance-id and ami-id
 	for _, k := range []string{"aws.ec2"} {
-		assertNodeLinksContains(t, response.GetLinks(), k)
+		assertNodeLinksContains(t, response.Links, k)
 	}
 }
 
@@ -179,15 +179,14 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assertNodeAttributeContains(t, response.GetAttributes(), "unique.network.ip-address")
+	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-	res := response.GetResources()
-	if len(res.Networks) == 0 {
+	if response.Resources == nil || len(response.Resources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := res.Networks[0]
+	net := response.Resources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to have an IP")
 	}
@@ -230,15 +229,18 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		assertNodeAttributeContains(t, response.GetAttributes(), "unique.network.ip-address")
+		if !response.Applicable {
+			t.Fatalf("expected response to be applicable")
+		}
 
-		res := response.GetResources()
-		if len(res.Networks) == 0 {
+		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+
+		if response.Resources == nil || len(response.Resources.Networks) == 0 {
 			t.Fatal("Expected to find Network Resources")
 		}
 
 		// Test at least the first Network Resource
-		net := res.Networks[0]
+		net := response.Resources.Networks[0]
 		if net.IP == "" {
 			t.Fatal("Expected Network Resource to have an IP")
 		}
@@ -270,15 +272,14 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		assertNodeAttributeContains(t, response.GetAttributes(), "unique.network.ip-address")
+		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-		res := response.GetResources()
-		if len(res.Networks) == 0 {
+		if response.Resources == nil || len(response.Resources.Networks) == 0 {
 			t.Fatal("Expected to find Network Resources")
 		}
 
 		// Test at least the first Network Resource
-		net := res.Networks[0]
+		net := response.Resources.Networks[0]
 		if net.IP == "" {
 			t.Fatal("Expected Network Resource to have an IP")
 		}
@@ -308,7 +309,7 @@ func TestNetworkFingerprint_notAWS(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if len(response.GetAttributes()) > 0 {
+	if len(response.Attributes) > 0 {
 		t.Fatalf("Should not apply")
 	}
 }

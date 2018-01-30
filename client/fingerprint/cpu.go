@@ -6,6 +6,7 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // CPUFingerprint is used to fingerprint the CPU
@@ -23,8 +24,9 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	cfg := req.Config
 	setResourcesCPU := func(totalCompute int) {
-		resources := resp.GetResources()
-		resources.CPU = totalCompute
+		resp.Resources = &structs.Resources{
+			CPU: totalCompute,
+		}
 	}
 
 	if err := stats.Init(); err != nil {
@@ -66,6 +68,7 @@ func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cst
 
 	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
 	setResourcesCPU(tt)
+	resp.Applicable = true
 
 	return nil
 }

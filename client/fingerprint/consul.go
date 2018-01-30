@@ -84,11 +84,10 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.datacenter")
 	}
 
-	attributes := resp.GetAttributes()
-	if attributes["consul.datacenter"] != "" || attributes["unique.consul.name"] != "" {
-		resp.AddLink("consul", fmt.Sprintf("%s.%s",
-			attributes["consul.datacenter"],
-			attributes["unique.consul.name"]))
+	if dc, ok := resp.Attributes["consul.datacenter"]; ok {
+		if name, ok2 := resp.Attributes["unique.consul.name"]; ok2 {
+			resp.AddLink("consul", fmt.Sprintf("%s.%s", dc, name))
+		}
 	} else {
 		f.logger.Printf("[WARN] fingerprint.consul: malformed Consul response prevented linking")
 	}
@@ -99,6 +98,7 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		f.logger.Printf("[INFO] fingerprint.consul: consul agent is available")
 	}
 	f.lastState = consulAvailable
+	resp.Applicable = true
 	return nil
 }
 

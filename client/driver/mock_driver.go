@@ -229,6 +229,7 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 		resp.RemoveAttribute("driver.mock_driver")
 	default:
 		resp.AddAttribute("driver.mock_driver", "1")
+		resp.Applicable = true
 	}
 	return nil
 }

@@ -42,7 +42,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.GetAttributes()["driver.raw_exec"] != "" {
+	if response.Attributes["driver.raw_exec"] != "" {
 		t.Fatalf("driver incorrectly enabled")
 	}
 
@@ -53,7 +53,11 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.GetAttributes()["driver.raw_exec"] != "1" {
+	if !response.Applicable {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if response.Attributes["driver.raw_exec"] != "1" {
 		t.Fatalf("driver not enabled")
 	}
 }

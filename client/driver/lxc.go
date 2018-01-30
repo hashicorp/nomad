@@ -196,6 +196,7 @@ func (d *LxcDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 	}
 	resp.AddAttribute("driver.lxc.version", version)
 	resp.AddAttribute("driver.lxc", "1")
+	resp.Applicable = true
 
 	// Advertise if this node supports lxc volumes
 	if d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault) {

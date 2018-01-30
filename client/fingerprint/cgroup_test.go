@@ -58,7 +58,7 @@ func TestCGroupFingerprint(t *testing.T) {
 			t.Fatalf("expected an error")
 		}
 
-		if a, _ := response.GetAttributes()["unique.cgroup.mountpoint"]; a != "" {
+		if a, _ := response.Attributes["unique.cgroup.mountpoint"]; a != "" {
 			t.Fatalf("unexpected attribute found, %s", a)
 		}
 	}
@@ -80,7 +80,7 @@ func TestCGroupFingerprint(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error, %s", err)
 		}
-		if a, ok := response.GetAttributes()["unique.cgroup.mountpoint"]; !ok {
+		if a, ok := response.Attributes["unique.cgroup.mountpoint"]; !ok {
 			t.Fatalf("unable to find attribute: %s", a)
 		}
 	}
@@ -102,7 +102,7 @@ func TestCGroupFingerprint(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error, %s", err)
 		}
-		if a, _ := response.GetAttributes()["unique.cgroup.mountpoint"]; a != "" {
+		if a, _ := response.Attributes["unique.cgroup.mountpoint"]; a != "" {
 			t.Fatalf("unexpected attribute found, %s", a)
 		}
 	}
@@ -123,7 +123,7 @@ func TestCGroupFingerprint(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error, %s", err)
 		}
-		if a, _ := response.GetAttributes()["unique.cgroup.mountpoint"]; a == "" {
+		if a, _ := response.Attributes["unique.cgroup.mountpoint"]; a == "" {
 			t.Fatalf("expected attribute to be found, %s", a)
 		}
 	}

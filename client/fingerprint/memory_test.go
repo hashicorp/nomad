@@ -21,11 +21,12 @@ func TestMemoryFingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assertNodeAttributeContains(t, response.GetAttributes(), "memory.totalbytes")
+	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
 
-	res := response.GetResources()
-	if res.MemoryMB == 0 {
-		t.Errorf("Expected node.Resources.MemoryMB to be non-zero")
+	if response.Resources == nil {
+		t.Fatalf("response resources should not be nil")
 	}
-
+	if response.Resources.MemoryMB == 0 {
+		t.Fatalf("Expected node.Resources.MemoryMB to be non-zero")
+	}
 }

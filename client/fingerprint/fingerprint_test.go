@@ -24,7 +24,7 @@ func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *cstr
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
 
-	if len(response.GetAttributes()) == 0 {
+	if len(response.Attributes) == 0 {
 		t.Fatalf("Failed to apply node attributes")
 	}
 
@@ -32,6 +32,11 @@ func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *cstr
 }
 
 func assertNodeAttributeContains(t *testing.T, nodeAttributes map[string]string, attribute string) {
+	if nodeAttributes == nil {
+		t.Errorf("expected an initialized map for node attributes")
+		return
+	}
+
 	actual, found := nodeAttributes[attribute]
 	if !found {
 		t.Errorf("Expected to find Attribute `%s`\n\n[DEBUG] %#v", attribute, nodeAttributes)
@@ -43,6 +48,10 @@ func assertNodeAttributeContains(t *testing.T, nodeAttributes map[string]string,
 }
 
 func assertNodeAttributeEquals(t *testing.T, nodeAttributes map[string]string, attribute string, expected string) {
+	if nodeAttributes == nil {
+		t.Errorf("expected an initialized map for node attributes")
+		return
+	}
 	actual, found := nodeAttributes[attribute]
 	if !found {
 		t.Errorf("Expected to find Attribute `%s`; unable to check value\n\n[DEBUG] %#v", attribute, nodeAttributes)
@@ -54,6 +63,10 @@ func assertNodeAttributeEquals(t *testing.T, nodeAttributes map[string]string, a
 }
 
 func assertNodeLinksContains(t *testing.T, nodeLinks map[string]string, link string) {
+	if nodeLinks == nil {
+		t.Errorf("expected an initialized map for node links")
+		return
+	}
 	actual, found := nodeLinks[link]
 	if !found {
 		t.Errorf("Expected to find Link `%s`\n\n[DEBUG]", link)
