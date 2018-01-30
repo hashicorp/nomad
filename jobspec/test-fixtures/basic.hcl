@@ -67,6 +67,13 @@ job "binstore-storagelocker" {
         canary = 2
     }
 
+    migrate {
+        max_parallel = 2
+        health_check = "task_states"
+        min_healthy_time = "11s"
+        healthy_deadline = "11m"
+    }
+
     task "binstore" {
       driver = "docker"
       user   = "bob"

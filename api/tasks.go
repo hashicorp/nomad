@@ -295,7 +295,7 @@ type TaskGroup struct {
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk
 	Update           *UpdateStrategy
-	Migrate          *MigrationStrategy
+	Migrate          *MigrateStrategy
 	Meta             map[string]string
 }
 

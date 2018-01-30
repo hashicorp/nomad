@@ -110,6 +110,12 @@ func TestParse(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(false),
 							Canary:          helper.IntToPtr(2),
 						},
+						Migrate: &api.MigrateStrategy{
+							MaxParallel:     helper.IntToPtr(2),
+							HealthCheck:     helper.StringToPtr("task_states"),
+							MinHealthyTime:  helper.TimeToPtr(11 * time.Second),
+							HealthyDeadline: helper.TimeToPtr(11 * time.Minute),
+						},
 						Tasks: []*api.Task{
 							{
 								Name:   "binstore",
