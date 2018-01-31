@@ -125,11 +125,13 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestQemuDriver_GracefulShutdown(t *testing.T) {
-	logger := testLogger()
+	testutil.SkipSlow(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	ctestutils.QemuCompatible(t)
+
+	logger := testLogger()
 
 	// Graceful shutdown may be really slow unfortunately
 	killTimeout := 3 * time.Minute
