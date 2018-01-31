@@ -173,51 +173,51 @@ type DockerVolumeDriverConfig struct {
 
 // DockerDriverConfig defines the user specified config block in a jobspec
 type DockerDriverConfig struct {
-	ImageName        string              `mapstructure:"image"`              // Container's Image Name
-	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
-	Command          string              `mapstructure:"command"`            // The Command to run when the container starts up
-	Args             []string            `mapstructure:"args"`               // The arguments to the Command
-	Entrypoint       []string            `mapstructure:"entrypoint"`         // Override the containers entrypoint
-	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
-	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
-	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
-	IPv4Address      string              `mapstructure:"ipv4_address"`       // The container ipv4 address
-	IPv6Address      string              `mapstructure:"ipv6_address"`       // the container ipv6 address
-	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
-	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
-	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
-	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
-	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
-	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
-	SysctlRaw        []map[string]string `mapstructure:"sysctl"`             //
-	Sysctl           map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
-	UlimitRaw        []map[string]string `mapstructure:"ulimit"`             //
-	Ulimit           []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
-	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
-	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
-	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
-	ExtraHosts       []string            `mapstructure:"extra_hosts"`        // Add host to /etc/hosts (host:IP)
-	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
-	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
-	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
-	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
-	AuthSoftFail     bool                `mapstructure:"auth_soft_fail"`     // Soft-fail if auth creds are provided but fail
-	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
-	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
-	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
-	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
-	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
-	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
-	Mounts           []DockerMount       `mapstructure:"mounts"`             // Docker volumes to mount
-	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
-	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
-	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
-	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
-	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
-	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
-	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
-	ReadonlyRootfs   bool                `mapstructure:"readonly_rootfs"`    // Mount the container’s root filesystem as read only
-	UseIPv6Address   bool                `mapstructure:"use_ipv6_address"`   // Flag to use the GlobalIPv6Address from the container as the detected IP
+	ImageName            string              `mapstructure:"image"`                  // Container's Image Name
+	LoadImage            string              `mapstructure:"load"`                   // LoadImage is a path to an image archive file
+	Command              string              `mapstructure:"command"`                // The Command to run when the container starts up
+	Args                 []string            `mapstructure:"args"`                   // The arguments to the Command
+	Entrypoint           []string            `mapstructure:"entrypoint"`             // Override the containers entrypoint
+	IpcMode              string              `mapstructure:"ipc_mode"`               // The IPC mode of the container - host and none
+	NetworkMode          string              `mapstructure:"network_mode"`           // The network mode of the container - host, nat and none
+	NetworkAliases       []string            `mapstructure:"network_aliases"`        // The network-scoped alias for the container
+	IPv4Address          string              `mapstructure:"ipv4_address"`           // The container ipv4 address
+	IPv6Address          string              `mapstructure:"ipv6_address"`           // the container ipv6 address
+	PidMode              string              `mapstructure:"pid_mode"`               // The PID mode of the container - host and none
+	UTSMode              string              `mapstructure:"uts_mode"`               // The UTS mode of the container - host and none
+	UsernsMode           string              `mapstructure:"userns_mode"`            // The User namespace mode of the container - host and none
+	PortMapRaw           []map[string]string `mapstructure:"port_map"`               //
+	PortMap              map[string]int      `mapstructure:"-"`                      // A map of host port labels and the ports exposed on the container
+	Privileged           bool                `mapstructure:"privileged"`             // Flag to run the container in privileged mode
+	SysctlRaw            []map[string]string `mapstructure:"sysctl"`                 //
+	Sysctl               map[string]string   `mapstructure:"-"`                      // The sysctl custom configurations
+	UlimitRaw            []map[string]string `mapstructure:"ulimit"`                 //
+	Ulimit               []docker.ULimit     `mapstructure:"-"`                      // The ulimit custom configurations
+	DNSServers           []string            `mapstructure:"dns_servers"`            // DNS Server for containers
+	DNSSearchDomains     []string            `mapstructure:"dns_search_domains"`     // DNS Search domains for containers
+	DNSOptions           []string            `mapstructure:"dns_options"`            // DNS Options
+	ExtraHosts           []string            `mapstructure:"extra_hosts"`            // Add host to /etc/hosts (host:IP)
+	Hostname             string              `mapstructure:"hostname"`               // Hostname for containers
+	LabelsRaw            []map[string]string `mapstructure:"labels"`                 //
+	Labels               map[string]string   `mapstructure:"-"`                      // Labels to set when the container starts up
+	Auth                 []DockerDriverAuth  `mapstructure:"auth"`                   // Authentication credentials for a private Docker registry
+	AuthSoftFail         bool                `mapstructure:"auth_soft_fail"`         // Soft-fail if auth creds are provided but fail
+	TTY                  bool                `mapstructure:"tty"`                    // Allocate a Pseudo-TTY
+	Interactive          bool                `mapstructure:"interactive"`            // Keep STDIN open even if not attached
+	ShmSize              int64               `mapstructure:"shm_size"`               // Size of /dev/shm of the container in bytes
+	WorkDir              string              `mapstructure:"work_dir"`               // Working directory inside the container
+	Logging              []DockerLoggingOpts `mapstructure:"logging"`                // Logging options for syslog server
+	Volumes              []string            `mapstructure:"volumes"`                // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	Mounts               []DockerMount       `mapstructure:"mounts"`                 // Docker volumes to mount
+	VolumeDriver         string              `mapstructure:"volume_driver"`          // Docker volume driver used for the container's volumes
+	ForcePull            bool                `mapstructure:"force_pull"`             // Always force pull before running image, useful if your tags are mutable
+	MacAddress           string              `mapstructure:"mac_address"`            // Pin mac address to container
+	SecurityOpt          []string            `mapstructure:"security_opt"`           // Flags to pass directly to security-opt
+	Devices              []DockerDevice      `mapstructure:"devices"`                // To allow mounting USB or other serial control devices
+	CapAdd               []string            `mapstructure:"cap_add"`                // Flags to pass directly to cap-add
+	CapDrop              []string            `mapstructure:"cap_drop"`               // Flags to pass directly to cap-drop
+	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
+	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -675,7 +675,7 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"readonly_rootfs": {
 				Type: fields.TypeBool,
 			},
-			"use_ipv6_address": {
+			"advertise_ipv6_address": {
 				Type: fields.TypeBool,
 			},
 		},
@@ -888,8 +888,9 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		}
 
 		ip = net.IPAddress
-		if d.driverConfig.UseIPv6Address {
+		if d.driverConfig.AdvertiseIPv6Address {
 			ip = net.GlobalIPv6Address
+			auto = true
 		}
 		ipName = name
 

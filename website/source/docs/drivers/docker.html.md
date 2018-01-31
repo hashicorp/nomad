@@ -355,11 +355,9 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
-* `use_ipv6_address` - (Optional) `true` or `false` (default). Use IPv6 Address
-   will use the containers IPv6 address (GlobalIPv6Address) when registering service checks and using
-   `address_mode = driver`.
-   See [service](/docs/job-specification/service.html) for details.
-
+* `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's 
+   IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
+   See [IPv6 Docker containers](/docs/job-specification/service.html#IPv6 Docker containers) for details.
 
 * `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
