@@ -148,6 +148,7 @@ export default Factory.extend({
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        createAllocations: job.createAllocations,
       });
     }
 
@@ -157,6 +158,7 @@ export default Factory.extend({
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        createAllocations: job.createAllocations,
       });
     }
   },
