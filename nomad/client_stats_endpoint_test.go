@@ -28,6 +28,7 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
+	defer c.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -158,6 +159,7 @@ func TestClientStats_Stats_Remote(t *testing.T) {
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
+	defer c.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()

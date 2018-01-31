@@ -35,9 +35,9 @@ func (c *Client) ClientRPC(method string, args interface{}, reply interface{}) e
 	return codec.Err
 }
 
-// ClientStreamingRpcHandler is used to make a local, client only streaming RPC
+// StreamingRpcHandler is used to make a local, client only streaming RPC
 // call.
-func (c *Client) ClientStreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+func (c *Client) StreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
 	return c.streamingRpcs.GetHandler(method)
 }
 
