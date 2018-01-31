@@ -79,6 +79,7 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 
 	// Tighten the autopilot timing
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
+	config.AutopilotConfig.LastContactThreshold = 200 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
 
