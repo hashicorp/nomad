@@ -183,18 +183,18 @@ job "example" {
     #
     restart {
       # The number of attempts to run the job within the specified interval.
-      attempts = 10
-      interval = "5m"
+      attempts = 2
+      interval = "15s"
 
       # The "delay" parameter specifies the duration to wait before restarting
       # a task after it has failed.
-      delay = "25s"
+      delay = "15s"
 
      # The "mode" parameter controls what happens when a task has restarted
      # "attempts" times within the interval. "delay" mode delays the next
      # restart until the next interval. "fail" mode does not restart the task
      # if "attempts" has been hit within the interval.
-      mode = "delay"
+      mode = "fail"
     }
 
     # The "ephemeral_disk" stanza instructs Nomad to utilize an ephemeral disk
