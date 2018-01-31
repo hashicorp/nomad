@@ -204,11 +204,11 @@ command can be used:
 
 ```
 $ nomad server-members
-Node   Address         Status  Type    Build  Protocol  DC
-node1  127.0.0.1:8301  alive   server  0.7.5  2         dc1
-node2  127.0.0.1:8703  alive   server  0.7.5  2         dc1
-node3  127.0.0.1:8803  alive   server  0.7.5  2         dc1
-node4  127.0.0.1:8203  alive   server  0.8.0  2         dc1
+Name   Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
+node1  127.0.0.1  4648  alive   true    3         0.7.1  dc1         global
+node2  127.0.0.1  4748  alive   false   3         0.7.1  dc1         global
+node3  127.0.0.1  4848  alive   false   3         0.7.1  dc1         global
+node4  127.0.0.1  4948  alive   false   3         0.8.0  dc1         global
 ```
 
 ### Migrations Without a Nomad Version Change
