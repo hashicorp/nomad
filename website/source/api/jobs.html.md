@@ -35,12 +35,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/jobs
+    https://localhost:4646/v1/jobs
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/jobs?prefix=team
+    https://localhost:4646/v1/jobs?prefix=team
 ```
 
 ### Sample Response
@@ -206,7 +206,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @my-job.nomad \
-    https://nomad.rocks/v1/jobs
+    https://localhost:4646/v1/jobs
 ```
 
 ### Sample Response
@@ -249,7 +249,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job
+    https://localhost:4646/v1/job/my-job
 ```
 
 ### Sample Response
@@ -463,7 +463,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/versions
+    https://localhost:4646/v1/job/my-job/versions
 ```
 
 ### Sample Response
@@ -639,7 +639,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/allocations
+    https://localhost:4646/v1/job/my-job/allocations
 ```
 
 ### Sample Response
@@ -792,7 +792,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/evaluations
+    https://localhost:4646/v1/job/my-job/evaluations
 ```
 
 ### Sample Response
@@ -853,7 +853,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/deployments
+    https://localhost:4646/v1/job/my-job/deployments
 ```
 
 ### Sample Response
@@ -938,7 +938,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/deployment
+    https://localhost:4646/v1/job/my-job/deployment
 ```
 
 ### Sample Response
@@ -998,7 +998,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/summary
+    https://localhost:4646/v1/job/my-job/summary
 ```
 
 ### Sample Response
@@ -1079,7 +1079,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/job/my-job
+    https://localhost:4646/v1/job/my-job
 ```
 
 ### Sample Response
@@ -1136,7 +1136,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --payload @payload.json \
-    https://nomad.rocks/v1/job/my-job/dispatch
+    https://localhost:4646/v1/job/my-job/dispatch
 ```
 
 ### Sample Response
@@ -1193,7 +1193,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --payload @payload.json \
-    https://nomad.rocks/v1/job/my-job/revert
+    https://localhost:4646/v1/job/my-job/revert
 ```
 
 ### Sample Response
@@ -1249,7 +1249,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --payload @payload.json \
-    https://nomad.rocks/v1/job/my-job/stable
+    https://localhost:4646/v1/job/my-job/stable
 ```
 
 ### Sample Response
@@ -1288,7 +1288,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/job/my-job/evaluate
+    https://localhost:4646/v1/job/my-job/evaluate
 ```
 
 ### Sample Response
@@ -1348,7 +1348,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --payload @payload.json \
-    https://nomad.rocks/v1/job/my-job/plan
+    https://localhost:4646/v1/job/my-job/plan
 ```
 
 ### Sample Response
@@ -1548,7 +1548,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/job/my-job/periodic/force
+    https://localhost:4646/v1/job/my-job/periodic/force
 ```
 
 ### Sample Response
@@ -1590,7 +1590,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/job/my-job?purge=true
+    https://localhost:4646/v1/job/my-job?purge=true
 ```
 
 ### Sample Response

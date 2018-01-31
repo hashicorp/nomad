@@ -83,7 +83,9 @@ server {
 	retry_interval = "15s"
 	rejoin_after_leave = true
 	non_voting_server = true
-    encrypt = "abc"
+	redundancy_zone = "foo"
+	upgrade_version = "0.8.0"
+	encrypt = "abc"
 }
 acl {
     enabled = true
@@ -166,7 +168,7 @@ autopilot {
     disable_upgrade_migration = true
     last_contact_threshold = "12705s"
     max_trailing_logs = 17849
-    redundancy_zone_tag = "foo"
+    enable_redundancy_zones = true
     server_stabilization_time = "23057s"
-    upgrade_version_tag = "bar"
+    enable_custom_upgrades = true
 }

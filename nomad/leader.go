@@ -13,7 +13,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1174,7 +1173,7 @@ func diffACLTokens(state *state.StateStore, minIndex uint64, remoteList []*struc
 }
 
 // getOrCreateAutopilotConfig is used to get the autopilot config, initializing it if necessary
-func (s *Server) getOrCreateAutopilotConfig() *autopilot.Config {
+func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	state := s.fsm.State()
 	_, config, err := state.AutopilotConfig()
 	if err != nil {

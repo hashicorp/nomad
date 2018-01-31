@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -97,6 +96,13 @@ type Config struct {
 	// (Enterprise-only) NonVoter is used to prevent this server from being added
 	// as a voting member of the Raft cluster.
 	NonVoter bool
+
+	// (Enterprise-only) RedundancyZone is the redundancy zone to use for this server.
+	RedundancyZone string
+
+	// (Enterprise-only) UpgradeVersion is the custom upgrade version to use when
+	// performing upgrade migrations.
+	UpgradeVersion string
 
 	// SerfConfig is the configuration for the serf cluster
 	SerfConfig *serf.Config
@@ -269,7 +275,7 @@ type Config struct {
 
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
-	AutopilotConfig *autopilot.Config
+	AutopilotConfig *structs.AutopilotConfig
 
 	// ServerHealthInterval is the frequency with which the health of the
 	// servers in the cluster will be updated.
@@ -339,7 +345,7 @@ func DefaultConfig() *Config {
 		TLSConfig:                        &config.TLSConfig{},
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
-		AutopilotConfig: &autopilot.Config{
+		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
 			MaxTrailingLogs:         250,

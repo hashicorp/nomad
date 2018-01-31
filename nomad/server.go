@@ -1105,6 +1105,12 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.NonVoter {
 		conf.Tags["nonvoter"] = "1"
 	}
+	if s.config.RedundancyZone != "" {
+		conf.Tags[AutopilotRZTag] = s.config.RedundancyZone
+	}
+	if s.config.UpgradeVersion != "" {
+		conf.Tags[AutopilotVersionTag] = s.config.UpgradeVersion
+	}
 	conf.MemberlistConfig.LogOutput = s.config.LogOutput
 	conf.LogOutput = s.config.LogOutput
 	conf.EventCh = ch

@@ -192,7 +192,7 @@ REMOVE:
 }
 
 // AutopilotGetConfiguration is used to retrieve the current Autopilot configuration.
-func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, reply *autopilot.Config) error {
+func (op *Operator) AutopilotGetConfiguration(args *structs.GenericRequest, reply *structs.AutopilotConfig) error {
 	if done, err := op.srv.forward("Operator.AutopilotGetConfiguration", args, args, reply); done {
 		return err
 	}

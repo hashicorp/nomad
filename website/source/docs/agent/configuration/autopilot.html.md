@@ -18,6 +18,7 @@ description: |-
 </table>
 
 The `autopilot` stanza configures the Nomad agent to configure Autopilot behavior.
+For more information about Autopilot, see the [Autopilot Guide](/guides/cluster/autopilot.html).
 
 ```hcl
 autopilot {
@@ -25,9 +26,9 @@ autopilot {
     last_contact_threshold = "200ms"
     max_trailing_logs = 250
     server_stabilization_time = "10s"
-    redundancy_zone_tag = ""
-    disable_upgrade_migration = true
-    upgrade_version_tag = ""
+    enable_redundancy_zones = false
+    disable_upgrade_migration = false
+    enable_custom_upgrades = false
 }
 ```
 
@@ -48,17 +49,17 @@ autopilot {
   cluster. Only takes effect if all servers are running Raft protocol version 3
   or higher. Must be a duration value such as `30s`.
 
-- `redundancy_zone_tag` `(string: "")` - Controls the node-meta key to use when
-  Autopilot is separating servers into zones for redundancy. Only one server in
-  each zone can be a voting member at one time. If left blank, this feature will
-  be disabled.
+- `enable_redundancy_zones` `(bool: false)` - (Enterprise-only) Controls whether
+  Autopilot separates servers into zones for redundancy, in conjunction with the
+  [redundancy_zone](/docs/agent/configuration/server.html#redundancy_zone) parameter.
+  Only one server in each zone can be a voting member at one time.
 
-- `disable_upgrade_migration` `(bool: false)` - Disables Autopilot's upgrade
-  migration strategy in Nomad Enterprise of waiting until enough
+- `disable_upgrade_migration` `(bool: false)` - (Enterprise-only) Disables Autopilot's
+  upgrade migration strategy in Nomad Enterprise of waiting until enough
   newer-versioned servers have been added to the cluster before promoting any of
   them to voters.
 
-- `upgrade_version_tag` `(string: "")` - Controls the node-meta key to use for
-  version info when performing upgrade migrations. If left blank, the Nomad
-  version will be used.
+- `enable_custom_upgrades` `(bool: false)` - (Enterprise-only) Specifies whether to 
+  enable using custom upgrade versions when performing migrations, in conjunction with
+  the [upgrade_version](/docs/agent/configuration/server.html#upgrade_version) parameter.
 

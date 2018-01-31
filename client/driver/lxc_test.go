@@ -310,6 +310,7 @@ func TestLxcDriver_Start_NoVolumes(t *testing.T) {
 	ctx := testDriverContexts(t, task)
 	defer ctx.AllocDir.Destroy()
 
+	// set lxcVolumesConfigOption to false to disallow absolute paths as the source for the bind mount
 	ctx.DriverCtx.config.Options = map[string]string{lxcVolumesConfigOption: "false"}
 
 	d := NewLxcDriver(ctx.DriverCtx)
@@ -317,8 +318,19 @@ func TestLxcDriver_Start_NoVolumes(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
+
+	// expect the "absolute bind-mount volume in config.. " error
 	_, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
 		t.Fatalf("expected error in start, got nil.")
 	}
+
+	// Because the container was created but not started before
+	// the expected error, we can test that the destroy-only
+	// cleanup is done here.
+	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.DriverCtx.allocID)
+	if err := exec.Command("bash", "-c", fmt.Sprintf("lxc-ls -1 | grep -q %s", containerName)).Run(); err == nil {
+		t.Fatalf("error, container '%s' is still around", containerName)
+	}
+
 }

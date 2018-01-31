@@ -45,7 +45,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/operator/raft/configuration
+    https://localhost:4646/v1/operator/raft/configuration
 ```
 
 ### Sample Response
@@ -123,7 +123,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/operator/raft/peer?address=1.2.3.4
+    https://localhost:4646/v1/operator/raft/peer?address=1.2.3.4
 ```
 
 ## Read Autopilot Configuration
@@ -157,7 +157,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/operator/autopilot/configuration
+    https://localhost:4646/operator/autopilot/configuration
 ```
 
 ### Sample Response
@@ -168,9 +168,9 @@ $ curl \
   "LastContactThreshold": "200ms",
   "MaxTrailingLogs": 250,
   "ServerStabilizationTime": "10s",
-  "RedundancyZoneTag": "",
+  "EnableRedundancyZones": false,
   "DisableUpgradeMigration": false,
-  "UpgradeVersionTag": "",
+  "EnableCustomUpgrades": false,
   "CreateIndex": 4,
   "ModifyIndex": 4
 }
@@ -221,19 +221,16 @@ The table below shows this endpoint's support for
   cluster. Only takes effect if all servers are running Raft protocol version 3
   or higher. Must be a duration value such as `30s`.
 
-- `RedundancyZoneTag` `(string: "")` - Controls the node-meta key to use when
-  Autopilot is separating servers into zones for redundancy. Only one server in
-  each zone can be a voting member at one time. If left blank, this feature will
-  be disabled.
+- `EnableRedundancyZones` `(bool: false)` - (Enterprise-only) Specifies whether 
+  to enable redundancy zones.
 
-- `DisableUpgradeMigration` `(bool: false)` - Disables Autopilot's upgrade
-  migration strategy in Nomad Enterprise of waiting until enough
+- `DisableUpgradeMigration` `(bool: false)` - (Enterprise-only) Disables Autopilot's
+  upgrade migration strategy in Nomad Enterprise of waiting until enough
   newer-versioned servers have been added to the cluster before promoting any of
   them to voters.
 
-- `UpgradeVersionTag` `(string: "")` - Controls the node-meta key to use for
-  version info when performing upgrade migrations. If left blank, the Nomad
-  version will be used.
+- `EnableCustomUpgrades` `(bool: false)` - (Enterprise-only) Specifies whether to 
+  enable using custom upgrade versions when performing migrations.
 
 ### Sample Payload
 
@@ -243,9 +240,9 @@ The table below shows this endpoint's support for
   "LastContactThreshold": "200ms",
   "MaxTrailingLogs": 250,
   "ServerStabilizationTime": "10s",
-  "RedundancyZoneTag": "",
+  "EnableRedundancyZones": false,
   "DisableUpgradeMigration": false,
-  "UpgradeVersionTag": "",
+  "EnableCustomUpgrades": false,
   "CreateIndex": 4,
   "ModifyIndex": 4
 }
@@ -278,7 +275,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/operator/autopilot/health
+    https://localhost:4646/v1/operator/autopilot/health
 ```
 
 ### Sample response

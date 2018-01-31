@@ -107,6 +107,8 @@ func TestConfig_Merge(t *testing.T) {
 			HeartbeatGrace:         30 * time.Second,
 			MinHeartbeatTTL:        30 * time.Second,
 			MaxHeartbeatsPerSecond: 30.0,
+			RedundancyZone:         "foo",
+			UpgradeVersion:         "foo",
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -165,9 +167,9 @@ func TestConfig_Merge(t *testing.T) {
 			ServerStabilizationTime: 1 * time.Second,
 			LastContactThreshold:    1 * time.Second,
 			MaxTrailingLogs:         1,
-			RedundancyZoneTag:       "1",
+			EnableRedundancyZones:   &falseValue,
 			DisableUpgradeMigration: &falseValue,
-			UpgradeVersionTag:       "1",
+			EnableCustomUpgrades:    &falseValue,
 		},
 	}
 
@@ -260,6 +262,8 @@ func TestConfig_Merge(t *testing.T) {
 			RetryInterval:          "10s",
 			retryInterval:          time.Second * 10,
 			NonVotingServer:        true,
+			RedundancyZone:         "bar",
+			UpgradeVersion:         "bar",
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -328,9 +332,9 @@ func TestConfig_Merge(t *testing.T) {
 			ServerStabilizationTime: 2 * time.Second,
 			LastContactThreshold:    2 * time.Second,
 			MaxTrailingLogs:         2,
-			RedundancyZoneTag:       "2",
+			EnableRedundancyZones:   &trueValue,
 			DisableUpgradeMigration: &trueValue,
-			UpgradeVersionTag:       "2",
+			EnableCustomUpgrades:    &trueValue,
 		},
 	}
 

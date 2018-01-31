@@ -35,7 +35,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/stats
+    https://localhost:4646/v1/client/stats
 ```
 
 ### Sample Response
@@ -161,7 +161,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/stats
+    https://localhost:4646/v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/stats
 ```
 
 ### Sample Response
@@ -265,12 +265,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99
+    https://localhost:4646/v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=alloc/file.json
+    https://localhost:4646/v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=alloc/file.json
 ```
 
 ### Sample Response
@@ -316,7 +316,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/readat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/foo&offset=1323&limit=19303
+    https://localhost:4646/v1/client/fs/readat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/foo&offset=1323&limit=19303
 ```
 
 ### Sample Response
@@ -360,7 +360,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/stream/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/logs/redis.log
+    https://localhost:4646/v1/client/fs/stream/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/logs/redis.log
 ```
 
 ### Sample Response
@@ -433,7 +433,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/logs/5fc98185-17ff-26bc-a802-0c74fa471c99
+    https://localhost:4646/v1/client/fs/logs/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ### Sample Response
@@ -493,7 +493,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/ls/5fc98185-17ff-26bc-a802-0c74fa471c99
+    https://localhost:4646/v1/client/fs/ls/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ### Sample Response
@@ -546,7 +546,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/fs/stat/5fc98185-17ff-26bc-a802-0c74fa471c99
+    https://localhost:4646/v1/client/fs/stat/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ### Sample Response
@@ -583,5 +583,5 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/client/gc
+    https://localhost:4646/v1/client/gc
 ```
