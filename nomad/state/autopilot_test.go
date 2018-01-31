@@ -5,20 +5,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestStateStore_Autopilot(t *testing.T) {
 	s := testStateStore(t)
 
-	expected := &autopilot.Config{
+	expected := &structs.AutopilotConfig{
 		CleanupDeadServers:      true,
 		LastContactThreshold:    5 * time.Second,
 		MaxTrailingLogs:         500,
 		ServerStabilizationTime: 100 * time.Second,
-		RedundancyZoneTag:       "az",
+		EnableRedundancyZones:   true,
 		DisableUpgradeMigration: true,
-		UpgradeVersionTag:       "build",
+		EnableCustomUpgrades:    true,
 	}
 
 	if err := s.AutopilotSetConfig(0, expected); err != nil {
@@ -40,7 +40,7 @@ func TestStateStore_Autopilot(t *testing.T) {
 func TestStateStore_AutopilotCAS(t *testing.T) {
 	s := testStateStore(t)
 
-	expected := &autopilot.Config{
+	expected := &structs.AutopilotConfig{
 		CleanupDeadServers: true,
 	}
 
@@ -52,7 +52,7 @@ func TestStateStore_AutopilotCAS(t *testing.T) {
 	}
 
 	// Do a CAS with an index lower than the entry
-	ok, err := s.AutopilotCASConfig(2, 0, &autopilot.Config{
+	ok, err := s.AutopilotCASConfig(2, 0, &structs.AutopilotConfig{
 		CleanupDeadServers: false,
 	})
 	if ok || err != nil {
@@ -73,7 +73,7 @@ func TestStateStore_AutopilotCAS(t *testing.T) {
 	}
 
 	// Do another CAS, this time with the correct index
-	ok, err = s.AutopilotCASConfig(2, 1, &autopilot.Config{
+	ok, err = s.AutopilotCASConfig(2, 1, &structs.AutopilotConfig{
 		CleanupDeadServers: false,
 	})
 	if !ok || err != nil {

@@ -14,9 +14,9 @@ func TestAutopilotConfig_Merge(t *testing.T) {
 		ServerStabilizationTime: 1 * time.Second,
 		LastContactThreshold:    1 * time.Second,
 		MaxTrailingLogs:         1,
-		RedundancyZoneTag:       "1",
+		EnableRedundancyZones:   &trueValue,
 		DisableUpgradeMigration: &falseValue,
-		UpgradeVersionTag:       "1",
+		EnableCustomUpgrades:    &trueValue,
 	}
 
 	c2 := &AutopilotConfig{
@@ -24,9 +24,9 @@ func TestAutopilotConfig_Merge(t *testing.T) {
 		ServerStabilizationTime: 2 * time.Second,
 		LastContactThreshold:    2 * time.Second,
 		MaxTrailingLogs:         2,
-		RedundancyZoneTag:       "2",
+		EnableRedundancyZones:   nil,
 		DisableUpgradeMigration: nil,
-		UpgradeVersionTag:       "2",
+		EnableCustomUpgrades:    nil,
 	}
 
 	e := &AutopilotConfig{
@@ -34,9 +34,9 @@ func TestAutopilotConfig_Merge(t *testing.T) {
 		ServerStabilizationTime: 2 * time.Second,
 		LastContactThreshold:    2 * time.Second,
 		MaxTrailingLogs:         2,
-		RedundancyZoneTag:       "2",
+		EnableRedundancyZones:   &trueValue,
 		DisableUpgradeMigration: &falseValue,
-		UpgradeVersionTag:       "2",
+		EnableCustomUpgrades:    &trueValue,
 	}
 
 	result := c1.Merge(c2)

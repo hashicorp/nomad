@@ -31,11 +31,11 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```text
-$ curl https://nomad.rocks/v1/metrics
+$ curl https://localhost:4646/v1/metrics
 ```
 
 ```text
-$ curl https://nomad.rocks/v1/metrics?format=prometheus
+$ curl https://localhost:4646/v1/metrics?format=prometheus
 ```
 
 ### Sample Response

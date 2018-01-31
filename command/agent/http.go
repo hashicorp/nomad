@@ -18,7 +18,6 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/mapstructure"
 	"github.com/rs/cors"
 	"github.com/ugorji/go/codec"
 )
@@ -344,24 +343,6 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 func decodeBody(req *http.Request, out interface{}) error {
 	dec := json.NewDecoder(req.Body)
 	return dec.Decode(&out)
-}
-
-// decodeBodyFunc is used to decode a JSON request body invoking
-// a given callback function
-func decodeBodyFunc(req *http.Request, out interface{}, cb func(interface{}) error) error {
-	var raw interface{}
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&raw); err != nil {
-		return err
-	}
-
-	// Invoke the callback prior to decode
-	if cb != nil {
-		if err := cb(raw); err != nil {
-			return err
-		}
-	}
-	return mapstructure.Decode(raw, out)
 }
 
 // setIndex is used to set the index response header

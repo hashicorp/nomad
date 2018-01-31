@@ -17,13 +17,17 @@ func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 	defer s.Stop()
 
 	operator := c.Operator()
-	config, err := operator.AutopilotGetConfiguration(nil)
-	assert.Nil(err)
+	var config *AutopilotConfiguration
+	retry.Run(t, func(r *retry.R) {
+		var err error
+		config, err = operator.AutopilotGetConfiguration(nil)
+		r.Check(err)
+	})
 	assert.True(config.CleanupDeadServers)
 
 	// Change a config setting
 	newConf := &AutopilotConfiguration{CleanupDeadServers: false}
-	err = operator.AutopilotSetConfiguration(newConf, nil)
+	err := operator.AutopilotSetConfiguration(newConf, nil)
 	assert.Nil(err)
 
 	config, err = operator.AutopilotGetConfiguration(nil)

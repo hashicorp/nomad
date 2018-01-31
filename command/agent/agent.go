@@ -163,6 +163,12 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Server.NonVotingServer {
 		conf.NonVoter = true
 	}
+	if agentConfig.Server.RedundancyZone != "" {
+		conf.RedundancyZone = agentConfig.Server.RedundancyZone
+	}
+	if agentConfig.Server.UpgradeVersion != "" {
+		conf.UpgradeVersion = agentConfig.Server.UpgradeVersion
+	}
 	if agentConfig.Autopilot != nil {
 		if agentConfig.Autopilot.CleanupDeadServers != nil {
 			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers
@@ -176,14 +182,14 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 		if agentConfig.Autopilot.MaxTrailingLogs != 0 {
 			conf.AutopilotConfig.MaxTrailingLogs = uint64(agentConfig.Autopilot.MaxTrailingLogs)
 		}
-		if agentConfig.Autopilot.RedundancyZoneTag != "" {
-			conf.AutopilotConfig.RedundancyZoneTag = agentConfig.Autopilot.RedundancyZoneTag
+		if agentConfig.Autopilot.EnableRedundancyZones != nil {
+			conf.AutopilotConfig.EnableRedundancyZones = *agentConfig.Autopilot.EnableRedundancyZones
 		}
 		if agentConfig.Autopilot.DisableUpgradeMigration != nil {
 			conf.AutopilotConfig.DisableUpgradeMigration = *agentConfig.Autopilot.DisableUpgradeMigration
 		}
-		if agentConfig.Autopilot.UpgradeVersionTag != "" {
-			conf.AutopilotConfig.UpgradeVersionTag = agentConfig.Autopilot.UpgradeVersionTag
+		if agentConfig.Autopilot.EnableCustomUpgrades != nil {
+			conf.AutopilotConfig.EnableCustomUpgrades = *agentConfig.Autopilot.EnableCustomUpgrades
 		}
 	}
 

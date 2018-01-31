@@ -1173,7 +1173,11 @@ func (n *Node) TerminalStatus() bool {
 
 // Stub returns a summarized version of the node
 func (n *Node) Stub() *NodeListStub {
+
+	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
+
 	return &NodeListStub{
+		Address:           addr,
 		ID:                n.ID,
 		Datacenter:        n.Datacenter,
 		Name:              n.Name,
@@ -1190,6 +1194,7 @@ func (n *Node) Stub() *NodeListStub {
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
+	Address           string
 	ID                string
 	Datacenter        string
 	Name              string

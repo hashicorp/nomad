@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -112,7 +111,7 @@ func TestOperator_AutopilotSetConfiguration(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		if resp.Code != 200 {
-			t.Fatalf("bad code: %d", resp.Code)
+			t.Fatalf("bad code: %d, %q", resp.Code, resp.Body.String())
 		}
 
 		args := structs.GenericRequest{
@@ -121,7 +120,7 @@ func TestOperator_AutopilotSetConfiguration(t *testing.T) {
 			},
 		}
 
-		var reply autopilot.Config
+		var reply structs.AutopilotConfig
 		if err := s.RPC("Operator.AutopilotGetConfiguration", &args, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -150,7 +149,7 @@ func TestOperator_AutopilotCASConfiguration(t *testing.T) {
 			},
 		}
 
-		var reply autopilot.Config
+		var reply structs.AutopilotConfig
 		if err := s.RPC("Operator.AutopilotGetConfiguration", &args, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -200,7 +199,6 @@ func TestOperator_AutopilotCASConfiguration(t *testing.T) {
 }
 
 func TestOperator_ServerHealth(t *testing.T) {
-	t.Parallel()
 	httpTest(t, func(c *Config) {
 		c.Server.RaftProtocol = 3
 	}, func(s *TestAgent) {
@@ -258,48 +256,4 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 			}
 		})
 	})
-}
-
-func TestDurationFixer(t *testing.T) {
-	assert := assert.New(t)
-	obj := map[string]interface{}{
-		"key1": []map[string]interface{}{
-			{
-				"subkey1": "10s",
-			},
-			{
-				"subkey2": "5d",
-			},
-		},
-		"key2": map[string]interface{}{
-			"subkey3": "30s",
-			"subkey4": "20m",
-		},
-		"key3": "11s",
-		"key4": "49h",
-	}
-	expected := map[string]interface{}{
-		"key1": []map[string]interface{}{
-			{
-				"subkey1": 10 * time.Second,
-			},
-			{
-				"subkey2": "5d",
-			},
-		},
-		"key2": map[string]interface{}{
-			"subkey3": "30s",
-			"subkey4": 20 * time.Minute,
-		},
-		"key3": "11s",
-		"key4": 49 * time.Hour,
-	}
-
-	fixer := NewDurationFixer("key4", "subkey1", "subkey4")
-	if err := fixer.FixupDurations(obj); err != nil {
-		t.Fatal(err)
-	}
-
-	// Ensure we only processed the intended fieldnames
-	assert.Equal(obj, expected)
 }

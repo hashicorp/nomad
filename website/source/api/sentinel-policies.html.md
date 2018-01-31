@@ -38,7 +38,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/sentinel/policies
+    https://localhost:4646/v1/sentinel/policies
 ```
 
 ### Sample Response
@@ -106,7 +106,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/sentinel/policy/my-policy
+    https://localhost:4646/v1/sentinel/policy/my-policy
 ```
 
 ## Read Policy
@@ -131,7 +131,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/sentinel/policy/foo
+    https://localhost:4646/v1/sentinel/policy/foo
 ```
 
 ### Sample Response
@@ -175,6 +175,6 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/sentinel/policy/foo
+    https://localhost:4646/v1/sentinel/policy/foo
 ```
 
