@@ -339,6 +339,9 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.Client.CpuCompute != 0 {
 		conf.CpuCompute = a.config.Client.CpuCompute
 	}
+	if a.config.Client.MemoryMB != 0 {
+		conf.MemoryMB = a.config.Client.MemoryMB
+	}
 	if a.config.Client.MaxKillTimeout != "" {
 		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
 		if err != nil {
