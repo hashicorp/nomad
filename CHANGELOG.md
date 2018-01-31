@@ -166,8 +166,7 @@ BUG FIXES:
    change [[GH-3214](https://github.com/hashicorp/nomad/issues/3214)]
  * api: Fix search handling of jobs with more than four hyphens and case were
    length could cause lookup error [[GH-3203](https://github.com/hashicorp/nomad/issues/3203)]
- * client: Improve the speed at which clients detect garbage collection events
-   [GH_-3452]
+ * client: Improve the speed at which clients detect garbage collection events [[GH-3452](https://github.com/hashicorp/nomad/issues/3452)]
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [[GH-3195](https://github.com/hashicorp/nomad/issues/3195)]
  * client: Fix data race that could lead to concurrent map read/writes during
