@@ -24,25 +24,23 @@ type AutopilotConfig struct {
 	// be behind before being considered unhealthy.
 	MaxTrailingLogs int `mapstructure:"max_trailing_logs"`
 
-	// (Enterprise-only) RedundancyZoneTag is the node tag to use for separating
-	// servers into zones for redundancy. If left blank, this feature will be disabled.
-	RedundancyZoneTag string `mapstructure:"redundancy_zone_tag"`
+	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
+	EnableRedundancyZones *bool `mapstructure:"enable_redundancy_zones"`
 
 	// (Enterprise-only) DisableUpgradeMigration will disable Autopilot's upgrade migration
 	// strategy of waiting until enough newer-versioned servers have been added to the
 	// cluster before promoting them to voters.
 	DisableUpgradeMigration *bool `mapstructure:"disable_upgrade_migration"`
 
-	// (Enterprise-only) UpgradeVersionTag is the node tag to use for version info when
-	// performing upgrade migrations. If left blank, the Nomad version will be used.
-	UpgradeVersionTag string `mapstructure:"upgrade_version_tag"`
+	// (Enterprise-only) EnableCustomUpgrades specifies whether to enable using custom
+	// upgrade versions when performing migrations.
+	EnableCustomUpgrades *bool `mapstructure:"enable_custom_upgrades"`
 }
 
 // DefaultAutopilotConfig() returns the canonical defaults for the Nomad
 // `autopilot` configuration.
 func DefaultAutopilotConfig() *AutopilotConfig {
 	return &AutopilotConfig{
-		CleanupDeadServers:      helper.BoolToPtr(true),
 		LastContactThreshold:    200 * time.Millisecond,
 		MaxTrailingLogs:         250,
 		ServerStabilizationTime: 10 * time.Second,
@@ -64,14 +62,14 @@ func (a *AutopilotConfig) Merge(b *AutopilotConfig) *AutopilotConfig {
 	if b.MaxTrailingLogs != 0 {
 		result.MaxTrailingLogs = b.MaxTrailingLogs
 	}
-	if b.RedundancyZoneTag != "" {
-		result.RedundancyZoneTag = b.RedundancyZoneTag
+	if b.EnableRedundancyZones != nil {
+		result.EnableRedundancyZones = b.EnableRedundancyZones
 	}
 	if b.DisableUpgradeMigration != nil {
 		result.DisableUpgradeMigration = helper.BoolToPtr(*b.DisableUpgradeMigration)
 	}
-	if b.UpgradeVersionTag != "" {
-		result.UpgradeVersionTag = b.UpgradeVersionTag
+	if b.EnableCustomUpgrades != nil {
+		result.EnableCustomUpgrades = b.EnableCustomUpgrades
 	}
 
 	return result
@@ -90,8 +88,14 @@ func (a *AutopilotConfig) Copy() *AutopilotConfig {
 	if a.CleanupDeadServers != nil {
 		nc.CleanupDeadServers = helper.BoolToPtr(*a.CleanupDeadServers)
 	}
+	if a.EnableRedundancyZones != nil {
+		nc.EnableRedundancyZones = helper.BoolToPtr(*a.EnableRedundancyZones)
+	}
 	if a.DisableUpgradeMigration != nil {
 		nc.DisableUpgradeMigration = helper.BoolToPtr(*a.DisableUpgradeMigration)
+	}
+	if a.EnableCustomUpgrades != nil {
+		nc.EnableCustomUpgrades = helper.BoolToPtr(*a.EnableCustomUpgrades)
 	}
 
 	return nc

@@ -1,7 +1,8 @@
 package structs
 
 import (
-	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"time"
+
 	"github.com/hashicorp/raft"
 )
 
@@ -69,7 +70,7 @@ type AutopilotSetConfigRequest struct {
 	Datacenter string
 
 	// Config is the new Autopilot configuration to use.
-	Config autopilot.Config
+	Config AutopilotConfig
 
 	// CAS controls whether to use check-and-set semantics for this request.
 	CAS bool
@@ -81,4 +82,40 @@ type AutopilotSetConfigRequest struct {
 // RequestDatacenter returns the datacenter for a given request.
 func (op *AutopilotSetConfigRequest) RequestDatacenter() string {
 	return op.Datacenter
+}
+
+// AutopilotConfig is the internal config for the Autopilot mechanism.
+type AutopilotConfig struct {
+	// CleanupDeadServers controls whether to remove dead servers when a new
+	// server is added to the Raft peers.
+	CleanupDeadServers bool
+
+	// ServerStabilizationTime is the minimum amount of time a server must be
+	// in a stable, healthy state before it can be added to the cluster. Only
+	// applicable with Raft protocol version 3 or higher.
+	ServerStabilizationTime time.Duration
+
+	// LastContactThreshold is the limit on the amount of time a server can go
+	// without leader contact before being considered unhealthy.
+	LastContactThreshold time.Duration
+
+	// MaxTrailingLogs is the amount of entries in the Raft Log that a server can
+	// be behind before being considered unhealthy.
+	MaxTrailingLogs uint64
+
+	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
+	EnableRedundancyZones bool
+
+	// (Enterprise-only) DisableUpgradeMigration will disable Autopilot's upgrade migration
+	// strategy of waiting until enough newer-versioned servers have been added to the
+	// cluster before promoting them to voters.
+	DisableUpgradeMigration bool
+
+	// (Enterprise-only) EnableCustomUpgrades specifies whether to enable using custom
+	// upgrade versions when performing migrations.
+	EnableCustomUpgrades bool
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
 }

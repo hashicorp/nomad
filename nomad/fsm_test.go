@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -2319,7 +2318,7 @@ func TestFSM_Autopilot(t *testing.T) {
 	// Set the autopilot config using a request.
 	req := structs.AutopilotSetConfigRequest{
 		Datacenter: "dc1",
-		Config: autopilot.Config{
+		Config: structs.AutopilotConfig{
 			CleanupDeadServers:   true,
 			LastContactThreshold: 10 * time.Second,
 			MaxTrailingLogs:      300,
