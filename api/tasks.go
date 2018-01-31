@@ -340,17 +340,17 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	switch *job.Type {
 	case "service", "system":
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(15 * time.Second),
-			Attempts: helper.IntToPtr(2),
-			Interval: helper.TimeToPtr(1 * time.Minute),
-			Mode:     helper.StringToPtr("delay"),
+			Delay:    helper.TimeToPtr(structs.DefaultServiceJobRestartPolicy.Delay),
+			Attempts: helper.IntToPtr(structs.DefaultServiceJobRestartPolicy.Attempts),
+			Interval: helper.TimeToPtr(structs.DefaultServiceJobRestartPolicy.Interval),
+			Mode:     helper.StringToPtr(structs.DefaultServiceJobRestartPolicy.Mode),
 		}
 	default:
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(15 * time.Second),
-			Attempts: helper.IntToPtr(15),
-			Interval: helper.TimeToPtr(7 * 24 * time.Hour),
-			Mode:     helper.StringToPtr("delay"),
+			Delay:    helper.TimeToPtr(structs.DefaultBatchJobRestartPolicy.Delay),
+			Attempts: helper.IntToPtr(structs.DefaultBatchJobRestartPolicy.Attempts),
+			Interval: helper.TimeToPtr(structs.DefaultBatchJobRestartPolicy.Interval),
+			Mode:     helper.StringToPtr(structs.DefaultBatchJobRestartPolicy.Mode),
 		}
 	}
 
