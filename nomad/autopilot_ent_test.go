@@ -6,24 +6,10 @@ import (
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/testutil/retry"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
 )
-
-func registerNode(t *testing.T, leader, server *Server, meta map[string]string) {
-	state := leader.fsm.State()
-	node := &structs.Node{
-		ID:       server.config.NodeID,
-		Name:     server.config.NodeName,
-		Meta:     meta,
-		SecretID: server.config.NodeID,
-	}
-	if err := state.UpsertNode(0, node); err != nil {
-		t.Fatal(err)
-	}
-}
 
 func TestAdvancedAutopilot_DesignateNonVoter(t *testing.T) {
 	assert := assert.New(t)
@@ -74,26 +60,26 @@ func TestAdvancedAutopilot_RedundancyZone(t *testing.T) {
 	assert := assert.New(t)
 	s1 := testServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
-		c.AutopilotConfig.RedundancyZoneTag = "az"
+		c.AutopilotConfig.EnableRedundancyZones = true
+		c.RedundancyZone = "east"
 	})
 	defer s1.Shutdown()
 
-	conf := func(c *Config) {
+	s2 := testServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
-		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
-	}
-	s2 := testServer(t, conf)
+		c.RedundancyZone = "west"
+	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, conf)
+	s3 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+		c.RedundancyZone = "west-2"
+	})
 	defer s3.Shutdown()
 
 	testutil.WaitForLeader(t, s1.RPC)
-
-	registerNode(t, s1, s1, map[string]string{"az": "east"})
-	registerNode(t, s1, s2, map[string]string{"az": "west"})
-	registerNode(t, s1, s3, map[string]string{"az": "west-2"})
 
 	testJoin(t, s1, s2, s3)
 	retry.Run(t, func(r *retry.R) { r.Check(wantRaft([]*Server{s1, s2, s3})) })
@@ -113,9 +99,12 @@ func TestAdvancedAutopilot_RedundancyZone(t *testing.T) {
 	}
 
 	// Join s4
-	s4 := testServer(t, conf)
+	s4 := testServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+		c.RedundancyZone = "west-2"
+	})
 	defer s4.Shutdown()
-	registerNode(t, s1, s4, map[string]string{"az": "west-2"})
 	testJoin(t, s1, s4)
 	time.Sleep(2*s1.config.AutopilotConfig.ServerStabilizationTime + s1.config.AutopilotInterval)
 
@@ -162,9 +151,6 @@ func TestAdvancedAutopilot_UpgradeMigration(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testJoin(t, s1, s2)
 
-	registerNode(t, s1, s1, nil)
-	registerNode(t, s1, s2, nil)
-
 	// Wait for the migration to complete
 	retry.Run(t, func(r *retry.R) {
 		future := s1.raft.GetConfiguration()
@@ -197,21 +183,20 @@ func TestAdvancedAutopilot_UpgradeMigration(t *testing.T) {
 func TestAdvancedAutopilot_CustomUpgradeMigration(t *testing.T) {
 	s1 := testServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
-		c.AutopilotConfig.UpgradeVersionTag = "build"
+		c.AutopilotConfig.EnableCustomUpgrades = true
+		c.UpgradeVersion = "0.0.1"
 	})
 	defer s1.Shutdown()
 
 	s2 := testServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
+		c.UpgradeVersion = "0.0.2"
 	})
 	defer s2.Shutdown()
 
 	testutil.WaitForLeader(t, s1.RPC)
 	testJoin(t, s1, s2)
-
-	registerNode(t, s1, s1, map[string]string{"build": "0.0.1"})
-	registerNode(t, s1, s2, map[string]string{"build": "0.0.2"})
 
 	// Wait for the migration to complete
 	retry.Run(t, func(r *retry.R) {

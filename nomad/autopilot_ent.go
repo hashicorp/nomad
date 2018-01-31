@@ -34,15 +34,18 @@ func (d *AdvancedAutopilotDelegate) PromoteNonVoters(conf *autopilot.Config, hea
 }
 
 // getNodeMeta tries to fetch a node's metadata
-func (s *Server) getNodeMeta(id raft.ServerID) (map[string]string, error) {
-	state := s.fsm.State()
-	node, err := state.NodeByID(nil, string(id))
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving node from state store: %s", err)
-	}
-	if node == nil {
-		return nil, fmt.Errorf("no catalog entry for server ID %q", id)
+func (s *Server) getNodeMeta(serverID raft.ServerID) (map[string]string, error) {
+	meta := make(map[string]string)
+	for _, member := range s.Members() {
+		ok, parts := isNomadServer(member)
+		if !ok || raft.ServerID(parts.ID) != serverID {
+			continue
+		}
+
+		meta[AutopilotRZTag] = member.Tags[AutopilotRZTag]
+		meta[AutopilotVersionTag] = member.Tags[AutopilotVersionTag]
+		break
 	}
 
-	return node.Meta, nil
+	return meta, nil
 }
