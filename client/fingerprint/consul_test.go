@@ -35,7 +35,7 @@ func TestConsulFingerprint(t *testing.T) {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 
@@ -189,7 +189,7 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	err := fp.Fingerprint(request, &response)
 	assert.Nil(err)
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 

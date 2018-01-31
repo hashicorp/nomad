@@ -68,7 +68,7 @@ func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cst
 
 	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
 	setResourcesCPU(tt)
-	resp.Applicable = true
+	resp.Detected = true
 
 	return nil
 }

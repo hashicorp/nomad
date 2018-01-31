@@ -47,7 +47,7 @@ func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	}
 
 	resp.AddAttribute("unique.cgroup.mountpoint", mount)
-	resp.Applicable = true
+	resp.Detected = true
 
 	if f.lastState == cgroupUnavailable {
 		f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are available")

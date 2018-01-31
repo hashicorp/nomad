@@ -190,7 +190,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 
 		// if docker is available, make sure that the response is tagged as
 		// applicable
-		if !response.Applicable {
+		if !response.Detected {
 			t.Fatalf("expected response to be applicable")
 		}
 	}
@@ -232,7 +232,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 		t.Fatalf("error fingerprinting docker: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 

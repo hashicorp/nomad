@@ -34,7 +34,7 @@ func (f *HostFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cs
 	resp.AddAttribute("kernel.version", hostInfo.KernelVersion)
 
 	resp.AddAttribute("unique.hostname", hostInfo.Hostname)
-	resp.Applicable = true
+	resp.Detected = true
 
 	return nil
 }

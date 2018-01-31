@@ -106,7 +106,7 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 	if len(nwResources) > 0 {
 		resp.AddAttribute("unique.network.ip-address", nwResources[0].IP)
 	}
-	resp.Applicable = true
+	resp.Detected = true
 
 	return nil
 }

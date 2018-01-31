@@ -98,7 +98,7 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		f.logger.Printf("[INFO] fingerprint.consul: consul agent is available")
 	}
 	f.lastState = consulAvailable
-	resp.Applicable = true
+	resp.Detected = true
 	return nil
 }
 

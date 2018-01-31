@@ -43,7 +43,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 

@@ -74,7 +74,7 @@ func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *c
 		f.logger.Printf("[INFO] fingerprint.vault: Vault is available")
 	}
 	f.lastState = vaultAvailable
-	resp.Applicable = true
+	resp.Detected = true
 	return nil
 }
 

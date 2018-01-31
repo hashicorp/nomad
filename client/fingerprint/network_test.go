@@ -197,7 +197,7 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 
@@ -248,7 +248,7 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if response.Applicable {
+	if response.Detected {
 		t.Fatalf("expected response to not be applicable")
 	}
 
@@ -271,7 +271,7 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 
@@ -322,7 +322,7 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 
@@ -369,7 +369,7 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 
@@ -429,7 +429,7 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 

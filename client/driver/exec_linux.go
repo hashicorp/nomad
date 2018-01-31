@@ -16,7 +16,7 @@ func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	// Only enable if cgroups are available and we are root
 	if !cgroupsMounted(req.Node) {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
-			d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
+			d.logger.Printf("[INFO] driver.exec: cgroups unavailable, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		resp.RemoveAttribute(execDriverAttr)
@@ -35,6 +35,6 @@ func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	}
 	resp.AddAttribute(execDriverAttr, "1")
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	resp.Applicable = true
+	resp.Detected = true
 	return nil
 }

@@ -961,7 +961,7 @@ func (c *Client) fingerprint() error {
 		}
 
 		// log the fingerprinters which have been applied
-		if response.Applicable {
+		if response.Detected {
 			appliedFingerprints = append(appliedFingerprints, name)
 		}
 
@@ -1039,13 +1039,14 @@ func (c *Client) setupDrivers() error {
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 		var response cstructs.FingerprintResponse
 		c.configLock.Lock()
-		if err := d.Fingerprint(request, &response); err != nil {
+		err = d.Fingerprint(request, &response)
+		c.configLock.Unlock()
+		if err != nil {
 			return err
 		}
-		c.configLock.Unlock()
 
 		// log the fingerprinters which have been applied
-		if response.Applicable {
+		if response.Detected {
 			availDrivers = append(availDrivers, name)
 		}
 

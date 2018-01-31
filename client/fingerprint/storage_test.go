@@ -15,7 +15,7 @@ func TestStorageFingerprint(t *testing.T) {
 
 	response := assertFingerprintOK(t, fp, node)
 
-	if !response.Applicable {
+	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}
 

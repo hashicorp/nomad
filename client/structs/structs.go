@@ -198,9 +198,9 @@ type FingerprintResponse struct {
 	Links      map[string]string
 	Resources  *structs.Resources
 
-	// Applicable is a boolean indicating whether the fingerprint should be
-	// applied
-	Applicable bool
+	// Detected is a boolean indicating whether the fingerprinter detected
+	// if the resource was avaialble
+	Detected bool
 }
 
 // AddAttribute adds the name and value for a node attribute to the fingerprint

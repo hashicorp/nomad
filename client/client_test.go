@@ -261,8 +261,8 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 
 	c1 := testClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			"test.shutdown_periodic_after":    "true",
-			"test.shutdown_periodic_duration": "3",
+			driver.ShutdownPeriodicAfter:    "true",
+			driver.ShutdownPeriodicDuration: "3",
 		}
 	})
 	defer c1.Shutdown()

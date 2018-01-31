@@ -354,7 +354,7 @@ func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 	resp.AddAttribute(rktDriverAttr, "1")
 	resp.AddAttribute("driver.rkt.version", rktMatches[1])
 	resp.AddAttribute("driver.rkt.appc.version", appcMatches[1])
-	resp.Applicable = true
+	resp.Detected = true
 
 	// Advertise if this node supports rkt volumes
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {

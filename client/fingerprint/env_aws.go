@@ -173,7 +173,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 	response.AddLink("aws.ec2", fmt.Sprintf("%s.%s",
 		response.Attributes["platform.aws.placement.availability-zone"],
 		response.Attributes["unique.platform.aws.instance-id"]))
-	response.Applicable = true
+	response.Detected = true
 
 	return nil
 }

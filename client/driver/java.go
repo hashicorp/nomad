@@ -115,7 +115,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	// Only enable if we are root and cgroups are mounted when running on linux systems.
 	if runtime.GOOS == "linux" && (syscall.Geteuid() != 0 || !cgroupsMounted(req.Node)) {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
-			d.logger.Printf("[DEBUG] driver.java: root privileges and mounted cgroups required on linux, disabling")
+			d.logger.Printf("[INFO] driver.java: root privileges and mounted cgroups required on linux, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		resp.RemoveAttribute(javaDriverAttr)
@@ -170,7 +170,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	resp.AddAttribute("driver.java.runtime", info[1])
 	resp.AddAttribute("driver.java.vm", info[2])
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	resp.Applicable = true
+	resp.Detected = true
 
 	return nil
 }

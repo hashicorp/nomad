@@ -50,7 +50,7 @@ func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 	resp.Resources = &structs.Resources{
 		DiskMB: int(free / bytesPerMegabyte),
 	}
-	resp.Applicable = true
+	resp.Detected = true
 
 	return nil
 }

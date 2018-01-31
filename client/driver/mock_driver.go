@@ -16,9 +16,21 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+
+	// ShutdownPeriodicAfter is a config key that can be used during tests to
+	// "stop" a previously-functioning driver, allowing for testing of periodic
+	// drivers and fingerprinters
+	ShutdownPeriodicAfter = "test.shutdown_periodic_after"
+
+	// ShutdownPeriodicDuration is a config option that can be used during tests
+	// to "stop" a previously functioning driver after the specified duration
+	// (specified in seconds) for testing of periodic drivers and fingerprinters.
+	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
 )
 
 // Add the mock driver to the list of builtin drivers
@@ -78,11 +90,10 @@ type MockDriverConfig struct {
 type MockDriver struct {
 	DriverContext
 
-	// isShutdown is an internal concept to use to track whether the driver
-	// should be shut down
-	isShutdown bool
-
 	cleanupFailNum int
+
+	// shutdownFingerprintTime is the time up to which the driver will be up
+	shutdownFingerprintTime time.Time
 }
 
 // NewMockDriver is a factory method which returns a new Mock Driver
@@ -91,13 +102,13 @@ func NewMockDriver(ctx *DriverContext) Driver {
 
 	// if the shutdown configuration options are set, start the timer here.
 	// This config option defaults to false
-	if ctx.config != nil && ctx.config.ReadBoolDefault(fingerprint.ShutdownPeriodicAfter, false) {
-		duration, err := ctx.config.ReadInt(fingerprint.ShutdownPeriodicDuration)
+	if ctx.config != nil && ctx.config.ReadBoolDefault(ShutdownPeriodicAfter, false) {
+		duration, err := ctx.config.ReadInt(ShutdownPeriodicDuration)
 		if err != nil {
 			errMsg := fmt.Sprintf("unable to read config option for shutdown_periodic_duration %s, got err %s", duration, err.Error())
 			panic(errMsg)
 		}
-		go md.startShutdownTimer(duration)
+		md.shutdownFingerprintTime = time.Now().Add(time.Second * time.Duration(duration))
 	}
 
 	return md
@@ -181,20 +192,6 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	return &StartResponse{Handle: &h, Network: net}, nil
 }
 
-// startShutdownTimer sets a timer, after which the mock driver will no loger be
-// responsive. This is used for testing periodic fingerprinting functionality
-func (m *MockDriver) startShutdownTimer(duration int) {
-	timer := time.NewTimer(time.Duration(duration) * time.Second)
-	for {
-		select {
-		case <-timer.C:
-			m.isShutdown = true
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-}
-
 // Cleanup deletes all keys except for Config.Options["cleanup_fail_on"] for
 // Config.Options["cleanup_fail_num"] times. For failures it will return a
 // recoverable error.
@@ -225,11 +222,14 @@ func (m *MockDriver) Validate(map[string]interface{}) error {
 // Fingerprint fingerprints a node and returns if MockDriver is enabled
 func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	switch {
-	case m.isShutdown:
+	// If the driver is configured to shut down after a period of time, and the
+	// current time is after the time which the node should shut down, simulate
+	// driver failure
+	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
 		resp.RemoveAttribute("driver.mock_driver")
 	default:
 		resp.AddAttribute("driver.mock_driver", "1")
-		resp.Applicable = true
+		resp.Detected = true
 	}
 	return nil
 }

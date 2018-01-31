@@ -261,7 +261,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		resp.AddLink("gce", id)
 	}
 
-	resp.Applicable = true
+	resp.Detected = true
 
 	return nil
 }
