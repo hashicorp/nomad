@@ -1,4 +1,4 @@
-// +build ent
+// +build pro ent
 
 package nomad
 
@@ -48,4 +48,13 @@ func (s *Server) getNodeMeta(serverID raft.ServerID) (map[string]string, error) 
 	}
 
 	return meta, nil
+}
+
+// Set up the enterprise version of autopilot
+func (s *Server) setupEnterpriseAutopilot(config *Config) {
+	apDelegate := &AdvancedAutopilotDelegate{
+		AutopilotDelegate: AutopilotDelegate{server: s},
+	}
+	apDelegate.promoter = autopilot_ent.NewAdvancedPromoter(s.logger, apDelegate, s.getNodeMeta)
+	s.autopilot = autopilot.NewAutopilot(s.logger, apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
 }

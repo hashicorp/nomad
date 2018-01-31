@@ -3,8 +3,6 @@
 package nomad
 
 import (
-	"github.com/hashicorp/consul/agent/consul/autopilot"
-	"github.com/hashicorp/consul/agent/consul/autopilot_ent"
 	"github.com/hashicorp/sentinel/sentinel"
 )
 
@@ -35,12 +33,7 @@ func (s *Server) setupEnterprise(config *Config) error {
 	// Create the Sentinel instance based on the configuration
 	s.sentinel = sentinel.New(sentConf)
 
-	// Set up the enterprise version of autopilot
-	apDelegate := &AdvancedAutopilotDelegate{
-		AutopilotDelegate: AutopilotDelegate{server: s},
-	}
-	apDelegate.promoter = autopilot_ent.NewAdvancedPromoter(s.logger, apDelegate, s.getNodeMeta)
-	s.autopilot = autopilot.NewAutopilot(s.logger, apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
+	s.setupEnterpriseAutopilot(config)
 
 	return nil
 }
