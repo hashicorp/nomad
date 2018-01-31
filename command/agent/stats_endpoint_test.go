@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -74,7 +73,7 @@ func TestClientStatsRequest(t *testing.T) {
 			require.NotNil(err)
 
 			// The dev agent uses in-mem RPC so just assert the no route error
-			require.Contains(err.Error(), nomad.ErrNoNodeConn.Error())
+			require.Contains(err.Error(), structs.ErrNoNodeConn.Error())
 
 			s.client = c
 		}

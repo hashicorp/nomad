@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -47,7 +47,7 @@ func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	if rpcErr != nil {
-		if nomad.IsErrNoNodeConn(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		} else if strings.Contains(rpcErr.Error(), "Unknown node") {
 			rpcErr = CodedError(404, rpcErr.Error())

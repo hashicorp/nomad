@@ -16,6 +16,9 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
+// TODO a Single RPC for "Cat", "ReadAt", "Stream" endpoints
+// TODO all the non-streaming RPC endpoints
+
 // FileSystem endpoint is used for accessing the logs and filesystem of
 // allocations from a Node.
 type FileSystem struct {
@@ -100,7 +103,7 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 
 	// Check node read permissions
 	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
-		//return err
+		f.handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil {
 		readfs := aclObj.AllowNsOp(args.QueryOptions.Namespace, acl.NamespaceCapabilityReadFS)
