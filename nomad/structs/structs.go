@@ -2514,13 +2514,13 @@ var (
 		Delay:    15 * time.Second,
 		Attempts: 2,
 		Interval: 1 * time.Minute,
-		Mode:     RestartPolicyModeDelay,
+		Mode:     RestartPolicyModeFail,
 	}
 	defaultBatchJobRestartPolicy = RestartPolicy{
 		Delay:    15 * time.Second,
 		Attempts: 15,
 		Interval: 7 * 24 * time.Hour,
-		Mode:     RestartPolicyModeDelay,
+		Mode:     RestartPolicyModeFail,
 	}
 )
 
