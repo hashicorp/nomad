@@ -119,6 +119,7 @@ func (d *JavaDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
 		resp.RemoveAttribute(javaDriverAttr)
+		resp.Detected = true
 		return nil
 	}
 

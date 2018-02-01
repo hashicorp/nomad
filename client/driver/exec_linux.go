@@ -13,6 +13,9 @@ const (
 )
 
 func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	// The exec driver will be detected in every case
+	resp.Detected = true
+
 	// Only enable if cgroups are available and we are root
 	if !cgroupsMounted(req.Node) {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
@@ -35,6 +38,5 @@ func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	}
 	resp.AddAttribute(execDriverAttr, "1")
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	resp.Detected = true
 	return nil
 }
