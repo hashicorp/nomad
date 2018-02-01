@@ -444,7 +444,7 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 
 	vgName := baseLvName[:strings.Index(baseLvName, "/")]
 	if len(vgName) == 0 {
-		return nil, fmt.Errorf("could not parse volume group name from '%v':, baseLvName")
+		return nil, fmt.Errorf("could not parse volume group name from '%v':, baseLvName"), removeLVCleanup
 	}
 	tr := func(s string) string {
 		return strings.Replace(s, "-", "--", -1)
