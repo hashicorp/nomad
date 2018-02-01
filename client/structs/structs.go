@@ -199,7 +199,7 @@ type FingerprintResponse struct {
 	Resources  *structs.Resources
 
 	// Detected is a boolean indicating whether the fingerprinter detected
-	// if the resource was avaialble
+	// if the resource was available
 	Detected bool
 }
 

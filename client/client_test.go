@@ -259,10 +259,12 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	}
 	t.Parallel()
 
+	// these constants are only defined when nomad_test is enabled, so these fail
+	// our linter without explicit disabling.
 	c1 := testClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			driver.ShutdownPeriodicAfter:    "true",
-			driver.ShutdownPeriodicDuration: "3",
+			driver.ShutdownPeriodicAfter:    "true", // nolint: varcheck
+			driver.ShutdownPeriodicDuration: "3",    // nolint: varcheck
 		}
 	})
 	defer c1.Shutdown()
