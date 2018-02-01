@@ -120,6 +120,11 @@ const (
 	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
 	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
 		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
+
+  // This is cpu.cfs_period_us: the length of a period. The default values is 100 microsecnds represented in nano Seconds, below is the documnentation
+	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
+	// https://docs.docker.com/engine/admin/resource_constraints/#cpu
+	defaultCFSPeriod = 100000
 )
 
 type DockerDriver struct {
@@ -217,6 +222,7 @@ type DockerDriverConfig struct {
 	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
 	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
 	ReadonlyRootfs   bool                `mapstructure:"readonly_rootfs"`    // Mount the container’s root filesystem as read only
+	CPUHardLimit     bool                `mapstructure:"cpu_hard_limit"`     // Flag to pass whether to enforce CPU hard limit.
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -674,6 +680,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"readonly_rootfs": {
 				Type: fields.TypeBool,
 			},
+			"cpu_hard_limit": {
+				Type: fields.TypeBool,
+			},
 		},
 	}
 
@@ -1119,6 +1128,12 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		VolumeDriver: driverConfig.VolumeDriver,
 	}
 
+		// Calculate CPU Quota
+		if driverConfig.CPUHardLimit {
+			percentTicks := float64(task.Resources.CPU) / shelpers.TotalTicksAvailable()
+			hostConfig.CPUQuota = int64(percentTicks * defaultCFSPeriod)
+		}
+
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
@@ -1137,6 +1152,9 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
+	if driverConfig.CPUHardLimit {
+		d.logger.Printf("[DEBUG] driver.docker: using %d cpu quota (cpu-period: %d) for %s", hostConfig.CPUQuota, defaultCFSPeriod , task.Name)
+	}
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
 
 	//  set privileged mode
