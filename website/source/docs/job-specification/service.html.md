@@ -468,8 +468,8 @@ directly since Nomad isn't managing any port assignments.
 The [Docker](/docs/drivers/docker.html#advertise_ipv6_address) driver supports the
 `advertise_ipv6_address` parameter in it's configuration.
 
-For the `service`stanza is no explicit `address_mode` required.
-Services default to the `auto` address mode. 
+Services will automatically advertise the IPv6 address when `advertise_ipv6_address` 
+is used.
 
 Unlike services, checks do not have an `auto` address mode as there's no way
 for Nomad to know which is the best address to use for checks. Consul needs
