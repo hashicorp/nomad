@@ -70,8 +70,8 @@ type FileSystem struct {
 	c *Client
 }
 
-func (f *FileSystem) Register() {
-	f.c.streamingRpcs.Register("FileSystem.Logs", f.Logs)
+func (f *FileSystem) register() {
+	f.c.streamingRpcs.Register("FileSystem.Logs", f.logs)
 }
 
 func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *codec.Encoder) {
@@ -85,8 +85,56 @@ func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *co
 	})
 }
 
-// Stats is used to retrieve the Clients stats.
-func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
+// List is used to list the contents of an allocation's directory.
+func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListResponse) error {
+	defer metrics.MeasureSince([]string{"client", "file_system", "list"}, time.Now())
+
+	// Check read permissions
+	if aclObj, err := f.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+		return structs.ErrPermissionDenied
+	}
+
+	fs, err := f.c.GetAllocFS(args.AllocID)
+	if err != nil {
+		return err
+	}
+	files, err := fs.List(args.Path)
+	if err != nil {
+		return err
+	}
+
+	reply.Files = files
+	return nil
+}
+
+// Stat is used to stat a file in the allocation's directory.
+func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatResponse) error {
+	defer metrics.MeasureSince([]string{"client", "file_system", "stat"}, time.Now())
+
+	// Check read permissions
+	if aclObj, err := f.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+		return structs.ErrPermissionDenied
+	}
+
+	fs, err := f.c.GetAllocFS(args.AllocID)
+	if err != nil {
+		return err
+	}
+	info, err := fs.Stat(args.Path)
+	if err != nil {
+		return err
+	}
+
+	reply.Info = info
+	return nil
+}
+
+// logs is is used to stream a task's logs.
+func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "file_system", "logs"}, time.Now())
 	defer conn.Close()
 
@@ -100,7 +148,7 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// Check node read permissions
+	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
 		f.handleStreamResultError(err, nil, encoder)
 		return
@@ -194,7 +242,7 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 
 	// Start streaming
 	go func() {
-		if err := f.logs(ctx, req.Follow, req.PlainText,
+		if err := f.logsImpl(ctx, req.Follow, req.PlainText,
 			req.Offset, req.Origin, req.Task, req.LogType, fs, frames); err != nil {
 			select {
 			case errCh <- err:
@@ -257,7 +305,7 @@ OUTER:
 	}
 }
 
-func (f *FileSystem) logs(ctx context.Context, follow, plain bool, offset int64,
+func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset int64,
 	origin, task, logType string,
 	fs allocdir.AllocDirFS, frames chan<- *sframer.StreamFrame) error {
 
@@ -538,7 +586,7 @@ func blockUntilNextLog(ctx context.Context, fs allocdir.AllocDirFS, logPath, tas
 // start streaming logs from
 type indexTuple struct {
 	idx   int64
-	entry *allocdir.AllocFileInfo
+	entry *cstructs.AllocFileInfo
 }
 
 type indexTupleArray []indexTuple
@@ -550,7 +598,7 @@ func (a indexTupleArray) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 // logIndexes takes a set of entries and returns a indexTupleArray of
 // the desired log file entries. If the indexes could not be determined, an
 // error is returned.
-func logIndexes(entries []*allocdir.AllocFileInfo, task, logType string) (indexTupleArray, error) {
+func logIndexes(entries []*cstructs.AllocFileInfo, task, logType string) (indexTupleArray, error) {
 	var indexes []indexTuple
 	prefix := fmt.Sprintf("%s.%s.", task, logType)
 	for _, entry := range entries {
@@ -580,8 +628,8 @@ func logIndexes(entries []*allocdir.AllocFileInfo, task, logType string) (indexT
 // offset (which can be negative, treated as offset from end), task name and log
 // type and returns the log entry, the log index, the offset to read from and a
 // potential error.
-func findClosest(entries []*allocdir.AllocFileInfo, desiredIdx, desiredOffset int64,
-	task, logType string) (*allocdir.AllocFileInfo, int64, int64, error) {
+func findClosest(entries []*cstructs.AllocFileInfo, desiredIdx, desiredOffset int64,
+	task, logType string) (*cstructs.AllocFileInfo, int64, int64, error) {
 
 	// Build the matching indexes
 	indexes, err := logIndexes(entries, task, logType)

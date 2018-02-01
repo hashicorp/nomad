@@ -46,14 +46,8 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	path := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/")
 	switch {
 	case strings.HasPrefix(path, "ls/"):
-		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
 		return s.DirectoryListRequest(resp, req)
 	case strings.HasPrefix(path, "stat/"):
-		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-			return nil, structs.ErrPermissionDenied
-		}
 		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
 		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
