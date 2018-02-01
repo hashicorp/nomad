@@ -2,9 +2,7 @@ package nomad
 
 import (
 	"fmt"
-	"io"
 	"net"
-	"sync"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -202,24 +200,4 @@ func NodeStreamingRpc(session *yamux.Session, method string) (net.Conn, error) {
 	}
 
 	return stream, nil
-}
-
-// Bridge is used to just link two connections together and copy traffic
-func Bridge(a, b io.ReadWriteCloser) error {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		io.Copy(a, b)
-		a.Close()
-		b.Close()
-	}()
-	go func() {
-		defer wg.Done()
-		io.Copy(b, a)
-		a.Close()
-		b.Close()
-	}()
-	wg.Wait()
-	return nil
 }

@@ -3,12 +3,14 @@ package client
 import (
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -498,6 +500,211 @@ OUTER:
 			if received == expected {
 				break OUTER
 			}
+		}
+	}
+}
+
+func TestFS_findClosest(t *testing.T) {
+	task := "foo"
+	entries := []*allocdir.AllocFileInfo{
+		{
+			Name: "foo.stdout.0",
+			Size: 100,
+		},
+		{
+			Name: "foo.stdout.1",
+			Size: 100,
+		},
+		{
+			Name: "foo.stdout.2",
+			Size: 100,
+		},
+		{
+			Name: "foo.stdout.3",
+			Size: 100,
+		},
+		{
+			Name: "foo.stderr.0",
+			Size: 100,
+		},
+		{
+			Name: "foo.stderr.1",
+			Size: 100,
+		},
+		{
+			Name: "foo.stderr.2",
+			Size: 100,
+		},
+	}
+
+	cases := []struct {
+		Entries        []*allocdir.AllocFileInfo
+		DesiredIdx     int64
+		DesiredOffset  int64
+		Task           string
+		LogType        string
+		ExpectedFile   string
+		ExpectedIdx    int64
+		ExpectedOffset int64
+		Error          bool
+	}{
+		// Test error cases
+		{
+			Entries:    nil,
+			DesiredIdx: 0,
+			Task:       task,
+			LogType:    "stdout",
+			Error:      true,
+		},
+		{
+			Entries:    entries[0:3],
+			DesiredIdx: 0,
+			Task:       task,
+			LogType:    "stderr",
+			Error:      true,
+		},
+
+		// Test beginning cases
+		{
+			Entries:      entries,
+			DesiredIdx:   0,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[0].Name,
+			ExpectedIdx:  0,
+		},
+		{
+			// Desired offset should be ignored at edges
+			Entries:        entries,
+			DesiredIdx:     0,
+			DesiredOffset:  -100,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[0].Name,
+			ExpectedIdx:    0,
+			ExpectedOffset: 0,
+		},
+		{
+			// Desired offset should be ignored at edges
+			Entries:        entries,
+			DesiredIdx:     1,
+			DesiredOffset:  -1000,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[0].Name,
+			ExpectedIdx:    0,
+			ExpectedOffset: 0,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   0,
+			Task:         task,
+			LogType:      "stderr",
+			ExpectedFile: entries[4].Name,
+			ExpectedIdx:  0,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   0,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[0].Name,
+			ExpectedIdx:  0,
+		},
+
+		// Test middle cases
+		{
+			Entries:      entries,
+			DesiredIdx:   1,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[1].Name,
+			ExpectedIdx:  1,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     1,
+			DesiredOffset:  10,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[1].Name,
+			ExpectedIdx:    1,
+			ExpectedOffset: 10,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     1,
+			DesiredOffset:  110,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[2].Name,
+			ExpectedIdx:    2,
+			ExpectedOffset: 10,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   1,
+			Task:         task,
+			LogType:      "stderr",
+			ExpectedFile: entries[5].Name,
+			ExpectedIdx:  1,
+		},
+		// Test end cases
+		{
+			Entries:      entries,
+			DesiredIdx:   math.MaxInt64,
+			Task:         task,
+			LogType:      "stdout",
+			ExpectedFile: entries[3].Name,
+			ExpectedIdx:  3,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     math.MaxInt64,
+			DesiredOffset:  math.MaxInt64,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[3].Name,
+			ExpectedIdx:    3,
+			ExpectedOffset: 100,
+		},
+		{
+			Entries:        entries,
+			DesiredIdx:     math.MaxInt64,
+			DesiredOffset:  -10,
+			Task:           task,
+			LogType:        "stdout",
+			ExpectedFile:   entries[3].Name,
+			ExpectedIdx:    3,
+			ExpectedOffset: 90,
+		},
+		{
+			Entries:      entries,
+			DesiredIdx:   math.MaxInt64,
+			Task:         task,
+			LogType:      "stderr",
+			ExpectedFile: entries[6].Name,
+			ExpectedIdx:  2,
+		},
+	}
+
+	for i, c := range cases {
+		entry, idx, offset, err := findClosest(c.Entries, c.DesiredIdx, c.DesiredOffset, c.Task, c.LogType)
+		if err != nil {
+			if !c.Error {
+				t.Fatalf("case %d: Unexpected error: %v", i, err)
+			}
+			continue
+		}
+
+		if entry.Name != c.ExpectedFile {
+			t.Fatalf("case %d: Got file %q; want %q", i, entry.Name, c.ExpectedFile)
+		}
+		if idx != c.ExpectedIdx {
+			t.Fatalf("case %d: Got index %d; want %d", i, idx, c.ExpectedIdx)
+		}
+		if offset != c.ExpectedOffset {
+			t.Fatalf("case %d: Got offset %d; want %d", i, offset, c.ExpectedOffset)
 		}
 	}
 }

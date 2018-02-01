@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,18 +9,8 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-type WriteCloseChecker struct {
-	io.WriteCloser
-	Closed bool
-}
-
-func (w *WriteCloseChecker) Close() error {
-	w.Closed = true
-	return w.WriteCloser.Close()
-}
 
 func TestAllocDirFS_List_MissingParams(t *testing.T) {
 	t.Parallel()
@@ -107,122 +96,63 @@ func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
 
 func TestAllocDirFS_ACL(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 
-	for _, endpoint := range []string{"ls", "stat", "readat", "cat", "stream"} {
-		httpACLTest(t, nil, func(s *TestAgent) {
-			state := s.Agent.server.State()
+	// TODO This whole thing can go away since the ACLs should be tested in the
+	// RPC test
+	//for _, endpoint := range []string{"ls", "stat", "readat", "cat", "stream"} {
+	for _, endpoint := range []string{"ls", "stat", "readat", "cat"} {
+		t.Run(endpoint, func(t *testing.T) {
 
-			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/fs/%s/", endpoint), nil)
-			assert.Nil(err)
+			httpACLTest(t, nil, func(s *TestAgent) {
+				state := s.Agent.server.State()
 
-			// Try request without a token and expect failure
-			{
-				respW := httptest.NewRecorder()
-				_, err := s.Server.FsRequest(respW, req)
-				assert.NotNil(err)
-				assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-			}
+				req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/fs/%s/", endpoint), nil)
+				require.Nil(err)
 
-			// Try request with an invalid token and expect failure
-			{
-				respW := httptest.NewRecorder()
-				policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
-				token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
-				setToken(req, token)
-				_, err := s.Server.FsRequest(respW, req)
-				assert.NotNil(err)
-				assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-			}
+				// Try request without a token and expect failure
+				{
+					respW := httptest.NewRecorder()
+					_, err := s.Server.FsRequest(respW, req)
+					require.NotNil(err)
+					require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+				}
 
-			// Try request with a valid token
-			// No alloc id set, so expect an error - just not a permissions error
-			{
-				respW := httptest.NewRecorder()
-				policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
-				token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
-				setToken(req, token)
-				_, err := s.Server.FsRequest(respW, req)
-				assert.NotNil(err)
-				assert.Equal(allocIDNotPresentErr, err)
-			}
+				// Try request with an invalid token and expect failure
+				{
+					respW := httptest.NewRecorder()
+					policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
+					token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
+					setToken(req, token)
+					_, err := s.Server.FsRequest(respW, req)
+					require.NotNil(err)
+					require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+				}
 
-			// Try request with a management token
-			// No alloc id set, so expect an error - just not a permissions error
-			{
-				respW := httptest.NewRecorder()
-				setToken(req, s.RootToken)
-				_, err := s.Server.FsRequest(respW, req)
-				assert.NotNil(err)
-				assert.Equal(allocIDNotPresentErr, err)
-			}
+				// Try request with a valid token
+				// No alloc id set, so expect an error - just not a permissions error
+				{
+					respW := httptest.NewRecorder()
+					policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+					token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+					setToken(req, token)
+					_, err := s.Server.FsRequest(respW, req)
+					require.NotNil(err)
+					require.Equal(allocIDNotPresentErr, err)
+				}
+
+				// Try request with a management token
+				// No alloc id set, so expect an error - just not a permissions error
+				{
+					respW := httptest.NewRecorder()
+					setToken(req, s.RootToken)
+					_, err := s.Server.FsRequest(respW, req)
+					require.NotNil(err)
+					require.Equal(allocIDNotPresentErr, err)
+				}
+			})
 		})
 	}
-}
-
-func TestAllocDirFS_Logs_ACL(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	httpACLTest(t, nil, func(s *TestAgent) {
-		state := s.Agent.server.State()
-
-		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
-		assert.Nil(err)
-
-		// Try request without a token and expect failure
-		{
-			respW := httptest.NewRecorder()
-			_, err := s.Server.FsRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-		}
-
-		// Try request with an invalid token and expect failure
-		{
-			respW := httptest.NewRecorder()
-			policy := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
-			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
-			setToken(req, token)
-			_, err := s.Server.FsRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-		}
-
-		// Try request with a valid token (ReadFS)
-		// No alloc id set, so expect an error - just not a permissions error
-		{
-			respW := httptest.NewRecorder()
-			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
-			token := mock.CreatePolicyAndToken(t, state, 1007, "valid1", policy)
-			setToken(req, token)
-			_, err := s.Server.FsRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(allocIDNotPresentErr, err)
-		}
-
-		// Try request with a valid token (ReadLogs)
-		// No alloc id set, so expect an error - just not a permissions error
-		{
-			respW := httptest.NewRecorder()
-			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
-			token := mock.CreatePolicyAndToken(t, state, 1009, "valid2", policy)
-			setToken(req, token)
-			_, err := s.Server.FsRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(allocIDNotPresentErr, err)
-		}
-
-		// Try request with a management token
-		// No alloc id set, so expect an error - just not a permissions error
-		{
-			respW := httptest.NewRecorder()
-			setToken(req, s.RootToken)
-			_, err := s.Server.FsRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(allocIDNotPresentErr, err)
-		}
-	})
 }
 
 /*
@@ -757,316 +687,5 @@ func TestHTTP_Logs_Follow(t *testing.T) {
 			t.Fatalf("connection not closed")
 		})
 	})
-}
-
-func BenchmarkHTTP_Logs_Follow(t *testing.B) {
-	runtime.MemProfileRate = 1
-
-	s := makeHTTPServer(t, nil)
-	defer s.Shutdown()
-	testutil.WaitForLeader(t, s.Agent.RPC)
-
-	// Get a temp alloc dir and create the log dir
-	ad := tempAllocDir(t)
-	s.Agent.logger.Printf("ALEX: LOG DIR: %q", ad.SharedDir)
-	//defer os.RemoveAll(ad.AllocDir)
-
-	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
-	if err := os.MkdirAll(logDir, 0777); err != nil {
-		t.Fatalf("Failed to make log dir: %v", err)
-	}
-
-	// Create a series of log files in the temp dir
-	task := "foo"
-	logType := "stdout"
-	expected := make([]byte, 1024*1024*100)
-	initialWrites := 3
-
-	writeToFile := func(index int, data []byte) {
-		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
-		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, data, 777)
-		if err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-	}
-
-	part := (len(expected) / 3) - 50
-	goodEnough := (8 * len(expected)) / 10
-	for i := 0; i < initialWrites; i++ {
-		writeToFile(i, expected[i*part:(i+1)*part])
-	}
-
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		s.Agent.logger.Printf("BENCHMARK %d", i)
-
-		// Create a decoder
-		r, w := io.Pipe()
-		wrappedW := &WriteCloseChecker{WriteCloser: w}
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, structs.JsonHandle)
-
-		var received []byte
-
-		// Start the reader
-		fullResultCh := make(chan struct{})
-		go func() {
-			for {
-				var frame sframer.StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					if err == io.EOF {
-						t.Logf("EOF")
-						return
-					}
-
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				received = append(received, frame.Data...)
-				if len(received) > goodEnough {
-					close(fullResultCh)
-					return
-				}
-			}
-		}()
-
-		// Start streaming logs
-		go func() {
-			if err := s.Server.logs(true, false, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
-				t.Fatalf("logs() failed: %v", err)
-			}
-		}()
-
-		select {
-		case <-fullResultCh:
-		case <-time.After(time.Duration(60 * time.Second)):
-			t.Fatalf("did not receive data: %d < %d", len(received), goodEnough)
-		}
-
-		s.Agent.logger.Printf("ALEX: CLOSING")
-
-		// Close the reader
-		r.Close()
-		s.Agent.logger.Printf("ALEX: CLOSED")
-
-		s.Agent.logger.Printf("ALEX: WAITING FOR WRITER TO CLOSE")
-		testutil.WaitForResult(func() (bool, error) {
-			return wrappedW.Closed, nil
-		}, func(err error) {
-			t.Fatalf("connection not closed")
-		})
-		s.Agent.logger.Printf("ALEX: WRITER CLOSED")
-	}
-}
-
-func TestLogs_findClosest(t *testing.T) {
-	task := "foo"
-	entries := []*allocdir.AllocFileInfo{
-		{
-			Name: "foo.stdout.0",
-			Size: 100,
-		},
-		{
-			Name: "foo.stdout.1",
-			Size: 100,
-		},
-		{
-			Name: "foo.stdout.2",
-			Size: 100,
-		},
-		{
-			Name: "foo.stdout.3",
-			Size: 100,
-		},
-		{
-			Name: "foo.stderr.0",
-			Size: 100,
-		},
-		{
-			Name: "foo.stderr.1",
-			Size: 100,
-		},
-		{
-			Name: "foo.stderr.2",
-			Size: 100,
-		},
-	}
-
-	cases := []struct {
-		Entries        []*allocdir.AllocFileInfo
-		DesiredIdx     int64
-		DesiredOffset  int64
-		Task           string
-		LogType        string
-		ExpectedFile   string
-		ExpectedIdx    int64
-		ExpectedOffset int64
-		Error          bool
-	}{
-		// Test error cases
-		{
-			Entries:    nil,
-			DesiredIdx: 0,
-			Task:       task,
-			LogType:    "stdout",
-			Error:      true,
-		},
-		{
-			Entries:    entries[0:3],
-			DesiredIdx: 0,
-			Task:       task,
-			LogType:    "stderr",
-			Error:      true,
-		},
-
-		// Test beginning cases
-		{
-			Entries:      entries,
-			DesiredIdx:   0,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[0].Name,
-			ExpectedIdx:  0,
-		},
-		{
-			// Desired offset should be ignored at edges
-			Entries:        entries,
-			DesiredIdx:     0,
-			DesiredOffset:  -100,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[0].Name,
-			ExpectedIdx:    0,
-			ExpectedOffset: 0,
-		},
-		{
-			// Desired offset should be ignored at edges
-			Entries:        entries,
-			DesiredIdx:     1,
-			DesiredOffset:  -1000,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[0].Name,
-			ExpectedIdx:    0,
-			ExpectedOffset: 0,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   0,
-			Task:         task,
-			LogType:      "stderr",
-			ExpectedFile: entries[4].Name,
-			ExpectedIdx:  0,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   0,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[0].Name,
-			ExpectedIdx:  0,
-		},
-
-		// Test middle cases
-		{
-			Entries:      entries,
-			DesiredIdx:   1,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[1].Name,
-			ExpectedIdx:  1,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     1,
-			DesiredOffset:  10,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[1].Name,
-			ExpectedIdx:    1,
-			ExpectedOffset: 10,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     1,
-			DesiredOffset:  110,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[2].Name,
-			ExpectedIdx:    2,
-			ExpectedOffset: 10,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   1,
-			Task:         task,
-			LogType:      "stderr",
-			ExpectedFile: entries[5].Name,
-			ExpectedIdx:  1,
-		},
-		// Test end cases
-		{
-			Entries:      entries,
-			DesiredIdx:   math.MaxInt64,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[3].Name,
-			ExpectedIdx:  3,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     math.MaxInt64,
-			DesiredOffset:  math.MaxInt64,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[3].Name,
-			ExpectedIdx:    3,
-			ExpectedOffset: 100,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     math.MaxInt64,
-			DesiredOffset:  -10,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[3].Name,
-			ExpectedIdx:    3,
-			ExpectedOffset: 90,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   math.MaxInt64,
-			Task:         task,
-			LogType:      "stderr",
-			ExpectedFile: entries[6].Name,
-			ExpectedIdx:  2,
-		},
-	}
-
-	for i, c := range cases {
-		entry, idx, offset, err := findClosest(c.Entries, c.DesiredIdx, c.DesiredOffset, c.Task, c.LogType)
-		if err != nil {
-			if !c.Error {
-				t.Fatalf("case %d: Unexpected error: %v", i, err)
-			}
-			continue
-		}
-
-		if entry.Name != c.ExpectedFile {
-			t.Fatalf("case %d: Got file %q; want %q", i, entry.Name, c.ExpectedFile)
-		}
-		if idx != c.ExpectedIdx {
-			t.Fatalf("case %d: Got index %d; want %d", i, idx, c.ExpectedIdx)
-		}
-		if offset != c.ExpectedOffset {
-			t.Fatalf("case %d: Got offset %d; want %d", i, offset, c.ExpectedOffset)
-		}
-	}
 }
 */
