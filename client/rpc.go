@@ -9,6 +9,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/nomad/client/servers"
 	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -102,6 +103,87 @@ func canRetry(args interface{}, err error) bool {
 	}
 
 	return false
+}
+
+// RemoteStreamingRpcHandler is used to make a streaming RPC call to a remote
+// server.
+func (c *Client) RemoteStreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	server := c.servers.FindServer()
+	if server == nil {
+		return nil, noServersErr
+	}
+
+	conn, err := c.streamingRpcConn(server, method)
+	if err != nil {
+		// Move off to another server
+		c.logger.Printf("[ERR] nomad: %q RPC failed to server %s: %v", method, server.Addr, err)
+		c.servers.NotifyFailedServer(server)
+		return nil, err
+	}
+
+	return bridgedStreamingRpcHandler(conn), nil
+}
+
+// bridgedStreamingRpcHandler creates a bridged streaming RPC handler by copying
+// data between the two sides.
+func bridgedStreamingRpcHandler(sideA io.ReadWriteCloser) structs.StreamingRpcHandler {
+	return func(sideB io.ReadWriteCloser) {
+		defer sideA.Close()
+		defer sideB.Close()
+		structs.Bridge(sideA, sideB)
+	}
+}
+
+// streamingRpcConn is used to retrieve a connection to a server to conduct a
+// streaming RPC.
+func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Conn, error) {
+	// Dial the server
+	conn, err := net.DialTimeout("tcp", server.Addr.String(), 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cast to TCPConn
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetKeepAlive(true)
+		tcp.SetNoDelay(true)
+	}
+
+	// TODO TLS
+	// Check if TLS is enabled
+	//if p.tlsWrap != nil {
+	//// Switch the connection into TLS mode
+	//if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
+	//conn.Close()
+	//return nil, err
+	//}
+
+	//// Wrap the connection in a TLS client
+	//tlsConn, err := p.tlsWrap(region, conn)
+	//if err != nil {
+	//conn.Close()
+	//return nil, err
+	//}
+	//conn = tlsConn
+	//}
+
+	// Write the multiplex byte to set the mode
+	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// Send the header
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	header := structs.StreamingRpcHeader{
+		Method: method,
+	}
+	if err := encoder.Encode(header); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // setupClientRpc is used to setup the Client's RPC endpoints

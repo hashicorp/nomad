@@ -11,9 +11,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -28,73 +28,42 @@ var (
 	invalidOrigin         = fmt.Errorf("origin must be start or end")
 )
 
-const (
-	// streamFrameSize is the maximum number of bytes to send in a single frame
-	streamFrameSize = 64 * 1024
-
-	// streamHeartbeatRate is the rate at which a heartbeat will occur to detect
-	// a closed connection without sending any additional data
-	streamHeartbeatRate = 1 * time.Second
-
-	// streamBatchWindow is the window in which file content is batched before
-	// being flushed if the frame size has not been hit.
-	streamBatchWindow = 200 * time.Millisecond
-
-	// nextLogCheckRate is the rate at which we check for a log entry greater
-	// than what we are watching for. This is to handle the case in which logs
-	// rotate faster than we can detect and we have to rely on a normal
-	// directory listing.
-	nextLogCheckRate = 100 * time.Millisecond
-
-	// deleteEvent and truncateEvent are the file events that can be sent in a
-	// StreamFrame
-	deleteEvent   = "file deleted"
-	truncateEvent = "file truncated"
-
-	// OriginStart and OriginEnd are the available parameters for the origin
-	// argument when streaming a file. They respectively offset from the start
-	// and end of a file.
-	OriginStart = "start"
-	OriginEnd   = "end"
-)
-
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	//if s.agent.client == nil {
-	//return nil, clientNotRunning
-	//}
-
 	var secret string
-	s.parseToken(req, &secret)
-
 	var namespace string
+	s.parseToken(req, &secret)
 	parseNamespace(req, &namespace)
 
-	//aclObj, err := s.agent.Client().ResolveToken(secret)
-	//if err != nil {
-	//return nil, err
-	//}
+	var aclObj *acl.ACL
+	if s.agent.client != nil {
+		var err error
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	path := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/")
 	switch {
 	case strings.HasPrefix(path, "ls/"):
-		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-		//return nil, structs.ErrPermissionDenied
-		//}
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
 		return s.DirectoryListRequest(resp, req)
 	case strings.HasPrefix(path, "stat/"):
-		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-		//return nil, structs.ErrPermissionDenied
-		//}
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
 		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
-		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-		//return nil, structs.ErrPermissionDenied
-		//}
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
 		return s.FileReadAtRequest(resp, req)
 	case strings.HasPrefix(path, "cat/"):
-		//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
-		//return nil, structs.ErrPermissionDenied
-		//}
+		if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
+			return nil, structs.ErrPermissionDenied
+		}
 		return s.FileCatRequest(resp, req)
 	//case strings.HasPrefix(path, "stream/"):
 	//if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS) {
@@ -102,14 +71,6 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	//}
 	//return s.Stream(resp, req)
 	case strings.HasPrefix(path, "logs/"):
-		// Logs can be accessed with ReadFS or ReadLogs caps
-		//if aclObj != nil {
-		//readfs := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadFS)
-		//logs := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadLogs)
-		//if !readfs && !logs {
-		//return nil, structs.ErrPermissionDenied
-		//}
-		//}
 		return s.Logs(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
@@ -504,11 +465,38 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
-	// TODO make work for both
-	// Get the client's handler
-	handler, err := s.agent.Server().StreamingRpcHandler("FileSystem.Logs")
-	if err != nil {
-		return nil, err
+	localClient := s.agent.Client()
+	localServer := s.agent.Server()
+
+	// See if the local client can handle the request.
+	localAlloc := false
+	if localClient != nil {
+		_, err := localClient.GetClientAlloc(allocID)
+		if err == nil {
+			localAlloc = true
+		}
+	}
+
+	// Only use the client RPC to server if we don't have a server and the local
+	// client can't handle the call.
+	useClientRPC := localClient != nil && !localAlloc && localServer == nil
+
+	// Use the server as a last case.
+	useServerRPC := localServer != nil
+
+	// Get the correct handler
+	var handler structs.StreamingRpcHandler
+	var handlerErr error
+	if localAlloc {
+		handler, handlerErr = localClient.StreamingRpcHandler("FileSystem.Logs")
+	} else if useClientRPC {
+		handler, handlerErr = localClient.RemoteStreamingRpcHandler("FileSystem.Logs")
+	} else if useServerRPC {
+		handler, handlerErr = localServer.StreamingRpcHandler("FileSystem.Logs")
+	}
+
+	if handlerErr != nil {
+		return nil, CodedError(500, handlerErr.Error())
 	}
 
 	// Create the request arguments
@@ -521,7 +509,7 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		PlainText: plain,
 		Follow:    follow,
 	}
-	s.parseToken(req, &fsReq.QueryOptions.AuthToken)
+	s.parse(resp, req, &fsReq.QueryOptions.Region, &fsReq.QueryOptions)
 
 	p1, p2 := net.Pipe()
 	decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
@@ -532,7 +520,6 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	go func() {
 		<-ctx.Done()
 		p1.Close()
-		s.logger.Printf("--------- HTTP:  Request finished. Closing pipes")
 	}()
 
 	// Create a channel that decodes the results
@@ -550,19 +537,16 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 			case <-ctx.Done():
 				errCh <- nil
 				cancel()
-				s.logger.Printf("--------- HTTP:  Exitting frame copier")
 				return
 			default:
 			}
 
 			var res cstructs.StreamErrWrapper
 			if err := decoder.Decode(&res); err != nil {
-				//errCh <- CodedError(500, err.Error())
-				errCh <- CodedError(501, err.Error())
+				errCh <- CodedError(500, err.Error())
 				cancel()
 				return
 			}
-			s.logger.Printf("--------- HTTP:  Decoded stream wrapper")
 
 			if err := res.Error; err != nil {
 				if err.Code != nil {
@@ -572,14 +556,10 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 				}
 			}
 
-			s.logger.Printf("--------- HTTP:  Copying payload of size: %d", len(res.Payload))
-			if n, err := io.Copy(output, bytes.NewBuffer(res.Payload)); err != nil {
-				//errCh <- CodedError(500, err.Error())
-				errCh <- CodedError(502, err.Error())
+			if _, err := io.Copy(output, bytes.NewBuffer(res.Payload)); err != nil {
+				errCh <- CodedError(500, err.Error())
 				cancel()
 				return
-			} else {
-				s.logger.Printf("--------- HTTP:  Copied payload: %d bytes", n)
 			}
 		}
 	}()
@@ -587,7 +567,10 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	handler(p2)
 	cancel()
 	codedErr := <-errCh
-	if codedErr != nil && (codedErr == io.EOF || strings.Contains(codedErr.Error(), "closed")) {
+	if codedErr != nil &&
+		(codedErr == io.EOF ||
+			strings.Contains(codedErr.Error(), "closed") ||
+			strings.Contains(codedErr.Error(), "EOF")) {
 		codedErr = nil
 	}
 	return nil, codedErr

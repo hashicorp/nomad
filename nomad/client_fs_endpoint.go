@@ -96,7 +96,7 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 			return
 		}
 
-		Bridge(conn, srvConn)
+		structs.Bridge(conn, srvConn)
 		return
 
 	}
@@ -175,6 +175,6 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	Bridge(conn, clientConn)
+	structs.Bridge(conn, clientConn)
 	return
 }

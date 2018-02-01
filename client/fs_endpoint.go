@@ -211,7 +211,11 @@ func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
 					cancel()
 					return
 				}
-				errCh <- err
+				select {
+				case errCh <- err:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
