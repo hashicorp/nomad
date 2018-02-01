@@ -442,6 +442,14 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 		return nil, fmt.Errorf("could not create thin pool snapshot with cmd '%v': %v: %s", lvCreateCmd.Args, err, err.(*exec.ExitError).Stderr), noCleanup
 	}
 
+	removeLVCleanup := func() error {
+		lvRemoveCmd := exec.Command("lvremove", "-f", baseLvName)
+		if err := lvRemoveCmd.Run(); err != nil {
+			return fmt.Errorf("could not remove thin pool snapshot with cmd '%v': %v: %s", lvRemoveCmd.Args, err, err.(*exec.ExitError).Stderr)
+		}
+		return nil
+	}
+
 	vgName := baseLvName[:strings.Index(baseLvName, "/")]
 	if len(vgName) == 0 {
 		return nil, fmt.Errorf("could not parse volume group name from '%v':, baseLvName"), removeLVCleanup
@@ -463,10 +471,13 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 	newConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config")
 	newConfigFile, err := os.Create(newConfigFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new config file '%s': %v", newConfigFilePath, err), noCleanup
+		return nil, fmt.Errorf("unable to create new config file '%s': %v", newConfigFilePath, err), removeLVCleanup
 	}
 	defer newConfigFile.Close()
 	removeConfigCleanup := func() error {
+		if err := removeLVCleanup(); err != nil {
+			return err
+		}
 		return os.Remove(newConfigFilePath)
 	}
 
