@@ -26,12 +26,12 @@ import (
 )
 
 var (
-	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
-	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
-	taskNotPresentErr     = fmt.Errorf("must provide task name")
-	logTypeNotPresentErr  = fmt.Errorf("must provide log type (stdout/stderr)")
-	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
-	invalidOrigin         = fmt.Errorf("origin must be start or end")
+	allocIDNotPresentErr = fmt.Errorf("must provide a valid alloc id")
+	pathNotPresentErr    = fmt.Errorf("must provide a file path")
+	taskNotPresentErr    = fmt.Errorf("must provide task name")
+	logTypeNotPresentErr = fmt.Errorf("must provide log type (stdout/stderr)")
+	clientNotRunning     = fmt.Errorf("node is not running a Nomad Client")
+	invalidOrigin        = fmt.Errorf("origin must be start or end")
 )
 
 const (
@@ -72,6 +72,7 @@ type FileSystem struct {
 
 func (f *FileSystem) register() {
 	f.c.streamingRpcs.Register("FileSystem.Logs", f.logs)
+	f.c.streamingRpcs.Register("FileSystem.Stream", f.stream)
 }
 
 func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *codec.Encoder) {
@@ -131,6 +132,146 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 
 	reply.Info = info
 	return nil
+}
+
+// stream is is used to stream the contents of file in an allocation's
+// directory.
+func (f *FileSystem) stream(conn io.ReadWriteCloser) {
+	defer metrics.MeasureSince([]string{"client", "file_system", "stream"}, time.Now())
+	defer conn.Close()
+
+	// Decode the arguments
+	var req cstructs.FsStreamRequest
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	if err := decoder.Decode(&req); err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	// Check read permissions
+	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
+		f.handleStreamResultError(err, nil, encoder)
+		return
+	} else if aclObj != nil && !aclObj.AllowNsOp(req.Namespace, acl.NamespaceCapabilityReadFS) {
+		f.handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		return
+	}
+
+	// Validate the arguments
+	if req.AllocID == "" {
+		f.handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
+		return
+	}
+	if req.Path == "" {
+		f.handleStreamResultError(pathNotPresentErr, helper.Int64ToPtr(400), encoder)
+		return
+	}
+	switch req.Origin {
+	case "start", "end":
+	case "":
+		req.Origin = "start"
+	default:
+		f.handleStreamResultError(invalidOrigin, helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	fs, err := f.c.GetAllocFS(req.AllocID)
+	if err != nil {
+		var code *int64
+		if strings.Contains(err.Error(), "unknown allocation") {
+			code = helper.Int64ToPtr(404)
+		} else {
+			code = helper.Int64ToPtr(500)
+		}
+
+		f.handleStreamResultError(err, code, encoder)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	frames := make(chan *sframer.StreamFrame, 32)
+	errCh := make(chan error)
+	var buf bytes.Buffer
+	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
+
+	// Create the framer
+	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	// If we aren't following end as soon as we hit EOF
+	var eofCancelCh chan error
+	if !req.Follow {
+		eofCancelCh = make(chan error)
+		close(eofCancelCh)
+	}
+
+	// Start streaming
+	go func() {
+		if err := f.streamFile(ctx, req.Offset, req.Path, req.Limit, fs, framer, eofCancelCh); err != nil {
+			select {
+			case errCh <- err:
+			case <-ctx.Done():
+			}
+		}
+	}()
+
+	// Create a goroutine to detect the remote side closing
+	go func() {
+		for {
+			if _, err := conn.Read(nil); err != nil {
+				if err == io.EOF {
+					cancel()
+					return
+				}
+				select {
+				case errCh <- err:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	var streamErr error
+OUTER:
+	for {
+		select {
+		case streamErr = <-errCh:
+			break OUTER
+		case frame, ok := <-frames:
+			if !ok {
+				break OUTER
+			}
+
+			var resp cstructs.StreamErrWrapper
+			if req.PlainText {
+				resp.Payload = frame.Data
+			} else {
+				if err = frameCodec.Encode(frame); err != nil {
+					streamErr = err
+					break OUTER
+				}
+
+				resp.Payload = buf.Bytes()
+				buf.Reset()
+			}
+
+			if err := encoder.Encode(resp); err != nil {
+				streamErr = err
+				break OUTER
+			}
+		}
+	}
+
+	if streamErr != nil {
+		f.handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		return
+	}
 }
 
 // logs is is used to stream a task's logs.
@@ -372,7 +513,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
-		err = f.stream(ctx, openOffset, p, fs, framer, eofCancelCh)
+		err = f.streamFile(ctx, openOffset, p, 0, fs, framer, eofCancelCh)
 
 		// Check if the context is cancelled
 		select {
@@ -420,12 +561,12 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 	}
 }
 
-// stream is the internal method to stream the content of a file. eofCancelCh is
-// used to cancel the stream if triggered while at EOF. If the connection is
-// broken an EPIPE error is returned
-func (f *FileSystem) stream(ctx context.Context, offset int64, path string,
-	fs allocdir.AllocDirFS, framer *sframer.StreamFramer,
-	eofCancelCh chan error) error {
+// streamFile is the internal method to stream the content of a file. If limit
+// is greater than zero, the stream will end once that many bytes have been
+// read. eofCancelCh is used to cancel the stream if triggered while at EOF. If
+// the connection is broken an EPIPE error is returned
+func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, limit int64,
+	fs allocdir.AllocDirFS, framer *sframer.StreamFramer, eofCancelCh chan error) error {
 
 	// Get the reader
 	file, err := fs.ReadAt(path, offset)
@@ -433,6 +574,13 @@ func (f *FileSystem) stream(ctx context.Context, offset int64, path string,
 		return err
 	}
 	defer file.Close()
+
+	var fileReader io.Reader
+	if limit <= 0 {
+		fileReader = file
+	} else {
+		fileReader = io.LimitReader(file, limit)
+	}
 
 	// Create a tomb to cancel watch events
 	waitCtx, cancel := context.WithCancel(ctx)
@@ -450,7 +598,7 @@ func (f *FileSystem) stream(ctx context.Context, offset int64, path string,
 OUTER:
 	for {
 		// Read up to the max frame size
-		n, readErr := file.Read(data)
+		n, readErr := fileReader.Read(data)
 
 		// Update the offset
 		offset += int64(n)
@@ -505,6 +653,18 @@ OUTER:
 					return err
 				}
 				defer file.Close()
+
+				if limit <= 0 {
+					fileReader = file
+				} else {
+					// Get the current limit
+					lr, ok := fileReader.(*io.LimitedReader)
+					if !ok {
+						return fmt.Errorf("unable to determine remaining read limit")
+					}
+
+					fileReader = io.LimitReader(file, lr.N)
+				}
 
 				// Store the last event
 				lastEvent = truncateEvent

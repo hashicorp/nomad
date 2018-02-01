@@ -87,6 +87,33 @@ type FsStatResponse struct {
 	structs.QueryMeta
 }
 
+// FsStreamRequest is the initial request for streaming the content of a file.
+type FsStreamRequest struct {
+	// AllocID is the allocation to stream logs from
+	AllocID string
+
+	// Path is the path to the file to stream
+	Path string
+
+	// Offset is the offset to start streaming data at.
+	Offset int64
+
+	// Origin can either be "start" or "end" and determines where the offset is
+	// applied.
+	Origin string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	// Limit is the number of bytes to read
+	Limit int64
+
+	// Follow follows the file.
+	Follow bool
+
+	structs.QueryOptions
+}
+
 // FsLogsRequest is the initial request for accessing allocation logs.
 type FsLogsRequest struct {
 	// AllocID is the allocation to stream logs from
