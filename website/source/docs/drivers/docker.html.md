@@ -633,6 +633,18 @@ options](/docs/agent/configuration/client.html#options):
   tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a 
   shortcut for whitelisting all capabilities.
 
+* `docker.dir.alloc.mount`: Defaults to `/alloc`. Changing this allows you to change
+  the mount point inside the container for shared task storage. This can be particularly helpful
+  when implementing a schedular agnostic standard for a shared task storage directory.
+
+* `docker.dir.local.mount`: Defaults to `/local`. Changing this allows you to change
+  the mount point inside the container for local storage. This can be particularly helpful when
+  implementing a schedular agnostic standard for a local storage directory.
+
+* `docker.dir.secrets.mount`: Defaults to `/secrets`. Changing this allows you to change
+  the mount point inside the container for secrets. This can be particularly helpful when
+  implementing a schedular agnostic standard for a secrets directory.
+
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
 `docker.endpoint` is set Nomad will **only** read client configuration from the

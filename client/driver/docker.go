@@ -104,6 +104,18 @@ const (
 	dockerCapsWhitelistConfigOption  = "docker.caps.whitelist"
 	dockerCapsWhitelistConfigDefault = dockerBasicCaps
 
+	// dockerSharedAllocContainerPath is the key for setting the mount point
+	// for the SharedAllocDir
+	dockerSharedAllocContainerPath = "docker.dir.alloc.mount"
+
+	// dockerTaskLocalContainerPath is the key for setting the mount point
+	// for the LocalDir
+	dockerTaskLocalContainerPath = "docker.dir.local.mount"
+
+	// dockerTaskSecretsContainerPath is the key for setting the mount point
+	// for the SecretsDir
+	dockerTaskSecretsContainerPath = "docker.dir.secrets.mount"
+
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
@@ -1009,9 +1021,9 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir *allocdir.TaskDir,
 	task *structs.Task) ([]string, error) {
 
-	allocDirBind := fmt.Sprintf("%s:%s", taskDir.SharedAllocDir, allocdir.SharedAllocContainerPath)
-	taskLocalBind := fmt.Sprintf("%s:%s", taskDir.LocalDir, allocdir.TaskLocalContainerPath)
-	secretDirBind := fmt.Sprintf("%s:%s", taskDir.SecretsDir, allocdir.TaskSecretsContainerPath)
+	allocDirBind := fmt.Sprintf("%s:%s", taskDir.SharedAllocDir, d.config.ReadDefault(dockerSharedAllocContainerPath, allocdir.SharedAllocContainerPath))
+	taskLocalBind := fmt.Sprintf("%s:%s", taskDir.LocalDir, d.config.ReadDefault(dockerTaskLocalContainerPath, allocdir.TaskLocalContainerPath))
+	secretDirBind := fmt.Sprintf("%s:%s", taskDir.SecretsDir, d.config.ReadDefault(dockerTaskSecretsContainerPath, allocdir.TaskSecretsContainerPath))
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
