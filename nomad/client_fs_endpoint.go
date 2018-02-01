@@ -17,7 +17,6 @@ import (
 )
 
 // TODO a Single RPC for "Cat", "ReadAt", "Stream" endpoints
-// TODO all the non-streaming RPC endpoints
 
 // FileSystem endpoint is used for accessing the logs and filesystem of
 // allocations from a Node.
@@ -25,8 +24,8 @@ type FileSystem struct {
 	srv *Server
 }
 
-func (f *FileSystem) Register() {
-	f.srv.streamingRpcs.Register("FileSystem.Logs", f.Logs)
+func (f *FileSystem) register() {
+	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
 }
 
 func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *codec.Encoder) {
@@ -41,8 +40,144 @@ func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *co
 	})
 }
 
+// List is used to list the contents of an allocation's directory.
+func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListResponse) error {
+	// We only allow stale reads since the only potentially stale information is
+	// the Node registration and the cost is fairly high for adding another hope
+	// in the forwarding chain.
+	args.QueryOptions.AllowStale = true
+
+	// Potentially forward to a different region.
+	if done, err := f.srv.forward("FileSystem.List", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "file_system", "list"}, time.Now())
+
+	// Check filesystem read permissions
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Verify the arguments.
+	if args.AllocID == "" {
+		return errors.New("missing allocation ID")
+	}
+
+	// Lookup the allocation
+	snap, err := f.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	alloc, err := snap.AllocByID(nil, args.AllocID)
+	if err != nil {
+		return err
+	}
+	if alloc == nil {
+		return fmt.Errorf("unknown allocation %q", args.AllocID)
+	}
+
+	// Get the connection to the client
+	state, ok := f.srv.getNodeConn(alloc.NodeID)
+	if !ok {
+		node, err := snap.NodeByID(nil, alloc.NodeID)
+		if err != nil {
+			return err
+		}
+
+		if node == nil {
+			return fmt.Errorf("Unknown node %q", alloc.NodeID)
+		}
+
+		// Determine the Server that has a connection to the node.
+		srv, err := f.srv.serverWithNodeConn(alloc.NodeID, f.srv.Region())
+		if err != nil {
+			return err
+		}
+
+		if srv == nil {
+			return structs.ErrNoNodeConn
+		}
+
+		return f.srv.forwardServer(srv, "FileSystem.List", args, reply)
+	}
+
+	// Make the RPC
+	return NodeRpc(state.Session, "FileSystem.List", args, reply)
+}
+
+// Stat is used to stat a file in the allocation's directory.
+func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatResponse) error {
+	// We only allow stale reads since the only potentially stale information is
+	// the Node registration and the cost is fairly high for adding another hope
+	// in the forwarding chain.
+	args.QueryOptions.AllowStale = true
+
+	// Potentially forward to a different region.
+	if done, err := f.srv.forward("FileSystem.Stat", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "file_system", "stat"}, time.Now())
+
+	// Check filesystem read permissions
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Verify the arguments.
+	if args.AllocID == "" {
+		return errors.New("missing allocation ID")
+	}
+
+	// Lookup the allocation
+	snap, err := f.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	alloc, err := snap.AllocByID(nil, args.AllocID)
+	if err != nil {
+		return err
+	}
+	if alloc == nil {
+		return fmt.Errorf("unknown allocation %q", args.AllocID)
+	}
+
+	// Get the connection to the client
+	state, ok := f.srv.getNodeConn(alloc.NodeID)
+	if !ok {
+		node, err := snap.NodeByID(nil, alloc.NodeID)
+		if err != nil {
+			return err
+		}
+
+		if node == nil {
+			return fmt.Errorf("Unknown node %q", alloc.NodeID)
+		}
+
+		// Determine the Server that has a connection to the node.
+		srv, err := f.srv.serverWithNodeConn(alloc.NodeID, f.srv.Region())
+		if err != nil {
+			return err
+		}
+
+		if srv == nil {
+			return structs.ErrNoNodeConn
+		}
+
+		return f.srv.forwardServer(srv, "FileSystem.Stat", args, reply)
+	}
+
+	// Make the RPC
+	return NodeRpc(state.Session, "FileSystem.Stat", args, reply)
+}
+
 // Stats is used to retrieve the Clients stats.
-func (f *FileSystem) Logs(conn io.ReadWriteCloser) {
+func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	defer conn.Close()
 	defer metrics.MeasureSince([]string{"nomad", "file_system", "logs"}, time.Now())
 

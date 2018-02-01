@@ -815,7 +815,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{s}
-		s.staticEndpoints.FileSystem.Register()
+		s.staticEndpoints.FileSystem.register()
 	}
 
 	// Register the static handlers
@@ -833,6 +833,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Search)
 	s.staticEndpoints.Enterprise.Register(server)
 	server.Register(s.staticEndpoints.ClientStats)
+	server.Register(s.staticEndpoints.FileSystem)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx}

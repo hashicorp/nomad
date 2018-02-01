@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
@@ -19,6 +20,482 @@ import (
 	"github.com/stretchr/testify/require"
 	codec "github.com/ugorji/go/codec"
 )
+
+func TestClientFS_List_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	c := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.config.RPCAddr.String()}
+	})
+	defer c.Shutdown()
+
+	// Force an allocation onto the node
+	a := mock.Alloc()
+	a.Job.Type = structs.JobTypeBatch
+	a.NodeID = c.NodeID()
+	a.Job.TaskGroups[0].Count = 1
+	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+		Name:   "web",
+		Driver: "mock_driver",
+		Config: map[string]interface{}{
+			"run_for": "2s",
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+	}
+
+	// Wait for the client to connect
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a clients")
+	})
+
+	// Upsert the allocation
+	state := s.State()
+	require.Nil(state.UpsertJob(999, a.Job))
+	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := state.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Alloc on node %q not finished: %v", c.NodeID(), err)
+	})
+
+	// Make the request without having a node-id
+	req := &cstructs.FsListRequest{
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp cstructs.FsListResponse
+	err := msgpackrpc.CallWithCodec(codec, "FileSystem.List", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "missing")
+
+	// Fetch the response setting the alloc id
+	req.AllocID = a.ID
+	var resp2 cstructs.FsListResponse
+	err = msgpackrpc.CallWithCodec(codec, "FileSystem.List", req, &resp2)
+	require.Nil(err)
+	require.NotEmpty(resp2.Files)
+}
+
+func TestClientFS_List_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s, root := TestACLServer(t, nil)
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Create a bad token
+	policyBad := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeny})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	cases := []struct {
+		Name          string
+		Token         string
+		ExpectedError string
+	}{
+		{
+			Name:          "bad token",
+			Token:         tokenBad.SecretID,
+			ExpectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:          "good token",
+			Token:         tokenGood.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+		{
+			Name:          "root token",
+			Token:         root.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+
+			// Make the request
+			req := &cstructs.FsListRequest{
+				AllocID: uuid.Generate(),
+				Path:    "/",
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+					AuthToken: c.Token,
+				},
+			}
+
+			// Fetch the response
+			var resp cstructs.FsListResponse
+			err := msgpackrpc.CallWithCodec(codec, "FileSystem.List", req, &resp)
+			require.NotNil(err)
+			require.Contains(err.Error(), c.ExpectedError)
+		})
+	}
+}
+
+func TestClientFS_List_Remote(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+	codec := rpcClient(t, s2)
+
+	c := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s2.config.RPCAddr.String()}
+	})
+	defer c.Shutdown()
+
+	// Force an allocation onto the node
+	a := mock.Alloc()
+	a.Job.Type = structs.JobTypeBatch
+	a.NodeID = c.NodeID()
+	a.Job.TaskGroups[0].Count = 1
+	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+		Name:   "web",
+		Driver: "mock_driver",
+		Config: map[string]interface{}{
+			"run_for": "2s",
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+	}
+
+	// Wait for the client to connect
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s2.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a clients")
+	})
+
+	// Upsert the allocation
+	state1 := s1.State()
+	state2 := s2.State()
+	require.Nil(state1.UpsertJob(999, a.Job))
+	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertJob(999, a.Job))
+	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := state2.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Alloc on node %q not finished: %v", c.NodeID(), err)
+	})
+
+	// Force remove the connection locally in case it exists
+	s1.nodeConnsLock.Lock()
+	delete(s1.nodeConns, c.NodeID())
+	s1.nodeConnsLock.Unlock()
+
+	// Make the request without having a node-id
+	req := &cstructs.FsListRequest{
+		AllocID:      a.ID,
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp cstructs.FsListResponse
+	err := msgpackrpc.CallWithCodec(codec, "FileSystem.List", req, &resp)
+	require.Nil(err)
+	require.NotEmpty(resp.Files)
+}
+
+func TestClientFS_Stat_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	c := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.config.RPCAddr.String()}
+	})
+	defer c.Shutdown()
+
+	// Force an allocation onto the node
+	a := mock.Alloc()
+	a.Job.Type = structs.JobTypeBatch
+	a.NodeID = c.NodeID()
+	a.Job.TaskGroups[0].Count = 1
+	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+		Name:   "web",
+		Driver: "mock_driver",
+		Config: map[string]interface{}{
+			"run_for": "2s",
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+	}
+
+	// Wait for the client to connect
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a clients")
+	})
+
+	// Upsert the allocation
+	state := s.State()
+	require.Nil(state.UpsertJob(999, a.Job))
+	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := state.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Alloc on node %q not finished: %v", c.NodeID(), err)
+	})
+
+	// Make the request without having a node-id
+	req := &cstructs.FsStatRequest{
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp cstructs.FsStatResponse
+	err := msgpackrpc.CallWithCodec(codec, "FileSystem.Stat", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "missing")
+
+	// Fetch the response setting the alloc id
+	req.AllocID = a.ID
+	var resp2 cstructs.FsStatResponse
+	err = msgpackrpc.CallWithCodec(codec, "FileSystem.Stat", req, &resp2)
+	require.Nil(err)
+	require.NotNil(resp2.Info)
+}
+
+func TestClientFS_Stat_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s, root := TestACLServer(t, nil)
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Create a bad token
+	policyBad := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDeny})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	cases := []struct {
+		Name          string
+		Token         string
+		ExpectedError string
+	}{
+		{
+			Name:          "bad token",
+			Token:         tokenBad.SecretID,
+			ExpectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:          "good token",
+			Token:         tokenGood.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+		{
+			Name:          "root token",
+			Token:         root.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+
+			// Make the request
+			req := &cstructs.FsStatRequest{
+				AllocID: uuid.Generate(),
+				Path:    "/",
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+					AuthToken: c.Token,
+				},
+			}
+
+			// Fetch the response
+			var resp cstructs.FsStatResponse
+			err := msgpackrpc.CallWithCodec(codec, "FileSystem.Stat", req, &resp)
+			require.NotNil(err)
+			require.Contains(err.Error(), c.ExpectedError)
+		})
+	}
+}
+
+func TestClientFS_Stat_Remote(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+	codec := rpcClient(t, s2)
+
+	c := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s2.config.RPCAddr.String()}
+	})
+	defer c.Shutdown()
+
+	// Force an allocation onto the node
+	a := mock.Alloc()
+	a.Job.Type = structs.JobTypeBatch
+	a.NodeID = c.NodeID()
+	a.Job.TaskGroups[0].Count = 1
+	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+		Name:   "web",
+		Driver: "mock_driver",
+		Config: map[string]interface{}{
+			"run_for": "2s",
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+	}
+
+	// Wait for the client to connect
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s2.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a clients")
+	})
+
+	// Upsert the allocation
+	state1 := s1.State()
+	state2 := s2.State()
+	require.Nil(state1.UpsertJob(999, a.Job))
+	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertJob(999, a.Job))
+	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := state2.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Alloc on node %q not finished: %v", c.NodeID(), err)
+	})
+
+	// Force remove the connection locally in case it exists
+	s1.nodeConnsLock.Lock()
+	delete(s1.nodeConns, c.NodeID())
+	s1.nodeConnsLock.Unlock()
+
+	// Make the request without having a node-id
+	req := &cstructs.FsStatRequest{
+		AllocID:      a.ID,
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp cstructs.FsStatResponse
+	err := msgpackrpc.CallWithCodec(codec, "FileSystem.Stat", req, &resp)
+	require.Nil(err)
+	require.NotNil(resp.Info)
+}
 
 func TestClientFS_Logs_NoAlloc(t *testing.T) {
 	t.Parallel()
@@ -692,6 +1169,11 @@ func TestClientFS_Logs_Remote_Region(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("Alloc on node %q not finished: %v", c.NodeID(), err)
 	})
+
+	// Force remove the connection locally in case it exists
+	s1.nodeConnsLock.Lock()
+	delete(s1.nodeConns, c.NodeID())
+	s1.nodeConnsLock.Unlock()
 
 	// Make the request
 	req := &cstructs.FsLogsRequest{
