@@ -6,7 +6,7 @@ __BACKWARDS INCOMPATIBILITIES:__
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
  * core: The default values for restart policy have changed. Restart policy mode defaults to "fail" and the
    attempts/time interval values have been changed to enable faster server side rescheduling. See
-   [restart stanza(https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
+   [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
 
 IMPROVEMENTS:
  * core: A set of features (Autopilot) has been added to allow for automatic operator-friendly management of Nomad servers. For more information about Autopilot, see the [Autopilot Guide](https://www.nomadproject.io/guides/cluster/autopilot.html). [[GH-3670](https://github.com/hashicorp/nomad/pull/3670)]
