@@ -2269,3 +2269,74 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 
 	assert.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
 }
+
+func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+	expectedPrefix := "2001:db8:1::242:ac11"
+	expectedAdvertise := true
+	task := &structs.Task{
+		Name:   "nc-demo",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "/bin/nc",
+			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
+			"advertise_ipv6_address": expectedAdvertise,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	client := newTestDockerClient(t)
+	tctx := testDockerDriverContexts(t, task)
+	driver := NewDockerDriver(tctx.DriverCtx)
+	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
+	defer tctx.AllocDir.Destroy()
+
+	presp, err := driver.Prestart(tctx.ExecCtx, task)
+	defer driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+	if err != nil {
+		t.Fatalf("Error in prestart: %v", err)
+	}
+
+	sresp, err := driver.Start(tctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("Error in start: %v", err)
+	}
+
+	if sresp.Handle == nil {
+		t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
+	}
+
+	assert.Equal(t, expectedAdvertise, sresp.Network.AutoAdvertise, "Wrong autoadvertise. Expect: %s, got: %s", expectedAdvertise, sresp.Network.AutoAdvertise)
+
+	if !strings.HasPrefix(sresp.Network.IP, expectedPrefix) {
+		t.Fatalf("Got IP address %s want ip address with prefix %s", sresp.Network.IP, expectedPrefix)
+	}
+
+	defer sresp.Handle.Kill()
+	handle := sresp.Handle.(*DockerHandle)
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+		t.Fatalf("Error inspecting container: %v", err)
+	}
+
+	if !strings.HasPrefix(container.NetworkSettings.GlobalIPv6Address, expectedPrefix) {
+		t.Fatalf("Got GlobalIPv6address %s want GlobalIPv6address with prefix %s", expectedPrefix, container.NetworkSettings.GlobalIPv6Address)
+	}
+}
