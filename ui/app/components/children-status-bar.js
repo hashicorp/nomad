@@ -6,6 +6,8 @@ export default DistributionBar.extend({
 
   job: null,
 
+  'data-test-children-status-bar': true,
+
   data: computed('job.{pendingChildren,runningChildren,deadChildren}', function() {
     if (!this.get('job')) {
       return [];

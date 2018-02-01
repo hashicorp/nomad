@@ -12,7 +12,7 @@
     allocationContainer=job
     job=job
     class="split-view" as |chart|}}
-    <ol data-test-allocations-legend class="legend">
+    <ol data-test-legend class="legend">
       {{#each chart.data as |datum index|}}
         <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
           <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
