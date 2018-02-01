@@ -2510,17 +2510,17 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 var (
-	defaultServiceJobRestartPolicy = RestartPolicy{
+	DefaultServiceJobRestartPolicy = RestartPolicy{
 		Delay:    15 * time.Second,
 		Attempts: 2,
-		Interval: 1 * time.Minute,
-		Mode:     RestartPolicyModeDelay,
+		Interval: 30 * time.Minute,
+		Mode:     RestartPolicyModeFail,
 	}
-	defaultBatchJobRestartPolicy = RestartPolicy{
+	DefaultBatchJobRestartPolicy = RestartPolicy{
 		Delay:    15 * time.Second,
-		Attempts: 15,
-		Interval: 7 * 24 * time.Hour,
-		Mode:     RestartPolicyModeDelay,
+		Attempts: 3,
+		Interval: 24 * time.Hour,
+		Mode:     RestartPolicyModeFail,
 	}
 )
 
@@ -2604,10 +2604,10 @@ func (r *RestartPolicy) Validate() error {
 func NewRestartPolicy(jobType string) *RestartPolicy {
 	switch jobType {
 	case JobTypeService, JobTypeSystem:
-		rp := defaultServiceJobRestartPolicy
+		rp := DefaultServiceJobRestartPolicy
 		return &rp
 	case JobTypeBatch:
-		rp := defaultBatchJobRestartPolicy
+		rp := DefaultBatchJobRestartPolicy
 		return &rp
 	}
 	return nil

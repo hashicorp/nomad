@@ -91,10 +91,10 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 "Leader": false
             }],
             "RestartPolicy": {
-                "Interval": 300000000000,
-                "Attempts": 10,
-                "Delay": 25000000000,
-                "Mode": "delay"
+                "Interval": 1800000000000,
+                "Attempts": 2,
+                "Delay": 15000000000,
+                "Mode": "fail"
             },
             "EphemeralDisk": {
                 "SizeMB": 300
