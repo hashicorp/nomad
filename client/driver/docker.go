@@ -121,7 +121,9 @@ const (
 	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
 		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 
-		// This is cpu.cfs_period_us: the length of a period. The default values is 100 microsecnds represented in nano Seconds, below is the documnentation
+	// This is cpu.cfs_period_us: the length of a period.
+	// The default values is 100 microsecnds represented in nano Seconds.
+	// Below is the documnentation:
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	// https://docs.docker.com/engine/admin/resource_constraints/#cpu
 	defaultCFSPeriod = 100000
