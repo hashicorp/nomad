@@ -16,8 +16,6 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-// TODO a Single RPC for "Cat", "ReadAt", "Stream" endpoints
-
 // FileSystem endpoint is used for accessing the logs and filesystem of
 // allocations from a Node.
 type FileSystem struct {
@@ -26,6 +24,7 @@ type FileSystem struct {
 
 func (f *FileSystem) register() {
 	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
+	f.srv.streamingRpcs.Register("FileSystem.Stream", f.stream)
 }
 
 func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *codec.Encoder) {
@@ -176,7 +175,142 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	return NodeRpc(state.Session, "FileSystem.Stat", args, reply)
 }
 
-// Stats is used to retrieve the Clients stats.
+// stream is is used to stream the contents of file in an allocation's
+// directory.
+func (f *FileSystem) stream(conn io.ReadWriteCloser) {
+	defer conn.Close()
+	defer metrics.MeasureSince([]string{"nomad", "file_system", "stream"}, time.Now())
+
+	// Decode the arguments
+	var args cstructs.FsStreamRequest
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	if err := decoder.Decode(&args); err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	// Check if we need to forward to a different region
+	if r := args.RequestRegion(); r != f.srv.Region() {
+		// Request the allocation from the target region
+		allocReq := &structs.AllocSpecificRequest{
+			AllocID:      args.AllocID,
+			QueryOptions: args.QueryOptions,
+		}
+		var allocResp structs.SingleAllocResponse
+		if err := f.srv.forwardRegion(r, "Alloc.GetAlloc", allocReq, &allocResp); err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		if allocResp.Alloc == nil {
+			f.handleStreamResultError(fmt.Errorf("unknown allocation %q", args.AllocID), nil, encoder)
+			return
+		}
+
+		// Determine the Server that has a connection to the node.
+		srv, err := f.srv.serverWithNodeConn(allocResp.Alloc.NodeID, r)
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		// Get a connection to the server
+		srvConn, err := f.srv.streamingRpc(srv, "FileSystem.Stream")
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+		defer srvConn.Close()
+
+		// Send the request.
+		outEncoder := codec.NewEncoder(srvConn, structs.MsgpackHandle)
+		if err := outEncoder.Encode(args); err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		structs.Bridge(conn, srvConn)
+		return
+
+	}
+
+	// Check node read permissions
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
+		f.handleStreamResultError(err, nil, encoder)
+		return
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+		f.handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		return
+	}
+
+	// Verify the arguments.
+	if args.AllocID == "" {
+		f.handleStreamResultError(errors.New("missing AllocID"), helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	// Retrieve the allocation
+	snap, err := f.srv.State().Snapshot()
+	if err != nil {
+		f.handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	alloc, err := snap.AllocByID(nil, args.AllocID)
+	if err != nil {
+		f.handleStreamResultError(err, nil, encoder)
+		return
+	}
+	if alloc == nil {
+		f.handleStreamResultError(fmt.Errorf("unknown alloc ID %q", args.AllocID), helper.Int64ToPtr(404), encoder)
+		return
+	}
+	nodeID := alloc.NodeID
+
+	// Get the connection to the client either by forwarding to another server
+	// or creating a direct stream
+	var clientConn net.Conn
+	state, ok := f.srv.getNodeConn(nodeID)
+	if !ok {
+		// Determine the Server that has a connection to the node.
+		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		// Get a connection to the server
+		conn, err := f.srv.streamingRpc(srv, "FileSystem.Stream")
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		clientConn = conn
+	} else {
+		stream, err := NodeStreamingRpc(state.Session, "FileSystem.Stream")
+		if err != nil {
+			f.handleStreamResultError(err, nil, encoder)
+			return
+		}
+		clientConn = stream
+	}
+	defer clientConn.Close()
+
+	// Send the request.
+	outEncoder := codec.NewEncoder(clientConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		f.handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, clientConn)
+	return
+}
+
+// logs is used to access an task's logs for a given allocation
 func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	defer conn.Close()
 	defer metrics.MeasureSince([]string{"nomad", "file_system", "logs"}, time.Now())
