@@ -188,11 +188,15 @@ func (d *DriverNetwork) Hash() []byte {
 	return h.Sum(nil)
 }
 
+// FingerprintRequest is a request which a fingerprinter accepts to fingerprint
+// the node
 type FingerprintRequest struct {
 	Config *config.Config
 	Node   *structs.Node
 }
 
+// FingerprintResponse is the response which a fingerprinter annotates with the
+// results of the fingerprint method
 type FingerprintResponse struct {
 	Attributes map[string]string
 	Links      map[string]string

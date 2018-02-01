@@ -932,7 +932,7 @@ func (c *Client) fingerprint() error {
 
 	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
 
-	var appliedFingerprints []string
+	var detectedFingerprints []string
 	var skippedFingerprints []string
 	for _, name := range fingerprint.BuiltinFingerprints() {
 		// Skip modules that are not in the whitelist if it is enabled.
@@ -951,9 +951,9 @@ func (c *Client) fingerprint() error {
 			return err
 		}
 
+		c.configLock.Lock()
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 		var response cstructs.FingerprintResponse
-		c.configLock.Lock()
 		err = f.Fingerprint(request, &response)
 		c.configLock.Unlock()
 		if err != nil {
@@ -962,7 +962,7 @@ func (c *Client) fingerprint() error {
 
 		// log the fingerprinters which have been applied
 		if response.Detected {
-			appliedFingerprints = append(appliedFingerprints, name)
+			detectedFingerprints = append(detectedFingerprints, name)
 		}
 
 		// add the diff found from each fingerprinter
@@ -977,7 +977,7 @@ func (c *Client) fingerprint() error {
 		}
 	}
 
-	c.logger.Printf("[DEBUG] client: applied fingerprints %v", appliedFingerprints)
+	c.logger.Printf("[DEBUG] client: detected fingerprints %v", detectedFingerprints)
 	if len(skippedFingerprints) != 0 {
 		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to white/blacklist: %v", skippedFingerprints)
 	}
@@ -990,9 +990,9 @@ func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d t
 	for {
 		select {
 		case <-time.After(d):
+			c.configLock.Lock()
 			request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 			var response cstructs.FingerprintResponse
-			c.configLock.Lock()
 			err := f.Fingerprint(request, &response)
 			c.configLock.Unlock()
 
@@ -1015,7 +1015,7 @@ func (c *Client) setupDrivers() error {
 	whitelistEnabled := len(whitelist) > 0
 	blacklist := c.config.ReadStringListToMap("driver.blacklist")
 
-	var availDrivers []string
+	var detectedDrivers []string
 	var skippedDrivers []string
 	driverCtx := driver.NewDriverContext("", "", c.config, c.config.Node, c.logger, nil)
 	for name := range driver.BuiltinDrivers {
@@ -1036,9 +1036,9 @@ func (c *Client) setupDrivers() error {
 			return err
 		}
 
+		c.configLock.Lock()
 		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
 		var response cstructs.FingerprintResponse
-		c.configLock.Lock()
 		err = d.Fingerprint(request, &response)
 		c.configLock.Unlock()
 		if err != nil {
@@ -1047,7 +1047,7 @@ func (c *Client) setupDrivers() error {
 
 		// log the fingerprinters which have been applied
 		if response.Detected {
-			availDrivers = append(availDrivers, name)
+			detectedDrivers = append(detectedDrivers, name)
 		}
 
 		c.updateNodeFromFingerprint(&response)
@@ -1059,7 +1059,7 @@ func (c *Client) setupDrivers() error {
 
 	}
 
-	c.logger.Printf("[DEBUG] client: available drivers %v", availDrivers)
+	c.logger.Printf("[DEBUG] client: available drivers %v", detectedDrivers)
 	if len(skippedDrivers) > 0 {
 		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skippedDrivers)
 	}

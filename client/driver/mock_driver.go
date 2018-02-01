@@ -21,7 +21,6 @@ import (
 )
 
 const (
-
 	// ShutdownPeriodicAfter is a config key that can be used during tests to
 	// "stop" a previously-functioning driver, allowing for testing of periodic
 	// drivers and fingerprinters
