@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -35,6 +36,53 @@ type ClientStatsRequest struct {
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
 	HostStats *stats.HostStats
+	structs.QueryMeta
+}
+
+// AllocFileInfo holds information about a file inside the AllocDir
+type AllocFileInfo struct {
+	Name     string
+	IsDir    bool
+	Size     int64
+	FileMode string
+	ModTime  time.Time
+}
+
+// FsListRequest is used to list an allocation's directory.
+type FsListRequest struct {
+	// AllocID is the allocation to list from
+	AllocID string
+
+	// Path is the path to list
+	Path string
+
+	structs.QueryOptions
+}
+
+// FsListResponse is used to return the listings of an allocation's directory.
+type FsListResponse struct {
+	// Files are the result of listing a directory.
+	Files []*AllocFileInfo
+
+	structs.QueryMeta
+}
+
+// FsStatRequest is used to stat a file
+type FsStatRequest struct {
+	// AllocID is the allocation to stat the file in
+	AllocID string
+
+	// Path is the path to list
+	Path string
+
+	structs.QueryOptions
+}
+
+// FsStatResponse is used to return the stat results of a file
+type FsStatResponse struct {
+	// Info is the result of stating a file
+	Info *AllocFileInfo
+
 	structs.QueryMeta
 }
 

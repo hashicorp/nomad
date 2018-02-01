@@ -193,7 +193,7 @@ func (c *Client) setupClientRpc() {
 	c.endpoints.FileSystem = &FileSystem{c}
 
 	// Initialize the streaming RPC handlers.
-	c.endpoints.FileSystem.Register()
+	c.endpoints.FileSystem.register()
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
@@ -327,6 +327,7 @@ func (c *Client) handleStreamingConn(conn net.Conn) {
 func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	// Register the endpoints
 	server.Register(c.endpoints.ClientStats)
+	server.Register(c.endpoints.FileSystem)
 }
 
 // resolveServer given a sever's address as a string, return it's resolved

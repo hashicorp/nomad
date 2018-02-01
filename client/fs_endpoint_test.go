@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -21,6 +20,256 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
+
+func TestFS_Stat_NoAlloc(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a client
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Make the request with bad allocation id
+	req := &cstructs.FsStatRequest{
+		AllocID:      uuid.Generate(),
+		Path:         "foo",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var resp cstructs.FsStatResponse
+	err := c.ClientRPC("FileSystem.Stat", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "unknown")
+}
+
+func TestFS_Stat(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a client
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Create and add an alloc
+	a := mock.Alloc()
+	c.addAlloc(a, "")
+
+	// Wait for the client to start it
+	testutil.WaitForResult(func() (bool, error) {
+		ar, ok := c.allocs[a.ID]
+		if !ok {
+			return false, fmt.Errorf("alloc doesn't exist")
+		}
+
+		return len(ar.tasks) != 0, fmt.Errorf("tasks not running")
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	// Make the request with bad allocation id
+	req := &cstructs.FsStatRequest{
+		AllocID:      a.ID,
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var resp cstructs.FsStatResponse
+	err := c.ClientRPC("FileSystem.Stat", req, &resp)
+	require.Nil(err)
+	require.NotNil(resp.Info)
+	require.True(resp.Info.IsDir)
+}
+
+func TestFS_Stat_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s, root := nomad.TestACLServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	client := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer client.Shutdown()
+
+	// Create a bad token
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
+		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	cases := []struct {
+		Name          string
+		Token         string
+		ExpectedError string
+	}{
+		{
+			Name:          "bad token",
+			Token:         tokenBad.SecretID,
+			ExpectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:          "good token",
+			Token:         tokenGood.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+		{
+			Name:          "root token",
+			Token:         root.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			// Make the request with bad allocation id
+			req := &cstructs.FsStatRequest{
+				AllocID: uuid.Generate(),
+				Path:    "/",
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: c.Token,
+					Namespace: structs.DefaultNamespace,
+				},
+			}
+
+			var resp cstructs.FsStatResponse
+			err := client.ClientRPC("FileSystem.Stat", req, &resp)
+			require.NotNil(err)
+			require.Contains(err.Error(), c.ExpectedError)
+		})
+	}
+}
+
+func TestFS_List_NoAlloc(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a client
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Make the request with bad allocation id
+	req := &cstructs.FsListRequest{
+		AllocID:      uuid.Generate(),
+		Path:         "foo",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var resp cstructs.FsListResponse
+	err := c.ClientRPC("FileSystem.List", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "unknown")
+}
+
+func TestFS_List(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a client
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Create and add an alloc
+	a := mock.Alloc()
+	c.addAlloc(a, "")
+
+	// Wait for the client to start it
+	testutil.WaitForResult(func() (bool, error) {
+		ar, ok := c.allocs[a.ID]
+		if !ok {
+			return false, fmt.Errorf("alloc doesn't exist")
+		}
+
+		return len(ar.tasks) != 0, fmt.Errorf("tasks not running")
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	// Make the request
+	req := &cstructs.FsListRequest{
+		AllocID:      a.ID,
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var resp cstructs.FsListResponse
+	err := c.ClientRPC("FileSystem.List", req, &resp)
+	require.Nil(err)
+	require.NotEmpty(resp.Files)
+	require.True(resp.Files[0].IsDir)
+}
+
+func TestFS_List_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s, root := nomad.TestACLServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	client := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer client.Shutdown()
+
+	// Create a bad token
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
+		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	cases := []struct {
+		Name          string
+		Token         string
+		ExpectedError string
+	}{
+		{
+			Name:          "bad token",
+			Token:         tokenBad.SecretID,
+			ExpectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:          "good token",
+			Token:         tokenGood.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+		{
+			Name:          "root token",
+			Token:         root.SecretID,
+			ExpectedError: "unknown allocation",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			// Make the request with bad allocation id
+			req := &cstructs.FsListRequest{
+				AllocID: uuid.Generate(),
+				Path:    "/",
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: c.Token,
+					Namespace: structs.DefaultNamespace,
+				},
+			}
+
+			var resp cstructs.FsListResponse
+			err := client.ClientRPC("FileSystem.List", req, &resp)
+			require.NotNil(err)
+			require.Contains(err.Error(), c.ExpectedError)
+		})
+	}
+}
 
 func TestFS_Logs_NoAlloc(t *testing.T) {
 	t.Parallel()
@@ -506,7 +755,7 @@ OUTER:
 
 func TestFS_findClosest(t *testing.T) {
 	task := "foo"
-	entries := []*allocdir.AllocFileInfo{
+	entries := []*cstructs.AllocFileInfo{
 		{
 			Name: "foo.stdout.0",
 			Size: 100,
@@ -538,7 +787,7 @@ func TestFS_findClosest(t *testing.T) {
 	}
 
 	cases := []struct {
-		Entries        []*allocdir.AllocFileInfo
+		Entries        []*cstructs.AllocFileInfo
 		DesiredIdx     int64
 		DesiredOffset  int64
 		Task           string
