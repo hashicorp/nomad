@@ -30,8 +30,8 @@ at the job level, the configuration will apply to all groups within the job. If 
 `reschedule` stanzas are specified, they are merged with the group stanza taking the
 highest precedence and then the job.
 
-Nomad will attempt to schedule the task on another node. It uses a penalty score to prefer nodes
-on which the task has not been previously tried on.
+Nomad will attempt to schedule the task on another node if any of its allocation statuses become
+"failed". It uses a penalty score to prefer nodes on which the task has not been previously run on.
 
 ```hcl
 job "docs" {
@@ -81,3 +81,9 @@ defaults by job type:
       attempts = 2
     }
     ```
+
+### Rescheduling during deployments
+
+The [update stanza](docs/job-specification/update.html) controls rolling updates and canary deployments. A task
+group's reschedule stanza does not take affect during a deployment. For example, if a new version of the job
+is rolled out and the deployment failed due to a failing allocation, Nomad will not reschedule it.
