@@ -1,9 +1,12 @@
 package nomad
 
 import (
+	"context"
 	"log"
+	"sync"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -17,6 +20,7 @@ type drainingNode struct {
 func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	state := s.fsm.State()
 
+	//TODO build deadlineTimer and drainingAllocs together to initialize state efficiently
 	// Determine first deadline
 	deadlineTimer, drainingNodes := newDeadlineTimer(s.logger, state)
 
@@ -24,16 +28,18 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	drainingAllocs := gatherDrainingAllocs(s.logger, state, drainingNodes)
 
 	//TODO need a chan to watch for alloc & job updates on if len(drainingallocs)>0
-	_ = drainingAllocs
 	var nodeUpdateCh chan struct{}
-	var allocUpdateCh chan struct{}
+
+	prevAllocs := newPrevAllocWatcher(s.logger, stopCh, drainingAllocs, state)
+	go prevAllocs.run()
 
 	for {
 		select {
 		case <-nodeUpdateCh:
 			// update draining nodes
-		case <-allocUpdateCh:
-			// update draining allocs
+		case drainedID := <-prevAllocs.allocsCh:
+			// drained alloc has been replaced
+			//TODO update draining allocs
 		case <-deadlineTimer.C:
 			// deadline for a node was reached
 		}
@@ -41,7 +47,8 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		now := time.Now()
 
 		// collect all draining nodes and whether or not their deadline is reached
-		drainingNodes = map[string]drainingNode{}
+		//TODO don't shadow previous drainingNodes
+		drainingNodes := map[string]drainingNode{}
 		nodes, err := state.Nodes(nil)
 		if err != nil {
 			//FIXME
@@ -109,7 +116,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 
 			// See if this alloc is on a node which has met its drain deadline
-			if drainingNodes[alloc.NodeID] {
+			if _, ok := drainingNodes[alloc.NodeID]; ok {
 				// No need to track draining allocs for nodes
 				// who have reached their deadline as all
 				// allocs on that node will be stopped
@@ -125,16 +132,122 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	}
 }
 
+type prevAllocWatcher struct {
+	// watchList is a map of alloc ids to look for in PreviousAllocation
+	// fields of new allocs
+	watchList   map[string]struct{}
+	watchListMu sync.Mutex
+
+	// stopCh signals shutdown
+	stopCh <-chan struct{}
+
+	state *state.StateStore
+
+	// allocsCh is sent Allocation.IDs as they're removed from the watchList
+	allocsCh chan string
+
+	logger *log.Logger
+}
+
+func newPrevAllocWatcher(logger *log.Logger, stopCh <-chan struct{}, drainingAllocs map[string]struct{},
+	state *state.StateStore) *prevAllocWatcher {
+
+	return &prevAllocWatcher{
+		watchList: drainingAllocs,
+		stopCh:    stopCh,
+		allocsCh:  make(chan string, 8), //FIXME 8? really? what should this be
+		logger:    logger,
+	}
+}
+
+func (p *prevAllocWatcher) run() {
+	// convert stopCh to a Context for BlockingQuery
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-p.stopCh:
+			cancel()
+		case <-ctx.Done():
+			// already cancelled
+		}
+	}()
+
+	// index to watch from
+	var resp interface{}
+	var index uint64 = 1
+	var err error
+
+	for {
+		resp, index, err = p.state.BlockingQuery(p.queryPrevAlloc, index, ctx)
+		if err != nil {
+			p.logger.Printf("[ERR] nomad.drain: error blocking on alloc updates: %v", err)
+			return
+		}
+
+		allocIDs := resp.([]string)
+		for _, id := range allocIDs {
+			select {
+			case p.allocsCh <- id:
+			case <-p.stopCh:
+				return
+			}
+		}
+	}
+}
+
+func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+	allocs, err := state.Allocs(ws)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	index, err := state.Index("allocs")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	now := time.Now()
+
+	p.watchListMu.Lock()
+	defer p.watchListMu.Unlock()
+
+	resp := make([]string, 0, len(p.watchList))
+
+	//FIXME needs to use result iterator
+	for _, alloc := range allocs.([]*structs.Allocation) {
+		deadline, ok := p.watchList[alloc.PreviousAllocation]
+		if !ok {
+			// PreviousAllocation not in watchList, skip it
+			continue
+		}
+
+		// If the migration health is set on the replacement alloc we can stop watching the drained alloc
+		if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
+			delete(p.watchList, alloc.PreviousAllocation)
+			resp = append(resp, alloc.PreviousAllocation)
+			continue
+		}
+
+		//TODO should I implement this?
+		// As a fail-safe from blocking drains indefinitely stop
+		// watching a drained alloc if a replacement has existed for
+		// longer than the drained alloc's deadline
+	}
+
+	return resp, index, nil
+}
+
 // newDeadlineTimer returns a Timer that will tick when the next Node Drain
 // Deadline is reached.
 //TODO kinda ugly to return both a timer and a map from this but it saves an extra iteration over nodes
-func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (*nodeDeadline, map[string]struct{}) {
-	drainingNodes := make(map[string]struct{})
+func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (time.Time, map[string]struct{}) {
+	drainingNodes := make(map[string]drainingNode)
 
 	iter, err := state.Nodes(nil)
 	if err != nil {
 		logger.Printf("[ERR] nomad.drain: error iterating nodes: %v", err)
-		return deadlineTimer, drainingNodes
+		return time.NewTimer(0), drainingNodes
 	}
 
 	var nextDeadline time.Time
@@ -150,9 +263,10 @@ func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (*nodeDeadlin
 			continue
 		}
 
+		deadline := node.DrainStrategy.DeadlineTime()
+
 		drainingNodes[node.ID] = struct{}{}
 
-		deadline := node.DrainStrategy.DeadlineTime()
 		if deadline.IsZero() {
 			continue
 		}
@@ -163,9 +277,10 @@ func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (*nodeDeadlin
 	}
 
 	if nextDeadline.IsZero() {
+		//FIXME returning nil is going to cause a panic, return a time.Time
 		return nil, drainingNodes
 	}
-	return timer.After(nextDeadline.Sub(timer.Now())), drainingNodes
+	return time.After(nextDeadline.Sub(time.Now())), drainingNodes
 }
 
 func gatherDrainingAllocs(logger *log.Logger, state *state.StateStore, drainingNodes map[string]struct{}) map[string]struct{} {
