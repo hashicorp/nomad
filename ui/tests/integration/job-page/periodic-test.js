@@ -1,11 +1,8 @@
-import { run } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { test, moduleForComponent } from 'ember-qunit';
-import { click, find, findAll } from 'ember-native-dom-helpers';
+import { click, findAll } from 'ember-native-dom-helpers';
 import wait from 'ember-test-helpers/wait';
 import hbs from 'htmlbars-inline-precompile';
-import sinon from 'sinon';
-import { clickTrigger } from 'ember-power-select/test-support/helpers';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 moduleForComponent('job-page/periodic', 'Integration | Component | job-page/periodic', {

@@ -1,5 +1,5 @@
 import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
-import { skip } from 'qunit';
+import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 
@@ -32,34 +32,7 @@ moduleForJob('Acceptance | job detail (service)', () => server.create('job', { t
 
 let job;
 
-skip('breadcrumbs includes job name and link back to the jobs list', function(assert) {
-  assert.equal(
-    find('[data-test-breadcrumb="Jobs"]').textContent,
-    'Jobs',
-    'First breadcrumb says jobs'
-  );
-  assert.equal(
-    find(`[data-test-breadcrumb="${job.name}"]`).textContent,
-    job.name,
-    'Second breadcrumb says the job name'
-  );
-
-  click(find('[data-test-breadcrumb="Jobs"]'));
-  andThen(() => {
-    assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
-  });
-});
-
-skip('the job detail page should contain basic information about the job', function(assert) {
-  assert.ok(find('[data-test-job-status]').textContent.includes(job.status), 'Status');
-  assert.ok(find('[data-test-job-stat="type"]').textContent.includes(job.type), 'Type');
-  assert.ok(find('[data-test-job-stat="priority"]').textContent.includes(job.priority), 'Priority');
-  assert.notOk(find('[data-test-job-stat="namespace"]'), 'Namespace is not included');
-});
-
-skip('when the job is not found, an error message is shown, but the URL persists', function(
-  assert
-) {
+test('when the job is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/jobs/not-a-real-job');
 
   andThen(() => {
@@ -82,14 +55,12 @@ moduleForAcceptance('Acceptance | job detail (with namespaces)', {
   beforeEach() {
     server.createList('namespace', 2);
     server.create('node');
-    job = server.create('job', { namespaceId: server.db.namespaces[1].name });
+    job = server.create('job', { type: 'service', namespaceId: server.db.namespaces[1].name });
     server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
   },
 });
 
-skip('when there are namespaces, the job detail page states the namespace for the job', function(
-  assert
-) {
+test('when there are namespaces, the job detail page states the namespace for the job', function(assert) {
   const namespace = server.db.namespaces.find(job.namespaceId);
   visit(`/jobs/${job.id}?namespace=${namespace.name}`);
 
@@ -101,9 +72,7 @@ skip('when there are namespaces, the job detail page states the namespace for th
   });
 });
 
-skip('when switching namespaces, the app redirects to /jobs with the new namespace', function(
-  assert
-) {
+test('when switching namespaces, the app redirects to /jobs with the new namespace', function(assert) {
   const namespace = server.db.namespaces.find(job.namespaceId);
   const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
   const label = otherNamespace === 'default' ? 'Default Namespace' : otherNamespace;
