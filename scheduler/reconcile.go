@@ -159,8 +159,17 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Detect if the deployment is paused
 	if a.deployment != nil {
+		// Detect if any allocs associated with this deploy have failed
+		failedAllocsInDeploy := false
+		for _, as := range m {
+			for _, alloc := range as {
+				if alloc.DeploymentID == a.deployment.ID && alloc.ClientStatus == structs.AllocClientStatusFailed {
+					failedAllocsInDeploy = true
+				}
+			}
+		}
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
-		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
+		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed || failedAllocsInDeploy
 	}
 
 	// Reconcile each group

@@ -2946,6 +2946,69 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
 }
 
+// Tests that deployments with failed allocs don't result in placements
+func TestDeployment_FailedAllocs_NoReschedule(t *testing.T) {
+	h := NewHarness(t)
+	require := require.New(t)
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and a reschedule policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 1,
+		Interval: 15 * time.Minute,
+	}
+	jobIndex := h.NextIndex()
+	require.Nil(h.State.UpsertJob(jobIndex, job))
+
+	deployment := mock.Deployment()
+	deployment.JobID = job.ID
+	deployment.JobCreateIndex = jobIndex
+	deployment.JobVersion = job.Version
+
+	require.Nil(h.State.UpsertDeployment(h.NextIndex(), deployment))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DeploymentID = deployment.ID
+		allocs = append(allocs, alloc)
+	}
+	// Mark one of the allocations as failed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	require.Nil(h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.Nil(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	require.Nil(h.Process(NewServiceScheduler, eval))
+
+	// Verify no plan created
+	require.Equal(0, len(h.Plans))
+
+}
+
 func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 	h := NewHarness(t)
 
