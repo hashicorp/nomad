@@ -15,6 +15,10 @@ moduleForComponent('job-page/parts/summary', 'Integration | Component | job-page
     this.server = startMirage();
     this.server.create('namespace');
   },
+  afterEach() {
+    this.server.shutdown();
+    window.localStorage.clear();
+  },
 });
 
 test('jobs with children use the children diagram', function(assert) {

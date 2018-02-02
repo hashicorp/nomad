@@ -20,7 +20,6 @@ moduleForComponent(
       this.server = startMirage();
       this.server.create('namespace');
     },
-
     afterEach() {
       this.server.shutdown();
     },

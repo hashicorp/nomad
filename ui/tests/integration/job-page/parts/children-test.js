@@ -16,6 +16,10 @@ moduleForComponent('job-page/parts/children', 'Integration | Component | job-pag
     this.server = startMirage();
     this.server.create('namespace');
   },
+  afterEach() {
+    this.server.shutdown();
+    window.localStorage.clear();
+  },
 });
 
 const props = (job, options = {}) =>
