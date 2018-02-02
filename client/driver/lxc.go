@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -454,9 +455,9 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 		return nil
 	}
 
-	vgName := baseLvName[:strings.Index(baseLvName, "/")]
-	if len(vgName) == 0 {
-		return nil, fmt.Errorf("could not parse volume group name from '%v':, baseLvName"), removeLVCleanup
+	vgName, err := extractVgName(baseLvName)
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse LVM Volume Group name from '%s'", baseLvName), noCleanup
 	}
 	tr := func(s string) string {
 		return strings.Replace(s, "-", "--", -1)
@@ -542,6 +543,34 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 
 	return &StartResponse{Handle: &h}, nil, noCleanup
 
+}
+
+func extractVgName(baseLvName string) (string, error) {
+	vgName := ""
+	devMapperRE := regexp.MustCompile("/dev/mapper/([a-zA-Z0-9_+.-]*[^-])-{1}[^-]")
+	if !strings.HasPrefix(baseLvName, "/") {
+		// vgname/lvname
+		c := strings.Split(baseLvName, "/")
+		if len(c) != 2 {
+			return "", fmt.Errorf("unexpected number of components in baseLvName '%s': %d", baseLvName, len(c))
+		}
+		vgName = c[0]
+	} else {
+		// /dev/mapper/vg--name-lv--name
+		matches := devMapperRE.FindAllStringSubmatch(baseLvName, 1)
+		if matches != nil {
+			vgName = matches[0][1]
+		} else {
+			if strings.HasPrefix(baseLvName, "/dev/") {
+				// /dev/vg/lv
+				vgName = baseLvName[len("/dev/"):strings.LastIndex(baseLvName, "/")]
+			}
+		}
+	}
+	if len(vgName) == 0 {
+		return "", fmt.Errorf("could not parse volume group name from '%v':, baseLvName")
+	}
+	return vgName, nil
 }
 
 func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container, commonConfig *LxcCommonDriverConfig) error {
