@@ -1059,7 +1059,7 @@ func (c *Client) setupDrivers() error {
 
 	}
 
-	c.logger.Printf("[DEBUG] client: available drivers %v", detectedDrivers)
+	c.logger.Printf("[DEBUG] client: detected drivers %v", detectedDrivers)
 	if len(skippedDrivers) > 0 {
 		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skippedDrivers)
 	}
