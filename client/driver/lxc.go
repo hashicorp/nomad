@@ -218,14 +218,18 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 		if err := execFd.Validate(); err != nil {
 			return err
 		}
-		volumes, _ = execFd.GetOk("volumes")
+		volumes, ok = execFd.GetOk("volumes")
 	} else {
 		if err := fd.Validate(); err != nil {
 			return err
 		}
-		volumes, _ = fd.GetOk("volumes")
+		volumes, ok = fd.GetOk("volumes")
 	}
-	return d.validateVolumesConfig(volumes.([]interface{}))
+	if ok {
+		return d.validateVolumesConfig(volumes.([]interface{}))
+	} else {
+		return nil
+	}
 }
 
 func (d *LxcDriver) validateVolumesConfig(volumes []interface{}) error {
