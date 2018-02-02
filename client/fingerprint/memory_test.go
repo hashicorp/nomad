@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -12,21 +13,20 @@ func TestMemoryFingerprint(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	ok, err := f.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !ok {
-		t.Fatalf("should apply")
-	}
 
-	assertNodeAttributeContains(t, node, "memory.totalbytes")
+	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
 
-	if node.Resources == nil {
-		t.Fatalf("Node Resources was nil")
+	if response.Resources == nil {
+		t.Fatalf("response resources should not be nil")
 	}
-	if node.Resources.MemoryMB == 0 {
-		t.Errorf("Expected node.Resources.MemoryMB to be non-zero")
+	if response.Resources.MemoryMB == 0 {
+		t.Fatalf("Expected node.Resources.MemoryMB to be non-zero")
 	}
-
 }

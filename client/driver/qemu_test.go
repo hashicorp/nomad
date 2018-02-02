@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -34,17 +35,28 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
-	if node.Attributes[qemuDriverAttr] == "" {
+
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("attributes should not be nil")
+	}
+
+	if attributes[qemuDriverAttr] == "" {
 		t.Fatalf("Missing Qemu driver")
 	}
-	if node.Attributes[qemuDriverVersionAttr] == "" {
+
+	if attributes[qemuDriverVersionAttr] == "" {
 		t.Fatalf("Missing Qemu driver version")
 	}
 }
@@ -164,12 +176,15 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	defer ctx.AllocDir.Destroy()
 	d := NewQemuDriver(ctx.DriverCtx)
 
-	apply, err := d.Fingerprint(&config.Config{}, ctx.DriverCtx.node)
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: ctx.DriverCtx.node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+
+	for name, value := range response.Attributes {
+		ctx.DriverCtx.node.Attributes[name] = value
 	}
 
 	dst := ctx.ExecCtx.TaskDir.Dir

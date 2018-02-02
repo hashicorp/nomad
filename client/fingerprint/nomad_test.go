@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 )
@@ -21,17 +22,27 @@ func TestNomadFingerprint(t *testing.T) {
 			Version:  v,
 		},
 	}
-	ok, err := f.Fingerprint(c, node)
+
+	request := &cstructs.FingerprintRequest{Config: c, Node: node}
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !ok {
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	if len(response.Attributes) == 0 {
 		t.Fatalf("should apply")
 	}
-	if node.Attributes["nomad.version"] != v {
+
+	if response.Attributes["nomad.version"] != v {
 		t.Fatalf("incorrect version")
 	}
-	if node.Attributes["nomad.revision"] != r {
+
+	if response.Attributes["nomad.revision"] != r {
 		t.Fatalf("incorrect revision")
 	}
 }

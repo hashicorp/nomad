@@ -11,6 +11,8 @@ IMPROVEMENTS:
  * cli: Use ISO_8601 time format for cli output
    [[GH-3814](https://github.com/hashicorp/nomad/pull/3814)]
  * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
+ * client: Refactor client fingerprint methods to a request/response format
+   [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
  * discovery: Allow `check_restart` to be specified in the `service` stanza.
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
  * driver/docker; Support overriding image entrypoint [[GH-3788](https://github.com/hashicorp/nomad/issues/3788)]

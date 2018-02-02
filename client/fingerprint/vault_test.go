@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -17,19 +18,22 @@ func TestVaultFingerprint(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	config := config.DefaultConfig()
-	config.VaultConfig = tv.Config
+	conf := config.DefaultConfig()
+	conf.VaultConfig = tv.Config
 
-	ok, err := fp.Fingerprint(config, node)
+	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
-	if !ok {
-		t.Fatalf("Failed to apply node attributes")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
 
-	assertNodeAttributeContains(t, node, "vault.accessible")
-	assertNodeAttributeContains(t, node, "vault.version")
-	assertNodeAttributeContains(t, node, "vault.cluster_id")
-	assertNodeAttributeContains(t, node, "vault.cluster_name")
+	assertNodeAttributeContains(t, response.Attributes, "vault.accessible")
+	assertNodeAttributeContains(t, response.Attributes, "vault.version")
+	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
+	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
 }
