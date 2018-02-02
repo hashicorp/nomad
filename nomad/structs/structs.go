@@ -2737,6 +2737,19 @@ type MigrateStrategy struct {
 	HealthyDeadline time.Duration
 }
 
+// DefaultMigrateStrategy is used for backwards compat with pre-0.8 Allocations
+// that lack an update strategy.
+//
+// This function should match its counterpart in api/tasks.go
+func DefaultMigrateStrategy() *MigrateStrategy {
+	return &MigrateStrategy{
+		MaxParallel:     1,
+		HealthCheck:     MigrateStrategyHealthChecks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 5 * time.Minute,
+	}
+}
+
 func (m *MigrateStrategy) Validate() error {
 	var mErr multierror.Error
 
