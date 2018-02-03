@@ -132,8 +132,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts: helper.IntToPtr(2),
@@ -198,8 +198,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts: helper.IntToPtr(2),
@@ -546,8 +546,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts: helper.IntToPtr(2),
@@ -582,8 +582,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts: helper.IntToPtr(2),
