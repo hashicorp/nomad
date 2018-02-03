@@ -20,17 +20,17 @@ type drainingNode struct {
 func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	state := s.fsm.State()
 
-	//TODO build deadlineTimer and drainingAllocs together to initialize state efficiently
-	// Determine first deadline
-	deadlineTimer, drainingNodes := newDeadlineTimer(s.logger, state)
+	nextDeadline, nodesIndex, drainingAllocs, allocsIndex := initDrainer(s.logger, state)
 
-	// Determine if there are any drained allocs pending replacement
-	drainingAllocs := gatherDrainingAllocs(s.logger, state, drainingNodes)
+	//TODO create node deadline timer
+	_ = nextDeadline
+	var deadlineTimer time.Timer
 
-	//TODO need a chan to watch for alloc & job updates on if len(drainingallocs)>0
+	//TODO create node watcher
+	_ = nodesIndex
 	var nodeUpdateCh chan struct{}
 
-	prevAllocs := newPrevAllocWatcher(s.logger, stopCh, drainingAllocs, state)
+	prevAllocs := newPrevAllocWatcher(s.logger, stopCh, drainingAllocs, allocsIndex, state)
 	go prevAllocs.run()
 
 	for {
@@ -88,6 +88,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 			alloc := raw.(*structs.Allocation)
 
+			//FIXME
 			// If running remove the alloc this one replaced from the drained list
 			if alloc.ClientStatus == structs.AllocClientStatusRunning {
 				delete(drainingAllocs, alloc.PreviousAllocation)
@@ -135,7 +136,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 type prevAllocWatcher struct {
 	// watchList is a map of alloc ids to look for in PreviousAllocation
 	// fields of new allocs
-	watchList   map[string]struct{}
+	watchList   map[string]time.Time
 	watchListMu sync.Mutex
 
 	// stopCh signals shutdown
@@ -143,20 +144,25 @@ type prevAllocWatcher struct {
 
 	state *state.StateStore
 
+	// allocIndex to start watching from
+	allocIndex uint64
+
 	// allocsCh is sent Allocation.IDs as they're removed from the watchList
 	allocsCh chan string
 
 	logger *log.Logger
 }
 
-func newPrevAllocWatcher(logger *log.Logger, stopCh <-chan struct{}, drainingAllocs map[string]struct{},
+func newPrevAllocWatcher(logger *log.Logger, stopCh <-chan struct{}, drainingAllocs map[string]time.Time, allocIndex uint64,
 	state *state.StateStore) *prevAllocWatcher {
 
 	return &prevAllocWatcher{
-		watchList: drainingAllocs,
-		stopCh:    stopCh,
-		allocsCh:  make(chan string, 8), //FIXME 8? really? what should this be
-		logger:    logger,
+		watchList:  drainingAllocs,
+		state:      state,
+		stopCh:     stopCh,
+		allocIndex: allocIndex,
+		allocsCh:   make(chan string, 8), //FIXME 8? really? what should this be
+		logger:     logger,
 	}
 }
 
@@ -175,11 +181,11 @@ func (p *prevAllocWatcher) run() {
 
 	// index to watch from
 	var resp interface{}
-	var index uint64 = 1
 	var err error
 
 	for {
-		resp, index, err = p.state.BlockingQuery(p.queryPrevAlloc, index, ctx)
+		//FIXME it seems possible for this to return a nil error and a 0 index, what to do in that case?
+		resp, p.allocIndex, err = p.state.BlockingQuery(p.queryPrevAlloc, p.allocIndex, ctx)
 		if err != nil {
 			p.logger.Printf("[ERR] nomad.drain: error blocking on alloc updates: %v", err)
 			return
@@ -238,17 +244,22 @@ func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateS
 	return resp, index, nil
 }
 
-// newDeadlineTimer returns a Timer that will tick when the next Node Drain
-// Deadline is reached.
-//TODO kinda ugly to return both a timer and a map from this but it saves an extra iteration over nodes
-func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (time.Time, map[string]struct{}) {
-	drainingNodes := make(map[string]drainingNode)
+func initDrainer(logger *log.Logger, state *state.StateStore) (time.Time, uint64, map[string]time.Time, uint64) {
+	// StateStore.Snapshot never returns an error so don't bother checking it
+	snapshot, _ := state.Snapshot()
+	now := time.Now()
 
-	iter, err := state.Nodes(nil)
+	iter, err := snapshot.Nodes(nil)
 	if err != nil {
 		logger.Printf("[ERR] nomad.drain: error iterating nodes: %v", err)
-		return time.NewTimer(0), drainingNodes
+		panic(err) //FIXME
 	}
+
+	// node.ID -> drain deadline
+	nodeDeadlines := map[string]time.Time{}
+
+	// List of draining allocs by namespace and job: namespace -> job.ID -> alloc.ID -> *Allocation
+	allocsByNS := map[string]map[string]map[string]*structs.Allocation{}
 
 	var nextDeadline time.Time
 	for {
@@ -265,86 +276,109 @@ func newDeadlineTimer(logger *log.Logger, state *state.StateStore) (time.Time, m
 
 		deadline := node.DrainStrategy.DeadlineTime()
 
-		drainingNodes[node.ID] = struct{}{}
+		nodeDeadlines[node.ID] = deadline
 
-		if deadline.IsZero() {
+		if deadline.Before(nextDeadline) {
+			nextDeadline = deadline
+		}
+
+		if deadline.Before(now) {
+			// No point in tracking draining allocs as the deadline has been reached
 			continue
 		}
 
-		if nextDeadline.IsZero() || deadline.Before(nextDeadline) {
-			nextDeadline = deadline
-		}
-	}
-
-	if nextDeadline.IsZero() {
-		//FIXME returning nil is going to cause a panic, return a time.Time
-		return nil, drainingNodes
-	}
-	return time.After(nextDeadline.Sub(time.Now())), drainingNodes
-}
-
-func gatherDrainingAllocs(logger *log.Logger, state *state.StateStore, drainingNodes map[string]struct{}) map[string]struct{} {
-	if len(drainingNodes) == 0 {
-		// There can't be any draining allocs if there are no draining nodes!
-		return nil
-	}
-
-	drainingAllocs := map[string]struct{}{}
-
-	// Collect allocs on draining nodes whose jobs are not stopped
-	for nodeID := range drainingNodes {
-		allocs, err := state.AllocsByNode(nil, nodeID)
+		allocs, err := snapshot.AllocsByNode(nil, node.ID)
 		if err != nil {
 			logger.Printf("[ERR] nomad.drain: error iterating allocs for node %q: %v", nodeID, err)
-			return nil
+			panic(err) //FIXME
 		}
 
 		for _, alloc := range allocs {
 			if alloc.DesiredStatus == structs.AllocDesiredStatusStop {
-				drainingAllocs[alloc.ID] = struct{}{}
+				if allocsByJob, ok := allocsByNS[alloc.Namespace]; ok {
+					if allocs, ok := allocsByJob[alloc.JobID]; ok {
+						allocs[alloc.ID] = alloc
+					} else {
+						// First alloc for job
+						allocsByJob[alloc.JobID] = map[string]struct{}{alloc.ID: alloc}
+					}
+				} else {
+					// First alloc in namespace
+					allocsByNS[alloc.Namespace] = map[string]map[string]struct{}{
+						alloc.JobID: map[string]struct{}{alloc.ID: alloc},
+					}
+				}
 			}
 		}
 	}
 
-	// Remove allocs from draining list if they have a replacement alloc running
-	iter, err := state.Allocs(nil)
-	if err != nil {
-		logger.Printf("[ERR] nomad.drain: error iterating allocs: %v", err)
-		//TODO is it safe to return a non-nil map here?!
-		return drainingAllocs
+	// alloc.ID -> LastModified+MigrateStrategy.HealthyDeadline
+	drainingAllocs := map[string]time.Time{}
+
+	for ns, allocsByJobs := range allocsByNS {
+		for jobID, allocs := range allocsByJobs {
+			job, err := snapshot.JobByID(nil, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				logger.Printf("[ERR] nomad.drain: error getting job %q for alloc %q: %v", alloc.JobID, alloc.ID, err)
+				//FIXME
+				panic(err)
+			}
+
+			// Don't track drains for stopped or gc'd jobs
+			if job == nil || job.Status == structs.JobStatusDead {
+				continue
+			}
+
+			jobAllocs, err := snapshot.AllocsByJob(nil, alloc.Namespace, alloc.JobID, true)
+			if err != nil {
+				//FIXME
+				panic(err)
+			}
+
+			// Remove drained allocs for replacement allocs
+			for _, alloc := range jobAllocs {
+				if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
+					delete(allocs, alloc.PreviousAllocation)
+				}
+			}
+
+			// Any remaining allocs need to be tracked
+			for allocID, alloc := range allocs {
+				tg := job.LookupTaskGroup(alloc.TaskGroup)
+				if tg == nil {
+					logger.Printf("[DEBUG] nomad.drain: unable to find task group %q for alloc %q", alloc.TaskGroup, allocID)
+					continue
+				}
+
+				if tg.MigrateStrategy == nil {
+					// No migrate strategy so don't track
+					continue
+				}
+
+				// alloc.ModifyTime + HealthyDeadline is >= the
+				// healthy deadline for the allocation, so we
+				// can stop tracking it at that time.
+				deadline := time.Unix(0, alloc.ModifyTime).Add(tg.MigrateStrategy.HealthyDeadline)
+
+				if deadline.After(now) {
+					// deadline already reached; don't bother tracking
+					continue
+				}
+
+				// Draining allocation hasn't been replaced or
+				// reached its deadline; track it!
+				drainingAllocs[allocID] = deadline
+			}
+		}
 	}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		alloc := raw.(*structs.Allocation)
-
-		job, err := state.JobByID(nil, alloc.Namespace, alloc.JobID)
-		if err != nil {
-			logger.Printf("[ERR] nomad.drain: error getting job %q for alloc %q: %v", alloc.JobID, alloc.ID, err)
-			// Errors here mean it's unlikely any further lookups will work
-			return drainingAllocs
-		}
-
-		if job.Stopped() {
-			// If this is a replacement allocation remove any
-			// previous allocation from the draining allocations
-			// list as if the draining allocation is terminal it
-			// may not have an updated Job.
-			delete(drainingAllocs, alloc.PreviousAllocation)
-
-			// Nothing else to do for an alloc for a stopped Job
-			continue
-		}
-
-		if alloc.ClientStatus == structs.AllocClientStatusRunning {
-			// Remove the alloc this one replaced from the drained list
-			delete(drainingAllocs, alloc.PreviousAllocation)
-		}
+	nodesIndex, _ := snapshot.Index("nodes")
+	if nodeIndex == 0 {
+		//FIXME what to do here?
 	}
-
-	return drainingAllocs
+	allocsIndex, _ := snapshot.Index("allocs")
+	if allocIndex == 0 {
+		//FIXME what to do here?
+	}
+	return nextDeadline, nodesIndex, drainingAllocs, allocsIndex
 }
