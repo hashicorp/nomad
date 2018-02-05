@@ -30,7 +30,6 @@ var (
 	pathNotPresentErr    = fmt.Errorf("must provide a file path")
 	taskNotPresentErr    = fmt.Errorf("must provide task name")
 	logTypeNotPresentErr = fmt.Errorf("must provide log type (stdout/stderr)")
-	clientNotRunning     = fmt.Errorf("node is not running a Nomad Client")
 	invalidOrigin        = fmt.Errorf("origin must be start or end")
 )
 

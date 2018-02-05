@@ -145,7 +145,7 @@ type FsLogsRequest struct {
 
 // StreamErrWrapper is used to serialize output of a stream of a file or logs.
 type StreamErrWrapper struct {
-	// Error stores any error that may have occured.
+	// Error stores any error that may have occurred.
 	Error *RpcError
 
 	// Payload is the payload
