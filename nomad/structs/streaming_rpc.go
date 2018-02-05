@@ -1,28 +1,9 @@
 package structs
 
 import (
-	"errors"
 	"io"
-	"strings"
 	"sync"
 )
-
-// TODO(alexdadgar): move to errors.go
-const (
-	errUnknownMethod = "unknown rpc method"
-)
-
-var (
-	// ErrUnknownMethod is used to indicate that the requested method
-	// is unknown.
-	ErrUnknownMethod = errors.New(errUnknownMethod)
-)
-
-// IsErrUnknownMethod returns whether the error is due to the operation not
-// being allowed due to lack of permissions.
-func IsErrUnknownMethod(err error) bool {
-	return err != nil && strings.Contains(err.Error(), errUnknownMethod)
-}
 
 // StreamingRpcHeader is the first struct serialized after entering the
 // streaming RPC mode. The header is used to dispatch to the correct method.
