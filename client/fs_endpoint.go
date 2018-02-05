@@ -190,6 +190,25 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
+	// Calculate the offset
+	fileInfo, err := fs.Stat(req.Path)
+	if err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
+	if fileInfo.IsDir {
+		f.handleStreamResultError(
+			fmt.Errorf("file %q is a directory", req.Path),
+			helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	// If offsetting from the end subtract from the size
+	if req.Origin == "end" {
+		req.Offset = fileInfo.Size - req.Offset
+
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -218,6 +237,8 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 			case <-ctx.Done():
 			}
 		}
+
+		framer.Destroy()
 	}()
 
 	// Create a goroutine to detect the remote side closing
@@ -265,6 +286,8 @@ OUTER:
 				streamErr = err
 				break OUTER
 			}
+		case <-ctx.Done():
+			break OUTER
 		}
 	}
 

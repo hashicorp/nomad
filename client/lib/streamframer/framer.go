@@ -64,6 +64,7 @@ type StreamFramer struct {
 	heartbeat *time.Ticker
 	flusher   *time.Ticker
 
+	shutdown   bool
 	shutdownCh chan struct{}
 	exitCh     chan struct{}
 
@@ -103,7 +104,14 @@ func NewStreamFramer(out chan<- *StreamFrame,
 // Destroy is used to cleanup the StreamFramer and flush any pending frames
 func (s *StreamFramer) Destroy() {
 	s.l.Lock()
-	close(s.shutdownCh)
+
+	wasShutdown := s.shutdown
+	s.shutdown = true
+
+	if !wasShutdown {
+		close(s.shutdownCh)
+	}
+
 	s.heartbeat.Stop()
 	s.flusher.Stop()
 	running := s.running
@@ -113,7 +121,9 @@ func (s *StreamFramer) Destroy() {
 	if running {
 		<-s.exitCh
 	}
-	close(s.out)
+	if !wasShutdown {
+		close(s.out)
+	}
 }
 
 // Run starts a long lived goroutine that handles sending data as well as

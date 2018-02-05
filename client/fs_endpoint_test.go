@@ -1,16 +1,24 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"math"
 	"net"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -20,6 +28,29 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
+
+// tempAllocDir returns a new alloc dir that is rooted in a temp dir. The caller
+// should destroy the temp dir.
+func tempAllocDir(t testing.TB) *allocdir.AllocDir {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("TempDir() failed: %v", err)
+	}
+
+	if err := os.Chmod(dir, 0777); err != nil {
+		t.Fatalf("failed to chmod dir: %v", err)
+	}
+
+	return allocdir.NewAllocDir(log.New(os.Stderr, "", log.LstdFlags), dir)
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (n nopWriteCloser) Close() error {
+	return nil
+}
 
 func TestFS_Stat_NoAlloc(t *testing.T) {
 	t.Parallel()
@@ -554,11 +585,14 @@ func TestFS_Stream(t *testing.T) {
 	defer p1.Close()
 	defer p2.Close()
 
+	// Wrap the pipe so we can check it is closed
+	pipeChecker := &ReadWriteCloseChecker{ReadWriteCloser: p2}
+
 	errCh := make(chan error)
 	streamMsg := make(chan *cstructs.StreamErrWrapper)
 
 	// Start the handler
-	go handler(p2)
+	go handler(pipeChecker)
 
 	// Start the decoder
 	go func() {
@@ -601,6 +635,22 @@ OUTER:
 			}
 		}
 	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		return pipeChecker.Closed, nil
+	}, func(err error) {
+		t.Fatal("Pipe not closed")
+	})
+}
+
+type ReadWriteCloseChecker struct {
+	io.ReadWriteCloser
+	Closed bool
+}
+
+func (r *ReadWriteCloseChecker) Close() error {
+	r.Closed = true
+	return r.ReadWriteCloser.Close()
 }
 
 func TestFS_Stream_Follow(t *testing.T) {
@@ -1572,5 +1622,415 @@ func TestFS_findClosest(t *testing.T) {
 		if offset != c.ExpectedOffset {
 			t.Fatalf("case %d: Got offset %d; want %d", i, offset, c.ExpectedOffset)
 		}
+	}
+}
+
+func TestFS_streamFile_NoFile(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	ad := tempAllocDir(t)
+	defer os.RemoveAll(ad.AllocDir)
+
+	frames := make(chan *sframer.StreamFrame, 32)
+	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	err := c.endpoints.FileSystem.streamFile(
+		context.Background(), 0, "foo", 0, ad, framer, nil)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no such file")
+}
+
+func TestFS_streamFile_Modify(t *testing.T) {
+	t.Parallel()
+
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Get a temp alloc dir
+	ad := tempAllocDir(t)
+	defer os.RemoveAll(ad.AllocDir)
+
+	// Create a file in the temp dir
+	streamFile := "stream_file"
+	f, err := os.Create(filepath.Join(ad.AllocDir, streamFile))
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	defer f.Close()
+
+	data := []byte("helloworld")
+
+	// Start the reader
+	resultCh := make(chan struct{})
+	frames := make(chan *sframer.StreamFrame, 4)
+	go func() {
+		var collected []byte
+		for {
+			frame := <-frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			collected = append(collected, frame.Data...)
+			if reflect.DeepEqual(data, collected) {
+				resultCh <- struct{}{}
+				return
+			}
+		}
+	}()
+
+	// Write a few bytes
+	if _, err := f.Write(data[:3]); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	// Start streaming
+	go func() {
+		if err := c.endpoints.FileSystem.streamFile(
+			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
+			t.Fatalf("stream() failed: %v", err)
+		}
+	}()
+
+	// Sleep a little before writing more. This lets us check if the watch
+	// is working.
+	time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
+	if _, err := f.Write(data[3:]); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	select {
+	case <-resultCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("failed to send new data")
+	}
+}
+
+func TestFS_streamFile_Truncate(t *testing.T) {
+	t.Parallel()
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Get a temp alloc dir
+	ad := tempAllocDir(t)
+	defer os.RemoveAll(ad.AllocDir)
+
+	// Create a file in the temp dir
+	data := []byte("helloworld")
+	streamFile := "stream_file"
+	streamFilePath := filepath.Join(ad.AllocDir, streamFile)
+	f, err := os.Create(streamFilePath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	defer f.Close()
+
+	// Start the reader
+	truncateCh := make(chan struct{})
+	dataPostTruncCh := make(chan struct{})
+	frames := make(chan *sframer.StreamFrame, 4)
+	go func() {
+		var collected []byte
+		for {
+			frame := <-frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			if frame.FileEvent == truncateEvent {
+				close(truncateCh)
+			}
+
+			collected = append(collected, frame.Data...)
+			if reflect.DeepEqual(data, collected) {
+				close(dataPostTruncCh)
+				return
+			}
+		}
+	}()
+
+	// Write a few bytes
+	if _, err := f.Write(data[:3]); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	// Start streaming
+	go func() {
+		if err := c.endpoints.FileSystem.streamFile(
+			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
+			t.Fatalf("stream() failed: %v", err)
+		}
+	}()
+
+	// Sleep a little before truncating. This lets us check if the watch
+	// is working.
+	time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
+	if err := f.Truncate(0); err != nil {
+		t.Fatalf("truncate failed: %v", err)
+	}
+	if err := f.Sync(); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close file: %v", err)
+	}
+
+	f2, err := os.OpenFile(streamFilePath, os.O_RDWR, 0)
+	if err != nil {
+		t.Fatalf("failed to reopen file: %v", err)
+	}
+	defer f2.Close()
+	if _, err := f2.Write(data[3:5]); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	select {
+	case <-truncateCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("did not receive truncate")
+	}
+
+	// Sleep a little before writing more. This lets us check if the watch
+	// is working.
+	time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
+	if _, err := f2.Write(data[5:]); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	select {
+	case <-dataPostTruncCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("did not receive post truncate data")
+	}
+}
+
+func TestFS_streamImpl_Delete(t *testing.T) {
+	t.Parallel()
+
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Get a temp alloc dir
+	ad := tempAllocDir(t)
+	defer os.RemoveAll(ad.AllocDir)
+
+	// Create a file in the temp dir
+	data := []byte("helloworld")
+	streamFile := "stream_file"
+	streamFilePath := filepath.Join(ad.AllocDir, streamFile)
+	f, err := os.Create(streamFilePath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	defer f.Close()
+
+	// Start the reader
+	deleteCh := make(chan struct{})
+	frames := make(chan *sframer.StreamFrame, 4)
+	go func() {
+		for {
+			frame := <-frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			if frame.FileEvent == deleteEvent {
+				close(deleteCh)
+				return
+			}
+		}
+	}()
+
+	// Write a few bytes
+	if _, err := f.Write(data[:3]); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
+	framer.Run()
+	defer framer.Destroy()
+
+	// Start streaming
+	go func() {
+		if err := c.endpoints.FileSystem.streamFile(
+			context.Background(), 0, streamFile, 0, ad, framer, nil); err != nil {
+			t.Fatalf("stream() failed: %v", err)
+		}
+	}()
+
+	// Sleep a little before deleting. This lets us check if the watch
+	// is working.
+	time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
+	if err := os.Remove(streamFilePath); err != nil {
+		t.Fatalf("delete failed: %v", err)
+	}
+
+	select {
+	case <-deleteCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("did not receive delete")
+	}
+}
+
+func TestFS_logsImpl_NoFollow(t *testing.T) {
+	t.Parallel()
+
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Get a temp alloc dir and create the log dir
+	ad := tempAllocDir(t)
+	defer os.RemoveAll(ad.AllocDir)
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	if err := os.MkdirAll(logDir, 0777); err != nil {
+		t.Fatalf("Failed to make log dir: %v", err)
+	}
+
+	// Create a series of log files in the temp dir
+	task := "foo"
+	logType := "stdout"
+	expected := []byte("012")
+	for i := 0; i < 3; i++ {
+		logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
+		logFilePath := filepath.Join(logDir, logFile)
+		err := ioutil.WriteFile(logFilePath, expected[i:i+1], 777)
+		if err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+	}
+
+	// Start the reader
+	resultCh := make(chan struct{})
+	frames := make(chan *sframer.StreamFrame, 4)
+	var received []byte
+	go func() {
+		for {
+			frame, ok := <-frames
+			if !ok {
+				return
+			}
+
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			received = append(received, frame.Data...)
+			if reflect.DeepEqual(received, expected) {
+				close(resultCh)
+				return
+			}
+		}
+	}()
+
+	// Start streaming logs
+	go func() {
+		if err := c.endpoints.FileSystem.logsImpl(
+			context.Background(), false, false, 0,
+			OriginStart, task, logType, ad, frames); err != nil {
+			t.Fatalf("logs() failed: %v", err)
+		}
+	}()
+
+	select {
+	case <-resultCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("did not receive data: got %q", string(received))
+	}
+}
+
+func TestFS_logsImpl_Follow(t *testing.T) {
+	t.Parallel()
+
+	c := TestClient(t, nil)
+	defer c.Shutdown()
+
+	// Get a temp alloc dir and create the log dir
+	ad := tempAllocDir(t)
+	defer os.RemoveAll(ad.AllocDir)
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	if err := os.MkdirAll(logDir, 0777); err != nil {
+		t.Fatalf("Failed to make log dir: %v", err)
+	}
+
+	// Create a series of log files in the temp dir
+	task := "foo"
+	logType := "stdout"
+	expected := []byte("012345")
+	initialWrites := 3
+
+	writeToFile := func(index int, data []byte) {
+		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
+		logFilePath := filepath.Join(logDir, logFile)
+		err := ioutil.WriteFile(logFilePath, data, 777)
+		if err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+	}
+	for i := 0; i < initialWrites; i++ {
+		writeToFile(i, expected[i:i+1])
+	}
+
+	// Start the reader
+	firstResultCh := make(chan struct{})
+	fullResultCh := make(chan struct{})
+	frames := make(chan *sframer.StreamFrame, 4)
+	var received []byte
+	go func() {
+		for {
+			frame, ok := <-frames
+			if !ok {
+				return
+			}
+
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			received = append(received, frame.Data...)
+			if reflect.DeepEqual(received, expected[:initialWrites]) {
+				close(firstResultCh)
+			} else if reflect.DeepEqual(received, expected) {
+				close(fullResultCh)
+				return
+			}
+		}
+	}()
+
+	// Start streaming logs
+	go c.endpoints.FileSystem.logsImpl(
+		context.Background(), true, false, 0,
+		OriginStart, task, logType, ad, frames)
+
+	select {
+	case <-firstResultCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("did not receive data: got %q", string(received))
+	}
+
+	// We got the first chunk of data, write out the rest to the next file
+	// at an index much ahead to check that it is following and detecting
+	// skips
+	skipTo := initialWrites + 10
+	writeToFile(skipTo, expected[initialWrites:])
+
+	select {
+	case <-fullResultCh:
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
+		t.Fatalf("did not receive data: got %q", string(received))
 	}
 }
