@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -106,49 +105,6 @@ func mockFSAlloc(nodeID string, config map[string]interface{}) *structs.Allocati
 	}
 
 	return a
-}
-
-func TestHTTP_FS_rpcHandlerForAlloc(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	agent := NewTestAgent(t, t.Name(), nil)
-
-	a := mockFSAlloc(agent.client.NodeID(), nil)
-	addAllocToClient(agent, a, terminalClientAlloc)
-
-	// Case 1: Client has allocation
-	// Outcome: Use local client
-	lc, rc, s := agent.Server.rpcHandlerForAlloc(a.ID)
-	require.True(lc)
-	require.False(rc)
-	require.False(s)
-
-	// Case 2: Client doesn't have allocation and there is a server
-	// Outcome: Use server
-	lc, rc, s = agent.Server.rpcHandlerForAlloc(uuid.Generate())
-	require.False(lc)
-	require.False(rc)
-	require.True(s)
-
-	// Case 3: Client doesn't have allocation and there is no server
-	// Outcome: Use client RPC to server
-	srv := agent.server
-	agent.server = nil
-	lc, rc, s = agent.Server.rpcHandlerForAlloc(uuid.Generate())
-	require.False(lc)
-	require.True(rc)
-	require.False(s)
-	agent.server = srv
-
-	// Case 4: No client
-	// Outcome: Use server
-	client := agent.client
-	agent.client = nil
-	lc, rc, s = agent.Server.rpcHandlerForAlloc(uuid.Generate())
-	require.False(lc)
-	require.False(rc)
-	require.True(s)
-	agent.client = client
 }
 
 func TestHTTP_FS_List_MissingParams(t *testing.T) {
