@@ -11,6 +11,7 @@ const (
 	errTokenNotFound    = "ACL token not found"
 	errPermissionDenied = "Permission denied"
 	errNoNodeConn       = "No path to node"
+	errUnknownMethod    = "unknown rpc method"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 	ErrTokenNotFound    = errors.New(errTokenNotFound)
 	ErrPermissionDenied = errors.New(errPermissionDenied)
 	ErrNoNodeConn       = errors.New(errNoNodeConn)
+	ErrUnknownMethod    = errors.New(errUnknownMethod)
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
@@ -48,4 +50,10 @@ func IsErrPermissionDenied(err error) bool {
 // the given node.
 func IsErrNoNodeConn(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errNoNodeConn)
+}
+
+// IsErrUnknownMethod returns whether the error is due to the operation not
+// being allowed due to lack of permissions.
+func IsErrUnknownMethod(err error) bool {
+	return err != nil && strings.Contains(err.Error(), errUnknownMethod)
 }
