@@ -74,6 +74,7 @@ Update stanza Tests:
 √  Change job change while scaling up
 √  Update the job when all allocations from the previous job haven't been placed yet.
 √  Paused or failed deployment doesn't do any rescheduling of failed allocs
+√  Running deployment with failed allocs doesn't do any rescheduling of failed allocs
 */
 
 var (
@@ -3330,6 +3331,51 @@ func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[3].ClientStatus = structs.AllocClientStatusFailed
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil)
+	r := reconciler.Compute()
+
+	// Assert that no rescheduled placements were created
+	assertResults(t, r, &resultExpectation{
+		place:             0,
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 2,
+			},
+		},
+	})
+}
+
+// Test that a running deployment with failed allocs will not result in rescheduling failed allocations
+func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Mock deployment with failed allocs, but deployment watcher hasn't marked it as failed yet
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusRunning
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 5,
+		PlacedAllocs: 4,
+	}
+
+	// Create 4 allocations and mark two as failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
 		allocs = append(allocs, alloc)
 	}
 	allocs[2].ClientStatus = structs.AllocClientStatusFailed
