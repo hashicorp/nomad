@@ -184,7 +184,7 @@ job "example" {
     restart {
       # The number of attempts to run the job within the specified interval.
       attempts = 2
-      interval = "15s"
+      interval = "30m"
 
       # The "delay" parameter specifies the duration to wait before restarting
       # a task after it has failed.
