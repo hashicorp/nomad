@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/hashstructure"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
@@ -208,17 +209,19 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 
 func TestClient_Fingerprint(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
+		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
+	}
+
 	c := testClient(t, nil)
 	defer c.Shutdown()
 
-	// Ensure kernel and arch are always present
+	// Ensure default values are present
 	node := c.Node()
-	if node.Attributes["kernel.name"] == "" {
-		t.Fatalf("missing kernel.name")
-	}
-	if node.Attributes["cpu.arch"] == "" {
-		t.Fatalf("missing cpu arch")
-	}
+	require.NotEqual("", node.Attributes["kernel.name"])
+	require.NotEqual("", node.Attributes["cpu.arch"])
+	require.NotEqual("", node.Attributes["driver.mock_driver"])
 }
 
 func TestClient_HasNodeChanged(t *testing.T) {
@@ -293,168 +296,6 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
-}
-
-func TestClient_Fingerprint_InWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Weird spacing to test trimming. Whitelist all modules expect cpu.
-		c.Options["fingerprint.whitelist"] = "  arch, consul,cpu,env_aws,env_gce,host,memory,network,storage,foo,bar	"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["cpu.frequency"] == "" {
-		t.Fatalf("missing cpu fingerprint module")
-	}
-}
-
-func TestClient_Fingerprint_InBlacklist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Weird spacing to test trimming. Blacklist cpu.
-		c.Options["fingerprint.blacklist"] = "  cpu	"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["cpu.frequency"] != "" {
-		t.Fatalf("cpu fingerprint module loaded despite blacklisting")
-	}
-}
-
-func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		c.Options["fingerprint.whitelist"] = "arch,consul,env_aws,env_gce,host,memory,network,storage,foo,bar"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["cpu.frequency"] != "" {
-		t.Fatalf("found cpu fingerprint module")
-	}
-}
-
-func TestClient_Fingerprint_WhitelistBlacklistCombination(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// With both white- and blacklist, should return the set difference of modules (arch, cpu)
-		c.Options["fingerprint.whitelist"] = "arch,memory,cpu"
-		c.Options["fingerprint.blacklist"] = "memory,nomad"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	// Check expected modules are present
-	if node.Attributes["cpu.frequency"] == "" {
-		t.Fatalf("missing cpu fingerprint module")
-	}
-	if node.Attributes["cpu.arch"] == "" {
-		t.Fatalf("missing arch fingerprint module")
-	}
-	// Check remainder _not_ present
-	if node.Attributes["memory.totalbytes"] != "" {
-		t.Fatalf("found memory fingerprint module")
-	}
-	if node.Attributes["nomad.version"] != "" {
-		t.Fatalf("found nomad fingerprint module")
-	}
-}
-
-func TestClient_Drivers_InWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Weird spacing to test trimming
-		c.Options["driver.raw_exec.enable"] = "1"
-		c.Options["driver.whitelist"] = "   raw_exec ,  foo	"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["driver.raw_exec"] == "" {
-		t.Fatalf("missing raw_exec driver")
-	}
-}
-
-func TestClient_Drivers_InBlacklist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Weird spacing to test trimming
-		c.Options["driver.raw_exec.enable"] = "1"
-		c.Options["driver.blacklist"] = "   raw_exec ,  foo	"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["driver.raw_exec"] != "" {
-		t.Fatalf("raw_exec driver loaded despite blacklist")
-	}
-}
-
-func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		c.Options["driver.whitelist"] = "foo,bar,baz"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["driver.exec"] != "" {
-		t.Fatalf("found exec driver")
-	}
-}
-
-func TestClient_Drivers_WhitelistBlacklistCombination(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Expected output is set difference (raw_exec)
-		c.Options["driver.whitelist"] = "raw_exec,exec"
-		c.Options["driver.blacklist"] = "exec"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	// Check expected present
-	if node.Attributes["driver.raw_exec"] == "" {
-		t.Fatalf("missing raw_exec driver")
-	}
-	// Check expected absent
-	if node.Attributes["driver.exec"] != "" {
-		t.Fatalf("exec driver loaded despite blacklist")
-	}
 }
 
 // TestClient_MixedTLS asserts that when a server is running with TLS enabled
