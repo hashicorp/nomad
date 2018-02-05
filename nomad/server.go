@@ -117,7 +117,7 @@ type Server struct {
 	// all RPC connections
 	staticEndpoints endpoints
 
-	// streamingRpcs is the registery holding our streaming RPC handlers.
+	// streamingRpcs is the registry holding our streaming RPC handlers.
 	streamingRpcs *structs.StreamingRpcRegistery
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
