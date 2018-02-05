@@ -14,10 +14,14 @@ import (
 // FingerprintManager runs a client fingerprinters on a continuous basis, and
 // updates the client when the node has changed
 type FingerprintManager struct {
-	getConfig func() *config.Config
-	node      *structs.Node
-	client    *Client
-	logger    *log.Logger
+	getConfig  func() *config.Config
+	node       *structs.Node
+	shutdownCh chan struct{}
+
+	// updateNode is a callback to the client to update the state of its
+	// associated node
+	updateNode func(*cstructs.FingerprintResponse)
+	logger     *log.Logger
 }
 
 // run runs each fingerprinter individually on an ongoing basis
@@ -33,7 +37,7 @@ func (fm *FingerprintManager) run(f fingerprint.Fingerprint, period time.Duratio
 				continue
 			}
 
-		case <-fm.client.shutdownCh:
+		case <-fm.shutdownCh:
 			return
 		}
 	}
@@ -74,7 +78,7 @@ func (fm *FingerprintManager) SetupDrivers(drivers []string) error {
 }
 
 // fingerprint does an initial fingerprint of the client. If the fingerprinter
-// is meant to be run continuously, a process is launched ro perform this
+// is meant to be run continuously, a process is launched to perform this
 // fingerprint on an ongoing basis in the background.
 func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint) (bool, error) {
 	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
@@ -84,13 +88,13 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 		return false, err
 	}
 
-	fm.client.updateNodeFromFingerprint(&response)
+	fm.updateNode(&response)
 	return response.Detected, nil
 }
 
-// setupDrivers is used to fingerprint the node to see if these attributes are
+// setupFingerprints is used to fingerprint the node to see if these attributes are
 // supported
-func (fm *FingerprintManager) SetupFingerprints(fingerprints []string) error {
+func (fm *FingerprintManager) SetupFingerprinters(fingerprints []string) error {
 	var appliedFingerprints []string
 
 	for _, name := range fingerprints {

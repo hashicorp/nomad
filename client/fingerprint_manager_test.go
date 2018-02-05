@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -25,18 +26,21 @@ func TestFingerprintManager_Fingerprint_MockDriver(t *testing.T) {
 	mockConfig := &config.Config{
 		Node: node,
 	}
-	c := &Client{
-		config: mockConfig,
+
+	var resp *cstructs.FingerprintResponse
+	updateNode := func(r *cstructs.FingerprintResponse) {
+		resp = r
 	}
+
 	getConfig := func() *config.Config {
 		return mockConfig
 	}
 
 	fm := FingerprintManager{
-		getConfig: getConfig,
-		node:      node,
-		client:    c,
-		logger:    testLogger(),
+		getConfig:  getConfig,
+		node:       node,
+		updateNode: updateNode,
+		logger:     testLogger(),
 	}
 
 	// test setting up a mock driver
@@ -44,7 +48,7 @@ func TestFingerprintManager_Fingerprint_MockDriver(t *testing.T) {
 	err := fm.SetupDrivers(drivers)
 	require.Nil(err)
 
-	require.NotEqual("", node.Attributes["driver.mock_driver"])
+	require.NotEqual("", resp.Attributes["driver.mock_driver"])
 }
 
 func TestFingerprintManager_Fingerprint_RawExec(t *testing.T) {
@@ -60,18 +64,20 @@ func TestFingerprintManager_Fingerprint_RawExec(t *testing.T) {
 			"driver.raw_exec.enable": "true",
 		},
 	}
-	c := &Client{
-		config: mockConfig,
+	var resp *cstructs.FingerprintResponse
+	updateNode := func(r *cstructs.FingerprintResponse) {
+		resp = r
 	}
+
 	getConfig := func() *config.Config {
 		return mockConfig
 	}
 
 	fm := FingerprintManager{
-		getConfig: getConfig,
-		node:      node,
-		client:    c,
-		logger:    testLogger(),
+		getConfig:  getConfig,
+		node:       node,
+		updateNode: updateNode,
+		logger:     testLogger(),
 	}
 
 	// test setting up a mock driver
@@ -79,7 +85,7 @@ func TestFingerprintManager_Fingerprint_RawExec(t *testing.T) {
 	err := fm.SetupDrivers(drivers)
 	require.Nil(err)
 
-	require.NotEqual("", node.Attributes["driver.raw_exec"])
+	require.NotEqual("", resp.Attributes["driver.raw_exec"])
 }
 
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
@@ -89,6 +95,10 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
 	}
+	var resp *cstructs.FingerprintResponse
+	updateNode := func(r *cstructs.FingerprintResponse) {
+		resp = r
+	}
 	mockConfig := &config.Config{
 		Node: node,
 		Options: map[string]string{
@@ -96,18 +106,22 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 			"test.shutdown_periodic_duration": "3",
 		},
 	}
-	c := &Client{
-		config: mockConfig,
-	}
+
 	getConfig := func() *config.Config {
 		return mockConfig
 	}
 
+	shutdownCh := make(chan struct{})
+	defer (func() {
+		close(shutdownCh)
+	})()
+
 	fm := FingerprintManager{
-		getConfig: getConfig,
-		node:      node,
-		client:    c,
-		logger:    testLogger(),
+		getConfig:  getConfig,
+		node:       node,
+		updateNode: updateNode,
+		shutdownCh: shutdownCh,
+		logger:     testLogger(),
 	}
 
 	// test setting up a mock driver
@@ -117,7 +131,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 
 	// Ensure the mock driver is registered on the client
 	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatus := node.Attributes["driver.mock_driver"]
+		mockDriverStatus := resp.Attributes["driver.mock_driver"]
 		if mockDriverStatus == "" {
 			return false, fmt.Errorf("mock driver attribute should be set on the client")
 		}
@@ -128,7 +142,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 
 	// Ensure that the client fingerprinter eventually removes this attribute
 	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatus := node.Attributes["driver.mock_driver"]
+		mockDriverStatus := resp.Attributes["driver.mock_driver"]
 		if mockDriverStatus != "" {
 			return false, fmt.Errorf("mock driver attribute should not be set on the client")
 		}

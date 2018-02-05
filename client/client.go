@@ -236,9 +236,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 			defer c.configLock.Unlock()
 			return c.config
 		},
-		node:   c.config.Node,
-		client: c,
-		logger: c.logger,
+		node:       c.config.Node,
+		updateNode: c.updateNodeFromFingerprint,
+		shutdownCh: c.shutdownCh,
+		logger:     c.logger,
 	}
 
 	// Fingerprint the node
@@ -960,7 +961,7 @@ func (c *Client) fingerprint(fingerprintManager *FingerprintManager) error {
 		availableFingerprints = append(availableFingerprints, name)
 	}
 
-	if err := fingerprintManager.SetupFingerprints(availableFingerprints); err != nil {
+	if err := fingerprintManager.SetupFingerprinters(availableFingerprints); err != nil {
 		return err
 	}
 
