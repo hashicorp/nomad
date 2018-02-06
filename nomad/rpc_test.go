@@ -14,7 +14,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc
@@ -171,4 +173,31 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	assert.NotNil(err)
+}
+
+func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	s1.peerLock.RLock()
+	ok, parts := isNomadServer(s2.LocalMember())
+	require.True(ok)
+	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
+	require.NotNil(server)
+	s1.peerLock.RUnlock()
+
+	conn, err := s1.streamingRpc(server, "Bogus")
+	require.Nil(conn)
+	require.NotNil(err)
+	require.Contains(err.Error(), "unknown rpc method: \"Bogus\"")
 }
