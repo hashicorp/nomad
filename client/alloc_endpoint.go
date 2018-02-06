@@ -16,7 +16,7 @@ type Allocations struct {
 }
 
 // GarbageCollectAll is used to garbage collect all allocations on a client.
-func (a *Allocations) GarbageCollectAll(args *nstructs.GenericRequest, reply *nstructs.GenericResponse) error {
+func (a *Allocations) GarbageCollectAll(args *nstructs.NodeSpecificRequest, reply *nstructs.GenericResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "garbage_collect_all"}, time.Now())
 
 	// Check node read permissions

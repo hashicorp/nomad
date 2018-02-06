@@ -225,8 +225,9 @@ type endpoints struct {
 	Enterprise *EnterpriseEndpoints
 
 	// Client endpoints
-	ClientStats *ClientStats
-	FileSystem  *FileSystem
+	ClientStats       *ClientStats
+	FileSystem        *FileSystem
+	ClientAllocations *ClientAllocations
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -927,6 +928,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{s}
+		s.staticEndpoints.ClientAllocations = &ClientAllocations{s}
 
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{s}
@@ -948,6 +950,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Search)
 	s.staticEndpoints.Enterprise.Register(server)
 	server.Register(s.staticEndpoints.ClientStats)
+	server.Register(s.staticEndpoints.ClientAllocations)
 	server.Register(s.staticEndpoints.FileSystem)
 
 	// Create new dynamic endpoints and add them to the RPC server.

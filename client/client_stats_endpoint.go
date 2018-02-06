@@ -14,7 +14,7 @@ type ClientStats struct {
 }
 
 // Stats is used to retrieve the Clients stats.
-func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.ClientStatsResponse) error {
+func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.ClientStatsResponse) error {
 	defer metrics.MeasureSince([]string{"client", "client_stats", "stats"}, time.Now())
 
 	// Check node read permissions
