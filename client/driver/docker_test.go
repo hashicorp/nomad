@@ -2277,6 +2277,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
 	}
+
 	expectedPrefix := "2001:db8:1::242:ac11"
 	expectedAdvertise := true
 	task := &structs.Task{
@@ -2300,6 +2301,16 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	}
 
 	client := newTestDockerClient(t)
+
+	// Make sure IPv6 is enabled
+	net, err := client.NetworkInfo("bridge")
+	if err != nil {
+		t.Skip("error retrieving bridge network information, skipping")
+	}
+	if net == nil || !net.EnableIPv6 {
+		t.Skip("IPv6 not enabled on bridge network, skipping")
+	}
+
 	tctx := testDockerDriverContexts(t, task)
 	driver := NewDockerDriver(tctx.DriverCtx)
 	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
@@ -2323,7 +2334,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	assert.Equal(t, expectedAdvertise, sresp.Network.AutoAdvertise, "Wrong autoadvertise. Expect: %s, got: %s", expectedAdvertise, sresp.Network.AutoAdvertise)
 
 	if !strings.HasPrefix(sresp.Network.IP, expectedPrefix) {
-		t.Fatalf("Got IP address %s want ip address with prefix %s", sresp.Network.IP, expectedPrefix)
+		t.Fatalf("Got IP address %q want ip address with prefix %q", sresp.Network.IP, expectedPrefix)
 	}
 
 	defer sresp.Handle.Kill()
