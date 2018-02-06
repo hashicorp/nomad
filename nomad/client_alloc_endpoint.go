@@ -140,11 +140,11 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 			return structs.ErrNoNodeConn
 		}
 
-		return a.srv.forwardServer(srv, "ClientAllocations.GarbageCollectAll", args, reply)
+		return a.srv.forwardServer(srv, "ClientAllocations.GarbageCollect", args, reply)
 	}
 
 	// Make the RPC
-	return NodeRpc(state.Session, "Allocations.GarbageCollectAll", args, reply)
+	return NodeRpc(state.Session, "Allocations.GarbageCollect", args, reply)
 }
 
 // Stats is used to collect allocation statistics

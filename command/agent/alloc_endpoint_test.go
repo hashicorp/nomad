@@ -15,6 +15,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -261,18 +262,64 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 
 func TestHTTP_AllocStats(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/foo", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+	require := require.New(t)
 
-		// Make the request
-		_, err = s.Server.ClientAllocRequest(respW, req)
-		if !strings.Contains(err.Error(), resourceNotFoundErr) {
-			t.Fatalf("err: %v", err)
+	httpTest(t, nil, func(s *TestAgent) {
+		// Local node, local resp
+		{
+			// Make the HTTP request
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.Contains(err.Error(), "unknown allocation")
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.Contains(err.Error(), "unknown allocation")
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.Contains(err.Error(), "unknown allocation")
+
+			s.client = c
 		}
 	})
 }
@@ -285,7 +332,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/stats", nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -492,18 +539,70 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 
 func TestHTTP_AllocGC(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+	path := fmt.Sprintf("/v1/client/allocation/%s/gc", uuid.Generate())
 	httpTest(t, nil, func(s *TestAgent) {
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+		// Local node, local resp
+		{
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
 
-		// Make the request
-		_, err = s.Server.ClientAllocRequest(respW, req)
-		if !strings.Contains(err.Error(), "unable to collect allocation") {
-			t.Fatalf("err: %v", err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			if err == nil || !strings.Contains(err.Error(), "unknown allocation") {
+				t.Fatalf("unexpected err: %v", err)
+			}
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			if err == nil || !strings.Contains(err.Error(), "unknown allocation") {
+				t.Fatalf("unexpected err: %v", err)
+			}
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			if err == nil || !strings.Contains(err.Error(), "unknown allocation") {
+				t.Fatalf("unexpected err: %v", err)
+			}
+
+			s.client = c
 		}
 	})
 }
@@ -511,12 +610,13 @@ func TestHTTP_AllocGC(t *testing.T) {
 func TestHTTP_AllocGC_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	path := fmt.Sprintf("/v1/client/allocation/%s/gc", uuid.Generate())
 
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
+		req, err := http.NewRequest("GET", path, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -548,7 +648,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Contains(err.Error(), "not present")
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 
 		// Try request with a management token
@@ -558,25 +658,71 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			setToken(req, s.RootToken)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Contains(err.Error(), "not present")
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 	})
 }
 
 func TestHTTP_AllocAllGC(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/gc", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+		// Local node, local resp
+		{
+			req, err := http.NewRequest("GET", "/v1/client/gc", nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
 
-		// Make the request
-		_, err = s.Server.ClientGCRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientGCRequest(respW, req)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/gc?node_id=%s", uuid.Generate()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientGCRequest(respW, req)
+			require.NotNil(err)
+			require.Contains(err.Error(), "Unknown node")
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/gc?node_id=%s", c.NodeID()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientGCRequest(respW, req)
+			require.NotNil(err)
+
+			// The dev agent uses in-mem RPC so just assert the no route error
+			require.Contains(err.Error(), structs.ErrNoNodeConn.Error())
+
+			s.client = c
 		}
 	})
 
@@ -629,5 +775,4 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			require.Equal(http.StatusOK, respW.Code)
 		}
 	})
-
 }

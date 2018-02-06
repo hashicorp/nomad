@@ -92,6 +92,11 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 	// Try with good alloc
 	req.AllocID = a.ID
 	testutil.WaitForResult(func() (bool, error) {
+		// Check if has been removed first
+		if _, ok := client.allAllocs()[a.ID]; !ok {
+			return true, nil
+		}
+
 		var resp2 nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp2)
 		return err == nil, err

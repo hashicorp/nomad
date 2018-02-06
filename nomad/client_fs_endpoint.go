@@ -94,7 +94,11 @@ func (f *FileSystem) forwardRegionStreamingRpc(conn io.ReadWriteCloser,
 	// Determine the Server that has a connection to the node.
 	srv, err := f.srv.serverWithNodeConn(allocResp.Alloc.NodeID, qo.RequestRegion())
 	if err != nil {
-		f.handleStreamResultError(err, nil, encoder)
+		var code *int64
+		if structs.IsErrNoNodeConn(err) {
+			code = helper.Int64ToPtr(404)
+		}
+		f.handleStreamResultError(err, code, encoder)
 		return
 	}
 
@@ -278,8 +282,11 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		// Determine the Server that has a connection to the node.
 		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
 		if err != nil {
-			f.handleStreamResultError(err, nil, encoder)
-			return
+			var code *int64
+			if structs.IsErrNoNodeConn(err) {
+				code = helper.Int64ToPtr(404)
+			}
+			f.handleStreamResultError(err, code, encoder)
 		}
 
 		// Get a connection to the server
@@ -378,7 +385,11 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		// Determine the Server that has a connection to the node.
 		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
 		if err != nil {
-			f.handleStreamResultError(err, nil, encoder)
+			var code *int64
+			if structs.IsErrNoNodeConn(err) {
+				code = helper.Int64ToPtr(404)
+			}
+			f.handleStreamResultError(err, code, encoder)
 			return
 		}
 
