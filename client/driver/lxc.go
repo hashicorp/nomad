@@ -447,18 +447,19 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 		return nil, fmt.Errorf("could not create thin pool snapshot with cmd '%v': %v: %s", lvCreateCmd.Args, err, err.(*exec.ExitError).Stderr), noCleanup
 	}
 
+	vgName, err := extractVgName(baseLvName)
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse LVM Volume Group name from '%s'", baseLvName), noCleanup
+	}
+
 	removeLVCleanup := func() error {
-		lvRemoveCmd := exec.Command("lvremove", "-f", baseLvName)
+		lvRemoveCmd := exec.Command("lvremove", "-f", fmt.Sprintf("%s/%s", vgName, c.Name()))
 		if err := lvRemoveCmd.Run(); err != nil {
 			return fmt.Errorf("could not remove thin pool snapshot with cmd '%v': %v: %s", lvRemoveCmd.Args, err, err.(*exec.ExitError).Stderr)
 		}
 		return nil
 	}
 
-	vgName, err := extractVgName(baseLvName)
-	if err != nil {
-		return nil, fmt.Errorf("Could not parse LVM Volume Group name from '%s'", baseLvName), noCleanup
-	}
 	tr := func(s string) string {
 		return strings.Replace(s, "-", "--", -1)
 	}
