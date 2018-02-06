@@ -266,7 +266,56 @@ func (s *Server) handleStreamingConn(conn net.Conn) {
 // using the Yamux multiplexer. Version 2 handling allows a single connection to
 // switch streams between regulars RPCs and Streaming RPCs.
 func (s *Server) handleMultiplexV2(conn net.Conn, ctx *RPCContext) {
-	// TODO
+	defer func() {
+		// Remove any potential mapping between a NodeID to this connection and
+		// close the underlying connection.
+		s.removeNodeConn(ctx)
+		conn.Close()
+	}()
+
+	conf := yamux.DefaultConfig()
+	conf.LogOutput = s.config.LogOutput
+	server, _ := yamux.Server(conn, conf)
+
+	// Update the context to store the yamux session
+	ctx.Session = server
+
+	// Create the RPC server for this connection
+	rpcServer := rpc.NewServer()
+	s.setupRpcServer(rpcServer, ctx)
+
+	for {
+		// Accept a new stream
+		sub, err := server.Accept()
+		if err != nil {
+			if err != io.EOF {
+				s.logger.Printf("[ERR] nomad.rpc: multiplex_v2 conn accept failed: %v", err)
+			}
+			return
+		}
+
+		// Read a single byte
+		buf := make([]byte, 1)
+		if _, err := sub.Read(buf); err != nil {
+			if err != io.EOF {
+				s.logger.Printf("[ERR] nomad.rpc: multiplex_v2 failed to read byte: %v", err)
+			}
+			return
+		}
+
+		// Determine which handler to use
+		switch pool.RPCType(buf[0]) {
+		case pool.RpcNomad:
+			go s.handleNomadConn(sub, rpcServer)
+		case pool.RpcStreaming:
+			go s.handleStreamingConn(sub)
+
+		default:
+			s.logger.Printf("[ERR] nomad.rpc: multiplex_v2 unrecognized RPC byte: %v", buf[0])
+			return
+		}
+	}
+
 }
 
 // forward is used to forward to a remote region or to forward to the local leader
@@ -402,6 +451,18 @@ func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, err
 		tcp.SetNoDelay(true)
 	}
 
+	if err := s.streamingRpcImpl(conn, method); err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+// streamingRpcImpl takes a pre-established connection to a server and conducts
+// the handshake to establish a streaming RPC for the given method. If an error
+// is returned, the underlying connection has been closed. Otherwise it is
+// assumed that the connection has been hijacked by the RPC method.
+func (s *Server) streamingRpcImpl(conn net.Conn, method string) error {
 	// TODO TLS
 	// Check if TLS is enabled
 	//if p.tlsWrap != nil {
@@ -423,7 +484,7 @@ func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, err
 	// Write the multiplex byte to set the mode
 	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
 		conn.Close()
-		return nil, err
+		return err
 	}
 
 	// Send the header
@@ -434,22 +495,22 @@ func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, err
 	}
 	if err := encoder.Encode(header); err != nil {
 		conn.Close()
-		return nil, err
+		return err
 	}
 
 	// Wait for the acknowledgement
 	var ack structs.StreamingRpcAck
 	if err := decoder.Decode(&ack); err != nil {
 		conn.Close()
-		return nil, err
+		return err
 	}
 
 	if ack.Error != "" {
 		conn.Close()
-		return nil, errors.New(ack.Error)
+		return errors.New(ack.Error)
 	}
 
-	return conn, nil
+	return nil
 }
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.
