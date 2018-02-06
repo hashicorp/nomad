@@ -279,6 +279,7 @@ $ curl \
       "CirconusSubmissionInterval": "",
       "CollectionInterval": "1s",
       "DataDogAddr": "",
+      "DataDogTags": [],
       "DisableHostname": false,
       "PublishAllocationMetrics": false,
       "PublishNodeMetrics": false,
