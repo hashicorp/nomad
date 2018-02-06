@@ -3,10 +3,10 @@ layout: "docs"
 page_title: "reschedule Stanza - Job Specification"
 sidebar_current: "docs-job-specification-reschedule"
 description: |-
-  The "reschedule" stanza specifies the group's rescheduling strategy upon task failures.
+  The "reschedule" stanza specifies the group's rescheduling strategy upon allocation failures.
   The reschedule strategy can be configured with number of attempts and a time interval.
-  Nomad will attempt to reschedule failed allocations on to another node only after
-  any applicable [restarts](docs/job-specification/restart.html) have been tried.
+  Nomad will only attempt to reschedule failed allocations on to another node only after
+  any local [restarts](docs/job-specification/restart.html) have been exceeded.
 ---
 
 # `reschedule` Stanza
@@ -24,21 +24,20 @@ description: |-
 </table>
 
 The `reschedule` stanza specifies the group's rescheduling strategy.
-It can be configured with number of attempts and a time interval. If
-omitted, a failed allocation will not be rescheduled on another node. If specified
-at the job level, the configuration will apply to all groups within the job. If multiple
-`reschedule` stanzas are specified, they are merged with the group stanza taking the
-highest precedence and then the job.
+It can be configured with number of attempts and a time interval.
+If specified at the job level, the configuration will apply to all groups within the job.
+If multiple `reschedule` stanzas are specified, they are merged with the group stanza
+taking the highest precedence and then the job.
 
 Nomad will attempt to schedule the task on another node if any of its allocation statuses become
-"failed". It uses a penalty score to prefer nodes on which the task has not been previously run on.
+"failed". It prefers to create a replacement allocation on a node that hasn't previously been used.
 
 ```hcl
 job "docs" {
   group "example" {
     reschedule {
       attempts = 3
-      interval    = "15m"
+      interval = "15m"
     }
   }
 }
@@ -58,6 +57,7 @@ job "docs" {
   not reschedule any more.
 
 Information about reschedule attempts are displayed in the CLI and API for allocations.
+Rescheduling is enabled by default for service and batch jobs with the options shown below.
 
 ### `reschedule` Parameter Defaults
 
@@ -87,3 +87,17 @@ defaults by job type:
 The [update stanza](docs/job-specification/update.html) controls rolling updates and canary deployments. A task
 group's reschedule stanza does not take affect during a deployment. For example, if a new version of the job
 is rolled out and the deployment failed due to a failing allocation, Nomad will not reschedule it.
+
+### Disabling rescheduling ###
+
+To disable rescheduling, set the `attempts` parameter to zero.
+
+```hcl
+job "docs" {
+  group "example" {
+    reschedule {
+      attempts = 0
+    }
+  }
+}
+```

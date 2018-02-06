@@ -185,6 +185,10 @@ The table below shows this endpoint's support for
                 "Delay": 25000000000,
                 "Mode": "delay"
             },
+            "ReschedulePolicy": {
+                "Interval": 300000000000,
+                "Attempts": 10,
+            },
             "EphemeralDisk": {
                 "SizeMB": 300
             }
