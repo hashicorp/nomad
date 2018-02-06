@@ -453,7 +453,7 @@ func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 }
 
 // Cleanup any still hanging user processes
-func (e *UniversalExecutor) cleanupUserLeftovers(proc *os.Process) error {
+func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
 	// If new process group was created upon command execution
 	// we can kill the whole process group now to cleanup any leftovers.
 	if e.cmd.SysProcAttr != nil && e.cmd.SysProcAttr.Setpgid {
@@ -493,7 +493,7 @@ func (e *UniversalExecutor) Exit() error {
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
-		} else if err := e.cleanupUserLeftovers(proc); err != nil && err.Error() != finishedErr {
+		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
