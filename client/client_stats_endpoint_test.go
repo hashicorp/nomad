@@ -16,7 +16,7 @@ func TestClientStats_Stats(t *testing.T) {
 	require := require.New(t)
 	client := TestClient(t, nil)
 
-	req := &structs.ClientStatsRequest{}
+	req := &nstructs.NodeSpecificRequest{}
 	var resp structs.ClientStatsResponse
 	require.Nil(client.ClientRPC("ClientStats.Stats", &req, &resp))
 	require.NotNil(resp.HostStats)
@@ -38,7 +38,7 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 
 	// Try request without a token and expect failure
 	{
-		req := &structs.ClientStatsRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		var resp structs.ClientStatsResponse
 		err := client.ClientRPC("ClientStats.Stats", &req, &resp)
 		require.NotNil(err)
@@ -48,7 +48,7 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 	// Try request with an invalid token and expect failure
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
-		req := &structs.ClientStatsRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = token.SecretID
 
 		var resp structs.ClientStatsResponse
@@ -61,7 +61,7 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 	// Try request with a valid token
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "valid", mock.NodePolicy(acl.PolicyRead))
-		req := &structs.ClientStatsRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = token.SecretID
 
 		var resp structs.ClientStatsResponse
@@ -73,7 +73,7 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 
 	// Try request with a management token
 	{
-		req := &structs.ClientStatsRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = root.SecretID
 
 		var resp structs.ClientStatsResponse

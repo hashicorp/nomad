@@ -13,7 +13,7 @@ func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Requ
 	requestedNode := req.URL.Query().Get("node_id")
 
 	// Build the request and parse the ACL token
-	args := cstructs.ClientStatsRequest{
+	args := structs.NodeSpecificRequest{
 		NodeID: requestedNode,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)

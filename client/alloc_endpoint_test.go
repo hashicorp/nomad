@@ -18,7 +18,7 @@ func TestAllocations_GarbageCollectAll(t *testing.T) {
 	require := require.New(t)
 	client := TestClient(t, nil)
 
-	req := &nstructs.GenericRequest{}
+	req := &nstructs.NodeSpecificRequest{}
 	var resp nstructs.GenericResponse
 	require.Nil(client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
 }
@@ -37,7 +37,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 
 	// Try request without a token and expect failure
 	{
-		req := &nstructs.GenericRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp)
 		require.NotNil(err)
@@ -47,7 +47,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 	// Try request with an invalid token and expect failure
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
-		req := &nstructs.GenericRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = token.SecretID
 
 		var resp nstructs.GenericResponse
@@ -60,7 +60,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 	// Try request with a valid token
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "valid", mock.NodePolicy(acl.PolicyWrite))
-		req := &nstructs.GenericRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = token.SecretID
 		var resp nstructs.GenericResponse
 		require.Nil(client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))
@@ -68,7 +68,7 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 
 	// Try request with a management token
 	{
-		req := &nstructs.GenericRequest{}
+		req := &nstructs.NodeSpecificRequest{}
 		req.AuthToken = root.SecretID
 		var resp nstructs.GenericResponse
 		require.Nil(client.ClientRPC("Allocations.GarbageCollectAll", &req, &resp))

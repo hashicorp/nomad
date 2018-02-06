@@ -29,12 +29,6 @@ func (r *RpcError) Error() string {
 	return r.Message
 }
 
-// ClientStatsRequest is used to request stats about a Node.
-type ClientStatsRequest struct {
-	NodeID string
-	structs.QueryOptions
-}
-
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
 	HostStats *stats.HostStats
