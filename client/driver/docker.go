@@ -1132,7 +1132,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	// Calculate CPU Quota
 	if driverConfig.CPUHardLimit {
-		percentTicks := float64(task.Resources.CPU) / shelpers.TotalTicksAvailable()
+		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
 		hostConfig.CPUQuota = int64(percentTicks * defaultCFSPeriod)
 	}
 
