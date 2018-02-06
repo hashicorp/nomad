@@ -21,6 +21,7 @@ import (
 type rpcEndpoints struct {
 	ClientStats *ClientStats
 	FileSystem  *FileSystem
+	Allocations *Allocations
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -191,6 +192,7 @@ func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
+	c.endpoints.Allocations = &Allocations{c}
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
@@ -199,6 +201,14 @@ func (c *Client) setupClientRpc() {
 	c.setupClientRpcServer(c.rpcServer)
 
 	go c.rpcConnListener()
+}
+
+// setupClientRpcServer is used to populate a client RPC server with endpoints.
+func (c *Client) setupClientRpcServer(server *rpc.Server) {
+	// Register the endpoints
+	server.Register(c.endpoints.ClientStats)
+	server.Register(c.endpoints.FileSystem)
+	server.Register(c.endpoints.Allocations)
 }
 
 // rpcConnListener is a long lived function that listens for new connections
@@ -318,13 +328,6 @@ func (c *Client) handleStreamingConn(conn net.Conn) {
 	// Invoke the handler
 	metrics.IncrCounter([]string{"client", "streaming_rpc", "request"}, 1)
 	handler(conn)
-}
-
-// setupClientRpcServer is used to populate a client RPC server with endpoints.
-func (c *Client) setupClientRpcServer(server *rpc.Server) {
-	// Register the endpoints
-	server.Register(c.endpoints.ClientStats)
-	server.Register(c.endpoints.FileSystem)
 }
 
 // resolveServer given a sever's address as a string, return it's resolved
