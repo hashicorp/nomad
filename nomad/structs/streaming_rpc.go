@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"io"
 	"sync"
 )
@@ -10,10 +11,14 @@ import (
 type StreamingRpcHeader struct {
 	// Method is the name of the method to invoke.
 	Method string
+}
 
-	// QueryOptions and WriteRequest provide metadata about the RPC request.
-	QueryOptions *QueryOptions
-	WriteRequest *WriteRequest
+// StreamingRpcAck is used to acknowledge receiving the StreamingRpcHeader and
+// routing to the requirested handler.
+type StreamingRpcAck struct {
+	// Error is used to return whether an error occured establishing the
+	// streaming RPC. This error occurs before entering the RPC handler.
+	Error string
 }
 
 // StreamingRpcHandler defines the handler for a streaming RPC.
@@ -41,7 +46,7 @@ func (s *StreamingRpcRegistery) Register(method string, handler StreamingRpcHand
 func (s *StreamingRpcRegistery) GetHandler(method string) (StreamingRpcHandler, error) {
 	h, ok := s.registry[method]
 	if !ok {
-		return nil, ErrUnknownMethod
+		return nil, fmt.Errorf("%s: %q", ErrUnknownMethod, method)
 	}
 
 	return h, nil
