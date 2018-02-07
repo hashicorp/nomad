@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"net"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -8,6 +9,61 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
+
+type namedConnWrapper struct {
+	net.Conn
+	name string
+}
+
+type namedAddr string
+
+func (n namedAddr) String() string  { return string(n) }
+func (n namedAddr) Network() string { return string(n) }
+
+func (n namedConnWrapper) LocalAddr() net.Addr {
+	return namedAddr(n.name)
+}
+
+func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	p1, p2 := net.Pipe()
+	w1 := namedConnWrapper{
+		Conn: p1,
+		name: "a",
+	}
+	w2 := namedConnWrapper{
+		Conn: p2,
+		name: "b",
+	}
+
+	// Add the connections
+	nodeID := uuid.Generate()
+	ctx1 := &RPCContext{
+		Conn:   w1,
+		NodeID: nodeID,
+	}
+	ctx2 := &RPCContext{
+		Conn:   w2,
+		NodeID: nodeID,
+	}
+
+	s1.addNodeConn(ctx1)
+	s1.addNodeConn(ctx2)
+	require.Len(s1.connectedNodes(), 1)
+
+	// Delete the first
+	s1.removeNodeConn(ctx1)
+	require.Len(s1.connectedNodes(), 1)
+
+	// Delete the second
+	s1.removeNodeConn(ctx2)
+	require.Len(s1.connectedNodes(), 0)
+}
 
 func TestServerWithNodeConn_NoPath(t *testing.T) {
 	t.Parallel()

@@ -21,6 +21,9 @@ type nodeConnState struct {
 
 	// Established is when the connection was established.
 	Established time.Time
+
+	// Ctx is the full RPC context
+	Ctx *RPCContext
 }
 
 // getNodeConn returns the connection to the given node and whether it exists.
@@ -54,6 +57,7 @@ func (s *Server) addNodeConn(ctx *RPCContext) {
 	s.nodeConns[ctx.NodeID] = &nodeConnState{
 		Session:     ctx.Session,
 		Established: time.Now(),
+		Ctx:         ctx,
 	}
 }
 
@@ -66,7 +70,20 @@ func (s *Server) removeNodeConn(ctx *RPCContext) {
 
 	s.nodeConnsLock.Lock()
 	defer s.nodeConnsLock.Unlock()
-	delete(s.nodeConns, ctx.NodeID)
+	state, ok := s.nodeConns[ctx.NodeID]
+	if !ok {
+		return
+	}
+
+	// It is important that we check that the connection being removed is the
+	// actual stored connection for the client. It is possible for the client to
+	// dial various addresses that all route to the same server. The most common
+	// case for this is the original address the client uses to connect to the
+	// server differs from the advertised address sent by the heartbeat.
+	if state.Ctx.Conn.LocalAddr().String() == ctx.Conn.LocalAddr().String() &&
+		state.Ctx.Conn.RemoteAddr().String() == ctx.Conn.RemoteAddr().String() {
+		delete(s.nodeConns, ctx.NodeID)
+	}
 }
 
 // serverWithNodeConn is used to determine which remote server has the most
