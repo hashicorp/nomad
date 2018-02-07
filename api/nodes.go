@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 )
@@ -72,25 +73,26 @@ func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMet
 }
 
 func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
-	nodeClient, err := n.client.GetNodeClient(nodeID, q)
-	if err != nil {
-		return nil, err
-	}
 	var resp HostStats
-	if _, err := nodeClient.query("/v1/client/stats", &resp, nil); err != nil {
+	path := fmt.Sprintf("/v1/client/stats?node_id=%s", nodeID)
+	if _, err := n.client.query(path, &resp, q); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 func (n *Nodes) GC(nodeID string, q *QueryOptions) error {
-	nodeClient, err := n.client.GetNodeClient(nodeID, q)
-	if err != nil {
-		return err
-	}
-
 	var resp struct{}
-	_, err = nodeClient.query("/v1/client/gc", &resp, nil)
+	path := fmt.Sprintf("/v1/client/gc?node_id=%s", nodeID)
+	_, err := n.client.query(path, &resp, q)
+	return err
+}
+
+// TODO Add tests
+func (n *Nodes) GcAlloc(allocID string, q *QueryOptions) error {
+	var resp struct{}
+	path := fmt.Sprintf("/v1/client/allocation/%s/gc", allocID)
+	_, err := n.client.query(path, &resp, q)
 	return err
 }
 

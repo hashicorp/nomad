@@ -92,7 +92,7 @@ func (c *Conn) getClient() (*StreamClient, error) {
 	return sc, nil
 }
 
-// returnStream is used when done with a stream
+// returnClient is used when done with a stream
 // to allow re-use by a future RPC
 func (c *Conn) returnClient(client *StreamClient) {
 	didSave := false
@@ -344,7 +344,8 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	return c, nil
 }
 
-// clearConn is used to clear any cached connection, potentially in response to an erro
+// clearConn is used to clear any cached connection, potentially in response to
+// an error
 func (p *ConnPool) clearConn(conn *Conn) {
 	// Ensure returned streams are closed
 	atomic.StoreInt32(&conn.shouldClose, 1)
