@@ -197,9 +197,7 @@ test('each allocation should have high-level details for the allocation', functi
   });
 });
 
-test('each allocation should show job information even if the job is incomplete and already in the store', function(
-  assert
-) {
+test('each allocation should show job information even if the job is incomplete and already in the store', function(assert) {
   // First, visit clients to load the allocations for each visible node.
   // Don't load the job belongsTo of the allocation! Leave it unfulfilled.
 
@@ -288,9 +286,27 @@ test('/clients/:id should list all attributes for the node', function(assert) {
   });
 });
 
-test('when the node is not found, an error message is shown, but the URL persists', function(
-  assert
-) {
+test('/clients/:id lists all meta attributes', function(assert) {
+  node = server.create('node', 'forceIPv4', 'withMeta');
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(find('[data-test-meta]'), 'Meta attributes table is on the page');
+    assert.notOk(find('[data-test-empty-meta-message]'), 'Meta attributes is not empty');
+  });
+});
+
+test('/clients/:id shows an empty message when there is no meta data', function(assert) {
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.notOk(find('[data-test-meta]'), 'Meta attributes table is not on the page');
+    assert.ok(find('[data-test-empty-meta-message]'), 'Meta attributes is empty');
+  });
+});
+
+test('when the node is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/clients/not-a-real-node');
 
   andThen(() => {

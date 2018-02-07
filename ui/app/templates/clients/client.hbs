@@ -87,8 +87,18 @@
       <div class="boxed-section-head">
         Meta
       </div>
-      <div class="boxed-section-body is-full-bleed">
-        {{meta-table meta=model.meta.metaStructured class="meta-table"}}
+      <div class="boxed-section-body {{if model.meta.attributesStructured "is-full-bleed"}}">
+        {{#if model.meta.attributesStructured}}
+          {{attributes-table
+            data-test-meta
+            attributes=model.meta.attributesStructured
+            class="attributes-table"}}
+        {{else}}
+          <div data-test-empty-meta-message class="empty-message">
+            <h3 class="empty-message-headline">No Meta Attributes</h3>
+            <p class="empty-message-body">This client is configured with no meta attributes.</p>
+          </div>
+        {{/if}}
       </div>
     </div>
   </section>
