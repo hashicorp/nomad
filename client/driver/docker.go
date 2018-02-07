@@ -122,11 +122,11 @@ const (
 		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
 
 	// This is cpu.cfs_period_us: the length of a period.
-	// The default values is 100 microsecnds represented in nano Seconds.
+	// The default values is 100 milliseconds (ms) represented in microseconds (us).
 	// Below is the documnentation:
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
-	// https://docs.docker.com/engine/admin/resource_constraints/#cpu
-	defaultCFSPeriod = 100000
+	// https://docs.docker.com/engine/api/v1.35/#
+	defaultCFSPeriod_us = 100000
 )
 
 type DockerDriver struct {
@@ -1133,7 +1133,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	// Calculate CPU Quota
 	if driverConfig.CPUHardLimit {
 		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
-		hostConfig.CPUQuota = int64(percentTicks * defaultCFSPeriod)
+		hostConfig.CPUQuota = int64(percentTicks * defaultCFSPeriod_us)
 	}
 
 	// Windows does not support MemorySwap/MemorySwappiness #2193
@@ -1155,7 +1155,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
 	if driverConfig.CPUHardLimit {
-		d.logger.Printf("[DEBUG] driver.docker: using %d cpu quota (cpu-period: %d) for %s", hostConfig.CPUQuota, defaultCFSPeriod, task.Name)
+		d.logger.Printf("[DEBUG] driver.docker: using %dms cpu quota and %dms cpu period for %s", hostConfig.CPUQuota, defaultCFSPeriod_us, task.Name)
 	}
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
 
