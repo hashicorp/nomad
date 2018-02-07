@@ -1013,12 +1013,12 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 	return client, waitClient, merr.ErrorOrNil()
 }
 
-func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir *allocdir.TaskDir,
+func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, ctx *ExecContext,
 	task *structs.Task) ([]string, error) {
 
-	allocDirBind := fmt.Sprintf("%s:%s", taskDir.SharedAllocDir, allocdir.SharedAllocContainerPath)
-	taskLocalBind := fmt.Sprintf("%s:%s", taskDir.LocalDir, allocdir.TaskLocalContainerPath)
-	secretDirBind := fmt.Sprintf("%s:%s", taskDir.SecretsDir, allocdir.TaskSecretsContainerPath)
+	allocDirBind := fmt.Sprintf("%s:%s", ctx.TaskDir.SharedAllocDir, ctx.TaskEnv.EnvMap[env.AllocDir])
+	taskLocalBind := fmt.Sprintf("%s:%s", ctx.TaskDir.LocalDir, ctx.TaskEnv.EnvMap[env.TaskLocalDir])
+	secretDirBind := fmt.Sprintf("%s:%s", ctx.TaskDir.SecretsDir, ctx.TaskEnv.EnvMap[env.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
@@ -1051,7 +1051,7 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir 
 		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
 		if driverConfig.VolumeDriver == "" {
 			// Expand path relative to alloc dir
-			parts[0] = filepath.Join(taskDir.Dir, parts[0])
+			parts[0] = filepath.Join(ctx.TaskDir.Dir, parts[0])
 		}
 
 		binds = append(binds, strings.Join(parts, ":"))
@@ -1078,7 +1078,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, fmt.Errorf("task.Resources is empty")
 	}
 
-	binds, err := d.containerBinds(driverConfig, ctx.TaskDir, task)
+	binds, err := d.containerBinds(driverConfig, ctx, task)
 	if err != nil {
 		return c, err
 	}

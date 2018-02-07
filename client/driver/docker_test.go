@@ -1618,25 +1618,29 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		allocDir.Destroy()
 		t.Fatalf("failed to build task dir: %v", err)
 	}
+	copyImage(t, taskDir, "busybox.tar")
 
+	// Setup driver
 	alloc := mock.Alloc()
-	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
-	execCtx := NewExecContext(taskDir, envBuilder.Build())
-	cleanup := func() {
-		allocDir.Destroy()
-		if filepath.IsAbs(hostpath) {
-			os.RemoveAll(hostpath)
-		}
-	}
-
 	logger := testLogger()
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
 	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, testLogger(), emitter)
 	driver := NewDockerDriver(driverCtx)
-	copyImage(t, taskDir, "busybox.tar")
 
+	// Setup execCtx
+	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
+	SetEnvvars(envBuilder, driver.FSIsolation(), taskDir, cfg)
+	execCtx := NewExecContext(taskDir, envBuilder.Build())
+
+	// Setup cleanup function
+	cleanup := func() {
+		allocDir.Destroy()
+		if filepath.IsAbs(hostpath) {
+			os.RemoveAll(hostpath)
+		}
+	}
 	return task, driver, execCtx, hostfile, cleanup
 }
 
