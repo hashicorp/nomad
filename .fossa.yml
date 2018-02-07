@@ -1,0 +1,8 @@
+cli:
+  project: github.com/hashicorp/nomad
+
+analyze:
+  modules:
+    - name: nomad
+      path: github.com/hashicorp/nomad
+      type: gopackage
