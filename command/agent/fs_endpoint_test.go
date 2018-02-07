@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -348,12 +349,15 @@ func TestHTTP_FS_Stream(t *testing.T) {
 			a.ID, offset)
 
 		p, _ := io.Pipe()
+
 		req, err := http.NewRequest("GET", path, p)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
+		doneCh := make(chan struct{})
 		go func() {
 			_, err = s.Server.Stream(respW, req)
 			require.Nil(err)
+			close(doneCh)
 		}()
 
 		out := ""
@@ -368,6 +372,12 @@ func TestHTTP_FS_Stream(t *testing.T) {
 		}, func(err error) {
 			t.Fatal(err)
 		})
+
+		select {
+		case <-doneCh:
+			t.Fatal("shouldn't close")
+		case <-time.After(1 * time.Second):
+		}
 
 		p.Close()
 	})
@@ -406,6 +416,52 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		}, func(err error) {
 			t.Fatal(err)
 		})
+
+		p.Close()
+	})
+}
+
+func TestHTTP_FS_Logs_Follow(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		offset := 4
+		expectation := defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true&follow=true",
+			a.ID, offset)
+
+		p, _ := io.Pipe()
+		req, err := http.NewRequest("GET", path, p)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		doneCh := make(chan struct{})
+		go func() {
+			_, err = s.Server.Logs(respW, req)
+			require.Nil(err)
+			close(doneCh)
+		}()
+
+		out := ""
+		testutil.WaitForResult(func() (bool, error) {
+			output, err := ioutil.ReadAll(respW.Body)
+			if err != nil {
+				return false, err
+			}
+
+			out += string(output)
+			return out == expectation, fmt.Errorf("%q != %q", out, expectation)
+		}, func(err error) {
+			t.Fatal(err)
+		})
+
+		select {
+		case <-doneCh:
+			t.Fatal("shouldn't close")
+		case <-time.After(1 * time.Second):
+		}
 
 		p.Close()
 	})
