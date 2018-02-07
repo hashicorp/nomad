@@ -100,12 +100,21 @@
             </nav>
           </div>
         {{else}}
-          <div class="boxed-section-body">
-            <div class="empty-message" data-test-empty-allocations-list>
-              <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
-              <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+          {{#if allocations.length}}
+            <div class="boxed-section-body">
+              <div class="empty-message" data-test-empty-allocations-list>
+                <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
+                <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+              </div>
             </div>
-          </div>
+          {{else}}
+            <div class="boxed-section-body">
+              <div class="empty-message" data-test-empty-allocations-list>
+                <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Allocations</h3>
+                <p class="empty-message-body">No allocations have been placed.</p>
+              </div>
+            </div>
+          {{/if}}
         {{/list-pagination}}
       </div>
     </div>
