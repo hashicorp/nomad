@@ -10,6 +10,8 @@ func (s *HTTPServer) rpcHandlerForAlloc(allocID string) (localClient, remoteClie
 	// See if the local client can handle the request.
 	localAlloc := false
 	if c != nil {
+		// If there is an error it means that the client doesn't have the
+		// allocation so we can't use the local client
 		_, err := c.GetClientAlloc(allocID)
 		if err == nil {
 			localAlloc = true
