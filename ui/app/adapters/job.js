@@ -1,11 +1,11 @@
 import { inject as service } from '@ember/service';
 import { assign } from '@ember/polyfills';
-import ApplicationAdapter from './application';
+import Watchable from './watchable';
 
-export default ApplicationAdapter.extend({
+export default Watchable.extend({
   system: service(),
 
-  shouldReloadAll: () => true,
+  // shouldReloadAll: () => true,
 
   buildQuery() {
     const namespace = this.get('system.activeNamespace.id');
