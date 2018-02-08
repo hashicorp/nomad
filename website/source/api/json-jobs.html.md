@@ -96,6 +96,10 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 "Delay": 15000000000,
                 "Mode": "fail"
             },
+            "ReschedulePolicy": {
+                "Interval": 300000000000,
+                "Attempts": 10,
+            },
             "EphemeralDisk": {
                 "SizeMB": 300
             }
