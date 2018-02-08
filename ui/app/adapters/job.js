@@ -1,5 +1,4 @@
 import { inject as service } from '@ember/service';
-import RSVP from 'rsvp';
 import { assign } from '@ember/polyfills';
 import ApplicationAdapter from './application';
 
@@ -26,28 +25,17 @@ export default ApplicationAdapter.extend({
     });
   },
 
-  findRecord(store, { modelName }, id, snapshot) {
-    // To make a findRecord response reflect the findMany response, the JobSummary
-    // from /summary needs to be stitched into the response.
+  findRecordSummary(modelName, name, snapshot, namespaceQuery) {
+    return this.ajax(`${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`, 'GET', {
+      data: assign(this.buildQuery() || {}, namespaceQuery),
+    });
+  },
 
-    // URL is the form of /job/:name?namespace=:namespace with arbitrary additional query params
+  findRecord(store, type, id, snapshot) {
     const [name, namespace] = JSON.parse(id);
     const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
-    return RSVP.hash({
-      job: this.ajax(this.buildURL(modelName, name, snapshot, 'findRecord'), 'GET', {
-        data: assign(this.buildQuery() || {}, namespaceQuery),
-      }),
-      summary: this.ajax(
-        `${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`,
-        'GET',
-        {
-          data: assign(this.buildQuery() || {}, namespaceQuery),
-        }
-      ),
-    }).then(({ job, summary }) => {
-      job.JobSummary = summary;
-      return job;
-    });
+
+    return this._super(store, type, name, snapshot, namespaceQuery);
   },
 
   findAllocations(job) {
