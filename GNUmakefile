@@ -5,7 +5,7 @@ THIS_OS := $(shell uname)
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
-GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
+GO_LDFLAGS := -X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
 GO_TAGS =
 
 default: help
@@ -20,6 +20,11 @@ ifeq (Linux,$(THIS_OS))
 # Detect if we have LXC on the path
 ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
+endif
+
+# Detect if we have osxcross.  We'll assume it's on the path
+ifeq (0,$(shell test -f /osxcross/target/bin/o64-clang ; echo $$?))
+HAS_OSXCROSS="true"
 endif
 
 ifeq ($(TRAVIS),true)
@@ -39,6 +44,11 @@ ALL_TARGETS += linux_386 \
 ifeq ("true",$(HAS_LXC))
 ALL_TARGETS += linux_amd64-lxc
 endif
+
+ifeq ("true",$(HAS_OSXCROSS))
+ALL_TARGETS += darwin_amd64
+endif
+
 endif
 
 # On MacOS, we only build for MacOS
@@ -53,14 +63,22 @@ endif
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+ifeq ("true",$(HAS_OSXCROSS))
+	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 CC=o64-clang \
 		go build \
-		-ldflags $(GO_LDFLAGS) \
+		-ldflags "$(GO_LDFLAGS) -linkmode external -s" \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
+else
+	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+		go build \
+		-ldflags "$(GO_LDFLAGS)" \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+endif
 
 pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
-	@echo "==> Building $@..."
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
