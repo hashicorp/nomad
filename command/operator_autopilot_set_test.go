@@ -42,7 +42,7 @@ func TestOperatorAutopilotSetConfigCommmand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conf, err := client.Operator().AutopilotGetConfiguration(nil)
+	conf, _, err := client.Operator().AutopilotGetConfiguration(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

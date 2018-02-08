@@ -893,8 +893,6 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 		return err
 	}
 
-	s.logger.Printf("[INFO] nomad: RPC listening on %q", s.rpcListener.Addr().String())
-
 	if s.config.RPCAdvertise != nil {
 		s.rpcAdvertise = s.config.RPCAdvertise
 	} else {

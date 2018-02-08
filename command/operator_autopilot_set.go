@@ -63,7 +63,7 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 
 	// Fetch the current configuration.
 	operator := client.Operator()
-	conf, err := operator.AutopilotGetConfiguration(nil)
+	conf, _, err := operator.AutopilotGetConfiguration(nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying for Autopilot configuration: %s", err))
 		return 1
@@ -82,7 +82,7 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	serverStabilizationTime.Merge(&conf.ServerStabilizationTime)
 
 	// Check-and-set the new configuration.
-	result, err := operator.AutopilotCASConfiguration(conf, nil)
+	result, _, err := operator.AutopilotCASConfiguration(conf, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error setting Autopilot configuration: %s", err))
 		return 1
