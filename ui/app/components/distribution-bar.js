@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { guidFor } from '@ember/object/internals';
@@ -65,6 +65,10 @@ export default Component.extend(WindowResizable, {
   didUpdateAttrs() {
     this.renderChart();
   },
+
+  updateChart: observer('_data.@each.{value,label,className}', function() {
+    this.renderChart();
+  }),
 
   // prettier-ignore
   /* eslint-disable */
