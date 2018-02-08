@@ -51,26 +51,7 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 			return err
 		}
 
-		node, err := snap.NodeByID(nil, args.NodeID)
-		if err != nil {
-			return err
-		}
-
-		if node == nil {
-			return fmt.Errorf("Unknown node %q", args.NodeID)
-		}
-
-		// Determine the Server that has a connection to the node.
-		srv, err := a.srv.serverWithNodeConn(args.NodeID, a.srv.Region())
-		if err != nil {
-			return err
-		}
-
-		if srv == nil {
-			return structs.ErrNoNodeConn
-		}
-
-		return a.srv.forwardServer(srv, "ClientAllocations.GarbageCollectAll", args, reply)
+		return findNodeConnAndForward(a.srv, snap, args.NodeID, "ClientAllocations.GarbageCollectAll", args, reply)
 	}
 
 	// Make the RPC
@@ -120,27 +101,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		// Check if the node even exists
-		node, err := snap.NodeByID(nil, alloc.NodeID)
-		if err != nil {
-			return err
-		}
-
-		if node == nil {
-			return fmt.Errorf("Unknown node %q", alloc.NodeID)
-		}
-
-		// Determine the Server that has a connection to the node.
-		srv, err := a.srv.serverWithNodeConn(alloc.NodeID, a.srv.Region())
-		if err != nil {
-			return err
-		}
-
-		if srv == nil {
-			return structs.ErrNoNodeConn
-		}
-
-		return a.srv.forwardServer(srv, "ClientAllocations.GarbageCollect", args, reply)
+		return findNodeConnAndForward(a.srv, snap, alloc.NodeID, "ClientAllocations.GarbageCollect", args, reply)
 	}
 
 	// Make the RPC
@@ -190,27 +151,7 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		// Check if the node even exists
-		node, err := snap.NodeByID(nil, alloc.NodeID)
-		if err != nil {
-			return err
-		}
-
-		if node == nil {
-			return fmt.Errorf("Unknown node %q", alloc.NodeID)
-		}
-
-		// Determine the Server that has a connection to the node.
-		srv, err := a.srv.serverWithNodeConn(alloc.NodeID, a.srv.Region())
-		if err != nil {
-			return err
-		}
-
-		if srv == nil {
-			return structs.ErrNoNodeConn
-		}
-
-		return a.srv.forwardServer(srv, "ClientAllocations.Stats", args, reply)
+		return findNodeConnAndForward(a.srv, snap, alloc.NodeID, "ClientAllocations.Stats", args, reply)
 	}
 
 	// Make the RPC
