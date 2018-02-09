@@ -355,6 +355,12 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+
+* `cpu_hard_limit` - (Optional) `true` or `false` (default). Use hard CPU
+  limiting instead of soft limiting. By default this is `false` which means
+  soft limiting is used and containers are able to burst above their CPU limit
+  when there is idle capacity.
+
 * `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's 
    IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
    See [IPv6 Docker containers](/docs/job-specification/service.html#IPv6 Docker containers) for details.
