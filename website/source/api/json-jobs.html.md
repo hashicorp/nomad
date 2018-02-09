@@ -235,6 +235,11 @@ The `Job` object supports the following keys:
     }
     ```
 
+- `ReschedulePolicy` - Specifies a reschedule policy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the reschedule blocks are merged, with the task group's taking precedence. For more
+  details on `ReschedulePolicy`, please see below.
+
 ### Task Group
 
 `TaskGroups` is a list of `TaskGroup` objects, each supports the following
@@ -253,6 +258,10 @@ attributes:
 - `RestartPolicy` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
   job type. See the [restart policy reference](#restart_policy) for more details.
+
+- `ReschedulePolicy` - Specifies the reschedule policy to be applied to tasks in this group.
+  If omitted, a default policy is used for batch and service jobs. System jobs are not eligible
+  for rescheduling. See the [reschedule policy reference](#reschedule_policy) for more details.
 
 - `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
@@ -500,6 +509,19 @@ The `EphemeralDisk` object supports the following keys:
   updated allocation on the same machine. This will move the `local/` and
   `alloc/data` directories to the new allocation. Value is a boolean and the
   default is false.
+
+<a id="reschedule_policy"></a>
+
+### Reschedule Policy
+
+The `ReschedulePolicy` object supports the following keys:
+
+- `Attempts` - `Attempts` is the number of reschedule attempts allowed
+  in an `Interval`.
+
+- `Interval` - `Interval` is a time duration that is specified in nanoseconds.
+  The `Interval` is a sliding window within which at most `Attempts` number
+  of reschedule attempts are permitted.
 
 <a id="restart_policy"></a>
 
