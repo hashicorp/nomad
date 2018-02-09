@@ -274,14 +274,13 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 	s.data.Write(data)
 
 	// Handle the delete case in which there is no data
-	force := false
-	if s.data.Len() == 0 && s.f.FileEvent != "" {
-		force = true
-	}
+	force := s.data.Len() == 0 && s.f.FileEvent != ""
 
 	// Flush till we are under the max frame size
 	for s.data.Len() >= s.frameSize || force {
-		// Clear
+		// Clear since are flushing the frame and capturing the file event.
+		// Subsequent data frames will be flushed based on the data size alone
+		// since they share the same fileevent.
 		if force {
 			force = false
 		}
