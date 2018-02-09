@@ -83,8 +83,8 @@
               <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
               <td data-test-task-event-type>{{row.model.type}}</td>
               <td data-test-task-event-message>
-                {{#if row.model.displayMessage}}
-                  {{row.model.displayMessage}}
+                {{#if row.model.message}}
+                  {{row.model.message}}
                 {{else}}
                   <em>No message</em>
                 {{/if}}

@@ -59,7 +59,8 @@ func formatTime(t time.Time) string {
 		// It's more confusing to display the UNIX epoch or a zero value than nothing
 		return ""
 	}
-	return t.Format("01/02/06 15:04:05 MST")
+	// Return ISO_8601 time format GH-3806
+	return t.Format("2006-01-02T15:04:05Z07:00")
 }
 
 // formatUnixNanoTime is a helper for formatting time for output.

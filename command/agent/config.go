@@ -330,9 +330,16 @@ type ServerConfig struct {
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
 
-	// NonVotingServer is whether this server will act as a non-voting member
-	// of the cluster to help provide read scalability. (Enterprise-only)
+	// (Enterprise-only) NonVotingServer is whether this server will act as a
+	// non-voting member of the cluster to help provide read scalability.
 	NonVotingServer bool `mapstructure:"non_voting_server"`
+
+	// (Enterprise-only) RedundancyZone is the redundancy zone to use for this server.
+	RedundancyZone string `mapstructure:"redundancy_zone"`
+
+	// (Enterprise-only) UpgradeVersion is the custom upgrade version to use when
+	// performing upgrade migrations.
+	UpgradeVersion string `mapstructure:"upgrade_version"`
 
 	// Encryption key to use for the Serf communication
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
@@ -348,6 +355,7 @@ type Telemetry struct {
 	StatsiteAddr             string        `mapstructure:"statsite_address"`
 	StatsdAddr               string        `mapstructure:"statsd_address"`
 	DataDogAddr              string        `mapstructure:"datadog_address"`
+	DataDogTags              []string      `mapstructure:"datadog_tags"`
 	PrometheusMetrics        bool          `mapstructure:"prometheus_metrics"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
 	UseNodeName              bool          `mapstructure:"use_node_name"`
@@ -1034,6 +1042,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.NonVotingServer {
 		result.NonVotingServer = true
 	}
+	if b.RedundancyZone != "" {
+		result.RedundancyZone = b.RedundancyZone
+	}
+	if b.UpgradeVersion != "" {
+		result.UpgradeVersion = b.UpgradeVersion
+	}
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey
 	}
@@ -1156,6 +1170,9 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DataDogAddr != "" {
 		result.DataDogAddr = b.DataDogAddr
+	}
+	if b.DataDogTags != nil {
+		result.DataDogTags = b.DataDogTags
 	}
 	if b.PrometheusMetrics {
 		result.PrometheusMetrics = b.PrometheusMetrics

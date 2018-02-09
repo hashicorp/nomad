@@ -11,6 +11,7 @@ export function findLeader(schema) {
 }
 
 export default function() {
+  const server = this;
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
@@ -56,6 +57,22 @@ export default function() {
 
   this.get('/job/:id/deployments', function({ deployments }, { params }) {
     return this.serialize(deployments.where({ jobId: params.id }));
+  });
+
+  this.post('/job/:id/periodic/force', function(schema, { params }) {
+    // Create the child job
+    const parent = schema.jobs.find(params.id);
+
+    // Use the server instead of the schema to leverage the job factory
+    server.create('job', 'periodicChild', {
+      parentId: parent.id,
+      namespaceId: parent.namespaceId,
+      namespace: parent.namespace,
+      createAllocations: parent.createAllocations,
+    });
+
+    // Return bogus, since the response is normally just eval information
+    return new Response(200, {}, '{}');
   });
 
   this.get('/deployment/:id');

@@ -14,17 +14,13 @@ moduleForAcceptance('Acceptance | allocation detail', {
 
     node = server.create('node');
     job = server.create('job', { groupCount: 0 });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
-      useMessagePassthru: true,
-    });
+    allocation = server.create('allocation', 'withTaskWithPorts');
 
     visit(`/allocations/${allocation.id}`);
   },
 });
 
-test('/allocation/:id should name the allocation and link to the corresponding job and node', function(
-  assert
-) {
+test('/allocation/:id should name the allocation and link to the corresponding job and node', function(assert) {
   assert.ok(
     find('[data-test-title]').textContent.includes(allocation.name),
     'Allocation name is in the heading'
@@ -125,9 +121,7 @@ test('each task row should list high-level information for the task', function(a
   });
 });
 
-test('when the allocation is not found, an error message is shown, but the URL persists', function(
-  assert
-) {
+test('when the allocation is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/allocations/not-a-real-allocation');
 
   andThen(() => {

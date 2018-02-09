@@ -46,7 +46,6 @@ type serverParts struct {
 	MinorVersion int
 	Build        version.Version
 	RaftVersion  int
-	NonVoter     bool
 	Addr         net.Addr
 	RPCAddr      net.Addr
 	Status       serf.MemberStatus
@@ -71,7 +70,6 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	region := m.Tags["region"]
 	datacenter := m.Tags["dc"]
 	_, bootstrap := m.Tags["bootstrap"]
-	_, nonVoter := m.Tags["nonvoter"]
 
 	expect := 0
 	expectStr, ok := m.Tags["expect"]
@@ -140,7 +138,6 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		MinorVersion: minorVersion,
 		Build:        *buildVersion,
 		RaftVersion:  raftVsn,
-		NonVoter:     nonVoter,
 		Status:       m.Status,
 	}
 	return true, parts

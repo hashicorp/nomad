@@ -1,0 +1,33 @@
+{{#if job.runningDeployment}}
+  <div class="boxed-section is-info" data-test-active-deployment>
+    <div class="boxed-section-head">
+      <div class="boxed-section-row">
+        Active Deployment
+        <span class="badge is-white is-subtle bumper-left" data-test-active-deployment-stat="id">{{job.runningDeployment.shortId}}</span>
+        {{#if job.runningDeployment.version.submitTime}}
+          <span class="pull-right submit-time" data-test-active-deployment-stat="submit-time">{{moment-from-now job.runningDeployment.version.submitTime}}</span>
+        {{/if}}
+      </div>
+      <div class="boxed-section-row">
+        <span class="tag is-info is-outlined">Running</span>
+        {{#if job.runningDeployment.requiresPromotion}}
+          <span class="tag bumper-left is-warning no-text-transform">Deployment is running but requires promotion</span>
+        {{/if}}
+      </div>
+    </div>
+    <div class="boxed-section-body with-foot">
+      {{#job-deployment-details deployment=job.runningDeployment as |d|}}
+        {{d.metrics}}
+        {{#if isShowingDeploymentDetails}}
+          {{d.taskGroups}}
+          {{d.allocations}}
+        {{/if}}
+      {{/job-deployment-details}}
+    </div>
+    <div class="boxed-section-foot">
+      <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}} data-test-deployment-toggle-details>
+        {{if isShowingDeploymentDetails "Hide" "Show"}} deployment task groups and allocations
+      </a>
+    </div>
+  </div>
+{{/if}}

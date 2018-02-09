@@ -748,6 +748,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		if err != nil {
 			return inm, err
 		}
+		sink.SetTags(telConfig.DataDogTags)
 		fanout = append(fanout, sink)
 	}
 

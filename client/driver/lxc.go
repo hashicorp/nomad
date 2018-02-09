@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/helper/fields"
@@ -184,24 +183,27 @@ func (d *LxcDriver) FSIsolation() cstructs.FSIsolation {
 }
 
 // Fingerprint fingerprints the lxc driver configuration
-func (d *LxcDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *LxcDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
+
 	enabled := cfg.ReadBoolDefault(lxcConfigOption, true)
 	if !enabled && !cfg.DevMode {
-		return false, nil
+		return nil
 	}
 	version := lxc.Version()
 	if version == "" {
-		return false, nil
+		return nil
 	}
-	node.Attributes["driver.lxc.version"] = version
-	node.Attributes["driver.lxc"] = "1"
+	resp.AddAttribute("driver.lxc.version", version)
+	resp.AddAttribute("driver.lxc", "1")
+	resp.Detected = true
 
 	// Advertise if this node supports lxc volumes
 	if d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault) {
-		node.Attributes["driver."+lxcVolumesConfigOption] = "1"
+		resp.AddAttribute("driver."+lxcVolumesConfigOption, "1")
 	}
 
-	return true, nil
+	return nil
 }
 
 func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
@@ -210,9 +212,20 @@ func (d *LxcDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, er
 
 // Start starts the LXC Driver
 func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse, error) {
+	sresp, err, errCleanup := d.startWithCleanup(ctx, task)
+	if err != nil {
+		if cleanupErr := errCleanup(); cleanupErr != nil {
+			d.logger.Printf("[ERR] error occurred while cleaning up from error in Start: %v", cleanupErr)
+		}
+	}
+	return sresp, err
+}
+
+func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*StartResponse, error, func() error) {
+	noCleanup := func() error { return nil }
 	var driverConfig LxcDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
-		return nil, err
+		return nil, err, noCleanup
 	}
 	lxcPath := lxc.DefaultConfigPath()
 	if path := d.config.Read("driver.lxc.path"); path != "" {
@@ -222,7 +235,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	containerName := fmt.Sprintf("%s-%s", task.Name, d.DriverContext.allocID)
 	c, err := lxc.NewContainer(containerName, lxcPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize container: %v", err)
+		return nil, fmt.Errorf("unable to initialize container: %v", err), noCleanup
 	}
 
 	var verbosity lxc.Verbosity
@@ -232,7 +245,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	case "", "quiet":
 		verbosity = lxc.Quiet
 	default:
-		return nil, fmt.Errorf("lxc driver config 'verbosity' can only be either quiet or verbose")
+		return nil, fmt.Errorf("lxc driver config 'verbosity' can only be either quiet or verbose"), noCleanup
 	}
 	c.SetVerbosity(verbosity)
 
@@ -249,7 +262,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	case "", "error":
 		logLevel = lxc.ERROR
 	default:
-		return nil, fmt.Errorf("lxc driver config 'log_level' can only be trace, debug, info, warn or error")
+		return nil, fmt.Errorf("lxc driver config 'log_level' can only be trace, debug, info, warn or error"), noCleanup
 	}
 	c.SetLogLevel(logLevel)
 
@@ -267,12 +280,12 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 
 	if err := c.Create(options); err != nil {
-		return nil, fmt.Errorf("unable to create container: %v", err)
+		return nil, fmt.Errorf("unable to create container: %v", err), noCleanup
 	}
 
 	// Set the network type to none
 	if err := c.SetConfigItem("lxc.network.type", "none"); err != nil {
-		return nil, fmt.Errorf("error setting network type configuration: %v", err)
+		return nil, fmt.Errorf("error setting network type configuration: %v", err), c.Destroy
 	}
 
 	// Bind mount the shared alloc dir and task local dir in the container
@@ -290,7 +303,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 		if filepath.IsAbs(paths[0]) {
 			if !volumesEnabled {
-				return nil, fmt.Errorf("absolute bind-mount volume in config but '%v' is false", lxcVolumesConfigOption)
+				return nil, fmt.Errorf("absolute bind-mount volume in config but '%v' is false", lxcVolumesConfigOption), c.Destroy
 			}
 		} else {
 			// Relative source paths are treated as relative to alloc dir
@@ -302,21 +315,28 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 	for _, mnt := range mounts {
 		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
-			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+			return nil, fmt.Errorf("error setting bind mount %q error: %v", mnt, err), c.Destroy
 		}
 	}
 
 	// Start the container
 	if err := c.Start(); err != nil {
-		return nil, fmt.Errorf("unable to start container: %v", err)
+		return nil, fmt.Errorf("unable to start container: %v", err), c.Destroy
+	}
+
+	stopAndDestroyCleanup := func() error {
+		if err := c.Stop(); err != nil {
+			return err
+		}
+		return c.Destroy()
 	}
 
 	// Set the resource limits
 	if err := c.SetMemoryLimit(lxc.ByteSize(task.Resources.MemoryMB) * lxc.MB); err != nil {
-		return nil, fmt.Errorf("unable to set memory limits: %v", err)
+		return nil, fmt.Errorf("unable to set memory limits: %v", err), stopAndDestroyCleanup
 	}
 	if err := c.SetCgroupItem("cpu.shares", strconv.Itoa(task.Resources.CPU)); err != nil {
-		return nil, fmt.Errorf("unable to set cpu shares: %v", err)
+		return nil, fmt.Errorf("unable to set cpu shares: %v", err), stopAndDestroyCleanup
 	}
 
 	h := lxcDriverHandle{
@@ -335,7 +355,7 @@ func (d *LxcDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 	go h.run()
 
-	return &StartResponse{Handle: &h}, nil
+	return &StartResponse{Handle: &h}, nil, noCleanup
 }
 
 func (d *LxcDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

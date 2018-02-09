@@ -2,7 +2,7 @@
 <td data-test-job-status>
   <span class="tag {{job.statusClass}}">{{job.status}}</span>
 </td>
-<td data-test-job-type>{{job.type}}</td>
+<td data-test-job-type>{{job.displayType}}</td>
 <td data-test-job-priority>{{job.priority}}</td>
 <td data-test-job-task-groups>
   {{#if job.isReloading}}
@@ -12,5 +12,11 @@
   {{/if}}
 </td>
 <td data-test-job-allocations>
-  <div class="inline-chart">{{allocation-status-bar allocationContainer=job isNarrow=true}}</div>
+  <div class="inline-chart">
+    {{#if job.hasChildren}}
+      {{children-status-bar job=job isNarrow=true}}
+    {{else}}
+      {{allocation-status-bar allocationContainer=job isNarrow=true}}
+    {{/if}}
+  </div>
 </td>

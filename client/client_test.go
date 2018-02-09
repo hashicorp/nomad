@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/consul/lib/freeport"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -250,6 +251,48 @@ func TestClient_HasNodeChanged(t *testing.T) {
 	if changed, _, newMetaHash := c.hasNodeChanged(attrHash, metaHash); !changed {
 		t.Fatalf("Expected hash change in meta map: %d vs %d", metaHash, newMetaHash)
 	}
+}
+
+func TestClient_Fingerprint_Periodic(t *testing.T) {
+	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
+		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
+	}
+	t.Parallel()
+
+	// these constants are only defined when nomad_test is enabled, so these fail
+	// our linter without explicit disabling.
+	c1 := testClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			driver.ShutdownPeriodicAfter:    "true", // nolint: varcheck
+			driver.ShutdownPeriodicDuration: "3",    // nolint: varcheck
+		}
+	})
+	defer c1.Shutdown()
+
+	node := c1.config.Node
+	mockDriverName := "driver.mock_driver"
+
+	// Ensure the mock driver is registered on the client
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverStatus := node.Attributes[mockDriverName]
+		if mockDriverStatus == "" {
+			return false, fmt.Errorf("mock driver attribute should be set on the client")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Ensure that the client fingerprinter eventually removes this attribute
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverStatus := node.Attributes[mockDriverName]
+		if mockDriverStatus != "" {
+			return false, fmt.Errorf("mock driver attribute should not be set on the client")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestClient_Fingerprint_InWhitelist(t *testing.T) {

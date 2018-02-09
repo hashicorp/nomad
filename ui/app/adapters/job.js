@@ -65,4 +65,17 @@ export default ApplicationAdapter.extend({
     const url = this.buildURL('job', name, job, 'findRecord');
     return this.ajax(url, 'GET', { data: assign(this.buildQuery() || {}, namespaceQuery) });
   },
+
+  forcePeriodic(job) {
+    if (job.get('periodic')) {
+      const [name, namespace] = JSON.parse(job.get('id'));
+      let url = `${this.buildURL('job', name, job, 'findRecord')}/periodic/force`;
+
+      if (namespace) {
+        url += `?namespace=${namespace}`;
+      }
+
+      return this.ajax(url, 'POST');
+    }
+  },
 });

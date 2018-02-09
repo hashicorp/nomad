@@ -24,7 +24,6 @@ func TestIsNomadServer(t *testing.T) {
 			"port":     "10000",
 			"vsn":      "1",
 			"raft_vsn": "2",
-			"nonvoter": "1",
 			"build":    "0.7.0+ent",
 		},
 	}
@@ -50,9 +49,6 @@ func TestIsNomadServer(t *testing.T) {
 	}
 	if parts.RPCAddr.String() != "1.1.1.1:10000" {
 		t.Fatalf("bad: %v", parts.RPCAddr.String())
-	}
-	if !parts.NonVoter {
-		t.Fatalf("bad: %v", parts.NonVoter)
 	}
 	if seg := parts.Build.Segments(); len(seg) != 3 {
 		t.Fatalf("bad: %v", parts.Build)

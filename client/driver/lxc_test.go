@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -38,23 +39,34 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 	node := &structs.Node{
 		Attributes: map[string]string{},
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !apply {
-		t.Fatalf("should apply by default")
+
+	// test with an empty config
+	{
+		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response cstructs.FingerprintResponse
+		err := d.Fingerprint(request, &response)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
 	}
 
-	apply, err = d.Fingerprint(&config.Config{Options: map[string]string{lxcConfigOption: "0"}}, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if apply {
-		t.Fatalf("should not apply with config")
-	}
-	if node.Attributes["driver.lxc"] == "" {
-		t.Fatalf("missing driver")
+	// test when lxc is enable din the config
+	{
+		conf := &config.Config{Options: map[string]string{lxcConfigOption: "1"}}
+		request := &cstructs.FingerprintRequest{Config: conf, Node: node}
+		var response cstructs.FingerprintResponse
+		err := d.Fingerprint(request, &response)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if !response.Detected {
+			t.Fatalf("expected response to be applicable")
+		}
+
+		if response.Attributes["driver.lxc"] == "" {
+			t.Fatalf("missing driver")
+		}
 	}
 }
 
@@ -310,6 +322,7 @@ func TestLxcDriver_Start_NoVolumes(t *testing.T) {
 	ctx := testDriverContexts(t, task)
 	defer ctx.AllocDir.Destroy()
 
+	// set lxcVolumesConfigOption to false to disallow absolute paths as the source for the bind mount
 	ctx.DriverCtx.config.Options = map[string]string{lxcVolumesConfigOption: "false"}
 
 	d := NewLxcDriver(ctx.DriverCtx)
@@ -317,8 +330,19 @@ func TestLxcDriver_Start_NoVolumes(t *testing.T) {
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
 		t.Fatalf("prestart err: %v", err)
 	}
+
+	// expect the "absolute bind-mount volume in config.. " error
 	_, err := d.Start(ctx.ExecCtx, task)
 	if err == nil {
 		t.Fatalf("expected error in start, got nil.")
 	}
+
+	// Because the container was created but not started before
+	// the expected error, we can test that the destroy-only
+	// cleanup is done here.
+	containerName := fmt.Sprintf("%s-%s", task.Name, ctx.DriverCtx.allocID)
+	if err := exec.Command("bash", "-c", fmt.Sprintf("lxc-ls -1 | grep -q %s", containerName)).Run(); err == nil {
+		t.Fatalf("error, container '%s' is still around", containerName)
+	}
+
 }

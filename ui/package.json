@@ -14,11 +14,11 @@
     "precommit": "lint-staged"
   },
   "lint-staged": {
-    "ui/{app,tests,config,lib,mirage}/**/*.js": [
+    "{app,tests,config,lib,mirage}/**/*.js": [
       "prettier --write",
       "git add"
     ],
-    "ui/app/styles/**/*.*": [
+    "app/styles/**/*.*": [
       "prettier --write",
       "git add"
     ]

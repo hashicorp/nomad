@@ -6,24 +6,31 @@ __BACKWARDS INCOMPATIBILITIES:__
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
 
 IMPROVEMENTS:
+ * core: Allow upgrading/downgrading TLS via SIGHUP on both servers and clients [[GH-3492](https://github.com/hashicorp/nomad/issues/3492)]
  * core: A set of features (Autopilot) has been added to allow for automatic operator-friendly management of Nomad servers. For more information about Autopilot, see the [Autopilot Guide](https://www.nomadproject.io/guides/cluster/autopilot.html). [[GH-3670](https://github.com/hashicorp/nomad/pull/3670)]
+ * cli: Use ISO_8601 time format for cli output
+   [[GH-3814](https://github.com/hashicorp/nomad/pull/3814)]
  * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
+ * client: Refactor client fingerprint methods to a request/response format
+   [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
  * discovery: Allow `check_restart` to be specified in the `service` stanza.
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
+ * driver/docker: Support advertising IPv6 addresses [[GH-3790](https://github.com/hashicorp/nomad/issues/3790)]
  * driver/docker; Support overriding image entrypoint [[GH-3788](https://github.com/hashicorp/nomad/issues/3788)]
  * driver/docker: Support adding or dropping capabilities [[GH-3754](https://github.com/hashicorp/nomad/issues/3754)]
  * driver/docker: Support mounting root filesystem as read-only [[GH-3802](https://github.com/hashicorp/nomad/issues/3802)]
  * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
+ * telemetry: Support DataDog tags [[GH-3839](https://github.com/hashicorp/nomad/issues/3839)]
 
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]
- * core: Allow upgrading/downgrading TLS via SIGHUP on both servers and clients [[GH-3492](https://github.com/hashicorp/nomad/issues/3492)]
  * core: Fix an issue in which batch jobs with queued placements and lost
    allocations could result in improper placement counts [[GH-3717](https://github.com/hashicorp/nomad/issues/3717)]
  * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
  * client: Always advertise driver IP when in driver address mode [[GH-3682](https://github.com/hashicorp/nomad/issues/3682)]
  * client/vault: Recognize renewing non-renewable Vault lease as fatal [[GH-3727](https://github.com/hashicorp/nomad/issues/3727)]
  * config: Revert minimum CPU limit back to 20 from 100.
+ * driver/lxc: Cleanup LXC containers after errors on container startup. [[GH-3773](https://github.com/hashicorp/nomad/issues/3773)]
  * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
  * ui: Fix requests using client-side certificates in Firefox. [[GH-3728](https://github.com/hashicorp/nomad/pull/3728)]
 
@@ -163,8 +170,7 @@ BUG FIXES:
    change [[GH-3214](https://github.com/hashicorp/nomad/issues/3214)]
  * api: Fix search handling of jobs with more than four hyphens and case were
    length could cause lookup error [[GH-3203](https://github.com/hashicorp/nomad/issues/3203)]
- * client: Improve the speed at which clients detect garbage collection events
-   [GH_-3452]
+ * client: Improve the speed at which clients detect garbage collection events [[GH-3452](https://github.com/hashicorp/nomad/issues/3452)]
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [[GH-3195](https://github.com/hashicorp/nomad/issues/3195)]
  * client: Fix data race that could lead to concurrent map read/writes during
