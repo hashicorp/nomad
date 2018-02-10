@@ -29,7 +29,7 @@ type drainingAlloc struct {
 func newDrainingAlloc(a *structs.Allocation, deadline time.Time) drainingAlloc {
 	return drainingAlloc{
 		deadline: deadline,
-		key:      makeTaskGroupKey(a),
+		tgKey:    makeTaskGroupKey(a),
 	}
 }
 
@@ -38,11 +38,16 @@ func makeTaskGroupKey(a *structs.Allocation) string {
 	return strings.Join([]string{a.Namespace, a.JobID, a.TaskGroup}, "-")
 }
 
-type stopAllocs map[string][]string
+// stopAllocs tracks allocs to drain by a unique TG key
+type stopAllocs struct {
+	perTaskGroup map[string]int
+	batch        []*structs.Allocation
+}
 
-func (s stopAllocs) add(a *structs.Allocation) {
+func (s *stopAllocs) add(a *structs.Allocation) {
 	key := makeTaskGroupKey(a)
-	s[key] = append(s[key], a.ID)
+	s.perTaskGroup[key]++
+	s.batch = append(s.batch, a)
 }
 
 // startNodeDrainer should be called in establishLeadership by the leader.
@@ -101,7 +106,11 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		//TODO work from a state snapshot? perhaps from a last update
 		//index? I can't think of why this would be beneficial as this
 		//entire process runs asynchronously with the fsm/scheduler/etc
-		snapshot := state.Snapshot()
+		snapshot, err := state.Snapshot()
+		if err != nil {
+			//FIXME
+			panic(err)
+		}
 		now := time.Now() // for determing deadlines in a consistent way
 
 		// namespace -> job id -> {job, allocs}
@@ -115,7 +124,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 		// Collect all drainable jobs
 		for nodeID, deadline := range nodes {
-			allocs, err := snapshot.AllocsByNode(nil, node.ID)
+			allocs, err := snapshot.AllocsByNode(nil, nodeID)
 			if err != nil {
 				//FIXME
 				panic(err)
@@ -163,20 +172,19 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 		}
 
-		//TODO convert drainingAllocs to this outside the mainloop?!
-		// Map of allocs which have already been stopped and are
-		// awaiting their replacement; ns+jobid+tg -> count of in progress drains
-		alreadyStopped := make(map[string]int, len(drainingAllocs))
-		for id, a := range drainingAllocs {
-			alreadyStopped[a.tgKey]++
+		// Initialize stoplist with a count of allocs already draining per task group
+		//TODO wrap this up in a new func
+		stoplist := &stopAllocs{
+			perTaskGroup: make(map[string]int, len(drainingAllocs)),
+			batch:        make([]*structs.Allocation, len(drainingAllocs)),
+		}
+		for _, a := range drainingAllocs {
+			stoplist.perTaskGroup[a.tgKey]++
 		}
 
-		// Map of allocations to stop (drain); ns+jobid+tg -> alloc.ID
-		toStop := make(stopAllocs, len(drainingAllocs))
-
 		//TODO build drain list considering deadline & max_parallel
-		for ns, drainingJobs := range drainable {
-			for jobID, drainingJob := range drainingJobs {
+		for _, drainingJobs := range drainable {
+			for _, drainingJob := range drainingJobs {
 				for _, alloc := range drainingJob.allocs {
 					// Already draining/dead allocs don't need to be drained
 					if alloc.TerminalStatus() {
@@ -198,12 +206,12 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					// Batch jobs are only stopped when the node
 					// deadline is reached which has already been
 					// done.
-					if job.Type == structs.JobTypeBatch {
+					if drainingJob.job.Type == structs.JobTypeBatch {
 						continue
 					}
 
 					// Stop allocs with count=1, max_parallel==0, or draining<max_parallel
-					tg := drainingJob.Job.LookupTaskGroup(alloc.TaskGroup)
+					tg := drainingJob.job.LookupTaskGroup(alloc.TaskGroup)
 					//FIXME tg==nil here?
 
 					// Only 1, drain
@@ -213,30 +221,48 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					}
 
 					// No migrate strategy or a max parallel of 0 mean force draining
-					if tg.MigrateStrategy == nil || tg.MigrateStrategy.MaxParallel == 0 {
+					if tg.Migrate == nil || tg.Migrate.MaxParallel == 0 {
 						stoplist.add(alloc)
 						continue
 					}
 
 					// If MaxParallel > how many allocs are
 					// already draining for this task
-					// group, drain this alloc as well
+					// group, drain and track this alloc
 					tgKey := makeTaskGroupKey(alloc)
-					if tg.MigrateStrategy.MaxParallel > alreadyStopped[tgKey] {
-						// More migrations are allowed
+					if tg.Migrate.MaxParallel > stoplist.perTaskGroup[tgKey] {
+						// More migrations are allowed, add to stoplist
 						stoplist.add(alloc)
-						alreadyStopped[tgKey]++
+
+						// Also add to prevAllocWatcher
+						prevAllocs.watch(alloc.ID, tgKey)
 					}
 				}
 			}
 		}
 
-		//TODO stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
-		//TODO emit node update evaluation for all nodes who reached their deadline
+		//TODO whoa whoa whoa nobody has updated the DesiredStatus or ModifyTime on the allocs yet!
+
+		// Stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
+		batch := &structs.AllocUpdateRequest{
+			Alloc:        stoplist.batch,
+			WriteRequest: structs.WriteRequest{Region: s.config.Region},
+		}
+
+		// Commit this update via Raft
+		_, index, err := s.raftApply(structs.AllocClientUpdateRequestType, batch)
+		if err != nil {
+			//FIXME
+			panic(err)
+		}
+		//TODO i bet there's something useful to do with this index
+		_ = index
+
 		//TODO unset drain for nodes with no allocs
 	}
 }
 
+// nodeWatcher watches for nodes to start or stop draining
 type nodeWatcher struct {
 	index   uint64
 	nodes   map[string]time.Time
@@ -330,7 +356,7 @@ func (n *nodeWatcher) queryNodeDrain(ws memdb.WatchSet, state *state.StateStore)
 type prevAllocWatcher struct {
 	// watchList is a map of alloc ids to look for in PreviousAllocation
 	// fields of new allocs
-	watchList   map[string]drainingAlloc
+	watchList   map[string]string
 	watchListMu sync.Mutex
 
 	state *state.StateStore
@@ -347,8 +373,14 @@ type prevAllocWatcher struct {
 func newPrevAllocWatcher(logger *log.Logger, drainingAllocs map[string]drainingAlloc, allocIndex uint64,
 	state *state.StateStore) *prevAllocWatcher {
 
+	//TODO why do we need tgkey here?
+	watchList := make(map[string]string, len(drainingAllocs))
+	for allocID, meta := range drainingAllocs {
+		watchList[allocID] = meta.tgKey
+	}
+
 	return &prevAllocWatcher{
-		watchList:  drainingAllocs,
+		watchList:  watchList,
 		state:      state,
 		allocIndex: allocIndex,
 		allocsCh:   make(chan string, 8), //FIXME 8? really? what should this be
@@ -380,6 +412,12 @@ func (p *prevAllocWatcher) run(ctx context.Context) {
 	}
 }
 
+func (p *prevAllocWatcher) watch(allocID, tgKey string) {
+	p.watchListMu.Lock()
+	defer p.watchListMu.Unlock()
+	p.watchList[allocID] = tgKey
+}
+
 func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
 	iter, err := state.Allocs(ws)
 	if err != nil {
@@ -390,8 +428,6 @@ func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateS
 	if err != nil {
 		return nil, 0, err
 	}
-
-	now := time.Now()
 
 	p.watchListMu.Lock()
 	defer p.watchListMu.Unlock()
@@ -405,24 +441,23 @@ func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateS
 		}
 
 		alloc := raw.(*structs.Allocation)
-		drainingAlloc, ok := p.watchList[alloc.PreviousAllocation]
+		_, ok := p.watchList[alloc.PreviousAllocation]
 		if !ok {
 			// PreviousAllocation not in watchList, skip it
 			continue
 		}
 
 		// If the migration health is set on the replacement alloc we can stop watching the drained alloc
-		if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() || drainingAlloc.deadline.After(now) {
+		if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
 			delete(p.watchList, alloc.PreviousAllocation)
 			resp = append(resp, alloc.PreviousAllocation)
-			continue
 		}
 	}
 
 	return resp, index, nil
 }
 
-func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.Time, uint64, map[string]time.Time, uint64) {
+func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.Time, uint64, map[string]drainingAlloc, uint64) {
 	// StateStore.Snapshot never returns an error so don't bother checking it
 	snapshot, _ := state.Snapshot()
 	now := time.Now()
@@ -486,7 +521,7 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.T
 	}
 
 	// alloc.ID ->
-	drainingAllocs := map[string]time.Time{}
+	drainingAllocs := map[string]drainingAlloc{}
 
 	for ns, allocsByJobs := range allocsByNS {
 		for jobID, allocs := range allocsByJobs {
