@@ -168,7 +168,8 @@ scripts.
   checks.
 
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
-  check.
+  check. If the name is not specified Nomad generates one based on the service name.
+  If you have more than one check you must specify the name.
 
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   Consul will query to query the health of a service. Nomad will automatically
