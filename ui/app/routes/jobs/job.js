@@ -32,6 +32,8 @@ export default Route.extend({
       evaluations: this.get('watchEvaluations').perform(model),
       deployments: this.get('watchDeployments').perform(model),
     });
+
+    return this._super(...arguments);
   },
 
   watch: watchRecord('job'),

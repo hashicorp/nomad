@@ -3,6 +3,7 @@ import Route from '@ember/routing/route';
 import { run } from '@ember/runloop';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
+import { watchAll } from 'nomad-ui/utils/properties/watch';
 
 export default Route.extend(WithForbiddenState, {
   system: service(),
@@ -35,8 +36,12 @@ export default Route.extend(WithForbiddenState, {
 
   setupController(controller) {
     this.syncToController(controller);
+
+    controller.set('modelWatch', this.get('watch').perform());
     return this._super(...arguments);
   },
+
+  watch: watchAll('job'),
 
   actions: {
     refreshRoute() {
