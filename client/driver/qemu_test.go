@@ -251,7 +251,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 
 	select {
 	case <-resp.Handle.WaitCh():
-		// VM exited gracefully!
+		logger.Printf("[TEST] VM exited gracefully as expected")
 	case <-time.After(killTimeout):
 		t.Fatalf("VM did not exit gracefully exit before timeout: %s", killTimeout)
 	}
