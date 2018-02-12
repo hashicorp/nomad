@@ -1,6 +1,7 @@
 import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import { copy } from '@ember/object/internals';
+import { makeArray } from '@ember/array';
 import { inject as service } from '@ember/service';
 import queryString from 'npm:query-string';
 import ApplicationAdapter from './application';
@@ -8,6 +9,19 @@ import ApplicationAdapter from './application';
 export default ApplicationAdapter.extend({
   watchList: service(),
   store: service(),
+
+  findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
+    const params = copy(additionalParams, true);
+    const url = this.urlForFindAll(type.modelName);
+
+    if (get(snapshotRecordArray, 'adapterOptions.watch')) {
+      params.index = this.get('watchList').getIndexFor(url);
+    }
+
+    return this.ajax(url, 'GET', {
+      data: params,
+    });
+  },
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
     const params = copy(additionalParams, true);
@@ -40,11 +54,11 @@ export default ApplicationAdapter.extend({
         params = assign(queryString.parse(url.split('?')[1]), params);
       }
 
-      this.ajax(url, 'GET', {
+      return this.ajax(url, 'GET', {
         data: params,
       }).then(json => {
         this.get('store').pushPayload(relationship.type, {
-          [relationship.type]: relationship.kind === 'hasMany' ? json : [json],
+          [relationship.type]: makeArray(json),
         });
       });
     }
