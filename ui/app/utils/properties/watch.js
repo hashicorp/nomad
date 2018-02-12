@@ -21,14 +21,30 @@ export function watchRecord(modelName) {
 }
 
 export function watchRelationship(staticRelationshipName) {
-  return task(function*(model, relationshipName) {
+  return task(function*(model, throttle = 2000) {
     while (true) {
       try {
         yield RSVP.all([
-          this.store
-            .adapterFor(model.get('modelName'))
-            .reloadRelationship(model, staticRelationshipName || relationshipName, true),
-          wait(2000),
+          this.get('store')
+            .adapterFor(model.constructor.modelName)
+            .reloadRelationship(model, staticRelationshipName, true),
+          wait(throttle),
+        ]);
+      } catch (e) {
+        yield e;
+        break;
+      }
+    }
+  });
+}
+
+export function watchAll(modelName) {
+  return task(function*(throttle = 2000) {
+    while (true) {
+      try {
+        yield RSVP.all([
+          this.get('store').findAll(modelName, { reload: true, adapterOptions: { watch: true } }),
+          wait(throttle),
         ]);
       } catch (e) {
         yield e;
