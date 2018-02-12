@@ -4,13 +4,16 @@ import { task } from 'ember-concurrency';
 import wait from 'nomad-ui/utils/wait';
 
 export function watchRecord(modelName) {
-  return task(function*(id) {
+  return task(function*(id, throttle = 2000) {
     id = get(id, 'id') || id;
     while (true) {
       try {
         yield RSVP.all([
-          this.store.findRecord(modelName, id, { reload: true, adapterOptions: { watch: true } }),
-          wait(2000),
+          this.get('store').findRecord(modelName, id, {
+            reload: true,
+            adapterOptions: { watch: true },
+          }),
+          wait(throttle),
         ]);
       } catch (e) {
         yield e;
