@@ -77,8 +77,10 @@ export default Component.extend(WindowResizable, {
     const width = this.$('svg').width();
     const filteredData = _data.filter(d => d.value > 0);
 
-    let slices = chart.select('.bars').selectAll('g').data(filteredData);
+    let slices = chart.select('.bars').selectAll('g').data(filteredData, d => d.label);
     let sliceCount = filteredData.length;
+
+    this.set('slices', slices);
 
     slices.exit().remove();
 
@@ -86,6 +88,7 @@ export default Component.extend(WindowResizable, {
       .append('g')
       .on('mouseenter', d => {
         run(() => {
+          const slices = this.get('slices');
           const slice = slices.filter(datum => datum === d);
           slices.classed('active', false).classed('inactive', true);
           slice.classed('active', true).classed('inactive', false);
@@ -103,7 +106,13 @@ export default Component.extend(WindowResizable, {
       });
 
     slices = slices.merge(slicesEnter);
-    slices.attr('class', d => d.className || `slice-${_data.indexOf(d)}`);
+    slices.attr('class', d => {
+      const className = d.className || `slice-${_data.indexOf(d)}`
+      const activeDatum = this.get('activeDatum');
+      const isActive = activeDatum && activeDatum.label === d.label;
+      const isInactive = activeDatum && activeDatum.label !== d.label;
+      return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
+    });
 
     const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
     const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
@@ -120,7 +129,6 @@ export default Component.extend(WindowResizable, {
         .duration(200)
         .attr('width', setWidth)
         .attr('x', setOffset)
-
 
     let layers = slices.selectAll('.bar').data((d, i) => {
       return new Array(d.layers || 1).fill(assign({ index: i }, d));
