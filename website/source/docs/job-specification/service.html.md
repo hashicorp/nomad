@@ -168,7 +168,8 @@ scripts.
   checks.
 
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
-  check.
+  check. If the name is not specified Nomad generates one based on the service name.
+  If you have more than one check you must specify the name.
 
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   Consul will query to query the health of a service. Nomad will automatically
@@ -320,6 +321,7 @@ checks must be passing in order for the service to register as healthy.
 ```hcl
 service {
   check {
+    name     = "HTTP Check"
     type     = "http"
     port     = "lb"
     path     = "/_healthz"
@@ -328,6 +330,7 @@ service {
   }
 
   check {
+    name     = "HTTPS Check"
     type     = "http"
     protocol = "https"
     port     = "lb"
@@ -338,6 +341,7 @@ service {
   }
 
   check {
+    name     = "Postgres Check"
     type     = "script"
     command  = "/usr/local/bin/pg-tools"
     args     = ["verify", "database" "prod", "up"]
