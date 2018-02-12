@@ -321,6 +321,7 @@ checks must be passing in order for the service to register as healthy.
 ```hcl
 service {
   check {
+    name     = "httpCheck1"
     type     = "http"
     port     = "lb"
     path     = "/_healthz"
@@ -329,6 +330,7 @@ service {
   }
 
   check {
+    name     = "httpCheck2"
     type     = "http"
     protocol = "https"
     port     = "lb"
@@ -339,6 +341,7 @@ service {
   }
 
   check {
+    name     = "scriptCheck1"
     type     = "script"
     command  = "/usr/local/bin/pg-tools"
     args     = ["verify", "database" "prod", "up"]
