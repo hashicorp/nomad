@@ -2,6 +2,7 @@ package client
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -16,6 +17,7 @@ import (
 type FingerprintManager struct {
 	getConfig  func() *config.Config
 	node       *structs.Node
+	nodeLock   sync.Mutex
 	shutdownCh chan struct{}
 
 	// updateNode is a callback to the client to update the state of its
@@ -102,9 +104,11 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 		return false, err
 	}
 
+	fm.nodeLock.Lock()
 	if node := fm.updateNode(&response); node != nil {
 		fm.node = node
 	}
+	fm.nodeLock.Unlock()
 
 	return response.Detected, nil
 }
@@ -142,6 +146,10 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 	return nil
 }
 
+// Run starts the process of fingerprinting the node. It does an initial pass,
+// identifying whitelisted and blacklisted fingerprints/drivers. Then, for
+// those which require periotic checking, it starts a periodic process for
+// each.
 func (fp *FingerprintManager) Run() error {
 	// first, set up all fingerprints
 	cfg := fp.getConfig()

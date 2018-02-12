@@ -210,9 +210,8 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 func TestClient_Fingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
-		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
-	}
+
+	driver.CheckForMockDriver(t)
 
 	c := testClient(t, nil)
 	defer c.Shutdown()
@@ -257,9 +256,7 @@ func TestClient_HasNodeChanged(t *testing.T) {
 }
 
 func TestClient_Fingerprint_Periodic(t *testing.T) {
-	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
-		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
-	}
+	driver.CheckForMockDriver(t)
 	t.Parallel()
 
 	// these constants are only defined when nomad_test is enabled, so these fail

@@ -13,9 +13,7 @@ import (
 )
 
 func TestFingerprintManager_Run_MockDriver(t *testing.T) {
-	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
-		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
-	}
+	driver.CheckForMockDriver(t)
 	t.Parallel()
 	require := require.New(t)
 
