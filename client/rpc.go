@@ -9,20 +9,23 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/client/servers"
+	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
+	"github.com/ugorji/go/codec"
 )
 
 // rpcEndpoints holds the RPC endpoints
 type rpcEndpoints struct {
 	ClientStats *ClientStats
+	FileSystem  *FileSystem
 }
 
 // ClientRPC is used to make a local, client only RPC call
 func (c *Client) ClientRPC(method string, args interface{}, reply interface{}) error {
-	codec := &codec.InmemCodec{
+	codec := &inmem.InmemCodec{
 		Method: method,
 		Args:   args,
 		Reply:  reply,
@@ -31,6 +34,12 @@ func (c *Client) ClientRPC(method string, args interface{}, reply interface{}) e
 		return err
 	}
 	return codec.Err
+}
+
+// StreamingRpcHandler is used to make a local, client only streaming RPC
+// call.
+func (c *Client) StreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	return c.streamingRpcs.GetHandler(method)
 }
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers.
@@ -96,10 +105,92 @@ func canRetry(args interface{}, err error) bool {
 	return false
 }
 
+// RemoteStreamingRpcHandler is used to make a streaming RPC call to a remote
+// server.
+func (c *Client) RemoteStreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	server := c.servers.FindServer()
+	if server == nil {
+		return nil, noServersErr
+	}
+
+	conn, err := c.streamingRpcConn(server, method)
+	if err != nil {
+		// Move off to another server
+		c.logger.Printf("[ERR] nomad: %q RPC failed to server %s: %v", method, server.Addr, err)
+		c.servers.NotifyFailedServer(server)
+		return nil, err
+	}
+
+	return bridgedStreamingRpcHandler(conn), nil
+}
+
+// bridgedStreamingRpcHandler creates a bridged streaming RPC handler by copying
+// data between the two sides.
+func bridgedStreamingRpcHandler(sideA io.ReadWriteCloser) structs.StreamingRpcHandler {
+	return func(sideB io.ReadWriteCloser) {
+		defer sideA.Close()
+		defer sideB.Close()
+		structs.Bridge(sideA, sideB)
+	}
+}
+
+// streamingRpcConn is used to retrieve a connection to a server to conduct a
+// streaming RPC.
+func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Conn, error) {
+	// Dial the server
+	conn, err := net.DialTimeout("tcp", server.Addr.String(), 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cast to TCPConn
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetKeepAlive(true)
+		tcp.SetNoDelay(true)
+	}
+
+	// TODO TLS
+	// Check if TLS is enabled
+	//if p.tlsWrap != nil {
+	//// Switch the connection into TLS mode
+	//if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
+	//conn.Close()
+	//return nil, err
+	//}
+
+	//// Wrap the connection in a TLS client
+	//tlsConn, err := p.tlsWrap(region, conn)
+	//if err != nil {
+	//conn.Close()
+	//return nil, err
+	//}
+	//conn = tlsConn
+	//}
+
+	// Write the multiplex byte to set the mode
+	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// Send the header
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	header := structs.StreamingRpcHeader{
+		Method: method,
+	}
+	if err := encoder.Encode(header); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	return conn, nil
+}
+
 // setupClientRpc is used to setup the Client's RPC endpoints
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
+	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
@@ -151,8 +242,36 @@ func (c *Client) listenConn(s *yamux.Session) {
 	}
 }
 
-// handleConn is used to handle an individual connection.
+// handleConn is used to determine if this is a RPC or Streaming RPC connection and
+// invoke the correct handler
 func (c *Client) handleConn(conn net.Conn) {
+	// Read a single byte
+	buf := make([]byte, 1)
+	if _, err := conn.Read(buf); err != nil {
+		if err != io.EOF {
+			c.logger.Printf("[ERR] client.rpc: failed to read byte: %v", err)
+		}
+		conn.Close()
+		return
+	}
+
+	// Switch on the byte
+	switch pool.RPCType(buf[0]) {
+	case pool.RpcNomad:
+		c.handleNomadConn(conn)
+
+	case pool.RpcStreaming:
+		c.handleStreamingConn(conn)
+
+	default:
+		c.logger.Printf("[ERR] client.rpc: unrecognized RPC byte: %v", buf[0])
+		conn.Close()
+		return
+	}
+}
+
+// handleNomadConn is used to handle a single Nomad RPC connection.
+func (c *Client) handleNomadConn(conn net.Conn) {
 	defer conn.Close()
 	rpcCodec := pool.NewServerCodec(conn)
 	for {
@@ -173,10 +292,39 @@ func (c *Client) handleConn(conn net.Conn) {
 	}
 }
 
+// handleStreamingConn is used to handle a single Streaming Nomad RPC connection.
+func (c *Client) handleStreamingConn(conn net.Conn) {
+	defer conn.Close()
+
+	// Decode the header
+	var header structs.StreamingRpcHeader
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	if err := decoder.Decode(&header); err != nil {
+		if err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			c.logger.Printf("[ERR] client.rpc: Streaming RPC error: %v (%v)", err, conn)
+			metrics.IncrCounter([]string{"client", "streaming_rpc", "request_error"}, 1)
+		}
+
+		return
+	}
+
+	handler, err := c.streamingRpcs.GetHandler(header.Method)
+	if err != nil {
+		c.logger.Printf("[ERR] client.rpc: Streaming RPC error: %v (%v)", err, conn)
+		metrics.IncrCounter([]string{"client", "streaming_rpc", "request_error"}, 1)
+		return
+	}
+
+	// Invoke the handler
+	metrics.IncrCounter([]string{"client", "streaming_rpc", "request"}, 1)
+	handler(conn)
+}
+
 // setupClientRpcServer is used to populate a client RPC server with endpoints.
 func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	// Register the endpoints
 	server.Register(c.endpoints.ClientStats)
+	server.Register(c.endpoints.FileSystem)
 }
 
 // resolveServer given a sever's address as a string, return it's resolved

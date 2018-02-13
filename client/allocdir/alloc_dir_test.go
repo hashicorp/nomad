@@ -3,6 +3,7 @@ package allocdir
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
@@ -11,8 +12,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-
-	tomb "gopkg.in/tomb.v1"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
@@ -314,13 +313,12 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 
 	// BlockUntilExists
-	tomb := tomb.Tomb{}
-	if _, err := d.BlockUntilExists("../foo", &tomb); err == nil || !strings.Contains(err.Error(), "escapes") {
+	if _, err := d.BlockUntilExists(context.Background(), "../foo"); err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("BlockUntilExists of escaping path didn't error: %v", err)
 	}
 
 	// ChangeEvents
-	if _, err := d.ChangeEvents("../foo", 0, &tomb); err == nil || !strings.Contains(err.Error(), "escapes") {
+	if _, err := d.ChangeEvents(context.Background(), "../foo", 0); err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("ChangeEvents of escaping path didn't error: %v", err)
 	}
 }

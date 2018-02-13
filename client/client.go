@@ -162,8 +162,9 @@ type Client struct {
 	clientACLResolver
 
 	// rpcServer is used to serve RPCs by the local agent.
-	rpcServer *rpc.Server
-	endpoints rpcEndpoints
+	rpcServer     *rpc.Server
+	endpoints     rpcEndpoints
+	streamingRpcs *structs.StreamingRpcRegistery
 
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
@@ -196,6 +197,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		consulService:       consulService,
 		start:               time.Now(),
 		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		streamingRpcs:       structs.NewStreamingRpcRegistery(),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
 		allocUpdates:        make(chan *structs.Allocation, 64),
@@ -507,7 +509,7 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.StatsReporter(), nil
 }
@@ -535,7 +537,7 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.GetAllocDir(), nil
 }
@@ -545,7 +547,7 @@ func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
 	all := c.allAllocs()
 	alloc, ok := all[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return alloc, nil
 }

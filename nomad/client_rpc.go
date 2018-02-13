@@ -2,11 +2,15 @@ package nomad
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
+	"github.com/ugorji/go/codec"
 )
 
 // nodeConnState is used to track connection information about a Nomad Client.
@@ -69,10 +73,7 @@ func (s *Server) removeNodeConn(ctx *RPCContext) {
 // ErrNoNodeConn is returned if all local peers could be queried but did not
 // have a connection to the node. Otherwise if a connection could not be found
 // and there were RPC errors, an error is returned.
-func (s *Server) serverWithNodeConn(nodeID string) (*serverParts, error) {
-	s.peerLock.RLock()
-	defer s.peerLock.RUnlock()
-
+func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error) {
 	// We skip ourselves.
 	selfAddr := s.LocalMember().Addr.String()
 
@@ -84,14 +85,38 @@ func (s *Server) serverWithNodeConn(nodeID string) (*serverParts, error) {
 		},
 	}
 
+	// Select the list of servers to check based on what region we are querying
+	s.peerLock.RLock()
+
+	var rawTargets []*serverParts
+	if region == s.Region() {
+		rawTargets = make([]*serverParts, 0, len(s.localPeers))
+		for _, srv := range s.localPeers {
+			rawTargets = append(rawTargets, srv)
+		}
+	} else {
+		peers, ok := s.peers[region]
+		if !ok {
+			s.peerLock.RUnlock()
+			return nil, structs.ErrNoRegionPath
+		}
+		rawTargets = peers
+	}
+
+	targets := make([]*serverParts, 0, len(rawTargets))
+	for _, target := range rawTargets {
+		targets = append(targets, target.Copy())
+	}
+	s.peerLock.RUnlock()
+
 	// connections is used to store the servers that have connections to the
 	// requested node.
 	var mostRecentServer *serverParts
 	var mostRecent time.Time
 
 	var rpcErr multierror.Error
-	for addr, server := range s.localPeers {
-		if string(addr) == selfAddr {
+	for _, server := range targets {
+		if server.Addr.String() == selfAddr {
 			continue
 		}
 
@@ -116,8 +141,63 @@ func (s *Server) serverWithNodeConn(nodeID string) (*serverParts, error) {
 			return nil, err
 		}
 
-		return nil, ErrNoNodeConn
+		return nil, structs.ErrNoNodeConn
 	}
 
 	return mostRecentServer, nil
+}
+
+// NodeRpc is used to make an RPC call to a node. The method takes the
+// Yamux session for the node and the method to be called.
+func NodeRpc(session *yamux.Session, method string, args, reply interface{}) error {
+	// Open a new session
+	stream, err := session.Open()
+	if err != nil {
+		return err
+	}
+	defer stream.Close()
+
+	// Write the RpcNomad byte to set the mode
+	if _, err := stream.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+		stream.Close()
+		return err
+	}
+
+	// Make the RPC
+	err = msgpackrpc.CallWithCodec(pool.NewClientCodec(stream), method, args, reply)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// NodeStreamingRpc is used to make a streaming RPC call to a node. The method
+// takes the Yamux session for the node and the method to be called. It conducts
+// the initial handshake and returns a connection to be used or an error. It is
+// the callers responsibility to close the connection if there is no error.
+func NodeStreamingRpc(session *yamux.Session, method string) (net.Conn, error) {
+	// Open a new session
+	stream, err := session.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	// Write the RpcNomad byte to set the mode
+	if _, err := stream.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
+		stream.Close()
+		return nil, err
+	}
+
+	// Send the header
+	encoder := codec.NewEncoder(stream, structs.MsgpackHandle)
+	header := structs.StreamingRpcHeader{
+		Method: method,
+	}
+	if err := encoder.Encode(header); err != nil {
+		stream.Close()
+		return nil, err
+	}
+
+	return stream, nil
 }

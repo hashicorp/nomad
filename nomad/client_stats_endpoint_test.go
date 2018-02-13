@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -26,6 +28,7 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
+	defer c.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -51,6 +54,66 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "ClientStats.Stats", req, &resp2)
 	require.Nil(err)
 	require.NotNil(resp2.HostStats)
+}
+
+func TestClientStats_Stats_Local_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s, root := TestACLServer(t, nil)
+	defer s.Shutdown()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Create a bad token
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.NodePolicy(acl.PolicyRead)
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	cases := []struct {
+		Name          string
+		Token         string
+		ExpectedError string
+	}{
+		{
+			Name:          "bad token",
+			Token:         tokenBad.SecretID,
+			ExpectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:          "good token",
+			Token:         tokenGood.SecretID,
+			ExpectedError: "Unknown node",
+		},
+		{
+			Name:          "root token",
+			Token:         root.SecretID,
+			ExpectedError: "Unknown node",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+
+			// Make the request without having a node-id
+			req := &cstructs.ClientStatsRequest{
+				NodeID: uuid.Generate(),
+				QueryOptions: structs.QueryOptions{
+					AuthToken: c.Token,
+					Region:    "global",
+				},
+			}
+
+			// Fetch the response
+			var resp cstructs.ClientStatsResponse
+			err := msgpackrpc.CallWithCodec(codec, "ClientStats.Stats", req, &resp)
+			require.NotNil(err)
+			require.Contains(err.Error(), c.ExpectedError)
+		})
+	}
 }
 
 func TestClientStats_Stats_NoNode(t *testing.T) {
@@ -96,6 +159,7 @@ func TestClientStats_Stats_Remote(t *testing.T) {
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
+	defer c.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()

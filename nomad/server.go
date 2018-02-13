@@ -117,6 +117,9 @@ type Server struct {
 	// all RPC connections
 	staticEndpoints endpoints
 
+	// streamingRpcs is the registry holding our streaming RPC handlers.
+	streamingRpcs *structs.StreamingRpcRegistery
+
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
 	nodeConns     map[string]*nodeConnState
@@ -210,6 +213,7 @@ type endpoints struct {
 
 	// Client endpoints
 	ClientStats *ClientStats
+	FileSystem  *FileSystem
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -270,6 +274,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
 		rpcServer:     rpc.NewServer(),
+		streamingRpcs: structs.NewStreamingRpcRegistery(),
 		nodeConns:     make(map[string]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
@@ -807,6 +812,10 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{s}
+
+		// Streaming endpoints
+		s.staticEndpoints.FileSystem = &FileSystem{s}
+		s.staticEndpoints.FileSystem.register()
 	}
 
 	// Register the static handlers
@@ -824,6 +833,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Search)
 	s.staticEndpoints.Enterprise.Register(server)
 	server.Register(s.staticEndpoints.ClientStats)
+	server.Register(s.staticEndpoints.FileSystem)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx}
@@ -1151,6 +1161,11 @@ func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
 		return err
 	}
 	return codec.Err
+}
+
+// StreamingRpcHandler is used to make a streaming RPC call.
+func (s *Server) StreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	return s.streamingRpcs.GetHandler(method)
 }
 
 // Stats is used to return statistics for debugging and insight
