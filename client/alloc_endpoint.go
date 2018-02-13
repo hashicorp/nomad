@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -19,7 +18,7 @@ type Allocations struct {
 func (a *Allocations) GarbageCollectAll(args *nstructs.NodeSpecificRequest, reply *nstructs.GenericResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "garbage_collect_all"}, time.Now())
 
-	// Check node read permissions
+	// Check node write permissions
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
@@ -34,7 +33,7 @@ func (a *Allocations) GarbageCollectAll(args *nstructs.NodeSpecificRequest, repl
 func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply *nstructs.GenericResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "garbage_collect"}, time.Now())
 
-	// Check node read permissions
+	// Check submit job permissions
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilitySubmitJob) {
@@ -43,7 +42,7 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 
 	if !a.c.CollectAllocation(args.AllocID) {
 		// Could not find alloc
-		return fmt.Errorf("unknown allocation %q", args.AllocID)
+		return nstructs.NewErrUnknownAllocation(args.AllocID)
 	}
 
 	return nil
@@ -53,7 +52,7 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.AllocStatsResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "stats"}, time.Now())
 
-	// Check node read permissions
+	// Check read job permissions
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadJob) {

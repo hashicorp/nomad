@@ -295,12 +295,12 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -526,12 +526,12 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 

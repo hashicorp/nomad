@@ -149,7 +149,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Contains(err.Error(), "unknown allocation")
+		require.True(nstructs.IsErrUnknownAllocation(err))
 	}
 
 	// Try request with a management token
@@ -159,7 +159,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.Contains(err.Error(), "unknown allocation")
+		require.True(nstructs.IsErrUnknownAllocation(err))
 	}
 }
 
@@ -239,7 +239,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.Contains(err.Error(), "unknown allocation")
+		require.True(nstructs.IsErrUnknownAllocation(err))
 	}
 
 	// Try request with a management token
@@ -249,6 +249,6 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.Contains(err.Error(), "unknown allocation")
+		require.True(nstructs.IsErrUnknownAllocation(err))
 	}
 }
