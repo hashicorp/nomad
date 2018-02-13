@@ -557,7 +557,7 @@ func (d *DockerDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.He
 		UpdateTime:        time.Now(),
 	}
 
-	_, err := client.ListContainers(docker.ListContainersOptions{})
+	_, err := client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
 		resp.AddDriverInfo("driver.docker", unhealthy)
