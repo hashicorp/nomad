@@ -277,7 +277,7 @@ func TestHTTP_AllocStats(t *testing.T) {
 			// Make the request
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Contains(err.Error(), "unknown allocation")
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 
 		// Local node, server resp
@@ -291,7 +291,7 @@ func TestHTTP_AllocStats(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Contains(err.Error(), "unknown allocation")
+			require.True(structs.IsErrUnknownAllocation(err))
 
 			s.server = srv
 		}
@@ -317,7 +317,7 @@ func TestHTTP_AllocStats(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Contains(err.Error(), "unknown allocation")
+			require.True(structs.IsErrUnknownAllocation(err))
 
 			s.client = c
 		}
@@ -551,7 +551,7 @@ func TestHTTP_AllocGC(t *testing.T) {
 
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
-			if err == nil || !strings.Contains(err.Error(), "unknown allocation") {
+			if !structs.IsErrUnknownAllocation(err) {
 				t.Fatalf("unexpected err: %v", err)
 			}
 		}
@@ -568,7 +568,7 @@ func TestHTTP_AllocGC(t *testing.T) {
 
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
-			if err == nil || !strings.Contains(err.Error(), "unknown allocation") {
+			if !structs.IsErrUnknownAllocation(err) {
 				t.Fatalf("unexpected err: %v", err)
 			}
 
@@ -598,7 +598,7 @@ func TestHTTP_AllocGC(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			if err == nil || !strings.Contains(err.Error(), "unknown allocation") {
+			if !structs.IsErrUnknownAllocation(err) {
 				t.Fatalf("unexpected err: %v", err)
 			}
 

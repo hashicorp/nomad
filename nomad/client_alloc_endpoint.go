@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -95,7 +94,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	}
 
 	if alloc == nil {
-		return fmt.Errorf("unknown allocation %q", args.AllocID)
+		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
 	// Get the connection to the client
@@ -145,7 +144,7 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	}
 
 	if alloc == nil {
-		return fmt.Errorf("unknown allocation %q", args.AllocID)
+		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
 	// Get the connection to the client
