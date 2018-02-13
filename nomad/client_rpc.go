@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -191,12 +192,25 @@ func NodeStreamingRpc(session *yamux.Session, method string) (net.Conn, error) {
 
 	// Send the header
 	encoder := codec.NewEncoder(stream, structs.MsgpackHandle)
+	decoder := codec.NewDecoder(stream, structs.MsgpackHandle)
 	header := structs.StreamingRpcHeader{
 		Method: method,
 	}
 	if err := encoder.Encode(header); err != nil {
 		stream.Close()
 		return nil, err
+	}
+
+	// Wait for the acknowledgement
+	var ack structs.StreamingRpcAck
+	if err := decoder.Decode(&ack); err != nil {
+		stream.Close()
+		return nil, err
+	}
+
+	if ack.Error != "" {
+		stream.Close()
+		return nil, errors.New(ack.Error)
 	}
 
 	return stream, nil

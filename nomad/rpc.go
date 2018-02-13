@@ -238,10 +238,22 @@ func (s *Server) handleStreamingConn(conn net.Conn) {
 		return
 	}
 
+	ack := structs.StreamingRpcAck{}
 	handler, err := s.streamingRpcs.GetHandler(header.Method)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad.rpc: Streaming RPC error: %v (%v)", err, conn)
 		metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request_error"}, 1)
+		ack.Error = err.Error()
+	}
+
+	// Send the acknowledgement
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	if err := encoder.Encode(ack); err != nil {
+		conn.Close()
+		return
+	}
+
+	if ack.Error != "" {
 		return
 	}
 
@@ -416,12 +428,25 @@ func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, err
 
 	// Send the header
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	header := structs.StreamingRpcHeader{
 		Method: method,
 	}
 	if err := encoder.Encode(header); err != nil {
 		conn.Close()
 		return nil, err
+	}
+
+	// Wait for the acknowledgement
+	var ack structs.StreamingRpcAck
+	if err := decoder.Decode(&ack); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	if ack.Error != "" {
+		conn.Close()
+		return nil, errors.New(ack.Error)
 	}
 
 	return conn, nil
