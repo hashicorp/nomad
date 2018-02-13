@@ -135,12 +135,12 @@ func TestClientFS_List_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -373,12 +373,12 @@ func TestClientFS_Stat_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -561,7 +561,7 @@ OUTER:
 				continue
 			}
 
-			if strings.Contains(msg.Error.Error(), "unknown alloc") {
+			if structs.IsErrUnknownAllocation(msg.Error) {
 				break OUTER
 			}
 		}
@@ -598,12 +598,12 @@ func TestClientFS_Streaming_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown alloc ID",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown alloc ID",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -1303,7 +1303,7 @@ OUTER:
 				continue
 			}
 
-			if strings.Contains(msg.Error.Error(), "unknown alloc") {
+			if structs.IsErrUnknownAllocation(msg.Error) {
 				break OUTER
 			}
 		}
@@ -1340,12 +1340,12 @@ func TestClientFS_Logs_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown alloc ID",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown alloc ID",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 

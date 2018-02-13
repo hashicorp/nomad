@@ -190,10 +190,7 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
-	c.endpoints.FileSystem = &FileSystem{c}
-
-	// Initialize the streaming RPC handlers.
-	c.endpoints.FileSystem.register()
+	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()

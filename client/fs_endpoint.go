@@ -73,9 +73,11 @@ type FileSystem struct {
 	c *Client
 }
 
-func (f *FileSystem) register() {
+func NewFileSystemEndpoint(c *Client) *FileSystem {
+	f := &FileSystem{c}
 	f.c.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.c.streamingRpcs.Register("FileSystem.Stream", f.stream)
+	return f
 }
 
 // handleStreamResultError is a helper for sending an error with a potential
@@ -185,11 +187,9 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 
 	fs, err := f.c.GetAllocFS(req.AllocID)
 	if err != nil {
-		var code *int64
-		if strings.Contains(err.Error(), "unknown allocation") {
+		code := helper.Int64ToPtr(500)
+		if structs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
-		} else {
-			code = helper.Int64ToPtr(500)
 		}
 
 		f.handleStreamResultError(err, code, encoder)
@@ -359,11 +359,9 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	fs, err := f.c.GetAllocFS(req.AllocID)
 	if err != nil {
-		var code *int64
-		if strings.Contains(err.Error(), "unknown allocation") {
+		code := helper.Int64ToPtr(500)
+		if structs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
-		} else {
-			code = helper.Int64ToPtr(500)
 		}
 
 		f.handleStreamResultError(err, code, encoder)
@@ -372,11 +370,9 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	alloc, err := f.c.GetClientAlloc(req.AllocID)
 	if err != nil {
-		var code *int64
-		if strings.Contains(err.Error(), "unknown allocation") {
+		code := helper.Int64ToPtr(500)
+		if structs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
-		} else {
-			code = helper.Int64ToPtr(500)
 		}
 
 		f.handleStreamResultError(err, code, encoder)
@@ -628,7 +624,11 @@ func (f *FileSystem) streamFile(ctx context.Context, offset int64, path string, 
 	var changes *watch.FileChanges
 
 	// Start streaming the data
-	data := make([]byte, streamFrameSize)
+	bufSize := int64(streamFrameSize)
+	if limit > 0 && limit < streamFrameSize {
+		bufSize = limit
+	}
+	data := make([]byte, bufSize)
 OUTER:
 	for {
 		// Read up to the max frame size
