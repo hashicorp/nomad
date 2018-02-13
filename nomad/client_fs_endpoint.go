@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -55,7 +54,7 @@ func (f *FileSystem) findNodeConnAndForward(snap *state.StateSnapshot,
 	}
 
 	if node == nil {
-		return fmt.Errorf("Unknown node %q", nodeID)
+		return structs.NewErrUnknownNode(nodeID)
 	}
 
 	// Determine the Server that has a connection to the node.
@@ -88,7 +87,7 @@ func (f *FileSystem) forwardRegionStreamingRpc(conn io.ReadWriteCloser,
 	}
 
 	if allocResp.Alloc == nil {
-		f.handleStreamResultError(fmt.Errorf("unknown allocation %q", allocID), nil, encoder)
+		f.handleStreamResultError(structs.NewErrUnknownAllocation(allocID), helper.Int64ToPtr(404), encoder)
 		return
 	}
 
@@ -153,7 +152,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 		return err
 	}
 	if alloc == nil {
-		return fmt.Errorf("unknown allocation %q", args.AllocID)
+		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
 	// Get the connection to the client
@@ -202,7 +201,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 		return err
 	}
 	if alloc == nil {
-		return fmt.Errorf("unknown allocation %q", args.AllocID)
+		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
 	// Get the connection to the client
@@ -266,7 +265,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 	if alloc == nil {
-		f.handleStreamResultError(fmt.Errorf("unknown alloc ID %q", args.AllocID), helper.Int64ToPtr(404), encoder)
+		f.handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
 		return
 	}
 	nodeID := alloc.NodeID
@@ -366,7 +365,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 	if alloc == nil {
-		f.handleStreamResultError(fmt.Errorf("unknown alloc ID %q", args.AllocID), helper.Int64ToPtr(404), encoder)
+		f.handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
 		return
 	}
 	nodeID := alloc.NodeID

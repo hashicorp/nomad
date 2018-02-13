@@ -53,7 +53,7 @@ func (s *StreamingRpcRegistery) GetHandler(method string) (StreamingRpcHandler, 
 }
 
 // Bridge is used to just link two connections together and copy traffic
-func Bridge(a, b io.ReadWriteCloser) error {
+func Bridge(a, b io.ReadWriteCloser) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
@@ -69,5 +69,4 @@ func Bridge(a, b io.ReadWriteCloser) error {
 		b.Close()
 	}()
 	wg.Wait()
-	return nil
 }

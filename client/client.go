@@ -537,7 +537,7 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.StatsReporter(), nil
 }
@@ -565,7 +565,7 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.GetAllocDir(), nil
 }
@@ -575,7 +575,7 @@ func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
 	all := c.allAllocs()
 	alloc, ok := all[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return alloc, nil
 }

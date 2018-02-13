@@ -70,7 +70,7 @@ func TestFS_Stat_NoAlloc(t *testing.T) {
 	var resp cstructs.FsStatResponse
 	err := c.ClientRPC("FileSystem.Stat", req, &resp)
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown")
+	require.True(structs.IsErrUnknownAllocation(err))
 }
 
 func TestFS_Stat(t *testing.T) {
@@ -147,12 +147,12 @@ func TestFS_Stat_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -195,7 +195,7 @@ func TestFS_List_NoAlloc(t *testing.T) {
 	var resp cstructs.FsListResponse
 	err := c.ClientRPC("FileSystem.List", req, &resp)
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown")
+	require.True(structs.IsErrUnknownAllocation(err))
 }
 
 func TestFS_List(t *testing.T) {
@@ -272,12 +272,12 @@ func TestFS_List_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -368,7 +368,7 @@ OUTER:
 				continue
 			}
 
-			if strings.Contains(msg.Error.Error(), "unknown alloc") {
+			if structs.IsErrUnknownAllocation(msg.Error) {
 				break OUTER
 			} else {
 				t.Fatalf("bad error: %v", err)
@@ -413,12 +413,12 @@ func TestFS_Stream_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 
@@ -1005,7 +1005,7 @@ OUTER:
 				continue
 			}
 
-			if strings.Contains(msg.Error.Error(), "unknown alloc") {
+			if structs.IsErrUnknownAllocation(msg.Error) {
 				break OUTER
 			} else {
 				t.Fatalf("bad error: %v", err)
@@ -1050,12 +1050,12 @@ func TestFS_Logs_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "unknown allocation",
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
 		},
 	}
 

@@ -2,6 +2,7 @@ package structs
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -11,7 +12,15 @@ const (
 	errTokenNotFound    = "ACL token not found"
 	errPermissionDenied = "Permission denied"
 	errNoNodeConn       = "No path to node"
-	errUnknownMethod    = "unknown rpc method"
+	errUnknownMethod    = "Unknown rpc method"
+
+	// Prefix based errors that are used to check if the error is of a given
+	// type. These errors should be created with the associated constructor.
+	ErrUnknownAllocationPrefix = "Unknown allocation"
+	ErrUnknownNodePrefix       = "Unknown node"
+	ErrUnknownJobPrefix        = "Unknown job"
+	ErrUnknownEvaluationPrefix = "Unknown evaluation"
+	ErrUnknownDeploymentPrefix = "Unknown deployment"
 )
 
 var (
@@ -56,4 +65,62 @@ func IsErrNoNodeConn(err error) bool {
 // being allowed due to lack of permissions.
 func IsErrUnknownMethod(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errUnknownMethod)
+}
+
+// NewErrUnknownAllocation returns a new error caused by the allocation being
+// unknown.
+func NewErrUnknownAllocation(allocID string) error {
+	return fmt.Errorf("%s %q", ErrUnknownAllocationPrefix, allocID)
+}
+
+// NewErrUnknownNode returns a new error caused by the node being unknown.
+func NewErrUnknownNode(nodeID string) error {
+	return fmt.Errorf("%s %q", ErrUnknownNodePrefix, nodeID)
+}
+
+// NewErrUnknownJob returns a new error caused by the job being unknown.
+func NewErrUnknownJob(jobID string) error {
+	return fmt.Errorf("%s %q", ErrUnknownJobPrefix, jobID)
+}
+
+// NewErrUnknownEvaluation returns a new error caused by the evaluation being
+// unknown.
+func NewErrUnknownEvaluation(evaluationID string) error {
+	return fmt.Errorf("%s %q", ErrUnknownEvaluationPrefix, evaluationID)
+}
+
+// NewErrUnknownDeployment returns a new error caused by the deployment being
+// unknown.
+func NewErrUnknownDeployment(deploymentID string) error {
+	return fmt.Errorf("%s %q", ErrUnknownDeploymentPrefix, deploymentID)
+}
+
+// IsErrUnknownAllocation returns whether the error is due to an unknown
+// allocation.
+func IsErrUnknownAllocation(err error) bool {
+	return err != nil && strings.Contains(err.Error(), ErrUnknownAllocationPrefix)
+}
+
+// IsErrUnknownNode returns whether the error is due to an unknown
+// node.
+func IsErrUnknownNode(err error) bool {
+	return err != nil && strings.Contains(err.Error(), ErrUnknownNodePrefix)
+}
+
+// IsErrUnknownJob returns whether the error is due to an unknown
+// job.
+func IsErrUnknownJob(err error) bool {
+	return err != nil && strings.Contains(err.Error(), ErrUnknownJobPrefix)
+}
+
+// IsErrUnknownEvaluation returns whether the error is due to an unknown
+// evaluation.
+func IsErrUnknownEvaluation(err error) bool {
+	return err != nil && strings.Contains(err.Error(), ErrUnknownEvaluationPrefix)
+}
+
+// IsErrUnknownDeployment returns whether the error is due to an unknown
+// deployment.
+func IsErrUnknownDeployment(err error) bool {
+	return err != nil && strings.Contains(err.Error(), ErrUnknownDeploymentPrefix)
 }
