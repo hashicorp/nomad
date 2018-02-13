@@ -20,8 +20,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -230,14 +228,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	// Fingerprint the node
-	if err := c.fingerprint(); err != nil {
-		return nil, fmt.Errorf("fingerprinting failed: %v", err)
-	}
+	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
+		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
 
-	// Scan for drivers
-	if err := c.setupDrivers(); err != nil {
-		return nil, fmt.Errorf("driver setup failed: %v", err)
+	// Fingerprint the node and scan for drivers
+	if err := fingerprintManager.Run(); err != nil {
+		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
 	// Setup the reserved resources
@@ -400,8 +396,10 @@ func (c *Client) Leave() error {
 	return nil
 }
 
-// GetConfig returns the config of the client for testing purposes only
+// GetConfig returns the config of the client
 func (c *Client) GetConfig() *config.Config {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
 	return c.config
 }
 
@@ -924,152 +922,9 @@ func (c *Client) reservePorts() {
 	}
 }
 
-// fingerprint is used to fingerprint the client and setup the node
-func (c *Client) fingerprint() error {
-	whitelist := c.config.ReadStringListToMap("fingerprint.whitelist")
-	whitelistEnabled := len(whitelist) > 0
-	blacklist := c.config.ReadStringListToMap("fingerprint.blacklist")
-
-	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
-
-	var detectedFingerprints []string
-	var skippedFingerprints []string
-	for _, name := range fingerprint.BuiltinFingerprints() {
-		// Skip modules that are not in the whitelist if it is enabled.
-		if _, ok := whitelist[name]; whitelistEnabled && !ok {
-			skippedFingerprints = append(skippedFingerprints, name)
-			continue
-		}
-		// Skip modules that are in the blacklist
-		if _, ok := blacklist[name]; ok {
-			skippedFingerprints = append(skippedFingerprints, name)
-			continue
-		}
-
-		f, err := fingerprint.NewFingerprint(name, c.logger)
-		if err != nil {
-			return err
-		}
-
-		c.configLock.Lock()
-		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-		var response cstructs.FingerprintResponse
-		err = f.Fingerprint(request, &response)
-		c.configLock.Unlock()
-		if err != nil {
-			return err
-		}
-
-		// log the fingerprinters which have been applied
-		if response.Detected {
-			detectedFingerprints = append(detectedFingerprints, name)
-		}
-
-		// add the diff found from each fingerprinter
-		c.updateNodeFromFingerprint(&response)
-
-		p, period := f.Periodic()
-		if p {
-			// TODO: If more periodic fingerprinters are added, then
-			// fingerprintPeriodic should be used to handle all the periodic
-			// fingerprinters by using a priority queue.
-			go c.fingerprintPeriodic(name, f, period)
-		}
-	}
-
-	c.logger.Printf("[DEBUG] client: detected fingerprints %v", detectedFingerprints)
-	if len(skippedFingerprints) != 0 {
-		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to white/blacklist: %v", skippedFingerprints)
-	}
-	return nil
-}
-
-// fingerprintPeriodic runs a fingerprinter at the specified duration.
-func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d time.Duration) {
-	c.logger.Printf("[DEBUG] client: fingerprinting %v every %v", name, d)
-	for {
-		select {
-		case <-time.After(d):
-			c.configLock.Lock()
-			request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-			var response cstructs.FingerprintResponse
-			err := f.Fingerprint(request, &response)
-			c.configLock.Unlock()
-
-			if err != nil {
-				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
-			} else {
-				c.updateNodeFromFingerprint(&response)
-			}
-
-		case <-c.shutdownCh:
-			return
-		}
-	}
-}
-
-// setupDrivers is used to find the available drivers
-func (c *Client) setupDrivers() error {
-	// Build the white/blacklists of drivers.
-	whitelist := c.config.ReadStringListToMap("driver.whitelist")
-	whitelistEnabled := len(whitelist) > 0
-	blacklist := c.config.ReadStringListToMap("driver.blacklist")
-
-	var detectedDrivers []string
-	var skippedDrivers []string
-	driverCtx := driver.NewDriverContext("", "", c.config, c.config.Node, c.logger, nil)
-	for name := range driver.BuiltinDrivers {
-		// Skip fingerprinting drivers that are not in the whitelist if it is
-		// enabled.
-		if _, ok := whitelist[name]; whitelistEnabled && !ok {
-			skippedDrivers = append(skippedDrivers, name)
-			continue
-		}
-		// Skip fingerprinting drivers that are in the blacklist
-		if _, ok := blacklist[name]; ok {
-			skippedDrivers = append(skippedDrivers, name)
-			continue
-		}
-
-		d, err := driver.NewDriver(name, driverCtx)
-		if err != nil {
-			return err
-		}
-
-		c.configLock.Lock()
-		request := &cstructs.FingerprintRequest{Config: c.config, Node: c.config.Node}
-		var response cstructs.FingerprintResponse
-		err = d.Fingerprint(request, &response)
-		c.configLock.Unlock()
-		if err != nil {
-			return err
-		}
-
-		// log the fingerprinters which have been applied
-		if response.Detected {
-			detectedDrivers = append(detectedDrivers, name)
-		}
-
-		c.updateNodeFromFingerprint(&response)
-
-		p, period := d.Periodic()
-		if p {
-			go c.fingerprintPeriodic(name, d, period)
-		}
-
-	}
-
-	c.logger.Printf("[DEBUG] client: detected drivers %v", detectedDrivers)
-	if len(skippedDrivers) > 0 {
-		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skippedDrivers)
-	}
-
-	return nil
-}
-
 // updateNodeFromFingerprint updates the node with the result of
 // fingerprinting the node from the diff that was created
-func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) {
+func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 	for name, val := range response.Attributes {
@@ -1093,6 +948,7 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	if response.Resources != nil {
 		c.config.Node.Resources.Merge(response.Resources)
 	}
+	return c.config.Node
 }
 
 // retryIntv calculates a retry interval value given the base
