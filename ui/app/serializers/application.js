@@ -42,7 +42,7 @@ export default JSONSerializer.extend({
     store.push(documentHash);
   },
 
-  normalizeArrayResponse(store, modelClass) {
+  normalizeFindAllResponse(store, modelClass) {
     const result = this._super(...arguments);
     this.cullStore(store, modelClass.modelName, result.data);
     return result;
@@ -50,17 +50,20 @@ export default JSONSerializer.extend({
 
   // When records are removed server-side, and therefore don't show up in requests,
   // the local copies of those records need to be unloaded from the store.
-  cullStore(store, type, records) {
+  cullStore(store, type, records, storeFilter = () => true) {
     const newRecords = copy(records).filter(record => get(record, 'id'));
     const oldRecords = store.peekAll(type);
-    oldRecords.filter(record => get(record, 'id')).forEach(old => {
-      const newRecord = newRecords.find(record => get(record, 'id') === get(old, 'id'));
-      if (!newRecord) {
-        store.unloadRecord(old);
-      } else {
-        newRecords.removeObject(newRecord);
-      }
-    });
+    oldRecords
+      .filter(record => get(record, 'id'))
+      .filter(storeFilter)
+      .forEach(old => {
+        const newRecord = newRecords.find(record => get(record, 'id') === get(old, 'id'));
+        if (!newRecord) {
+          store.unloadRecord(old);
+        } else {
+          newRecords.removeObject(newRecord);
+        }
+      });
   },
 
   modelNameFromPayloadKey(key) {
