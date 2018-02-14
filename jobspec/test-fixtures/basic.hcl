@@ -48,6 +48,11 @@ job "binstore-storagelocker" {
       mode     = "delay"
     }
 
+    reschedule {
+       attempts = 5
+       interval = "12h"
+    }
+
     ephemeral_disk {
         sticky = true
         size = 150

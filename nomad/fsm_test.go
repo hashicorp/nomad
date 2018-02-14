@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockSink struct {
@@ -1074,6 +1075,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
+	require := require.New(t)
 
 	alloc := mock.Alloc()
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
@@ -1083,30 +1085,38 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	*clientAlloc = *alloc
 	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
 
+	eval := mock.Eval()
+	eval.JobID = alloc.JobID
+	eval.TriggeredBy = structs.EvalTriggerRetryFailedAlloc
+	eval.Type = alloc.Job.Type
+
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{clientAlloc},
+		Evals: []*structs.Evaluation{eval},
 	}
 	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Verify we are registered
 	ws := memdb.NewWatchSet()
 	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 	clientAlloc.CreateIndex = out.CreateIndex
 	clientAlloc.ModifyIndex = out.ModifyIndex
-	if !reflect.DeepEqual(clientAlloc, out) {
-		t.Fatalf("err: %#v,%#v", clientAlloc, out)
-	}
+	require.Equal(clientAlloc, out)
+
+	// Verify eval was inserted
+	ws = memdb.NewWatchSet()
+	evals, err := fsm.State().EvalsByJob(ws, eval.Namespace, eval.JobID)
+	require.Nil(err)
+	require.Equal(1, len(evals))
+	res := evals[0]
+	eval.CreateIndex = res.CreateIndex
+	eval.ModifyIndex = res.ModifyIndex
+	require.Equal(eval, res)
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {

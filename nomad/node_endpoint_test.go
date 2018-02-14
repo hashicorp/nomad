@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
@@ -1648,6 +1649,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	require := require.New(t)
 
 	// Create the register request
 	node := mock.Node()
@@ -1662,15 +1664,21 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Inject fake evaluations
-	alloc := mock.Alloc()
-	alloc.NodeID = node.ID
 	state := s1.fsm.State()
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Inject mock job
+	job := mock.Job()
+	err := state.UpsertJob(101, job)
+	require.Nil(err)
+
+	// Inject fake allocations
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	err = state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
+	require.Nil(err)
+	alloc.TaskGroup = job.TaskGroups[0].Name
+	err = state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	require.Nil(err)
 
 	// Attempt update
 	clientAlloc := new(structs.Allocation)
@@ -1684,12 +1692,10 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	}
 	var resp2 structs.NodeAllocsResponse
 	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index == 0 {
-		t.Fatalf("Bad index: %d", resp2.Index)
-	}
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
+	require.Nil(err)
+	require.NotEqual(0, resp2.Index)
+
 	if diff := time.Since(start); diff < batchUpdateInterval {
 		t.Fatalf("too fast: %v", diff)
 	}
@@ -1697,16 +1703,22 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Lookup the alloc
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.ClientStatus != structs.AllocClientStatusFailed {
-		t.Fatalf("Bad: %#v", out)
-	}
+	require.Nil(err)
+	require.Equal(structs.AllocClientStatusFailed, out.ClientStatus)
+	require.True(out.ModifyTime > 0)
 
-	if out.ModifyTime <= 0 {
-		t.Fatalf("must have valid modify time but was %v", out.ModifyTime)
+	// Assert that one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
+	evaluations, err := state.EvalsByJob(ws, job.Namespace, job.ID)
+	require.Nil(err)
+	require.True(len(evaluations) != 0)
+	found := false
+	for _, resultEval := range evaluations {
+		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc {
+			found = true
+		}
 	}
+	require.True(found, "Should create an eval for failed alloc")
+
 }
 
 func TestClientEndpoint_BatchUpdate(t *testing.T) {
@@ -1747,7 +1759,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	// Call to do the batch update
 	bf := NewBatchFuture()
 	endpoint := s1.endpoints.Node
-	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc})
+	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc}, nil)
 	if err := bf.Wait(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1803,6 +1815,14 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	va.NodeID = node.ID
 	va.AllocID = alloc.ID
 	if err := state.UpsertVaultAccessor(101, []*structs.VaultAccessor{va}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Inject mock job
+	job := mock.Job()
+	job.ID = alloc.JobID
+	err := state.UpsertJob(101, job)
+	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

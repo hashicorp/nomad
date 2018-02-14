@@ -241,16 +241,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// Create a watchset
 	ws := memdb.NewWatchSet()
 
+	// Look up the job
+	job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
+	if err != nil {
+		return false, nil, err
+	}
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
-		job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
-		if err != nil {
-			return false, nil, err
-		}
 
 		// Can collect if:
 		// Job doesn't exist
@@ -286,7 +288,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
+		if !allocGCEligible(alloc, job, time.Now(), thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -558,4 +560,44 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 	}
 
 	return requests
+}
+
+// allocGCEligible returns if the allocation is eligible to be garbage collected
+// according to its terminal status and its reschedule trackers
+func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
+	// Not in a terminal status and old enough
+	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	var reschedulePolicy *structs.ReschedulePolicy
+	tg := job.LookupTaskGroup(a.TaskGroup)
+
+	if tg != nil {
+		reschedulePolicy = tg.ReschedulePolicy
+	}
+	// No reschedule policy or restarts are disabled
+	if reschedulePolicy == nil || reschedulePolicy.Attempts == 0 || reschedulePolicy.Interval == 0 {
+		return true
+	}
+	// Restart tracking information has been carried forward
+	if a.NextAllocation != "" {
+		return true
+	}
+	// Eligible for restarts but none have been attempted yet
+	if a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0 {
+		return false
+	}
+
+	// Most recent reschedule attempt is within time interval
+	interval := reschedulePolicy.Interval
+	lastIndex := len(a.RescheduleTracker.Events)
+	lastRescheduleEvent := a.RescheduleTracker.Events[lastIndex-1]
+	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
+
+	return timeDiff > interval.Nanoseconds()
 }

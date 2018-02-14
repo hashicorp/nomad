@@ -94,6 +94,10 @@ func TestParse(t *testing.T) {
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
 						},
+						ReschedulePolicy: &api.ReschedulePolicy{
+							Interval: helper.TimeToPtr(12 * time.Hour),
+							Attempts: helper.IntToPtr(5),
+						},
 						EphemeralDisk: &api.EphemeralDisk{
 							Sticky: helper.BoolToPtr(true),
 							SizeMB: helper.IntToPtr(150),
@@ -659,6 +663,36 @@ func TestParse(t *testing.T) {
 											},
 										},
 									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"reschedule-job.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Type:        helper.StringToPtr("batch"),
+				Datacenters: []string{"dc1"},
+				Reschedule: &api.ReschedulePolicy{
+					Attempts: helper.IntToPtr(15),
+					Interval: helper.TimeToPtr(30 * time.Minute),
+				},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
 								},
 							},
 						},

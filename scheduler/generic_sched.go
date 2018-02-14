@@ -114,7 +114,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
-		structs.EvalTriggerDeploymentWatcher:
+		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -294,46 +294,6 @@ func (s *GenericScheduler) process() (bool, error) {
 	return true, nil
 }
 
-// filterCompleteAllocs filters allocations that are terminal and should be
-// re-placed.
-func (s *GenericScheduler) filterCompleteAllocs(allocs []*structs.Allocation) []*structs.Allocation {
-	filter := func(a *structs.Allocation) bool {
-		if s.batch {
-			// Allocs from batch jobs should be filtered when the desired status
-			// is terminal and the client did not finish or when the client
-			// status is failed so that they will be replaced. If they are
-			// complete but not failed, they shouldn't be replaced.
-			switch a.DesiredStatus {
-			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-				return !a.RanSuccessfully()
-			default:
-			}
-
-			switch a.ClientStatus {
-			case structs.AllocClientStatusFailed:
-				return true
-			default:
-				return false
-			}
-		}
-
-		// Filter terminal, non batch allocations
-		return a.TerminalStatus()
-	}
-
-	n := len(allocs)
-	for i := 0; i < n; i++ {
-		if filter(allocs[i]) {
-			// Remove the allocation
-			allocs[i], allocs[n-1] = allocs[n-1], nil
-			i--
-			n--
-		}
-	}
-
-	return allocs[:n]
-}
-
 // computeJobAllocs is used to reconcile differences between the job,
 // existing allocations and node status to update the allocations.
 func (s *GenericScheduler) computeJobAllocs() error {
@@ -355,9 +315,6 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Update the allocations which are in pending/running state on tainted
 	// nodes to lost
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
-
-	// Filter out the allocations in a terminal state
-	allocs = s.filterCompleteAllocs(allocs)
 
 	reconciler := NewAllocReconciler(s.ctx.Logger(),
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
@@ -471,17 +428,14 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// stop the allocation before trying to find a replacement because this
 			// frees the resources currently used by the previous allocation.
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
+			prevAllocation := missing.PreviousAllocation()
 			if stopPrevAlloc {
-				s.plan.AppendUpdate(missing.PreviousAllocation(), structs.AllocDesiredStatusStop, stopPrevAllocDesc, "")
+				s.plan.AppendUpdate(prevAllocation, structs.AllocDesiredStatusStop, stopPrevAllocDesc, "")
 			}
 
-			// Attempt to match the task group
-			var option *RankedNode
-			if preferredNode != nil {
-				option, _ = s.stack.SelectPreferringNodes(tg, []*structs.Node{preferredNode})
-			} else {
-				option, _ = s.stack.Select(tg)
-			}
+			// Compute penalty nodes for rescheduled allocs
+			selectOptions := getSelectOptions(prevAllocation, preferredNode)
+			option, _ := s.stack.Select(tg, selectOptions)
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
@@ -510,8 +464,11 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
-				if prev := missing.PreviousAllocation(); prev != nil {
-					alloc.PreviousAllocation = prev.ID
+				if prevAllocation != nil {
+					alloc.PreviousAllocation = prevAllocation.ID
+					if missing.IsRescheduling() {
+						updateRescheduleTracker(alloc, prevAllocation)
+					}
 				}
 
 				// If we are placing a canary and we found a match, add the canary
@@ -537,13 +494,46 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If we weren't able to find a replacement for the allocation, back
 				// out the fact that we asked to stop the allocation.
 				if stopPrevAlloc {
-					s.plan.PopUpdate(missing.PreviousAllocation())
+					s.plan.PopUpdate(prevAllocation)
 				}
 			}
+
 		}
 	}
 
 	return nil
+}
+
+// getSelectOptions sets up preferred nodes and penalty nodes
+func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *SelectOptions {
+	selectOptions := &SelectOptions{}
+	if prevAllocation != nil {
+		penaltyNodes := make(map[string]struct{})
+		penaltyNodes[prevAllocation.NodeID] = struct{}{}
+		if prevAllocation.RescheduleTracker != nil {
+			for _, reschedEvent := range prevAllocation.RescheduleTracker.Events {
+				penaltyNodes[reschedEvent.PrevNodeID] = struct{}{}
+			}
+		}
+		selectOptions.PenaltyNodeIDs = penaltyNodes
+	}
+	if preferredNode != nil {
+		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
+	}
+	return selectOptions
+}
+
+// updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
+func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation) {
+	var rescheduleEvents []*structs.RescheduleEvent
+	if prev.RescheduleTracker != nil {
+		for _, reschedEvent := range prev.RescheduleTracker.Events {
+			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+		}
+	}
+	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, prev.NodeID)
+	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
+	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 }
 
 // findPreferredNode finds the preferred node for an allocation
