@@ -157,6 +157,7 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
+		c.GCDiskUsageThreshold = 100.0
 	})
 	defer c.Shutdown()
 
@@ -196,6 +197,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
+		c.GCDiskUsageThreshold = 100.0
 	})
 	defer c.Shutdown()
 
@@ -344,6 +346,7 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 
 	c := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
+		c.GCDiskUsageThreshold = 100.0
 	})
 	defer c.Shutdown()
 
