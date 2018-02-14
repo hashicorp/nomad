@@ -136,10 +136,8 @@ type Config struct {
 }
 
 // ClientConfig copies the configuration with a new client address, region, and
-// whether the client has TLS enabled. If a timeout is greater than or equal to
-// zero, the timeout will be applied on the HTTP client, otherwise the default
-// is used. A timeout of zero means the connection won't be timedout.
-func (c *Config) ClientConfig(region, address string, tlsEnabled bool, timeout time.Duration) *Config {
+// whether the client has TLS enabled.
+func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 	scheme := "http"
 	if tlsEnabled {
 		scheme = "https"
@@ -156,15 +154,7 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool, timeout t
 		TLSConfig:  c.TLSConfig.Copy(),
 	}
 
-	// Apply a timeout.
-	if timeout.Nanoseconds() >= 0 {
-		transport := config.httpClient.Transport.(*http.Transport)
-		transport.DialContext = (&net.Dialer{
-			Timeout:   timeout,
-			KeepAlive: 30 * time.Second,
-		}).DialContext
-	}
-
+	// Update the tls server name for connecting to a client
 	if tlsEnabled && config.TLSConfig != nil {
 		config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", region)
 	}
@@ -267,6 +257,34 @@ func DefaultConfig() *Config {
 		config.SecretID = v
 	}
 	return config
+}
+
+// SetTimeout is used to place a timeout for connecting to Nomad. A negative
+// duration is ignored, a duration of zero means no timeout, and any other value
+// will add a timeout.
+func (c *Config) SetTimeout(t time.Duration) error {
+	if c == nil {
+		return fmt.Errorf("nil config")
+	} else if c.httpClient == nil {
+		return fmt.Errorf("nil HTTP client")
+	} else if c.httpClient.Transport == nil {
+		return fmt.Errorf("nil HTTP client transport")
+	}
+
+	// Apply a timeout.
+	if t.Nanoseconds() >= 0 {
+		transport, ok := c.httpClient.Transport.(*http.Transport)
+		if !ok {
+			return fmt.Errorf("unexpected HTTP transport: %T", c.httpClient.Transport)
+		}
+
+		transport.DialContext = (&net.Dialer{
+			Timeout:   t,
+			KeepAlive: 30 * time.Second,
+		}).DialContext
+	}
+
+	return nil
 }
 
 // ConfigureTLS applies a set of TLS configurations to the the HTTP client.
@@ -407,7 +425,11 @@ func (c *Client) getNodeClientImpl(nodeID string, timeout time.Duration, q *Quer
 	}
 
 	// Get an API client for the node
-	conf := c.config.ClientConfig(region, node.HTTPAddr, node.TLSEnabled, timeout)
+	conf := c.config.ClientConfig(region, node.HTTPAddr, node.TLSEnabled)
+
+	// Set the timeout
+	conf.SetTimeout(timeout)
+
 	return NewClient(conf)
 }
 
