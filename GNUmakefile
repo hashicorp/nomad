@@ -22,11 +22,8 @@ ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
 endif
 
-ifeq ($(TRAVIS),true)
-$(info Running in Travis, verbose mode is disabled)
-else
 VERBOSE="true"
-endif
+
 
 
 ALL_TARGETS += linux_386 \
