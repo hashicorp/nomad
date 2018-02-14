@@ -78,9 +78,19 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 func TestAllocations_GarbageCollect(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	client := TestClient(t, nil)
+	client := TestClient(t, func(c *config.Config) {
+		c.GCDiskUsageThreshold = 100.0
+	})
 
 	a := mock.Alloc()
+	a.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	a.Job.TaskGroups[0].RestartPolicy = &nstructs.RestartPolicy{
+		Attempts: 0,
+		Mode:     nstructs.RestartPolicyModeFail,
+	}
+	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10ms",
+	}
 	require.Nil(client.addAlloc(a, ""))
 
 	// Try with bad alloc
@@ -93,7 +103,7 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 	req.AllocID = a.ID
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if has been removed first
-		if _, ok := client.allAllocs()[a.ID]; !ok {
+		if ar, ok := client.allocs[a.ID]; !ok || ar.IsDestroyed() {
 			return true, nil
 		}
 
