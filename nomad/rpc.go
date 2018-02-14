@@ -179,7 +179,11 @@ func (s *Server) handleMultiplex(conn net.Conn, ctx *RPCContext) {
 
 	conf := yamux.DefaultConfig()
 	conf.LogOutput = s.config.LogOutput
-	server, _ := yamux.Server(conn, conf)
+	server, err := yamux.Server(conn, conf)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad.rpc: multiplex failed to create yamux server: %v", err)
+		return
+	}
 
 	// Update the context to store the yamux session
 	ctx.Session = server
@@ -275,7 +279,11 @@ func (s *Server) handleMultiplexV2(conn net.Conn, ctx *RPCContext) {
 
 	conf := yamux.DefaultConfig()
 	conf.LogOutput = s.config.LogOutput
-	server, _ := yamux.Server(conn, conf)
+	server, err := yamux.Server(conn, conf)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad.rpc: multiplex_v2 failed to create yamux server: %v", err)
+		return
+	}
 
 	// Update the context to store the yamux session
 	ctx.Session = server
