@@ -5635,6 +5635,7 @@ const (
 	EvalTriggerJobRegister       = "job-register"
 	EvalTriggerJobDeregister     = "job-deregister"
 	EvalTriggerPeriodicJob       = "periodic-job"
+	EvalTriggerNodeDrain         = "node-drain"
 	EvalTriggerNodeUpdate        = "node-update"
 	EvalTriggerScheduled         = "scheduled"
 	EvalTriggerRollingUpdate     = "rolling-update"

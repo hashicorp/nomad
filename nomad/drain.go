@@ -9,6 +9,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -41,13 +42,28 @@ func makeTaskGroupKey(a *structs.Allocation) string {
 // stopAllocs tracks allocs to drain by a unique TG key
 type stopAllocs struct {
 	perTaskGroup map[string]int
-	batch        []*structs.Allocation
+	allocBatch   []*structs.Allocation
+
+	// namespace+jobid -> Job
+	jobBatch map[string]*structs.Job
 }
 
-func (s *stopAllocs) add(a *structs.Allocation) {
-	key := makeTaskGroupKey(a)
-	s.perTaskGroup[key]++
-	s.batch = append(s.batch, a)
+//FIXME this method does an awful lot
+func (s *stopAllocs) add(j *structs.Job, a *structs.Allocation) {
+	// Increment the counter for how many allocs in this task group are being stopped
+	tgKey := makeTaskGroupKey(a)
+	s.perTaskGroup[tgKey]++
+
+	// Update the allocation
+	a.ModifyTime = time.Now().UnixNano()
+	a.DesiredStatus = structs.AllocDesiredStatusStop
+
+	// Add alloc to the allocation batch
+	s.allocBatch = append(s.allocBatch, a)
+
+	// Add job to the job batch
+	jobKey := strings.Join([]string{j.Namespace, j.ID}, "-")
+	s.jobBatch[jobKey] = j
 }
 
 // startNodeDrainer should be called in establishLeadership by the leader.
@@ -68,8 +84,8 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 	// Wait for a node's drain deadline to expire
 	nextDeadline := time.Unix(math.MaxInt64, math.MaxInt64)
-	for _, deadline := range nodes {
-		if deadline.Before(nextDeadline) {
+	for _, node := range nodes {
+		if deadline := node.DrainStrategy.DeadlineTime(); deadline.Before(nextDeadline) {
 			nextDeadline = deadline
 		}
 
@@ -103,6 +119,9 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			return
 		}
 
+		// Tracks nodes that are done draining
+		doneNodes := map[string]struct{}{}
+
 		//TODO work from a state snapshot? perhaps from a last update
 		//index? I can't think of why this would be beneficial as this
 		//entire process runs asynchronously with the fsm/scheduler/etc
@@ -123,13 +142,15 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		drainable := map[string]map[string]*drainingJob{}
 
 		// Collect all drainable jobs
-		for nodeID, deadline := range nodes {
+		for nodeID, node := range nodes {
 			allocs, err := snapshot.AllocsByNode(nil, nodeID)
 			if err != nil {
 				//FIXME
 				panic(err)
 			}
 
+			// track number of allocs left on this node to be drained
+			allocsLeft := false
 			for _, alloc := range allocs {
 				if _, ok := drainable[alloc.Namespace]; !ok {
 					// namespace does not exist
@@ -154,8 +175,14 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					continue
 				}
 
+				// If a drainable alloc isn't yet stopping this
+				// node has allocs left to be drained
+				if !alloc.TerminalStatus() {
+					allocsLeft = true
+				}
+
 				// Don't bother collecting batch jobs for nodes that haven't hit their deadline
-				if job.Type == structs.JobTypeBatch && deadline.After(now) {
+				if job.Type == structs.JobTypeBatch && node.DrainStrategy.DeadlineTime().After(now) {
 					continue
 				}
 
@@ -170,13 +197,20 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					allocs: jobAllocs,
 				}
 			}
+
+			// if node has no allocs, it's done draining!
+			if !allocsLeft {
+				delete(nodes, nodeID)
+				doneNodes[nodeID] = struct{}{}
+			}
 		}
 
 		// Initialize stoplist with a count of allocs already draining per task group
 		//TODO wrap this up in a new func
 		stoplist := &stopAllocs{
 			perTaskGroup: make(map[string]int, len(drainingAllocs)),
-			batch:        make([]*structs.Allocation, len(drainingAllocs)),
+			allocBatch:   make([]*structs.Allocation, len(drainingAllocs)),
+			jobBatch:     make(map[string]*structs.Job),
 		}
 		for _, a := range drainingAllocs {
 			stoplist.perTaskGroup[a.tgKey]++
@@ -191,15 +225,17 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 						continue
 					}
 
-					deadline, ok := nodes[alloc.NodeID]
+					node, ok := nodes[alloc.NodeID]
 					if !ok {
 						// Alloc's node is not draining so not elligible for draining!
 						continue
 					}
 
-					if deadline.Before(now) {
+					if node.DrainStrategy.DeadlineTime().Before(now) {
 						// Alloc's Node has reached its deadline
-						stoplist.add(alloc)
+						stoplist.add(drainingJob.job, alloc)
+
+						//FIXME purge from watchlist?
 						continue
 					}
 
@@ -216,13 +252,13 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 					// Only 1, drain
 					if tg.Count == 1 {
-						stoplist.add(alloc)
+						stoplist.add(drainingJob.job, alloc)
 						continue
 					}
 
 					// No migrate strategy or a max parallel of 0 mean force draining
 					if tg.Migrate == nil || tg.Migrate.MaxParallel == 0 {
-						stoplist.add(alloc)
+						stoplist.add(drainingJob.job, alloc)
 						continue
 					}
 
@@ -232,7 +268,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					tgKey := makeTaskGroupKey(alloc)
 					if tg.Migrate.MaxParallel > stoplist.perTaskGroup[tgKey] {
 						// More migrations are allowed, add to stoplist
-						stoplist.add(alloc)
+						stoplist.add(drainingJob.job, alloc)
 
 						// Also add to prevAllocWatcher
 						prevAllocs.watch(alloc.ID, tgKey)
@@ -241,37 +277,79 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 		}
 
-		//TODO whoa whoa whoa nobody has updated the DesiredStatus or ModifyTime on the allocs yet!
+		if len(stoplist.allocBatch) > 0 {
+			// Stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
+			batch := &structs.AllocUpdateRequest{
+				Alloc:        stoplist.allocBatch,
+				WriteRequest: structs.WriteRequest{Region: s.config.Region},
+			}
 
-		// Stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
-		batch := &structs.AllocUpdateRequest{
-			Alloc:        stoplist.batch,
-			WriteRequest: structs.WriteRequest{Region: s.config.Region},
+			// Commit this update via Raft
+			_, index, err := s.raftApply(structs.AllocClientUpdateRequestType, batch)
+			if err != nil {
+				//FIXME
+				panic(err)
+			}
+
+			//TODO i bet there's something useful to do with this index
+			_ = index
+
+			// Reevaluate affected jobs
+			evals := make([]*structs.Evaluation, 0, len(stoplist.jobBatch))
+			for _, job := range stoplist.jobBatch {
+				evals = append(evals, &structs.Evaluation{
+					ID:             uuid.Generate(),
+					Namespace:      job.Namespace,
+					Priority:       job.Priority,
+					Type:           job.Type,
+					TriggeredBy:    structs.EvalTriggerNodeDrain,
+					JobID:          job.ID,
+					JobModifyIndex: job.ModifyIndex,
+					Status:         structs.EvalStatusPending,
+				})
+			}
+
+			evalUpdate := &structs.EvalUpdateRequest{
+				Evals:        evals,
+				WriteRequest: structs.WriteRequest{Region: s.config.Region},
+			}
+
+			// Commit this evaluation via Raft
+			_, _, err = s.raftApply(structs.EvalUpdateRequestType, evalUpdate)
+			if err != nil {
+				//FIXME
+				panic(err)
+			}
 		}
 
-		// Commit this update via Raft
-		_, index, err := s.raftApply(structs.AllocClientUpdateRequestType, batch)
-		if err != nil {
-			//FIXME
-			panic(err)
-		}
-		//TODO i bet there's something useful to do with this index
-		_ = index
+		// Unset drain for nodes done draining
+		for nodeID := range doneNodes {
+			args := structs.NodeUpdateDrainRequest{
+				NodeID:       nodeID,
+				Drain:        false,
+				WriteRequest: structs.WriteRequest{Region: s.config.Region},
+			}
 
-		//TODO unset drain for nodes with no allocs
+			_, _, err := s.raftApply(structs.NodeUpdateDrainRequestType, &args)
+			if err != nil {
+				s.logger.Printf("[ERR] nomad.drain: failed to unset drain for: %v", err)
+				//FIXME
+				panic(err)
+			}
+		}
 	}
 }
 
 // nodeWatcher watches for nodes to start or stop draining
 type nodeWatcher struct {
 	index   uint64
-	nodes   map[string]time.Time
-	nodesCh chan map[string]time.Time
+	nodes   map[string]*structs.Node
+	nodesCh chan map[string]*structs.Node
 	state   *state.StateStore
 	logger  *log.Logger
 }
 
-func newNodeWatcher(logger *log.Logger, nodes map[string]time.Time, index uint64, state *state.StateStore) *nodeWatcher {
+func newNodeWatcher(logger *log.Logger, nodes map[string]*structs.Node, index uint64, state *state.StateStore) *nodeWatcher {
 	return &nodeWatcher{
 		nodes:  nodes,
 		index:  index,
@@ -301,19 +379,19 @@ func (n *nodeWatcher) run(ctx context.Context) {
 					delete(n.nodes, node.ID)
 				} else {
 					// Update deadline
-					n.nodes[node.ID] = node.DrainStrategy.DeadlineTime()
+					n.nodes[node.ID] = node
 				}
 			} else {
 				// Node was not draining
 				if node.Drain {
 					// Node started draining
-					n.nodes[node.ID] = node.DrainStrategy.DeadlineTime()
+					n.nodes[node.ID] = node
 				}
 			}
 		}
 
 		// Send a copy of the draining nodes
-		nodesCopy := make(map[string]time.Time, len(n.nodes))
+		nodesCopy := make(map[string]*structs.Node, len(n.nodes))
 		for k, v := range n.nodes {
 			nodesCopy[k] = v
 		}
@@ -457,7 +535,7 @@ func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateS
 	return resp, index, nil
 }
 
-func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.Time, uint64, map[string]drainingAlloc, uint64) {
+func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*structs.Node, uint64, map[string]drainingAlloc, uint64) {
 	// StateStore.Snapshot never returns an error so don't bother checking it
 	snapshot, _ := state.Snapshot()
 	now := time.Now()
@@ -468,8 +546,8 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.T
 		panic(err) //FIXME
 	}
 
-	// node.ID -> drain deadline
-	nodeDeadlines := map[string]time.Time{}
+	// map of draining nodes keyed by node ID
+	nodes := map[string]*structs.Node{}
 
 	// List of draining allocs by namespace and job: namespace -> job.ID -> alloc.ID -> *Allocation
 	allocsByNS := map[string]map[string]map[string]*structs.Allocation{}
@@ -486,11 +564,9 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.T
 			continue
 		}
 
-		deadline := node.DrainStrategy.DeadlineTime()
+		nodes[node.ID] = node
 
-		nodeDeadlines[node.ID] = deadline
-
-		if deadline.Before(now) {
+		if node.DrainStrategy.DeadlineTime().Before(now) {
 			// No point in tracking draining allocs as the deadline has been reached
 			continue
 		}
@@ -520,7 +596,6 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.T
 		}
 	}
 
-	// alloc.ID ->
 	drainingAllocs := map[string]drainingAlloc{}
 
 	for ns, allocsByJobs := range allocsByNS {
@@ -590,5 +665,5 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]time.T
 	if allocsIndex == 0 {
 		//FIXME what to do here?
 	}
-	return nodeDeadlines, nodesIndex, drainingAllocs, allocsIndex
+	return nodes, nodesIndex, drainingAllocs, allocsIndex
 }
