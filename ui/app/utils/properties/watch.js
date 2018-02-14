@@ -18,27 +18,35 @@ export function watchRecord(modelName) {
       } catch (e) {
         yield e;
         break;
+      } finally {
+        this.get('store')
+          .adapterFor(modelName)
+          .cancelFindRecord(modelName, id);
       }
     }
-  });
+  }).drop();
 }
 
-export function watchRelationship(staticRelationshipName) {
+export function watchRelationship(relationshipName) {
   return task(function*(model, throttle = 2000) {
     while (true) {
       try {
         yield RSVP.all([
           this.get('store')
             .adapterFor(model.constructor.modelName)
-            .reloadRelationship(model, staticRelationshipName, true),
+            .reloadRelationship(model, relationshipName, true),
           wait(throttle),
         ]);
       } catch (e) {
         yield e;
         break;
+      } finally {
+        this.get('store')
+          .adapterFor(model.constructor.name)
+          .cancelReloadRelationship(model, relationshipName);
       }
     }
-  });
+  }).drop();
 }
 
 export function watchAll(modelName) {
@@ -52,7 +60,11 @@ export function watchAll(modelName) {
       } catch (e) {
         yield e;
         break;
+      } finally {
+        this.get('store')
+          .adapterFor(modelName)
+          .cancelFindAll(modelName);
       }
     }
-  });
+  }).drop();
 }
