@@ -45,32 +45,6 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	}
 }
 
-// rpcHandlerForAlloc is a helper that given an allocation ID returns whether to
-// use the local clients RPC, the local clients remote RPC or the server on the
-// agent.
-func (s *HTTPServer) rpcHandlerForAlloc(allocID string) (localClient, remoteClient, server bool) {
-	c := s.agent.Client()
-	srv := s.agent.Server()
-
-	// See if the local client can handle the request.
-	localAlloc := false
-	if c != nil {
-		_, err := c.GetClientAlloc(allocID)
-		if err == nil {
-			localAlloc = true
-		}
-	}
-
-	// Only use the client RPC to server if we don't have a server and the local
-	// client can't handle the call.
-	useClientRPC := c != nil && !localAlloc && srv == nil
-
-	// Use the server as a last case.
-	useServerRPC := !localAlloc && !useClientRPC && srv != nil
-
-	return localAlloc, useClientRPC, useServerRPC
-}
-
 func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, path string
 

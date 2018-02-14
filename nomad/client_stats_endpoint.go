@@ -16,7 +16,7 @@ type ClientStats struct {
 	srv *Server
 }
 
-func (s *ClientStats) Stats(args *structs.ClientStatsRequest, reply *structs.ClientStatsResponse) error {
+func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.ClientStatsResponse) error {
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hope
 	// in the forwarding chain.

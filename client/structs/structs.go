@@ -29,12 +29,6 @@ func (r *RpcError) Error() string {
 	return r.Message
 }
 
-// ClientStatsRequest is used to request stats about a Node.
-type ClientStatsRequest struct {
-	NodeID string
-	structs.QueryOptions
-}
-
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
 	HostStats *stats.HostStats
@@ -149,6 +143,25 @@ type StreamErrWrapper struct {
 
 	// Payload is the payload
 	Payload []byte
+}
+
+// AllocStatsRequest is used to request the resource usage of a given
+// allocation, potentially filtering by task
+type AllocStatsRequest struct {
+	// AllocID is the allocation to retrieves stats for
+	AllocID string
+
+	// Task is an optional filter to only request stats for the task.
+	Task string
+
+	structs.QueryOptions
+}
+
+// AllocStatsResponse is used to return the resource usage of a given
+// allocation.
+type AllocStatsResponse struct {
+	Stats *AllocResourceUsage
+	structs.QueryMeta
 }
 
 // MemoryStats holds memory usage related stats

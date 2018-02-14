@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 )
@@ -42,34 +41,6 @@ func (f *FileSystem) handleStreamResultError(err error, code *int64, encoder *co
 	})
 }
 
-// findNodeConnAndForward is a helper for finding the server with a connection
-// to the given node and forwarding the RPC to the correct server. This does not
-// work for streaming RPCs.
-func (f *FileSystem) findNodeConnAndForward(snap *state.StateSnapshot,
-	nodeID, method string, args, reply interface{}) error {
-
-	node, err := snap.NodeByID(nil, nodeID)
-	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return structs.NewErrUnknownNode(nodeID)
-	}
-
-	// Determine the Server that has a connection to the node.
-	srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
-	if err != nil {
-		return err
-	}
-
-	if srv == nil {
-		return structs.ErrNoNodeConn
-	}
-
-	return f.srv.forwardServer(srv, method, args, reply)
-}
-
 // forwardRegionStreamingRpc is used to make a streaming RPC to a different
 // region. It looks up the allocation in the remote region to determine what
 // remote server can route the request.
@@ -94,7 +65,11 @@ func (f *FileSystem) forwardRegionStreamingRpc(conn io.ReadWriteCloser,
 	// Determine the Server that has a connection to the node.
 	srv, err := f.srv.serverWithNodeConn(allocResp.Alloc.NodeID, qo.RequestRegion())
 	if err != nil {
-		f.handleStreamResultError(err, nil, encoder)
+		var code *int64
+		if structs.IsErrNoNodeConn(err) {
+			code = helper.Int64ToPtr(404)
+		}
+		f.handleStreamResultError(err, code, encoder)
 		return
 	}
 
@@ -158,7 +133,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	// Get the connection to the client
 	state, ok := f.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		return f.findNodeConnAndForward(snap, alloc.NodeID, "FileSystem.List", args, reply)
+		return findNodeConnAndForward(f.srv, snap, alloc.NodeID, "FileSystem.List", args, reply)
 	}
 
 	// Make the RPC
@@ -207,7 +182,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	// Get the connection to the client
 	state, ok := f.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		return f.findNodeConnAndForward(snap, alloc.NodeID, "FileSystem.Stat", args, reply)
+		return findNodeConnAndForward(f.srv, snap, alloc.NodeID, "FileSystem.Stat", args, reply)
 	}
 
 	// Make the RPC
@@ -278,8 +253,11 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		// Determine the Server that has a connection to the node.
 		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
 		if err != nil {
-			f.handleStreamResultError(err, nil, encoder)
-			return
+			var code *int64
+			if structs.IsErrNoNodeConn(err) {
+				code = helper.Int64ToPtr(404)
+			}
+			f.handleStreamResultError(err, code, encoder)
 		}
 
 		// Get a connection to the server
@@ -378,7 +356,11 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		// Determine the Server that has a connection to the node.
 		srv, err := f.srv.serverWithNodeConn(nodeID, f.srv.Region())
 		if err != nil {
-			f.handleStreamResultError(err, nil, encoder)
+			var code *int64
+			if structs.IsErrNoNodeConn(err) {
+				code = helper.Int64ToPtr(404)
+			}
+			f.handleStreamResultError(err, code, encoder)
 			return
 		}
 

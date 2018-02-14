@@ -38,7 +38,7 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	})
 
 	// Make the request without having a node-id
-	req := &cstructs.ClientStatsRequest{
+	req := &structs.NodeSpecificRequest{
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 
@@ -99,7 +99,7 @@ func TestClientStats_Stats_Local_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 
 			// Make the request without having a node-id
-			req := &cstructs.ClientStatsRequest{
+			req := &structs.NodeSpecificRequest{
 				NodeID: uuid.Generate(),
 				QueryOptions: structs.QueryOptions{
 					AuthToken: c.Token,
@@ -127,7 +127,7 @@ func TestClientStats_Stats_NoNode(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Make the request without having a node-id
-	req := &cstructs.ClientStatsRequest{
+	req := &structs.NodeSpecificRequest{
 		NodeID:       uuid.Generate(),
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -168,8 +168,13 @@ func TestClientStats_Stats_Remote(t *testing.T) {
 		t.Fatalf("should have a clients")
 	})
 
+	// Force remove the connection locally in case it exists
+	s1.nodeConnsLock.Lock()
+	delete(s1.nodeConns, c.NodeID())
+	s1.nodeConnsLock.Unlock()
+
 	// Make the request without having a node-id
-	req := &cstructs.ClientStatsRequest{
+	req := &structs.NodeSpecificRequest{
 		NodeID:       uuid.Generate(),
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
