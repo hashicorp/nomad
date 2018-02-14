@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/hashstructure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -126,36 +125,49 @@ func TestClient_Fingerprint(t *testing.T) {
 	require.NotEqual("", node.Attributes["driver.mock_driver"])
 }
 
-func TestClient_HasNodeChanged(t *testing.T) {
+func TestClient_TriggerNodeUpdate(t *testing.T) {
+	driver.CheckForMockDriver(t)
 	t.Parallel()
-	c := TestClient(t, nil)
-	defer c.Shutdown()
 
-	node := c.config.Node
-	attrHash, err := hashstructure.Hash(node.Attributes, nil)
-	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
-	}
-	// Calculate node meta map hash
-	metaHash, err := hashstructure.Hash(node.Meta, nil)
-	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node meta hash: %v", err)
-	}
-	if changed, _, _ := c.hasNodeChanged(attrHash, metaHash); changed {
-		t.Fatalf("Unexpected hash change.")
-	}
+	// these constants are only defined when nomad_test is enabled, so these fail
+	// our linter without explicit disabling.
+	c1 := testClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			driver.ShutdownPeriodicAfter:    "true", // nolint: varcheck
+			driver.ShutdownPeriodicDuration: "3",    // nolint: varcheck
+		}
+	})
+	defer c1.Shutdown()
 
-	// Change node attribute
-	node.Attributes["arch"] = "xyz_86"
-	if changed, newAttrHash, _ := c.hasNodeChanged(attrHash, metaHash); !changed {
-		t.Fatalf("Expected hash change in attributes: %d vs %d", attrHash, newAttrHash)
-	}
+	mockDriverName := "driver.mock_driver"
 
-	// Change node meta map
-	node.Meta["foo"] = "bar"
-	if changed, _, newMetaHash := c.hasNodeChanged(attrHash, metaHash); !changed {
-		t.Fatalf("Expected hash change in meta map: %d vs %d", metaHash, newMetaHash)
-	}
+	go c1.watchNodeUpdates()
+	c1.updateNode()
+	// This needs to be directly called as otherwise the client hangs on
+	// attempt to register with a server. S[ecifically, retryRegisterNode is
+	// blocking
+
+	// test that the client's copy of the node is also updated
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverStatusCopy := c1.configCopy.Node.Attributes[mockDriverName]
+		if mockDriverStatusCopy == "" {
+			return false, fmt.Errorf("mock driver attribute should be set on the client")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// test that the client's copy of the node is also updated
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverStatusCopy := c1.configCopy.Node.Attributes[mockDriverName]
+		if mockDriverStatusCopy != "" {
+			return false, fmt.Errorf("mock driver attribute should not be set on the client")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestClient_Fingerprint_Periodic(t *testing.T) {

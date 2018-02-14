@@ -45,6 +45,39 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 	require.NotEqual("", node.Attributes["driver.mock_driver"])
 }
 
+func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
+	driver.CheckForMockDriver(t)
+	t.Parallel()
+	require := require.New(t)
+
+	node := &structs.Node{Resources: &structs.Resources{}}
+
+	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
+		if r.Resources != nil {
+			node.Resources.Merge(r.Resources)
+		}
+		return node
+	}
+	conf := config.DefaultConfig()
+	getConfig := func() *config.Config {
+		return conf
+	}
+
+	fm := NewFingerprintManager(
+		getConfig,
+		node,
+		make(chan struct{}),
+		updateNode,
+		testLogger(),
+	)
+
+	err := fm.Run()
+	require.Nil(err)
+	require.NotEqual(0, node.Resources.CPU)
+	require.NotEqual(0, node.Resources.MemoryMB)
+	require.NotEqual(0, node.Resources.DiskMB)
+}
+
 func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
