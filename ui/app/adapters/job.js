@@ -32,10 +32,19 @@ export default Watchable.extend({
   },
 
   findRecord(store, type, id, snapshot) {
-    const [name, namespace] = JSON.parse(id);
+    const [, namespace] = JSON.parse(id);
     const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
 
-    return this._super(store, type, name, snapshot, namespaceQuery);
+    return this._super(store, type, id, snapshot, namespaceQuery);
+  },
+
+  urlForFindRecord(id, type, hash) {
+    const [name, namespace] = JSON.parse(id);
+    let url = this._super(name, type, hash);
+    if (namespace && namespace !== 'default') {
+      url += `?${namespace}`;
+    }
+    return url;
   },
 
   findAllocations(job) {

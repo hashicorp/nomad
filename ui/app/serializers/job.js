@@ -1,4 +1,3 @@
-import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'npm:query-string';
@@ -44,7 +43,7 @@ export default ApplicationSerializer.extend({
 
     const jobURL = this.store
       .adapterFor(modelName)
-      .buildURL(modelName, hash.PlainId, hash, 'findRecord');
+      .buildURL(modelName, hash.ID, hash, 'findRecord');
 
     return assign(this._super(...arguments), {
       summary: {

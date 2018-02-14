@@ -1,4 +1,4 @@
-import { get } from '@ember/object';
+import { get, computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import { copy } from '@ember/object/internals';
 import { makeArray } from '@ember/array';
@@ -9,6 +9,27 @@ import ApplicationAdapter from './application';
 export default ApplicationAdapter.extend({
   watchList: service(),
   store: service(),
+
+  xhrs: computed(function() {
+    return {};
+  }),
+
+  ajaxOptions(url) {
+    const ajaxOptions = this._super(...arguments);
+
+    const previousBeforeSend = ajaxOptions.beforeSend;
+    ajaxOptions.beforeSend = function(jqXHR) {
+      if (previousBeforeSend) {
+        previousBeforeSend(...arguments);
+      }
+      this.get('xhrs')[url] = jqXHR;
+      jqXHR.always(() => {
+        delete this.get('xhrs')[url];
+      });
+    };
+
+    return ajaxOptions;
+  },
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
     const params = copy(additionalParams, true);
@@ -70,5 +91,35 @@ export default ApplicationAdapter.extend({
       this.get('watchList').setIndexFor(requestData.url, newIndex);
     }
     return this._super(...arguments);
+  },
+
+  cancelFindRecord(modelName, id) {
+    const url = this.urlForFindRecord(id, modelName);
+    const xhr = this.get('xhrs')[url];
+    if (xhr) {
+      xhr.abort();
+    }
+  },
+
+  cancelFindAll(modelName) {
+    const xhr = this.get('xhrs')[this.urlForFindAll(modelName)];
+    if (xhr) {
+      xhr.abort();
+    }
+  },
+
+  cancelReloadRelationship(model, relationshipName) {
+    const relationship = model.relationshipFor(relationshipName);
+    if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
+      throw new Error(
+        `${relationship.key} must be a belongsTo or hasMany, instead it was ${relationship.kind}`
+      );
+    } else {
+      const url = model[relationship.kind](relationship.key).link();
+      const xhr = this.get('xhrs')[url];
+      if (xhr) {
+        xhr.abort();
+      }
+    }
   },
 });
