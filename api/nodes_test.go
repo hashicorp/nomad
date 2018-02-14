@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNodes_List(t *testing.T) {
@@ -274,4 +276,28 @@ func TestNodes_Sort(t *testing.T) {
 	if !reflect.DeepEqual(nodes, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", nodes, expect)
 	}
+}
+
+func TestNodes_GC(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	err := nodes.GC(uuid.Generate(), nil)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Unknown node")
+}
+
+func TestNodes_GcAlloc(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	err := nodes.GcAlloc(uuid.Generate(), nil)
+	require.NotNil(err)
+	require.Contains(err.Error(), "unknown allocation")
 }

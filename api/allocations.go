@@ -48,13 +48,9 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 }
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
-	if err != nil {
-		return nil, err
-	}
-
 	var resp AllocResourceUsage
-	_, err = nodeClient.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
+	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
+	_, err := a.client.query(path, &resp, q)
 	return &resp, err
 }
 

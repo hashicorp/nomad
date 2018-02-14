@@ -234,6 +234,7 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 		Path:    path,
 		Origin:  origin,
 		Offset:  offset,
+		Follow:  true,
 	}
 	s.parse(resp, req, &fsReq.QueryOptions.Region, &fsReq.QueryOptions)
 
