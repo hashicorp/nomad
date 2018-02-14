@@ -41,6 +41,11 @@ export default Route.extend(WithForbiddenState, {
     return this._super(...arguments);
   },
 
+  deactivate() {
+    this.get('watch').cancelAll();
+    this._super(...arguments);
+  },
+
   watch: watchAll('job'),
 
   actions: {

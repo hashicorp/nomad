@@ -27,5 +27,10 @@ export default Component.extend({
     }
   },
 
+  willDestroy() {
+    this.get('watch').cancelAll();
+    this._super(...arguments);
+  },
+
   watch: watchRelationship('summary').drop(),
 });

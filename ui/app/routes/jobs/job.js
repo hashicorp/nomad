@@ -1,4 +1,5 @@
 import { inject as service } from '@ember/service';
+import { collect } from '@ember/object/computed';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
@@ -36,8 +37,17 @@ export default Route.extend({
     return this._super(...arguments);
   },
 
+  deactivate() {
+    this.get('allWatchers').forEach(watcher => {
+      watcher.cancelAll();
+    });
+    this._super(...arguments);
+  },
+
   watch: watchRecord('job'),
   watchSummary: watchRelationship('summary'),
   watchEvaluations: watchRelationship('evaluations'),
   watchDeployments: watchRelationship('deployments'),
+
+  allWatchers: collect('watch', 'watchSummary', 'watchEvaluations', 'watchDeployments'),
 });
