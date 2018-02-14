@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -287,7 +288,7 @@ func TestNodes_GC(t *testing.T) {
 
 	err := nodes.GC(uuid.Generate(), nil)
 	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown node")
+	require.True(structs.IsErrUnknownNode(err))
 }
 
 func TestNodes_GcAlloc(t *testing.T) {
@@ -299,5 +300,5 @@ func TestNodes_GcAlloc(t *testing.T) {
 
 	err := nodes.GcAlloc(uuid.Generate(), nil)
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown allocation")
+	require.True(structs.IsErrUnknownAllocation(err))
 }
