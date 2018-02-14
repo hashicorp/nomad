@@ -11,13 +11,15 @@ description: |-
 
 The `/client` endpoints are used to interact with the Nomad clients. 
 
-Since Nomad 0.8.0, both a client and server can handle client endpoints. For
-high volume access to the client endpoints, particularly endpoints streaming
-file contents, direct access to the node should be preferred as it avoids adding
-additional load to the servers.
+Since Nomad 0.8.0, both a client and server can handle client endpoints. This is
+particularly useful for when a direct connection to a client is not possible due
+to the network configuration. For high volume access to the client endpoints,
+particularly endpoints streaming file contents, direct access to the node should
+be preferred as it avoids adding additional load to the servers.
 
 When accessing the endpoints via the server, if the desired node is ambiguous
-based on the URL, additional query parameters must be provided to disambiguate.
+based on the URL, an additional `?node_id` query parameter must be provided to
+disambiguate.
 
 ## Read Stats
 
@@ -40,7 +42,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `node_id` `(string: <optional>)` - Specifies the node to query. This is
-  required when the endpoint is being access via a server. This is specified as
+  required when the endpoint is being accessed via a server. This is specified as
   part of the URL. Note, this must be the _full_ node ID, not the short
   8-character one. This is specified as part of the path.
 
@@ -621,7 +623,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `node_id` `(string: <optional>)` - Specifies the node to target. This is
-  required when the endpoint is being access via a server. This is specified as
+  required when the endpoint is being accessed via a server. This is specified as
   part of the URL. Note, this must be the _full_ node ID, not the short
   8-character one. This is specified as part of the path.
 
