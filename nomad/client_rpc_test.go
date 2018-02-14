@@ -58,9 +58,19 @@ func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
 	s1.addNodeConn(ctx2)
 	require.Len(s1.connectedNodes(), 1)
 
+	// Check that the value is the second conn.
+	state, ok := s1.getNodeConn(nodeID)
+	require.True(ok)
+	require.Equal(state.Ctx.Conn.LocalAddr().String(), w2.name)
+
 	// Delete the first
 	s1.removeNodeConn(ctx1)
 	require.Len(s1.connectedNodes(), 1)
+
+	// Check that the value is the second conn.
+	state, ok = s1.getNodeConn(nodeID)
+	require.True(ok)
+	require.Equal(state.Ctx.Conn.LocalAddr().String(), w2.name)
 
 	// Delete the second
 	s1.removeNodeConn(ctx2)
