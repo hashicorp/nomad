@@ -117,8 +117,9 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
-	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+	case structs.EvalTriggerJobRegister, structs.EvalTriggerJobDeregister,
+		structs.EvalTriggerNodeDrain, structs.EvalTriggerNodeUpdate,
+		structs.EvalTriggerRollingUpdate,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc:
 	default:
