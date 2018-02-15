@@ -109,8 +109,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		select {
 		case nodes = <-nodeWatcher.nodesCh:
 			// update draining nodes
+			//TODO remove allocs from draining list with node ids not in this map
 		case drainedID := <-prevAllocs.allocsCh:
 			// drained alloc has been replaced
+			//TODO instead of modifying a view of draining allocs here created a shared map like prevallocs
 			delete(drainingAllocs, drainedID)
 		case <-deadlineTimer.C:
 			// deadline for a node was reached
@@ -139,6 +141,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		//  - No system jobs
 		//  - No batch jobs unless their node's deadline is reached
 		//  - No entries with 0 allocs
+		//TODO could this be a helper method on prevAllocWatcher
 		drainable := map[string]map[string]*drainingJob{}
 
 		// Collect all drainable jobs
@@ -212,6 +215,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			allocBatch:   make([]*structs.Allocation, len(drainingAllocs)),
 			jobBatch:     make(map[string]*structs.Job),
 		}
+		// initialize perTaskGroup to be the number of total *currently draining* allocations per task group
 		for _, a := range drainingAllocs {
 			stoplist.perTaskGroup[a.tgKey]++
 		}
@@ -266,6 +270,8 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					// already draining for this task
 					// group, drain and track this alloc
 					tgKey := makeTaskGroupKey(alloc)
+
+					//FIXME change this to be based off of the sum(deploymentstatus!=nil && clientstatus==running) for this task group
 					if tg.Migrate.MaxParallel > stoplist.perTaskGroup[tgKey] {
 						// More migrations are allowed, add to stoplist
 						stoplist.add(drainingJob.job, alloc)
@@ -285,6 +291,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 
 			// Commit this update via Raft
+			//TODO Not the right request
 			_, index, err := s.raftApply(structs.AllocClientUpdateRequestType, batch)
 			if err != nil {
 				//FIXME
@@ -549,6 +556,7 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 	// map of draining nodes keyed by node ID
 	nodes := map[string]*structs.Node{}
 
+	//FIXME rollup by composite namespace+job.ID+tg key?
 	// List of draining allocs by namespace and job: namespace -> job.ID -> alloc.ID -> *Allocation
 	allocsByNS := map[string]map[string]map[string]*structs.Allocation{}
 
@@ -564,10 +572,11 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 			continue
 		}
 
+		// Track draining node
 		nodes[node.ID] = node
 
+		// No point in tracking draining allocs as the deadline has been reached
 		if node.DrainStrategy.DeadlineTime().Before(now) {
-			// No point in tracking draining allocs as the deadline has been reached
 			continue
 		}
 
@@ -578,6 +587,7 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 		}
 
 		for _, alloc := range allocs {
+			//FIXME is it safe to assume the drainer set the desired status to stop?
 			if alloc.DesiredStatus == structs.AllocDesiredStatusStop {
 				if allocsByJob, ok := allocsByNS[alloc.Namespace]; ok {
 					if allocs, ok := allocsByJob[alloc.JobID]; ok {
@@ -626,6 +636,7 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 					}
 				}
 
+				//FIXME why are we doing a nested loop over allocs?
 				// Any remaining allocs need to be tracked
 				for allocID, alloc := range allocs {
 					tg := job.LookupTaskGroup(alloc.TaskGroup)
@@ -638,6 +649,8 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 						// No migrate strategy so don't track
 						continue
 					}
+
+					//FIXME Remove this. ModifyTime is not updated as expected
 
 					// alloc.ModifyTime + HealthyDeadline is >= the
 					// healthy deadline for the allocation, so we
@@ -659,11 +672,11 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 
 	nodesIndex, _ := snapshot.Index("nodes")
 	if nodesIndex == 0 {
-		//FIXME what to do here?
+		nodesIndex = 1
 	}
 	allocsIndex, _ := snapshot.Index("allocs")
 	if allocsIndex == 0 {
-		//FIXME what to do here?
+		allocsIndex = 1
 	}
 	return nodes, nodesIndex, drainingAllocs, allocsIndex
 }
