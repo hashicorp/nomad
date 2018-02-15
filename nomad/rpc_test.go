@@ -202,7 +202,8 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 	conn, err := s1.streamingRpc(server, "Bogus")
 	require.Nil(conn)
 	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown rpc method: \"Bogus\"")
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
 }
 
 func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
@@ -262,7 +263,8 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	conn, err := s1.streamingRpc(server, "Bogus")
 	require.Nil(conn)
 	require.NotNil(err)
-	require.Contains(err.Error(), "Unknown rpc method: \"Bogus\"")
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
 }
 
 // COMPAT: Remove in 0.10
@@ -320,6 +322,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	// Make a streaming RPC
 	err = s.streamingRpcImpl(s2, s.Region(), "Bogus")
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown rpc")
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
 
 }

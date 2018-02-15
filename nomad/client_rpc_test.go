@@ -278,5 +278,6 @@ func TestNodeStreamingRpc_badEndpoint(t *testing.T) {
 	conn, err := NodeStreamingRpc(state.Session, "Bogus")
 	require.Nil(conn)
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown rpc method: \"Bogus\"")
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
 }
