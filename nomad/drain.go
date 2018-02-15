@@ -471,7 +471,7 @@ func newPrevAllocWatcher(logger *log.Logger, drainingAllocs map[string]drainingA
 	state *state.StateStore) *prevAllocWatcher {
 
 	watchList := make(map[string]struct{}, len(drainingAllocs))
-	for allocID, meta := range drainingAllocs {
+	for allocID := range drainingAllocs {
 		watchList[allocID] = struct{}{}
 	}
 
