@@ -285,7 +285,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 						stoplist.add(drainingJob.job, alloc)
 
 						// Also add to prevAllocWatcher
-						prevAllocs.watch(alloc.ID, tgKey)
+						prevAllocs.watch(alloc.ID)
 					}
 				}
 			}
@@ -451,7 +451,7 @@ func (n *nodeWatcher) queryNodeDrain(ws memdb.WatchSet, state *state.StateStore)
 type prevAllocWatcher struct {
 	// watchList is a map of alloc ids to look for in PreviousAllocation
 	// fields of new allocs
-	watchList   map[string]string
+	watchList   map[string]struct{}
 	watchListMu sync.Mutex
 
 	state *state.StateStore
