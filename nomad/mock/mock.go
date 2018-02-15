@@ -95,6 +95,7 @@ func Job() *structs.Job {
 					Attempts: 2,
 					Interval: 10 * time.Minute,
 				},
+				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
