@@ -14,11 +14,19 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// drainingJob contains the Job and allocations for that job meant to be used
+// when collecting all allocations for a job with at least one allocation on a
+// draining node.
+//
+// This allows the MaxParallel calculation to take the entire job's allocation
+// state into account. FIXME is that even useful?
 type drainingJob struct {
 	job    *structs.Job
 	allocs []*structs.Allocation
 }
 
+// drainingAlloc contains a conservative deadline an alloc has to be healthy by
+// before it should stopped being watched and replaced.
 type drainingAlloc struct {
 	// LastModified+MigrateStrategy.HealthyDeadline
 	deadline time.Time
@@ -438,6 +446,8 @@ func (n *nodeWatcher) queryNodeDrain(ws memdb.WatchSet, state *state.StateStore)
 	return resp, index, nil
 }
 
+// prevAllocWatcher monitors allocation updates for allocations which replace
+// draining allocations.
 type prevAllocWatcher struct {
 	// watchList is a map of alloc ids to look for in PreviousAllocation
 	// fields of new allocs
@@ -455,13 +465,14 @@ type prevAllocWatcher struct {
 	logger *log.Logger
 }
 
+// newPrevAllocWatcher creates a new prevAllocWatcher watching drainingAllocs
+// from allocIndex in the state store. Must call run to start watching.
 func newPrevAllocWatcher(logger *log.Logger, drainingAllocs map[string]drainingAlloc, allocIndex uint64,
 	state *state.StateStore) *prevAllocWatcher {
 
-	//TODO why do we need tgkey here?
-	watchList := make(map[string]string, len(drainingAllocs))
+	watchList := make(map[string]struct{}, len(drainingAllocs))
 	for allocID, meta := range drainingAllocs {
-		watchList[allocID] = meta.tgKey
+		watchList[allocID] = struct{}{}
 	}
 
 	return &prevAllocWatcher{
@@ -473,6 +484,14 @@ func newPrevAllocWatcher(logger *log.Logger, drainingAllocs map[string]drainingA
 	}
 }
 
+// watch for an allocation ID to be replaced.
+func (p *prevAllocWatcher) watch(allocID string) {
+	p.watchListMu.Lock()
+	defer p.watchListMu.Unlock()
+	p.watchList[allocID] = struct{}{}
+}
+
+// run the prevAllocWatcher and send replaced draining alloc IDs on allocsCh.
 func (p *prevAllocWatcher) run(ctx context.Context) {
 	// index to watch from
 	var resp interface{}
@@ -497,12 +516,7 @@ func (p *prevAllocWatcher) run(ctx context.Context) {
 	}
 }
 
-func (p *prevAllocWatcher) watch(allocID, tgKey string) {
-	p.watchListMu.Lock()
-	defer p.watchListMu.Unlock()
-	p.watchList[allocID] = tgKey
-}
-
+// queryPrevAlloc is the BlockingQuery func for scanning for replacement allocs
 func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
 	iter, err := state.Allocs(ws)
 	if err != nil {
@@ -514,6 +528,7 @@ func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateS
 		return nil, 0, err
 	}
 
+	//FIXME do fine grained locking around watclist mutations?
 	p.watchListMu.Lock()
 	defer p.watchListMu.Unlock()
 
@@ -542,6 +557,9 @@ func (p *prevAllocWatcher) queryPrevAlloc(ws memdb.WatchSet, state *state.StateS
 	return resp, index, nil
 }
 
+// initDrainer initializes the node drainer state and returns a list of
+// draining nodes as well as allocs that are draining that should be watched
+// for a replacement.
 func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*structs.Node, uint64, map[string]drainingAlloc, uint64) {
 	// StateStore.Snapshot never returns an error so don't bother checking it
 	snapshot, _ := state.Snapshot()
@@ -606,6 +624,8 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 		}
 	}
 
+	// drainingAllocs is the list of all allocations that are currently
+	// draining and waiting for a replacement
 	drainingAllocs := map[string]drainingAlloc{}
 
 	for ns, allocsByJobs := range allocsByNS {
@@ -650,7 +670,7 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 						continue
 					}
 
-					//FIXME Remove this. ModifyTime is not updated as expected
+					//FIXME Remove this? ModifyTime is not updated as expected
 
 					// alloc.ModifyTime + HealthyDeadline is >= the
 					// healthy deadline for the allocation, so we
