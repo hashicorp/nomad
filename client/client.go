@@ -113,6 +113,11 @@ type Client struct {
 
 	connPool *pool.ConnPool
 
+	// tlsWrap is used to wrap outbound connections using TLS. It should be
+	// accessed using the lock.
+	tlsWrap     tlsutil.RegionWrapper
+	tlsWrapLock sync.RWMutex
+
 	// servers is the list of nomad servers
 	servers *servers.Manager
 
@@ -197,6 +202,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		consulService:       consulService,
 		start:               time.Now(),
 		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		tlsWrap:             tlsWrap,
 		streamingRpcs:       structs.NewStreamingRpcRegistery(),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
@@ -388,6 +394,11 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 		}
 		tlsWrap = tw
 	}
+
+	// Store the new tls wrapper.
+	c.tlsWrapLock.Lock()
+	c.tlsWrap = tlsWrap
+	c.tlsWrapLock.Unlock()
 
 	// Keep the client configuration up to date as we use configuration values to
 	// decide on what type of connections to accept
