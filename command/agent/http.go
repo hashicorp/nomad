@@ -281,7 +281,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Printf("[DEBUG] http: Request %v (%v)", reqURL, time.Now().Sub(start))
+			s.logger.Printf("[DEBUG] http: Request %v %v (%v)", req.Method, reqURL, time.Now().Sub(start))
 		}()
 		obj, err := handler(resp, req)
 
