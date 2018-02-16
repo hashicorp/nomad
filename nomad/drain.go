@@ -370,10 +370,11 @@ type nodeWatcher struct {
 
 func newNodeWatcher(logger *log.Logger, nodes map[string]*structs.Node, index uint64, state *state.StateStore) *nodeWatcher {
 	return &nodeWatcher{
-		nodes:  nodes,
-		index:  index,
-		state:  state,
-		logger: logger,
+		nodes:   nodes,
+		nodesCh: make(chan map[string]*structs.Node),
+		index:   index,
+		state:   state,
+		logger:  logger,
 	}
 }
 
