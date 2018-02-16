@@ -5,14 +5,13 @@ import Watchable from './watchable';
 export default Watchable.extend({
   system: service(),
 
-  // shouldReloadAll: () => true,
-
   buildQuery() {
     const namespace = this.get('system.activeNamespace.id');
 
     if (namespace && namespace !== 'default') {
       return { namespace };
     }
+    return {};
   },
 
   findAll() {
@@ -42,7 +41,7 @@ export default Watchable.extend({
     const [name, namespace] = JSON.parse(id);
     let url = this._super(name, type, hash);
     if (namespace && namespace !== 'default') {
-      url += `?${namespace}`;
+      url += `?namespace=${namespace}`;
     }
     return url;
   },
@@ -57,19 +56,17 @@ export default Watchable.extend({
   },
 
   fetchRawDefinition(job) {
-    const [name, namespace] = JSON.parse(job.get('id'));
-    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
-    const url = this.buildURL('job', name, job, 'findRecord');
-    return this.ajax(url, 'GET', { data: assign(this.buildQuery() || {}, namespaceQuery) });
+    const url = this.buildURL('job', job.get('id'), job, 'findRecord');
+    return this.ajax(url, 'GET', { data: this.buildQuery() });
   },
 
   forcePeriodic(job) {
     if (job.get('periodic')) {
-      const [name, namespace] = JSON.parse(job.get('id'));
-      let url = `${this.buildURL('job', name, job, 'findRecord')}/periodic/force`;
+      const [path, params] = this.buildURL('job', job.get('id'), job, 'findRecord').split('?');
+      let url = `${path}/periodic/force`;
 
-      if (namespace) {
-        url += `?namespace=${namespace}`;
+      if (params) {
+        url += `?${params}`;
       }
 
       return this.ajax(url, 'POST');

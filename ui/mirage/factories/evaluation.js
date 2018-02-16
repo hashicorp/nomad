@@ -65,7 +65,7 @@ export default Factory.extend({
       const failedTaskGroupNames = [];
       for (let i = 0; i < failedTaskGroupsCount; i++) {
         failedTaskGroupNames.push(
-          ...taskGroupNames.splice(faker.random.number(taskGroupNames.length), 1)
+          ...taskGroupNames.splice(faker.random.number(taskGroupNames.length - 1), 1)
         );
       }
 

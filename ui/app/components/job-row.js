@@ -32,5 +32,5 @@ export default Component.extend({
     this._super(...arguments);
   },
 
-  watch: watchRelationship('summary').drop(),
+  watch: watchRelationship('summary'),
 });

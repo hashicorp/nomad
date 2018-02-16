@@ -5,6 +5,7 @@ export default Factory.extend({
   groupNames: [],
 
   JobID: '',
+  namespace: null,
 
   withSummary: trait({
     Summary: function() {

@@ -1,3 +1,4 @@
+import { assign } from '@ember/polyfills';
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, provider, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
@@ -86,16 +87,6 @@ export default Factory.extend({
   noFailedPlacements: false,
 
   afterCreate(job, server) {
-    const groups = server.createList('task-group', job.groupsCount, {
-      job,
-      createAllocations: job.createAllocations,
-    });
-
-    job.update({
-      taskGroupIds: groups.mapBy('id'),
-      task_group_ids: groups.mapBy('id'),
-    });
-
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
       job.update({
@@ -108,10 +99,21 @@ export default Factory.extend({
       });
     }
 
+    const groups = server.createList('task-group', job.groupsCount, {
+      job,
+      createAllocations: job.createAllocations,
+    });
+
+    job.update({
+      taskGroupIds: groups.mapBy('id'),
+      task_group_ids: groups.mapBy('id'),
+    });
+
     const hasChildren = job.periodic || job.parameterized;
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
       groupNames: groups.mapBy('name'),
       job,
+      namespace: job.namespace,
     });
 
     job.update({
@@ -124,22 +126,39 @@ export default Factory.extend({
       .map((_, index) => {
         return server.create('job-version', {
           job,
+          namespace: job.namespace,
           version: index,
           noActiveDeployment: job.noActiveDeployment,
           activeDeployment: job.activeDeployment,
         });
       });
 
-    server.createList('evaluation', faker.random.number({ min: 1, max: 5 }), { job });
+    const knownEvaluationProperties = {
+      job,
+      namespace: job.namespace,
+    };
+    server.createList(
+      'evaluation',
+      faker.random.number({ min: 1, max: 5 }),
+      knownEvaluationProperties
+    );
     if (!job.noFailedPlacements) {
-      server.createList('evaluation', faker.random.number(3), 'withPlacementFailures', { job });
+      server.createList(
+        'evaluation',
+        faker.random.number(3),
+        'withPlacementFailures',
+        knownEvaluationProperties
+      );
     }
 
     if (job.failedPlacements) {
-      server.create('evaluation', 'withPlacementFailures', {
-        job,
-        modifyIndex: 4000,
-      });
+      server.create(
+        'evaluation',
+        'withPlacementFailures',
+        assign(knownEvaluationProperties, {
+          modifyIndex: 4000,
+        })
+      );
     }
 
     if (job.periodic) {

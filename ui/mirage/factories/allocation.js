@@ -15,6 +15,8 @@ export default Factory.extend({
 
   modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
 
+  namespace: null,
+
   clientStatus: faker.list.random(...CLIENT_STATUSES),
   desiredStatus: faker.list.random(...DESIRED_STATUSES),
 

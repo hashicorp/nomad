@@ -1,3 +1,5 @@
+import Ember from 'ember';
+import { typeOf } from '@ember/utils';
 import { get } from '@ember/object';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
@@ -5,8 +7,10 @@ import wait from 'nomad-ui/utils/wait';
 
 export function watchRecord(modelName) {
   return task(function*(id, throttle = 2000) {
-    id = get(id, 'id') || id;
-    while (true) {
+    if (typeOf(id) === 'object') {
+      id = get(id, 'id');
+    }
+    while (!Ember.testing) {
       try {
         yield RSVP.all([
           this.get('store').findRecord(modelName, id, {
@@ -29,7 +33,7 @@ export function watchRecord(modelName) {
 
 export function watchRelationship(relationshipName) {
   return task(function*(model, throttle = 2000) {
-    while (true) {
+    while (!Ember.testing) {
       try {
         yield RSVP.all([
           this.get('store')
@@ -42,7 +46,7 @@ export function watchRelationship(relationshipName) {
         break;
       } finally {
         this.get('store')
-          .adapterFor(model.constructor.name)
+          .adapterFor(model.constructor.modelName)
           .cancelReloadRelationship(model, relationshipName);
       }
     }
@@ -51,7 +55,7 @@ export function watchRelationship(relationshipName) {
 
 export function watchAll(modelName) {
   return task(function*(throttle = 2000) {
-    while (true) {
+    while (!Ember.testing) {
       try {
         yield RSVP.all([
           this.get('store').findAll(modelName, { reload: true, adapterOptions: { watch: true } }),

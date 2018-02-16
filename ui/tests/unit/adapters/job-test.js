@@ -3,7 +3,13 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 moduleFor('adapter:job', 'Unit | Adapter | Job', {
   unit: true,
-  needs: ['service:token', 'service:system', 'model:namespace', 'adapter:application'],
+  needs: [
+    'service:token',
+    'service:system',
+    'model:namespace',
+    'adapter:application',
+    'service:watchList',
+  ],
   beforeEach() {
     window.sessionStorage.clear();
 
@@ -27,8 +33,8 @@ test('The job summary is stitched into the job request', function(assert) {
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    ['/v1/namespaces', `/v1/job/${jobName}`, `/v1/job/${jobName}/summary`],
-    'The three requests made are /namespaces, /job/:id, and /job/:id/summary'
+    ['/v1/namespaces', `/v1/job/${jobName}`],
+    'The two requests made are /namespaces and /job/:id'
   );
 });
 
@@ -42,18 +48,12 @@ test('When the job has a namespace other than default, it is in the URL', functi
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    [
-      '/v1/namespaces',
-      `/v1/job/${jobName}?namespace=${jobNamespace}`,
-      `/v1/job/${jobName}/summary?namespace=${jobNamespace}`,
-    ],
-    'The three requests made are /namespaces, /job/:id?namespace=:namespace, and /job/:id/summary?namespace=:namespace'
+    ['/v1/namespaces', `/v1/job/${jobName}?namespace=${jobNamespace}`],
+    'The two requests made are /namespaces and /job/:id?namespace=:namespace'
   );
 });
 
-test('When there is no token set in the token service, no x-nomad-token header is set', function(
-  assert
-) {
+test('When there is no token set in the token service, no x-nomad-token header is set', function(assert) {
   const { pretender } = this.server;
   const jobId = JSON.stringify(['job-1', 'default']);
 
@@ -65,9 +65,7 @@ test('When there is no token set in the token service, no x-nomad-token header i
   );
 });
 
-test('When a token is set in the token service, then x-nomad-token header is set', function(
-  assert
-) {
+test('When a token is set in the token service, then x-nomad-token header is set', function(assert) {
   const { pretender } = this.server;
   const jobId = JSON.stringify(['job-1', 'default']);
   const secret = 'here is the secret';

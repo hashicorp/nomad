@@ -63,11 +63,15 @@ test('Clicking Force Launch launches a new periodic child job', function(assert)
       return wait().then(() => {
         const id = job.get('plainId');
         const namespace = job.get('namespace.name') || 'default';
+        let expectedURL = `/v1/job/${id}/periodic/force`;
+        if (namespace !== 'default') {
+          expectedURL += `?namespace=${namespace}`;
+        }
 
         assert.ok(
           server.pretender.handledRequests
             .filterBy('method', 'POST')
-            .find(req => req.url === `/v1/job/${id}/periodic/force?namespace=${namespace}`),
+            .find(req => req.url === expectedURL),
           'POST URL was correct'
         );
 

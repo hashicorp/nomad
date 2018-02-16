@@ -41,9 +41,10 @@ export default ApplicationSerializer.extend({
       !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
 
-    const jobURL = this.store
+    const [jobURL] = this.store
       .adapterFor(modelName)
-      .buildURL(modelName, hash.ID, hash, 'findRecord');
+      .buildURL(modelName, hash.ID, hash, 'findRecord')
+      .split('?');
 
     return assign(this._super(...arguments), {
       summary: {

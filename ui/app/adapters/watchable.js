@@ -1,6 +1,5 @@
 import { get, computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
-import { copy } from '@ember/object/internals';
 import { makeArray } from '@ember/array';
 import { inject as service } from '@ember/service';
 import queryString from 'npm:query-string';
@@ -32,10 +31,10 @@ export default ApplicationAdapter.extend({
   },
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
-    const params = copy(additionalParams, true);
+    const params = assign(this.buildQuery(), additionalParams);
     const url = this.urlForFindAll(type.modelName);
 
-    if (get(snapshotRecordArray, 'adapterOptions.watch')) {
+    if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
     }
 
@@ -45,10 +44,10 @@ export default ApplicationAdapter.extend({
   },
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
-    const params = copy(additionalParams, true);
-    const url = this.buildURL(type.modelName, id, snapshot, 'findRecord');
+    let [url, params] = this.buildURL(type.modelName, id, snapshot, 'findRecord').split('?');
+    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams);
 
-    if (get(snapshot, 'adapterOptions.watch')) {
+    if (get(snapshot || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
     }
 

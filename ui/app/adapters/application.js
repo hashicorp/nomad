@@ -44,7 +44,7 @@ export default RESTAdapter.extend({
       // owner type. In the event it isn't, findHasMany should be overridden.
       store
         .peekAll(relationshipType)
-        .filter(record => record.get(`${ownerType}.id` === snapshot.id))
+        .filter(record => record.get(`${ownerType}.id`) === snapshot.id)
         .forEach(record => {
           store.unloadRecord(record);
         });
