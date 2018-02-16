@@ -383,6 +383,10 @@ func (n *nodeWatcher) run(ctx context.Context) {
 		//FIXME it seems possible for this to return a nil error and a 0 index, what to do in that case?
 		resp, index, err := n.state.BlockingQuery(n.queryNodeDrain, n.index, ctx)
 		if err != nil {
+			if err == context.Canceled {
+				n.logger.Printf("[TRACE] nomad.drain: draining node watcher shutting down")
+				return
+			}
 			n.logger.Printf("[ERR] nomad.drain: error blocking on node updates at index %d: %v", n.index, err)
 			return
 		}
@@ -506,6 +510,10 @@ func (p *prevAllocWatcher) run(ctx context.Context) {
 		//FIXME it seems possible for this to return a nil error and a 0 index, what to do in that case?
 		resp, p.allocIndex, err = p.state.BlockingQuery(p.queryPrevAlloc, p.allocIndex, ctx)
 		if err != nil {
+			if err == context.Canceled {
+				p.logger.Printf("[TRACE] nomad.drain: previous allocation watcher shutting down")
+				return
+			}
 			p.logger.Printf("[ERR] nomad.drain: error blocking on alloc updates: %v", err)
 			return
 		}
