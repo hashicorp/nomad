@@ -91,8 +91,12 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	nodes, nodesIndex, drainingAllocs, allocsIndex := initDrainer(s.logger, state)
 
 	// Wait for a node's drain deadline to expire
-	nextDeadline := time.Unix(math.MaxInt64, math.MaxInt64)
+	var nextDeadline time.Time
 	for _, node := range nodes {
+		if nextDeadline.IsZero() {
+			nextDeadline = node.DrainStrategy.DeadlineTime()
+			continue
+		}
 		if deadline := node.DrainStrategy.DeadlineTime(); deadline.Before(nextDeadline) {
 			nextDeadline = deadline
 		}
