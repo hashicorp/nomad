@@ -379,6 +379,11 @@ func newNodeWatcher(logger *log.Logger, nodes map[string]*structs.Node, index ui
 }
 
 func (n *nodeWatcher) run(ctx context.Context) {
+	//FIXME this is unneccessary if a node has reached a deadline
+	n.logger.Printf("[TRACE] nomad.drain: initial draining nodes: %d", len(n.nodes))
+	if len(n.nodes) > 0 {
+		n.nodesCh <- n.nodes
+	}
 	for {
 		//FIXME it seems possible for this to return a nil error and a 0 index, what to do in that case?
 		resp, index, err := n.state.BlockingQuery(n.queryNodeDrain, n.index, ctx)
