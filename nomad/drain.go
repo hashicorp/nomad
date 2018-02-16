@@ -3,7 +3,6 @@ package nomad
 import (
 	"context"
 	"log"
-	"math"
 	"strings"
 	"sync"
 	"time"
@@ -122,19 +121,22 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		case nodes = <-nodeWatcher.nodesCh:
 			// update draining nodes
 			//TODO remove allocs from draining list with node ids not in this map
+			s.logger.Printf("[TRACE] nomad.drain: running due to node change (%d nodes draining)", len(nodes))
 		case drainedID := <-prevAllocs.allocsCh:
 			// drained alloc has been replaced
 			//TODO instead of modifying a view of draining allocs here created a shared map like prevallocs
 			delete(drainingAllocs, drainedID)
-		case <-deadlineTimer.C:
+			s.logger.Printf("[TRACE] nomad.drain: running due to alloc change (%s replaced)", drainedID)
+		case when := <-deadlineTimer.C:
 			// deadline for a node was reached
+			s.logger.Printf("[TRACE] nomad.drain: running due to deadline reached (at %s)", when)
 		case <-ctx.Done():
 			// exit
 			return
 		}
 
 		// Tracks nodes that are done draining
-		doneNodes := map[string]struct{}{}
+		doneNodes := map[string]*structs.Node{}
 
 		//TODO work from a state snapshot? perhaps from a last update
 		//index? I can't think of why this would be beneficial as this
@@ -216,7 +218,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			// if node has no allocs, it's done draining!
 			if !allocsLeft {
 				delete(nodes, nodeID)
-				doneNodes[nodeID] = struct{}{}
+				doneNodes[nodeID] = node
 			}
 		}
 
@@ -231,6 +233,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		for _, a := range drainingAllocs {
 			stoplist.perTaskGroup[a.tgKey]++
 		}
+
+		// deadlineNodes is a map of node IDs that have reached their
+		// deadline and allocs that will be stopped due to deadline
+		deadlineNodes := map[string]int{}
 
 		//TODO build drain list considering deadline & max_parallel
 		for _, drainingJobs := range drainable {
@@ -250,6 +256,8 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					if node.DrainStrategy.DeadlineTime().Before(now) {
 						// Alloc's Node has reached its deadline
 						stoplist.add(drainingJob.job, alloc)
+
+						deadlineNodes[node.ID]++
 
 						//FIXME purge from watchlist?
 						continue
@@ -295,7 +303,14 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 		}
 
+		// log drains due to node deadlines
+		for nodeID, remaining := range deadlineNodes {
+			s.logger.Printf("[DEBUG] nomad.drain: node %s drain deadline reached; stopping %d remaining allocs", nodeID, remaining)
+		}
+
 		if len(stoplist.allocBatch) > 0 {
+			s.logger.Printf("[DEBUG] nomad.drain: stopping %d alloc(s) for %d job(s)", len(stoplist.allocBatch), len(stoplist.jobBatch))
+
 			// Stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
 			batch := &structs.AllocUpdateRequest{
 				Alloc:        stoplist.allocBatch,
@@ -342,7 +357,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		}
 
 		// Unset drain for nodes done draining
-		for nodeID := range doneNodes {
+		for nodeID, node := range doneNodes {
 			args := structs.NodeUpdateDrainRequest{
 				NodeID:       nodeID,
 				Drain:        false,
@@ -355,6 +370,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				//FIXME
 				panic(err)
 			}
+			s.logger.Printf("[INFO] nomad.drain: node %s (%s) completed draining", nodeID, node.Name)
 		}
 	}
 }
@@ -379,11 +395,13 @@ func newNodeWatcher(logger *log.Logger, nodes map[string]*structs.Node, index ui
 }
 
 func (n *nodeWatcher) run(ctx context.Context) {
+	// Trigger an initial drain pass if there are already nodes draining
 	//FIXME this is unneccessary if a node has reached a deadline
 	n.logger.Printf("[TRACE] nomad.drain: initial draining nodes: %d", len(n.nodes))
 	if len(n.nodes) > 0 {
 		n.nodesCh <- n.nodes
 	}
+
 	for {
 		//FIXME it seems possible for this to return a nil error and a 0 index, what to do in that case?
 		resp, index, err := n.state.BlockingQuery(n.queryNodeDrain, n.index, ctx)
