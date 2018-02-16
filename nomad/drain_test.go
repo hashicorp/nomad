@@ -2,9 +2,15 @@ package nomad
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/client"
+	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,130 +22,81 @@ import (
 // moves allocs from the draining node to the other node.
 func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	require := require.New(t)
-	server := testServer(t, nil)
+	logger := testlog.Logger(t)
+	server := TestServer(t, nil)
 	defer server.Shutdown()
 
-	state := server.fsm.State()
+	testutil.WaitForLeader(t, server.RPC)
 
 	// Setup 2 Nodes: A & B; A has allocs and is draining
-	now := time.Now()
-	nodeA := mock.Node()
-	nodeA.Name = "NodeA"
-	nodeA.Drain = true
-	nodeA.DrainStrategy = &structs.DrainStrategy{
-		StartTime: now.UnixNano(),
-		Deadline:  5 * time.Second,
-	}
-	nodeA.SchedulingEligibility = structs.NodeSchedulingIneligible
 
-	nodeB := mock.Node()
-	nodeB.Name = "NodeB"
+	node1 := mock.Node()
+	node1.Name = "node-1"
+	node2 := mock.Node()
+	node2.Name = "node-2"
+
+	// Create mock jobs
+	state := server.fsm.State()
 
 	serviceJob := mock.Job()
 	serviceJob.Name = "service-job"
 	serviceJob.Type = structs.JobTypeService
-	serviceJob.TaskGroups[0].Tasks[0].Resources.CPU = 20
-	serviceJob.TaskGroups[0].Tasks[0].Resources.MemoryMB = 20
-	serviceJob.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 1
-	serviceAllocs := make([]*structs.Allocation, serviceJob.TaskGroups[0].Count)
-	serviceAllocsMap := make(map[string]*structs.Allocation, len(serviceAllocs))
-	for i := range serviceAllocs {
-		a := mock.Alloc()
-		a.JobID = serviceJob.ID
-		a.NodeID = nodeA.ID
-		serviceAllocs[i] = a
-
-		// index by ID as well
-		serviceAllocsMap[a.ID] = a
-	}
-	require.Nil(state.UpsertJob(1002, serviceJob))
-	require.Nil(state.UpsertAllocs(1003, serviceAllocs))
+	serviceJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	serviceJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
+	serviceJob.TaskGroups[0].Tasks[0].Services = nil
 
 	systemJob := mock.SystemJob()
 	systemJob.Name = "system-job"
 	systemJob.Type = structs.JobTypeSystem
-	systemAlloc := mock.Alloc()
-	systemAlloc.JobID = systemJob.ID
-	systemAlloc.NodeID = nodeA.ID
-	require.Nil(state.UpsertJob(1004, systemJob))
-	require.Nil(state.UpsertAllocs(1005, []*structs.Allocation{systemAlloc}))
+	systemJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	systemJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
+	systemJob.TaskGroups[0].Tasks[0].Services = nil
 
 	batchJob := mock.Job()
 	batchJob.Name = "batch-job"
 	batchJob.Type = structs.JobTypeBatch
-	batchJob.TaskGroups[0].Tasks[0].Resources.CPU = 20
-	batchJob.TaskGroups[0].Tasks[0].Resources.MemoryMB = 20
-	batchJob.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 1
-	batchAllocs := make([]*structs.Allocation, batchJob.TaskGroups[0].Count)
-	for i := range batchAllocs {
-		a := mock.Alloc()
-		a.JobID = batchJob.ID
-		a.NodeID = nodeA.ID
-		batchAllocs[i] = a
-	}
-	require.Nil(state.UpsertJob(1006, batchJob))
-	require.Nil(state.UpsertAllocs(1007, batchAllocs))
+	batchJob.TaskGroups[0].Name = "batch-group"
+	batchJob.TaskGroups[0].Migrate = nil
+	batchJob.TaskGroups[0].Tasks[0].Name = "batch-task"
+	batchJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	batchJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
+	batchJob.TaskGroups[0].Tasks[0].Services = nil
 
-	// Upsert Nodes last to trigger draining
-	require.Nil(state.UpsertNode(9001, nodeB))
-	require.Nil(state.UpsertNode(9000, nodeA))
-
-	// Wait for allocs to go DesiredStatus=stop and transition them to done (fake being a well-behaved client)
-	serviceDone, batchDone := 0, 0
-	testutil.WaitForResult(func() (bool, error) {
-		snap, _ := state.Snapshot()
-		index, err := state.Index("allocs")
-		require.Nil(err)
-		iter, err := snap.Allocs(nil)
-		require.Nil(err)
-
-		deadlineReached := time.Now().After(nodeA.DrainStrategy.DeadlineTime())
-
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-
-			alloc := raw.(*structs.Allocation)
-			switch alloc.JobID {
-			case systemJob.ID:
-				if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
-					t.Fatalf("system alloc %q told to stop: %q", alloc.ID, alloc.DesiredStatus)
-				}
-			case batchJob.ID:
-				if deadlineReached && alloc.DesiredStatus == structs.AllocDesiredStatusStop && alloc.ClientStatus != structs.AllocClientStatusComplete {
-					batchDone++
-					t.Logf("batch alloc %q completed", alloc.ID)
-					alloc.ClientStatus = structs.AllocClientStatusComplete
-					//FIXME valid index?!
-					require.Nil(snap.UpsertAllocs(index+1, []*structs.Allocation{alloc}))
-				}
-			case serviceJob.ID:
-				if alloc.DesiredStatus == structs.AllocDesiredStatusStop && alloc.ClientStatus != structs.AllocClientStatusComplete {
-					// Alloc is being drained so fake a replacement.
-					serviceDone++
-					alloc.ClientStatus = structs.AllocClientStatusComplete
-
-					//FIXME valid index?!
-					require.Nil(snap.UpsertAllocs(index+1, []*structs.Allocation{alloc}))
-					t.Logf("service alloc %q drained", alloc.ID)
-				}
-			default:
-				t.Fatalf("unknown alloc job id: %q", alloc.JobID)
-			}
-		}
-
-		// success means all jobs have been migrated
-		success := serviceDone == serviceJob.TaskGroups[0].Count && batchDone == batchJob.TaskGroups[0].Count
-		if success {
-			return success, nil
-		}
-		return success, fmt.Errorf("services draining: %d/%d  --  batch draining: %d/%d",
-			serviceDone, serviceJob.TaskGroups[0].Count, batchDone, batchJob.TaskGroups[0].Count)
-	}, func(err error) {
-		t.Errorf("error waiting for all non-system allocs to be drained: %v", err)
+	// Start node-1
+	c1 := client.TestClient(t, func(conf *config.Config) {
+		conf.Node = node1
+		conf.Servers = []string{server.config.RPCAddr.String()}
 	})
+	defer c1.Shutdown()
+
+	// Start jobs so they all get placed on node-1
+	codec := rpcClient(t, server)
+	for _, job := range []*structs.Job{systemJob, serviceJob, batchJob} {
+		req := &structs.JobRegisterRequest{
+			Job: job.Copy(),
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+
+		// Fetch the response
+		var resp structs.JobRegisterResponse
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+		require.NotZero(resp.Index)
+		logger.Printf("%s modifyindex: %d warnings: %s", job.Name, resp.JobModifyIndex, resp.Warnings)
+	}
+
+	//FIXME replace with a WaitForResult
+	logger.Printf("...waiting for jobs to start...")
+	time.Sleep(3 * time.Second)
+
+	// Start node-2
+	c2 := client.TestClient(t, func(conf *config.Config) {
+		conf.Node = node2
+		conf.Servers = []string{server.config.RPCAddr.String()}
+	})
+	defer c2.Shutdown()
 
 	// Wait for all service allocs to be replaced
 	allocs := make([]*structs.Allocation, 0, 100)
@@ -150,7 +107,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		}
 
 		allocs = allocs[:0]
-		replacements := make([]*structs.Allocation, 0, serviceJob.TaskGroups[0].Count)
+		allocsMap := map[string]*structs.Allocation{}
 		for {
 			raw := iter.Next()
 			if raw == nil {
@@ -159,7 +116,12 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 			alloc := raw.(*structs.Allocation)
 			allocs = append(allocs, alloc)
-			if _, ok := serviceAllocsMap[alloc.PreviousAllocation]; ok {
+			allocsMap[alloc.ID] = alloc
+		}
+
+		replacements := make([]*structs.Allocation, 0, serviceJob.TaskGroups[0].Count)
+		for _, alloc := range allocsMap {
+			if _, ok := allocsMap[alloc.PreviousAllocation]; ok {
 				replacements = append(replacements, alloc)
 			}
 		}
@@ -168,11 +130,23 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		if success {
 			return success, nil
 		}
-		return success, fmt.Errorf("replaced %d/%d allocs", len(replacements), serviceJob.TaskGroups[0].Count)
+		return success, fmt.Errorf("replaced %d/%d allocs (%d total allocs)", len(replacements), serviceJob.TaskGroups[0].Count, len(allocs))
 	}, func(err error) {
 		t.Errorf("error waiting for replacements: %v", err)
 	})
 
+	sort.Slice(allocs, func(i, j int) bool {
+		r := strings.Compare(allocs[i].Job.Name, allocs[j].Job.Name)
+		switch {
+		case r < 0:
+			return true
+		case r == 0:
+			return allocs[i].ModifyIndex < allocs[j].ModifyIndex
+		case r > 0:
+			return false
+		}
+		panic("unreachable")
+	})
 	for _, alloc := range allocs {
 		t.Logf("job: %s alloc: %s desired: %s actual: %s replaces: %s", alloc.Job.Name, alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation)
 	}
