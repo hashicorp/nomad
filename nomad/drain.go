@@ -417,27 +417,36 @@ func (n *nodeWatcher) run(ctx context.Context) {
 		// update index for next run
 		n.index = index
 
-		nodes := resp.([]*structs.Node)
-		for _, node := range nodes {
-			if _, ok := n.nodes[node.ID]; ok {
+		changed := false
+		newNodes := resp.([]*structs.Node)
+		for _, newNode := range newNodes {
+			if _, ok := n.nodes[newNode.ID]; ok {
 				// Node was draining
-				if !node.Drain {
+				if !newNode.Drain {
 					// Node stopped draining
-					delete(n.nodes, node.ID)
+					delete(n.nodes, newNode.ID)
+					changed = true
 				} else {
 					// Update deadline
-					n.nodes[node.ID] = node
+					n.nodes[newNode.ID] = newNode
+					//FIXME set changed if it changed?
+					//changed = true
 				}
 			} else {
 				// Node was not draining
-				if node.Drain {
+				if newNode.Drain {
 					// Node started draining
-					n.nodes[node.ID] = node
+					n.nodes[newNode.ID] = newNode
+					changed = true
 				}
 			}
 		}
 
-		// Send a copy of the draining nodes
+		// Send a copy of the draining nodes if there were changes
+		if !changed {
+			continue
+		}
+
 		nodesCopy := make(map[string]*structs.Node, len(n.nodes))
 		for k, v := range n.nodes {
 			nodesCopy[k] = v
