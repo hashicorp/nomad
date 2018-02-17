@@ -11,41 +11,72 @@ export function findLeader(schema) {
 }
 
 export default function() {
-  const server = this;
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
 
-  this.get('/jobs', function({ jobs }, { queryParams }) {
-    const json = this.serialize(jobs.all());
-    const namespace = queryParams.namespace || 'default';
-    return json
-      .filter(
-        job =>
-          namespace === 'default'
-            ? !job.NamespaceID || job.NamespaceID === namespace
-            : job.NamespaceID === namespace
-      )
-      .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
-  });
+  const nomadIndices = {}; // used for tracking blocking queries
+  const server = this;
+  const withBlockingSupport = function(fn) {
+    return function(schema, request) {
+      // Get the original response
+      let { url } = request;
+      url = url.replace(/index=\d+[&;]?/, '');
+      const response = fn.apply(this, arguments);
 
-  this.get('/job/:id', function({ jobs }, { params, queryParams }) {
-    const job = jobs.all().models.find(job => {
-      const jobIsDefault = !job.namespaceId || job.namespaceId === 'default';
-      const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
-      return (
-        job.id === params.id &&
-        (job.namespaceId === queryParams.namespace || (jobIsDefault && qpIsDefault))
-      );
-    });
+      // Get and increment the approrpriate index
+      nomadIndices[url] || (nomadIndices[url] = 1);
+      const index = nomadIndices[url];
+      nomadIndices[url]++;
 
-    return job ? this.serialize(job) : new Response(404, {}, null);
-  });
+      // Annotate the response with the index
+      if (response instanceof Response) {
+        response.headers['X-Nomad-Index'] = index;
+        return response;
+      }
+      return new Response(200, { 'X-Nomad-Index': index }, response);
+    };
+  };
 
-  this.get('/job/:id/summary', function({ jobSummaries }, { params }) {
-    return this.serialize(jobSummaries.findBy({ jobId: params.id }));
-  });
+  this.get(
+    '/jobs',
+    withBlockingSupport(function({ jobs }, { queryParams }) {
+      const json = this.serialize(jobs.all());
+      const namespace = queryParams.namespace || 'default';
+      return json
+        .filter(
+          job =>
+            namespace === 'default'
+              ? !job.NamespaceID || job.NamespaceID === namespace
+              : job.NamespaceID === namespace
+        )
+        .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+    })
+  );
+
+  this.get(
+    '/job/:id',
+    withBlockingSupport(function({ jobs }, { params, queryParams }) {
+      const job = jobs.all().models.find(job => {
+        const jobIsDefault = !job.namespaceId || job.namespaceId === 'default';
+        const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
+        return (
+          job.id === params.id &&
+          (job.namespaceId === queryParams.namespace || (jobIsDefault && qpIsDefault))
+        );
+      });
+
+      return job ? this.serialize(job) : new Response(404, {}, null);
+    })
+  );
+
+  this.get(
+    '/job/:id/summary',
+    withBlockingSupport(function({ jobSummaries }, { params }) {
+      return this.serialize(jobSummaries.findBy({ jobId: params.id }));
+    })
+  );
 
   this.get('/job/:id/allocations', function({ allocations }, { params }) {
     return this.serialize(allocations.where({ jobId: params.id }));
