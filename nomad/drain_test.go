@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/testutil/rpcapi"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
@@ -48,6 +48,8 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	systemJob := mock.SystemJob()
 	systemJob.Name = "system-job"
 	systemJob.Type = structs.JobTypeSystem
+	//FIXME hack until system job reschedule policy validation is fixed
+	systemJob.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: time.Minute}
 	systemJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	systemJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
 	systemJob.TaskGroups[0].Tasks[0].Services = nil
@@ -65,6 +67,8 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	// Start node-1
 	c1 := client.TestClient(t, func(conf *config.Config) {
 		conf.Node = node1
+		conf.NetworkSpeed = 10000
+		conf.LogOutput = testlog.NewWriter(t)
 		conf.Servers = []string{server.config.RPCAddr.String()}
 	})
 	defer c1.Shutdown()
@@ -89,7 +93,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 	//FIXME replace with a WaitForResult
 	logger.Printf("...waiting for jobs to start...")
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// Start node-2
 	c2 := client.TestClient(t, func(conf *config.Config) {
@@ -99,41 +103,16 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	defer c2.Shutdown()
 
 	// Wait for all service allocs to be replaced
-	allocs := make([]*structs.Allocation, 0, 100)
-	testutil.WaitForResult(func() (bool, error) {
-		iter, err := state.Allocs(nil)
-		if err != nil {
-			t.Fatalf("error iterating over allocs: %v", err)
-		}
+	rpc := rpcapi.NewRPC(codec)
+	jobs, err := rpc.JobList()
+	require.Nil(err)
+	t.Logf("%d jobs", len(jobs.Jobs))
+	for _, job := range jobs.Jobs {
+		t.Logf("job: %s status: %s %s", job.Name, job.Status, job.StatusDescription)
+	}
 
-		allocs = allocs[:0]
-		allocsMap := map[string]*structs.Allocation{}
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-
-			alloc := raw.(*structs.Allocation)
-			allocs = append(allocs, alloc)
-			allocsMap[alloc.ID] = alloc
-		}
-
-		replacements := make([]*structs.Allocation, 0, serviceJob.TaskGroups[0].Count)
-		for _, alloc := range allocsMap {
-			if _, ok := allocsMap[alloc.PreviousAllocation]; ok {
-				replacements = append(replacements, alloc)
-			}
-		}
-
-		success := len(replacements) == serviceJob.TaskGroups[0].Count
-		if success {
-			return success, nil
-		}
-		return success, fmt.Errorf("replaced %d/%d allocs (%d total allocs)", len(replacements), serviceJob.TaskGroups[0].Count, len(allocs))
-	}, func(err error) {
-		t.Errorf("error waiting for replacements: %v", err)
-	})
+	allocs, err := rpc.AllocAll()
+	require.Nil(err)
 
 	sort.Slice(allocs, func(i, j int) bool {
 		r := strings.Compare(allocs[i].Job.Name, allocs[j].Job.Name)
@@ -147,6 +126,8 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		}
 		panic("unreachable")
 	})
+
+	t.Logf("%d allocs", len(allocs))
 	for _, alloc := range allocs {
 		t.Logf("job: %s alloc: %s desired: %s actual: %s replaces: %s", alloc.Job.Name, alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation)
 	}
