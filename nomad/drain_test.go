@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -29,11 +30,6 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	testutil.WaitForLeader(t, server.RPC)
 
 	// Setup 2 Nodes: A & B; A has allocs and is draining
-
-	node1 := mock.Node()
-	node1.Name = "node-1"
-	node2 := mock.Node()
-	node2.Name = "node-2"
 
 	// Create mock jobs
 	state := server.fsm.State()
@@ -66,12 +62,36 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 	// Start node-1
 	c1 := client.TestClient(t, func(conf *config.Config) {
-		conf.Node = node1
+		//conf.Name = "node-1"
 		conf.NetworkSpeed = 10000
 		conf.LogOutput = testlog.NewWriter(t)
 		conf.Servers = []string{server.config.RPCAddr.String()}
 	})
 	defer c1.Shutdown()
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		node, err := state.NodeByID(nil, c1.Node().ID)
+		if err != nil {
+			return false, err
+		}
+		if node == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if node.Status != structs.NodeStatusReady {
+			return false, fmt.Errorf("alloc client status: %v", node.Status)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("Alloc on node %q not finished: %v", c1.Node().Name, err)
+	})
+
+	node, err := state.NodeByID(nil, c1.Node().ID)
+	if err != nil {
+		panic(err)
+	}
+	logger.Printf("[TEST] node: %s", pretty.Sprint(node))
 
 	// Start jobs so they all get placed on node-1
 	codec := rpcClient(t, server)
@@ -97,7 +117,8 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 	// Start node-2
 	c2 := client.TestClient(t, func(conf *config.Config) {
-		conf.Node = node2
+		//conf.Name = "node-2"
+		conf.NetworkSpeed = 10000
 		conf.Servers = []string{server.config.RPCAddr.String()}
 	})
 	defer c2.Shutdown()
