@@ -84,7 +84,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	// Create a new context with the health deadline
 	healthCtx, healthCtxCancel := context.WithDeadline(ctx, deadline)
 	defer healthCtxCancel()
-	r.logger.Printf("[DEBUG] client.alloc_watcher: deadline (%v) for alloc %q is at %v", tg.Update.HealthyDeadline, alloc.ID, deadline)
+	r.logger.Printf("[DEBUG] client.alloc_watcher: deadline for alloc %q is at %v (deploy=%t checks=%t)", alloc.ID, deadline, isDeploy, useChecks)
 
 	// Create the health tracker object
 	tracker := newAllocHealthTracker(healthCtx, r.logger, alloc, l, r.consulClient, minHealthyTime, useChecks)
