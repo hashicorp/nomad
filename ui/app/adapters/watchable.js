@@ -4,6 +4,7 @@ import { makeArray } from '@ember/array';
 import { inject as service } from '@ember/service';
 import queryString from 'npm:query-string';
 import ApplicationAdapter from './application';
+import { AbortError } from 'ember-data/adapters/errors';
 
 export default ApplicationAdapter.extend({
   watchList: service(),
@@ -40,6 +41,11 @@ export default ApplicationAdapter.extend({
 
     return this.ajax(url, 'GET', {
       data: params,
+    }).catch(error => {
+      if (error instanceof AbortError) {
+        return [];
+      }
+      throw error;
     });
   },
 
@@ -53,6 +59,11 @@ export default ApplicationAdapter.extend({
 
     return this.ajax(url, 'GET', {
       data: params,
+    }).catch(error => {
+      if (error instanceof AbortError) {
+        return {};
+      }
+      throw error;
     });
   },
 
@@ -76,16 +87,24 @@ export default ApplicationAdapter.extend({
 
       return this.ajax(url, 'GET', {
         data: params,
-      }).then(json => {
-        this.get('store').pushPayload(relationship.type, {
-          [relationship.type]: makeArray(json),
-        });
-      });
+      }).then(
+        json => {
+          this.get('store').pushPayload(relationship.type, {
+            [relationship.type]: makeArray(json),
+          });
+        },
+        error => {
+          if (error instanceof AbortError) {
+            return relationship.kind === 'belongsTo' ? {} : [];
+          }
+          throw error;
+        }
+      );
     }
   },
 
   handleResponse(status, headers, payload, requestData) {
-    const newIndex = headers['x-nomad-index'];
+    const newIndex = headers['X-Nomad-Index'];
     if (newIndex) {
       this.get('watchList').setIndexFor(requestData.url, newIndex);
     }
