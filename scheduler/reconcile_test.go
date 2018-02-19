@@ -40,6 +40,7 @@ Basic Tests:
 √  Place more that one group
 √  Handle rescheduling failed allocs for batch jobs
 √  Handle rescheduling failed allocs for service jobs
+√  Previously rescheduled allocs should not be rescheduled again
 
 Update stanza Tests:
 √  Stopped job cancels any active deployment
@@ -1224,6 +1225,7 @@ func TestReconciler_Reschedule_Batch(t *testing.T) {
 	}
 	// Mark 3 as failed with restart tracking info
 	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].NextAllocation = allocs[1].ID
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
 	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
 		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
@@ -1231,6 +1233,7 @@ func TestReconciler_Reschedule_Batch(t *testing.T) {
 			PrevNodeID:  uuid.Generate(),
 		},
 	}}
+	allocs[1].NextAllocation = allocs[2].ID
 	allocs[2].ClientStatus = structs.AllocClientStatusFailed
 	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
 		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
@@ -1325,6 +1328,64 @@ func TestReconciler_Reschedule_Service(t *testing.T) {
 	// 2 rescheduled allocs should have previous allocs
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
 	assertPlacementsAreRescheduled(t, 1, r.place)
+}
+
+// Tests failed service allocations that were already rescheduled won't be rescheduled again
+func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 5, Interval: 24 * time.Hour}
+
+	// Create 7 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 7; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark two as failed and rescheduled
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].ID = allocs[1].ID
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].NextAllocation = allocs[2].ID
+
+	// Mark one as desired state stop
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	// Should place 1 - one is a new placement to make up the desired count of 5
+	// failing allocs are not rescheduled
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 4,
+			},
+		},
+	})
+
+	// name index 0 is used for the replacement because its
+	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
 }
 
 // Tests the reconciler cancels an old deployment when the job is being stopped

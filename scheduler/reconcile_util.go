@@ -233,8 +233,6 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 	untainted = make(map[string]*structs.Allocation)
 	reschedule = make(map[string]*structs.Allocation)
 
-	rescheduledPrevAllocs := make(map[string]struct{}) // Track previous allocs from any restart trackers
-
 	now := time.Now()
 	for _, alloc := range a {
 		if isBatch {
@@ -250,35 +248,27 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 				continue
 			default:
 			}
-			if alloc.ShouldReschedule(reschedulePolicy, now) {
-				reschedule[alloc.ID] = alloc
-			} else {
-				untainted[alloc.ID] = alloc
+			if alloc.NextAllocation == "" {
+				if alloc.ShouldReschedule(reschedulePolicy, now) {
+					reschedule[alloc.ID] = alloc
+				} else {
+					untainted[alloc.ID] = alloc
+				}
 			}
 		} else {
-			// ignore allocs whose desired state is stop/evict
-			// everything else is either rescheduleable or untainted
-			if alloc.ShouldReschedule(reschedulePolicy, now) {
-				reschedule[alloc.ID] = alloc
-			} else if alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict {
-				untainted[alloc.ID] = alloc
+			//ignore allocs that have already been rescheduled
+			if alloc.NextAllocation == "" {
+				// ignore allocs whose desired state is stop/evict
+				// everything else is either rescheduleable or untainted
+				if alloc.ShouldReschedule(reschedulePolicy, now) {
+					reschedule[alloc.ID] = alloc
+				} else if alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict {
+					untainted[alloc.ID] = alloc
+				}
 			}
 		}
 	}
 
-	// Find allocs that exist in reschedule events from other allocs
-	// This needs another pass through allocs we marked as reschedulable
-	for _, alloc := range reschedule {
-		if alloc.RescheduleTracker != nil {
-			for _, rescheduleEvent := range alloc.RescheduleTracker.Events {
-				rescheduledPrevAllocs[rescheduleEvent.PrevAllocID] = struct{}{}
-			}
-		}
-	}
-	// Delete these from rescheduleable allocs
-	for allocId := range rescheduledPrevAllocs {
-		delete(reschedule, allocId)
-	}
 	return
 }
 
