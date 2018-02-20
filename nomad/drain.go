@@ -254,6 +254,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					}
 
 					if node.DrainStrategy.DeadlineTime().Before(now) {
+						s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to node's drain deadline", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 						// Alloc's Node has reached its deadline
 						stoplist.add(drainingJob.job, alloc)
 
@@ -276,12 +277,14 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 					// Only 1, drain
 					if tg.Count == 1 {
+						s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to count=1", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 						stoplist.add(drainingJob.job, alloc)
 						continue
 					}
 
 					// No migrate strategy or a max parallel of 0 mean force draining
 					if tg.Migrate == nil || tg.Migrate.MaxParallel == 0 {
+						s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to force drain", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 						stoplist.add(drainingJob.job, alloc)
 						continue
 					}
@@ -293,6 +296,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 					//FIXME change this to be based off of the sum(deploymentstatus!=nil && clientstatus==running) for this task group
 					if tg.Migrate.MaxParallel > stoplist.perTaskGroup[tgKey] {
+						s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to max parallel", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 						// More migrations are allowed, add to stoplist
 						stoplist.add(drainingJob.job, alloc)
 
@@ -419,6 +423,7 @@ func (n *nodeWatcher) run(ctx context.Context) {
 
 		changed := false
 		newNodes := resp.([]*structs.Node)
+		n.logger.Printf("[TRACE] nomad.drain: %d nodes to consider", len(newNodes)) //FIXME remove
 		for _, newNode := range newNodes {
 			if _, ok := n.nodes[newNode.ID]; ok {
 				// Node was draining
