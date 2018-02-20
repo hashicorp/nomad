@@ -22,7 +22,7 @@ export default Component.extend(WindowResizable, {
   tooltipStyle: styleStringProperty('tooltipPosition'),
   maskId: null,
 
-  _data: computed('data', function() {
+  _data: computed('data.@each.{value,label,className,layers}', function() {
     const data = this.get('data');
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
@@ -80,8 +80,6 @@ export default Component.extend(WindowResizable, {
     let slices = chart.select('.bars').selectAll('g').data(filteredData, d => d.label);
     let sliceCount = filteredData.length;
 
-    this.set('slices', slices);
-
     slices.exit().remove();
 
     let slicesEnter = slices.enter()
@@ -89,7 +87,7 @@ export default Component.extend(WindowResizable, {
       .on('mouseenter', d => {
         run(() => {
           const slices = this.get('slices');
-          const slice = slices.filter(datum => datum === d);
+          const slice = slices.filter(datum => datum.label === d.label);
           slices.classed('active', false).classed('inactive', true);
           slice.classed('active', true).classed('inactive', false);
           this.set('activeDatum', d);
@@ -113,6 +111,8 @@ export default Component.extend(WindowResizable, {
       const isInactive = activeDatum && activeDatum.label !== d.label;
       return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
     });
+
+    this.set('slices', slices);
 
     const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
     const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
