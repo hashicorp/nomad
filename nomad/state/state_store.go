@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sort"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -635,6 +636,17 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	// Update the drain in the copy
 	copyNode.Drain = drain
+	//FIXME
+	if drain {
+		copyNode.DrainStrategy = &structs.DrainStrategy{
+			StartTime: time.Now().UnixNano(),
+			Deadline:  10 * time.Second,
+		}
+		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
+	} else {
+		copyNode.DrainStrategy = nil
+		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
 	copyNode.ModifyIndex = index
 
 	// Insert the node
