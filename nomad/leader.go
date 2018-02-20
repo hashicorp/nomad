@@ -157,6 +157,8 @@ WAIT:
 // previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	defer metrics.MeasureSince([]string{"nomad", "leader", "establish_leadership"}, time.Now())
+
 	// Generate a leader ACL token. This will allow the leader to issue work
 	// that requires a valid ACL token.
 	s.setLeaderAcl(uuid.Generate())
@@ -639,8 +641,7 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
-	// TODO put metrics here and on establish leadership that time how long the
-	// whole thing takes so we can detect lock contention or blocking.
+	defer metrics.MeasureSince([]string{"nomad", "leader", "revoke_leadership"}, time.Now())
 
 	// Clear the leader token since we are no longer the leader.
 	s.setLeaderAcl("")
