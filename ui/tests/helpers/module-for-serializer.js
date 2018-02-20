@@ -17,6 +17,9 @@ export default function(modelName, description, options = { needs: [] }) {
       // Reassign the subject to provide the serializer
       this.subject = () => model.store.serializerFor(modelName);
 
+      // Expose the store as well, since it is a parameter for many serializer methods
+      this.store = model.store;
+
       if (options.beforeEach) {
         options.beforeEach.apply(this, arguments);
       }
