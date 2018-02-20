@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/testutil/rpcapi"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +22,6 @@ import (
 // moves allocs from the draining node to the other node.
 func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	require := require.New(t)
-	logger := testlog.Logger(t)
 	server := TestServer(t, nil)
 	defer server.Shutdown()
 
@@ -37,8 +35,18 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	serviceJob := mock.Job()
 	serviceJob.Name = "service-job"
 	serviceJob.Type = structs.JobTypeService
+	serviceJob.TaskGroups[0].Migrate = &structs.MigrateStrategy{
+		MaxParallel:     1,
+		HealthCheck:     structs.MigrateStrategyHealthStates,
+		MinHealthyTime:  time.Millisecond,
+		HealthyDeadline: 2 * time.Second,
+	}
 	serviceJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	serviceJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
+	serviceJob.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":    "10m",
+		"kill_after": "1ms",
+	}
 	serviceJob.TaskGroups[0].Tasks[0].Services = nil
 
 	systemJob := mock.SystemJob()
@@ -47,6 +55,10 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	//FIXME hack until system job reschedule policy validation is fixed
 	systemJob.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: time.Minute}
 	systemJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	systemJob.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":    "10m",
+		"kill_after": "1ms",
+	}
 	systemJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
 	systemJob.TaskGroups[0].Tasks[0].Services = nil
 
@@ -57,43 +69,22 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	batchJob.TaskGroups[0].Migrate = nil
 	batchJob.TaskGroups[0].Tasks[0].Name = "batch-task"
 	batchJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	batchJob.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":    "10m",
+		"kill_after": "1ms",
+		"exit_code":  13, // set nonzero exit code to cause rescheduling
+	}
 	batchJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
 	batchJob.TaskGroups[0].Tasks[0].Services = nil
 
-	// Start node-1
+	// Start node 1
 	c1 := client.TestClient(t, func(conf *config.Config) {
-		//conf.Name = "node-1"
-		conf.NetworkSpeed = 10000
 		conf.LogOutput = testlog.NewWriter(t)
 		conf.Servers = []string{server.config.RPCAddr.String()}
 	})
 	defer c1.Shutdown()
 
-	// Wait for the client to run the allocation
-	testutil.WaitForResult(func() (bool, error) {
-		node, err := state.NodeByID(nil, c1.Node().ID)
-		if err != nil {
-			return false, err
-		}
-		if node == nil {
-			return false, fmt.Errorf("unknown alloc")
-		}
-		if node.Status != structs.NodeStatusReady {
-			return false, fmt.Errorf("alloc client status: %v", node.Status)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("Alloc on node %q not finished: %v", c1.Node().Name, err)
-	})
-
-	node, err := state.NodeByID(nil, c1.Node().ID)
-	if err != nil {
-		panic(err)
-	}
-	logger.Printf("[TEST] node: %s", pretty.Sprint(node))
-
-	// Start jobs so they all get placed on node-1
+	// Start jobs so they all get placed on node 1
 	codec := rpcClient(t, server)
 	for _, job := range []*structs.Job{systemJob, serviceJob, batchJob} {
 		req := &structs.JobRegisterRequest{
@@ -108,23 +99,93 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		var resp structs.JobRegisterResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 		require.NotZero(resp.Index)
-		logger.Printf("%s modifyindex: %d warnings: %s", job.Name, resp.JobModifyIndex, resp.Warnings)
 	}
 
-	//FIXME replace with a WaitForResult
-	logger.Printf("...waiting for jobs to start...")
-	time.Sleep(5 * time.Second)
+	// Wait for jobs to start on c1
+	rpc := rpcapi.NewRPC(codec)
+	testutil.WaitForResult(func() (bool, error) {
+		resp, err := rpc.NodeGetAllocs(c1.NodeID())
+		if err != nil {
+			return false, err
+		}
 
-	// Start node-2
+		system, batch, service := 0, 0, 0
+		for _, alloc := range resp.Allocs {
+			if alloc.ClientStatus != structs.AllocClientStatusRunning {
+				return false, fmt.Errorf("alloc %s for job %s not running: %s", alloc.ID, alloc.Job.Name, alloc.ClientStatus)
+			}
+			switch alloc.JobID {
+			case batchJob.ID:
+				batch++
+			case serviceJob.ID:
+				service++
+			case systemJob.ID:
+				system++
+			}
+		}
+		// 1 system + 10 batch + 10 service = 21
+		if system+batch+service != 21 {
+			return false, fmt.Errorf("wrong number of allocs: system %d/1, batch %d/10, service %d/10", system, batch, service)
+		}
+		return true, nil
+	}, func(err error) {
+		if resp, err := rpc.NodeGetAllocs(c1.NodeID()); err == nil {
+			for i, alloc := range resp.Allocs {
+				t.Logf("%d alloc %s job %s status %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus)
+			}
+		}
+		t.Fatalf("failed waiting for all allocs to start: %v", err)
+	})
+
+	// Start draining node 1
+	//FIXME update drain rpc to skip fsm manipulation and use api
+	node, err := state.NodeByID(nil, c1.NodeID())
+	require.Nil(err)
+	require.Nil(state.UpdateNodeDrain(node.ModifyIndex+1, node.ID, true))
+
+	// Start node 2
 	c2 := client.TestClient(t, func(conf *config.Config) {
-		//conf.Name = "node-2"
 		conf.NetworkSpeed = 10000
 		conf.Servers = []string{server.config.RPCAddr.String()}
 	})
 	defer c2.Shutdown()
 
+	// Wait for services to be migrated
+	testutil.WaitForResult(func() (bool, error) {
+		resp, err := rpc.NodeGetAllocs(c2.NodeID())
+		if err != nil {
+			return false, err
+		}
+
+		system, batch, service := 0, 0, 0
+		for _, alloc := range resp.Allocs {
+			if alloc.ClientStatus != structs.AllocClientStatusRunning {
+				return false, fmt.Errorf("alloc %s for job %s not running: %s", alloc.ID, alloc.Job.Name, alloc.ClientStatus)
+			}
+			switch alloc.JobID {
+			case batchJob.ID:
+				batch++
+			case serviceJob.ID:
+				service++
+			case systemJob.ID:
+				system++
+			}
+		}
+		// 1 system + 10 batch + 10 service = 21
+		if system+batch+service != 21 {
+			return false, fmt.Errorf("wrong number of allocs: system %d/1, batch %d/10, service %d/10", system, batch, service)
+		}
+		return true, nil
+	}, func(err error) {
+		if resp, err := rpc.NodeGetAllocs(c2.NodeID()); err == nil {
+			for i, alloc := range resp.Allocs {
+				t.Logf("%d alloc %s job %s status %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus)
+			}
+		}
+		t.Fatalf("failed waiting for all allocs to start: %v", err)
+	})
+
 	// Wait for all service allocs to be replaced
-	rpc := rpcapi.NewRPC(codec)
 	jobs, err := rpc.JobList()
 	require.Nil(err)
 	t.Logf("%d jobs", len(jobs.Jobs))
@@ -150,27 +211,6 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 	t.Logf("%d allocs", len(allocs))
 	for _, alloc := range allocs {
-		t.Logf("job: %s alloc: %s desired: %s actual: %s replaces: %s", alloc.Job.Name, alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation)
-	}
-
-	iter, err := state.Evals(nil)
-	require.Nil(err)
-
-	evals := map[string]*structs.Evaluation{}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		eval := raw.(*structs.Evaluation)
-		evals[eval.ID] = eval
-	}
-
-	for _, eval := range evals {
-		if eval.Status == structs.EvalStatusBlocked {
-			blocked := evals[eval.PreviousEval]
-			t.Logf("Blocked evaluation: %q - %v\n%s\n--blocked %q - %v\n%s", eval.ID, eval.StatusDescription, pretty.Sprint(eval), blocked.ID, blocked.StatusDescription, pretty.Sprint(blocked))
-		}
+		t.Logf("job: %s node: %s alloc: %s desired: %s actual: %s replaces: %s", alloc.Job.Name, alloc.NodeID[:6], alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation)
 	}
 }
