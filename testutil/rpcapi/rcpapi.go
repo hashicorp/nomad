@@ -87,3 +87,28 @@ func (r *RPC) JobList() (*structs.JobListResponse, error) {
 	}
 	return &resp, nil
 }
+
+// Node.List RPC
+func (r *RPC) NodeList() (*structs.NodeListResponse, error) {
+	get := &structs.NodeListRequest{
+		QueryOptions: structs.QueryOptions{Region: r.Region},
+	}
+	var resp structs.NodeListResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Node.List", get, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Node.GetAllocs RPC
+func (r *RPC) NodeGetAllocs(nodeID string) (*structs.NodeAllocsResponse, error) {
+	get := &structs.NodeSpecificRequest{
+		NodeID:       nodeID,
+		QueryOptions: structs.QueryOptions{Region: r.Region},
+	}
+	var resp structs.NodeAllocsResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Node.GetAllocs", get, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
