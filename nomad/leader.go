@@ -107,8 +107,16 @@ RECONCILE:
 	if !establishedLeader {
 		if err := s.establishLeadership(stopCh); err != nil {
 			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v", err)
+
+			// Immediately revoke leadership since we didn't successfully
+			// establish leadership.
+			if err := s.revokeLeadership(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to revoke leadership: %v", err)
+			}
+
 			goto WAIT
 		}
+
 		establishedLeader = true
 		defer func() {
 			if err := s.revokeLeadership(); err != nil {
