@@ -1,12 +1,13 @@
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
-import { test, moduleFor } from 'ember-qunit';
+import { test } from 'ember-qunit';
 import wait from 'ember-test-helpers/wait';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import moduleForAdapter from '../../helpers/module-for-adapter';
 
-moduleFor('adapter:job', 'Unit | Adapter | Job', {
-  unit: true,
+moduleForAdapter('job', 'Unit | Adapter | Job', {
   needs: [
+    'adapter:job',
     'service:token',
     'service:system',
     'model:namespace',
