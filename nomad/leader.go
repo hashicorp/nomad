@@ -639,6 +639,9 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	// TODO put metrics here and on establish leadership that time how long the
+	// whole thing takes so we can detect lock contention or blocking.
+
 	// Clear the leader token since we are no longer the leader.
 	s.setLeaderAcl("")
 

@@ -442,6 +442,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 
 	w.outstandingBatch = true
 
+	// TODO this isn't safe on deployment watcher shutdown since timer leaks.
 	time.AfterFunc(perJobEvalBatchPeriod, func() {
 		// Create the eval
 		evalCreateIndex, err := w.createEvaluation(w.getEval())

@@ -10,9 +10,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
-func TestInitializeHeartbeatTimers(t *testing.T) {
+func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -38,7 +39,7 @@ func TestInitializeHeartbeatTimers(t *testing.T) {
 	}
 }
 
-func TestResetHeartbeatTimer(t *testing.T) {
+func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -60,7 +61,24 @@ func TestResetHeartbeatTimer(t *testing.T) {
 	}
 }
 
-func TestResetHeartbeatTimerLocked(t *testing.T) {
+func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := testServer(t, func(c *Config) {
+		c.BootstrapExpect = 3 // Won't become leader
+		c.DevDisableBootstrap = true
+	})
+	defer s1.Shutdown()
+
+	require.False(s1.IsLeader())
+
+	// Create a new timer
+	_, err := s1.resetHeartbeatTimer("test")
+	require.NotNil(err)
+	require.EqualError(err, heartbeatNotLeader)
+}
+
+func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -81,7 +99,7 @@ func TestResetHeartbeatTimerLocked(t *testing.T) {
 	}
 }
 
-func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
+func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -120,7 +138,7 @@ func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
 	t.Fatalf("should have expired")
 }
 
-func TestInvalidateHeartbeat(t *testing.T) {
+func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -148,7 +166,7 @@ func TestInvalidateHeartbeat(t *testing.T) {
 	}
 }
 
-func TestClearHeartbeatTimer(t *testing.T) {
+func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -168,7 +186,7 @@ func TestClearHeartbeatTimer(t *testing.T) {
 	}
 }
 
-func TestClearAllHeartbeatTimers(t *testing.T) {
+func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
@@ -190,7 +208,7 @@ func TestClearAllHeartbeatTimers(t *testing.T) {
 	}
 }
 
-func TestServer_HeartbeatTTL_Failover(t *testing.T) {
+func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
