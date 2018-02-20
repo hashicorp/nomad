@@ -235,9 +235,9 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	return nil
 }
 
-// Check implements the interface for HealthCheck, and indicates the current
+// HealthCheck implements the interface for HealthCheck, and indicates the current
 // health status of the mock driver.
-func (m *MockDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+func (m *MockDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
 	if !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime) {
 		notHealthy := &structs.DriverInfo{
 			Healthy:           false,
@@ -256,12 +256,14 @@ func (m *MockDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.Heal
 	return nil
 }
 
-// CheckHealthPeriodic implements the interface for HealthCheck and indicates
+// GetHealthCheckInterval implements the interface for HealthCheck and indicates
 // that mock driver should be checked periodically. Returns a boolean
 // indicating if ti should be checked, and the duration at which to do this
 // check.
-func (m *MockDriver) CheckHealthPeriodic() (bool, time.Duration) {
-	return true, 1 * time.Second
+func (m *MockDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
+	resp.Eligible = true
+	resp.Period = 1 * time.Second
+	return nil
 }
 
 // MockDriverHandle is a driver handler which supervises a mock task

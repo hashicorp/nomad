@@ -155,6 +155,96 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	})
 }
 
+// This is a temporary measure to check that a driver has both attributes on a
+// node set as well as DriverInfo.
+func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	node := &structs.Node{
+		Attributes: make(map[string]string, 0),
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
+	}
+	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
+		if r.Attributes != nil {
+			for k, v := range r.Attributes {
+				node.Attributes[k] = v
+			}
+		}
+		return node
+	}
+	updateHealthCheck := func(resp *cstructs.HealthCheckResponse) *structs.Node {
+		if resp.Drivers != nil {
+			for k, v := range resp.Drivers {
+				node.Drivers[k] = v
+			}
+		}
+		return node
+	}
+	conf := config.DefaultConfig()
+	conf.Options = map[string]string{
+		"test.shutdown_periodic_after":    "true",
+		"test.shutdown_periodic_duration": "2",
+	}
+	getConfig := func() *config.Config {
+		return conf
+	}
+
+	shutdownCh := make(chan struct{})
+	defer (func() {
+		close(shutdownCh)
+	})()
+
+	fm := NewFingerprintManager(
+		getConfig,
+		node,
+		shutdownCh,
+		updateNode,
+		updateHealthCheck,
+		testLogger(),
+	)
+
+	err := fm.Run()
+	require.Nil(err)
+
+	// Ensure the mock driver is registered and healthy on the client
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverAttribute := node.Attributes["driver.mock_driver"]
+		if mockDriverAttribute == "" {
+			return false, fmt.Errorf("mock driver info should be set on the client attributes")
+		}
+		mockDriverInfo := node.Drivers["driver.mock_driver"]
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver info should be set on the client")
+		}
+		if !mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver info should be healthy")
+		}
+		return true, nil
+	}, func(err error) {
+
+		// Ensure that a default driver without health checks enabled is registered and healthy on the client
+		testutil.WaitForResult(func() (bool, error) {
+			rawExecAttribute := node.Attributes["driver.raw_exec"]
+			if rawExecAttribute == "" {
+				return false, fmt.Errorf("raw exec info should be set on the client attributes")
+			}
+			rawExecInfo := node.Drivers["driver.raw_exec"]
+			if rawExecInfo == nil {
+				return false, fmt.Errorf("raw exec info should be set on the client")
+			}
+			if !rawExecInfo.Healthy {
+				return false, fmt.Errorf("raw exec info should be healthy")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+		t.Fatalf("err: %v", err)
+	})
+
+}
+
 func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

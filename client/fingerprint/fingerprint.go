@@ -91,13 +91,13 @@ type Factory func(*log.Logger) Fingerprint
 type HealthCheck interface {
 	// Check is used to update properties of the node on the status of the health
 	// check
-	Check(*cstructs.HealthCheckRequest, *cstructs.HealthCheckResponse) error
+	HealthCheck(*cstructs.HealthCheckRequest, *cstructs.HealthCheckResponse) error
 
-	// CheckHealthPeriodic is a mechanism for the health checker to indicate that
+	// GetHealthCheckInterval is a mechanism for the health checker to indicate that
 	// it should be run periodically. The return value is a boolean indicating
 	// whether it should be done periodically, and the time interval at which
 	// this check should happen.
-	CheckHealthPeriodic() (bool, time.Duration)
+	GetHealthCheckInterval(*cstructs.HealthCheckIntervalRequest, *cstructs.HealthCheckIntervalResponse) error
 }
 
 // Fingerprint is used for doing "fingerprinting" of the

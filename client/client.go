@@ -960,8 +960,12 @@ func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckRespons
 	defer c.configLock.Unlock()
 
 	// update the node with the latest driver health information
-	for name, val := range response.Drivers {
-		c.config.Node.Drivers[name] = val
+	for name, new_val := range response.Drivers {
+		old_val := c.config.Node.Drivers[name]
+		if new_val.Equals(old_val) {
+			continue
+		}
+		c.config.Node.Drivers[name] = new_val
 	}
 
 	return c.config.Node

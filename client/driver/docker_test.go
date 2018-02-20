@@ -286,7 +286,7 @@ func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
 
 	dc, ok := dd.(fingerprint.HealthCheck)
 	require.True(ok)
-	err = dc.Check(request, &response)
+	err = dc.HealthCheck(request, &response)
 	require.Nil(err)
 
 	driverInfo := response.Drivers["driver.docker"]

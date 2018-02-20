@@ -551,20 +551,20 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 	return nil
 }
 
-func (d *DockerDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
 	unhealthy := &structs.DriverInfo{
 		HealthDescription: "Docker driver is available but unresponsive",
 		UpdateTime:        time.Now(),
 	}
 
-	_, err := client.ListContainers(docker.ListContainersOptions{All: false})
+	_, _, err := d.dockerClients()
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
 		resp.AddDriverInfo("driver.docker", unhealthy)
 		return err
 	}
 
-	d.logger.Printf("[DEBUG] driver.docker: docker driver is available and is responsive to `docker ps`")
+	d.logger.Printf("[TRACE] driver.docker: docker driver is available and is responsive to `docker ps`")
 	healthy := &structs.DriverInfo{
 		Healthy:           true,
 		HealthDescription: "Docker driver is available and responsive",
@@ -574,8 +574,10 @@ func (d *DockerDriver) Check(req *cstructs.HealthCheckRequest, resp *cstructs.He
 	return nil
 }
 
-func (d *DockerDriver) CheckHealthPeriodic() (bool, time.Duration) {
-	return true, 1 * time.Minute
+func (d *DockerDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
+	resp.Eligible = true
+	resp.Period = 1 * time.Minute
+	return nil
 }
 
 // Validate is used to validate the driver configuration

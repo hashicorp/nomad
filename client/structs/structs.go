@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -250,12 +251,21 @@ func (f *FingerprintResponse) RemoveLink(name string) {
 	f.Links[name] = ""
 }
 
+// HealthCheckRequest is the request type for a type that fulfils the Health
+// Check interface
 type HealthCheckRequest struct{}
 
+// HealthCheckResponse is the response type for a type that fulfills the Health
+// Check interface
 type HealthCheckResponse struct {
-
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*structs.DriverInfo
+}
+
+type HealthCheckIntervalRequest struct{}
+type HealthCheckIntervalResponse struct {
+	Eligible bool
+	Period   time.Duration
 }
 
 // AddDriverInfo adds information about a driver to the fingerprint response.
