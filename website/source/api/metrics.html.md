@@ -12,7 +12,7 @@ The `/metrics` endpoint returns metrics for the current Nomad process.
 
 | Method  | Path            | Produces                   |
 | ------- | --------------- | -------------------------- |
-| `GET`   | `/v1/metrics    | `application/json`         |
+| `GET`   | `/v1/metrics`   | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and

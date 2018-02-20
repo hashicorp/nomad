@@ -25,7 +25,7 @@ as [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/),
 [Graphite](https://graphiteapp.org/), [DataDog](https://www.datadoghq.com/),
 and [Circonus](https://www.circonus.com ).
 
-See Nomad's [Metrics API](/api/metrics.html.md) for more information on how
+See Nomad's [Metrics API](/api/metrics.html) for more information on how
 data can be exposed for other metrics tools as well.
 
 ## Setting up metrics
