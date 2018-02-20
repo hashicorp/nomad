@@ -87,6 +87,11 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return fmt.Errorf("invalid status for node")
 	}
 
+	// Default to eligible for scheduling if unset
+	if args.Node.SchedulingEligibility == "" {
+		args.Node.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
+
 	// Set the timestamp when the node is registered
 	args.Node.StatusUpdatedAt = time.Now().Unix()
 
