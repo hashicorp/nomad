@@ -271,9 +271,11 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 	leader.Shutdown()
 
 	// heartbeatTimers should be cleared on leader shutdown
-	if len(leader.heartbeatTimers) != 0 {
+	testutil.WaitForResult(func() (bool, error) {
+		return len(leader.heartbeatTimers) == 0, nil
+	}, func(err error) {
 		t.Fatalf("heartbeat timers should be empty on the shutdown leader")
-	}
+	})
 
 	// Find the new leader
 	testutil.WaitForResult(func() (bool, error) {
