@@ -5107,6 +5107,15 @@ func (re *RescheduleEvent) Copy() *RescheduleEvent {
 	return copy
 }
 
+// DesiredTransistion is used to mark an allocation as having a desired state
+// transistion. This information can be used by the scheduler to make the
+// correct decision.
+type DesiredTransistion struct {
+	// Migrate is used to indicate that this allocation should be stopped and
+	// migrated to another node.
+	Migrate bool
+}
+
 const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
@@ -5167,6 +5176,10 @@ type Allocation struct {
 
 	// DesiredStatusDescription is meant to provide more human useful information
 	DesiredDescription string
+
+	// DesiredTransistion is used to indicate that a state transistion
+	// is desired for a given reason.
+	DesiredTransistion DesiredTransistion
 
 	// Status of the allocation on the client
 	ClientStatus string
