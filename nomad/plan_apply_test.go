@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -62,7 +63,7 @@ func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
 
 func TestPlanApply_applyPlan(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -252,7 +253,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -299,7 +300,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -360,7 +361,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

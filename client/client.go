@@ -6,8 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,14 +22,16 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pool"
+	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -107,10 +111,15 @@ type Client struct {
 
 	logger *log.Logger
 
-	connPool *nomad.ConnPool
+	connPool *pool.ConnPool
 
-	// servers is the (optionally prioritized) list of nomad servers
-	servers *serverlist
+	// tlsWrap is used to wrap outbound connections using TLS. It should be
+	// accessed using the lock.
+	tlsWrap     tlsutil.RegionWrapper
+	tlsWrapLock sync.RWMutex
+
+	// servers is the list of nomad servers
+	servers *servers.Manager
 
 	// heartbeat related times for tracking how often to heartbeat
 	lastHeartbeat   time.Time
@@ -157,6 +166,11 @@ type Client struct {
 	// clientACLResolver holds the ACL resolution state
 	clientACLResolver
 
+	// rpcServer is used to serve RPCs by the local agent.
+	rpcServer     *rpc.Server
+	endpoints     rpcEndpoints
+	streamingRpcs *structs.StreamingRpcRegistery
+
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -187,20 +201,27 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		consulCatalog:       consulCatalog,
 		consulService:       consulService,
 		start:               time.Now(),
-		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		tlsWrap:             tlsWrap,
+		streamingRpcs:       structs.NewStreamingRpcRegistery(),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
 		allocUpdates:        make(chan *structs.Allocation, 64),
 		shutdownCh:          make(chan struct{}),
-		servers:             newServerList(),
 		triggerDiscoveryCh:  make(chan struct{}),
 		serversDiscoveredCh: make(chan struct{}),
 	}
+
+	// Initialize the server manager
+	c.servers = servers.New(c.logger, c.shutdownCh, c)
 
 	// Initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// Setup the clients RPC server
+	c.setupClientRpc()
 
 	// Initialize the ACL state
 	if err := c.clientACLResolver.init(); err != nil {
@@ -248,7 +269,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
-		if err := c.SetServers(c.configCopy.Servers); err != nil {
+		if err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
 			logger.Printf("[WARN] client: None of the configured servers are valid: %v", err)
 		}
 	}
@@ -257,7 +278,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup Consul discovery if enabled
 	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
 		go c.consulDiscovery()
-		if len(c.servers.all()) == 0 {
+		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
 		}
@@ -374,6 +395,11 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 		tlsWrap = tw
 	}
 
+	// Store the new tls wrapper.
+	c.tlsWrapLock.Lock()
+	c.tlsWrap = tlsWrap
+	c.tlsWrapLock.Unlock()
+
 	// Keep the client configuration up to date as we use configuration values to
 	// decide on what type of connections to accept
 	c.configLock.Lock()
@@ -474,35 +500,6 @@ func (c *Client) Shutdown() error {
 	return c.saveState()
 }
 
-// RPC is used to forward an RPC call to a nomad server, or fail if no servers.
-func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
-	// Invoke the RPCHandler if it exists
-	if c.config.RPCHandler != nil {
-		return c.config.RPCHandler.RPC(method, args, reply)
-	}
-
-	servers := c.servers.all()
-	if len(servers) == 0 {
-		return noServersErr
-	}
-
-	var mErr multierror.Error
-	for _, s := range servers {
-		// Make the RPC request
-		if err := c.connPool.RPC(c.Region(), s.addr, c.RPCMajorVersion(), method, args, reply); err != nil {
-			errmsg := fmt.Errorf("RPC failed to server %s: %v", s.addr, err)
-			mErr.Errors = append(mErr.Errors, errmsg)
-			c.logger.Printf("[DEBUG] client: %v", errmsg)
-			c.servers.failed(s)
-			continue
-		}
-		c.servers.good(s)
-		return nil
-	}
-
-	return mErr.ErrorOrNil()
-}
-
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
@@ -511,12 +508,12 @@ func (c *Client) Stats() map[string]map[string]string {
 	stats := map[string]map[string]string{
 		"client": {
 			"node_id":         c.NodeID(),
-			"known_servers":   c.servers.all().String(),
+			"known_servers":   strings.Join(c.GetServers(), ","),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
-		"runtime": nomad.RuntimeStats(),
+		"runtime": hstats.RuntimeStats(),
 	}
 	return stats
 }
@@ -551,7 +548,7 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.StatsReporter(), nil
 }
@@ -569,7 +566,7 @@ func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
 		return true
 	}
 
-	return nomad.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
+	return structs.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -579,7 +576,7 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.GetAllocDir(), nil
 }
@@ -589,38 +586,70 @@ func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
 	all := c.allAllocs()
 	alloc, ok := all[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return alloc, nil
 }
 
 // GetServers returns the list of nomad servers this client is aware of.
 func (c *Client) GetServers() []string {
-	endpoints := c.servers.all()
+	endpoints := c.servers.GetServers()
 	res := make([]string, len(endpoints))
 	for i := range endpoints {
-		res[i] = endpoints[i].addr.String()
+		res[i] = endpoints[i].String()
 	}
+	sort.Strings(res)
 	return res
 }
 
 // SetServers sets a new list of nomad servers to connect to. As long as one
 // server is resolvable no error is returned.
-func (c *Client) SetServers(servers []string) error {
-	endpoints := make([]*endpoint, 0, len(servers))
-	var merr multierror.Error
-	for _, s := range servers {
-		addr, err := resolveServer(s)
-		if err != nil {
-			c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", s, err)
-			merr.Errors = append(merr.Errors, err)
-			continue
-		}
+func (c *Client) SetServers(in []string) error {
+	return c.setServersImpl(in, false)
+}
 
-		// Valid endpoint, append it without a priority as this API
-		// doesn't support different priorities for different servers
-		endpoints = append(endpoints, &endpoint{name: s, addr: addr})
+// setServersImpl sets a new list of nomad servers to connect to. If force is
+// set, we add the server to the internal severlist even if the server could not
+// be pinged. An error is returned if no endpoints were valid when non-forcing.
+//
+// Force should be used when setting the servers from the initial configuration
+// since the server may be starting up in parallel and initial pings may fail.
+func (c *Client) setServersImpl(in []string, force bool) error {
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var merr multierror.Error
+
+	endpoints := make([]*servers.Server, 0, len(in))
+	wg.Add(len(in))
+
+	for _, s := range in {
+		go func(srv string) {
+			defer wg.Done()
+			addr, err := resolveServer(srv)
+			if err != nil {
+				c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", srv, err)
+				merr.Errors = append(merr.Errors, err)
+				return
+			}
+
+			// Try to ping to check if it is a real server
+			if err := c.Ping(addr); err != nil {
+				merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
+
+				// If we are forcing the setting of the servers, inject it to
+				// the serverlist even if we can't ping immediately.
+				if !force {
+					return
+				}
+			}
+
+			mu.Lock()
+			endpoints = append(endpoints, &servers.Server{Addr: addr})
+			mu.Unlock()
+		}(s)
 	}
+
+	wg.Wait()
 
 	// Only return errors if no servers are valid
 	if len(endpoints) == 0 {
@@ -630,7 +659,7 @@ func (c *Client) SetServers(servers []string) error {
 		return noServersErr
 	}
 
-	c.servers.set(endpoints)
+	c.servers.SetServers(endpoints)
 	return nil
 }
 
@@ -1185,26 +1214,25 @@ func (c *Client) updateNodeStatus() error {
 		}
 	}
 
-	// Convert []*NodeServerInfo to []*endpoints
-	localdc := c.Datacenter()
-	servers := make(endpoints, 0, len(resp.Servers))
+	// Update the number of nodes in the cluster so we can adjust our server
+	// rebalance rate.
+	c.servers.SetNumNodes(resp.NumNodes)
+
+	// Convert []*NodeServerInfo to []*servers.Server
+	nomadServers := make([]*servers.Server, 0, len(resp.Servers))
 	for _, s := range resp.Servers {
 		addr, err := resolveServer(s.RPCAdvertiseAddr)
 		if err != nil {
 			c.logger.Printf("[WARN] client: ignoring invalid server %q: %v", s.RPCAdvertiseAddr, err)
 			continue
 		}
-		e := endpoint{name: s.RPCAdvertiseAddr, addr: addr}
-		if s.Datacenter != localdc {
-			// server is non-local; de-prioritize
-			e.priority = 1
-		}
-		servers = append(servers, &e)
+		e := &servers.Server{DC: s.Datacenter, Addr: addr}
+		nomadServers = append(nomadServers, e)
 	}
-	if len(servers) == 0 {
-		return fmt.Errorf("server returned no valid servers")
+	if len(nomadServers) == 0 {
+		return fmt.Errorf("heartbeat response returned no valid servers")
 	}
-	c.servers.set(servers)
+	c.servers.SetServers(nomadServers)
 
 	// Begin polling Consul if there is no Nomad leader.  We could be
 	// heartbeating to a Nomad server that is in the minority of a
@@ -1797,7 +1825,7 @@ func (c *Client) consulDiscoveryImpl() error {
 
 	serviceName := c.configCopy.ConsulConfig.ServerServiceName
 	var mErr multierror.Error
-	var servers endpoints
+	var nomadServers servers.Servers
 	c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %+q", dcs)
 DISCOLOOP:
 	for _, dc := range dcs {
@@ -1837,22 +1865,23 @@ DISCOLOOP:
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 				}
-				servers = append(servers, &endpoint{name: p, addr: addr})
+				srv := &servers.Server{Addr: addr}
+				nomadServers = append(nomadServers, srv)
 			}
-			if len(servers) > 0 {
+			if len(nomadServers) > 0 {
 				break DISCOLOOP
 			}
 		}
 	}
-	if len(servers) == 0 {
+	if len(nomadServers) == 0 {
 		if len(mErr.Errors) > 0 {
 			return mErr.ErrorOrNil()
 		}
 		return fmt.Errorf("no Nomad Servers advertising service %q in Consul datacenters: %+q", serviceName, dcs)
 	}
 
-	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", servers)
-	c.servers.set(servers)
+	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", nomadServers)
+	c.servers.SetServers(nomadServers)
 
 	// Notify waiting rpc calls. If a goroutine just failed an RPC call and
 	// isn't receiving on this chan yet they'll still retry eventually.
@@ -2163,20 +2192,4 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		allocs[a.ID] = a
 	}
 	return allocs
-}
-
-// resolveServer given a sever's address as a string, return it's resolved
-// net.Addr or an error.
-func resolveServer(s string) (net.Addr, error) {
-	const defaultClientPort = "4647" // default client RPC port
-	host, port, err := net.SplitHostPort(s)
-	if err != nil {
-		if strings.Contains(err.Error(), "missing port") {
-			host = s
-			port = defaultClientPort
-		} else {
-			return nil, err
-		}
-	}
-	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }

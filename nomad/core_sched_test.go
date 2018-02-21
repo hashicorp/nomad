@@ -16,7 +16,7 @@ import (
 
 func TestCoreScheduler_EvalGC(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -109,7 +109,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 // Tests GC behavior on allocations being rescheduled
 func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -210,7 +210,7 @@ func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
 // Tests GC behavior on stopped job with reschedulable allocs
 func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -285,7 +285,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 // An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -386,7 +386,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 // An EvalGC should  reap a batch job that has been stopped
 func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -482,7 +482,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -603,9 +603,9 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			require := require.New(t)
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -685,9 +685,9 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -737,7 +737,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -792,7 +792,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -849,7 +849,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -892,7 +892,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 
 func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1015,7 +1015,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 
 func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1160,7 +1160,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 // allocs/evals and job or nothing
 func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1272,7 +1272,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 // This test ensures that stopped jobs are GCd
 func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1376,9 +1376,9 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -1443,7 +1443,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 // This test ensures parameterized jobs only get gc'd when stopped
 func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1523,7 +1523,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	t.Parallel()
 
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1596,7 +1596,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 
 func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -1650,9 +1650,9 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -1691,7 +1691,7 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 
 func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1733,7 +1733,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 
 func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 

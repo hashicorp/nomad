@@ -2,14 +2,11 @@ package nomad
 
 import (
 	"context"
-	"crypto/subtle"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/blake2b"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/armon/go-metrics"
@@ -35,6 +32,9 @@ const (
 // Node endpoint is used for client interactions
 type Node struct {
 	srv *Server
+
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 
 	// updates holds pending client status updates for allocations
 	updates []*structs.Allocation
@@ -112,6 +112,13 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
+	}
+
+	// We have a valid node connection, so add the mapping to cache the
+	// connection and allow the server to send RPCs to the client.
+	if n.ctx != nil && n.ctx.NodeID == "" {
+		n.ctx.NodeID = args.Node.ID
+		n.srv.addNodeConn(n.ctx)
 	}
 
 	// Commit this update via Raft
@@ -303,6 +310,13 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 	if node == nil {
 		return fmt.Errorf("node not found")
+	}
+
+	// We have a valid node connection, so add the mapping to cache the
+	// connection and allow the server to send RPCs to the client.
+	if n.ctx != nil && n.ctx.NodeID == "" {
+		n.ctx.NodeID = args.NodeID
+		n.srv.addNodeConn(n.ctx)
 	}
 
 	// XXX: Could use the SecretID here but have to update the heartbeat system
@@ -658,33 +672,6 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	return n.srv.blockingRPC(&opts)
 }
 
-// GenerateMigrateToken will create a token for a client to access an
-// authenticated volume of another client to migrate data for sticky volumes.
-func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
-	h, err := blake2b.New512([]byte(nodeSecretID))
-	if err != nil {
-		return "", err
-	}
-	h.Write([]byte(allocID))
-	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
-}
-
-// CompareMigrateToken returns true if two migration tokens can be computed and
-// are equal.
-func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
-	h, err := blake2b.New512([]byte(nodeSecretID))
-	if err != nil {
-		return false
-	}
-	h.Write([]byte(allocID))
-
-	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
-	if err != nil {
-		return false
-	}
-	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
-}
-
 // GetClientAllocs is used to request a lightweight list of alloc modify indexes
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
@@ -722,6 +709,13 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					return fmt.Errorf("missing node secret ID for client status update")
 				} else if args.SecretID != node.SecretID {
 					return fmt.Errorf("node secret ID does not match")
+				}
+
+				// We have a valid node connection, so add the mapping to cache the
+				// connection and allow the server to send RPCs to the client.
+				if n.ctx != nil && n.ctx.NodeID == "" {
+					n.ctx.NodeID = args.NodeID
+					n.srv.addNodeConn(n.ctx)
 				}
 
 				var err error
@@ -767,7 +761,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 								continue
 							}
 
-							token, err := GenerateMigrateToken(prevAllocation.ID, allocNode.SecretID)
+							token, err := structs.GenerateMigrateToken(prevAllocation.ID, allocNode.SecretID)
 							if err != nil {
 								return err
 							}

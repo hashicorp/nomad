@@ -1,5 +1,3 @@
-//+build nomad_test
-
 package driver
 
 import (
@@ -7,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,11 +31,6 @@ const (
 	// (specified in seconds) for testing of periodic drivers and fingerprinters.
 	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
 )
-
-// Add the mock driver to the list of builtin drivers
-func init() {
-	BuiltinDrivers["mock_driver"] = NewMockDriver
-}
 
 // MockDriverConfig is the driver configuration for the MockDriver
 type MockDriverConfig struct {
@@ -83,6 +78,15 @@ type MockDriverConfig struct {
 	// DriverPortMap will parse a label:number pair and return it in
 	// DriverNetwork.PortMap from Start().
 	DriverPortMap string `mapstructure:"driver_port_map"`
+
+	// StdoutString is the string that should be sent to stdout
+	StdoutString string `mapstructure:"stdout_string"`
+
+	// StdoutRepeat is the number of times the output should be sent.
+	StdoutRepeat int `mapstructure:"stdout_repeat"`
+
+	// StdoutRepeatDur is the duration between repeated outputs.
+	StdoutRepeatDur time.Duration `mapstructure:"stdout_repeat_duration"`
 }
 
 // MockDriver is a driver which is used for testing purposes
@@ -169,15 +173,20 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	}
 
 	h := mockDriverHandle{
-		taskName:    task.Name,
-		runFor:      driverConfig.RunFor,
-		killAfter:   driverConfig.KillAfter,
-		killTimeout: task.KillTimeout,
-		exitCode:    driverConfig.ExitCode,
-		exitSignal:  driverConfig.ExitSignal,
-		logger:      m.logger,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *dstructs.WaitResult, 1),
+		ctx:             ctx,
+		task:            task,
+		taskName:        task.Name,
+		runFor:          driverConfig.RunFor,
+		killAfter:       driverConfig.KillAfter,
+		killTimeout:     task.KillTimeout,
+		exitCode:        driverConfig.ExitCode,
+		exitSignal:      driverConfig.ExitSignal,
+		stdoutString:    driverConfig.StdoutString,
+		stdoutRepeat:    driverConfig.StdoutRepeat,
+		stdoutRepeatDur: driverConfig.StdoutRepeatDur,
+		logger:          m.logger,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	if driverConfig.ExitErrMsg != "" {
 		h.exitErr = errors.New(driverConfig.ExitErrMsg)
@@ -233,19 +242,29 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	return nil
 }
 
+// When testing, poll for updates
+func (m *MockDriver) Periodic() (bool, time.Duration) {
+	return true, 500 * time.Millisecond
+}
+
 // MockDriverHandle is a driver handler which supervises a mock task
 type mockDriverHandle struct {
-	taskName    string
-	runFor      time.Duration
-	killAfter   time.Duration
-	killTimeout time.Duration
-	exitCode    int
-	exitSignal  int
-	exitErr     error
-	signalErr   error
-	logger      *log.Logger
-	waitCh      chan *dstructs.WaitResult
-	doneCh      chan struct{}
+	ctx             *ExecContext
+	task            *structs.Task
+	taskName        string
+	runFor          time.Duration
+	killAfter       time.Duration
+	killTimeout     time.Duration
+	exitCode        int
+	exitSignal      int
+	exitErr         error
+	signalErr       error
+	logger          *log.Logger
+	stdoutString    string
+	stdoutRepeat    int
+	stdoutRepeatDur time.Duration
+	waitCh          chan *dstructs.WaitResult
+	doneCh          chan struct{}
 }
 
 type mockDriverID struct {
@@ -355,6 +374,11 @@ func (h *mockDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 // run waits for the configured amount of time and then indicates the task has
 // terminated
 func (h *mockDriverHandle) run() {
+	// Setup logging output
+	if h.stdoutString != "" {
+		go h.handleLogging()
+	}
+
 	timer := time.NewTimer(h.runFor)
 	defer timer.Stop()
 	for {
@@ -374,7 +398,43 @@ func (h *mockDriverHandle) run() {
 	}
 }
 
-// When testing, poll for updates
-func (m *MockDriver) Periodic() (bool, time.Duration) {
-	return true, 500 * time.Millisecond
+// handleLogging handles logging stdout messages
+func (h *mockDriverHandle) handleLogging() {
+	if h.stdoutString == "" {
+		return
+	}
+
+	// Setup a log rotator
+	logFileSize := int64(h.task.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	lro, err := logging.NewFileRotator(h.ctx.TaskDir.LogDir, fmt.Sprintf("%v.stdout", h.taskName),
+		h.task.LogConfig.MaxFiles, logFileSize, h.logger)
+	if err != nil {
+		h.exitErr = err
+		close(h.doneCh)
+		h.logger.Printf("[ERR] mock_driver: failed to setup file rotator: %v", err)
+		return
+	}
+	defer lro.Close()
+
+	// Do initial write to stdout.
+	if _, err := io.WriteString(lro, h.stdoutString); err != nil {
+		h.exitErr = err
+		close(h.doneCh)
+		h.logger.Printf("[ERR] mock_driver: failed to write to stdout: %v", err)
+		return
+	}
+
+	for i := 0; i < h.stdoutRepeat; i++ {
+		select {
+		case <-h.doneCh:
+			return
+		case <-time.After(h.stdoutRepeatDur):
+			if _, err := io.WriteString(lro, h.stdoutString); err != nil {
+				h.exitErr = err
+				close(h.doneCh)
+				h.logger.Printf("[ERR] mock_driver: failed to write to stdout: %v", err)
+				return
+			}
+		}
+	}
 }

@@ -16,7 +16,7 @@ import (
 
 func TestAllocEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -82,7 +82,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -138,7 +138,7 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -213,7 +213,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -253,7 +253,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -327,7 +327,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -382,7 +382,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -429,7 +429,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)

@@ -3,7 +3,6 @@ package nomad
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,7 +10,6 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -24,6 +22,9 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -90,10 +91,7 @@ type Server struct {
 	logger *log.Logger
 
 	// Connection pool to other Nomad servers
-	connPool *ConnPool
-
-	// Endpoints holds our RPC endpoints
-	endpoints endpoints
+	connPool *pool.ConnPool
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
@@ -114,12 +112,32 @@ type Server struct {
 	rpcListener net.Listener
 	listenerCh  chan struct{}
 
-	rpcServer    *rpc.Server
+	// tlsWrap is used to wrap outbound connections using TLS. It should be
+	// accessed using the lock.
+	tlsWrap     tlsutil.RegionWrapper
+	tlsWrapLock sync.RWMutex
+
+	// rpcServer is the static RPC server that is used by the local agent.
+	rpcServer *rpc.Server
+
+	// rpcAdvertise is the advertised address for the RPC listener.
 	rpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
 	rpcTLS    *tls.Config
 	rpcCancel context.CancelFunc
+
+	// staticEndpoints is the set of static endpoints that can be reused across
+	// all RPC connections
+	staticEndpoints endpoints
+
+	// streamingRpcs is the registry holding our streaming RPC handlers.
+	streamingRpcs *structs.StreamingRpcRegistery
+
+	// nodeConns is the set of multiplexed node connections we have keyed by
+	// NodeID
+	nodeConns     map[string]*nodeConnState
+	nodeConnsLock sync.RWMutex
 
 	// peers is used to track the known Nomad servers. This is
 	// used for region forwarding and clustering.
@@ -210,6 +228,11 @@ type endpoints struct {
 	Operator   *Operator
 	ACL        *ACL
 	Enterprise *EnterpriseEndpoints
+
+	// Client endpoints
+	ClientStats       *ClientStats
+	FileSystem        *FileSystem
+	ClientAllocations *ClientAllocations
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -256,9 +279,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	s := &Server{
 		config:        config,
 		consulCatalog: consulCatalog,
-		connPool:      NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
+		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
+		streamingRpcs: structs.NewStreamingRpcRegistery(),
+		nodeConns:     make(map[string]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:   make(chan serf.Member, 32),
@@ -414,6 +440,11 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)
 		return err
 	}
+
+	// Store the new tls wrapper.
+	s.tlsWrapLock.Lock()
+	s.tlsWrap = tlsWrap
+	s.tlsWrapLock.Unlock()
 
 	if s.rpcCancel == nil {
 		err = fmt.Errorf("No existing RPC server to reset.")
@@ -855,37 +886,8 @@ func (s *Server) setupVaultClient() error {
 
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
-	// Create endpoints
-	s.endpoints.ACL = &ACL{s}
-	s.endpoints.Alloc = &Alloc{s}
-	s.endpoints.Eval = &Eval{s}
-	s.endpoints.Job = &Job{s}
-	s.endpoints.Node = &Node{srv: s}
-	s.endpoints.Deployment = &Deployment{srv: s}
-	s.endpoints.Operator = &Operator{s}
-	s.endpoints.Periodic = &Periodic{s}
-	s.endpoints.Plan = &Plan{s}
-	s.endpoints.Region = &Region{s}
-	s.endpoints.Status = &Status{s}
-	s.endpoints.System = &System{s}
-	s.endpoints.Search = &Search{s}
-	s.endpoints.Enterprise = NewEnterpriseEndpoints(s)
-
-	// Register the handlers
-	s.rpcServer.Register(s.endpoints.ACL)
-	s.rpcServer.Register(s.endpoints.Alloc)
-	s.rpcServer.Register(s.endpoints.Eval)
-	s.rpcServer.Register(s.endpoints.Job)
-	s.rpcServer.Register(s.endpoints.Node)
-	s.rpcServer.Register(s.endpoints.Deployment)
-	s.rpcServer.Register(s.endpoints.Operator)
-	s.rpcServer.Register(s.endpoints.Periodic)
-	s.rpcServer.Register(s.endpoints.Plan)
-	s.rpcServer.Register(s.endpoints.Region)
-	s.rpcServer.Register(s.endpoints.Status)
-	s.rpcServer.Register(s.endpoints.System)
-	s.rpcServer.Register(s.endpoints.Search)
-	s.endpoints.Enterprise.Register(s)
+	// Populate the static RPC server
+	s.setupRpcServer(s.rpcServer, nil)
 
 	listener, err := s.createRPCListener()
 	if err != nil {
@@ -913,6 +915,60 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
 	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
 	return nil
+}
+
+// setupRpcServer is used to populate an RPC server with endpoints
+func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
+	// Add the static endpoints to the RPC server.
+	if s.staticEndpoints.Status == nil {
+		// Initialize the list just once
+		s.staticEndpoints.ACL = &ACL{s}
+		s.staticEndpoints.Alloc = &Alloc{s}
+		s.staticEndpoints.Eval = &Eval{s}
+		s.staticEndpoints.Job = &Job{s}
+		s.staticEndpoints.Node = &Node{srv: s} // Add but don't register
+		s.staticEndpoints.Deployment = &Deployment{srv: s}
+		s.staticEndpoints.Operator = &Operator{s}
+		s.staticEndpoints.Periodic = &Periodic{s}
+		s.staticEndpoints.Plan = &Plan{s}
+		s.staticEndpoints.Region = &Region{s}
+		s.staticEndpoints.Status = &Status{s}
+		s.staticEndpoints.System = &System{s}
+		s.staticEndpoints.Search = &Search{s}
+		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
+
+		// Client endpoints
+		s.staticEndpoints.ClientStats = &ClientStats{s}
+		s.staticEndpoints.ClientAllocations = &ClientAllocations{s}
+
+		// Streaming endpoints
+		s.staticEndpoints.FileSystem = &FileSystem{s}
+		s.staticEndpoints.FileSystem.register()
+	}
+
+	// Register the static handlers
+	server.Register(s.staticEndpoints.ACL)
+	server.Register(s.staticEndpoints.Alloc)
+	server.Register(s.staticEndpoints.Eval)
+	server.Register(s.staticEndpoints.Job)
+	server.Register(s.staticEndpoints.Deployment)
+	server.Register(s.staticEndpoints.Operator)
+	server.Register(s.staticEndpoints.Periodic)
+	server.Register(s.staticEndpoints.Plan)
+	server.Register(s.staticEndpoints.Region)
+	server.Register(s.staticEndpoints.Status)
+	server.Register(s.staticEndpoints.System)
+	server.Register(s.staticEndpoints.Search)
+	s.staticEndpoints.Enterprise.Register(server)
+	server.Register(s.staticEndpoints.ClientStats)
+	server.Register(s.staticEndpoints.ClientAllocations)
+	server.Register(s.staticEndpoints.FileSystem)
+
+	// Create new dynamic endpoints and add them to the RPC server.
+	node := &Node{srv: s, ctx: ctx}
+
+	// Register the dynamic endpoints
+	server.Register(node)
 }
 
 // setupRaft is used to setup and initialize Raft
@@ -1231,52 +1287,22 @@ func (s *Server) Regions() []string {
 	return regions
 }
 
-// inmemCodec is used to do an RPC call without going over a network
-type inmemCodec struct {
-	method string
-	args   interface{}
-	reply  interface{}
-	err    error
-}
-
-func (i *inmemCodec) ReadRequestHeader(req *rpc.Request) error {
-	req.ServiceMethod = i.method
-	return nil
-}
-
-func (i *inmemCodec) ReadRequestBody(args interface{}) error {
-	sourceValue := reflect.Indirect(reflect.Indirect(reflect.ValueOf(i.args)))
-	dst := reflect.Indirect(reflect.Indirect(reflect.ValueOf(args)))
-	dst.Set(sourceValue)
-	return nil
-}
-
-func (i *inmemCodec) WriteResponse(resp *rpc.Response, reply interface{}) error {
-	if resp.Error != "" {
-		i.err = errors.New(resp.Error)
-		return nil
-	}
-	sourceValue := reflect.Indirect(reflect.Indirect(reflect.ValueOf(reply)))
-	dst := reflect.Indirect(reflect.Indirect(reflect.ValueOf(i.reply)))
-	dst.Set(sourceValue)
-	return nil
-}
-
-func (i *inmemCodec) Close() error {
-	return nil
-}
-
 // RPC is used to make a local RPC call
 func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
-	codec := &inmemCodec{
-		method: method,
-		args:   args,
-		reply:  reply,
+	codec := &codec.InmemCodec{
+		Method: method,
+		Args:   args,
+		Reply:  reply,
 	}
 	if err := s.rpcServer.ServeRequest(codec); err != nil {
 		return err
 	}
-	return codec.err
+	return codec.Err
+}
+
+// StreamingRpcHandler is used to make a streaming RPC call.
+func (s *Server) StreamingRpcHandler(method string) (structs.StreamingRpcHandler, error) {
+	return s.streamingRpcs.GetHandler(method)
 }
 
 // Stats is used to return statistics for debugging and insight
@@ -1295,7 +1321,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
-		"runtime": RuntimeStats(),
+		"runtime": stats.RuntimeStats(),
 	}
 
 	return stats

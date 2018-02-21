@@ -39,11 +39,6 @@ import (
 )
 
 var (
-	ErrNoLeader         = fmt.Errorf("No cluster leader")
-	ErrNoRegionPath     = fmt.Errorf("No path to region")
-	ErrTokenNotFound    = errors.New("ACL token not found")
-	ErrPermissionDenied = errors.New("Permission denied")
-
 	// validPolicyName is used to validate a policy name
 	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
@@ -121,6 +116,12 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace            = "default"
 	DefaultNamespaceDescription = "Default shared namespace"
+
+	// JitterFraction is a the limit to the amount of jitter we apply
+	// to a user specified MaxQueryTime. We divide the specified time by
+	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
+	// applied to RPCHoldTimeout.
+	JitterFraction = 16
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -1035,6 +1036,18 @@ type DeploymentUpdateResponse struct {
 	RevertedJobVersion *uint64
 
 	WriteMeta
+}
+
+// NodeConnQueryResponse is used to respond to a query of whether a server has
+// a connection to a specific Node
+type NodeConnQueryResponse struct {
+	// Connected indicates whether a connection to the Client exists
+	Connected bool
+
+	// Established marks the time at which the connection was established
+	Established time.Time
+
+	QueryMeta
 }
 
 const (
@@ -5987,6 +6000,9 @@ var (
 	}
 )
 
+// TODO Figure out if we can remove this. This is our fork that is just way
+// behind. I feel like its original purpose was to pin at a stable version but
+// now we can accomplish this with vendoring.
 var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
 	h := &hcodec.MsgpackHandle{RawToString: true}
 

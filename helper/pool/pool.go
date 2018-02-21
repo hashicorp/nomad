@@ -1,4 +1,4 @@
-package nomad
+package pool
 
 import (
 	"container/list"
@@ -12,8 +12,19 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
+
+// NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls.
+func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+}
+
+// NewServerCodec returns a new rpc.ServerCodec to be used to handle RPCs.
+func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+}
 
 // streamClient is used to wrap a stream with an RPC client
 type StreamClient struct {
@@ -81,7 +92,7 @@ func (c *Conn) getClient() (*StreamClient, error) {
 	return sc, nil
 }
 
-// returnStream is used when done with a stream
+// returnClient is used when done with a stream
 // to allow re-use by a future RPC
 func (c *Conn) returnClient(client *StreamClient) {
 	didSave := false
@@ -134,6 +145,10 @@ type ConnPool struct {
 	// Used to indicate the pool is shutdown
 	shutdown   bool
 	shutdownCh chan struct{}
+
+	// connListener is used to notify a potential listener of a new connection
+	// being made.
+	connListener chan<- *yamux.Session
 }
 
 // NewPool is used to make a new connection pool
@@ -170,6 +185,12 @@ func (p *ConnPool) Shutdown() error {
 	if p.shutdown {
 		return nil
 	}
+
+	if p.connListener != nil {
+		close(p.connListener)
+		p.connListener = nil
+	}
+
 	p.shutdown = true
 	close(p.shutdownCh)
 	return nil
@@ -186,6 +207,21 @@ func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
 	}
 	p.pool = make(map[string]*Conn)
 	p.tlsWrap = tlsWrap
+}
+
+// SetConnListener is used to listen to new connections being made. The
+// channel will be closed when the conn pool is closed or a new listener is set.
+func (p *ConnPool) SetConnListener(l chan<- *yamux.Session) {
+	p.Lock()
+	defer p.Unlock()
+
+	// Close the old listener
+	if p.connListener != nil {
+		close(p.connListener)
+	}
+
+	// Store the new listener
+	p.connListener = l
 }
 
 // Acquire is used to get a connection that is
@@ -227,6 +263,15 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 		}
 
 		p.pool[addr.String()] = c
+
+		// If there is a connection listener, notify them of the new connection.
+		if p.connListener != nil {
+			select {
+			case p.connListener <- c.session:
+			default:
+			}
+		}
+
 		p.Unlock()
 		return c, nil
 	}
@@ -268,7 +313,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	// Check if TLS is enabled
 	if p.tlsWrap != nil {
 		// Switch the connection into TLS mode
-		if _, err := conn.Write([]byte{byte(rpcTLS)}); err != nil {
+		if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
 			conn.Close()
 			return nil, err
 		}
@@ -283,7 +328,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	}
 
 	// Write the multiplex byte to set the mode
-	if _, err := conn.Write([]byte{byte(rpcMultiplex)}); err != nil {
+	if _, err := conn.Write([]byte{byte(RpcMultiplex)}); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -312,7 +357,8 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	return c, nil
 }
 
-// clearConn is used to clear any cached connection, potentially in response to an erro
+// clearConn is used to clear any cached connection, potentially in response to
+// an error
 func (p *ConnPool) clearConn(conn *Conn) {
 	// Ensure returned streams are closed
 	atomic.StoreInt32(&conn.shouldClose, 1)
