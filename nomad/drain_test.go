@@ -179,7 +179,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	}, func(err error) {
 		if resp, err := rpc.NodeGetAllocs(c2.NodeID()); err == nil {
 			for i, alloc := range resp.Allocs {
-				t.Logf("%d alloc %s job %s status %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus)
+				t.Logf("%d alloc %s job %s status %s prev %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus, alloc.PreviousAllocation)
 			}
 		}
 		t.Fatalf("failed waiting for all allocs to start: %v", err)
