@@ -1072,6 +1072,17 @@ type DriverInfo struct {
 	UpdateTime        time.Time
 }
 
+func (di *DriverInfo) MergeHealthCheck(other *DriverInfo) {
+	di.Healthy = other.Healthy
+	di.HealthDescription = other.HealthDescription
+	di.UpdateTime = other.UpdateTime
+}
+
+func (di *DriverInfo) MergeFingerprintInfo(other *DriverInfo) {
+	di.Detected = other.Detected
+	di.Attributes = other.Attributes
+}
+
 func (di *DriverInfo) Equals(other *DriverInfo) bool {
 	if di == nil && other == nil {
 		return true

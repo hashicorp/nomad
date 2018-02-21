@@ -114,7 +114,10 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			go fm.runFingerprint(d, period, name)
 		}
 
-		if hc, ok := d.(fingerprint.HealthCheck); ok {
+		// We should only run the health check task if the driver is detected
+		// Note that if the driver is detected later in a periodic health check,
+		// this won't automateically trigger the periodic health check.
+		if hc, ok := d.(fingerprint.HealthCheck); ok && detected {
 			req := &cstructs.HealthCheckIntervalRequest{}
 			resp := &cstructs.HealthCheckIntervalResponse{}
 			hc.GetHealthCheckInterval(req, resp)
@@ -140,6 +143,17 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	}
 
 	fm.nodeLock.Lock()
+
+	// TODO This is a temporary measure, as eventually all drivers will need to
+	// support this. Doing this so that we can enable this iteratively and also
+	// in a backwards compatible way, where node attributes for drivers will
+	// eventually be phased out.
+	di := &structs.DriverInfo{
+		Attributes: response.Attributes,
+		Detected:   response.Detected,
+	}
+	response.AddDriver(name, di)
+
 	if node := fm.updateNodeAttributes(&response); node != nil {
 		fm.node = node
 	}
@@ -148,17 +162,6 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	if hc, ok := f.(fingerprint.HealthCheck); ok {
 		fm.healthCheck(name, hc)
 	} else {
-		// This is a temporary measure, as eventually all drivers will need to
-		// support this. Doing this so that we can enable this iteratively and also
-		// in a backwards compatible way, where node attributes for drivers will
-		// eventually be phased out.
-
-		di := &structs.DriverInfo{
-			Attributes: response.Attributes,
-			Detected:   response.Detected,
-			Healthy:    response.Detected,
-			UpdateTime: time.Now(),
-		}
 
 		resp := &cstructs.HealthCheckResponse{
 			Drivers: map[string]*structs.DriverInfo{

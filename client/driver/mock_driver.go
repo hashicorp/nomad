@@ -238,7 +238,8 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 // HealthCheck implements the interface for HealthCheck, and indicates the current
 // health status of the mock driver.
 func (m *MockDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
-	if !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime) {
+	switch {
+	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
 		notHealthy := &structs.DriverInfo{
 			Healthy:           false,
 			HealthDescription: "not running",
@@ -246,14 +247,15 @@ func (m *MockDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstruct
 		}
 		resp.AddDriverInfo(mockDriverName, notHealthy)
 		return nil
+	default:
+		healthy := &structs.DriverInfo{
+			Healthy:           true,
+			HealthDescription: "running",
+			UpdateTime:        time.Now(),
+		}
+		resp.AddDriverInfo("mock_driver", healthy)
+		return nil
 	}
-	healthy := &structs.DriverInfo{
-		Healthy:           true,
-		HealthDescription: "running",
-		UpdateTime:        time.Now(),
-	}
-	resp.AddDriverInfo(mockDriverName, healthy)
-	return nil
 }
 
 // GetHealthCheckInterval implements the interface for HealthCheck and indicates

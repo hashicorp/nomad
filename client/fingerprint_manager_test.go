@@ -56,6 +56,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
 
 	conf := config.DefaultConfig()
@@ -67,6 +68,9 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
 		for k, v := range r.Attributes {
 			node.Attributes[k] = v
+		}
+		for k, v := range r.Drivers {
+			node.Drivers[k] = v
 		}
 		return node
 	}
@@ -87,6 +91,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	require.Nil(err)
 
 	require.NotEqual("", node.Attributes["driver.raw_exec"])
+	require.True(node.Drivers["raw_exec"].Detected)
 }
 
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {

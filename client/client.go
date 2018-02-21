@@ -952,6 +952,18 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		c.config.Node.Resources.Merge(response.Resources)
 	}
 
+	for name, new_val := range response.Drivers {
+		old_val := c.config.Node.Drivers[name]
+		if new_val.Equals(old_val) {
+			continue
+		}
+		if old_val == nil {
+			c.config.Node.Drivers[name] = new_val
+		} else {
+			c.config.Node.Drivers[name].MergeFingerprintInfo(new_val)
+		}
+	}
+
 	return c.config.Node
 }
 
@@ -965,7 +977,11 @@ func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckRespons
 		if new_val.Equals(old_val) {
 			continue
 		}
-		c.config.Node.Drivers[name] = new_val
+		if old_val == nil {
+			c.config.Node.Drivers[name] = new_val
+		} else {
+			c.config.Node.Drivers[name].MergeHealthCheck(new_val)
+		}
 	}
 
 	return c.config.Node

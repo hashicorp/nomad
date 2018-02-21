@@ -560,7 +560,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 	_, _, err := d.dockerClients()
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
-		resp.AddDriverInfo("driver.docker", unhealthy)
+		resp.AddDriverInfo("docker", unhealthy)
 		return err
 	}
 
@@ -570,7 +570,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 		HealthDescription: "Docker driver is available and responsive",
 		UpdateTime:        time.Now(),
 	}
-	resp.AddDriverInfo("driver.docker", healthy)
+	resp.AddDriverInfo("docker", healthy)
 	return nil
 }
 
