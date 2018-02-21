@@ -78,6 +78,7 @@ const (
 	AutopilotRequestType
 	UpsertNodeEventsType
 	JobBatchDeregisterRequestType
+	AllocUpdateDesiredTransistionRequestType
 )
 
 const (
@@ -569,6 +570,16 @@ type AllocUpdateRequest struct {
 	// Job is the shared parent job of the allocations.
 	// It is pulled out since it is common to reduce payload size.
 	Job *Job
+
+	WriteRequest
+}
+
+// AllocUpdateDesiredTransistionRequest is used to submit changes to allocations
+// desired transistion state.
+type AllocUpdateDesiredTransistionRequest struct {
+	// Allocs is the mapping of allocation ids to their desired state
+	// transistion
+	Allocs map[string]*DesiredTransistion
 
 	WriteRequest
 }
@@ -5338,6 +5349,28 @@ func (re *RescheduleEvent) Copy() *RescheduleEvent {
 	return copy
 }
 
+// DesiredTransistion is used to mark an allocation as having a desired state
+// transistion. This information can be used by the scheduler to make the
+// correct decision.
+type DesiredTransistion struct {
+	// Migrate is used to indicate that this allocation should be stopped and
+	// migrated to another node.
+	Migrate *bool
+}
+
+// Merge merges the two desired transitions, preferring the values from the
+// passed in object.
+func (d *DesiredTransistion) Merge(o *DesiredTransistion) {
+	if o.Migrate != nil {
+		d.Migrate = o.Migrate
+	}
+}
+
+// ShouldMigrate returns whether the transistion object dictates a migration.
+func (d *DesiredTransistion) ShouldMigrate() bool {
+	return d.Migrate != nil && *d.Migrate
+}
+
 const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
@@ -5398,6 +5431,10 @@ type Allocation struct {
 
 	// DesiredStatusDescription is meant to provide more human useful information
 	DesiredDescription string
+
+	// DesiredTransistion is used to indicate that a state transistion
+	// is desired for a given reason.
+	DesiredTransistion DesiredTransistion
 
 	// Status of the allocation on the client
 	ClientStatus string

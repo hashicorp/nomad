@@ -7,6 +7,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -971,6 +972,7 @@ func TestSystemSched_NodeDown(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
+	alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
@@ -1099,6 +1101,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
+	alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
@@ -1412,6 +1415,7 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
+	alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 	alloc.TaskGroup = "web"
 
 	alloc2 := mock.Alloc()

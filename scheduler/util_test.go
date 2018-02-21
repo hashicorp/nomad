@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -90,6 +91,9 @@ func TestDiffAllocs(t *testing.T) {
 			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
+			DesiredTransistion: structs.DesiredTransistion{
+				Migrate: helper.BoolToPtr(true),
+			},
 		},
 		// Mark the 4th lost
 		{
@@ -219,6 +223,9 @@ func TestDiffSystemAllocs(t *testing.T) {
 			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
+			DesiredTransistion: structs.DesiredTransistion{
+				Migrate: helper.BoolToPtr(true),
+			},
 		},
 		// Mark as lost on a dead node
 		{

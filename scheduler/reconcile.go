@@ -499,6 +499,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		})
 	}
 
+	// TODO Deprecate
 	// We need to create a followup evaluation.
 	if followup && strategy != nil && a.result.followupEvalWait < strategy.Stagger {
 		a.result.followupEvalWait = strategy.Stagger
