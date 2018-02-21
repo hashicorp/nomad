@@ -905,10 +905,9 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 				return false, fmt.Errorf("client RPC succeeded when it should have failed :\n%+v", err)
 			}
 			return true, nil
+		}, func(err error) {
+			t.Fatalf(err.Error())
 		},
-			func(err error) {
-				t.Fatalf(err.Error())
-			},
 		)
 	}
 
@@ -931,10 +930,9 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 				return false, fmt.Errorf("client RPC failed when it should have succeeded:\n%+v", err)
 			}
 			return true, nil
+		}, func(err error) {
+			t.Fatalf(err.Error())
 		},
-			func(err error) {
-				t.Fatalf(err.Error())
-			},
 		)
 	}
 }

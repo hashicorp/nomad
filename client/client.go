@@ -113,6 +113,11 @@ type Client struct {
 
 	connPool *pool.ConnPool
 
+	// tlsWrap is used to wrap outbound connections using TLS. It should be
+	// accessed using the lock.
+	tlsWrap     tlsutil.RegionWrapper
+	tlsWrapLock sync.RWMutex
+
 	// servers is the list of nomad servers
 	servers *servers.Manager
 
@@ -197,6 +202,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		consulService:       consulService,
 		start:               time.Now(),
 		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		tlsWrap:             tlsWrap,
 		streamingRpcs:       structs.NewStreamingRpcRegistery(),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
@@ -263,7 +269,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
-		if err := c.SetServers(c.configCopy.Servers); err != nil {
+		if err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
 			logger.Printf("[WARN] client: None of the configured servers are valid: %v", err)
 		}
 	}
@@ -388,6 +394,11 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 		}
 		tlsWrap = tw
 	}
+
+	// Store the new tls wrapper.
+	c.tlsWrapLock.Lock()
+	c.tlsWrap = tlsWrap
+	c.tlsWrapLock.Unlock()
 
 	// Keep the client configuration up to date as we use configuration values to
 	// decide on what type of connections to accept
@@ -594,6 +605,16 @@ func (c *Client) GetServers() []string {
 // SetServers sets a new list of nomad servers to connect to. As long as one
 // server is resolvable no error is returned.
 func (c *Client) SetServers(in []string) error {
+	return c.setServersImpl(in, false)
+}
+
+// setServersImpl sets a new list of nomad servers to connect to. If force is
+// set, we add the server to the internal severlist even if the server could not
+// be pinged. An error is returned if no endpoints were valid when non-forcing.
+//
+// Force should be used when setting the servers from the initial configuration
+// since the server may be starting up in parallel and initial pings may fail.
+func (c *Client) setServersImpl(in []string, force bool) error {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	var merr multierror.Error
@@ -614,7 +635,12 @@ func (c *Client) SetServers(in []string) error {
 			// Try to ping to check if it is a real server
 			if err := c.Ping(addr); err != nil {
 				merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
-				return
+
+				// If we are forcing the setting of the servers, inject it to
+				// the serverlist even if we can't ping immediately.
+				if !force {
+					return
+				}
 			}
 
 			mu.Lock()

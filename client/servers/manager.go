@@ -98,18 +98,6 @@ func (s Servers) cycle() {
 	s[numServers-1] = start
 }
 
-// removeServerByKey performs an inline removal of the first matching server
-func (s Servers) removeServerByKey(targetKey string) {
-	for i, srv := range s {
-		if targetKey == srv.String() {
-			copy(s[i:], s[i+1:])
-			s[len(s)-1] = nil
-			s = s[:len(s)-1]
-			return
-		}
-	}
-}
-
 // shuffle shuffles the server list in place
 func (s Servers) shuffle() {
 	for i := len(s) - 1; i > 0; i-- {

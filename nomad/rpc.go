@@ -172,7 +172,7 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCConte
 		s.handleStreamingConn(conn)
 
 	case pool.RpcMultiplexV2:
-		s.handleMultiplexV2(conn, ctx)
+		s.handleMultiplexV2(ctx, conn, rpcCtx)
 
 	default:
 		s.logger.Printf("[ERR] nomad.rpc: unrecognized RPC byte: %v", buf[0])
@@ -286,11 +286,11 @@ func (s *Server) handleStreamingConn(conn net.Conn) {
 // handleMultiplexV2 is used to multiplex a single incoming connection
 // using the Yamux multiplexer. Version 2 handling allows a single connection to
 // switch streams between regulars RPCs and Streaming RPCs.
-func (s *Server) handleMultiplexV2(conn net.Conn, ctx *RPCContext) {
+func (s *Server) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
 	defer func() {
 		// Remove any potential mapping between a NodeID to this connection and
 		// close the underlying connection.
-		s.removeNodeConn(ctx)
+		s.removeNodeConn(rpcCtx)
 		conn.Close()
 	}()
 
@@ -303,11 +303,11 @@ func (s *Server) handleMultiplexV2(conn net.Conn, ctx *RPCContext) {
 	}
 
 	// Update the context to store the yamux session
-	ctx.Session = server
+	rpcCtx.Session = server
 
 	// Create the RPC server for this connection
 	rpcServer := rpc.NewServer()
-	s.setupRpcServer(rpcServer, ctx)
+	s.setupRpcServer(rpcServer, rpcCtx)
 
 	for {
 		// Accept a new stream
@@ -331,7 +331,7 @@ func (s *Server) handleMultiplexV2(conn net.Conn, ctx *RPCContext) {
 		// Determine which handler to use
 		switch pool.RPCType(buf[0]) {
 		case pool.RpcNomad:
-			go s.handleNomadConn(sub, rpcServer)
+			go s.handleNomadConn(ctx, sub, rpcServer)
 		case pool.RpcStreaming:
 			go s.handleStreamingConn(sub)
 
@@ -476,7 +476,7 @@ func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, err
 		tcp.SetNoDelay(true)
 	}
 
-	if err := s.streamingRpcImpl(conn, method); err != nil {
+	if err := s.streamingRpcImpl(conn, server.Region, method); err != nil {
 		return nil, err
 	}
 
@@ -487,24 +487,27 @@ func (s *Server) streamingRpc(server *serverParts, method string) (net.Conn, err
 // the handshake to establish a streaming RPC for the given method. If an error
 // is returned, the underlying connection has been closed. Otherwise it is
 // assumed that the connection has been hijacked by the RPC method.
-func (s *Server) streamingRpcImpl(conn net.Conn, method string) error {
-	// TODO TLS
+func (s *Server) streamingRpcImpl(conn net.Conn, region, method string) error {
 	// Check if TLS is enabled
-	//if p.tlsWrap != nil {
-	//// Switch the connection into TLS mode
-	//if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
-	//conn.Close()
-	//return nil, err
-	//}
+	s.tlsWrapLock.RLock()
+	tlsWrap := s.tlsWrap
+	s.tlsWrapLock.RUnlock()
 
-	//// Wrap the connection in a TLS client
-	//tlsConn, err := p.tlsWrap(region, conn)
-	//if err != nil {
-	//conn.Close()
-	//return nil, err
-	//}
-	//conn = tlsConn
-	//}
+	if tlsWrap != nil {
+		// Switch the connection into TLS mode
+		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
+			conn.Close()
+			return err
+		}
+
+		// Wrap the connection in a TLS client
+		tlsConn, err := tlsWrap(region, conn)
+		if err != nil {
+			conn.Close()
+			return err
+		}
+		conn = tlsConn
+	}
 
 	// Write the multiplex byte to set the mode
 	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {

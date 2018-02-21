@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"net"
 	"net/rpc"
 	"os"
@@ -201,7 +202,69 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 	conn, err := s1.streamingRpc(server, "Bogus")
 	require.Nil(conn)
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown rpc method: \"Bogus\"")
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
+}
+
+func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s2.Shutdown()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	s1.peerLock.RLock()
+	ok, parts := isNomadServer(s2.LocalMember())
+	require.True(ok)
+	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
+	require.NotNil(server)
+	s1.peerLock.RUnlock()
+
+	conn, err := s1.streamingRpc(server, "Bogus")
+	require.Nil(conn)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
 }
 
 // COMPAT: Remove in 0.10
@@ -224,7 +287,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	// Start the handler
 	doneCh := make(chan struct{})
 	go func() {
-		s.handleConn(p2, &RPCContext{Conn: p2})
+		s.handleConn(context.Background(), p2, &RPCContext{Conn: p2})
 		close(doneCh)
 	}()
 
@@ -257,8 +320,9 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	require.NotEmpty(l)
 
 	// Make a streaming RPC
-	err = s.streamingRpcImpl(s2, "Bogus")
+	err = s.streamingRpcImpl(s2, s.Region(), "Bogus")
 	require.NotNil(err)
-	require.Contains(err.Error(), "unknown rpc")
+	require.Contains(err.Error(), "Bogus")
+	require.True(structs.IsErrUnknownMethod(err))
 
 }

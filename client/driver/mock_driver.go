@@ -1,5 +1,3 @@
-//+build nomad_test
-
 package driver
 
 import (
@@ -33,11 +31,6 @@ const (
 	// (specified in seconds) for testing of periodic drivers and fingerprinters.
 	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
 )
-
-// Add the mock driver to the list of builtin drivers
-func init() {
-	BuiltinDrivers["mock_driver"] = NewMockDriver
-}
 
 // MockDriverConfig is the driver configuration for the MockDriver
 type MockDriverConfig struct {

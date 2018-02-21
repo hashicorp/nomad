@@ -112,6 +112,11 @@ type Server struct {
 	rpcListener net.Listener
 	listenerCh  chan struct{}
 
+	// tlsWrap is used to wrap outbound connections using TLS. It should be
+	// accessed using the lock.
+	tlsWrap     tlsutil.RegionWrapper
+	tlsWrapLock sync.RWMutex
+
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
 
@@ -276,6 +281,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		consulCatalog: consulCatalog,
 		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
 		logger:        logger,
+		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
 		streamingRpcs: structs.NewStreamingRpcRegistery(),
 		nodeConns:     make(map[string]*nodeConnState),
@@ -434,6 +440,11 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)
 		return err
 	}
+
+	// Store the new tls wrapper.
+	s.tlsWrapLock.Lock()
+	s.tlsWrap = tlsWrap
+	s.tlsWrapLock.Unlock()
 
 	if s.rpcCancel == nil {
 		err = fmt.Errorf("No existing RPC server to reset.")

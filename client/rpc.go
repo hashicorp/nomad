@@ -151,23 +151,26 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 		tcp.SetNoDelay(true)
 	}
 
-	// TODO TLS
 	// Check if TLS is enabled
-	//if p.tlsWrap != nil {
-	//// Switch the connection into TLS mode
-	//if _, err := conn.Write([]byte{byte(RpcTLS)}); err != nil {
-	//conn.Close()
-	//return nil, err
-	//}
+	c.tlsWrapLock.RLock()
+	tlsWrap := c.tlsWrap
+	c.tlsWrapLock.RUnlock()
 
-	//// Wrap the connection in a TLS client
-	//tlsConn, err := p.tlsWrap(region, conn)
-	//if err != nil {
-	//conn.Close()
-	//return nil, err
-	//}
-	//conn = tlsConn
-	//}
+	if tlsWrap != nil {
+		// Switch the connection into TLS mode
+		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
+			conn.Close()
+			return nil, err
+		}
+
+		// Wrap the connection in a TLS client
+		tlsConn, err := tlsWrap(c.Region(), conn)
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		conn = tlsConn
+	}
 
 	// Write the multiplex byte to set the mode
 	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
