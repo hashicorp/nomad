@@ -236,6 +236,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
+	case structs.AllocUpdateDesiredTransistionRequestType:
+		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -617,6 +619,22 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		}
 	}
 
+	return nil
+}
+
+// applyAllocUpdateDesiredTransition is used to update the desired transistions
+// of a set of allocations.
+func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transistion"}, time.Now())
+	var req structs.AllocUpdateDesiredTransistionRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateAllocsDesiredTransistions(index, req.Allocs); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocsDesiredTransistions failed: %v", err)
+		return err
+	}
 	return nil
 }
 

@@ -1119,6 +1119,48 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	require.Equal(eval, res)
 }
 
+func TestFSM_UpdateAllocDesiredTransistion(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+	state := fsm.State()
+	require := require.New(t)
+
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.Job = alloc.Job
+	alloc2.JobID = alloc.JobID
+	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
+	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+
+	t1 := &structs.DesiredTransistion{
+		Migrate: helper.BoolToPtr(true),
+	}
+
+	req := structs.AllocUpdateDesiredTransistionRequest{
+		Allocs: map[string]*structs.DesiredTransistion{
+			alloc.ID:  t1,
+			alloc2.ID: t1,
+		},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateDesiredTransistionRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out1, err := fsm.State().AllocByID(ws, alloc.ID)
+	require.Nil(err)
+	out2, err := fsm.State().AllocByID(ws, alloc2.ID)
+	require.Nil(err)
+
+	require.NotNil(out1.DesiredTransistion.Migrate)
+	require.NotNil(out2.DesiredTransistion.Migrate)
+	require.True(*out1.DesiredTransistion.Migrate)
+	require.True(*out2.DesiredTransistion.Migrate)
+}
+
 func TestFSM_UpsertVaultAccessor(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

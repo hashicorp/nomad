@@ -822,7 +822,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Ensure that evals aren't set from client RPCs
 	// We create them here before the raft update
 	if len(args.Evals) != 0 {
-		return fmt.Errorf("evals field must not be set ")
+		return fmt.Errorf("evals field must not be set")
 	}
 
 	// Update modified timestamp for client initiated allocation updates
