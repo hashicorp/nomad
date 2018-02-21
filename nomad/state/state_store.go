@@ -2008,6 +2008,63 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 	return nil
 }
 
+// UpdateAllocsDesiredTransistions is used to update a set of allocations
+// desired transistions.
+func (s *StateStore) UpdateAllocsDesiredTransistions(index uint64, allocs map[string]*structs.DesiredTransistion) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Handle each of the updated allocations
+	for id, transistion := range allocs {
+		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transistion); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// nestedUpdateAllocDesiredTransition is used to nest an update of an
+// allocations desired transistion
+func (s *StateStore) nestedUpdateAllocDesiredTransition(
+	txn *memdb.Txn, index uint64, allocID string,
+	transistion *structs.DesiredTransistion) error {
+
+	// Look for existing alloc
+	existing, err := txn.First("allocs", "id", allocID)
+	if err != nil {
+		return fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	// Nothing to do if this does not exist
+	if existing == nil {
+		return nil
+	}
+	exist := existing.(*structs.Allocation)
+
+	// Copy everything from the existing allocation
+	copyAlloc := exist.Copy()
+
+	// Merge the desired transistions
+	copyAlloc.DesiredTransistion.Merge(transistion)
+
+	// Update the modify index
+	copyAlloc.ModifyIndex = index
+
+	// Update the allocation
+	if err := txn.Insert("allocs", copyAlloc); err != nil {
+		return fmt.Errorf("alloc insert failed: %v", err)
+	}
+
+	return nil
+}
+
 // AllocByID is used to lookup an allocation by its ID
 func (s *StateStore) AllocByID(ws memdb.WatchSet, id string) (*structs.Allocation, error) {
 	txn := s.db.Txn(false)
