@@ -67,6 +67,7 @@ func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
 	// check avoids the race in which leadership is lost but a timer is created
 	// on this server since it was servicing an RPC during a leadership loss.
 	if !s.IsLeader() {
+		s.logger.Printf("[DEBUG] nomad.heartbeat: ignoring resetting node %q TTL since this node is not the leader", id)
 		return 0, heartbeatNotLeaderErr
 	}
 
@@ -114,6 +115,7 @@ func (s *Server) invalidateHeartbeat(id string) {
 	// the race in which leadership is lost but a timer is created on this
 	// server since it was servicing an RPC during a leadership loss.
 	if !s.IsLeader() {
+		s.logger.Printf("[DEBUG] nomad.heartbeat: ignoring node %q TTL since this node is not the leader", id)
 		return
 	}
 
