@@ -1499,8 +1499,12 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old: &TaskGroup{},
 			New: &TaskGroup{
 				ReschedulePolicy: &ReschedulePolicy{
-					Attempts: 1,
-					Interval: 15 * time.Second,
+					Attempts:      1,
+					Interval:      15 * time.Second,
+					Delay:         5 * time.Second,
+					DelayCeiling:  20 * time.Second,
+					DelayFunction: "exponential",
+					Unlimited:     false,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1518,9 +1522,33 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "Delay",
+								Old:  "",
+								New:  "5000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DelayCeiling",
+								Old:  "",
+								New:  "20000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DelayFunction",
+								Old:  "",
+								New:  "exponential",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Interval",
 								Old:  "",
 								New:  "15000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Unlimited",
+								Old:  "",
+								New:  "false",
 							},
 						},
 					},
@@ -1531,8 +1559,12 @@ func TestTaskGroupDiff(t *testing.T) {
 			// ReschedulePolicy deleted
 			Old: &TaskGroup{
 				ReschedulePolicy: &ReschedulePolicy{
-					Attempts: 1,
-					Interval: 15 * time.Second,
+					Attempts:      1,
+					Interval:      15 * time.Second,
+					Delay:         5 * time.Second,
+					DelayCeiling:  20 * time.Second,
+					DelayFunction: "exponential",
+					Unlimited:     false,
 				},
 			},
 			New: &TaskGroup{},
@@ -1551,8 +1583,32 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
+								Name: "Delay",
+								Old:  "5000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "DelayCeiling",
+								Old:  "20000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "DelayFunction",
+								Old:  "exponential",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "Interval",
 								Old:  "15000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Unlimited",
+								Old:  "false",
 								New:  "",
 							},
 						},
@@ -1564,14 +1620,22 @@ func TestTaskGroupDiff(t *testing.T) {
 			// ReschedulePolicy edited
 			Old: &TaskGroup{
 				ReschedulePolicy: &ReschedulePolicy{
-					Attempts: 1,
-					Interval: 1 * time.Second,
+					Attempts:      1,
+					Interval:      1 * time.Second,
+					DelayFunction: "exponential",
+					Delay:         20 * time.Second,
+					DelayCeiling:  1 * time.Minute,
+					Unlimited:     false,
 				},
 			},
 			New: &TaskGroup{
 				ReschedulePolicy: &ReschedulePolicy{
-					Attempts: 2,
-					Interval: 2 * time.Second,
+					Attempts:      2,
+					Interval:      2 * time.Second,
+					DelayFunction: "linear",
+					Delay:         30 * time.Second,
+					DelayCeiling:  1 * time.Minute,
+					Unlimited:     true,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1589,9 +1653,27 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeEdited,
+								Name: "Delay",
+								Old:  "20000000000",
+								New:  "30000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "DelayFunction",
+								Old:  "exponential",
+								New:  "linear",
+							},
+							{
+								Type: DiffTypeEdited,
 								Name: "Interval",
 								Old:  "1000000000",
 								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "true",
 							},
 						},
 					},
@@ -1626,10 +1708,34 @@ func TestTaskGroupDiff(t *testing.T) {
 								New:  "1",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "Delay",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DelayCeiling",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DelayFunction",
+								Old:  "",
+								New:  "",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "Interval",
 								Old:  "1000000000",
 								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "false",
 							},
 						},
 					},

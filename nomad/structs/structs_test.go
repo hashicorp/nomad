@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -569,8 +570,10 @@ func testJob() *Job {
 					Delay:    1 * time.Minute,
 				},
 				ReschedulePolicy: &ReschedulePolicy{
-					Interval: 5 * time.Minute,
-					Attempts: 10,
+					Interval:      5 * time.Minute,
+					Attempts:      10,
+					Delay:         5 * time.Second,
+					DelayFunction: "linear",
 				},
 				Tasks: []*Task{
 					{
@@ -929,6 +932,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		ReschedulePolicy: &ReschedulePolicy{
 			Interval: 5 * time.Minute,
 			Attempts: 5,
+			Delay:    5 * time.Second,
 		},
 	}
 	err := tg.Validate(j)
@@ -1011,8 +1015,10 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Mode:     RestartPolicyModeDelay,
 		},
 		ReschedulePolicy: &ReschedulePolicy{
-			Interval: 5 * time.Minute,
-			Attempts: 10,
+			Interval:      5 * time.Minute,
+			Attempts:      10,
+			Delay:         5 * time.Second,
+			DelayFunction: "linear",
 		},
 	}
 
@@ -2423,45 +2429,173 @@ func TestRestartPolicy_Validate(t *testing.T) {
 
 func TestReschedulePolicy_Validate(t *testing.T) {
 	type testCase struct {
+		desc             string
 		ReschedulePolicy *ReschedulePolicy
-		err              error
+		errors           []error
 	}
 
 	testCases := []testCase{
 		{
+			desc: "Nil",
+		},
+		{
+			desc: "Disabled",
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts: 0,
 				Interval: 0 * time.Second},
-			err: nil,
 		},
 		{
-			ReschedulePolicy: &ReschedulePolicy{
-				Attempts: 1,
-				Interval: 5 * time.Minute},
-			err: nil,
-		},
-		{
+			desc: "Disabled",
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts: -1,
 				Interval: 5 * time.Minute},
-			err: nil,
 		},
 		{
+			desc: "Valid Linear Delay",
 			ReschedulePolicy: &ReschedulePolicy{
-				Attempts: 1,
-				Interval: 1 * time.Second},
-			err: fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, time.Second),
+				Attempts:      1,
+				Interval:      5 * time.Minute,
+				Delay:         10 * time.Second,
+				DelayFunction: "linear"},
+		},
+		{
+			desc: "Valid Exponential Delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      5,
+				Interval:      1 * time.Hour,
+				Delay:         30 * time.Second,
+				DelayCeiling:  5 * time.Minute,
+				DelayFunction: "exponential"},
+		},
+		{
+			desc: "Valid Fibonacci Delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      5,
+				Interval:      15 * time.Minute,
+				Delay:         10 * time.Second,
+				DelayCeiling:  5 * time.Minute,
+				DelayFunction: "fibonacci"},
+		},
+		{
+			desc: "Invalid delay function",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      1 * time.Second,
+				DelayFunction: "blah"},
+			errors: []error{
+				fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, time.Second),
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+				fmt.Errorf("Invalid delay function %q, must be one of %q", "blah", RescheduleDelayFunctions),
+			},
+		},
+		{
+			desc: "Invalid delay ceiling",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      8 * time.Second,
+				DelayFunction: "exponential",
+				Delay:         15 * time.Second,
+				DelayCeiling:  5 * time.Second},
+			errors: []error{
+				fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", 15*time.Second, 5*time.Second),
+			},
+		},
+		{
+			desc: "Invalid delay and interval",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      1 * time.Second,
+				DelayFunction: "linear"},
+			errors: []error{
+				fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, time.Second),
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
+		}, {
+			// Should suggest 2h40m as the interval
+			desc: "Invalid Attempts - linear delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      10,
+				Interval:      1 * time.Hour,
+				Delay:         20 * time.Minute,
+				DelayFunction: "linear",
+			},
+			errors: []error{
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and delay function %q", 3, time.Hour, 20*time.Minute, "linear"),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", 200*time.Minute, 10),
+			},
+		},
+		{
+			// Should suggest 4h40m as the interval
+			// Delay progression in minutes {5, 10, 20, 40, 40, 40, 40, 40, 40, 40}
+			desc: "Invalid Attempts - exponential delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      10,
+				Interval:      30 * time.Minute,
+				Delay:         5 * time.Minute,
+				DelayCeiling:  40 * time.Minute,
+				DelayFunction: "exponential",
+			},
+			errors: []error{
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
+					"delay function %q, and delay ceiling %v", 3, 30*time.Minute, 5*time.Minute, "exponential", 40*time.Minute),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", 280*time.Minute, 10),
+			},
+		},
+		{
+			// Should suggest 8h as the interval
+			// Delay progression in minutes {20, 20, 40, 60, 80, 80, 80, 80, 80, 80}
+			desc: "Invalid Attempts - fibonacci delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      10,
+				Interval:      1 * time.Hour,
+				Delay:         20 * time.Minute,
+				DelayCeiling:  80 * time.Minute,
+				DelayFunction: "fibonacci",
+			},
+			errors: []error{
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
+					"delay function %q, and delay ceiling %v", 4, 1*time.Hour, 20*time.Minute, "fibonacci", 80*time.Minute),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", 480*time.Minute, 10),
+			},
+		},
+		{
+			desc: "Valid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Unlimited:     true,
+				DelayFunction: "exponential",
+				Delay:         5 * time.Minute,
+				DelayCeiling:  1 * time.Hour,
+			},
+		},
+		{
+			desc: "Invalid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      1 * time.Second,
+				Unlimited:     true,
+				DelayFunction: "exponential",
+			},
+			errors: []error{
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+				fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
 		},
 	}
 
-	assert := assert.New(t)
-
 	for _, tc := range testCases {
-		if tc.err != nil {
-			assert.Contains(tc.ReschedulePolicy.Validate().Error(), tc.err.Error())
-		} else {
-			assert.Nil(tc.err)
-		}
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			gotErr := tc.ReschedulePolicy.Validate()
+			if tc.errors != nil {
+				// Validate all errors
+				for _, err := range tc.errors {
+					require.Contains(gotErr.Error(), err.Error())
+				}
+			} else {
+				require.Nil(gotErr)
+			}
+		})
 	}
 }
 
@@ -2718,7 +2852,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{0, 1 * time.Minute},
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 0, Interval: 1 * time.Minute},
 			ShouldReschedule: false,
 		},
 		{
@@ -2750,7 +2884,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ClientStatus:     AllocClientStatusComplete,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
 			ShouldReschedule: false,
 		},
 		{
@@ -2758,14 +2892,14 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{1, 1 * time.Minute},
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
 			ShouldReschedule: true,
 		},
 		{
 			Desc:             "Reschedule with leftover attempts",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
-			ReschedulePolicy: &ReschedulePolicy{2, 5 * time.Minute},
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 2, Interval: 5 * time.Minute},
 			FailTime:         fail,
 			RescheduleTrackers: []*RescheduleEvent{
 				{
@@ -2779,7 +2913,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{1, 5 * time.Minute},
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 5 * time.Minute},
 			RescheduleTrackers: []*RescheduleEvent{
 				{
 					RescheduleTime: fail.Add(-6 * time.Minute).UTC().UnixNano(),
@@ -2792,7 +2926,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
-			ReschedulePolicy: &ReschedulePolicy{2, 5 * time.Minute},
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 2, Interval: 5 * time.Minute},
 			RescheduleTrackers: []*RescheduleEvent{
 				{
 					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
