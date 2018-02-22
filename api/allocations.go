@@ -213,5 +213,5 @@ type RescheduleEvent struct {
 type DesiredTransistion struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
-	Migrate bool
+	Migrate *bool
 }
