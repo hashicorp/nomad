@@ -1006,15 +1006,15 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		c.config.Node.Resources.Merge(response.Resources)
 	}
 
-	for name, new_val := range response.Drivers {
-		old_val := c.config.Node.Drivers[name]
-		if new_val.Equals(old_val) {
+	for name, newVal := range response.Drivers {
+		oldVal := c.config.Node.Drivers[name]
+		if newVal.Equals(oldVal) {
 			continue
 		}
-		if old_val == nil {
-			c.config.Node.Drivers[name] = new_val
+		if oldVal == nil {
+			c.config.Node.Drivers[name] = newVal
 		} else {
-			c.config.Node.Drivers[name].MergeFingerprintInfo(new_val)
+			c.config.Node.Drivers[name].MergeFingerprintInfo(newVal)
 		}
 	}
 	if nodeHasChanged {
@@ -1031,16 +1031,16 @@ func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckRespons
 	nodeHasChanged := false
 
 	// update the node with the latest driver health information
-	for name, new_val := range response.Drivers {
-		old_val := c.config.Node.Drivers[name]
-		if new_val.Equals(old_val) {
+	for name, newVal := range response.Drivers {
+		oldVal := c.config.Node.Drivers[name]
+		if newVal.Equals(oldVal) {
 			continue
 		}
 		nodeHasChanged = true
-		if old_val == nil {
-			c.config.Node.Drivers[name] = new_val
+		if oldVal == nil {
+			c.config.Node.Drivers[name] = newVal
 		} else {
-			c.config.Node.Drivers[name].MergeHealthCheck(new_val)
+			c.config.Node.Drivers[name].MergeHealthCheck(newVal)
 		}
 	}
 

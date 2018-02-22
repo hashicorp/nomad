@@ -129,21 +129,37 @@ func (c *DriverChecker) Feasible(option *structs.Node) bool {
 func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 	for driver := range c.drivers {
 		driverStr := fmt.Sprintf("driver.%s", driver)
-		value, ok := option.Attributes[driverStr]
-		if !ok {
-			return false
-		}
 
-		enabled, err := strconv.ParseBool(value)
-		if err != nil {
-			c.ctx.Logger().
-				Printf("[WARN] scheduler.DriverChecker: node %v has invalid driver setting %v: %v",
-					option.ID, driverStr, value)
-			return false
-		}
+		// TODO this is a compatibility mechanism- as of Nomad 0.8, nodes have a
+		// DriverInfo that corresponds with every driver. As a Nomad server might
+		// be on a later version than a Nomad client, we need to check for
+		// compatibility here to verify the client supports this.
+		if option.Drivers != nil {
+			driverInfo := option.Drivers[driverStr]
+			if driverInfo == nil {
+				c.ctx.Logger().
+					Printf("[WARN] scheduler.DriverChecker: node %v has no driver info set for %v",
+						option.ID, driverStr)
+				return false
+			}
+			return driverInfo.Detected && driverInfo.Healthy
+		} else {
+			value, ok := option.Attributes[driverStr]
+			if !ok {
+				return false
+			}
 
-		if !enabled {
-			return false
+			enabled, err := strconv.ParseBool(value)
+			if err != nil {
+				c.ctx.Logger().
+					Printf("[WARN] scheduler.DriverChecker: node %v has invalid driver setting %v: %v",
+						option.ID, driverStr, value)
+				return false
+			}
+
+			if !enabled {
+				return false
+			}
 		}
 	}
 	return true
