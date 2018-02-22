@@ -92,8 +92,10 @@ func Job() *structs.Job {
 					Mode:     structs.RestartPolicyModeDelay,
 				},
 				ReschedulePolicy: &structs.ReschedulePolicy{
-					Attempts: 2,
-					Interval: 10 * time.Minute,
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "linear",
 				},
 				Tasks: []*structs.Task{
 					{
