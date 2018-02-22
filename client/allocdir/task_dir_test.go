@@ -103,7 +103,7 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 		t.Fatalf("Build() failed: %v", err)
 	}
 
-	if err := td.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td.Build(false, nil, nil, cstructs.FSIsolationImage); err != nil {
 		t.Fatalf("TaskDir.Build failed: %v", err)
 	}
 }
@@ -126,7 +126,7 @@ func TestTaskDir_NonRoot(t *testing.T) {
 		t.Fatalf("Build() failed: %v", err)
 	}
 
-	if err := td.Build(false, nil, cstructs.FSIsolationNone); err != nil {
+	if err := td.Build(false, nil, nil, cstructs.FSIsolationNone); err != nil {
 		t.Fatalf("TaskDir.Build failed: %v", err)
 	}
 

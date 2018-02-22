@@ -32,7 +32,7 @@ func linkDir(src, dst string) error {
 // hardlinking directories. If the dir is already unmounted no error is
 // returned.
 func unlinkDir(dir string) error {
-	if err := syscall.Unmount(dir, 0); err != nil {
+	if err := syscall.Unmount(dir, syscall.MNT_DETACH); err != nil {
 		if err != syscall.EINVAL {
 			return err
 		}

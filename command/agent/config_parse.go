@@ -354,6 +354,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"options",
 		"meta",
 		"chroot_env",
+		"chroot_bindings",
 		"network_interface",
 		"network_speed",
 		"cpu_total_compute",
@@ -381,6 +382,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	delete(m, "options")
 	delete(m, "meta")
 	delete(m, "chroot_env")
+	delete(m, "chroot_bindings")
 	delete(m, "reserved")
 	delete(m, "stats")
 
@@ -434,6 +436,20 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 				return err
 			}
 			if err := mapstructure.WeakDecode(m, &config.ChrootEnv); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Parse out chroot_bindings fields. These are in HCL as a list so we need to
+	// iterate over them and merge them.
+	if chrootBindingsO := listVal.Filter("chroot_bindings"); len(chrootBindingsO.Items) > 0 {
+		for _, o := range chrootBindingsO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return err
+			}
+			if err := mapstructure.WeakDecode(m, &config.ChrootBindings); err != nil {
 				return err
 			}
 		}

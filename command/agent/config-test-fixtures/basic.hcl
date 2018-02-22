@@ -37,6 +37,9 @@ client {
 		"/opt/myapp/etc" = "/etc"
 		"/opt/myapp/bin" = "/bin"
 	}
+	chroot_bindings {
+        "/opt/myapp/var" = "/var"
+    }
 	network_interface = "eth0"
 	network_speed = 100
 	cpu_total_compute = 4444
