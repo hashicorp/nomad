@@ -35,7 +35,7 @@ export default function() {
         response.headers['X-Nomad-Index'] = index;
         return response;
       }
-      return new Response(200, { 'X-Nomad-Index': index }, response);
+      return new Response(200, { 'x-nomad-index': index }, response);
     };
   };
 

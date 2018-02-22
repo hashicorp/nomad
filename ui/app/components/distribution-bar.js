@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { computed, observer } from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
-import { guidFor } from '@ember/object/internals';
+import { guidFor, copy } from '@ember/object/internals';
 import d3 from 'npm:d3-selection';
 import 'npm:d3-transition';
 import WindowResizable from '../mixins/window-resizable';
@@ -22,8 +22,8 @@ export default Component.extend(WindowResizable, {
   tooltipStyle: styleStringProperty('tooltipPosition'),
   maskId: null,
 
-  _data: computed('data.@each.{value,label,className,layers}', function() {
-    const data = this.get('data');
+  _data: computed('data', function() {
+    const data = copy(this.get('data'), true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
     return data.map(({ label, value, className, layers }, index) => ({

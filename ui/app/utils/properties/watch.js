@@ -1,5 +1,4 @@
 import Ember from 'ember';
-import { typeOf } from '@ember/utils';
 import { get } from '@ember/object';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
@@ -7,7 +6,7 @@ import wait from 'nomad-ui/utils/wait';
 
 export function watchRecord(modelName) {
   return task(function*(id, throttle = 2000) {
-    if (typeOf(id) === 'object') {
+    if (typeof id === 'object') {
       id = get(id, 'id');
     }
     while (!Ember.testing) {

@@ -104,10 +104,11 @@ export default ApplicationAdapter.extend({
   },
 
   handleResponse(status, headers, payload, requestData) {
-    const newIndex = headers['X-Nomad-Index'];
+    const newIndex = headers['x-nomad-index'];
     if (newIndex) {
       this.get('watchList').setIndexFor(requestData.url, newIndex);
     }
+
     return this._super(...arguments);
   },
 
