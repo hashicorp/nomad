@@ -2211,6 +2211,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 
 	// Register a node
 	node := mock.Node()
+	node.Status = structs.NodeStatusDown
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with allocations and an update policy.
@@ -2235,18 +2236,19 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	allocs[9].DesiredStatus = structs.AllocDesiredStatusRun
 	allocs[9].ClientStatus = structs.AllocClientStatusComplete
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
-
 	// Mark some allocs as running
-	ws := memdb.NewWatchSet()
 	for i := 0; i < 4; i++ {
-		out, _ := h.State.AllocByID(ws, allocs[i].ID)
+		out := allocs[i]
 		out.ClientStatus = structs.AllocClientStatusRunning
-		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
 	}
 
-	// Mark the node as down
-	noErr(t, h.State.UpdateNodeStatus(h.NextIndex(), node.ID, structs.NodeStatusDown))
+	// Mark appropriate allocs for migration
+	for i := 0; i < 7; i++ {
+		out := allocs[i]
+		out.DesiredTransistion.Migrate = helper.BoolToPtr(true)
+	}
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -2365,6 +2367,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -2447,9 +2450,10 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 
 	// Set the desired state of the allocs to stop
 	var stop []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 6; i++ {
 		newAlloc := allocs[i].Copy()
 		newAlloc.ClientStatus = structs.AllocDesiredStatusStop
+		newAlloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		stop = append(stop, newAlloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), stop))
@@ -2466,7 +2470,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	// Mark some of the allocations as complete
 	var complete []*structs.Allocation
 	for i := 6; i < 10; i++ {
-		newAlloc := stop[i].Copy()
+		newAlloc := allocs[i].Copy()
 		newAlloc.TaskStates = make(map[string]*structs.TaskState)
 		newAlloc.TaskStates["web"] = &structs.TaskState{
 			State: structs.TaskStateDead,
@@ -2552,6 +2556,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -2581,88 +2586,6 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 	if queued != 2 {
 		t.Fatalf("expected: %v, actual: %v", 2, queued)
 	}
-}
-
-func TestServiceSched_NodeDrain_UpdateStrategy(t *testing.T) {
-	h := NewHarness(t)
-
-	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-
-	// Create some nodes
-	for i := 0; i < 10; i++ {
-		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-	}
-
-	// Generate a fake job with allocations and an update policy.
-	job := mock.Job()
-	mp := 5
-	u := structs.DefaultUpdateStrategy.Copy()
-	u.MaxParallel = mp
-	u.Stagger = time.Second
-	job.TaskGroups[0].Update = u
-
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
-
-	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		allocs = append(allocs, alloc)
-	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
-
-	// Create a mock evaluation to deal with drain
-	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    50,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
-		JobID:       job.ID,
-		NodeID:      node.ID,
-		Status:      structs.EvalStatusPending,
-	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
-
-	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
-	plan := h.Plans[0]
-
-	// Ensure the plan evicted all allocs
-	if len(plan.NodeUpdate[node.ID]) != mp {
-		t.Fatalf("bad: %#v", plan)
-	}
-
-	// Ensure the plan allocated
-	var planned []*structs.Allocation
-	for _, allocList := range plan.NodeAllocation {
-		planned = append(planned, allocList...)
-	}
-	if len(planned) != mp {
-		t.Fatalf("bad: %#v", plan)
-	}
-
-	// Ensure there is a followup eval.
-	if len(h.CreateEvals) != 1 ||
-		h.CreateEvals[0].TriggeredBy != structs.EvalTriggerRollingUpdate {
-		t.Fatalf("bad: %#v", h.CreateEvals)
-	}
-
-	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_RetryLimit(t *testing.T) {
@@ -3755,6 +3678,7 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 	// Create an update job
 	job2 := job.Copy()
 	job2.TaskGroups[0].Tasks[0].Env = map[string]string{"foo": "bar"}
+	job2.Version++
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to register the job
@@ -4021,10 +3945,10 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	// Create an alloc on the draining node
 	alloc := mock.Alloc()
 	alloc.Name = "my-job.web[0]"
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.NodeID = node.ID
 	alloc.Job.TaskGroups[0].Count = 1
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
+	alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
 	noErr(t, h.State.UpsertJob(h.NextIndex(), alloc.Job))
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
