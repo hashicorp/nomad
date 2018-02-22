@@ -62,6 +62,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	systemJob.TaskGroups[0].Tasks[0].Resources = structs.MinResources()
 	systemJob.TaskGroups[0].Tasks[0].Services = nil
 
+	// Batch job will run until the node's drain deadline is reached
 	batchJob := mock.Job()
 	batchJob.Name = "batch-job"
 	batchJob.Type = structs.JobTypeBatch
@@ -134,6 +135,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 				t.Logf("%d alloc %s job %s status %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus)
 			}
 		}
+		server.logger.Println("----------------------------------------------------------------------quitting--------------------------------------------------------")
 		t.Fatalf("failed waiting for all allocs to start: %v", err)
 	})
 
@@ -182,10 +184,10 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 				t.Logf("%d alloc %s job %s status %s prev %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus, alloc.PreviousAllocation)
 			}
 		}
-		t.Fatalf("failed waiting for all allocs to start: %v", err)
+		server.logger.Println("----------------------------------------------------------------------quitting--------------------------------------------------------")
+		t.Errorf("failed waiting for all allocs to migrate: %v", err)
 	})
 
-	// Wait for all service allocs to be replaced
 	jobs, err := rpc.JobList()
 	require.Nil(err)
 	t.Logf("%d jobs", len(jobs.Jobs))
