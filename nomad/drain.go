@@ -118,11 +118,41 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		//possible outcome of this is that an allocation could be
 		//stopped on a node that recently had its drain cancelled which
 		//doesn't seem like that bad of a pathological case
+		s.logger.Printf("[TRACE] nomad.drain: LOOP next deadline: %s (%s)", nextDeadline, time.Until(nextDeadline))
 		select {
 		case nodes = <-nodeWatcher.nodesCh:
 			// update draining nodes
-			//TODO remove allocs from draining list with node ids not in this map
 			s.logger.Printf("[TRACE] nomad.drain: running due to node change (%d nodes draining)", len(nodes))
+
+			// update deadline timer
+			changed := false
+			for _, n := range nodes {
+				if nextDeadline.IsZero() {
+					nextDeadline = n.DrainStrategy.DeadlineTime()
+					changed = true
+					continue
+				}
+
+				if deadline := n.DrainStrategy.DeadlineTime(); deadline.Before(nextDeadline) {
+					nextDeadline = deadline
+					changed = true
+				}
+			}
+
+			// if changed reset the timer
+			if changed {
+				s.logger.Printf("[TRACE] nomad.drain: new node deadline: %s", nextDeadline)
+				if !deadlineTimer.Stop() {
+					// timer may have been recv'd in a
+					// previous loop, so don't block
+					select {
+					case <-deadlineTimer.C:
+					default:
+					}
+				}
+				deadlineTimer.Reset(time.Until(nextDeadline))
+			}
+
 		case jobs := <-jobWatcher.WaitCh():
 			s.logger.Printf("[TRACE] nomad.drain: running due to alloc change (%d jobs updated)", len(jobs))
 		case when := <-deadlineTimer.C:
@@ -160,8 +190,9 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		// consider for draining eg system jobs
 		skipJob := map[jobKey]struct{}{}
 
-		// track number of down allocs per task group
-		downPerTG := map[string]int{}
+		// track number of "up" allocs per task group (not terminal and
+		// have a deployment status)
+		upPerTG := map[string]int{}
 
 		// Collect all drainable jobs
 		for nodeID, node := range nodes {
@@ -196,17 +227,22 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				// Don't bother collecting system jobs
 				if job.Type == structs.JobTypeSystem {
 					skipJob[jobkey] = struct{}{}
+					s.logger.Printf("[TRACE] nomad.drain: skipping system job %s", job.Name)
 					continue
 				}
 
 				// If alloc isn't yet terminal this node has
 				// allocs left to be drained
 				if !alloc.TerminalStatus() {
-					allocsLeft = true
+					if !allocsLeft {
+						s.logger.Printf("[TRACE] nomad.drain: node %s has allocs left to drain", nodeID[:6])
+						allocsLeft = true
+					}
 				}
 
 				// Don't bother collecting batch jobs for nodes that haven't hit their deadline
 				if job.Type == structs.JobTypeBatch && node.DrainStrategy.DeadlineTime().After(now) {
+					s.logger.Printf("[TRACE] nomad.drain: not draining batch job %s because deadline isn't for %s", job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
 					skipJob[jobkey] = struct{}{}
 					continue
 				}
@@ -219,11 +255,14 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 				// Count the number of down (terminal or nil deployment status) per task group
 				if job.Type == structs.JobTypeService {
+					n := 0
 					for _, a := range jobAllocs {
-						if a.TerminalStatus() || a.DeploymentStatus == nil {
-							downPerTG[makeTaskGroupKey(a)]++
+						if !a.TerminalStatus() && a.DeploymentStatus != nil {
+							upPerTG[makeTaskGroupKey(a)]++
+							n++
 						}
 					}
+					s.logger.Printf("[TRACE] nomad.drain: job %s has %d task groups running", job.Name, n)
 				}
 
 				drainable[jobkey] = &drainingJob{
@@ -268,14 +307,15 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					continue
 				}
 
+				tgKey := makeTaskGroupKey(alloc)
+
 				if node.DrainStrategy.DeadlineTime().Before(now) {
 					s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to node's drain deadline", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					// Alloc's Node has reached its deadline
 					stoplist.add(drainingJob.job, alloc)
+					upPerTG[tgKey]--
 
 					deadlineNodes[node.ID]++
-
-					//FIXME purge from watchlist?
 					continue
 				}
 
@@ -304,16 +344,18 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					continue
 				}
 
-				// If MaxParallel > how many allocs are
-				// already draining for this task
-				// group, drain and track this alloc
-				tgKey := makeTaskGroupKey(alloc)
+				s.logger.Printf("[TRACE] nomad.drain: considering job %s alloc %s  count %d  maxp %d  up %d",
+					drainingJob.job.Name, alloc.ID[:6], tg.Count, tg.Migrate.MaxParallel, upPerTG[tgKey])
 
-				if tg.Migrate.MaxParallel > downPerTG[tgKey] {
+				// Count - MaxParalell = minimum number of allocations that must be "up"
+				minUp := (tg.Count - tg.Migrate.MaxParallel)
+
+				// If minimum is < the current number up it is safe to stop one.
+				if minUp < upPerTG[tgKey] {
 					s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to max parallel", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					// More migrations are allowed, add to stoplist
 					stoplist.add(drainingJob.job, alloc)
-					downPerTG[tgKey]++
+					upPerTG[tgKey]--
 				}
 			}
 		}
@@ -437,17 +479,16 @@ func (n *nodeWatcher) run(ctx context.Context) {
 		newNodes := resp.([]*structs.Node)
 		n.logger.Printf("[TRACE] nomad.drain: %d nodes to consider", len(newNodes)) //FIXME remove
 		for _, newNode := range newNodes {
-			if _, ok := n.nodes[newNode.ID]; ok {
-				// Node was draining
+			if existingNode, ok := n.nodes[newNode.ID]; ok {
+				// Node was draining, see if it has changed
 				if !newNode.Drain {
 					// Node stopped draining
 					delete(n.nodes, newNode.ID)
 					changed = true
-				} else {
+				} else if !newNode.DrainStrategy.DeadlineTime().Equal(existingNode.DrainStrategy.DeadlineTime()) {
 					// Update deadline
 					n.nodes[newNode.ID] = newNode
-					//FIXME set changed if it changed?
-					//changed = true
+					changed = true
 				}
 			} else {
 				// Node was not draining
@@ -569,11 +610,8 @@ func (j *jobWatcher) run(ctx context.Context) {
 			return
 		}
 
-		if newIndex > j.allocsIndex {
-			j.allocsIndex = newIndex
-		} else {
-			j.allocsIndex++
-		}
+		j.logger.Printf("[TRACE] nomad.drain: job watcher old index: %d new index: %d", j.allocsIndex, newIndex)
+		j.allocsIndex = newIndex
 
 		changedJobs := resp.(map[jobKey]struct{})
 		if len(changedJobs) > 0 {
@@ -597,6 +635,8 @@ func (j *jobWatcher) watchAllocs(ws memdb.WatchSet, state *state.StateStore) (in
 		return nil, 0, err
 	}
 
+	skipped := 0
+
 	// job ids
 	resp := map[jobKey]struct{}{}
 
@@ -614,7 +654,7 @@ func (j *jobWatcher) watchAllocs(ws memdb.WatchSet, state *state.StateStore) (in
 
 		if !ok {
 			// alloc is not part of a draining job
-			j.logger.Printf("[TRACE] nomad.drain: job watcher ignoring alloc %s - not part of draining job", alloc.ID[:6])
+			skipped++
 			continue
 		}
 
@@ -626,6 +666,8 @@ func (j *jobWatcher) watchAllocs(ws memdb.WatchSet, state *state.StateStore) (in
 			j.logger.Printf("[TRACE] nomad.drain: job watcher ignoring alloc %s - no deployment status", alloc.ID[:6])
 		}
 	}
+
+	j.logger.Printf("[TRACE] nomad.drain: job watcher ignoring %d allocs - not part of draining job at index %d", skipped, index)
 
 	return resp, index, nil
 }
