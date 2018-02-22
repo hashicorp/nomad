@@ -104,20 +104,26 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 				goto IGNORE
 			}
 
-			if node == nil || node.TerminalStatus() {
-				result.lost = append(result.lost, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
+			if !exist.TerminalStatus() {
+				if node == nil || node.TerminalStatus() {
+					result.lost = append(result.lost, allocTuple{
+						Name:      name,
+						TaskGroup: tg,
+						Alloc:     exist,
+					})
+				} else if exist.DesiredTransistion.ShouldMigrate() {
+					result.migrate = append(result.migrate, allocTuple{
+						Name:      name,
+						TaskGroup: tg,
+						Alloc:     exist,
+					})
+				} else {
+					goto IGNORE
+				}
 			} else {
-				// This is the drain case
-				result.migrate = append(result.migrate, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
+				goto IGNORE
 			}
+
 			continue
 		}
 
@@ -318,10 +324,9 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 			out[alloc.NodeID] = nil
 			continue
 		}
-		//FIXME is this right?
-		//if structs.ShouldDrainNode(node.Status) || node.Drain {
-		//	out[alloc.NodeID] = node
-		//}
+		if structs.ShouldDrainNode(node.Status) || node.Drain {
+			out[alloc.NodeID] = node
+		}
 	}
 	return out, nil
 }

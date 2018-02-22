@@ -214,11 +214,14 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 			untainted[alloc.ID] = alloc
 			continue
 		}
+
 		if !alloc.TerminalStatus() {
 			if n == nil || n.TerminalStatus() {
 				lost[alloc.ID] = alloc
-			} else {
+			} else if alloc.DesiredTransistion.ShouldMigrate() {
 				migrate[alloc.ID] = alloc
+			} else {
+				untainted[alloc.ID] = alloc
 			}
 		} else {
 			untainted[alloc.ID] = alloc
