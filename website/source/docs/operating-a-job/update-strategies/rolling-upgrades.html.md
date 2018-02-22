@@ -92,11 +92,6 @@ this output to confirm it is correct:
 
 ```text
 $ nomad plan geo-api-server.nomad
-```
-
-Here is some sample output:
-
-```text
 +/- Job: "geo-api-server"
 +/- Task Group: "api-server" (2 create/destroy update, 4 ignore)
   +/- Task: "server" (forces create/destroy update)
