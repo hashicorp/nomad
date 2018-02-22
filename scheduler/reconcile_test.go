@@ -922,6 +922,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}
@@ -974,6 +975,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}
@@ -1027,6 +1029,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}
@@ -1898,6 +1901,7 @@ func TestReconciler_PausedOrFailedDeployment_Migrations(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				n := mock.Node()
 				n.ID = allocs[i].NodeID
+				allocs[i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 				n.Drain = true
 				tainted[n.ID] = n
 			}
@@ -1971,6 +1975,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 	tainted := make(map[string]*structs.Node, 1)
 	n := mock.Node()
 	n.ID = allocs[11].NodeID
+	allocs[11].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 	n.Drain = true
 	tainted[n.ID] = n
 
@@ -2710,6 +2715,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 			n.Status = structs.NodeStatusDown
 		} else {
 			n.Drain = true
+			allocs[2+i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
 	}
@@ -2795,6 +2801,7 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 			n.Status = structs.NodeStatusDown
 		} else {
 			n.Drain = true
+			allocs[6+i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
 	}
@@ -3120,6 +3127,7 @@ func TestReconciler_TaintedNode_MultiGroups(t *testing.T) {
 	for i := 0; i < 15; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransistion.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}

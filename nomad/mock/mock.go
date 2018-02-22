@@ -54,8 +54,9 @@ func Node() *structs.Node {
 			"database": "mysql",
 			"version":  "5.6",
 		},
-		NodeClass: "linux-medium-pci",
-		Status:    structs.NodeStatusReady,
+		NodeClass:             "linux-medium-pci",
+		Status:                structs.NodeStatusReady,
+		SchedulingEligibility: structs.NodeSchedulingEligible,
 	}
 	node.ComputeClass()
 	return node
