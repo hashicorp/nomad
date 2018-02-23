@@ -91,7 +91,7 @@ func TestDiffAllocs(t *testing.T) {
 			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
-			DesiredTransistion: structs.DesiredTransistion{
+			DesiredTransition: structs.DesiredTransition{
 				Migrate: helper.BoolToPtr(true),
 			},
 		},
@@ -223,7 +223,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
-			DesiredTransistion: structs.DesiredTransistion{
+			DesiredTransition: structs.DesiredTransition{
 				Migrate: helper.BoolToPtr(true),
 			},
 		},

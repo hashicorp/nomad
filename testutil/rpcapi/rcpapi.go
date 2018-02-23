@@ -72,6 +72,21 @@ func (r *RPC) AllocGetAllocs(ids []string) (*structs.AllocsGetResponse, error) {
 	return &resp, nil
 }
 
+// Eval.List RPC
+func (r *RPC) EvalList() (*structs.EvalListResponse, error) {
+	get := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    r.Region,
+			Namespace: r.Namespace,
+		},
+	}
+	var resp structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Eval.List", get, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // Job.List RPC
 func (r *RPC) JobList() (*structs.JobListResponse, error) {
 	get := &structs.JobListRequest{
