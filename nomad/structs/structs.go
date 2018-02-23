@@ -2643,8 +2643,7 @@ type ReschedulePolicy struct {
 	// DelayCeiling is an upper bound on the delay.
 	DelayCeiling time.Duration
 
-	// Unlimited allows infinite rescheduling attempts. Only allowed when delay is set between reschedule
-	// attempts.
+	// Unlimited allows rescheduling attempts until they succeed
 	Unlimited bool
 }
 

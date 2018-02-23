@@ -639,8 +639,12 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	}
 
 	tg.ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts: *taskGroup.ReschedulePolicy.Attempts,
-		Interval: *taskGroup.ReschedulePolicy.Interval,
+		Attempts:      *taskGroup.ReschedulePolicy.Attempts,
+		Interval:      *taskGroup.ReschedulePolicy.Interval,
+		Delay:         *taskGroup.ReschedulePolicy.Delay,
+		DelayFunction: *taskGroup.ReschedulePolicy.DelayFunction,
+		DelayCeiling:  *taskGroup.ReschedulePolicy.DelayCeiling,
+		Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
 	}
 
 	tg.EphemeralDisk = &structs.EphemeralDisk{
