@@ -3823,7 +3823,7 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpdateAllocDesiredTransistion(t *testing.T) {
+func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -3833,21 +3833,32 @@ func TestStateStore_UpdateAllocDesiredTransistion(t *testing.T) {
 	require.Nil(state.UpsertJob(999, alloc.Job))
 	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
 
-	t1 := &structs.DesiredTransistion{
+	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
 	}
-	t2 := &structs.DesiredTransistion{
+	t2 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(false),
 	}
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      alloc.Namespace,
+		Priority:       alloc.Job.Priority,
+		Type:           alloc.Job.Type,
+		TriggeredBy:    structs.EvalTriggerNodeDrain,
+		JobID:          alloc.Job.ID,
+		JobModifyIndex: alloc.Job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	evals := []*structs.Evaluation{eval}
 
-	m := map[string]*structs.DesiredTransistion{alloc.ID: t1}
-	require.Nil(state.UpdateAllocsDesiredTransistions(1001, m))
+	m := map[string]*structs.DesiredTransition{alloc.ID: t1}
+	require.Nil(state.UpdateAllocsDesiredTransitions(1001, m, evals))
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
 	require.Nil(err)
-	require.NotNil(out.DesiredTransistion.Migrate)
-	require.True(*out.DesiredTransistion.Migrate)
+	require.NotNil(out.DesiredTransition.Migrate)
+	require.True(*out.DesiredTransition.Migrate)
 	require.EqualValues(1000, out.CreateIndex)
 	require.EqualValues(1001, out.ModifyIndex)
 
@@ -3855,14 +3866,14 @@ func TestStateStore_UpdateAllocDesiredTransistion(t *testing.T) {
 	require.Nil(err)
 	require.EqualValues(1001, index)
 
-	m = map[string]*structs.DesiredTransistion{alloc.ID: t2}
-	require.Nil(state.UpdateAllocsDesiredTransistions(1002, m))
+	m = map[string]*structs.DesiredTransition{alloc.ID: t2}
+	require.Nil(state.UpdateAllocsDesiredTransitions(1002, m, evals))
 
 	ws = memdb.NewWatchSet()
 	out, err = state.AllocByID(ws, alloc.ID)
 	require.Nil(err)
-	require.NotNil(out.DesiredTransistion.Migrate)
-	require.False(*out.DesiredTransistion.Migrate)
+	require.NotNil(out.DesiredTransition.Migrate)
+	require.False(*out.DesiredTransition.Migrate)
 	require.EqualValues(1000, out.CreateIndex)
 	require.EqualValues(1002, out.ModifyIndex)
 
@@ -3871,8 +3882,8 @@ func TestStateStore_UpdateAllocDesiredTransistion(t *testing.T) {
 	require.EqualValues(1002, index)
 
 	// Try with a bogus alloc id
-	m = map[string]*structs.DesiredTransistion{uuid.Generate(): t2}
-	require.Nil(state.UpdateAllocsDesiredTransistions(1003, m))
+	m = map[string]*structs.DesiredTransition{uuid.Generate(): t2}
+	require.Nil(state.UpdateAllocsDesiredTransitions(1003, m, evals))
 }
 
 func TestStateStore_JobSummary(t *testing.T) {

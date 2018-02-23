@@ -8,6 +8,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -54,20 +55,17 @@ func makeTaskGroupKey(a *structs.Allocation) string {
 
 // stopAllocs tracks allocs to drain by a unique TG key
 type stopAllocs struct {
-	allocBatch []*structs.Allocation
+	allocBatch map[string]*structs.DesiredTransition
 
 	// namespace+jobid -> Job
 	jobBatch map[jobKey]*structs.Job
 }
 
-//FIXME this method does an awful lot
 func (s *stopAllocs) add(j *structs.Job, a *structs.Allocation) {
-	// Update the allocation
-	a.ModifyTime = time.Now().UnixNano()
-	a.DesiredStatus = structs.AllocDesiredStatusStop
-
-	// Add alloc to the allocation batch
-	s.allocBatch = append(s.allocBatch, a)
+	// Add the desired migration transition to the batch
+	s.allocBatch[a.ID] = &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(true),
+	}
 
 	// Add job to the job batch
 	s.jobBatch[jobKey{a.Namespace, a.JobID}] = j
@@ -282,10 +280,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 		}
 
-		// stoplist are the allocations to stop and their jobs to emit
+		// stoplist are the allocations to migrate and their jobs to emit
 		// evaluations for
 		stoplist := &stopAllocs{
-			allocBatch: make([]*structs.Allocation, 0, len(drainable)),
+			allocBatch: make(map[string]*structs.DesiredTransition),
 			jobBatch:   make(map[jobKey]*structs.Job),
 		}
 
@@ -369,23 +367,6 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		if len(stoplist.allocBatch) > 0 {
 			s.logger.Printf("[DEBUG] nomad.drain: stopping %d alloc(s) for %d job(s)", len(stoplist.allocBatch), len(stoplist.jobBatch))
 
-			// Stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
-			batch := &structs.AllocUpdateRequest{
-				Alloc:        stoplist.allocBatch,
-				WriteRequest: structs.WriteRequest{Region: s.config.Region},
-			}
-
-			// Commit this update via Raft
-			//TODO Not the right request
-			_, index, err := s.raftApply(structs.AllocClientUpdateRequestType, batch)
-			if err != nil {
-				//FIXME
-				panic(err)
-			}
-
-			//TODO i bet there's something useful to do with this index
-			_ = index
-
 			// Reevaluate affected jobs
 			evals := make([]*structs.Evaluation, 0, len(stoplist.jobBatch))
 			for _, job := range stoplist.jobBatch {
@@ -401,17 +382,23 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				})
 			}
 
-			evalUpdate := &structs.EvalUpdateRequest{
+			// Send raft request
+			batch := &structs.AllocUpdateDesiredTransitionRequest{
+				Allocs:       stoplist.allocBatch,
 				Evals:        evals,
 				WriteRequest: structs.WriteRequest{Region: s.config.Region},
 			}
 
-			// Commit this evaluation via Raft
-			_, _, err = s.raftApply(structs.EvalUpdateRequestType, evalUpdate)
+			// Commit this update via Raft
+			//TODO Not the right request
+			_, index, err := s.raftApply(structs.AllocUpdateDesiredTransitionRequestType, batch)
 			if err != nil {
 				//FIXME
 				panic(err)
 			}
+
+			//TODO i bet there's something useful to do with this index
+			_ = index
 		}
 
 		// Unset drain for nodes done draining

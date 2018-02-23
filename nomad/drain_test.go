@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/testutil/rpcapi"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -190,7 +191,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 	jobs, err := rpc.JobList()
 	require.Nil(err)
-	t.Logf("%d jobs", len(jobs.Jobs))
+	t.Logf("--> %d jobs", len(jobs.Jobs))
 	for _, job := range jobs.Jobs {
 		t.Logf("job: %s status: %s %s", job.Name, job.Status, job.StatusDescription)
 	}
@@ -211,8 +212,9 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		panic("unreachable")
 	})
 
-	t.Logf("%d allocs", len(allocs))
+	t.Logf("--> %d allocs", len(allocs))
 	for _, alloc := range allocs {
-		t.Logf("job: %s node: %s alloc: %s desired: %s actual: %s replaces: %s", alloc.Job.Name, alloc.NodeID[:6], alloc.ID, alloc.DesiredStatus, alloc.ClientStatus, alloc.PreviousAllocation)
+		t.Logf("job: %s  node: %s  alloc: %s  desired_status: %s  desired_transition: %s  actual: %s  replaces: %s",
+			alloc.Job.Name, alloc.NodeID[:6], alloc.ID[:6], alloc.DesiredStatus, pretty.Sprint(alloc.DesiredTransition.Migrate), alloc.ClientStatus, alloc.PreviousAllocation)
 	}
 }
