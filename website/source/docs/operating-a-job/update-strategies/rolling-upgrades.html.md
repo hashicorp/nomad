@@ -5,7 +5,7 @@ sidebar_current: "docs-operating-a-job-updating-rolling-upgrades"
 description: |-
   In order to update a service while reducing downtime, Nomad provides a
   built-in mechanism for rolling upgrades. Rolling upgrades incrementally
-  transistions jobs between versions and using health check information to
+  transitions jobs between versions and using health check information to
   reduce downtime.
 ---
 

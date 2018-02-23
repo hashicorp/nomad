@@ -855,7 +855,7 @@ func (s *Server) setupConsulSyncer() error {
 }
 
 // setupDeploymentWatcher creates a deployment watcher that consumes the RPC
-// endpoints for state information and makes transistions via Raft through a
+// endpoints for state information and makes transitions via Raft through a
 // shim that provides the appropriate methods.
 func (s *Server) setupDeploymentWatcher() error {
 
