@@ -270,6 +270,9 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
 		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingEligible)
 	}
+	if out.DrainStrategy != nil {
+		t.Fatalf("drain strategy should be unset")
+	}
 }
 
 func TestNodes_Allocations(t *testing.T) {
