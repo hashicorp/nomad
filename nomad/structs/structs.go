@@ -74,7 +74,7 @@ const (
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
-	AllocUpdateDesiredTransistionRequestType
+	AllocUpdateDesiredTransitionRequestType
 )
 
 const (
@@ -546,12 +546,15 @@ type AllocUpdateRequest struct {
 	WriteRequest
 }
 
-// AllocUpdateDesiredTransistionRequest is used to submit changes to allocations
-// desired transistion state.
-type AllocUpdateDesiredTransistionRequest struct {
+// AllocUpdateDesiredTransitionRequest is used to submit changes to allocations
+// desired transition state.
+type AllocUpdateDesiredTransitionRequest struct {
 	// Allocs is the mapping of allocation ids to their desired state
-	// transistion
-	Allocs map[string]*DesiredTransistion
+	// transition
+	Allocs map[string]*DesiredTransition
+
+	// Evals is the set of evaluations to create
+	Evals []*Evaluation
 
 	WriteRequest
 }
@@ -2279,7 +2282,7 @@ type UpdateStrategy struct {
 	MinHealthyTime time.Duration
 
 	// HealthyDeadline is the time in which an allocation must be marked as
-	// healthy before it is automatically transistioned to unhealthy. This time
+	// healthy before it is automatically transitioned to unhealthy. This time
 	// period doesn't count against the MinHealthyTime.
 	HealthyDeadline time.Duration
 
@@ -4025,7 +4028,7 @@ type TaskState struct {
 	// task starts
 	StartedAt time.Time
 
-	// FinishedAt is the time at which the task transistioned to dead and will
+	// FinishedAt is the time at which the task transitioned to dead and will
 	// not be started again.
 	FinishedAt time.Time
 
@@ -5118,10 +5121,10 @@ func (re *RescheduleEvent) Copy() *RescheduleEvent {
 	return copy
 }
 
-// DesiredTransistion is used to mark an allocation as having a desired state
-// transistion. This information can be used by the scheduler to make the
+// DesiredTransition is used to mark an allocation as having a desired state
+// transition. This information can be used by the scheduler to make the
 // correct decision.
-type DesiredTransistion struct {
+type DesiredTransition struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
 	Migrate *bool
@@ -5129,14 +5132,14 @@ type DesiredTransistion struct {
 
 // Merge merges the two desired transitions, preferring the values from the
 // passed in object.
-func (d *DesiredTransistion) Merge(o *DesiredTransistion) {
+func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Migrate != nil {
 		d.Migrate = o.Migrate
 	}
 }
 
-// ShouldMigrate returns whether the transistion object dictates a migration.
-func (d *DesiredTransistion) ShouldMigrate() bool {
+// ShouldMigrate returns whether the transition object dictates a migration.
+func (d *DesiredTransition) ShouldMigrate() bool {
 	return d.Migrate != nil && *d.Migrate
 }
 
@@ -5201,9 +5204,9 @@ type Allocation struct {
 	// DesiredStatusDescription is meant to provide more human useful information
 	DesiredDescription string
 
-	// DesiredTransistion is used to indicate that a state transistion
+	// DesiredTransition is used to indicate that a state transition
 	// is desired for a given reason.
-	DesiredTransistion DesiredTransistion
+	DesiredTransition DesiredTransition
 
 	// Status of the allocation on the client
 	ClientStatus string

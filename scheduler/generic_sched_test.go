@@ -2245,7 +2245,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	// Mark appropriate allocs for migration
 	for i := 0; i < 7; i++ {
 		out := allocs[i]
-		out.DesiredTransistion.Migrate = helper.BoolToPtr(true)
+		out.DesiredTransition.Migrate = helper.BoolToPtr(true)
 	}
 
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -2367,7 +2367,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
+		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -2453,7 +2453,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		newAlloc := allocs[i].Copy()
 		newAlloc.ClientStatus = structs.AllocDesiredStatusStop
-		newAlloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
+		newAlloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		stop = append(stop, newAlloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), stop))
@@ -2556,7 +2556,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
+		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -3697,7 +3697,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Job.TaskGroups[0].Count = 1
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
-	alloc.DesiredTransistion.Migrate = helper.BoolToPtr(true)
+	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 	noErr(t, h.State.UpsertJob(h.NextIndex(), alloc.Job))
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 

@@ -484,7 +484,7 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	}
 }
 
-func TestAllocEndpoint_UpdateDesiredTransistion(t *testing.T) {
+func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -501,15 +501,37 @@ func TestAllocEndpoint_UpdateDesiredTransistion(t *testing.T) {
 	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
 	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
 
-	t1 := &structs.DesiredTransistion{
+	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
 	}
 
 	// Update the allocs desired status
-	get := &structs.AllocUpdateDesiredTransistionRequest{
-		Allocs: map[string]*structs.DesiredTransistion{
+	get := &structs.AllocUpdateDesiredTransitionRequest{
+		Allocs: map[string]*structs.DesiredTransition{
 			alloc.ID:  t1,
 			alloc2.ID: t1,
+		},
+		Evals: []*structs.Evaluation{
+			{
+				ID:             uuid.Generate(),
+				Namespace:      alloc.Namespace,
+				Priority:       alloc.Job.Priority,
+				Type:           alloc.Job.Type,
+				TriggeredBy:    structs.EvalTriggerNodeDrain,
+				JobID:          alloc.Job.ID,
+				JobModifyIndex: alloc.Job.ModifyIndex,
+				Status:         structs.EvalStatusPending,
+			},
+			{
+				ID:             uuid.Generate(),
+				Namespace:      alloc2.Namespace,
+				Priority:       alloc2.Job.Priority,
+				Type:           alloc2.Job.Type,
+				TriggeredBy:    structs.EvalTriggerNodeDrain,
+				JobID:          alloc2.Job.ID,
+				JobModifyIndex: alloc2.Job.ModifyIndex,
+				Status:         structs.EvalStatusPending,
+			},
 		},
 		WriteRequest: structs.WriteRequest{
 			Region: "global",
@@ -518,14 +540,14 @@ func TestAllocEndpoint_UpdateDesiredTransistion(t *testing.T) {
 
 	// Try without permissions
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransistion", get, &resp)
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp)
 	require.NotNil(err)
 	require.True(structs.IsErrPermissionDenied(err))
 
 	// Try with permissions
 	get.WriteRequest.AuthToken = s1.getLeaderAcl()
 	var resp2 structs.GenericResponse
-	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransistion", get, &resp2))
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp2))
 	require.NotZero(resp2.Index)
 
 	// Look up the allocations
@@ -533,9 +555,15 @@ func TestAllocEndpoint_UpdateDesiredTransistion(t *testing.T) {
 	require.Nil(err)
 	out2, err := state.AllocByID(nil, alloc.ID)
 	require.Nil(err)
+	e1, err := state.EvalByID(nil, get.Evals[0].ID)
+	require.Nil(err)
+	e2, err := state.EvalByID(nil, get.Evals[1].ID)
+	require.Nil(err)
 
-	require.NotNil(out1.DesiredTransistion.Migrate)
-	require.NotNil(out2.DesiredTransistion.Migrate)
-	require.True(*out1.DesiredTransistion.Migrate)
-	require.True(*out2.DesiredTransistion.Migrate)
+	require.NotNil(out1.DesiredTransition.Migrate)
+	require.NotNil(out2.DesiredTransition.Migrate)
+	require.NotNil(e1)
+	require.NotNil(e2)
+	require.True(*out1.DesiredTransition.Migrate)
+	require.True(*out2.DesiredTransition.Migrate)
 }
