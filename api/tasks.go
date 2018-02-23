@@ -86,6 +86,20 @@ type ReschedulePolicy struct {
 
 	// Interval is a duration in which we can limit the number of reschedule attempts.
 	Interval *time.Duration `mapstructure:"interval"`
+
+	// Delay is a minimum duration to wait between reschedule attempts.
+	// The delay function determines how much subsequent reschedule attempts are delayed by.
+	Delay *time.Duration `mapstructure:"delay"`
+
+	// DelayFunction determines how the delay progressively changes on subsequent reschedule
+	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	DelayFunction *string `mapstructure:"delay_function"`
+
+	// DelayCeiling is an upper bound on the delay.
+	DelayCeiling *time.Duration `mapstructure:"delay_ceiling"`
+
+	// Unlimited allows rescheduling attempts until they succeed
+	Unlimited *bool `mapstructure:"unlimited"`
 }
 
 func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
@@ -94,6 +108,18 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 	}
 	if rp.Attempts != nil {
 		r.Attempts = rp.Attempts
+	}
+	if rp.Delay != nil {
+		r.Delay = rp.Delay
+	}
+	if rp.DelayFunction != nil {
+		r.DelayFunction = rp.DelayFunction
+	}
+	if rp.DelayCeiling != nil {
+		r.DelayCeiling = rp.DelayCeiling
+	}
+	if rp.Unlimited != nil {
+		r.Unlimited = rp.Unlimited
 	}
 }
 
@@ -316,13 +342,21 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	switch *job.Type {
 	case "service":
 		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts: helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
-			Interval: helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+			Attempts:      helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
+			DelayCeiling:  helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.DelayCeiling),
+			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
 		}
 	case "batch":
 		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-			Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+			DelayCeiling:  helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.DelayCeiling),
+			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 		}
 	default:
 		defaultReschedulePolicy = &ReschedulePolicy{
