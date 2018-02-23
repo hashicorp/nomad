@@ -1936,7 +1936,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.ModifyIndex = tc.ModifyIndex
 		alloc.DesiredStatus = tc.DesiredStatus
 		alloc.ClientStatus = tc.ClientStatus
-		alloc.RescheduleTracker = &structs.RescheduleTracker{tc.RescheduleTrackers}
+		alloc.RescheduleTracker = &structs.RescheduleTracker{Events: tc.RescheduleTrackers}
 		alloc.NextAllocation = tc.NextAllocID
 		job := mock.Job()
 		alloc.TaskGroup = job.TaskGroups[0].Name
