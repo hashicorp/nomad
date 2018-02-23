@@ -85,6 +85,49 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix or id") {
 		t.Fatalf("expected not exist error, got: %s", out)
 	}
+	ui.ErrorWriter.Reset()
+
+	// Fail on disable being used with drain strategy flags
+	for _, flag := range []string{"-force", "-no-deadline", "-ignore-system"} {
+		if code := cmd.Run([]string{"-address=" + url, "-disable", flag, "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
+			t.Fatalf("expected exit 1, got: %d", code)
+		}
+		if out := ui.ErrorWriter.String(); !strings.Contains(out, "combined with flags configuring drain strategy") {
+			t.Fatalf("got: %s", out)
+		}
+		ui.ErrorWriter.Reset()
+	}
+
+	// Fail on setting a deadline plus deadline modifying flags
+	for _, flag := range []string{"-force", "-no-deadline"} {
+		if code := cmd.Run([]string{"-address=" + url, "-enable", "-deadline=10s", flag, "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
+			t.Fatalf("expected exit 1, got: %d", code)
+		}
+		if out := ui.ErrorWriter.String(); !strings.Contains(out, "deadline can't be combined with") {
+			t.Fatalf("got: %s", out)
+		}
+		ui.ErrorWriter.Reset()
+	}
+
+	// Fail on setting a force and no deadline
+	if code := cmd.Run([]string{"-address=" + url, "-enable", "-force", "-no-deadline", "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "mutually exclusive") {
+		t.Fatalf("got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Fail on setting a bad deadline
+	for _, flag := range []string{"-deadline=0s", "-deadline=-1s"} {
+		if code := cmd.Run([]string{"-address=" + url, "-enable", flag, "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
+			t.Fatalf("expected exit 1, got: %d", code)
+		}
+		if out := ui.ErrorWriter.String(); !strings.Contains(out, "positive") {
+			t.Fatalf("got: %s", out)
+		}
+		ui.ErrorWriter.Reset()
+	}
 }
 
 func TestNodeDrainCommand_AutocompleteArgs(t *testing.T) {
