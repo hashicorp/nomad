@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -19,15 +18,13 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
 	conf := config.DefaultConfig()
+
 	getConfig := func() *config.Config {
 		return conf
 	}
@@ -36,7 +33,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 		getConfig,
 		node,
 		make(chan struct{}),
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -50,14 +47,14 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	node := &structs.Node{Resources: &structs.Resources{}}
-
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		if r.Resources != nil {
-			node.Resources.Merge(r.Resources)
-		}
-		return node
+	node := &structs.Node{
+		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	getConfig := func() *config.Config {
 		return conf
@@ -67,7 +64,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 		getConfig,
 		node,
 		make(chan struct{}),
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -84,7 +81,11 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
 
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{"driver.raw_exec.enable": "true"}
@@ -92,18 +93,11 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 		return conf
 	}
 
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
-
 	fm := NewFingerprintManager(
 		getConfig,
 		node,
 		make(chan struct{}),
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -119,13 +113,12 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
 		"test.shutdown_periodic_after":    "true",
@@ -144,7 +137,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -180,13 +173,12 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{"fingerprint.whitelist": "  arch,cpu,memory,network,storage,foo,bar	"}
 	getConfig := func() *config.Config {
@@ -202,7 +194,7 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -217,13 +209,12 @@ func TestFimgerprintManager_Run_InBlacklist(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{"fingerprint.whitelist": "  arch,memory,foo,bar	"}
 	conf.Options = map[string]string{"fingerprint.blacklist": "  cpu	"}
@@ -240,7 +231,7 @@ func TestFimgerprintManager_Run_InBlacklist(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -256,13 +247,12 @@ func TestFimgerprintManager_Run_Combination(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{"fingerprint.whitelist": "  arch,cpu,memory,foo,bar	"}
 	conf.Options = map[string]string{"fingerprint.blacklist": "  memory,nomad	"}
@@ -279,7 +269,7 @@ func TestFimgerprintManager_Run_Combination(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -297,13 +287,12 @@ func TestFimgerprintManager_Run_WhitelistDrivers(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
 		"driver.raw_exec.enable": "1",
@@ -322,7 +311,7 @@ func TestFimgerprintManager_Run_WhitelistDrivers(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -337,13 +326,12 @@ func TestFimgerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
 		"driver.whitelist": "   foo,bar,baz	",
@@ -361,7 +349,7 @@ func TestFimgerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -378,13 +366,12 @@ func TestFimgerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
 		"driver.raw_exec.enable": "1",
@@ -404,7 +391,7 @@ func TestFimgerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 
@@ -423,12 +410,8 @@ func TestFimgerprintManager_Run_DriversInBlacklist(t *testing.T) {
 
 	node := &structs.Node{
 		Attributes: make(map[string]string, 0),
-	}
-	updateNode := func(r *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range r.Attributes {
-			node.Attributes[k] = v
-		}
-		return node
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
 	}
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
@@ -436,9 +419,9 @@ func TestFimgerprintManager_Run_DriversInBlacklist(t *testing.T) {
 		"driver.whitelist": "   raw_exec,foo,bar,baz	",
 		"driver.blacklist": "   exec,foo,bar,baz	",
 	}
-	getConfig := func() *config.Config {
-		return conf
-	}
+	conf.Node = node
+
+	testClient := &Client{config: conf}
 
 	shutdownCh := make(chan struct{})
 	defer (func() {
@@ -446,10 +429,10 @@ func TestFimgerprintManager_Run_DriversInBlacklist(t *testing.T) {
 	})()
 
 	fm := NewFingerprintManager(
-		getConfig,
+		testClient.GetConfig,
 		node,
 		shutdownCh,
-		updateNode,
+		testClient.updateNodeFromFingerprint,
 		testLogger(),
 	)
 

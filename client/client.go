@@ -964,8 +964,8 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	var nodeHasChanged bool
 
 	for name, newVal := range response.Attributes {
-		old_val := c.config.Node.Attributes[name]
-		if old_val == newVal {
+		oldVal := c.config.Node.Attributes[name]
+		if oldVal == newVal {
 			continue
 		}
 
@@ -980,8 +980,8 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	// update node links and resources from the diff created from
 	// fingerprinting
 	for name, newVal := range response.Links {
-		old_val := c.config.Node.Links[name]
-		if old_val == newVal {
+		oldVal := c.config.Node.Links[name]
+		if oldVal == newVal {
 			continue
 		}
 
@@ -1020,8 +1020,14 @@ func resourcesAreEqual(first, second *structs.Resources) bool {
 	if first.IOPS != second.IOPS {
 		return false
 	}
-	if len(first.Networks) != len(second.Networks) {
-		return false
+	for i, e := range first.Networks {
+		if len(second.Networks) < i {
+			return false
+		}
+		f := second.Networks[i]
+		if e != f {
+			return false
+		}
 	}
 	return true
 }
@@ -1542,8 +1548,9 @@ func (c *Client) watchNodeUpdates() {
 				c.configLock.Unlock()
 
 				c.retryRegisterNode()
+
+				hasChanged = false
 			}
-			hasChanged = false
 		case <-c.triggerNodeUpdate:
 			hasChanged = true
 		case <-c.shutdownCh:
