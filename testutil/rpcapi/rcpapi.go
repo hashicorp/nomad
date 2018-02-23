@@ -127,3 +127,16 @@ func (r *RPC) NodeGetAllocs(nodeID string) (*structs.NodeAllocsResponse, error) 
 	}
 	return &resp, nil
 }
+
+// Node.GetNode RPC
+func (r *RPC) NodeGet(nodeID string) (*structs.SingleNodeResponse, error) {
+	get := &structs.NodeSpecificRequest{
+		NodeID:       nodeID,
+		QueryOptions: structs.QueryOptions{Region: r.Region},
+	}
+	var resp structs.SingleNodeResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Node.GetNode", get, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}

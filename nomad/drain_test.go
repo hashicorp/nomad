@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/testutil/rpcapi"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -188,6 +189,13 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		server.logger.Println("----------------------------------------------------------------------quitting--------------------------------------------------------")
 		t.Errorf("failed waiting for all allocs to migrate: %v", err)
 	})
+
+	node1, err := rpc.NodeGet(c1.NodeID())
+	assert := assert.New(t)
+	require.Nil(err)
+	assert.False(node1.Node.Drain)
+	assert.Nil(node1.Node.DrainStrategy)
+	assert.Equal(structs.NodeSchedulingIneligible, node1.Node.SchedulingEligibility)
 
 	jobs, err := rpc.JobList()
 	require.Nil(err)

@@ -644,8 +644,9 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 		}
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	} else {
+		// When stopping a drain unset the strategy but leave the node
+		// ineligible for scheduling
 		copyNode.DrainStrategy = nil
-		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
 	}
 	copyNode.ModifyIndex = index
 
