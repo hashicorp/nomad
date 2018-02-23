@@ -75,7 +75,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	require.Nil(err)
 	require.NotEqual(0, node.Resources.CPU)
 	require.NotEqual(0, node.Resources.MemoryMB)
-	require.NotEqual(0, node.Resources.DiskMB)
+	require.NotZero(node.Resources.DiskMB)
 }
 
 func TestFingerprintManager_Fingerprint_Run(t *testing.T) {

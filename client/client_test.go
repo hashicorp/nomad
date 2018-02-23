@@ -129,7 +129,7 @@ func TestClient_TriggerNodeUpdate(t *testing.T) {
 	driver.CheckForMockDriver(t)
 	t.Parallel()
 
-	// these constants are only defined when nomad_test is enabled, so these fail
+	// These constants are only defined when nomad_test is enabled, so these fail
 	// our linter without explicit disabling.
 	c1 := testClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -144,10 +144,10 @@ func TestClient_TriggerNodeUpdate(t *testing.T) {
 	go c1.watchNodeUpdates()
 	c1.updateNode()
 	// This needs to be directly called as otherwise the client hangs on
-	// attempt to register with a server. S[ecifically, retryRegisterNode is
+	// attempt to register with a server. Specifically, retryRegisterNode is
 	// blocking
 
-	// test that the client's copy of the node is also updated
+	// Test that the client's copy of the node is also updated
 	testutil.WaitForResult(func() (bool, error) {
 		mockDriverStatusCopy := c1.configCopy.Node.Attributes[mockDriverName]
 		if mockDriverStatusCopy == "" {
@@ -158,7 +158,7 @@ func TestClient_TriggerNodeUpdate(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// test that the client's copy of the node is also updated
+	// Test that the client's copy of the node is also updated
 	testutil.WaitForResult(func() (bool, error) {
 		mockDriverStatusCopy := c1.configCopy.Node.Attributes[mockDriverName]
 		if mockDriverStatusCopy != "" {
@@ -178,8 +178,8 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	// our linter without explicit disabling.
 	c1 := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			driver.ShutdownPeriodicAfter:    "true", // nolint: varcheck
-			driver.ShutdownPeriodicDuration: "3",    // nolint: varcheck
+			driver.ShutdownPeriodicAfter:    "true",
+			driver.ShutdownPeriodicDuration: "3",
 		}
 	})
 	defer c1.Shutdown()

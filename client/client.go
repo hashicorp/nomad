@@ -963,33 +963,33 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 
 	var nodeHasChanged bool
 
-	for name, new_val := range response.Attributes {
+	for name, newVal := range response.Attributes {
 		old_val := c.config.Node.Attributes[name]
-		if old_val == new_val {
+		if old_val == newVal {
 			continue
 		}
 
 		nodeHasChanged = true
-		if new_val == "" {
+		if newVal == "" {
 			delete(c.config.Node.Attributes, name)
 		} else {
-			c.config.Node.Attributes[name] = new_val
+			c.config.Node.Attributes[name] = newVal
 		}
 	}
 
 	// update node links and resources from the diff created from
 	// fingerprinting
-	for name, new_val := range response.Links {
+	for name, newVal := range response.Links {
 		old_val := c.config.Node.Links[name]
-		if old_val == new_val {
+		if old_val == newVal {
 			continue
 		}
 
 		nodeHasChanged = true
-		if new_val == "" {
+		if newVal == "" {
 			delete(c.config.Node.Links, name)
 		} else {
-			c.config.Node.Links[name] = new_val
+			c.config.Node.Links[name] = newVal
 		}
 	}
 
@@ -1528,8 +1528,6 @@ func (c *Client) updateNode() {
 // watchNodeUpdates blocks until it is edge triggered. Once triggered,
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
-	c.logger.Printf("[DEBUG] client: starting process to watch for node updates.")
-
 	var hasChanged bool
 	for {
 		select {
