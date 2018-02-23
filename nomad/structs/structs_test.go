@@ -2497,7 +2497,8 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Delay:         15 * time.Second,
 				DelayCeiling:  5 * time.Second},
 			errors: []error{
-				fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", 15*time.Second, 5*time.Second),
+				fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)",
+					15*time.Second, 5*time.Second),
 			},
 		},
 		{
@@ -2520,8 +2521,10 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				DelayFunction: "linear",
 			},
 			errors: []error{
-				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and delay function %q", 3, time.Hour, 20*time.Minute, "linear"),
-				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", 200*time.Minute, 10),
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and"+
+					" delay function %q", 3, time.Hour, 20*time.Minute, "linear"),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
+					200*time.Minute, 10),
 			},
 		},
 		{
@@ -2537,8 +2540,10 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 			errors: []error{
 				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
-					"delay function %q, and delay ceiling %v", 3, 30*time.Minute, 5*time.Minute, "exponential", 40*time.Minute),
-				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", 280*time.Minute, 10),
+					"delay function %q, and delay ceiling %v", 3, 30*time.Minute, 5*time.Minute,
+					"exponential", 40*time.Minute),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
+					280*time.Minute, 10),
 			},
 		},
 		{
@@ -2554,8 +2559,10 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 			errors: []error{
 				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
-					"delay function %q, and delay ceiling %v", 4, 1*time.Hour, 20*time.Minute, "fibonacci", 80*time.Minute),
-				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", 480*time.Minute, 10),
+					"delay function %q, and delay ceiling %v", 4, 1*time.Hour, 20*time.Minute,
+					"fibonacci", 80*time.Minute),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
+					480*time.Minute, 10),
 			},
 		},
 		{
