@@ -37,6 +37,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		case "quota list", "quota delete", "quota apply", "quota status", "quota inspect", "quota init":
 		case "operator raft", "operator raft list-peers", "operator raft remove-peer":
 		case "acl policy", "acl policy apply", "acl token", "acl token create":
+		case "node-drain", "node-status":
 		default:
 			commandsInclude = append(commandsInclude, k)
 		}

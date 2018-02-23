@@ -1191,12 +1191,8 @@ const (
 	NodeSchedulingIneligible = "ineligible"
 )
 
-// DrainStrategy describes a Node's drain behavior.
-type DrainStrategy struct {
-	// StartTime as nanoseconds since Unix epoch indicating when a drain
-	// began for deadline calcuations.
-	StartTime int64
-
+// DrainSpec describes a Node's desired drain behavior.
+type DrainSpec struct {
 	// Deadline is the duration after StartTime when the remaining
 	// allocations on a draining Node should be told to stop.
 	Deadline time.Duration
@@ -1204,6 +1200,16 @@ type DrainStrategy struct {
 	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
 	// has been marked for draining.
 	IgnoreSystemJobs bool
+}
+
+// DrainStrategy describes a Node's drain behavior.
+type DrainStrategy struct {
+	// DrainSpec is the user declared drain specification
+	DrainSpec
+
+	// StartTime as nanoseconds since Unix epoch indicating when a drain
+	// began for deadline calcuations.
+	StartTime int64
 }
 
 func (d *DrainStrategy) Copy() *DrainStrategy {

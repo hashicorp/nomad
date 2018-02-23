@@ -37,7 +37,7 @@ type NodeStatusCommand struct {
 
 func (c *NodeStatusCommand) Help() string {
 	helpText := `
-Usage: nomad node-status [options] <node>
+Usage: nomad node status [options] <node>
 
   Display status information about a given node. The list of nodes
   returned includes only nodes which jobs may be scheduled to, and
