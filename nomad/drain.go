@@ -202,6 +202,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 			// track number of allocs left on this node to be drained
 			allocsLeft := false
+			deadlineReached := node.DrainStrategy.DeadlineTime().Before(now)
 			for _, alloc := range allocs {
 				jobkey := jobKey{alloc.Namespace, alloc.JobID}
 
@@ -222,13 +223,6 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					panic(err)
 				}
 
-				// Don't bother collecting system jobs
-				if job.Type == structs.JobTypeSystem {
-					skipJob[jobkey] = struct{}{}
-					s.logger.Printf("[TRACE] nomad.drain: skipping system job %s", job.Name)
-					continue
-				}
-
 				// If alloc isn't yet terminal this node has
 				// allocs left to be drained
 				if !alloc.TerminalStatus() {
@@ -238,9 +232,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					}
 				}
 
-				// Don't bother collecting batch jobs for nodes that haven't hit their deadline
-				if job.Type == structs.JobTypeBatch && node.DrainStrategy.DeadlineTime().After(now) {
-					s.logger.Printf("[TRACE] nomad.drain: not draining batch job %s because deadline isn't for %s", job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
+				// Don't bother collecting system/batch jobs for nodes that haven't hit their deadline
+				if job.Type != structs.JobTypeService && !deadlineReached {
+					s.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
+						job.Type, job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
 					skipJob[jobkey] = struct{}{}
 					continue
 				}
@@ -271,11 +266,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				jobWatcher.watch(jobkey, nodeID)
 			}
 
-			// if node has no allocs, it's done draining!
-			if !allocsLeft {
-				s.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain", nodeID)
+			// if node has no allocs or has hit its deadline, it's done draining!
+			if !allocsLeft || deadlineReached {
+				s.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain or has reached deadline", nodeID)
 				jobWatcher.nodeDone(nodeID)
-				delete(nodes, nodeID)
 				doneNodes[nodeID] = node
 			}
 		}
@@ -286,10 +280,6 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			allocBatch: make(map[string]*structs.DesiredTransition),
 			jobBatch:   make(map[jobKey]*structs.Job),
 		}
-
-		// deadlineNodes is a map of node IDs that have reached their
-		// deadline and allocs that will be stopped due to deadline
-		deadlineNodes := map[string]int{}
 
 		// build drain list considering deadline & max_parallel
 		for _, drainingJob := range drainable {
@@ -313,14 +303,13 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					stoplist.add(drainingJob.job, alloc)
 					upPerTG[tgKey]--
 
-					deadlineNodes[node.ID]++
 					continue
 				}
 
-				// Batch jobs are only stopped when the node
-				// deadline is reached which has already been
-				// done.
-				if drainingJob.job.Type == structs.JobTypeBatch {
+				// Batch/System jobs are only stopped when the
+				// node deadline is reached which has already
+				// been done.
+				if drainingJob.job.Type != structs.JobTypeService {
 					continue
 				}
 
@@ -356,12 +345,6 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					upPerTG[tgKey]--
 				}
 			}
-		}
-
-		// log drains due to node deadlines
-		for nodeID, remaining := range deadlineNodes {
-			s.logger.Printf("[DEBUG] nomad.drain: node %s drain deadline reached; stopping %d remaining allocs", nodeID, remaining)
-			jobWatcher.nodeDone(nodeID)
 		}
 
 		if len(stoplist.allocBatch) > 0 {
@@ -416,6 +399,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				panic(err)
 			}
 			s.logger.Printf("[INFO] nomad.drain: node %s (%s) completed draining", nodeID, node.Name)
+			delete(nodes, nodeID)
 		}
 	}
 }
@@ -516,8 +500,7 @@ func (n *nodeWatcher) queryNodeDrain(ws memdb.WatchSet, state *state.StateStore)
 		return nil, 0, err
 	}
 
-	//FIXME initial cap?
-	resp := make([]*structs.Node, 0, 1)
+	resp := make([]*structs.Node, 0, 8)
 
 	for {
 		raw := iter.Next()
