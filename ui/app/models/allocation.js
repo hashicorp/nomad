@@ -7,7 +7,6 @@ import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import PromiseObject from '../utils/classes/promise-object';
-import timeout from '../utils/timeout';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
 const STATUS_ORDER = {
@@ -92,14 +91,11 @@ export default Model.extend({
       });
     }
 
-    const url = `//${this.get('node.httpAddr')}/v1/client/allocation/${this.get('id')}/stats`;
+    const url = `/v1/client/allocation/${this.get('id')}/stats`;
     return PromiseObject.create({
-      promise: RSVP.Promise.race([
-        this.get('token')
-          .authorizedRequest(url)
-          .then(res => res.json()),
-        timeout(2000),
-      ]),
+      promise: this.get('token')
+        .authorizedRequest(url)
+        .then(res => res.json()),
     });
   }),
 

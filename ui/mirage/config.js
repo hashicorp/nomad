@@ -178,36 +178,41 @@ export default function() {
     return new Response(403, {}, null);
   });
 
+  const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
+    return this.serialize(clientAllocationStats.find(params.id));
+  };
+
+  const clientAllocationLog = function(server, { params, queryParams }) {
+    const allocation = server.allocations.find(params.allocation_id);
+    const tasks = allocation.taskStateIds.map(id => server.taskStates.find(id));
+
+    if (!tasks.mapBy('name').includes(queryParams.task)) {
+      return new Response(400, {}, 'must include task name');
+    }
+
+    if (queryParams.plain) {
+      return logFrames.join('');
+    }
+
+    return logEncode(logFrames, logFrames.length - 1);
+  };
+
+  // Client requests are available on the server and the client
+  this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
+  this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
+
+  this.get('/client/v1/client/stats', function({ clientStats }, { queryParams }) {
+    return this.serialize(clientStats.find(queryParams.node_id));
+  });
+
   // TODO: in the future, this hack may be replaceable with dynamic host name
   // support in pretender: https://github.com/pretenderjs/pretender/issues/210
   HOSTS.forEach(host => {
-    this.get(`http://${host}/v1/client/allocation/:id/stats`, function(
-      { clientAllocationStats },
-      { params }
-    ) {
-      return this.serialize(clientAllocationStats.find(params.id));
-    });
+    this.get(`http://${host}/v1/client/allocation/:id/stats`, clientAllocationStatsHandler);
+    this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, clientAllocationLog);
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
-    });
-
-    this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, function(
-      server,
-      { params, queryParams }
-    ) {
-      const allocation = server.allocations.find(params.allocation_id);
-      const tasks = allocation.taskStateIds.map(id => server.taskStates.find(id));
-
-      if (!tasks.mapBy('name').includes(queryParams.task)) {
-        return new Response(400, {}, 'must include task name');
-      }
-
-      if (queryParams.plain) {
-        return logFrames.join('');
-      }
-
-      return logEncode(logFrames, logFrames.length - 1);
     });
   });
 }
