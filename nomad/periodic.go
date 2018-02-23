@@ -163,7 +163,7 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	wasRunning := p.enabled
 	p.enabled = enabled
 
-	// If we are transistioning from enabled to disabled, stop the daemon and
+	// If we are transitioning from enabled to disabled, stop the daemon and
 	// flush.
 	if !enabled && wasRunning {
 		p.stopFn()
