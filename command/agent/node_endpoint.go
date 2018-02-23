@@ -2,9 +2,9 @@ package agent
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -101,19 +101,21 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// Get the enable value
-	enableRaw := req.URL.Query().Get("enable")
-	if enableRaw == "" {
-		return nil, CodedError(400, "missing enable value")
-	}
-	enable, err := strconv.ParseBool(enableRaw)
-	if err != nil {
-		return nil, CodedError(400, "invalid enable value")
+	var drainRequest api.NodeUpdateDrainRequest
+	if err := decodeBody(req, &drainRequest); err != nil {
+		return nil, CodedError(400, err.Error())
 	}
 
 	args := structs.NodeUpdateDrainRequest{
 		NodeID: nodeID,
-		Drain:  enable,
+	}
+	if drainRequest.DrainSpec != nil {
+		args.DrainStrategy = &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline:         drainRequest.DrainSpec.Deadline,
+				IgnoreSystemJobs: drainRequest.DrainSpec.IgnoreSystemJobs,
+			},
+		}
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

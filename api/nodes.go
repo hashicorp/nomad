@@ -3,7 +3,7 @@ package api
 import (
 	"fmt"
 	"sort"
-	"strconv"
+	"time"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -41,10 +41,24 @@ func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) 
 	return &resp, qm, nil
 }
 
-// ToggleDrain is used to toggle drain mode on/off for a given node.
-func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteMeta, error) {
-	drainArg := strconv.FormatBool(drain)
-	wm, err := n.client.write("/v1/node/"+nodeID+"/drain?enable="+drainArg, nil, nil, q)
+// NodeUpdateDrainRequest is used to update the drain specification for a node.
+type NodeUpdateDrainRequest struct {
+	// NodeID is the node to update the drain specification for.
+	NodeID string
+
+	// DrainSpec is the drain specification to set for the node. A nil DrainSpec
+	// will disable draining.
+	DrainSpec *DrainSpec
+}
+
+// UpdateDrain is used to update the drain strategy for a given node.
+func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, q *WriteOptions) (*WriteMeta, error) {
+	req := &NodeUpdateDrainRequest{
+		NodeID:    nodeID,
+		DrainSpec: spec,
+	}
+
+	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -98,23 +112,42 @@ func (n *Nodes) GcAlloc(allocID string, q *QueryOptions) error {
 
 // Node is used to deserialize a node entry.
 type Node struct {
-	ID                string
-	Datacenter        string
-	Name              string
-	HTTPAddr          string
-	TLSEnabled        bool
-	Attributes        map[string]string
-	Resources         *Resources
-	Reserved          *Resources
-	Links             map[string]string
-	Meta              map[string]string
-	NodeClass         string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	StatusUpdatedAt   int64
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	ID                    string
+	Datacenter            string
+	Name                  string
+	HTTPAddr              string
+	TLSEnabled            bool
+	Attributes            map[string]string
+	Resources             *Resources
+	Reserved              *Resources
+	Links                 map[string]string
+	Meta                  map[string]string
+	NodeClass             string
+	Drain                 bool
+	DrainStrategy         *DrainStrategy
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	StatusUpdatedAt       int64
+	CreateIndex           uint64
+	ModifyIndex           uint64
+}
+
+// DrainStrategy describes a Node's drain behavior.
+type DrainStrategy struct {
+	// DrainSpec is the user declared drain specification
+	DrainSpec
+}
+
+// DrainSpec describes a Node's drain behavior.
+type DrainSpec struct {
+	// Deadline is the duration after StartTime when the remaining
+	// allocations on a draining Node should be told to stop.
+	Deadline time.Duration
+
+	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
+	// has been marked for draining.
+	IgnoreSystemJobs bool
 }
 
 // HostStats represents resource usage stats of the host running a Nomad client
