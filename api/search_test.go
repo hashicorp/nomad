@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSearch_List(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 	t.Parallel()
 
 	c, s := makeClient(t, nil, nil)
@@ -16,16 +16,17 @@ func TestSearch_List(t *testing.T) {
 
 	job := testJob()
 	_, _, err := c.Jobs().Register(job, nil)
-	assert.Nil(err)
+	require.Nil(err)
 
 	id := *job.ID
 	prefix := id[:len(id)-2]
 	resp, qm, err := c.Search().PrefixSearch(prefix, contexts.Jobs, nil)
 
-	assert.Nil(err)
-	assert.NotNil(qm)
+	require.Nil(err)
+	require.NotNil(qm)
+	require.NotNil(qm)
 
 	jobMatches := resp.Matches[contexts.Jobs]
-	assert.Equal(1, len(jobMatches))
-	assert.Equal(id, jobMatches[0])
+	require.Equal(1, len(jobMatches))
+	require.Equal(id, jobMatches[0])
 }

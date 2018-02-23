@@ -136,8 +136,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Hour),
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Tasks: []*Task{
 							{
@@ -202,8 +206,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Hour),
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Tasks: []*Task{
 							{
@@ -335,8 +343,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("delay"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Hour),
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  helper.BoolToPtr(false),
@@ -550,8 +562,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Hour),
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
 							Stagger:         helper.TimeToPtr(2 * time.Second),
@@ -586,8 +602,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Mode:     helper.StringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Hour),
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
 							Stagger:         helper.TimeToPtr(1 * time.Second),
