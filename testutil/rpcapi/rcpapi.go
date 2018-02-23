@@ -72,6 +72,21 @@ func (r *RPC) AllocGetAllocs(ids []string) (*structs.AllocsGetResponse, error) {
 	return &resp, nil
 }
 
+// Eval.List RPC
+func (r *RPC) EvalList() (*structs.EvalListResponse, error) {
+	get := &structs.EvalListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    r.Region,
+			Namespace: r.Namespace,
+		},
+	}
+	var resp structs.EvalListResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Eval.List", get, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // Job.List RPC
 func (r *RPC) JobList() (*structs.JobListResponse, error) {
 	get := &structs.JobListRequest{
@@ -108,6 +123,19 @@ func (r *RPC) NodeGetAllocs(nodeID string) (*structs.NodeAllocsResponse, error) 
 	}
 	var resp structs.NodeAllocsResponse
 	if err := msgpackrpc.CallWithCodec(r.codec, "Node.GetAllocs", get, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Node.GetNode RPC
+func (r *RPC) NodeGet(nodeID string) (*structs.SingleNodeResponse, error) {
+	get := &structs.NodeSpecificRequest{
+		NodeID:       nodeID,
+		QueryOptions: structs.QueryOptions{Region: r.Region},
+	}
+	var resp structs.SingleNodeResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Node.GetNode", get, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil

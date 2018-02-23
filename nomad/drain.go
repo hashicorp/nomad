@@ -8,6 +8,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -54,20 +55,17 @@ func makeTaskGroupKey(a *structs.Allocation) string {
 
 // stopAllocs tracks allocs to drain by a unique TG key
 type stopAllocs struct {
-	allocBatch []*structs.Allocation
+	allocBatch map[string]*structs.DesiredTransition
 
 	// namespace+jobid -> Job
 	jobBatch map[jobKey]*structs.Job
 }
 
-//FIXME this method does an awful lot
 func (s *stopAllocs) add(j *structs.Job, a *structs.Allocation) {
-	// Update the allocation
-	a.ModifyTime = time.Now().UnixNano()
-	a.DesiredStatus = structs.AllocDesiredStatusStop
-
-	// Add alloc to the allocation batch
-	s.allocBatch = append(s.allocBatch, a)
+	// Add the desired migration transition to the batch
+	s.allocBatch[a.ID] = &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(true),
+	}
 
 	// Add job to the job batch
 	s.jobBatch[jobKey{a.Namespace, a.JobID}] = j
@@ -204,6 +202,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 			// track number of allocs left on this node to be drained
 			allocsLeft := false
+			deadlineReached := node.DrainStrategy.DeadlineTime().Before(now)
 			for _, alloc := range allocs {
 				jobkey := jobKey{alloc.Namespace, alloc.JobID}
 
@@ -224,13 +223,6 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					panic(err)
 				}
 
-				// Don't bother collecting system jobs
-				if job.Type == structs.JobTypeSystem {
-					skipJob[jobkey] = struct{}{}
-					s.logger.Printf("[TRACE] nomad.drain: skipping system job %s", job.Name)
-					continue
-				}
-
 				// If alloc isn't yet terminal this node has
 				// allocs left to be drained
 				if !alloc.TerminalStatus() {
@@ -240,9 +232,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					}
 				}
 
-				// Don't bother collecting batch jobs for nodes that haven't hit their deadline
-				if job.Type == structs.JobTypeBatch && node.DrainStrategy.DeadlineTime().After(now) {
-					s.logger.Printf("[TRACE] nomad.drain: not draining batch job %s because deadline isn't for %s", job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
+				// Don't bother collecting system/batch jobs for nodes that haven't hit their deadline
+				if job.Type != structs.JobTypeService && !deadlineReached {
+					s.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
+						job.Type, job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
 					skipJob[jobkey] = struct{}{}
 					continue
 				}
@@ -273,25 +266,20 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				jobWatcher.watch(jobkey, nodeID)
 			}
 
-			// if node has no allocs, it's done draining!
-			if !allocsLeft {
-				s.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain", nodeID)
+			// if node has no allocs or has hit its deadline, it's done draining!
+			if !allocsLeft || deadlineReached {
+				s.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain or has reached deadline", nodeID)
 				jobWatcher.nodeDone(nodeID)
-				delete(nodes, nodeID)
 				doneNodes[nodeID] = node
 			}
 		}
 
-		// stoplist are the allocations to stop and their jobs to emit
+		// stoplist are the allocations to migrate and their jobs to emit
 		// evaluations for
 		stoplist := &stopAllocs{
-			allocBatch: make([]*structs.Allocation, 0, len(drainable)),
+			allocBatch: make(map[string]*structs.DesiredTransition),
 			jobBatch:   make(map[jobKey]*structs.Job),
 		}
-
-		// deadlineNodes is a map of node IDs that have reached their
-		// deadline and allocs that will be stopped due to deadline
-		deadlineNodes := map[string]int{}
 
 		// build drain list considering deadline & max_parallel
 		for _, drainingJob := range drainable {
@@ -315,14 +303,13 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 					stoplist.add(drainingJob.job, alloc)
 					upPerTG[tgKey]--
 
-					deadlineNodes[node.ID]++
 					continue
 				}
 
-				// Batch jobs are only stopped when the node
-				// deadline is reached which has already been
-				// done.
-				if drainingJob.job.Type == structs.JobTypeBatch {
+				// Batch/System jobs are only stopped when the
+				// node deadline is reached which has already
+				// been done.
+				if drainingJob.job.Type != structs.JobTypeService {
 					continue
 				}
 
@@ -360,31 +347,8 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 		}
 
-		// log drains due to node deadlines
-		for nodeID, remaining := range deadlineNodes {
-			s.logger.Printf("[DEBUG] nomad.drain: node %s drain deadline reached; stopping %d remaining allocs", nodeID, remaining)
-			jobWatcher.nodeDone(nodeID)
-		}
-
 		if len(stoplist.allocBatch) > 0 {
 			s.logger.Printf("[DEBUG] nomad.drain: stopping %d alloc(s) for %d job(s)", len(stoplist.allocBatch), len(stoplist.jobBatch))
-
-			// Stop allocs in stoplist and add them to drainingAllocs + prevAllocWatcher
-			batch := &structs.AllocUpdateRequest{
-				Alloc:        stoplist.allocBatch,
-				WriteRequest: structs.WriteRequest{Region: s.config.Region},
-			}
-
-			// Commit this update via Raft
-			//TODO Not the right request
-			_, index, err := s.raftApply(structs.AllocClientUpdateRequestType, batch)
-			if err != nil {
-				//FIXME
-				panic(err)
-			}
-
-			//TODO i bet there's something useful to do with this index
-			_ = index
 
 			// Reevaluate affected jobs
 			evals := make([]*structs.Evaluation, 0, len(stoplist.jobBatch))
@@ -401,17 +365,23 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				})
 			}
 
-			evalUpdate := &structs.EvalUpdateRequest{
+			// Send raft request
+			batch := &structs.AllocUpdateDesiredTransitionRequest{
+				Allocs:       stoplist.allocBatch,
 				Evals:        evals,
 				WriteRequest: structs.WriteRequest{Region: s.config.Region},
 			}
 
-			// Commit this evaluation via Raft
-			_, _, err = s.raftApply(structs.EvalUpdateRequestType, evalUpdate)
+			// Commit this update via Raft
+			//TODO Not the right request
+			_, index, err := s.raftApply(structs.AllocUpdateDesiredTransitionRequestType, batch)
 			if err != nil {
 				//FIXME
 				panic(err)
 			}
+
+			//TODO i bet there's something useful to do with this index
+			_ = index
 		}
 
 		// Unset drain for nodes done draining
@@ -429,6 +399,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				panic(err)
 			}
 			s.logger.Printf("[INFO] nomad.drain: node %s (%s) completed draining", nodeID, node.Name)
+			delete(nodes, nodeID)
 		}
 	}
 }
@@ -529,8 +500,7 @@ func (n *nodeWatcher) queryNodeDrain(ws memdb.WatchSet, state *state.StateStore)
 		return nil, 0, err
 	}
 
-	//FIXME initial cap?
-	resp := make([]*structs.Node, 0, 1)
+	resp := make([]*structs.Node, 0, 8)
 
 	for {
 		raw := iter.Next()

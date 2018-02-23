@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1241,7 +1242,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	require.Equal(eval, res)
 }
 
-func TestFSM_UpdateAllocDesiredTransistion(t *testing.T) {
+func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1254,17 +1255,28 @@ func TestFSM_UpdateAllocDesiredTransistion(t *testing.T) {
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
 	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
 
-	t1 := &structs.DesiredTransistion{
+	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
 	}
 
-	req := structs.AllocUpdateDesiredTransistionRequest{
-		Allocs: map[string]*structs.DesiredTransistion{
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      alloc.Namespace,
+		Priority:       alloc.Job.Priority,
+		Type:           alloc.Job.Type,
+		TriggeredBy:    structs.EvalTriggerNodeDrain,
+		JobID:          alloc.Job.ID,
+		JobModifyIndex: alloc.Job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	req := structs.AllocUpdateDesiredTransitionRequest{
+		Allocs: map[string]*structs.DesiredTransition{
 			alloc.ID:  t1,
 			alloc2.ID: t1,
 		},
+		Evals: []*structs.Evaluation{eval},
 	}
-	buf, err := structs.Encode(structs.AllocUpdateDesiredTransistionRequestType, req)
+	buf, err := structs.Encode(structs.AllocUpdateDesiredTransitionRequestType, req)
 	require.Nil(err)
 
 	resp := fsm.Apply(makeLog(buf))
@@ -1276,11 +1288,13 @@ func TestFSM_UpdateAllocDesiredTransistion(t *testing.T) {
 	require.Nil(err)
 	out2, err := fsm.State().AllocByID(ws, alloc2.ID)
 	require.Nil(err)
+	_, err = fsm.State().EvalByID(ws, eval.ID)
+	require.Nil(err)
 
-	require.NotNil(out1.DesiredTransistion.Migrate)
-	require.NotNil(out2.DesiredTransistion.Migrate)
-	require.True(*out1.DesiredTransistion.Migrate)
-	require.True(*out2.DesiredTransistion.Migrate)
+	require.NotNil(out1.DesiredTransition.Migrate)
+	require.NotNil(out2.DesiredTransition.Migrate)
+	require.True(*out1.DesiredTransition.Migrate)
+	require.True(*out2.DesiredTransition.Migrate)
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {

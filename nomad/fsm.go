@@ -240,7 +240,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpsertNodeEvent(buf[1:], log.Index)
 	case structs.JobBatchDeregisterRequestType:
 		return n.applyBatchDeregisterJob(buf[1:], log.Index)
-	case structs.AllocUpdateDesiredTransistionRequestType:
+	case structs.AllocUpdateDesiredTransitionRequestType:
 		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
 	}
 
@@ -653,17 +653,22 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	return nil
 }
 
-// applyAllocUpdateDesiredTransition is used to update the desired transistions
+// applyAllocUpdateDesiredTransition is used to update the desired transitions
 // of a set of allocations.
 func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transistion"}, time.Now())
-	var req structs.AllocUpdateDesiredTransistionRequest
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transition"}, time.Now())
+	var req structs.AllocUpdateDesiredTransitionRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateAllocsDesiredTransistions(index, req.Allocs); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocsDesiredTransistions failed: %v", err)
+	if err := n.state.UpdateAllocsDesiredTransitions(index, req.Allocs, req.Evals); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocsDesiredTransitions failed: %v", err)
+		return err
+	}
+
+	if err := n.upsertEvals(index, req.Evals); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: AllocUpdateDesiredTransition failed to upsert %d eval(s): %v", len(req.Evals), err)
 		return err
 	}
 	return nil

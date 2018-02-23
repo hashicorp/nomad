@@ -644,8 +644,9 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 		}
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	} else {
+		// When stopping a drain unset the strategy but leave the node
+		// ineligible for scheduling
 		copyNode.DrainStrategy = nil
-		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
 	}
 	copyNode.ModifyIndex = index
 
@@ -2008,15 +2009,17 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 	return nil
 }
 
-// UpdateAllocsDesiredTransistions is used to update a set of allocations
-// desired transistions.
-func (s *StateStore) UpdateAllocsDesiredTransistions(index uint64, allocs map[string]*structs.DesiredTransistion) error {
+// UpdateAllocsDesiredTransitions is used to update a set of allocations
+// desired transitions.
+func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[string]*structs.DesiredTransition,
+	evals []*structs.Evaluation) error {
+
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	// Handle each of the updated allocations
-	for id, transistion := range allocs {
-		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transistion); err != nil {
+	for id, transition := range allocs {
+		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transition); err != nil {
 			return err
 		}
 	}
@@ -2031,10 +2034,10 @@ func (s *StateStore) UpdateAllocsDesiredTransistions(index uint64, allocs map[st
 }
 
 // nestedUpdateAllocDesiredTransition is used to nest an update of an
-// allocations desired transistion
+// allocations desired transition
 func (s *StateStore) nestedUpdateAllocDesiredTransition(
 	txn *memdb.Txn, index uint64, allocID string,
-	transistion *structs.DesiredTransistion) error {
+	transition *structs.DesiredTransition) error {
 
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", allocID)
@@ -2051,8 +2054,8 @@ func (s *StateStore) nestedUpdateAllocDesiredTransition(
 	// Copy everything from the existing allocation
 	copyAlloc := exist.Copy()
 
-	// Merge the desired transistions
-	copyAlloc.DesiredTransistion.Merge(transistion)
+	// Merge the desired transitions
+	copyAlloc.DesiredTransition.Merge(transition)
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index

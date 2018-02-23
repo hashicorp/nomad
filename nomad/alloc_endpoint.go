@@ -202,13 +202,13 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	return a.srv.blockingRPC(&opts)
 }
 
-// UpdateDesiredTransistion is used to update the desired transistions of an
+// UpdateDesiredTransition is used to update the desired transitions of an
 // allocation.
-func (a *Alloc) UpdateDesiredTransistion(args *structs.AllocUpdateDesiredTransistionRequest, reply *structs.GenericResponse) error {
-	if done, err := a.srv.forward("Alloc.UpdateDesiredTransistion", args, args, reply); done {
+func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransitionRequest, reply *structs.GenericResponse) error {
+	if done, err := a.srv.forward("Alloc.UpdateDesiredTransition", args, args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "alloc", "update_desired_transistion"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "update_desired_transition"}, time.Now())
 
 	// Check that it is a management token.
 	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
@@ -223,9 +223,9 @@ func (a *Alloc) UpdateDesiredTransistion(args *structs.AllocUpdateDesiredTransis
 	}
 
 	// Commit this update via Raft
-	_, index, err := a.srv.raftApply(structs.AllocUpdateDesiredTransistionRequestType, args)
+	_, index, err := a.srv.raftApply(structs.AllocUpdateDesiredTransitionRequestType, args)
 	if err != nil {
-		a.srv.logger.Printf("[ERR] nomad.allocs: AllocUpdateDesiredTransistionRequest failed: %v", err)
+		a.srv.logger.Printf("[ERR] nomad.allocs: AllocUpdateDesiredTransitionRequest failed: %v", err)
 		return err
 	}
 

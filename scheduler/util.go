@@ -111,7 +111,7 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 						TaskGroup: tg,
 						Alloc:     exist,
 					})
-				} else if exist.DesiredTransistion.ShouldMigrate() {
+				} else if exist.DesiredTransition.ShouldMigrate() {
 					result.migrate = append(result.migrate, allocTuple{
 						Name:      name,
 						TaskGroup: tg,
