@@ -302,10 +302,12 @@ type NodeUpdateStatusRequest struct {
 	WriteRequest
 }
 
-// NodeUpdateDrainRequest is used for updating the drain status
+// NodeUpdateDrainRequest is used for updating the drain strategy
 type NodeUpdateDrainRequest struct {
-	NodeID string
-	Drain  bool
+	NodeID        string
+	Drain         bool // TODO Deprecate
+	DrainStrategy *DrainStrategy
+	UpdateTime    int64
 	WriteRequest
 }
 
@@ -871,10 +873,13 @@ type NodeUpdateResponse struct {
 
 // NodeDrainUpdateResponse is used to respond to a node drain update
 type NodeDrainUpdateResponse struct {
-	EvalIDs         []string
-	EvalCreateIndex uint64
 	NodeModifyIndex uint64
 	QueryMeta
+
+	// Deprecated in Nomad 0.8 as an evaluation is not immediately created but
+	// is instead handled by the drainer.
+	EvalIDs         []string
+	EvalCreateIndex uint64
 }
 
 // NodeAllocsResponse is used to return allocs for a single node
@@ -1179,6 +1184,9 @@ func ValidNodeStatus(status string) bool {
 }
 
 const (
+	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
+	// respectively, for receiving allocations. This is orthoginal to the node
+	// status being ready.
 	NodeSchedulingEligible   = "eligbile"
 	NodeSchedulingIneligible = "ineligible"
 )
@@ -1192,6 +1200,10 @@ type DrainStrategy struct {
 	// Deadline is the duration after StartTime when the remaining
 	// allocations on a draining Node should be told to stop.
 	Deadline time.Duration
+
+	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
+	// has been marked for draining.
+	IgnoreSystemJobs bool
 }
 
 func (d *DrainStrategy) Copy() *DrainStrategy {
@@ -1275,6 +1287,7 @@ type Node struct {
 	// attributes and capabilities.
 	ComputedClass string
 
+	// COMPAT: Remove in Nomad 0.9
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
 	// allocations will be drained. Superceded by DrainStrategy in Nomad
@@ -1324,12 +1337,12 @@ func (n *Node) Copy() *Node {
 	nn := new(Node)
 	*nn = *n
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
-	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
+	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	return nn
 }
 
@@ -3189,10 +3202,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	// Validate the migration strategy
 	switch j.Type {
 	case JobTypeService:
-		if tg.Count == 1 && tg.Migrate != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should not have a migration strategy with a count = 1", tg.Name))
-		} else if err := tg.Migrate.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+		if tg.Migrate != nil {
+			if err := tg.Migrate.Validate(); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
 		}
 	default:
 		if tg.Migrate != nil {
