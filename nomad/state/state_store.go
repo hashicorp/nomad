@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"sort"
-	"time"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -606,7 +605,9 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 }
 
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) error {
+func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
+	drain *structs.DrainStrategy, updateTime int64) error {
+
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -621,24 +622,21 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
 
 	// Update the drain in the copy
-	copyNode.Drain = drain
-	//FIXME
-	if drain {
-		copyNode.DrainStrategy = &structs.DrainStrategy{
-			StartTime: time.Now().UnixNano(),
-			Deadline:  10 * time.Second,
-		}
-		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
-	} else {
+	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.9
+	copyNode.DrainStrategy = drain
+	if drain == nil {
 		// When stopping a drain unset the strategy but leave the node
 		// ineligible for scheduling
 		copyNode.DrainStrategy = nil
+	} else {
+		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	}
+
 	copyNode.ModifyIndex = index
+	copyNode.StatusUpdatedAt = updateTime
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {

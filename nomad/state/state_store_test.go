@@ -705,64 +705,31 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 
 	require.Nil(state.UpsertNode(1000, node))
 
+	expectedTime := int64(101)
+	expectedDrain := &structs.DrainStrategy{
+		Deadline: 10 * time.Second,
+	}
+
 	// Create a watchset so we can test that update node drain fires the watch
 	ws := memdb.NewWatchSet()
+	_, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
 
-	// Assert initial node state
-	{
-		out, err := state.NodeByID(ws, node.ID)
-		require.Nil(err)
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, expectedTime))
+	require.True(watchFired(ws))
 
-		require.False(out.Drain)
-		require.Nil(out.DrainStrategy)
-		require.Equal(structs.NodeSchedulingEligible, out.SchedulingEligibility)
-		if out.ModifyIndex != 1000 {
-			t.Fatalf("expected ModifyIndex=1000, found %d", out.ModifyIndex)
-		}
-	}
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.True(out.Drain)
+	require.NotNil(out.DrainStrategy)
+	require.Equal(out.DrainStrategy, expectedDrain)
+	require.EqualValues(1001, out.ModifyIndex)
 
-	// Start draining
-	{
-		require.Nil(state.UpdateNodeDrain(1001, node.ID, true))
-		require.True(watchFired(ws))
-
-		ws = memdb.NewWatchSet()
-		out, err := state.NodeByID(ws, node.ID)
-		require.Nil(err)
-
-		require.True(out.Drain)
-		require.NotNil(out.DrainStrategy)
-		require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
-		if out.ModifyIndex != 1001 {
-			t.Fatalf("expected ModifyIndex=1001, found %d", out.ModifyIndex)
-		}
-
-		index, err := state.Index("nodes")
-		require.Nil(err)
-		if index != 1001 {
-			t.Fatalf("expected index=1001, found %d", index)
-		}
-
-		require.False(watchFired(ws))
-	}
-
-	// Stop draining (no need to retest watch behavior)
-	{
-		require.Nil(state.UpdateNodeDrain(1002, node.ID, false))
-
-		out, err := state.NodeByID(nil, node.ID)
-		require.Nil(err)
-
-		require.False(out.Drain)
-		require.Nil(out.DrainStrategy)
-		if out.ModifyIndex != 1002 {
-			t.Fatalf("expected ModifyIndex=1002, found %d", out.ModifyIndex)
-		}
-
-		// Scheduling eligibility should *not* flip back to eligible after
-		// draining stops.
-		require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
-	}
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1001, index)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_Nodes(t *testing.T) {

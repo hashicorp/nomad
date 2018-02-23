@@ -143,9 +143,12 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 
 	// Start draining node 1
 	//FIXME update drain rpc to skip fsm manipulation and use api
+	strategy := &structs.DrainStrategy{
+		Deadline: -1 * time.Second,
+	}
 	node, err := state.NodeByID(nil, c1.NodeID())
 	require.Nil(err)
-	require.Nil(state.UpdateNodeDrain(node.ModifyIndex+1, node.ID, true))
+	require.Nil(state.UpdateNodeDrain(node.ModifyIndex+1, node.ID, strategy, 101))
 
 	// Start node 2
 	c2 := client.TestClient(t, func(conf *config.Config) {
