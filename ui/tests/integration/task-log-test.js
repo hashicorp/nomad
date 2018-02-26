@@ -26,30 +26,33 @@ let streamPointer = 0;
 moduleForComponent('task-log', 'Integration | Component | task log', {
   integration: true,
   beforeEach() {
+    const handler = ({ queryParams }) => {
+      const { origin, offset, plain, follow } = queryParams;
+
+      let frames;
+      let data;
+
+      if (origin === 'start' && offset === '0' && plain && !follow) {
+        frames = logHead;
+      } else if (origin === 'end' && plain && !follow) {
+        frames = logTail;
+      } else {
+        frames = streamFrames;
+      }
+
+      if (frames === streamFrames) {
+        data = queryParams.plain ? frames[streamPointer] : logEncode(frames, streamPointer);
+        streamPointer++;
+      } else {
+        data = queryParams.plain ? frames.join('') : logEncode(frames, frames.length - 1);
+      }
+
+      return [200, {}, data];
+    };
+
     this.server = new Pretender(function() {
-      this.get(`http://${HOST}/v1/client/fs/logs/:allocation_id`, ({ queryParams }) => {
-        const { origin, offset, plain, follow } = queryParams;
-
-        let frames;
-        let data;
-
-        if (origin === 'start' && offset === '0' && plain && !follow) {
-          frames = logHead;
-        } else if (origin === 'end' && plain && !follow) {
-          frames = logTail;
-        } else {
-          frames = streamFrames;
-        }
-
-        if (frames === streamFrames) {
-          data = queryParams.plain ? frames[streamPointer] : logEncode(frames, streamPointer);
-          streamPointer++;
-        } else {
-          data = queryParams.plain ? frames.join('') : logEncode(frames, frames.length - 1);
-        }
-
-        return [200, {}, data];
-      });
+      this.get(`http://${HOST}/v1/client/fs/logs/:allocation_id`, handler);
+      this.get('/v1/client/fs/logs/:allocation_id', handler);
     });
   },
   afterEach() {
@@ -171,6 +174,30 @@ test('Clicking stderr switches the log to standard error', function(assert) {
     assert.ok(
       this.server.handledRequests.filter(req => req.queryParams.type === 'stderr').length,
       'stderr log requests were made'
+    );
+  });
+});
+
+test('When the client is inaccessible, task-log falls back to requesting logs through the server', function(assert) {
+  run.later(run, run.cancelTimers, 2000);
+
+  // override client response to timeout
+  this.server.get(`http://${HOST}/v1/client/fs/logs/:allocation_id`, () => [400, {}, ''], 2000);
+
+  this.setProperties(commonProps);
+  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+
+  const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+  assert.ok(
+    this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
+    'Log request was initially made directly to the client'
+  );
+
+  return wait().then(() => {
+    const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
+    assert.ok(
+      this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
+      'Log request was later made to the server'
     );
   });
 });

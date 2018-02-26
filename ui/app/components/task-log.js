@@ -2,9 +2,11 @@ import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { run } from '@ember/runloop';
+import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
 import { logger } from 'nomad-ui/utils/classes/log';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
+import timeout from 'nomad-ui/utils/timeout';
 
 export default Component.extend(WindowResizable, {
   token: service(),
@@ -13,6 +15,8 @@ export default Component.extend(WindowResizable, {
 
   allocation: null,
   task: null,
+
+  useServer: false,
 
   didReceiveAttrs() {
     if (this.get('allocation') && this.get('task')) {
@@ -37,11 +41,12 @@ export default Component.extend(WindowResizable, {
 
   mode: 'stdout',
 
-  logUrl: computed('allocation.id', 'allocation.node.httpAddr', function() {
+  logUrl: computed('allocation.id', 'allocation.node.httpAddr', 'useServer', function() {
     const address = this.get('allocation.node.httpAddr');
     const allocation = this.get('allocation.id');
 
-    return `//${address}/v1/client/fs/logs/${allocation}`;
+    const url = `/v1/client/fs/logs/${allocation}`;
+    return this.get('useServer') ? url : `//${address}${url}`;
   }),
 
   logParams: computed('task', 'mode', function() {
@@ -51,9 +56,18 @@ export default Component.extend(WindowResizable, {
     };
   }),
 
-  logger: logger('logUrl', 'logParams', function() {
-    const token = this.get('token');
-    return token.authorizedRequest.bind(token);
+  logger: logger('logUrl', 'logParams', function logFetch() {
+    // If the log request can't settle in one second, the client
+    // must be unavailable and the server should be used instead
+    return url =>
+      RSVP.race([this.get('token').authorizedRequest(url), timeout(1000)]).then(
+        response => response,
+        error => {
+          this.send('failoverToServer');
+          this.get('stream').perform();
+          throw error;
+        }
+      );
   }),
 
   head: task(function*() {
@@ -99,6 +113,9 @@ export default Component.extend(WindowResizable, {
       } else {
         this.get('stream').perform();
       }
+    },
+    failoverToServer() {
+      this.set('useServer', true);
     },
   },
 });
