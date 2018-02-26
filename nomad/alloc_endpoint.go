@@ -222,11 +222,6 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 		return fmt.Errorf("must update at least one allocation")
 	}
 
-	// Ensure at least a single eval
-	if len(args.Evals) == 0 {
-		return fmt.Errorf("must add at least one evaluation")
-	}
-
 	// Commit this update via Raft
 	_, index, err := a.srv.raftApply(structs.AllocUpdateDesiredTransitionRequestType, args)
 	if err != nil {
