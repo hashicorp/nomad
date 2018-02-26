@@ -699,52 +699,69 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(state.UpsertNode(1000, node))
 
 	// Create a watchset so we can test that update node drain fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
+
+	// Assert initial node state
+	{
+		out, err := state.NodeByID(ws, node.ID)
+		require.Nil(err)
+
+		require.False(out.Drain)
+		require.Nil(out.DrainStrategy)
+		require.Equal(structs.NodeSchedulingEligible, out.SchedulingEligibility)
+		if out.ModifyIndex != 1000 {
+			t.Fatalf("expected ModifyIndex=1000, found %d", out.ModifyIndex)
+		}
 	}
 
-	err = state.UpdateNodeDrain(1001, node.ID, true)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	// Start draining
+	{
+		require.Nil(state.UpdateNodeDrain(1001, node.ID, true))
+		require.True(watchFired(ws))
+
+		ws = memdb.NewWatchSet()
+		out, err := state.NodeByID(ws, node.ID)
+		require.Nil(err)
+
+		require.True(out.Drain)
+		require.NotNil(out.DrainStrategy)
+		require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
+		if out.ModifyIndex != 1001 {
+			t.Fatalf("expected ModifyIndex=1001, found %d", out.ModifyIndex)
+		}
+
+		index, err := state.Index("nodes")
+		require.Nil(err)
+		if index != 1001 {
+			t.Fatalf("expected index=1001, found %d", index)
+		}
+
+		require.False(watchFired(ws))
 	}
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	// Stop draining (no need to retest watch behavior)
+	{
+		require.Nil(state.UpdateNodeDrain(1002, node.ID, false))
 
-	ws = memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		out, err := state.NodeByID(nil, node.ID)
+		require.Nil(err)
 
-	if !out.Drain {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.ModifyIndex != 1001 {
-		t.Fatalf("bad: %#v", out)
-	}
+		require.False(out.Drain)
+		require.Nil(out.DrainStrategy)
+		if out.ModifyIndex != 1002 {
+			t.Fatalf("expected ModifyIndex=1002, found %d", out.ModifyIndex)
+		}
 
-	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1001 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
+		// Scheduling eligibility should *not* flip back to eligible after
+		// draining stops.
+		require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
 	}
 }
 

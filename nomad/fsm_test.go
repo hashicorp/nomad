@@ -1166,8 +1166,10 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	require.Nil(err)
 	out2, err := fsm.State().AllocByID(ws, alloc2.ID)
 	require.Nil(err)
-	_, err = fsm.State().EvalByID(ws, eval.ID)
+	evalOut, err := fsm.State().EvalByID(ws, eval.ID)
 	require.Nil(err)
+	require.NotNil(evalOut)
+	require.Equal(eval.ID, evalOut.ID)
 
 	require.NotNil(out1.DesiredTransition.Migrate)
 	require.NotNil(out2.DesiredTransition.Migrate)
