@@ -294,7 +294,9 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	require.Nil(resp)
 
 	strategy := &structs.DrainStrategy{
-		Deadline: 10 * time.Second,
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
 	}
 	req2 := structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
