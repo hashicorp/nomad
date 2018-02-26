@@ -2379,7 +2379,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 				Deadline: 10 * time.Second,
 			},
 		}
-		if err := state.UpdateNodeDrain(3, node.ID, s, 101); err != nil {
+		if err := state.UpdateNodeDrain(3, node.ID, s); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})

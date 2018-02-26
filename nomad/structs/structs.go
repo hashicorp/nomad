@@ -307,7 +307,6 @@ type NodeUpdateDrainRequest struct {
 	NodeID        string
 	Drain         bool // TODO Deprecate
 	DrainStrategy *DrainStrategy
-	UpdateTime    int64
 	WriteRequest
 }
 
