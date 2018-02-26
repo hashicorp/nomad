@@ -2707,7 +2707,7 @@ func (r *ReschedulePolicy) Validate() error {
 
 	}
 
-	//Validate Interval and other delay parameters if attempts are limited
+	// Validate Interval and other delay parameters if attempts are limited
 	if !r.Unlimited {
 		if r.Interval.Nanoseconds() < ReschedulePolicyMinInterval.Nanoseconds() {
 			multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, r.Interval))
