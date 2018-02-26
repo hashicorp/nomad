@@ -686,7 +686,9 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 
 	strategy := &structs.DrainStrategy{
-		Deadline: 10 * time.Second,
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
 	}
 
 	// Update the status
@@ -730,7 +732,9 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	dereg := &structs.NodeUpdateDrainRequest{
 		NodeID: node.ID,
 		DrainStrategy: &structs.DrainStrategy{
-			Deadline: 10 * time.Second,
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
 		},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
@@ -831,7 +835,9 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	dereg := &structs.NodeUpdateDrainRequest{
 		NodeID: node.ID,
 		DrainStrategy: &structs.DrainStrategy{
-			Deadline: -1 * time.Second,
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second,
+			},
 		},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
@@ -2281,7 +2287,9 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	// Node drain updates trigger watches.
 	time.AfterFunc(100*time.Millisecond, func() {
 		s := &structs.DrainStrategy{
-			Deadline: 10 * time.Second,
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
 		}
 		if err := state.UpdateNodeDrain(3, node.ID, s, 101); err != nil {
 			t.Fatalf("err: %v", err)

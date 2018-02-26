@@ -707,7 +707,9 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 
 	expectedTime := int64(101)
 	expectedDrain := &structs.DrainStrategy{
-		Deadline: 10 * time.Second,
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
 	}
 
 	// Create a watchset so we can test that update node drain fires the watch
