@@ -212,7 +212,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		allocUpdates:        make(chan *structs.Allocation, 64),
 		shutdownCh:          make(chan struct{}),
 		triggerDiscoveryCh:  make(chan struct{}),
-		triggerNodeUpdate:   make(chan struct{}),
+		triggerNodeUpdate:   make(chan struct{}, 64),
 		serversDiscoveredCh: make(chan struct{}),
 	}
 
@@ -961,7 +961,7 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
-	var nodeHasChanged bool
+	nodeHasChanged := false
 
 	for name, newVal := range response.Attributes {
 		oldVal := c.config.Node.Attributes[name]
@@ -1018,6 +1018,9 @@ func resourcesAreEqual(first, second *structs.Resources) bool {
 		return false
 	}
 	if first.IOPS != second.IOPS {
+		return false
+	}
+	if len(first.Networks) != len(second.Networks) {
 		return false
 	}
 	for i, e := range first.Networks {
@@ -1535,22 +1538,27 @@ func (c *Client) updateNode() {
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
 	var hasChanged bool
+	syncTicker := time.NewTicker(c.retryIntv(nodeUpdateRetryIntv))
+
 	for {
 		select {
-		case <-time.After(c.retryIntv(nodeUpdateRetryIntv)):
-			if hasChanged {
-				c.logger.Printf("[DEBUG] client: state changed, updating node and re-registering.")
-
-				// Update the config copy.
-				c.configLock.Lock()
-				node := c.config.Node.Copy()
-				c.configCopy.Node = node
-				c.configLock.Unlock()
-
-				c.retryRegisterNode()
-
-				hasChanged = false
+		case <-syncTicker.C:
+			if !hasChanged {
+				continue
 			}
+			c.logger.Printf("[DEBUG] client: state changed, updating node and re-registering.")
+
+			// Update the config copy.
+			c.configLock.Lock()
+			node := c.config.Node.Copy()
+			c.configCopy.Node = node
+			c.configLock.Unlock()
+
+			c.retryRegisterNode()
+
+			hasChanged = false
+			syncTicker.Stop()
+			syncTicker = time.NewTicker(c.retryIntv(nodeUpdateRetryIntv))
 		case <-c.triggerNodeUpdate:
 			hasChanged = true
 		case <-c.shutdownCh:
