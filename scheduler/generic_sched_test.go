@@ -2946,6 +2946,102 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
 }
 
+// Tests that old reschedule attempts are pruned
+func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 2,
+		Interval: 15 * time.Minute,
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	// Mark allocations as failed with restart info
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+				PrevAllocID: uuid.Generate(),
+				PrevNodeID:  uuid.Generate(),
+			},
+			{RescheduleTime: time.Now().Add(-3 * time.Minute).UTC().UnixNano(),
+				PrevAllocID: allocs[0].ID,
+				PrevNodeID:  uuid.Generate(),
+			},
+		},
+	}
+	expectedFirstRescheduleEvent := allocs[1].RescheduleTracker.Events[1]
+	failedAllocID := allocs[1].ID
+	successAllocID := allocs[0].ID
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure multiple plans
+	if len(h.Plans) == 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Verify that one new allocation got created with its restart tracker info
+	assert := assert.New(t)
+	assert.Equal(3, len(out))
+	var newAlloc *structs.Allocation
+	for _, alloc := range out {
+		if alloc.ID != successAllocID && alloc.ID != failedAllocID {
+			newAlloc = alloc
+		}
+	}
+
+	assert.Equal(failedAllocID, newAlloc.PreviousAllocation)
+	// Verify that the new alloc did not copy over an older irrelevant reschedule event
+	assert.Equal(2, len(newAlloc.RescheduleTracker.Events))
+	assert.Equal(expectedFirstRescheduleEvent, newAlloc.RescheduleTracker.Events[0])
+	// Verify that the failed alloc ID is in the most recent reschedule event
+	assert.Equal(failedAllocID, newAlloc.RescheduleTracker.Events[1].PrevAllocID)
+
+}
+
 // Tests that deployments with failed allocs don't result in placements
 func TestDeployment_FailedAllocs_NoReschedule(t *testing.T) {
 	h := NewHarness(t)

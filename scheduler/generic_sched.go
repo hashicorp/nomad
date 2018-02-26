@@ -467,7 +467,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
-						updateRescheduleTracker(alloc, prevAllocation)
+						updateRescheduleTracker(alloc, prevAllocation, tg)
 					}
 				}
 
@@ -524,11 +524,20 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 }
 
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
-func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation) {
+func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, taskGroup *structs.TaskGroup) {
 	var rescheduleEvents []*structs.RescheduleEvent
 	if prev.RescheduleTracker != nil {
+		var interval time.Duration
+		if taskGroup.ReschedulePolicy != nil {
+			interval = taskGroup.ReschedulePolicy.Interval
+		}
 		for _, reschedEvent := range prev.RescheduleTracker.Events {
-			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+			timeDiff := time.Now().UTC().UnixNano() - reschedEvent.RescheduleTime
+			// Only copy over events that are within restart interval
+			// This keeps the list of events small in cases where there's a long chain of old restart events
+			if interval > 0 && timeDiff <= interval.Nanoseconds() {
+				rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+			}
 		}
 	}
 	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, prev.NodeID)
