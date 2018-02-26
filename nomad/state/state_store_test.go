@@ -705,19 +705,18 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 
 	require.Nil(state.UpsertNode(1000, node))
 
-	expectedTime := int64(101)
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
 	expectedDrain := &structs.DrainStrategy{
 		DrainSpec: structs.DrainSpec{
 			Deadline: -1 * time.Second,
 		},
 	}
 
-	// Create a watchset so we can test that update node drain fires the watch
-	ws := memdb.NewWatchSet()
-	_, err := state.NodeByID(ws, node.ID)
-	require.Nil(err)
-
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, expectedTime))
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()

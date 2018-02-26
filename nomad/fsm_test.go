@@ -257,7 +257,6 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	req2 := structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
-		UpdateTime:    101,
 	}
 	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
 	require.Nil(err)

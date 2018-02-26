@@ -150,7 +150,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	}
 	node, err := state.NodeByID(nil, c1.NodeID())
 	require.Nil(err)
-	require.Nil(state.UpdateNodeDrain(node.ModifyIndex+1, node.ID, strategy, 101))
+	require.Nil(state.UpdateNodeDrain(node.ModifyIndex+1, node.ID, strategy))
 
 	// Start node 2
 	c2 := client.TestClient(t, func(conf *config.Config) {

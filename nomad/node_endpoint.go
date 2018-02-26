@@ -433,9 +433,6 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node not found")
 	}
 
-	// Update the timestamp to
-	args.UpdateTime = time.Now().Unix()
-
 	// Commit this update via Raft
 	_, index, err := n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 	if err != nil {
