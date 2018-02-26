@@ -616,8 +616,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 }
 
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
-	drain *structs.DrainStrategy, updateTime int64) error {
+func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain *structs.DrainStrategy) error {
 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -647,7 +646,6 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 	}
 
 	copyNode.ModifyIndex = index
-	copyNode.StatusUpdatedAt = updateTime
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {
