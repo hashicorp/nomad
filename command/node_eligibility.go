@@ -21,7 +21,7 @@ Usage: nomad node eligibility [options] <node>
   To remove existing allocations, use the node drain command.
 
   It is required that either -enable or -disable is specified, but not both.
-  The -self flag is useful to drain the local node.
+  The -self flag is useful to set the scheduling eligibility of the local node.
 
 General Options:
 
@@ -123,7 +123,7 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 	nodeID = sanatizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error updating scheduling eligibility: %s", err))
 		return 1
 	}
 	// Return error if no nodes are found
@@ -132,28 +132,15 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 		return 1
 	}
 	if len(nodes) > 1 {
-		// Format the nodes list that matches the prefix so that the user
-		// can create a more specific request
-		out := make([]string, len(nodes)+1)
-		out[0] = "ID|Datacenter|Name|Class|Drain|Status"
-		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				node.ID,
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.Status)
-		}
-		// Dump the output
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, true)))
 		return 1
 	}
 
 	// Prefix lookup matched a single node
 	node, _, err := client.Nodes().Info(nodes[0].ID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error updating scheduling eligibility: %s", err))
 		return 1
 	}
 
