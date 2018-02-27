@@ -268,16 +268,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		go s.replicateACLTokens(stopCh)
 	}
 
-	// Convert stopCh into a Context
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		defer cancel()
-		select {
-		case <-stopCh:
-		case <-ctx.Done():
-		}
-	}()
-
 	// Setup any enterprise systems required.
 	if err := s.establishEnterpriseLeadership(stopCh); err != nil {
 		return err
