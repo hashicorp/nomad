@@ -433,6 +433,16 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node not found")
 	}
 
+	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
+	// format.
+	if args.Drain && args.DrainStrategy == nil {
+		args.DrainStrategy = &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second, // Force drain
+			},
+		}
+	}
+
 	// Commit this update via Raft
 	_, index, err := n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 	if err != nil {
