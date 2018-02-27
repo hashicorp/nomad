@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -59,6 +61,32 @@ func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, q *WriteOptions) (*W
 	}
 
 	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// NodeUpdateEligibilityRequest is used to update the drain specification for a node.
+type NodeUpdateEligibilityRequest struct {
+	// NodeID is the node to update the drain specification for.
+	NodeID      string
+	Eligibility string
+}
+
+// ToggleEligibility is used to update the scheduling eligibility of the node
+func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*WriteMeta, error) {
+	e := structs.NodeSchedulingEligible
+	if !eligible {
+		e = structs.NodeSchedulingIneligible
+	}
+
+	req := &NodeUpdateEligibilityRequest{
+		NodeID:      nodeID,
+		Eligibility: e,
+	}
+
+	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, nil, q)
 	if err != nil {
 		return nil, err
 	}
