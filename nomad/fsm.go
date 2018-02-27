@@ -238,6 +238,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
 		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
+	case structs.NodeUpdateEligibilityRequestType:
+		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -328,6 +330,35 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeDrain failed: %v", err)
 		return err
 	}
+	return nil
+}
+
+func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_eligibility_update"}, time.Now())
+	var req structs.NodeUpdateEligibilityRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	// Lookup the existing node
+	node, err := n.state.NodeByID(nil, req.NodeID)
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed to lookup node %q: %v", req.NodeID, err)
+		return err
+	}
+
+	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed: %v", err)
+		return err
+	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready
+	// state.
+	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible &&
+		req.Eligibility == structs.NodeSchedulingEligible {
+		n.blockedEvals.Unblock(node.ComputedClass, index)
+	}
+
 	return nil
 }
 

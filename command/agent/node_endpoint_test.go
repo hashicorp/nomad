@@ -302,6 +302,57 @@ func TestHTTP_NodeDrain(t *testing.T) {
 	})
 }
 
+func TestHTTP_NodeEligible(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the node
+		node := mock.Node()
+		args := structs.NodeRegisterRequest{
+			Node:         node,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.NodeUpdateResponse
+		require.Nil(s.Agent.RPC("Node.Register", &args, &resp))
+
+		drainReq := api.NodeUpdateEligibilityRequest{
+			NodeID:      node.ID,
+			Eligibility: structs.NodeSchedulingIneligible,
+		}
+
+		// Make the HTTP request
+		buf := encodeReq(drainReq)
+		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/eligibility", buf)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.NodeSpecificRequest(respW, req)
+		require.Nil(err)
+
+		// Check for the index
+		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+
+		// Check that the node has been updated
+		state := s.Agent.server.State()
+		out, err := state.NodeByID(nil, node.ID)
+		require.Nil(err)
+		require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
+
+		// Make the HTTP request to set something invalid
+		drainReq.Eligibility = "foo"
+		buf = encodeReq(drainReq)
+		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/eligibility", buf)
+		require.Nil(err)
+		respW = httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.NodeSpecificRequest(respW, req)
+		require.NotNil(err)
+		require.Contains(err.Error(), "invalid")
+	})
+}
+
 func TestHTTP_NodePurge(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

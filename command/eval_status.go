@@ -139,7 +139,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	evalID = sanatizeUUIDPrefix(evalID)
+	evalID = sanitizeUUIDPrefix(evalID)
 	evals, _, err := client.Evaluations().PrefixList(evalID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %v", err))

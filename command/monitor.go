@@ -190,7 +190,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				return 1
 			}
 
-			evalID = sanatizeUUIDPrefix(evalID)
+			evalID = sanitizeUUIDPrefix(evalID)
 			evals, _, err := m.client.Evaluations().PrefixList(evalID)
 			if err != nil {
 				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))

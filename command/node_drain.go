@@ -192,7 +192,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 
-	nodeID = sanatizeUUIDPrefix(nodeID)
+	nodeID = sanitizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
@@ -204,21 +204,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 	if len(nodes) > 1 {
-		// Format the nodes list that matches the prefix so that the user
-		// can create a more specific request
-		out := make([]string, len(nodes)+1)
-		out[0] = "ID|Datacenter|Name|Class|Drain|Status"
-		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				node.ID,
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.Status)
-		}
-		// Dump the output
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, true)))
 		return 1
 	}
 
@@ -269,5 +256,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
 	}
+
+	c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
 	return 0
 }
