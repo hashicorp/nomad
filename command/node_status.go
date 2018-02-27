@@ -248,24 +248,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(nodes) > 1 {
-		// Format the nodes list that matches the prefix so that the user
-		// can create a more specific request
-		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Drain|Eligibility|Status"
-		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s",
-				limit(node.ID, c.length),
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.SchedulingEligibility,
-				node.Status)
-		}
 		// Dump the output
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, c.verbose)))
 		return 1
 	}
+
 	// Prefix lookup matched a single node
 	node, _, err := client.Nodes().Info(nodes[0].ID, nil)
 	if err != nil {
@@ -602,4 +590,34 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		)
 	}
 	return resources, nil
+}
+
+// formatNodeStubList is used to return a table format of a list of node stubs.
+func formatNodeStubList(nodes []*api.NodeListStub, verbose bool) string {
+	// Return error if no nodes are found
+	if len(nodes) == 0 {
+		return ""
+	}
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
+	// Format the nodes list that matches the prefix so that the user
+	// can create a more specific request
+	out := make([]string, len(nodes)+1)
+	out[0] = "ID|DC|Name|Class|Drain|Eligibility|Status"
+	for i, node := range nodes {
+		out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s",
+			limit(node.ID, length),
+			node.Datacenter,
+			node.Name,
+			node.NodeClass,
+			node.Drain,
+			node.SchedulingEligibility,
+			node.Status)
+	}
+
+	return formatList(out)
 }
