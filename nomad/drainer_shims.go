@@ -15,8 +15,8 @@ func (d drainerShim) NodeDrainComplete(nodeID string) error {
 		WriteRequest: structs.WriteRequest{Region: d.s.config.Region},
 	}
 
-	_, _, err := d.s.raftApply(structs.NodeUpdateDrainRequestType, args)
-	return err
+	resp, _, err := d.s.raftApply(structs.NodeUpdateDrainRequestType, args)
+	return d.convertApplyErrors(resp, err)
 }
 
 func (d drainerShim) AllocUpdateDesiredTransition(allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) error {
@@ -25,6 +25,21 @@ func (d drainerShim) AllocUpdateDesiredTransition(allocs map[string]*structs.Des
 		Evals:        evals,
 		WriteRequest: structs.WriteRequest{Region: d.s.config.Region},
 	}
-	_, _, err := d.s.raftApply(structs.AllocUpdateDesiredTransitionRequestType, args)
+	resp, _, err := d.s.raftApply(structs.AllocUpdateDesiredTransitionRequestType, args)
+	return d.convertApplyErrors(resp, err)
+}
+
+// convertApplyErrors parses the results of a raftApply and returns the index at
+// which it was applied and any error that occurred. Raft Apply returns two
+// separate errors, Raft library errors and user returned errors from the FSM.
+// This helper, joins the errors by inspecting the applyResponse for an error.
+//
+// Similar to deployment watcher's convertApplyErrors
+func (d drainerShim) convertApplyErrors(applyResp interface{}, err error) error {
+	if applyResp != nil {
+		if fsmErr, ok := applyResp.(error); ok && fsmErr != nil {
+			return fsmErr
+		}
+	}
 	return err
 }
