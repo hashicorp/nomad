@@ -560,7 +560,14 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 		UpdateTime:        time.Now(),
 	}
 
-	_, _, err := d.dockerClients()
+	client, _, err := d.dockerClients()
+	if err != nil {
+		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
+		resp.AddDriverInfo("docker", unhealthy)
+		return err
+	}
+
+	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
 		resp.AddDriverInfo("docker", unhealthy)
@@ -582,7 +589,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 // interval at which to do them.
 func (d *DockerDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
 	resp.Eligible = true
-	resp.Period = 1 * time.Minute
+	resp.Period = 3 * time.Second
 	return nil
 }
 

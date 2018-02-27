@@ -135,13 +135,14 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 		// be on a later version than a Nomad client, we need to check for
 		// compatibility here to verify the client supports this.
 		if option.Drivers != nil {
-			driverInfo := option.Drivers[driverStr]
+			driverInfo := option.Drivers[driver]
 			if driverInfo == nil {
 				c.ctx.Logger().
 					Printf("[WARN] scheduler.DriverChecker: node %v has no driver info set for %v",
-						option.ID, driverStr)
+						option.ID, driver)
 				return false
 			}
+
 			return driverInfo.Detected && driverInfo.Healthy
 		} else {
 			value, ok := option.Attributes[driverStr]

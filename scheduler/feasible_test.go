@@ -134,21 +134,21 @@ func TestDriverChecker_HealthChecks(t *testing.T) {
 		mock.Node(),
 	}
 	nodes[0].Attributes["driver.foo"] = "1"
-	nodes[0].Drivers["driver.foo"] = &structs.DriverInfo{
+	nodes[0].Drivers["foo"] = &structs.DriverInfo{
 		Detected:          true,
 		Healthy:           true,
 		HealthDescription: "running",
 		UpdateTime:        time.Now(),
 	}
 	nodes[1].Attributes["driver.bar"] = "1"
-	nodes[1].Drivers["driver.bar"] = &structs.DriverInfo{
+	nodes[1].Drivers["bar"] = &structs.DriverInfo{
 		Detected:          true,
 		Healthy:           false,
 		HealthDescription: "not running",
 		UpdateTime:        time.Now(),
 	}
 	nodes[2].Attributes["driver.baz"] = "0"
-	nodes[2].Drivers["driver.baz"] = &structs.DriverInfo{
+	nodes[2].Drivers["baz"] = &structs.DriverInfo{
 		Detected:          false,
 		Healthy:           false,
 		HealthDescription: "not running",

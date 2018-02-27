@@ -206,9 +206,7 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 func (fm *FingerprintManager) healthCheck(name string, hc fingerprint.HealthCheck) error {
 	request := &cstructs.HealthCheckRequest{}
 	var response cstructs.HealthCheckResponse
-	if err := hc.HealthCheck(request, &response); err != nil {
-		return err
-	}
+	err := hc.HealthCheck(request, &response)
 
 	if node := fm.updateHealthCheck(&response); node != nil {
 		fm.nodeLock.Lock()
@@ -216,7 +214,7 @@ func (fm *FingerprintManager) healthCheck(name string, hc fingerprint.HealthChec
 		fm.nodeLock.Unlock()
 	}
 
-	return nil
+	return err
 }
 
 // setupFingerprints is used to fingerprint the node to see if these attributes are
