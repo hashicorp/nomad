@@ -509,7 +509,7 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
-// of drain which is set by the scheduler.
+// of drain/eligibility which is set by the scheduler.
 func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -525,7 +525,8 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		exist := existing.(*structs.Node)
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
-		node.Drain = exist.Drain // Retain the drain mode
+		node.Drain = exist.Drain                                 // Retain the drain mode
+		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
 	} else {
 		node.CreateIndex = index
 		node.ModifyIndex = index
@@ -634,6 +635,46 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain *structs
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	}
 
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeEligibility is used to update the scheduling eligibility of a node
+func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string) error {
+
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Check if this is a valid action
+	if copyNode.DrainStrategy != nil && eligibility == structs.NodeSchedulingEligible {
+		return fmt.Errorf("can not set node's scheduling eligibility to eligible while it is draining")
+	}
+
+	// Update the eligibility in the copy
+	copyNode.SchedulingEligibility = eligibility
 	copyNode.ModifyIndex = index
 
 	// Insert the node

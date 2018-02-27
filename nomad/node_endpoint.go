@@ -456,6 +456,62 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	return nil
 }
 
+// UpdateEligibility is used to update the scheduling eligibility of a node
+func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := n.srv.forward("Node.UpdateEligibility", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_eligibility"}, time.Now())
+
+	// Check node write permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for setting scheduling eligibility")
+	}
+
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	if node.DrainStrategy != nil && args.Eligibility == structs.NodeSchedulingEligible {
+		return fmt.Errorf("can not set node's scheduling eligibility to eligible while it is draining")
+	}
+
+	// Commit this update via Raft
+	outErr, index, err := n.srv.raftApply(structs.NodeUpdateEligibilityRequestType, args)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: eligibility update failed: %v", err)
+		return err
+	}
+	if outErr != nil {
+		if err, ok := outErr.(error); ok && err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: eligibility update failed: %v", err)
+			return err
+		}
+	}
+
+	// Set the reply index
+	reply.Index = index
+	return nil
+}
+
 // Evaluate is used to force a re-evaluation of the node
 func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Evaluate", args, args, reply); done {
