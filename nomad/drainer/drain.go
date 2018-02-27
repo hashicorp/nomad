@@ -78,37 +78,64 @@ type RaftApplier interface {
 	NodeDrainComplete(nodeID string) error
 }
 
+// nodeDrainerState is used to communicate the state set by
+// NodeDrainer.SetEnabled to the concurrently executing Run loop.
 type nodeDrainerState struct {
 	enabled bool
 	state   *state.StateStore
 }
 
+// NodeDrainer migrates allocations off of draining nodes. SetEnabled(true)
+// should be called when a server establishes leadership and SetEnabled(false)
+// called when leadership is lost.
 type NodeDrainer struct {
 	enabledCh chan nodeDrainerState
 
 	raft RaftApplier
 
+	shutdownCh <-chan struct{}
+
 	logger *log.Logger
 }
 
-func NewNodeDrainer(logger *log.Logger, raft RaftApplier) *NodeDrainer {
+// NewNodeDrainer creates a new NodeDrainer which will exit when shutdownCh is
+// closed. A RaftApplier shim must be supplied to allow NodeDrainer access to
+// the raft messages it sends.
+func NewNodeDrainer(logger *log.Logger, shutdownCh <-chan struct{}, raft RaftApplier) *NodeDrainer {
 	return &NodeDrainer{
-		enabledCh: make(chan nodeDrainerState),
-		raft:      raft,
-		logger:    logger,
+		enabledCh:  make(chan nodeDrainerState),
+		raft:       raft,
+		shutdownCh: shutdownCh,
+		logger:     logger,
 	}
 }
 
+// SetEnabled will start or stop the node draining goroutine depending on the
+// enabled boolean. SetEnabled is meant to be called concurrently with Run.
 func (n *NodeDrainer) SetEnabled(enabled bool, state *state.StateStore) {
-	n.enabledCh <- nodeDrainerState{enabled, state}
+	select {
+	case n.enabledCh <- nodeDrainerState{enabled, state}:
+	case <-n.shutdownCh:
+	}
 }
 
-//FIXME never exits
+// Run monitors the shutdown chan as well as SetEnabled calls and starts/stops
+// the node draining goroutine appropriately. As it blocks it should be called
+// in a goroutine.
 func (n *NodeDrainer) Run() {
 	running := false
+	var s nodeDrainerState
 	var ctx context.Context
 	cancel := func() {}
-	for s := range n.enabledCh {
+	for {
+		select {
+		case s = <-n.enabledCh:
+		case <-n.shutdownCh:
+			// Stop drainer and exit
+			cancel()
+			return
+		}
+
 		switch {
 		case s.enabled && running:
 			// Already running
@@ -129,7 +156,8 @@ func (n *NodeDrainer) Run() {
 	}
 }
 
-// nodeDrainer should be called in establishLeadership by the leader.
+// nodeDrainer is the core node draining main loop and should be started in a
+// goroutine when a server establishes leadership.
 func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) {
 	nodes, nodesIndex, drainingJobs, allocsIndex := initDrainer(n.logger, state)
 
