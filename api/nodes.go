@@ -241,17 +241,18 @@ type HostDiskStats struct {
 // NodeListStub is a subset of information returned during
 // node list operations.
 type NodeListStub struct {
-	Address           string
-	ID                string
-	Datacenter        string
-	Name              string
-	NodeClass         string
-	Version           string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	Address               string
+	ID                    string
+	Datacenter            string
+	Name                  string
+	NodeClass             string
+	Version               string
+	Drain                 bool
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	CreateIndex           uint64
+	ModifyIndex           uint64
 }
 
 // NodeIndexSort reverse sorts nodes by CreateIndex
