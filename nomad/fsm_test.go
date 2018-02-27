@@ -316,6 +316,67 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	require.Equal(node.DrainStrategy, strategy)
 }
 
+func TestFSM_UpdateNodeEligibility(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Set the eligibility
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingIneligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req2)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Lookup the node and check
+	node, err = fsm.State().NodeByID(nil, req.Node.ID)
+	require.Nil(err)
+	require.Equal(node.SchedulingEligibility, structs.NodeSchedulingIneligible)
+
+	// Update the drain
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+	req3 := structs.NodeUpdateDrainRequest{
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req3)
+	require.Nil(err)
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Try forcing eligibility
+	req4 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingEligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req4)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.NotNil(resp)
+	err, ok := resp.(error)
+	require.True(ok)
+	require.Contains(err.Error(), "draining")
+}
+
 func TestFSM_RegisterJob(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

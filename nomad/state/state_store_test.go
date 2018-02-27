@@ -733,6 +733,52 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	require.False(watchFired(ws))
 }
 
+func TestStateStore_UpdateNodeEligibility(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+	node := mock.Node()
+
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expectedEligibility := structs.NodeSchedulingIneligible
+
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	if _, err := state.NodeByID(ws, node.ID); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility))
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.Equal(out.SchedulingEligibility, expectedEligibility)
+	require.EqualValues(1001, out.ModifyIndex)
+
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1001, index)
+	require.False(watchFired(ws))
+
+	// Set a drain strategy
+	expectedDrain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
+	}
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain))
+
+	// Try to set the node to eligible
+	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible)
+	require.NotNil(err)
+	require.Contains(err.Error(), "while it is draining")
+}
+
 func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 	require := require.New(t)
 	state := testStateStore(t)

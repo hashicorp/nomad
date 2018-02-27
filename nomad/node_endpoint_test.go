@@ -980,6 +980,97 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	})
 }
 
+func TestClientEndpoint_UpdateEligibility(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the eligibility
+	dereg := &structs.NodeUpdateEligibilityRequest{
+		NodeID:       node.ID,
+		Eligibility:  structs.NodeSchedulingIneligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.GenericResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+}
+
+func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	require := require.New(t)
+
+	// Create the node
+	node := mock.Node()
+	state := s1.fsm.State()
+
+	require.Nil(state.UpsertNode(1, node), "UpsertNode")
+
+	// Create the policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
+
+	// Update the status without a token and expect failure
+	dereg := &structs.NodeUpdateEligibilityRequest{
+		NodeID:       node.ID,
+		Eligibility:  structs.NodeSchedulingIneligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp)
+		require.NotNil(err, "RPC")
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token
+	dereg.AuthToken = validToken.SecretID
+	{
+		var resp structs.GenericResponse
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp), "RPC")
+	}
+
+	// Try with a invalid token
+	dereg.AuthToken = invalidToken.SecretID
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp)
+		require.NotNil(err, "RPC")
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	dereg.AuthToken = root.SecretID
+	{
+		var resp structs.GenericResponse
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp), "RPC")
+	}
+}
+
 func TestClientEndpoint_GetNode(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)

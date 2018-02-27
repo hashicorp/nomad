@@ -79,6 +79,7 @@ const (
 	UpsertNodeEventsType
 	JobBatchDeregisterRequestType
 	AllocUpdateDesiredTransitionRequestType
+	NodeUpdateEligibilityRequestType
 )
 
 const (
@@ -307,6 +308,13 @@ type NodeUpdateDrainRequest struct {
 	NodeID        string
 	Drain         bool // TODO Deprecate
 	DrainStrategy *DrainStrategy
+	WriteRequest
+}
+
+// NodeUpdateEligibilityRequest is used for updating the scheduling	eligibility
+type NodeUpdateEligibilityRequest struct {
+	NodeID      string
+	Eligibility string
 	WriteRequest
 }
 
