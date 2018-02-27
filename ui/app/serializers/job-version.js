@@ -11,6 +11,7 @@ export default ApplicationSerializer.extend({
       assign({}, version, {
         Diff: hash.Diffs && hash.Diffs[index],
         ID: `${version.ID}-${version.Version}`,
+        JobID: JSON.stringify([version.ID, version.Namespace || 'default']),
         SubmitTime: Math.floor(version.SubmitTime / 1000000),
         SubmitTimeNanos: version.SubmitTime % 1000000,
       })
