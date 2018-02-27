@@ -892,7 +892,7 @@ func (s *Server) setupDeploymentWatcher() error {
 func (s *Server) setupNodeDrainer() {
 	// create a shim around raft requests
 	shim := drainerShim{s}
-	s.nodeDrainer = drainer.NewNodeDrainer(s.logger, shim)
+	s.nodeDrainer = drainer.NewNodeDrainer(s.logger, s.shutdownCh, shim)
 	go s.nodeDrainer.Run()
 }
 
