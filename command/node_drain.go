@@ -54,7 +54,7 @@ Node Drain Options:
 
   -ignore-system
     Ignore system allows the drain to complete without stopping system job
-    allocations.
+    allocations. By default system jobs are stopped last.
 
   -self
     Set the drain status of the local node.
