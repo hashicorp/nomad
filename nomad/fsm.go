@@ -344,10 +344,25 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Lookup the existing node
+	node, err := n.state.NodeByID(nil, req.NodeID)
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed to lookup node %q: %v", req.NodeID, err)
+		return err
+	}
+
 	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed: %v", err)
 		return err
 	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready
+	// state.
+	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible &&
+		req.Eligibility == structs.NodeSchedulingEligible {
+		n.blockedEvals.Unblock(node.ComputedClass, index)
+	}
+
 	return nil
 }
 
