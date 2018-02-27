@@ -494,6 +494,12 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		return fmt.Errorf("can not set node's scheduling eligibility to eligible while it is draining")
 	}
 
+	switch args.Eligibility {
+	case structs.NodeSchedulingEligible, structs.NodeSchedulingIneligible:
+	default:
+		return fmt.Errorf("invalid scheduling eligibility %q", args.Eligibility)
+	}
+
 	// Commit this update via Raft
 	outErr, index, err := n.srv.raftApply(structs.NodeUpdateEligibilityRequestType, args)
 	if err != nil {

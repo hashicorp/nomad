@@ -44,6 +44,9 @@ func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Req
 	case strings.HasSuffix(path, "/drain"):
 		nodeName := strings.TrimSuffix(path, "/drain")
 		return s.nodeToggleDrain(resp, req, nodeName)
+	case strings.HasSuffix(path, "/eligibility"):
+		nodeName := strings.TrimSuffix(path, "/eligibility")
+		return s.nodeToggleEligibility(resp, req, nodeName)
 	case strings.HasSuffix(path, "/purge"):
 		nodeName := strings.TrimSuffix(path, "/purge")
 		return s.nodePurge(resp, req, nodeName)
@@ -147,6 +150,26 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 	}
 	setIndex(resp, out.Index)
 	return out, nil
+}
+
+func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.Request,
+	nodeID string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var drainRequest structs.NodeUpdateEligibilityRequest
+	if err := decodeBody(req, &drainRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	s.parseWriteRequest(req, &drainRequest.WriteRequest)
+
+	var out structs.GenericResponse
+	if err := s.agent.RPC("Node.UpdateEligibility", &drainRequest, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return nil, nil
 }
 
 func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,
