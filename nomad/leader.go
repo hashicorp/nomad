@@ -199,9 +199,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.blockedEvals.SetTimetable(s.fsm.TimeTable())
 
 	// Enable the deployment watcher, since we are now the leader
-	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {
-		return err
-	}
+	s.deploymentWatcher.SetEnabled(true, s.State())
+
+	// Enable the NodeDrainer
+	s.nodeDrainer.SetEnabled(true, s.State())
 
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
@@ -267,8 +268,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		go s.replicateACLTokens(stopCh)
 	}
 
-	// Start Node Drainer
-	go s.startNodeDrainer(stopCh)
+	// Convert stopCh into a Context
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer cancel()
+		select {
+		case <-stopCh:
+		case <-ctx.Done():
+		}
+	}()
 
 	// Setup any enterprise systems required.
 	if err := s.establishEnterpriseLeadership(stopCh); err != nil {
@@ -676,9 +684,10 @@ func (s *Server) revokeLeadership() error {
 	s.vault.SetActive(false)
 
 	// Disable the deployment watcher as it is only useful as a leader.
-	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
-		return err
-	}
+	s.deploymentWatcher.SetEnabled(false, nil)
+
+	// Disable the node drainer
+	s.nodeDrainer.SetEnabled(false, nil)
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {
