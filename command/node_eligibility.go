@@ -120,7 +120,7 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 		return 1
 	}
 
-	nodeID = sanatizeUUIDPrefix(nodeID)
+	nodeID = sanitizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating scheduling eligibility: %s", err))

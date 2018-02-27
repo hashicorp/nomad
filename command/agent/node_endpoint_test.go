@@ -302,7 +302,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 	})
 }
 
-func TestHTTP_NodeEligble(t *testing.T) {
+func TestHTTP_NodeEligible(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
