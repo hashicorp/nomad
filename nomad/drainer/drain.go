@@ -125,8 +125,7 @@ func (n *NodeDrainer) SetEnabled(enabled bool, state *state.StateStore) {
 func (n *NodeDrainer) Run() {
 	running := false
 	var s nodeDrainerState
-	var ctx context.Context
-	cancel := func() {}
+	ctx, cancel := context.WithCancel(context.Background())
 	for {
 		select {
 		case s = <-n.enabledCh:
@@ -138,15 +137,19 @@ func (n *NodeDrainer) Run() {
 
 		switch {
 		case s.enabled && running:
-			// Already running
-			continue
+			// Already running, must restart to ensure the latest StateStore is used
+			cancel()
+			ctx, cancel = context.WithCancel(context.Background())
+			go n.nodeDrainer(ctx, s.state)
+
 		case !s.enabled && !running:
-			// Already stopped
-			continue
+			// Already stopped; nothing to do
+
 		case !s.enabled && running:
 			// Stop running node drainer
 			cancel()
 			running = false
+
 		case s.enabled && !running:
 			// Start running node drainer
 			ctx, cancel = context.WithCancel(context.Background())
