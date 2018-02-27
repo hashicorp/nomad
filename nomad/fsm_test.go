@@ -333,6 +333,60 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 	require.Contains(err.Error(), "draining")
 }
 
+func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Set the eligibility
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingIneligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req2)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Mark an eval as blocked.
+	eval := mock.Eval()
+	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
+	fsm.blockedEvals.Block(eval)
+
+	// Set eligible
+	req4 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingEligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req4)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify the eval was unblocked.
+	testutil.WaitForResult(func() (bool, error) {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+}
+
 func TestFSM_RegisterJob(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
