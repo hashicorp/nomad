@@ -269,5 +269,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
 	}
+
+	c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
 	return 0
 }
