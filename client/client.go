@@ -1558,6 +1558,7 @@ func (c *Client) watchNodeUpdates() {
 			c.retryRegisterNode()
 
 			hasChanged = false
+			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 		case <-c.triggerNodeUpdate:
 			hasChanged = true
 		case <-c.shutdownCh:
