@@ -242,6 +242,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyBatchDeregisterJob(buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
 		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
+	case structs.NodeUpdateEligibilityRequestType:
+		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -330,6 +332,20 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 
 	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeDrain failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_eligibility_update"}, time.Now())
+	var req structs.NodeUpdateEligibilityRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed: %v", err)
 		return err
 	}
 	return nil
