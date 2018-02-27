@@ -16,7 +16,14 @@ export default Component.extend(WindowResizable, {
   allocation: null,
   task: null,
 
+  // When true, request logs from the server agent
   useServer: false,
+
+  // When true, logs cannot be fetched from either the client or the server
+  noConnection: false,
+
+  clientTimeout: 1000,
+  serverTimeout: 5000,
 
   didReceiveAttrs() {
     if (this.get('allocation') && this.get('task')) {
@@ -59,12 +66,17 @@ export default Component.extend(WindowResizable, {
   logger: logger('logUrl', 'logParams', function logFetch() {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
+    const timing = this.get('useServer') ? this.get('serverTimeout') : this.get('clientTimeout');
     return url =>
-      RSVP.race([this.get('token').authorizedRequest(url), timeout(1000)]).then(
+      RSVP.race([this.get('token').authorizedRequest(url), timeout(timing)]).then(
         response => response,
         error => {
-          this.send('failoverToServer');
-          this.get('stream').perform();
+          if (this.get('useServer')) {
+            this.set('noConnection', true);
+          } else {
+            this.send('failoverToServer');
+            this.get('stream').perform();
+          }
           throw error;
         }
       );

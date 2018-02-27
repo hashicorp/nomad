@@ -7,6 +7,7 @@ import Pretender from 'pretender';
 import { logEncode } from '../../mirage/data/logs';
 
 const HOST = '1.1.1.1:1111';
+const allowedConnectionTime = 100;
 const commonProps = {
   interval: 50,
   allocation: {
@@ -16,6 +17,8 @@ const commonProps = {
     },
   },
   task: 'task-name',
+  clientTimeout: allowedConnectionTime,
+  serverTimeout: allowedConnectionTime,
 };
 
 const logHead = ['HEAD'];
@@ -179,13 +182,23 @@ test('Clicking stderr switches the log to standard error', function(assert) {
 });
 
 test('When the client is inaccessible, task-log falls back to requesting logs through the server', function(assert) {
-  run.later(run, run.cancelTimers, 2000);
+  run.later(run, run.cancelTimers, allowedConnectionTime * 2);
 
   // override client response to timeout
-  this.server.get(`http://${HOST}/v1/client/fs/logs/:allocation_id`, () => [400, {}, ''], 2000);
+  this.server.get(
+    `http://${HOST}/v1/client/fs/logs/:allocation_id`,
+    () => [400, {}, ''],
+    allowedConnectionTime * 2
+  );
 
   this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+  this.render(
+    hbs`{{task-log
+      allocation=allocation
+      task=task
+      clientTimeout=clientTimeout
+      serverTimeout=serverTimeout}}`
+  );
 
   const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
   assert.ok(
@@ -199,5 +212,44 @@ test('When the client is inaccessible, task-log falls back to requesting logs th
       this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
       'Log request was later made to the server'
     );
+  });
+});
+
+test('When both the client and the server are inaccessible, an error message is shown', function(assert) {
+  run.later(run, run.cancelTimers, allowedConnectionTime * 5);
+
+  // override client and server responses to timeout
+  this.server.get(
+    `http://${HOST}/v1/client/fs/logs/:allocation_id`,
+    () => [400, {}, ''],
+    allowedConnectionTime * 2
+  );
+  this.server.get(
+    '/v1/client/fs/logs/:allocation_id',
+    () => [400, {}, ''],
+    allowedConnectionTime * 2
+  );
+
+  this.setProperties(commonProps);
+  this.render(
+    hbs`{{task-log
+      allocation=allocation
+      task=task
+      clientTimeout=clientTimeout
+      serverTimeout=serverTimeout}}`
+  );
+
+  return wait().then(() => {
+    const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+    assert.ok(
+      this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
+      'Log request was initially made directly to the client'
+    );
+    const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
+    assert.ok(
+      this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
+      'Log request was later made to the server'
+    );
+    assert.ok(find('[data-test-connection-error]'), 'An error message is shown');
   });
 });
