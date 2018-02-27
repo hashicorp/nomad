@@ -527,6 +527,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		node.ModifyIndex = index
 		node.Drain = exist.Drain                                 // Retain the drain mode
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
+		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 	} else {
 		node.CreateIndex = index
 		node.ModifyIndex = index
@@ -586,8 +587,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
 
 	// Update the status in the copy
 	copyNode.Status = status
@@ -627,11 +627,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain *structs
 	// Update the drain in the copy
 	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.9
 	copyNode.DrainStrategy = drain
-	if drain == nil {
-		// When stopping a drain unset the strategy but leave the node
-		// ineligible for scheduling
-		copyNode.DrainStrategy = nil
-	} else {
+	if drain != nil {
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	}
 
