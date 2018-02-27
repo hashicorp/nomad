@@ -102,7 +102,7 @@ func NewDeploymentsWatcher(logger *log.Logger,
 // SetEnabled is used to control if the watcher is enabled. The watcher
 // should only be enabled on the active leader. When being enabled the state is
 // passsed in as it is no longer valid once a leader election has taken place.
-func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
+func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -120,8 +120,6 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
 	if enabled && !wasEnabled {
 		go w.watchDeployments(w.ctx)
 	}
-
-	return nil
 }
 
 // flush is used to clear the state of the watcher

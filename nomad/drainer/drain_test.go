@@ -1,7 +1,9 @@
-package nomad
+package drainer_test
 
 import (
 	"fmt"
+	"net"
+	"net/rpc"
 	"sort"
 	"strings"
 	"testing"
@@ -10,7 +12,9 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -20,11 +24,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// rpcClient is a test helper method to return a ClientCodec to use to make rpc
+// calls to the passed server.
+func rpcClient(t *testing.T, conf *nomad.Config) rpc.ClientCodec {
+	addr := conf.RPCAddr
+	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// Write the Nomad RPC byte to set the mode
+	conn.Write([]byte{byte(pool.RpcNomad)})
+	return pool.NewClientCodec(conn)
+}
+
 // TestNodeDrainer_SimpleDrain asserts that draining when there are two nodes
 // moves allocs from the draining node to the other node.
 func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	require := require.New(t)
-	server := TestServer(t, nil)
+
+	// Capture test servers config
+	var serverConfig *nomad.Config
+	server := nomad.TestServer(t, func(c *nomad.Config) {
+		serverConfig = c
+	})
 	defer server.Shutdown()
 
 	testutil.WaitForLeader(t, server.RPC)
@@ -32,7 +54,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	// Setup 2 Nodes: A & B; A has allocs and is draining
 
 	// Create mock jobs
-	state := server.fsm.State()
+	state := server.State()
 
 	serviceJob := mock.Job()
 	serviceJob.Name = "service-job"
@@ -83,12 +105,12 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	// Start node 1
 	c1 := client.TestClient(t, func(conf *config.Config) {
 		conf.LogOutput = testlog.NewWriter(t)
-		conf.Servers = []string{server.config.RPCAddr.String()}
+		conf.Servers = []string{serverConfig.RPCAddr.String()}
 	})
 	defer c1.Shutdown()
 
 	// Start jobs so they all get placed on node 1
-	codec := rpcClient(t, server)
+	codec := rpcClient(t, serverConfig)
 	for _, job := range []*structs.Job{systemJob, serviceJob, batchJob} {
 		req := &structs.JobRegisterRequest{
 			Job: job.Copy(),
@@ -137,7 +159,6 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 				t.Logf("%d alloc %s job %s status %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus)
 			}
 		}
-		server.logger.Println("----------------------------------------------------------------------quitting--------------------------------------------------------")
 		t.Fatalf("failed waiting for all allocs to start: %v", err)
 	})
 
@@ -155,7 +176,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	// Start node 2
 	c2 := client.TestClient(t, func(conf *config.Config) {
 		conf.NetworkSpeed = 10000
-		conf.Servers = []string{server.config.RPCAddr.String()}
+		conf.Servers = []string{serverConfig.RPCAddr.String()}
 	})
 	defer c2.Shutdown()
 
@@ -191,7 +212,6 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 				t.Logf("%d alloc %s job %s status %s prev %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus, alloc.PreviousAllocation)
 			}
 		}
-		server.logger.Println("----------------------------------------------------------------------quitting--------------------------------------------------------")
 		t.Errorf("failed waiting for all allocs to migrate: %v", err)
 	})
 
