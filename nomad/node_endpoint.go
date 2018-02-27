@@ -433,29 +433,23 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node not found")
 	}
 
-	// Update the timestamp to
-	node.StatusUpdatedAt = time.Now().Unix()
+	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
+	// format.
+	if args.Drain && args.DrainStrategy == nil {
+		args.DrainStrategy = &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second, // Force drain
+			},
+		}
+	}
 
 	// Commit this update via Raft
-	var index uint64
-	if node.Drain != args.Drain {
-		_, index, err = n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
-		if err != nil {
-			n.srv.logger.Printf("[ERR] nomad.client: drain update failed: %v", err)
-			return err
-		}
-		reply.NodeModifyIndex = index
-	}
-
-	// Always attempt to create Node evaluations because there may be a System
-	// job registered that should be evaluated.
-	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+	_, index, err := n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+		n.srv.logger.Printf("[ERR] nomad.client: drain update failed: %v", err)
 		return err
 	}
-	reply.EvalIDs = evalIDs
-	reply.EvalCreateIndex = evalIndex
+	reply.NodeModifyIndex = index
 
 	// Set the reply index
 	reply.Index = index

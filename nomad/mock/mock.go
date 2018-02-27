@@ -194,6 +194,10 @@ func SystemJob() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts: 2,
+					Interval: 10 * time.Minute,
+				},
 				EphemeralDisk: structs.DefaultEphemeralDisk(),
 				Tasks: []*structs.Task{
 					{
@@ -238,6 +242,7 @@ func PeriodicJob() *structs.Job {
 		Spec:     "*/30 * * * *",
 	}
 	job.Status = structs.JobStatusRunning
+	job.TaskGroups[0].Migrate = nil
 	return job
 }
 

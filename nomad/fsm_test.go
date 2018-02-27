@@ -236,6 +236,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	fsm := testFSM(t)
 
 	node := mock.Node()
@@ -243,38 +244,32 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 		Node: node,
 	}
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
 	req2 := structs.NodeUpdateDrainRequest{
-		NodeID: node.ID,
-		Drain:  true,
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
 	}
 	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !node.Drain {
-		t.Fatalf("bad node: %#v", node)
-	}
+	require.Nil(err)
+	require.True(node.Drain)
+	require.Equal(node.DrainStrategy, strategy)
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
