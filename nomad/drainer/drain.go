@@ -1,4 +1,4 @@
-package nomad
+package drainer
 
 import (
 	"context"
@@ -71,21 +71,67 @@ func (s *stopAllocs) add(j *structs.Job, a *structs.Allocation) {
 	s.jobBatch[jobKey{a.Namespace, a.JobID}] = j
 }
 
-// startNodeDrainer should be called in establishLeadership by the leader.
-func (s *Server) startNodeDrainer(stopCh chan struct{}) {
-	state := s.fsm.State()
+// RaftApplier contains methods for applying the raft requests required by the
+// NodeDrainer.
+type RaftApplier interface {
+	AllocUpdateDesiredTransition(allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) error
+	NodeDrainComplete(nodeID string) error
+}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		select {
-		case <-stopCh:
+type nodeDrainerState struct {
+	enabled bool
+	state   *state.StateStore
+}
+
+type NodeDrainer struct {
+	enabledCh chan nodeDrainerState
+
+	raft RaftApplier
+
+	logger *log.Logger
+}
+
+func NewNodeDrainer(logger *log.Logger, raft RaftApplier) *NodeDrainer {
+	return &NodeDrainer{
+		enabledCh: make(chan nodeDrainerState),
+		raft:      raft,
+		logger:    logger,
+	}
+}
+
+func (n *NodeDrainer) SetEnabled(enabled bool, state *state.StateStore) {
+	n.enabledCh <- nodeDrainerState{enabled, state}
+}
+
+//FIXME never exits
+func (n *NodeDrainer) Run() {
+	running := false
+	var ctx context.Context
+	cancel := func() {}
+	for s := range n.enabledCh {
+		switch {
+		case s.enabled && running:
+			// Already running
+			continue
+		case !s.enabled && !running:
+			// Already stopped
+			continue
+		case !s.enabled && running:
+			// Stop running node drainer
 			cancel()
-		case <-ctx.Done():
+			running = false
+		case s.enabled && !running:
+			// Start running node drainer
+			ctx, cancel = context.WithCancel(context.Background())
+			go n.nodeDrainer(ctx, s.state)
+			running = true
 		}
-	}()
+	}
+}
 
-	nodes, nodesIndex, drainingJobs, allocsIndex := initDrainer(s.logger, state)
+// nodeDrainer should be called in establishLeadership by the leader.
+func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) {
+	nodes, nodesIndex, drainingJobs, allocsIndex := initDrainer(n.logger, state)
 
 	// Wait for a node's drain deadline to expire
 	var nextDeadline time.Time
@@ -102,12 +148,12 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 	deadlineTimer := time.NewTimer(time.Until(nextDeadline))
 
 	// Watch for nodes to start or stop draining
-	nodeWatcher := newNodeWatcher(s.logger, nodes, nodesIndex, state)
+	nodeWatcher := newNodeWatcher(n.logger, nodes, nodesIndex, state)
 	go nodeWatcher.run(ctx)
 
 	// Watch for drained allocations to be replaced
 	// Watch for changes in allocs for jobs with allocs on draining nodes
-	jobWatcher := newJobWatcher(s.logger, drainingJobs, allocsIndex, state)
+	jobWatcher := newJobWatcher(n.logger, drainingJobs, allocsIndex, state)
 	go jobWatcher.run(ctx)
 
 	for {
@@ -116,11 +162,11 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		//possible outcome of this is that an allocation could be
 		//stopped on a node that recently had its drain cancelled which
 		//doesn't seem like that bad of a pathological case
-		s.logger.Printf("[TRACE] nomad.drain: LOOP next deadline: %s (%s)", nextDeadline, time.Until(nextDeadline))
+		n.logger.Printf("[TRACE] nomad.drain: LOOP next deadline: %s (%s)", nextDeadline, time.Until(nextDeadline))
 		select {
 		case nodes = <-nodeWatcher.nodesCh:
 			// update draining nodes
-			s.logger.Printf("[TRACE] nomad.drain: running due to node change (%d nodes draining)", len(nodes))
+			n.logger.Printf("[TRACE] nomad.drain: running due to node change (%d nodes draining)", len(nodes))
 
 			// update deadline timer
 			changed := false
@@ -139,7 +185,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 			// if changed reset the timer
 			if changed {
-				s.logger.Printf("[TRACE] nomad.drain: new node deadline: %s", nextDeadline)
+				n.logger.Printf("[TRACE] nomad.drain: new node deadline: %s", nextDeadline)
 				if !deadlineTimer.Stop() {
 					// timer may have been recv'd in a
 					// previous loop, so don't block
@@ -152,10 +198,10 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 			}
 
 		case jobs := <-jobWatcher.WaitCh():
-			s.logger.Printf("[TRACE] nomad.drain: running due to alloc change (%d jobs updated)", len(jobs))
+			n.logger.Printf("[TRACE] nomad.drain: running due to alloc change (%d jobs updated)", len(jobs))
 		case when := <-deadlineTimer.C:
 			// deadline for a node was reached
-			s.logger.Printf("[TRACE] nomad.drain: running due to deadline reached (at %s)", when)
+			n.logger.Printf("[TRACE] nomad.drain: running due to deadline reached (at %s)", when)
 		case <-ctx.Done():
 			// exit
 			return
@@ -164,15 +210,13 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		// Tracks nodes that are done draining
 		doneNodes := map[string]*structs.Node{}
 
-		//TODO work from a state snapshot? perhaps from a last update
-		//index? I can't think of why this would be beneficial as this
-		//entire process runs asynchronously with the fsm/scheduler/etc
+		// Capture state (statestore and time) to do consistent comparisons
 		snapshot, err := state.Snapshot()
 		if err != nil {
 			//FIXME
 			panic(err)
 		}
-		now := time.Now() // for determing deadlines in a consistent way
+		now := time.Now()
 
 		// job key -> {job, allocs}
 		// Collect all allocs for all jobs with at least one
@@ -227,14 +271,14 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				// allocs left to be drained
 				if !alloc.TerminalStatus() {
 					if !allocsLeft {
-						s.logger.Printf("[TRACE] nomad.drain: node %s has allocs left to drain", nodeID[:6])
+						n.logger.Printf("[TRACE] nomad.drain: node %s has allocs left to drain", nodeID[:6])
 						allocsLeft = true
 					}
 				}
 
 				// Don't bother collecting system/batch jobs for nodes that haven't hit their deadline
 				if job.Type != structs.JobTypeService && !deadlineReached {
-					s.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
+					n.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
 						job.Type, job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
 					skipJob[jobkey] = struct{}{}
 					continue
@@ -248,14 +292,14 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 				// Count the number of down (terminal or nil deployment status) per task group
 				if job.Type == structs.JobTypeService {
-					n := 0
+					num := 0
 					for _, a := range jobAllocs {
 						if !a.TerminalStatus() && a.DeploymentStatus != nil {
 							upPerTG[makeTaskGroupKey(a)]++
-							n++
+							num++
 						}
 					}
-					s.logger.Printf("[TRACE] nomad.drain: job %s has %d task groups running", job.Name, n)
+					n.logger.Printf("[TRACE] nomad.drain: job %s has %d task groups running", job.Name, num)
 				}
 
 				drainable[jobkey] = &drainingJob{
@@ -268,7 +312,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 			// if node has no allocs or has hit its deadline, it's done draining!
 			if !allocsLeft || deadlineReached {
-				s.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain or has reached deadline", nodeID)
+				n.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain or has reached deadline", nodeID)
 				jobWatcher.nodeDone(nodeID)
 				doneNodes[nodeID] = node
 			}
@@ -298,7 +342,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				tgKey := makeTaskGroupKey(alloc)
 
 				if node.DrainStrategy.DeadlineTime().Before(now) {
-					s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to node's drain deadline", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
+					n.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to node's drain deadline", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					// Alloc's Node has reached its deadline
 					stoplist.add(drainingJob.job, alloc)
 					upPerTG[tgKey]--
@@ -319,19 +363,19 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 				// Only 1, drain
 				if tg.Count == 1 {
-					s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to count=1", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
+					n.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to count=1", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					stoplist.add(drainingJob.job, alloc)
 					continue
 				}
 
 				// No migrate strategy or a max parallel of 0 mean force draining
 				if tg.Migrate == nil || tg.Migrate.MaxParallel == 0 {
-					s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to force drain", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
+					n.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to force drain", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					stoplist.add(drainingJob.job, alloc)
 					continue
 				}
 
-				s.logger.Printf("[TRACE] nomad.drain: considering job %s alloc %s  count %d  maxp %d  up %d",
+				n.logger.Printf("[TRACE] nomad.drain: considering job %s alloc %s  count %d  maxp %d  up %d",
 					drainingJob.job.Name, alloc.ID[:6], tg.Count, tg.Migrate.MaxParallel, upPerTG[tgKey])
 
 				// Count - MaxParalell = minimum number of allocations that must be "up"
@@ -339,7 +383,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 
 				// If minimum is < the current number up it is safe to stop one.
 				if minUp < upPerTG[tgKey] {
-					s.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to max parallel", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
+					n.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to max parallel", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					// More migrations are allowed, add to stoplist
 					stoplist.add(drainingJob.job, alloc)
 					upPerTG[tgKey]--
@@ -348,7 +392,7 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 		}
 
 		if len(stoplist.allocBatch) > 0 {
-			s.logger.Printf("[DEBUG] nomad.drain: stopping %d alloc(s) for %d job(s)", len(stoplist.allocBatch), len(stoplist.jobBatch))
+			n.logger.Printf("[DEBUG] nomad.drain: stopping %d alloc(s) for %d job(s)", len(stoplist.allocBatch), len(stoplist.jobBatch))
 
 			// Reevaluate affected jobs
 			evals := make([]*structs.Evaluation, 0, len(stoplist.jobBatch))
@@ -365,40 +409,21 @@ func (s *Server) startNodeDrainer(stopCh chan struct{}) {
 				})
 			}
 
-			// Send raft request
-			batch := &structs.AllocUpdateDesiredTransitionRequest{
-				Allocs:       stoplist.allocBatch,
-				Evals:        evals,
-				WriteRequest: structs.WriteRequest{Region: s.config.Region},
-			}
-
 			// Commit this update via Raft
-			//TODO Not the right request
-			_, index, err := s.raftApply(structs.AllocUpdateDesiredTransitionRequestType, batch)
-			if err != nil {
+			if err := n.raft.AllocUpdateDesiredTransition(stoplist.allocBatch, evals); err != nil {
 				//FIXME
 				panic(err)
 			}
-
-			//TODO i bet there's something useful to do with this index
-			_ = index
 		}
 
 		// Unset drain for nodes done draining
 		for nodeID, node := range doneNodes {
-			args := structs.NodeUpdateDrainRequest{
-				NodeID:       nodeID,
-				Drain:        false,
-				WriteRequest: structs.WriteRequest{Region: s.config.Region},
-			}
-
-			_, _, err := s.raftApply(structs.NodeUpdateDrainRequestType, &args)
-			if err != nil {
-				s.logger.Printf("[ERR] nomad.drain: failed to unset drain for: %v", err)
+			if err := n.raft.NodeDrainComplete(nodeID); err != nil {
+				n.logger.Printf("[ERR] nomad.drain: failed to unset drain for: %v", err)
 				//FIXME
 				panic(err)
 			}
-			s.logger.Printf("[INFO] nomad.drain: node %s (%s) completed draining", nodeID, node.Name)
+			n.logger.Printf("[INFO] nomad.drain: node %s (%s) completed draining", nodeID, node.Name)
 			delete(nodes, nodeID)
 		}
 	}
