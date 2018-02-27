@@ -294,6 +294,18 @@ test('/clients/:id lists all meta attributes', function(assert) {
   andThen(() => {
     assert.ok(find('[data-test-meta]'), 'Meta attributes table is on the page');
     assert.notOk(find('[data-test-empty-meta-message]'), 'Meta attributes is not empty');
+
+    const firstMetaKey = Object.keys(node.meta)[0];
+    assert.equal(
+      find('[data-test-meta] [data-test-key]').textContent.trim(),
+      firstMetaKey,
+      'Meta attributes for the node are bound to the attributes table'
+    );
+    assert.equal(
+      find('[data-test-meta] [data-test-value]').textContent.trim(),
+      node.meta[firstMetaKey],
+      'Meta attributes for the node are bound to the attributes table'
+    );
   });
 });
 
