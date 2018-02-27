@@ -229,7 +229,7 @@
 		{"path":"github.com/shirou/gopsutil/internal/common","checksumSHA1":"jUWM0P4G1bHpO9CPS8gcr4rt1t0=","revision":"1c211f0807a3436707409fa313599dd8c7a48664","revisionTime":"2017-08-17T03:45:37Z"},
 		{"path":"github.com/shirou/gopsutil/mem","checksumSHA1":"xIAuacHA0LNq1yM5Wd1q4lnbzxU=","revision":"1c211f0807a3436707409fa313599dd8c7a48664","revisionTime":"2017-08-17T03:45:37Z"},
 		{"path":"github.com/shirou/gopsutil/net","checksumSHA1":"moxD+mq0dMHnbTeFyeEHK0Iq7i8=","revision":"1c211f0807a3436707409fa313599dd8c7a48664","revisionTime":"2017-08-17T03:45:37Z"},
-		{"path":"github.com/shirou/gopsutil/process","checksumSHA1":"C6ybAAUmWz+PQKqJ8byV7Nj5JXQ=","revision":"1c211f0807a3436707409fa313599dd8c7a48664","revisionTime":"2017-08-17T03:45:37Z"},
+		{"path":"github.com/shirou/gopsutil/process","checksumSHA1":"Ylp6t7kozHBFREv3tBcK4B1SMI4=","revision":"12ab94e8042b4639d3cbd6bdafd0be9be8a33e88","revisionTime":"2018-02-21T07:26:18Z"},
 		{"path":"github.com/shirou/w32","checksumSHA1":"Nve7SpDmjsv6+rhkXAkfg/UQx94=","revision":"bb4de0191aa41b5507caa14b0650cdbddcd9280b","revisionTime":"2016-09-30T03:27:40Z"},
 		{"path":"github.com/skratchdot/open-golang/open","checksumSHA1":"h/HMhokbQHTdLUbruoBBTee+NYw=","revision":"75fb7ed4208cf72d323d7d02fd1a5964a7a9073c","revisionTime":"2016-03-02T14:40:31Z"},
 		{"path":"github.com/spf13/pflag","checksumSHA1":"Q52Y7t0lEtk/wcDn5q7tS7B+jqs=","revision":"7aff26db30c1be810f9de5038ec5ef96ac41fd7c","revisionTime":"2017-08-24T17:57:12Z"},
