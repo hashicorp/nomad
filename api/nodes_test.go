@@ -208,6 +208,72 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 }
 
+func TestNodes_ToggleEligibility(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	// Wait for node registration and get the ID
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Check for eligibility
+	out, _, err := nodes.Info(nodeID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+		t.Fatalf("node should be eligible")
+	}
+
+	// Toggle it off
+	wm, err := nodes.ToggleEligibility(nodeID, false, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Check again
+	out, _, err = nodes.Info(nodeID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	}
+
+	// Toggle on
+	wm, err = nodes.ToggleEligibility(nodeID, true, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Check again
+	out, _, err = nodes.Info(nodeID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	}
+}
+
 func TestNodes_Allocations(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)

@@ -74,7 +74,7 @@ const (
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
-	AllocUpdateDesiredTransistionRequestType
+	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
 )
 
