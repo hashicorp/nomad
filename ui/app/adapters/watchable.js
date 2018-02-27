@@ -89,9 +89,15 @@ export default ApplicationAdapter.extend({
         data: params,
       }).then(
         json => {
-          this.get('store').pushPayload(relationship.type, {
-            [relationship.type]: makeArray(json),
-          });
+          const store = this.get('store');
+          const normalizeMethod =
+            relationship.kind === 'belongsTo'
+              ? 'normalizeFindBelongsToResponse'
+              : 'normalizeFindHasManyResponse';
+          const serializer = store.serializerFor(relationship.type);
+          const modelClass = store.modelFor(relationship.type);
+          const normalizedData = serializer[normalizeMethod](store, modelClass, json);
+          store.push(normalizedData);
         },
         error => {
           if (error instanceof AbortError) {
