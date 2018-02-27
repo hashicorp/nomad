@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -3102,5 +3103,164 @@ func TestTaskEventPopulate(t *testing.T) {
 		if tc.event != nil && tc.event.DisplayMessage != tc.expectedMsg {
 			t.Fatalf("Expected %v but got %v", tc.expectedMsg, tc.event.DisplayMessage)
 		}
+	}
+}
+
+func TestNetworkResourcesEquals(t *testing.T) {
+	require := require.New(t)
+	var networkResourcesTest = []struct {
+		input    []*NetworkResource
+		expected bool
+		errorMsg string
+	}{
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+			},
+			true,
+			"Equal network resources should return true",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:            "10.0.0.0",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+			},
+			false,
+			"Different IP addresses should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         40,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+			},
+			false,
+			"Different MBits values should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}, {"web", 80}},
+				},
+			},
+			false,
+			"Different ReservedPorts lengths should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{},
+				},
+			},
+			false,
+			"Empty and non empty ReservedPorts values should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"notweb", 80}},
+				},
+			},
+			false,
+			"Different valued ReservedPorts values should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80}, {"web", 80}},
+				},
+			},
+			false,
+			"Different DynamicPorts lengths should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{},
+				},
+			},
+			false,
+			"Empty and non empty DynamicPorts values should return false",
+		},
+		{
+			[]*NetworkResource{
+				&NetworkResource{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80}},
+				},
+				&NetworkResource{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"notweb", 80}},
+				},
+			},
+			false,
+			"Different valued DynamicPorts values should return false",
+		},
+	}
+	for _, testCase := range networkResourcesTest {
+		first := testCase.input[0]
+		second := testCase.input[1]
+		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
 	}
 }

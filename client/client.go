@@ -212,7 +212,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		allocUpdates:        make(chan *structs.Allocation, 64),
 		shutdownCh:          make(chan struct{}),
 		triggerDiscoveryCh:  make(chan struct{}),
-		triggerNodeUpdate:   make(chan struct{}, 64),
+		triggerNodeUpdate:   make(chan struct{}, 8),
 		serversDiscoveredCh: make(chan struct{}),
 	}
 
@@ -1028,7 +1028,7 @@ func resourcesAreEqual(first, second *structs.Resources) bool {
 			return false
 		}
 		f := second.Networks[i]
-		if e != f {
+		if !e.Equals(f) {
 			return false
 		}
 	}
@@ -1538,11 +1538,12 @@ func (c *Client) updateNode() {
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
 	var hasChanged bool
-	syncTicker := time.NewTicker(c.retryIntv(nodeUpdateRetryIntv))
+	timer := time.NewTimer(c.retryIntv(nodeUpdateRetryIntv))
+	defer timer.Stop()
 
 	for {
 		select {
-		case <-syncTicker.C:
+		case <-timer.C:
 			if !hasChanged {
 				continue
 			}
@@ -1557,8 +1558,6 @@ func (c *Client) watchNodeUpdates() {
 			c.retryRegisterNode()
 
 			hasChanged = false
-			syncTicker.Stop()
-			syncTicker = time.NewTicker(c.retryIntv(nodeUpdateRetryIntv))
 		case <-c.triggerNodeUpdate:
 			hasChanged = true
 		case <-c.shutdownCh:

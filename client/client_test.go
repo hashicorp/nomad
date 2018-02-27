@@ -125,51 +125,6 @@ func TestClient_Fingerprint(t *testing.T) {
 	require.NotEqual("", node.Attributes["driver.mock_driver"])
 }
 
-func TestClient_TriggerNodeUpdate(t *testing.T) {
-	driver.CheckForMockDriver(t)
-	t.Parallel()
-
-	// These constants are only defined when nomad_test is enabled, so these fail
-	// our linter without explicit disabling.
-	c1 := TestClient(t, func(c *config.Config) {
-		c.Options = map[string]string{
-			driver.ShutdownPeriodicAfter:    "true", // nolint: varcheck
-			driver.ShutdownPeriodicDuration: "3",    // nolint: varcheck
-		}
-	})
-	defer c1.Shutdown()
-
-	mockDriverName := "driver.mock_driver"
-
-	go c1.watchNodeUpdates()
-	c1.updateNode()
-	// This needs to be directly called as otherwise the client hangs on
-	// attempt to register with a server. Specifically, retryRegisterNode is
-	// blocking
-
-	// Test that the client's copy of the node is also updated
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatusCopy := c1.configCopy.Node.Attributes[mockDriverName]
-		if mockDriverStatusCopy == "" {
-			return false, fmt.Errorf("mock driver attribute should be set on the client")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Test that the client's copy of the node is also updated
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatusCopy := c1.configCopy.Node.Attributes[mockDriverName]
-		if mockDriverStatusCopy != "" {
-			return false, fmt.Errorf("mock driver attribute should not be set on the client")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-}
-
 func TestClient_Fingerprint_Periodic(t *testing.T) {
 	driver.CheckForMockDriver(t)
 	t.Parallel()
