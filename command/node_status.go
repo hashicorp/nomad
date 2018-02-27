@@ -183,7 +183,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] += "Address|Version|"
 		}
 
-		out[0] += "Drain|Status"
+		out[0] += "Drain|Eligibility|Status"
 
 		if c.list_allocs {
 			out[0] += "|Running Allocs"
@@ -199,9 +199,11 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				out[i+1] += fmt.Sprintf("|%s|%s",
 					node.Address, node.Version)
 			}
-			out[i+1] += fmt.Sprintf("|%v|%s",
+			out[i+1] += fmt.Sprintf("|%v|%s|%s",
 				node.Drain,
+				node.SchedulingEligibility,
 				node.Status)
+
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
@@ -249,14 +251,15 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Format the nodes list that matches the prefix so that the user
 		// can create a more specific request
 		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Drain|Status"
+		out[0] = "ID|DC|Name|Class|Drain|Eligibility|Status"
 		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s",
 				limit(node.ID, c.length),
 				node.Datacenter,
 				node.Name,
 				node.NodeClass,
 				node.Drain,
+				node.SchedulingEligibility,
 				node.Status)
 		}
 		// Dump the output
@@ -313,6 +316,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
+		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
 		fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")),
 	}
