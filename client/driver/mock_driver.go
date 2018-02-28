@@ -108,7 +108,7 @@ func NewMockDriver(ctx *DriverContext) Driver {
 	if ctx.config != nil && ctx.config.ReadBoolDefault(ShutdownPeriodicAfter, false) {
 		duration, err := ctx.config.ReadInt(ShutdownPeriodicDuration)
 		if err != nil {
-			errMsg := fmt.Sprintf("unable to read config option for shutdown_periodic_duration %s, got err %s", duration, err.Error())
+			errMsg := fmt.Sprintf("unable to read config option for shutdown_periodic_duration %v, got err %s", duration, err.Error())
 			panic(errMsg)
 		}
 		md.shutdownFingerprintTime = time.Now().Add(time.Second * time.Duration(duration))
