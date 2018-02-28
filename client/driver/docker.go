@@ -589,7 +589,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 // interval at which to do them.
 func (d *DockerDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
 	resp.Eligible = true
-	resp.Period = 3 * time.Second
+	resp.Period = 1 * time.Minute
 	return nil
 }
 

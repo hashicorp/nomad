@@ -267,8 +267,6 @@ func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
 
 	require := require.New(t)
 
-	// This seems fragile, so we might need to reconsider this test if it
-	// proves flaky
 	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
 	if err != nil {
 		t.Fatalf("unable to get ip for docker0: %v", err)

@@ -15,12 +15,16 @@ type DriverInfo struct {
 	UpdateTime        time.Time
 }
 
+// MergeHealthCheck merges information from a health check for a drier into a
+// node's driver info
 func (di *DriverInfo) MergeHealthCheck(other *DriverInfo) {
 	di.Healthy = other.Healthy
 	di.HealthDescription = other.HealthDescription
 	di.UpdateTime = other.UpdateTime
 }
 
+// MergeFingerprint merges information from fingerprinting a node for a driver
+// into a node's driver info for that driver.
 func (di *DriverInfo) MergeFingerprintInfo(other *DriverInfo) {
 	di.Detected = other.Detected
 	di.Attributes = other.Attributes

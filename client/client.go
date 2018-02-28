@@ -1021,6 +1021,8 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	return c.config.Node
 }
 
+// updateNodeFromHealthCheck receives a health check response and updates the
+// node accordingly
 func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckResponse) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
