@@ -1,6 +1,5 @@
 import { get, computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
-import { makeArray } from '@ember/array';
 import { inject as service } from '@ember/service';
 import queryString from 'npm:query-string';
 import ApplicationAdapter from './application';
@@ -37,6 +36,7 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
+      this.cancelFindAll(type.modelName);
     }
 
     return this.ajax(url, 'GET', {
@@ -55,6 +55,7 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
+      this.cancelFindRecord(type.modelName, id);
     }
 
     return this.ajax(url, 'GET', {
@@ -79,6 +80,7 @@ export default ApplicationAdapter.extend({
 
       if (watch) {
         params.index = this.get('watchList').getIndexFor(url);
+        this.cancelReloadRelationship(model, relationshipName);
       }
 
       if (url.includes('?')) {
