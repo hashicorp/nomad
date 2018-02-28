@@ -41,11 +41,6 @@ export default ApplicationAdapter.extend({
 
     return this.ajax(url, 'GET', {
       data: params,
-    }).catch(error => {
-      if (error instanceof AbortError) {
-        return [];
-      }
-      throw error;
     });
   },
 
