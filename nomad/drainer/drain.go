@@ -18,13 +18,13 @@ type jobKey struct {
 	jobid string
 }
 
-// drainingJob contains the Job and allocations for that job meant to be used
+// runningJob contains the Job and allocations for that job meant to be used
 // when collecting all allocations for a job with at least one allocation on a
 // draining node.
 //
-// This allows the MaxParallel calculation to take the entire job's allocation
-// state into account. FIXME is that even useful?
-type drainingJob struct {
+// In order to drain an allocation we must also emit an evaluation for its job,
+// so this struct bundles allocations with their job.
+type runningJob struct {
 	job    *structs.Job
 	allocs []*structs.Allocation
 }
@@ -247,17 +247,16 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 
 		// job key -> {job, allocs}
 		// Collect all allocs for all jobs with at least one
-		// alloc on a draining node.
+		// non-terminal alloc on a draining node.
 		// Invariants:
-		//  - No system jobs
-		//  - No batch jobs unless their node's deadline is reached
+		//  - Only service jobs
 		//  - No entries with 0 allocs
 		//TODO could this be a helper method on prevAllocWatcher
-		drainable := map[jobKey]*drainingJob{}
+		drainableSvcs := map[jobKey]*runningJob{}
 
-		// track jobs we've looked up before and know we shouldn't
-		// consider for draining eg system jobs
-		skipJob := map[jobKey]struct{}{}
+		// drainNow are allocs for batch or system jobs that should be
+		// drained due to a node deadline being reached
+		drainNow := map[jobKey]*runningJob{}
 
 		// track number of "up" allocs per task group (not terminal and
 		// have a deployment status)
@@ -271,22 +270,21 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 				panic(err)
 			}
 
+			// drainableSys are allocs for system jobs that should be
+			// drained if there are no other allocs left
+			drainableSys := map[jobKey]*runningJob{}
+
 			// track number of allocs left on this node to be drained
 			allocsLeft := false
 			inf, deadline := node.DrainStrategy.DeadlineTime()
 			deadlineReached := !inf && deadline.Before(now)
 			for _, alloc := range allocs {
+				// Don't need to consider drained allocs
+				if alloc.TerminalStatus() {
+					continue
+				}
+
 				jobkey := jobKey{alloc.Namespace, alloc.JobID}
-
-				if _, ok := drainable[jobkey]; ok {
-					// already found
-					continue
-				}
-
-				if _, ok := skipJob[jobkey]; ok {
-					// already looked up and skipped
-					continue
-				}
 
 				// job does not found yet
 				job, err := snapshot.JobByID(nil, alloc.Namespace, alloc.JobID)
@@ -295,27 +293,48 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 					panic(err)
 				}
 
-				// If alloc isn't yet terminal this node has
-				// allocs left to be drained
-				if !alloc.TerminalStatus() {
-					if !allocsLeft {
-						n.logger.Printf("[TRACE] nomad.drain: node %s has allocs left to drain", nodeID[:6])
-						allocsLeft = true
-					}
-				}
-
-				// Don't bother collecting system/batch jobs for nodes that haven't hit their deadline
-				if job.Type != structs.JobTypeService && !deadlineReached {
-					if inf, d := node.DrainStrategy.DeadlineTime(); inf {
-						n.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because node has an infinite deadline",
-							job.Type, job.Name)
-					} else {
-						n.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
-							job.Type, job.Name, d.Sub(now))
-					}
-					skipJob[jobkey] = struct{}{}
+				// IgnoreSystemJobs if specified in the node's DrainStrategy
+				if node.DrainStrategy.IgnoreSystemJobs && job.Type == structs.JobTypeSystem {
 					continue
 				}
+
+				// When the node deadline is reached all batch
+				// and service jobs will be drained
+				if deadlineReached && job.Type != structs.JobTypeService {
+					n.logger.Printf("[TRACE] nomad.drain: draining alloc %s due to node %s reaching drain deadline", alloc.ID, node.ID)
+					if j, ok := drainNow[jobkey]; ok {
+						j.allocs = append(j.allocs, alloc)
+					} else {
+						// First alloc for this job, create entry
+						drainNow[jobkey] = &runningJob{
+							job:    job,
+							allocs: []*structs.Allocation{alloc},
+						}
+					}
+					continue
+				}
+
+				// If deadline hasn't been reached, system jobs
+				// may still be drained if there are no other
+				// allocs left
+				if !deadlineReached && job.Type == structs.JobTypeSystem {
+					n.logger.Printf("[TRACE] nomad.drain: system alloc %s will be drained if no other allocs on node %s", alloc.ID, node.ID)
+					if j, ok := drainableSys[jobkey]; ok {
+						j.allocs = append(j.allocs, alloc)
+					} else {
+						// First alloc for this job, create entry
+						drainableSys[jobkey] = &runningJob{
+							job:    job,
+							allocs: []*structs.Allocation{alloc},
+						}
+					}
+					continue
+				}
+
+				// This alloc is still running on a draining
+				// node, so treat the node as having allocs
+				// remaining
+				allocsLeft = true
 
 				jobAllocs, err := snapshot.AllocsByJob(nil, alloc.Namespace, alloc.JobID, true)
 				if err != nil {
@@ -328,14 +347,15 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 					num := 0
 					for _, a := range jobAllocs {
 						if !a.TerminalStatus() && a.DeploymentStatus != nil {
+							// Not terminal and health updated, count it as up!
 							upPerTG[makeTaskGroupKey(a)]++
 							num++
 						}
 					}
-					n.logger.Printf("[TRACE] nomad.drain: job %s has %d task groups running", job.Name, num)
+					n.logger.Printf("[TRACE] nomad.drain: job %s has %d allocs running", job.Name, num)
 				}
 
-				drainable[jobkey] = &drainingJob{
+				drainableSvcs[jobkey] = &runningJob{
 					job:    job,
 					allocs: jobAllocs,
 				}
@@ -348,6 +368,17 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 				n.logger.Printf("[TRACE] nomad.drain: node %s has no more allocs left to drain or has reached deadline", nodeID)
 				jobWatcher.nodeDone(nodeID)
 				doneNodes[nodeID] = node
+
+				// Add all system jobs on this node to the drainNow slice
+				for k, sysj := range drainableSys {
+					if j, ok := drainNow[k]; ok {
+						// Job already has at least one alloc draining, append this one
+						j.allocs = append(j.allocs, sysj.allocs...)
+					} else {
+						// First draining alloc for this job, add the entry
+						drainNow[k] = sysj
+					}
+				}
 			}
 		}
 
@@ -358,8 +389,15 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 			jobBatch:   make(map[jobKey]*structs.Job),
 		}
 
+		// Immediately drain all allocs in drainNow
+		for _, drainingJob := range drainNow {
+			for _, a := range drainingJob.allocs {
+				stoplist.add(drainingJob.job, a)
+			}
+		}
+
 		// build drain list considering deadline & max_parallel
-		for _, drainingJob := range drainable {
+		for _, drainingJob := range drainableSvcs {
 			for _, alloc := range drainingJob.allocs {
 				// Already draining/dead allocs don't need to be drained
 				if alloc.TerminalStatus() {
@@ -380,13 +418,6 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 					stoplist.add(drainingJob.job, alloc)
 					upPerTG[tgKey]--
 
-					continue
-				}
-
-				// Batch/System jobs are only stopped when the
-				// node deadline is reached which has already
-				// been done.
-				if drainingJob.job.Type != structs.JobTypeService {
 					continue
 				}
 
@@ -426,6 +457,10 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 
 		if len(stoplist.allocBatch) > 0 {
 			n.logger.Printf("[DEBUG] nomad.drain: stopping %d alloc(s) for %d job(s)", len(stoplist.allocBatch), len(stoplist.jobBatch))
+
+			for id, _ := range stoplist.allocBatch {
+				n.logger.Printf("[TRACE] nomad.drain: migrating alloc %s", id[:6])
+			}
 
 			// Reevaluate affected jobs
 			evals := make([]*structs.Evaluation, 0, len(stoplist.jobBatch))
