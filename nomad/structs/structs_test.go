@@ -3115,12 +3115,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 	}{
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
@@ -3131,12 +3131,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:            "10.0.0.0",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
@@ -3147,12 +3147,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         40,
 					ReservedPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
@@ -3163,12 +3163,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}, {"web", 80}},
@@ -3179,12 +3179,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{},
@@ -3195,12 +3195,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:            "10.0.0.1",
 					MBits:         50,
 					ReservedPorts: []Port{{"notweb", 80}},
@@ -3211,12 +3211,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:           "10.0.0.1",
 					MBits:        50,
 					DynamicPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:           "10.0.0.1",
 					MBits:        50,
 					DynamicPorts: []Port{{"web", 80}, {"web", 80}},
@@ -3227,12 +3227,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:           "10.0.0.1",
 					MBits:        50,
 					DynamicPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:           "10.0.0.1",
 					MBits:        50,
 					DynamicPorts: []Port{},
@@ -3243,12 +3243,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		},
 		{
 			[]*NetworkResource{
-				&NetworkResource{
+				{
 					IP:           "10.0.0.1",
 					MBits:        50,
 					DynamicPorts: []Port{{"web", 80}},
 				},
-				&NetworkResource{
+				{
 					IP:           "10.0.0.1",
 					MBits:        50,
 					DynamicPorts: []Port{{"notweb", 80}},
