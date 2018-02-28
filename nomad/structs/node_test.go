@@ -15,10 +15,10 @@ func TestDriverInfoEquals(t *testing.T) {
 	}{
 		{
 			[]*DriverInfo{
-				&DriverInfo{
+				{
 					Healthy: true,
 				},
-				&DriverInfo{
+				{
 					Healthy: false,
 				},
 			},
@@ -27,10 +27,10 @@ func TestDriverInfoEquals(t *testing.T) {
 		},
 		{
 			[]*DriverInfo{
-				&DriverInfo{
+				{
 					HealthDescription: "not running",
 				},
-				&DriverInfo{
+				{
 					HealthDescription: "running",
 				},
 			},
@@ -39,11 +39,11 @@ func TestDriverInfoEquals(t *testing.T) {
 		},
 		{
 			[]*DriverInfo{
-				&DriverInfo{
+				{
 					Healthy:           true,
 					HealthDescription: "running",
 				},
-				&DriverInfo{
+				{
 					Healthy:           true,
 					HealthDescription: "running",
 				},
