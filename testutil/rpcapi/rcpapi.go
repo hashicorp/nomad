@@ -103,6 +103,24 @@ func (r *RPC) JobList() (*structs.JobListResponse, error) {
 	return &resp, nil
 }
 
+// Job.Register RPC
+func (r *RPC) JobRegister(j *structs.Job) (*structs.JobRegisterResponse, error) {
+	req := &structs.JobRegisterRequest{
+		Job: j.Copy(),
+		WriteRequest: structs.WriteRequest{
+			Region:    r.Region,
+			Namespace: j.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(r.codec, "Job.Register", req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // Node.List RPC
 func (r *RPC) NodeList() (*structs.NodeListResponse, error) {
 	get := &structs.NodeListRequest{
