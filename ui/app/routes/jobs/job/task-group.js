@@ -1,4 +1,6 @@
 import Route from '@ember/routing/route';
+import { collect } from '@ember/object/computed';
+import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 
 export default Route.extend({
   model({ name }) {
@@ -15,4 +17,27 @@ export default Route.extend({
           });
       });
   },
+
+  setupController(controller, model) {
+    const job = model.get('job');
+    controller.set('watchers', {
+      job: this.get('watchJob').perform(job),
+      summary: this.get('watchSummary').perform(job),
+      allocations: this.get('watchAllocations').perform(job),
+    });
+    return this._super(...arguments);
+  },
+
+  deactivate() {
+    this.get('allWatchers').forEach(watcher => {
+      watcher.cancelAll();
+    });
+    return this._super(...arguments);
+  },
+
+  watchJob: watchRecord('job'),
+  watchSummary: watchRelationship('summary'),
+  watchAllocations: watchRelationship('allocations'),
+
+  allWatchers: collect('watchJob', 'watchSummary', 'watchAllocations'),
 });
