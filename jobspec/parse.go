@@ -104,11 +104,12 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	}
 	delete(m, "constraint")
 	delete(m, "meta")
-	delete(m, "update")
-	delete(m, "periodic")
-	delete(m, "vault")
+	delete(m, "migrate")
 	delete(m, "parameterized")
+	delete(m, "periodic")
 	delete(m, "reschedule")
+	delete(m, "update")
+	delete(m, "vault")
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
@@ -132,19 +133,20 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"all_at_once",
 		"constraint",
 		"datacenters",
-		"parameterized",
 		"group",
 		"id",
 		"meta",
+		"migrate",
 		"name",
 		"namespace",
+		"parameterized",
 		"periodic",
 		"priority",
 		"region",
+		"reschedule",
 		"task",
 		"type",
 		"update",
-		"reschedule",
 		"vault",
 		"vault_token",
 	}
@@ -184,6 +186,13 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
 		if err := parseReschedulePolicy(&result.Reschedule, o); err != nil {
 			return multierror.Prefix(err, "reschedule ->")
+		}
+	}
+
+	// If we have a migration strategy, then parse that
+	if o := listVal.Filter("migrate"); len(o.Items) > 0 {
+		if err := parseMigrate(&result.Migrate, o); err != nil {
+			return multierror.Prefix(err, "migrate ->")
 		}
 	}
 

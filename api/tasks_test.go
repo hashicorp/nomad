@@ -381,6 +381,158 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 	}
 }
 
+// Verifies that migrate strategy is merged correctly
+func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
+	type testCase struct {
+		desc        string
+		jobType     string
+		jobMigrate  *MigrateStrategy
+		taskMigrate *MigrateStrategy
+		expected    *MigrateStrategy
+	}
+
+	testCases := []testCase{
+		{
+			desc:        "Default batch",
+			jobType:     "batch",
+			jobMigrate:  nil,
+			taskMigrate: nil,
+			expected:    nil,
+		},
+		{
+			desc:        "Default service",
+			jobType:     "service",
+			jobMigrate:  nil,
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(1),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+				HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+			},
+		},
+		{
+			desc:    "Empty job migrate strategy",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(0),
+				HealthCheck:     helper.StringToPtr(""),
+				MinHealthyTime:  helper.TimeToPtr(0),
+				HealthyDeadline: helper.TimeToPtr(0),
+			},
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(0),
+				HealthCheck:     helper.StringToPtr(""),
+				MinHealthyTime:  helper.TimeToPtr(0),
+				HealthyDeadline: helper.TimeToPtr(0),
+			},
+		},
+		{
+			desc:    "Inherit from job",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:       "Set in task",
+			jobType:    "service",
+			jobMigrate: nil,
+			taskMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:    "Merge from job",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel: helper.IntToPtr(11),
+			},
+			taskMigrate: &MigrateStrategy{
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(11),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:    "Override from group",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel: helper.IntToPtr(11),
+			},
+			taskMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(5),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(5),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:    "Parallel from job, defaulting",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel: helper.IntToPtr(5),
+			},
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(5),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+				HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			job := &Job{
+				ID:      helper.StringToPtr("test"),
+				Migrate: tc.jobMigrate,
+				Type:    helper.StringToPtr(tc.jobType),
+			}
+			job.Canonicalize()
+			tg := &TaskGroup{
+				Name:    helper.StringToPtr("foo"),
+				Migrate: tc.taskMigrate,
+			}
+			tg.Canonicalize(job)
+			assert.Equal(t, tc.expected, tg.Migrate)
+		})
+	}
+}
+
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
