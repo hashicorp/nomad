@@ -1432,6 +1432,50 @@ type NetworkResource struct {
 	DynamicPorts  []Port // Host Dynamically assigned ports
 }
 
+func (nr *NetworkResource) Equals(other *NetworkResource) bool {
+	if nr.Device != other.Device {
+		return false
+	}
+
+	if nr.CIDR != other.CIDR {
+		return false
+	}
+
+	if nr.IP != other.IP {
+		return false
+	}
+
+	if nr.MBits != other.MBits {
+		return false
+	}
+
+	if len(nr.ReservedPorts) != len(other.ReservedPorts) {
+		return false
+	}
+
+	for i, port := range nr.ReservedPorts {
+		if len(other.ReservedPorts) <= i {
+			return false
+		}
+		if port != other.ReservedPorts[i] {
+			return false
+		}
+	}
+
+	if len(nr.DynamicPorts) != len(other.DynamicPorts) {
+		return false
+	}
+	for i, port := range nr.DynamicPorts {
+		if len(other.DynamicPorts) <= i {
+			return false
+		}
+		if port != other.DynamicPorts[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (n *NetworkResource) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.

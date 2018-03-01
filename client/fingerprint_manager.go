@@ -104,11 +104,11 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 		return false, err
 	}
 
-	fm.nodeLock.Lock()
 	if node := fm.updateNode(&response); node != nil {
+		fm.nodeLock.Lock()
 		fm.node = node
+		fm.nodeLock.Unlock()
 	}
-	fm.nodeLock.Unlock()
 
 	return response.Detected, nil
 }
