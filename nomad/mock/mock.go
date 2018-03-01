@@ -46,7 +46,6 @@ func Node() *structs.Node {
 				},
 			},
 		},
-		Drivers: make(map[string]*structs.DriverInfo),
 		Links: map[string]string{
 			"consul": "foobar.dc1",
 		},

@@ -133,6 +133,9 @@ func TestDriverChecker_HealthChecks(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
+	for _, e := range nodes {
+		e.Drivers = make(map[string]*structs.DriverInfo)
+	}
 	nodes[0].Attributes["driver.foo"] = "1"
 	nodes[0].Drivers["foo"] = &structs.DriverInfo{
 		Detected:          true,
