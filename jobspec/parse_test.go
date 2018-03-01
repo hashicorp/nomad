@@ -741,6 +741,44 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"migrate-job.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Type:        helper.StringToPtr("batch"),
+				Datacenters: []string{"dc1"},
+				Migrate: &api.MigrateStrategy{
+					MaxParallel:     helper.IntToPtr(2),
+					HealthCheck:     helper.StringToPtr("task_states"),
+					MinHealthyTime:  helper.TimeToPtr(11 * time.Second),
+					HealthyDeadline: helper.TimeToPtr(11 * time.Minute),
+				},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Migrate: &api.MigrateStrategy{
+							MaxParallel:     helper.IntToPtr(3),
+							HealthCheck:     helper.StringToPtr("checks"),
+							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
+						},
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
