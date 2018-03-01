@@ -297,6 +297,7 @@ func TestNodeDrainer_SystemDrain(t *testing.T) {
 	serviceJob := mock.Job()
 	serviceJob.Name = "service-job"
 	serviceJob.Type = structs.JobTypeService
+	serviceJob.Constraints = nil
 	serviceJob.TaskGroups[0].Count = 2
 	serviceJob.TaskGroups[0].Migrate = &structs.MigrateStrategy{
 		MaxParallel:     1,
@@ -315,6 +316,7 @@ func TestNodeDrainer_SystemDrain(t *testing.T) {
 	systemJob := mock.SystemJob()
 	systemJob.Name = "system-job"
 	systemJob.Type = structs.JobTypeSystem
+	systemJob.Constraints = nil
 	systemJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	systemJob.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for":    "10m",
@@ -486,6 +488,4 @@ func TestNodeDrainer_SystemDrain(t *testing.T) {
 		t.Logf("job: %s  node: %s  alloc: %s  desired_status: %s  desired_transition: %s  actual: %s  replaces: %s",
 			alloc.Job.Name, alloc.NodeID[:6], alloc.ID[:6], alloc.DesiredStatus, pretty.Sprint(alloc.DesiredTransition.Migrate), alloc.ClientStatus, alloc.PreviousAllocation)
 	}
-
-	t.Logf("==> PASS")
 }
