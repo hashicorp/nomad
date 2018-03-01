@@ -274,7 +274,7 @@ func (m *MockDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstruct
 
 // GetHealthCheckInterval implements the interface for HealthCheck and indicates
 // that mock driver should be checked periodically. Returns a boolean
-// indicating if ti should be checked, and the duration at which to do this
+// indicating if it should be checked, and the duration at which to do this
 // check.
 func (m *MockDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
 	resp.Eligible = true

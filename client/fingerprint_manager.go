@@ -138,7 +138,12 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Fingerprint) (bool, error) {
 	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	var response cstructs.FingerprintResponse
-	if err := f.Fingerprint(request, &response); err != nil {
+
+	fm.nodeLock.Lock()
+	err := f.Fingerprint(request, &response)
+	fm.nodeLock.Unlock()
+
+	if err != nil {
 		return false, err
 	}
 
