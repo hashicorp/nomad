@@ -59,6 +59,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	serviceJob := mock.Job()
 	serviceJob.Name = "service-job"
 	serviceJob.Type = structs.JobTypeService
+	serviceJob.Constraints = nil
 	serviceJob.TaskGroups[0].Migrate = &structs.MigrateStrategy{
 		MaxParallel:     1,
 		HealthCheck:     structs.MigrateStrategyHealthStates,
@@ -76,6 +77,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	systemJob := mock.SystemJob()
 	systemJob.Name = "system-job"
 	systemJob.Type = structs.JobTypeSystem
+	systemJob.Constraints = nil
 	//FIXME hack until system job reschedule policy validation is fixed
 	systemJob.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: time.Minute}
 	systemJob.TaskGroups[0].Tasks[0].Driver = "mock_driver"
@@ -90,6 +92,7 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 	batchJob := mock.Job()
 	batchJob.Name = "batch-job"
 	batchJob.Type = structs.JobTypeBatch
+	batchJob.Constraints = nil
 	batchJob.TaskGroups[0].Name = "batch-group"
 	batchJob.TaskGroups[0].Migrate = nil
 	batchJob.TaskGroups[0].Tasks[0].Name = "batch-task"
@@ -157,6 +160,11 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		if resp, err := rpc.NodeGetAllocs(c1.NodeID()); err == nil {
 			for i, alloc := range resp.Allocs {
 				t.Logf("%d alloc %s job %s status %s", i, alloc.ID, alloc.Job.Name, alloc.ClientStatus)
+			}
+		}
+		if resp, err := rpc.EvalList(); err == nil {
+			for _, eval := range resp.Evaluations {
+				t.Logf("% #v\n", pretty.Formatter(eval))
 			}
 		}
 		t.Fatalf("failed waiting for all allocs to start: %v", err)
