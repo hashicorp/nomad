@@ -223,11 +223,6 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 	go jobWatcher.run(ctx)
 
 	for {
-		//TODO this method of async node updates means we could make
-		//migration decisions on out of date information. the worst
-		//possible outcome of this is that an allocation could be
-		//stopped on a node that recently had its drain cancelled which
-		//doesn't seem like that bad of a pathological case
 		n.logger.Printf("[TRACE] nomad.drain: LOOP next deadline: %s (%s)", nextDeadline, time.Until(nextDeadline))
 		select {
 		case nodes = <-nodeWatcher.nodesCh:
