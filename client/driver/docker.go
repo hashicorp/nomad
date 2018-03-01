@@ -1138,6 +1138,9 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	// Calculate CPU Quota
+	// cfs_quota_us is the time per core, so we must
+	// multiply the time by the number of cores available
+	// See https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu
 	if driverConfig.CPUHardLimit {
 		numCores := runtime.NumCPU()
 		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
