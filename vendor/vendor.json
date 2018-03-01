@@ -234,6 +234,7 @@
 		{"path":"github.com/skratchdot/open-golang/open","checksumSHA1":"h/HMhokbQHTdLUbruoBBTee+NYw=","revision":"75fb7ed4208cf72d323d7d02fd1a5964a7a9073c","revisionTime":"2016-03-02T14:40:31Z"},
 		{"path":"github.com/spf13/pflag","checksumSHA1":"Q52Y7t0lEtk/wcDn5q7tS7B+jqs=","revision":"7aff26db30c1be810f9de5038ec5ef96ac41fd7c","revisionTime":"2017-08-24T17:57:12Z"},
 		{"path":"github.com/stretchr/objx","checksumSHA1":"K0crHygPTP42i1nLKWphSlvOQJw=","revision":"1a9d0bb9f541897e62256577b352fdbc1fb4fd94","revisionTime":"2015-09-28T12:21:52Z"},
+		{"path":"github.com/stretchr/testify/assert","checksumSHA1":"5NBHAe3S15q3L9hOLThnMZjIZRE=","revision":"f6abca593680b2315d2075e0f5e2a9751e3f431a","revisionTime":"2017-06-01T20:57:54Z"},
 		{"path":"github.com/stretchr/testify/mock","checksumSHA1":"o+jsS/rxceTym4M3reSPfrPxaio=","revision":"f6abca593680b2315d2075e0f5e2a9751e3f431a","revisionTime":"2017-06-01T20:57:54Z"},
 		{"path":"github.com/stretchr/testify/require","checksumSHA1":"7vs6dSc1PPGBKyzb/SCIyeMJPLQ=","revision":"f6abca593680b2315d2075e0f5e2a9751e3f431a","revisionTime":"2017-06-01T20:57:54Z"},
 		{"path":"github.com/syndtr/gocapability/capability","checksumSHA1":"PgEklGW56c5RLHqQhORxt6jS3fY=","revision":"db04d3cc01c8b54962a58ec7e491717d06cfcc16","revisionTime":"2017-07-04T07:02:18Z"},
