@@ -443,6 +443,11 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		}
 	}
 
+	// Mark the deadline time
+	if args.DrainStrategy != nil && args.DrainStrategy.Deadline.Nanoseconds() > 0 {
+		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline)
+	}
+
 	// Commit this update via Raft
 	_, index, err := n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 	if err != nil {

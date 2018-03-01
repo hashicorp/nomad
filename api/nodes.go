@@ -176,6 +176,9 @@ type Node struct {
 type DrainStrategy struct {
 	// DrainSpec is the user declared drain specification
 	DrainSpec
+
+	// DeadlineTime is the deadline time for the drain.
+	DeadlineTime time.Time
 }
 
 // DrainSpec describes a Node's drain behavior.
