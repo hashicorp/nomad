@@ -1544,9 +1544,6 @@ func (c *Client) watchNodeUpdates() {
 	for {
 		select {
 		case <-timer.C:
-			if !hasChanged {
-				continue
-			}
 			c.logger.Printf("[DEBUG] client: state changed, updating node and re-registering.")
 
 			// Update the config copy.
@@ -1558,9 +1555,12 @@ func (c *Client) watchNodeUpdates() {
 			c.retryRegisterNode()
 
 			hasChanged = false
-			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 		case <-c.triggerNodeUpdate:
+			if hasChanged {
+				continue
+			}
 			hasChanged = true
+			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 		case <-c.shutdownCh:
 			return
 		}
