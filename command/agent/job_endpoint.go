@@ -647,6 +647,15 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
 	}
 
+	if taskGroup.Migrate != nil {
+		tg.Migrate = &structs.MigrateStrategy{
+			MaxParallel:     *taskGroup.Migrate.MaxParallel,
+			HealthCheck:     *taskGroup.Migrate.HealthCheck,
+			MinHealthyTime:  *taskGroup.Migrate.MinHealthyTime,
+			HealthyDeadline: *taskGroup.Migrate.HealthyDeadline,
+		}
+	}
+
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,

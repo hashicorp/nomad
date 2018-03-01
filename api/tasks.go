@@ -311,6 +311,30 @@ func (m *MigrateStrategy) Canonicalize() {
 	}
 }
 
+func (m *MigrateStrategy) Merge(o *MigrateStrategy) {
+	if o.MaxParallel != nil {
+		m.MaxParallel = o.MaxParallel
+	}
+	if o.HealthCheck != nil {
+		m.HealthCheck = o.HealthCheck
+	}
+	if o.MinHealthyTime != nil {
+		m.MinHealthyTime = o.MinHealthyTime
+	}
+	if o.HealthyDeadline != nil {
+		m.HealthyDeadline = o.HealthyDeadline
+	}
+}
+
+func (m *MigrateStrategy) Copy() *MigrateStrategy {
+	if m == nil {
+		return nil
+	}
+	nm := new(MigrateStrategy)
+	*nm = *m
+	return nm
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string
@@ -402,13 +426,30 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 			Interval: helper.TimeToPtr(0 * time.Second),
 		}
 	}
-
 	if g.ReschedulePolicy != nil {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
 	}
 	g.ReschedulePolicy = defaultReschedulePolicy
 
-	g.Migrate.Canonicalize()
+	// Merge the migrate strategy from the job
+	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
+		jobMigrate := job.Migrate.Copy()
+		jobMigrate.Merge(g.Migrate)
+		g.Migrate = jobMigrate
+	} else if jm {
+		jobMigrate := job.Migrate.Copy()
+		g.Migrate = jobMigrate
+	}
+
+	// Merge with default reschedule policy
+	if *job.Type == "service" {
+		defaultMigrateStrategy := &MigrateStrategy{}
+		defaultMigrateStrategy.Canonicalize()
+		if g.Migrate != nil {
+			defaultMigrateStrategy.Merge(g.Migrate)
+		}
+		g.Migrate = defaultMigrateStrategy
+	}
 
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {
