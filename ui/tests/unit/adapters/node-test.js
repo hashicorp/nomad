@@ -14,6 +14,7 @@ moduleForAdapter('node', 'Unit | Adapter | Node', {
     'serializer:node',
     'service:token',
     'service:config',
+    'service:watchList',
     'transform:fragment',
   ],
   beforeEach() {
