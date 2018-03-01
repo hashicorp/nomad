@@ -1,7 +1,9 @@
 import Route from '@ember/routing/route';
+import { collect } from '@ember/object/computed';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
+import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend({
+export default Route.extend(WithWatchers, {
   model() {
     const job = this.modelFor('jobs.job');
     return job.get('versions').then(() => job);
@@ -12,10 +14,6 @@ export default Route.extend({
     return this._super(...arguments);
   },
 
-  deactivate() {
-    this.get('watchVersions').cancelAll();
-    return this._super(...arguments);
-  },
-
   watchVersions: watchRelationship('versions'),
+  watchers: collect('watchVersions'),
 });

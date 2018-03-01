@@ -1,8 +1,9 @@
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
+import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend({
+export default Route.extend(WithWatchers, {
   model({ name }) {
     // If the job is a partial (from the list request) it won't have task
     // groups. Reload the job to ensure task groups are present.
@@ -28,16 +29,9 @@ export default Route.extend({
     return this._super(...arguments);
   },
 
-  deactivate() {
-    this.get('allWatchers').forEach(watcher => {
-      watcher.cancelAll();
-    });
-    return this._super(...arguments);
-  },
-
   watchJob: watchRecord('job'),
   watchSummary: watchRelationship('summary'),
   watchAllocations: watchRelationship('allocations'),
 
-  allWatchers: collect('watchJob', 'watchSummary', 'watchAllocations'),
+  watchers: collect('watchJob', 'watchSummary', 'watchAllocations'),
 });

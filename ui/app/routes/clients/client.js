@@ -1,9 +1,11 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
+import { collect } from '@ember/object/computed';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
+import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend({
+export default Route.extend(WithWatchers, {
   store: service(),
 
   model() {
@@ -23,12 +25,8 @@ export default Route.extend({
     return this._super(...arguments);
   },
 
-  deactivate() {
-    this.get('watch').cancelAll();
-    this.get('watchAllocations').cancelAll();
-    return this._super(...arguments);
-  },
-
   watch: watchRecord('node'),
   watchAllocations: watchRelationship('allocations'),
+
+  watchers: collect('watch', 'watchAllocations'),
 });
