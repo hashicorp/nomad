@@ -74,6 +74,7 @@ const (
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
+	AddNodeEventType
 )
 
 const (
@@ -1152,6 +1153,9 @@ type Node struct {
 	// StatusUpdatedAt is the time stamp at which the state of the node was
 	// updated
 	StatusUpdatedAt int64
+
+	// NodeEvents is a list of the last 10 or lest events for this node
+	NodeEvents []*NodeEvent
 
 	// Raft Indexes
 	CreateIndex uint64

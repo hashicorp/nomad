@@ -78,6 +78,32 @@ func TestClientEndpoint_Register(t *testing.T) {
 	})
 }
 
+func TestClientEndpoint_EmitEvent(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "Registration failed",
+		Subsystem: "Server",
+		Timestamp: time.Now().Unix(),
+	}
+
+	req := structs.EmitNodeEventRequest{
+		NodeEvent:    nodeEvent,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.EmitEvent", &req, &resp)
+	require.Nil(err)
+	require.NotEqual(0, resp.Index)
+}
+
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)
@@ -947,6 +973,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	// Update the status updated at value
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
 	node.SecretID = ""
+	node.NodeEvents = resp2.Node.NodeEvents
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
 	}

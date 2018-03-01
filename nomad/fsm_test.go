@@ -74,6 +74,47 @@ func makeLog(buf []byte) *raft.Log {
 	}
 }
 
+func TestFSM_ApplyNodeEvent(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	node := mock.Node()
+
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "Registration failed",
+		Subsystem: "Server",
+		Timestamp: time.Now().Unix(),
+	}
+
+	req := structs.EmitNodeEventRequest{
+		NodeID:    node.ID,
+		NodeEvent: nodeEvent,
+	}
+	buf, err := structs.Encode(structs.AddNodeEventType, req)
+	require.Nil(err)
+
+	// the response in this case will be an error
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	ws := memdb.NewWatchSet()
+	actualNode, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	require.Equal(1, len(actualNode.NodeEvents))
+
+	first := actualNode.NodeEvents[0]
+	require.Equal(uint64(1), first.CreateIndex)
+	require.Equal("Registration failed", first.Message)
+}
+
 func TestFSM_UpsertNode(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

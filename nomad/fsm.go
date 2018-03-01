@@ -236,6 +236,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
+	case structs.AddNodeEventType:
+		return n.applyAddNodeEventType(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -626,6 +628,22 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 		return err
 	}
 	return n.reconcileQueuedAllocations(index)
+}
+
+// applyAddNodeEventType applies a node event to the set of currently-available
+// events.
+func (n *nomadFSM) applyAddNodeEventType(buf []byte, index uint64) interface{} {
+	var req structs.EmitNodeEventRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventREquest: %v", err)
+		return err
+	}
+
+	if err := n.state.AddNodeEvent(index, req.NodeID, req.NodeEvent); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: EmitNodeEventRequest failed to add node event: %v", err)
+		return err
+	}
+	return nil
 }
 
 // applyUpsertVaultAccessor stores the Vault accessors for a given allocation
