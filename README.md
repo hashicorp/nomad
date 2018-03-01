@@ -1,4 +1,5 @@
 Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fhashicorp%2Fnomad.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fhashicorp%2Fnomad?ref=badge_shield)
 =========
 
 * Website: [www.nomadproject.io](https://www.nomadproject.io)
@@ -136,3 +137,7 @@ $ make release
 $ ls ./pkg
 ...
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fhashicorp%2Fnomad.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fhashicorp%2Fnomad?ref=badge_large)
