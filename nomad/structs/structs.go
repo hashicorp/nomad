@@ -1130,9 +1130,9 @@ type DrainStrategy struct {
 	// DrainSpec is the user declared drain specification
 	DrainSpec
 
-	// StartTime as nanoseconds since Unix epoch indicating when a drain
-	// began for deadline calcuations.
-	StartTime int64
+	// ForceDeadline is the deadline time for the drain after which drains will
+	// be forced
+	ForceDeadline time.Time
 }
 
 func (d *DrainStrategy) Copy() *DrainStrategy {
@@ -1145,16 +1145,47 @@ func (d *DrainStrategy) Copy() *DrainStrategy {
 	return nd
 }
 
-// DeadlineTime returns the Time this drain's deadline will be reached or the
-// zero value for Time if DrainStrategy is nil or Duration is <= 0.
-func (d *DrainStrategy) DeadlineTime() time.Time {
+// DeadlineTime returns a boolean whether the drain strategy allows an infinite
+// duration or otherwise the deadline time. The force drain is captured by the
+// deadline time being in the past.
+func (d *DrainStrategy) DeadlineTime() (infinite bool, deadline time.Time) {
+	// Treat the nil case as a force drain so during an upgrade where a node may
+	// not have a drain strategy but has Drain set to true, it is treated as a
+	// force to mimick old behavior.
 	if d == nil {
-		return time.Time{}
+		return false, time.Time{}
 	}
-	if d.Deadline <= 0 {
-		return time.Time{}
+
+	ns := d.Deadline.Nanoseconds()
+	switch {
+	case ns < 0: // Force
+		return false, time.Time{}
+	case ns == 0: // Infinite
+		return true, time.Time{}
+	default:
+		return false, d.ForceDeadline
 	}
-	return time.Unix(0, d.StartTime).Add(d.Deadline)
+}
+
+func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
+	if d == nil && o == nil {
+		return true
+	} else if o != nil && d == nil {
+		return false
+	} else if d != nil && o == nil {
+		return false
+	}
+
+	// Compare values
+	if d.ForceDeadline != o.ForceDeadline {
+		return false
+	} else if d.Deadline != o.Deadline {
+		return false
+	} else if d.IgnoreSystemJobs != o.IgnoreSystemJobs {
+		return false
+	}
+
+	return true
 }
 
 // Node is a representation of a schedulable client node

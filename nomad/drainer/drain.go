@@ -157,24 +157,41 @@ func (n *NodeDrainer) Run() {
 	}
 }
 
+// getNextDeadline is a helper that takes a set of draining nodes and returns the
+// next deadline. It also returns a boolean if there is a deadline.
+func getNextDeadline(nodes map[string]*structs.Node) (time.Time, bool) {
+	var nextDeadline time.Time
+	found := false
+	for _, node := range nodes {
+		inf, d := node.DrainStrategy.DeadlineTime()
+		if !inf && (nextDeadline.IsZero() || d.Before(nextDeadline)) {
+			nextDeadline = d
+			found = true
+		}
+	}
+
+	return nextDeadline, found
+}
+
 // nodeDrainer is the core node draining main loop and should be started in a
 // goroutine when a server establishes leadership.
 func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) {
 	nodes, nodesIndex, drainingJobs, allocsIndex := initDrainer(n.logger, state)
 
 	// Wait for a node's drain deadline to expire
-	var nextDeadline time.Time
-	for _, node := range nodes {
-		if nextDeadline.IsZero() {
-			nextDeadline = node.DrainStrategy.DeadlineTime()
-			continue
-		}
-		if deadline := node.DrainStrategy.DeadlineTime(); deadline.Before(nextDeadline) {
-			nextDeadline = deadline
-		}
-
-	}
+	nextDeadline, ok := getNextDeadline(nodes)
 	deadlineTimer := time.NewTimer(time.Until(nextDeadline))
+	stopDeadlineTimer := func() {
+		if !deadlineTimer.Stop() {
+			select {
+			case <-deadlineTimer.C:
+			default:
+			}
+		}
+	}
+	if !ok {
+		stopDeadlineTimer()
+	}
 
 	// Watch for nodes to start or stop draining
 	nodeWatcher := newNodeWatcher(n.logger, nodes, nodesIndex, state)
@@ -197,33 +214,14 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 			// update draining nodes
 			n.logger.Printf("[TRACE] nomad.drain: running due to node change (%d nodes draining)", len(nodes))
 
-			// update deadline timer
-			changed := false
-			for _, n := range nodes {
-				if nextDeadline.IsZero() {
-					nextDeadline = n.DrainStrategy.DeadlineTime()
-					changed = true
-					continue
-				}
-
-				if deadline := n.DrainStrategy.DeadlineTime(); deadline.Before(nextDeadline) {
-					nextDeadline = deadline
-					changed = true
-				}
-			}
-
-			// if changed reset the timer
-			if changed {
+			d, ok := getNextDeadline(nodes)
+			if ok && !nextDeadline.Equal(d) {
+				nextDeadline = d
 				n.logger.Printf("[TRACE] nomad.drain: new node deadline: %s", nextDeadline)
-				if !deadlineTimer.Stop() {
-					// timer may have been recv'd in a
-					// previous loop, so don't block
-					select {
-					case <-deadlineTimer.C:
-					default:
-					}
-				}
+				stopDeadlineTimer()
 				deadlineTimer.Reset(time.Until(nextDeadline))
+			} else if !ok {
+				stopDeadlineTimer()
 			}
 
 		case jobs := <-jobWatcher.WaitCh():
@@ -275,7 +273,8 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 
 			// track number of allocs left on this node to be drained
 			allocsLeft := false
-			deadlineReached := node.DrainStrategy.DeadlineTime().Before(now)
+			inf, deadline := node.DrainStrategy.DeadlineTime()
+			deadlineReached := !inf && deadline.Before(now)
 			for _, alloc := range allocs {
 				jobkey := jobKey{alloc.Namespace, alloc.JobID}
 
@@ -307,8 +306,13 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 
 				// Don't bother collecting system/batch jobs for nodes that haven't hit their deadline
 				if job.Type != structs.JobTypeService && !deadlineReached {
-					n.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
-						job.Type, job.Name, node.DrainStrategy.DeadlineTime().Sub(now))
+					if inf, d := node.DrainStrategy.DeadlineTime(); inf {
+						n.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because node has an infinite deadline",
+							job.Type, job.Name)
+					} else {
+						n.logger.Printf("[TRACE] nomad.drain: not draining %s job %s because deadline isn't for %s",
+							job.Type, job.Name, d.Sub(now))
+					}
 					skipJob[jobkey] = struct{}{}
 					continue
 				}
@@ -370,7 +374,7 @@ func (n *NodeDrainer) nodeDrainer(ctx context.Context, state *state.StateStore) 
 
 				tgKey := makeTaskGroupKey(alloc)
 
-				if node.DrainStrategy.DeadlineTime().Before(now) {
+				if inf, d := node.DrainStrategy.DeadlineTime(); !inf && d.Before(now) {
 					n.logger.Printf("[TRACE] nomad.drain: draining job %s alloc %s from node %s due to node's drain deadline", drainingJob.job.Name, alloc.ID[:6], alloc.NodeID[:6])
 					// Alloc's Node has reached its deadline
 					stoplist.add(drainingJob.job, alloc)
@@ -494,7 +498,7 @@ func initDrainer(logger *log.Logger, state *state.StateStore) (map[string]*struc
 		nodes[node.ID] = node
 
 		// No point in tracking draining allocs as the deadline has been reached
-		if node.DrainStrategy.DeadlineTime().Before(now) {
+		if inf, d := node.DrainStrategy.DeadlineTime(); !inf && d.Before(now) {
 			continue
 		}
 

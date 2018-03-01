@@ -57,18 +57,18 @@ func (n *nodeWatcher) run(ctx context.Context) {
 		for _, newNode := range newNodes {
 			if existingNode, ok := n.nodes[newNode.ID]; ok {
 				// Node was draining, see if it has changed
-				if !newNode.Drain {
+				if newNode.DrainStrategy == nil {
 					// Node stopped draining
 					delete(n.nodes, newNode.ID)
 					changed = true
-				} else if !newNode.DrainStrategy.DeadlineTime().Equal(existingNode.DrainStrategy.DeadlineTime()) {
+				} else if !newNode.DrainStrategy.Equal(existingNode.DrainStrategy) {
 					// Update deadline
 					n.nodes[newNode.ID] = newNode
 					changed = true
 				}
 			} else {
 				// Node was not draining
-				if newNode.Drain {
+				if newNode.DrainStrategy != nil {
 					// Node started draining
 					n.nodes[newNode.ID] = newNode
 					changed = true
