@@ -271,6 +271,8 @@ func TestNodeDrainer_SimpleDrain(t *testing.T) {
 		t.Logf("job: %s  node: %s  alloc: %s  desired_status: %s  desired_transition: %s  actual: %s  replaces: %s",
 			alloc.Job.Name, alloc.NodeID[:6], alloc.ID[:6], alloc.DesiredStatus, pretty.Sprint(alloc.DesiredTransition.Migrate), alloc.ClientStatus, alloc.PreviousAllocation)
 	}
+
+	t.Logf("==> PASS")
 }
 
 // TestNodeDrainer_SystemDrain asserts system jobs are drained
@@ -484,4 +486,6 @@ func TestNodeDrainer_SystemDrain(t *testing.T) {
 		t.Logf("job: %s  node: %s  alloc: %s  desired_status: %s  desired_transition: %s  actual: %s  replaces: %s",
 			alloc.Job.Name, alloc.NodeID[:6], alloc.ID[:6], alloc.DesiredStatus, pretty.Sprint(alloc.DesiredTransition.Migrate), alloc.ClientStatus, alloc.PreviousAllocation)
 	}
+
+	t.Logf("==> PASS")
 }
