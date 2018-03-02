@@ -2715,7 +2715,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusFailed)
 }
 
-func TestServiceSched_Reschedule_Once(t *testing.T) {
+func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -2730,9 +2730,15 @@ func TestServiceSched_Reschedule_Once(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts: 1,
-		Interval: 15 * time.Minute,
+		Attempts:      1,
+		Interval:      15 * time.Minute,
+		Delay:         5 * time.Second,
+		DelayCeiling:  1 * time.Minute,
+		DelayFunction: "linear",
 	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
@@ -2746,6 +2752,9 @@ func TestServiceSched_Reschedule_Once(t *testing.T) {
 	}
 	// Mark one of the allocations as failed
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
 	failedAllocID := allocs[1].ID
 	successAllocID := allocs[0].ID
 
@@ -2817,7 +2826,96 @@ func TestServiceSched_Reschedule_Once(t *testing.T) {
 
 }
 
-func TestServiceSched_Reschedule_Multiple(t *testing.T) {
+// Tests that alloc reschedulable at a future time creates a follow up eval
+func TestServiceSched_Reschedule_Later(t *testing.T) {
+	h := NewHarness(t)
+	require := require.New(t)
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	delayDuration := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      15 * time.Minute,
+		Delay:         delayDuration,
+		DelayCeiling:  1 * time.Minute,
+		DelayFunction: "linear",
+	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	// Mark one of the allocations as failed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	failedAllocID := allocs[1].ID
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure multiple plans
+	if len(h.Plans) == 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Verify no new allocs were created
+	require.Equal(2, len(out))
+
+	// Verify follow up eval was created for the failed alloc
+	alloc, err := h.State.AllocByID(ws, failedAllocID)
+	require.Nil(err)
+	require.NotEmpty(alloc.FollowupEvalID)
+
+	// Ensure there is a follow up eval.
+	if len(h.CreateEvals) != 1 || h.CreateEvals[0].Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", h.CreateEvals)
+	}
+	followupEval := h.CreateEvals[0]
+	require.Equal(now.Add(delayDuration), followupEval.WaitUntil)
+}
+
+func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -2833,9 +2931,14 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts: maxRestartAttempts,
-		Interval: 30 * time.Minute,
+		Attempts:      maxRestartAttempts,
+		Interval:      30 * time.Minute,
+		Delay:         5 * time.Second,
+		DelayFunction: "linear",
 	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
@@ -2850,6 +2953,9 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 	}
 	// Mark one of the allocations as failed
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
 
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
@@ -2915,6 +3021,9 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 
 		// Mark this alloc as failed again
 		newAlloc.ClientStatus = structs.AllocClientStatusFailed
+		newAlloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+			StartedAt:  now.Add(-12 * time.Second),
+			FinishedAt: now.Add(-10 * time.Second)}}
 
 		failedAllocId = newAlloc.ID
 		failedNodeID = newAlloc.NodeID
@@ -2944,6 +3053,136 @@ func TestServiceSched_Reschedule_Multiple(t *testing.T) {
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
 	noErr(t, err)
 	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
+}
+
+// Tests that old reschedule attempts are pruned
+func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		DelayFunction: "exponential",
+		DelayCeiling:  1 * time.Hour,
+		Delay:         5 * time.Second,
+		Unlimited:     true,
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	now := time.Now()
+	// Mark allocations as failed with restart info
+	allocs[1].TaskStates = map[string]*structs.TaskState{job.TaskGroups[0].Name: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-15 * time.Minute)}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+				PrevAllocID: uuid.Generate(),
+				PrevNodeID:  uuid.Generate(),
+				Delay:       5 * time.Second,
+			},
+			{RescheduleTime: now.Add(-40 * time.Minute).UTC().UnixNano(),
+				PrevAllocID: allocs[0].ID,
+				PrevNodeID:  uuid.Generate(),
+				Delay:       10 * time.Second,
+			},
+			{RescheduleTime: now.Add(-30 * time.Minute).UTC().UnixNano(),
+				PrevAllocID: allocs[0].ID,
+				PrevNodeID:  uuid.Generate(),
+				Delay:       20 * time.Second,
+			},
+			{RescheduleTime: now.Add(-20 * time.Minute).UTC().UnixNano(),
+				PrevAllocID: allocs[0].ID,
+				PrevNodeID:  uuid.Generate(),
+				Delay:       40 * time.Second,
+			},
+			{RescheduleTime: now.Add(-10 * time.Minute).UTC().UnixNano(),
+				PrevAllocID: allocs[0].ID,
+				PrevNodeID:  uuid.Generate(),
+				Delay:       80 * time.Second,
+			},
+			{RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
+				PrevAllocID: allocs[0].ID,
+				PrevNodeID:  uuid.Generate(),
+				Delay:       160 * time.Second,
+			},
+		},
+	}
+	expectedFirstRescheduleEvent := allocs[1].RescheduleTracker.Events[1]
+	expectedDelay := 320 * time.Second
+	failedAllocID := allocs[1].ID
+	successAllocID := allocs[0].ID
+
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure multiple plans
+	if len(h.Plans) == 0 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Verify that one new allocation got created with its restart tracker info
+	assert := assert.New(t)
+	assert.Equal(3, len(out))
+	var newAlloc *structs.Allocation
+	for _, alloc := range out {
+		if alloc.ID != successAllocID && alloc.ID != failedAllocID {
+			newAlloc = alloc
+		}
+	}
+
+	assert.Equal(failedAllocID, newAlloc.PreviousAllocation)
+	// Verify that the new alloc copied the last 5 reschedule attempts
+	assert.Equal(6, len(newAlloc.RescheduleTracker.Events))
+	assert.Equal(expectedFirstRescheduleEvent, newAlloc.RescheduleTracker.Events[0])
+
+	mostRecentRescheduleEvent := newAlloc.RescheduleTracker.Events[5]
+	// Verify that the failed alloc ID is in the most recent reschedule event
+	assert.Equal(failedAllocID, mostRecentRescheduleEvent.PrevAllocID)
+	// Verify that the delay value was captured correctly
+	assert.Equal(expectedDelay, mostRecentRescheduleEvent.Delay)
+
 }
 
 // Tests that deployments with failed allocs don't result in placements
@@ -3079,6 +3318,9 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	job.TaskGroups[0].Count = 1
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
 	// Create a failed alloc
 	alloc := mock.Alloc()
 	alloc.Job = job
@@ -3086,6 +3328,9 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
@@ -3231,6 +3476,9 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 	job.TaskGroups[0].Count = 1
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
 	// Create a failed alloc
 	alloc := mock.Alloc()
 	alloc.Job = job
@@ -3238,6 +3486,9 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
@@ -3962,4 +4213,233 @@ func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+// Various table driven tests for carry forward
+// of past reschedule events
+func Test_updateRescheduleTracker(t *testing.T) {
+
+	t1 := time.Now().UTC()
+	alloc := mock.Alloc()
+	prevAlloc := mock.Alloc()
+
+	type testCase struct {
+		desc                     string
+		prevAllocEvents          []*structs.RescheduleEvent
+		reschedPolicy            *structs.ReschedulePolicy
+		expectedRescheduleEvents []*structs.RescheduleEvent
+		reschedTime              time.Time
+	}
+
+	testCases := []testCase{
+		{
+			desc:                     "No past events",
+			prevAllocEvents:          nil,
+			reschedPolicy:            &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second},
+			reschedTime:              t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{{t1.UnixNano(), prevAlloc.ID, prevAlloc.NodeID, 5 * time.Second}},
+		},
+		{
+			desc: "one past event, linear delay",
+			prevAllocEvents: []*structs.RescheduleEvent{
+				{RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID: prevAlloc.ID,
+					PrevNodeID:  prevAlloc.NodeID,
+					Delay:       5 * time.Second}},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second},
+			reschedTime:   t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+				{
+					RescheduleTime: t1.UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+			},
+		},
+		{
+			desc: "one past event, fibonacci delay",
+			prevAllocEvents: []*structs.RescheduleEvent{
+				{RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID: prevAlloc.ID,
+					PrevNodeID:  prevAlloc.NodeID,
+					Delay:       5 * time.Second}},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second, DelayFunction: "fibonacci", DelayCeiling: 60 * time.Second},
+			reschedTime:   t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+				{
+					RescheduleTime: t1.UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+			},
+		},
+		{
+			desc: "eight past events, fibonacci delay, unlimited",
+			prevAllocEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          10 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          15 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          25 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          40 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          65 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          105 * time.Second,
+				},
+			},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: true, Delay: 5 * time.Second, DelayFunction: "fibonacci", DelayCeiling: 240 * time.Second},
+			reschedTime:   t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          15 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          25 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          40 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          65 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          105 * time.Second,
+				},
+				{
+					RescheduleTime: t1.UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          170 * time.Second,
+				},
+			},
+		},
+		{
+			desc: " old attempts past interval, exponential delay, limited",
+			prevAllocEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.Add(-2 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          10 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-30 * time.Minute).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          20 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-10 * time.Minute).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          40 * time.Second,
+				},
+			},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 1 * time.Hour, Attempts: 5, Delay: 5 * time.Second, DelayFunction: "exponential", DelayCeiling: 240 * time.Second},
+			reschedTime:   t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.Add(-30 * time.Minute).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          20 * time.Second,
+				},
+				{
+					RescheduleTime: t1.Add(-10 * time.Minute).UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          40 * time.Second,
+				},
+				{
+					RescheduleTime: t1.UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          80 * time.Second,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			prevAlloc.RescheduleTracker = &structs.RescheduleTracker{Events: tc.prevAllocEvents}
+			updateRescheduleTracker(alloc, prevAlloc, tc.reschedPolicy, tc.reschedTime)
+			require.Equal(tc.expectedRescheduleEvents, alloc.RescheduleTracker.Events)
+		})
+	}
+
 }
