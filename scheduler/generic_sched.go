@@ -72,8 +72,10 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
+	// Deprecated, was used in pre Nomad 0.7 rolling update stanza
 	followupEvalWait time.Duration
 	nextEval         *structs.Evaluation
+	followUpEvals    []*structs.Evaluation
 
 	deployment *structs.Deployment
 
@@ -261,6 +263,19 @@ func (s *GenericScheduler) process() (bool, error) {
 		s.logger.Printf("[DEBUG] sched: %#v: rolling migration limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
 	}
 
+	// Create follow up evals for any delayed reschedule eligible allocations
+	if len(s.followUpEvals) > 0 {
+		for _, eval := range s.followUpEvals {
+			eval.PreviousEval = s.eval.ID
+			// TODO(preetha) this should be batching evals before inserting them
+			if err := s.planner.CreateEval(eval); err != nil {
+				s.logger.Printf("[ERR] sched: %#v failed to make next eval for rescheduling: %v", s.eval, err)
+				return false, err
+			}
+			s.logger.Printf("[DEBUG] sched: %#v: found reschedulable allocs, next eval '%s' created", s.eval, eval.ID)
+		}
+	}
+
 	// Submit the plan and store the results.
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
@@ -336,6 +351,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// follow up eval to handle node draining.
 	s.followupEvalWait = results.followupEvalWait
 
+	// Store all the follow up evaluations from rescheduled allocations
+	if len(results.desiredFollowupEvals) > 0 {
+		for _, evals := range results.desiredFollowupEvals {
+			s.followUpEvals = append(s.followUpEvals, evals...)
+		}
+	}
 	// Update the stored deployment
 	if results.deployment != nil {
 		s.deployment = results.deployment
@@ -467,7 +488,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
-						updateRescheduleTracker(alloc, prevAllocation)
+						updateRescheduleTracker(alloc, prevAllocation, tg.ReschedulePolicy, time.Now())
 					}
 				}
 
@@ -523,15 +544,42 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	return selectOptions
 }
 
+const max_past_reschedule_events = 5
+
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
-func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation) {
+func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, reschedPolicy *structs.ReschedulePolicy, now time.Time) {
 	var rescheduleEvents []*structs.RescheduleEvent
 	if prev.RescheduleTracker != nil {
-		for _, reschedEvent := range prev.RescheduleTracker.Events {
-			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+		var interval time.Duration
+		if reschedPolicy != nil {
+			interval = reschedPolicy.Interval
+		}
+		// if attempts is set copy all events in the interval range
+		if reschedPolicy.Attempts > 0 {
+			for _, reschedEvent := range prev.RescheduleTracker.Events {
+				timeDiff := time.Now().UTC().UnixNano() - reschedEvent.RescheduleTime
+				// Only copy over events that are within restart interval
+				// This keeps the list of events small in cases where there's a long chain of old restart events
+				if interval > 0 && timeDiff <= interval.Nanoseconds() {
+					rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+				}
+			}
+		} else {
+			// for unlimited restarts, only copy the last n
+			copied := 0
+			for i := len(prev.RescheduleTracker.Events) - 1; i >= 0 && copied < max_past_reschedule_events; i-- {
+				reschedEvent := prev.RescheduleTracker.Events[i]
+				rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+				copied++
+			}
+			// reverse it to get the correct order
+			for left, right := 0, len(rescheduleEvents)-1; left < right; left, right = left+1, right-1 {
+				rescheduleEvents[left], rescheduleEvents[right] = rescheduleEvents[right], rescheduleEvents[left]
+			}
 		}
 	}
-	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, prev.NodeID)
+	nextDelay := prev.NextDelay(reschedPolicy)
+	rescheduleEvent := structs.NewRescheduleEvent(now.UnixNano(), prev.ID, prev.NodeID, nextDelay)
 	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
 	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 }
