@@ -510,8 +510,12 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 		return nil, err, removeConfigCleanup
 	}
 
-	if err := c.StartExecute(executeConfig.CmdArgs); err != nil {
-		return nil, fmt.Errorf("unable to execute with args '%v': %v", executeConfig.CmdArgs, err), removeConfigCleanup
+	// Replace any env vars in Cmd with value from Nomad env:
+	parsedArgs := ctx.TaskEnv.ParseAndReplace(executeConfig.CmdArgs)
+	d.logger.Printf("[INFO] env vars substituted in command \"%s\" - new command is \"%s\"", executeConfig.CmdArgs, parsedArgs)
+
+	if err := c.StartExecute(parsedArgs); err != nil {
+		return nil, fmt.Errorf("unable to execute with args '%v': %v", parsedArgs, err), removeConfigCleanup
 	}
 
 	stopAndRemoveConfigCleanup := func() error {
@@ -613,6 +617,12 @@ func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container,
 	for _, mnt := range mounts {
 		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
 			return fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+		}
+	}
+
+	for _, envVar := range ctx.TaskEnv.List() {
+		if err := c.SetConfigItem("lxc.environment", envVar); err != nil {
+			return fmt.Errorf("error setting environment variable '%s': %v", envVar, err)
 		}
 	}
 
