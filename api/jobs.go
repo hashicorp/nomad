@@ -79,6 +79,7 @@ type RegisterOptions struct {
 	EnforceIndex   bool
 	ModifyIndex    uint64
 	PolicyOverride bool
+	RestartJob     bool
 }
 
 // Register is used to register a new job. It returns the ID
@@ -107,6 +108,9 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		}
 		if opts.PolicyOverride {
 			req.PolicyOverride = true
+		}
+		if opts.RestartJob {
+			req.RestartJob = true
 		}
 	}
 
@@ -217,6 +221,15 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobDeregisterResponse
 	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", jobID, purge), &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
+func (j *Jobs) Restart(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp JobRestartResponse
+	wm, err := j.client.write(fmt.Sprintf("/v1/job/%v/restart", jobID), nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -905,6 +918,7 @@ type JobRegisterRequest struct {
 	EnforceIndex   bool
 	JobModifyIndex uint64
 	PolicyOverride bool
+	RestartJob     bool
 
 	WriteRequest
 }
@@ -915,6 +929,7 @@ type RegisterJobRequest struct {
 	EnforceIndex   bool   `json:",omitempty"`
 	JobModifyIndex uint64 `json:",omitempty"`
 	PolicyOverride bool   `json:",omitempty"`
+	RestartJob     bool   `json:",omitempty"`
 }
 
 // JobRegisterResponse is used to respond to a job registration
@@ -932,6 +947,14 @@ type JobRegisterResponse struct {
 
 // JobDeregisterResponse is used to respond to a job deregistration
 type JobDeregisterResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
+	QueryMeta
+}
+
+// JobDeregisterResponse is used to respond to a job deregistration
+type JobRestartResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64

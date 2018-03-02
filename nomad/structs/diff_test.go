@@ -176,6 +176,12 @@ func TestJobDiff(t *testing.T) {
 					},
 					{
 						Type: DiffTypeDeleted,
+						Name: "Restart",
+						Old:  "false",
+						New:  "",
+					},
+					{
+						Type: DiffTypeDeleted,
 						Name: "Stop",
 						Old:  "false",
 						New:  "",
@@ -236,6 +242,12 @@ func TestJobDiff(t *testing.T) {
 						Name: "Region",
 						Old:  "",
 						New:  "foo",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Restart",
+						Old:  "",
+						New:  "false",
 					},
 					{
 						Type: DiffTypeAdded,

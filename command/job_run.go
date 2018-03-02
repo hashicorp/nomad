@@ -82,6 +82,10 @@ Run Options:
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
+  -restart
+    Restarts an existing job as if it were updated.  If the job does not exist,
+    it is registered as normal.
+
   -vault-token
     If set, the passed Vault token is stored in the job before sending to the
     Nomad servers. This allows passing the Vault token without storing it in
@@ -107,6 +111,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-vault-token":     complete.PredictAnything,
 			"-output":          complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
+			"-restart":         complete.PredictNothing,
 		})
 }
 
@@ -117,7 +122,7 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override bool
+	var detach, verbose, output, override, restart bool
 	var checkIndexStr, vaultToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -126,6 +131,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
+	flags.BoolVar(&restart, "restart", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 
@@ -212,6 +218,10 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 	if override {
 		opts.PolicyOverride = true
+	}
+	if restart {
+		c.Ui.Output(fmt.Sprintf("Setting restart"))
+		opts.RestartJob = true
 	}
 
 	// Submit the job

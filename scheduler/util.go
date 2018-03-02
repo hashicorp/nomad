@@ -746,6 +746,11 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			return true, false, nil
 		}
 
+		// If a restart was requested, requires a destructive upgrade
+		if newJob.Restart == true {
+			return false, true, nil
+		}
+
 		// Check if the task drivers or config has changed, requires
 		// a destructive upgrade since that cannot be done in-place.
 		if tasksUpdated(newJob, existing.Job, newTG.Name) {

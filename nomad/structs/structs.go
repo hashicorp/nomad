@@ -56,6 +56,7 @@ const (
 	NodeUpdateStatusRequestType
 	NodeUpdateDrainRequestType
 	JobRegisterRequestType
+	JobRestartRequestType
 	JobDeregisterRequestType
 	EvalUpdateRequestType
 	EvalDeleteRequestType
@@ -440,6 +441,16 @@ type JobRegisterRequest struct {
 
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
+
+	RestartJob bool
+
+	WriteRequest
+}
+
+// JobRestartRequest is used for Job.Restart endpoint
+// to restart a job
+type JobRestartRequest struct {
+	JobID string
 
 	WriteRequest
 }
@@ -896,6 +907,14 @@ type JobRegisterResponse struct {
 	// deprecation warnings.
 	Warnings string
 
+	QueryMeta
+}
+
+// JobRestartResponse is used to respond to a job reset
+type JobRestartResponse struct {
+	EvalID          string
+	EvalCreateIndex uint64
+	JobModifyIndex  uint64
 	QueryMeta
 }
 
@@ -1959,6 +1978,9 @@ const (
 // is further composed of tasks. A task group (TG) is the unit of scheduling
 // however.
 type Job struct {
+	// Restart marks that the user has requested the job to be restarted
+	Restart bool
+
 	// Stop marks whether the user has stopped the job. A stopped job will
 	// have all created allocations stopped and acts as a way to stop a job
 	// without purging it from the system. This allows existing allocs to be

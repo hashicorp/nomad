@@ -80,6 +80,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/stable"):
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
+	case strings.HasSuffix(path, "/restart"):
+		jobName := strings.TrimSuffix(path, "/restart")
+		return s.jobRestart(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -381,6 +384,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
+		RestartJob:     args.RestartJob,
 		WriteRequest: structs.WriteRequest{
 			Region:    args.WriteRequest.Region,
 			AuthToken: args.WriteRequest.SecretID,
@@ -391,6 +395,22 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobRestart(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	args := structs.JobRestartRequest{
+		JobID: jobName,
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.JobRestartResponse
+	if err := s.agent.RPC("Job.Restart", &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

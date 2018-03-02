@@ -51,6 +51,7 @@ var (
 	// Common commands are grouped separately to call them out to operators.
 	commonCommands = []string{
 		"run",
+		"restart",
 		"stop",
 		"status",
 		"alloc",

@@ -965,6 +965,75 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	return nil
 }
 
+// RestartJob is used to restart a job
+func (s *StateStore) RestartJob(index uint64, namespace, jobID string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	if err := s.restartJobImpl(index, namespace, jobID, false, txn); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+// restartJobImpl is the implementation for restarting a job
+func (s *StateStore) restartJobImpl(index uint64, namespace, jobID string, keepVersion bool, txn *memdb.Txn) error {
+
+	// Check if the job already exists
+	existing, err := txn.First("jobs", "id", namespace, jobID)
+	if err != nil {
+		return fmt.Errorf("job lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("job doesn't exist %q", jobID)
+	}
+
+	job := existing.(*structs.Job)
+
+	// Setup the indexes correctly
+	job.CreateIndex = existing.(*structs.Job).CreateIndex
+	job.ModifyIndex = index
+
+	// Flag this as a restart
+	job.Restart = true
+
+	// Bump the version unless asked to keep it. This should only be done
+	// when changing an internal field such as Stable. A spec change should
+	// always come with a version bump
+	if !keepVersion {
+		job.JobModifyIndex = index
+		job.Version = existing.(*structs.Job).Version + 1
+	}
+
+	// Compute the job status
+	job.Status, err = s.getJobStatus(txn, job, false)
+	if err != nil {
+		return fmt.Errorf("setting job status for %q failed: %v", jobID, err)
+	}
+
+	if err := s.updateSummaryWithJob(index, job, txn); err != nil {
+		return fmt.Errorf("unable to create job summary: %v", err)
+	}
+
+	if err := s.upsertJobVersion(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
+	}
+
+	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
+	// COMPAT 0.4.1 -> 0.5
+	s.addEphemeralDiskToTaskGroups(job)
+
+	// Insert the job
+	if err := txn.Insert("jobs", job); err != nil {
+		return fmt.Errorf("job insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
 // DeleteJob is used to deregister a job
 func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)

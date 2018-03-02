@@ -564,6 +564,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"restart": func() (cli.Command, error) {
+			return &RestartCommand{
+				Meta: meta,
+			}, nil
+		},
 		"stop": func() (cli.Command, error) {
 			return &JobStopCommand{
 				Meta: meta,

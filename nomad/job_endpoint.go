@@ -180,8 +180,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Vault token
 	args.Job.VaultToken = ""
 
+	// Handle the Restart flag
+	args.Job.Restart = args.RestartJob
+
 	// Check if the job has changed at all
-	if existingJob == nil || existingJob.SpecChanged(args.Job) {
+	if existingJob == nil || existingJob.SpecChanged(args.Job) || args.RestartJob {
 		// Set the submit time
 		args.Job.SetSubmitTime()
 
@@ -595,6 +598,86 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.JobModifyIndex = job.ModifyIndex
+	reply.Index = evalIndex
+	return nil
+}
+
+// Restart is used to restart a job in the cluster.
+func (j *Job) Restart(args *structs.JobRestartRequest, reply *structs.JobRestartResponse) error {
+	j.srv.logger.Printf("[ERR] nomad.job: Restart")
+	if done, err := j.srv.forward("Job.Restart", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "restart"}, time.Now())
+
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for restart")
+	}
+
+	// Lookup the job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
+	if err != nil {
+		return err
+	}
+
+	// If the job is periodic or parameterized, it cannot
+	// be restarted
+	if job.IsPeriodic() || job.IsParameterized() {
+		return fmt.Errorf("periodic and parameterized jobs cannot be restarted")
+	}
+
+	// Commit this update via Raft
+	_, index, err := j.srv.raftApply(structs.JobRestartRequestType, args)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Restart failed: %v", err)
+		return err
+	}
+
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+
+	// Create a new evaluation
+	// XXX: The job priority / type is strange for this, since it's not a high
+	// priority even if the job was. The scheduler itself also doesn't matter,
+	// since all should be able to handle deregistration in the same way.
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      args.RequestNamespace(),
+		Priority:       structs.JobDefaultPriority,
+		Type:           structs.JobTypeService,
+		TriggeredBy:    structs.EvalTriggerJobDeregister,
+		JobID:          args.JobID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		return err
+	}
+
+	// Populate the reply with eval information
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
 	return nil
 }

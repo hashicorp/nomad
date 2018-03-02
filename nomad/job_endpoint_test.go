@@ -1531,6 +1531,150 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Restart(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Restart
+	restart := &structs.JobRestartRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobRestartResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Restart", restart, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index == 0 {
+		t.Fatalf("bad index: %d", resp2.Index)
+	}
+
+	// Check for the job in the FSM
+	ws := memdb.NewWatchSet()
+	state := s1.fsm.State()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("job purged")
+	}
+	if out.Stop {
+		t.Fatalf("job stopped")
+	}
+
+	// Lookup the evaluation
+	eval, err := state.EvalByID(ws, resp2.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval == nil {
+		t.Fatalf("expected eval")
+	}
+	if eval.CreateIndex != resp2.EvalCreateIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	if eval.Priority != structs.JobDefaultPriority {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Type != structs.JobTypeService {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.TriggeredBy != structs.EvalTriggerJobDeregister {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobID != job.ID {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobModifyIndex != resp2.JobModifyIndex {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", eval)
+	}
+
+	// Deregister and purge
+	dereg2 := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp3 structs.JobDeregisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg2, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp3.Index == 0 {
+		t.Fatalf("bad index: %d", resp3.Index)
+	}
+
+	// Check for the job in the FSM
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("unexpected job")
+	}
+
+	// Lookup the evaluation
+	eval, err = state.EvalByID(ws, resp3.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eval == nil {
+		t.Fatalf("expected eval")
+	}
+	if eval.CreateIndex != resp3.EvalCreateIndex {
+		t.Fatalf("index mis-match")
+	}
+
+	if eval.Priority != structs.JobDefaultPriority {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Type != structs.JobTypeService {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.TriggeredBy != structs.EvalTriggerJobDeregister {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobID != job.ID {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.JobModifyIndex != resp3.JobModifyIndex {
+		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.Status != structs.EvalStatusPending {
+		t.Fatalf("bad: %#v", eval)
+	}
+}
+
 func TestJobEndpoint_Deregister(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
