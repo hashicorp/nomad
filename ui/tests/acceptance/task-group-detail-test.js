@@ -101,9 +101,7 @@ test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(asse
   });
 });
 
-test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(
-  assert
-) {
+test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(assert) {
   click(`[data-test-breadcrumb="${job.name}"]`);
   andThen(() => {
     assert.equal(
@@ -114,9 +112,7 @@ test('/jobs/:id/:task-group second breadcrumb should link to the job for the tas
   });
 });
 
-test('/jobs/:id/:task-group should list one page of allocations for the task group', function(
-  assert
-) {
+test('/jobs/:id/:task-group should list one page of allocations for the task group', function(assert) {
   const pageSize = 10;
 
   server.createList('allocation', 10, {
@@ -185,9 +181,7 @@ test('each allocation should show basic information about the allocation', funct
   });
 });
 
-test('each allocation should show stats about the allocation, retrieved directly from the node', function(
-  assert
-) {
+test('each allocation should show stats about the allocation', function(assert) {
   const allocation = allocations.sortBy('name')[0];
   const allocationRow = find('[data-test-allocation]');
   const allocStats = server.db.clientAllocationStats.find(allocation.id);
@@ -218,14 +212,6 @@ test('each allocation should show stats about the allocation, retrieved directly
     allocationRow.querySelector('[data-test-mem] .tooltip').getAttribute('aria-label'),
     `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
     'Detailed memory information is in a tooltip'
-  );
-
-  const node = server.db.nodes.find(allocation.nodeId);
-  const nodeStatsUrl = `//${node.httpAddr}/v1/client/allocation/${allocation.id}/stats`;
-
-  assert.ok(
-    server.pretender.handledRequests.some(req => req.url === nodeStatsUrl),
-    `Requests ${nodeStatsUrl}`
   );
 });
 

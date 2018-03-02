@@ -1,3 +1,4 @@
+import Ember from 'ember';
 import { alias } from '@ember/object/computed';
 import { assert } from '@ember/debug';
 import Evented from '@ember/object/evented';
@@ -9,6 +10,8 @@ import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';
 
 const MAX_OUTPUT_LENGTH = 50000;
+
+export const fetchFailure = url => () => Ember.Logger.warn(`LOG FETCH: Couldn't connect to ${url}`);
 
 const Log = EmberObject.extend(Evented, {
   // Parameters
@@ -74,9 +77,9 @@ const Log = EmberObject.extend(Evented, {
     const url = `${this.get('url')}?${queryParams}`;
 
     this.stop();
-    let text = yield logFetch(url).then(res => res.text());
+    let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
 
-    if (text.length > MAX_OUTPUT_LENGTH) {
+    if (text && text.length > MAX_OUTPUT_LENGTH) {
       text = text.substr(0, MAX_OUTPUT_LENGTH);
       text += '\n\n---------- TRUNCATED: Click "tail" to view the bottom of the log ----------';
     }
@@ -96,7 +99,7 @@ const Log = EmberObject.extend(Evented, {
     const url = `${this.get('url')}?${queryParams}`;
 
     this.stop();
-    let text = yield logFetch(url).then(res => res.text());
+    let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
 
     this.set('tail', text);
     this.set('logPointer', 'tail');

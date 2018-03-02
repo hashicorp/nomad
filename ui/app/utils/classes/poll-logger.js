@@ -1,6 +1,7 @@
 import EmberObject from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
 import AbstractLogger from './abstract-logger';
+import { fetchFailure } from './log';
 
 export default EmberObject.extend(AbstractLogger, {
   interval: 1000,
@@ -18,7 +19,14 @@ export default EmberObject.extend(AbstractLogger, {
   poll: task(function*() {
     const { interval, logFetch } = this.getProperties('interval', 'logFetch');
     while (true) {
-      let text = yield logFetch(this.get('fullUrl')).then(res => res.text());
+      const url = this.get('fullUrl');
+      let response = yield logFetch(url).then(res => res, fetchFailure(url));
+
+      if (!response) {
+        return;
+      }
+
+      let text = yield response.text();
 
       if (text) {
         const lines = text.replace(/\}\{/g, '}\n{').split('\n');
