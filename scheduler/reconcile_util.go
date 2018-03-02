@@ -283,10 +283,9 @@ func updateByReschedulable(alloc *structs.Allocation, reschedulePolicy *structs.
 		shouldAllow = alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict
 	}
 	rescheduleTime, eligible := alloc.NextRescheduleTime(reschedulePolicy)
-	timeDiff := rescheduleTime.UTC().UnixNano() - now.UTC().UnixNano()
 	// we consider a time difference of less than 5 seconds to be eligible
 	// because we collapse allocations that failed within 5 seconds into a single evaluation
-	if eligible && timeDiff < batchedFailedAllocWindowSize.Nanoseconds() {
+	if eligible && now.After(rescheduleTime) {
 		rescheduleNow = true
 	} else if shouldAllow {
 		untainted = true
