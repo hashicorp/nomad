@@ -86,6 +86,7 @@ type Allocation struct {
 	TaskStates         map[string]*TaskState
 	DeploymentID       string
 	DeploymentStatus   *AllocDeploymentStatus
+	FollowupEvalID     string
 	PreviousAllocation string
 	NextAllocation     string
 	RescheduleTracker  *RescheduleTracker
@@ -129,6 +130,7 @@ type AllocationListStub struct {
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
 	RescheduleTracker  *RescheduleTracker
+	FollowupEvalID     string
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
