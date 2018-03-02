@@ -140,7 +140,7 @@ func (n *NodeDrainer) run(ctx context.Context) {
 	}
 }
 
-func (n *NodeDrainer) handleDeadlinedNodes(nodes []*structs.Node) {
+func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	// TODO
 }
 
