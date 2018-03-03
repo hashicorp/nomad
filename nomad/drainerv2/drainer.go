@@ -4,10 +4,17 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/time/rate"
+)
+
+var (
+	// stateReadErrorDelay is the delay to apply before retrying reading state
+	// when there is an error
+	stateReadErrorDelay = 1 * time.Second
 )
 
 const (
@@ -27,8 +34,14 @@ type AllocDrainer interface {
 	drain(allocs []*structs.Allocation)
 }
 
-type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, AllocDrainer) DrainingJobWatcher
-type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, AllocDrainer) DrainingNodeWatcher
+type NodeTracker interface {
+	Tracking(nodeID string) (*structs.Node, bool)
+	Remove(nodeID string)
+	Update(node *structs.Node)
+}
+
+type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, AllocDrainer) DrainingJobWatcher
+type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, NodeTracker) DrainingNodeWatcher
 type DrainDeadlineNotifierFactory func(context.Context) DrainDeadlineNotifier
 
 type NodeDrainerConfig struct {
@@ -116,8 +129,8 @@ func (n *NodeDrainer) flush() {
 	}
 
 	n.ctx, n.exitFn = context.WithCancel(context.Background())
-	n.jobWatcher = n.jobFactory(n.ctx, n.queryLimiter, n)
-	n.nodeWatcher = n.nodeFactory(n.ctx, n.queryLimiter, n)
+	n.jobWatcher = n.jobFactory(n.ctx, n.queryLimiter, n.state, n.logger, n)
+	n.nodeWatcher = n.nodeFactory(n.ctx, n.queryLimiter, n.state, n.logger, n)
 	n.deadlineNotifier = n.deadlineNotifierFactory(n.ctx)
 	n.nodes = make(map[string]*drainingNode, 32)
 	n.doneNodeCh = make(chan string, 4)
@@ -130,8 +143,6 @@ func (n *NodeDrainer) run(ctx context.Context) {
 			return
 		case nodes := <-n.deadlineNotifier.NextBatch():
 			n.handleDeadlinedNodes(nodes)
-		case nodes := <-n.nodeWatcher.Transistioning():
-			n.handleNodeDrainTransistion(nodes)
 		case allocs := <-n.jobWatcher.Drain():
 			n.handleJobAllocDrain(allocs)
 		case node := <-n.doneNodeCh:
@@ -141,10 +152,6 @@ func (n *NodeDrainer) run(ctx context.Context) {
 }
 
 func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
-	// TODO
-}
-
-func (n *NodeDrainer) handleNodeDrainTransistion(nodes []*structs.Node) {
 	// TODO
 }
 

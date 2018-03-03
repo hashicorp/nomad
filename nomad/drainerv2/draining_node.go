@@ -12,7 +12,7 @@ import (
 // using a singleton object
 
 type drainCoordinator interface {
-	done(nodeID string)
+	nodeDone(nodeID string)
 }
 
 func (n *NodeDrainer) nodeDone(nodeID string) {
@@ -35,6 +35,12 @@ func NewDrainingNode(node *structs.Node, state *state.StateStore, coordinator dr
 		state:       state,
 		node:        node,
 	}
+}
+
+func (n *drainingNode) GetNode() *structs.Node {
+	n.l.Lock()
+	defer n.l.Unlock()
+	return n.node
 }
 
 func (n *drainingNode) Update(node *structs.Node) {
