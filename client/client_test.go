@@ -142,42 +142,49 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	node := c1.config.Node
 	mockDriverName := "driver.mock_driver"
 
-	// Ensure the mock driver is registered on the client
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatus := node.Attributes[mockDriverName]
-		if mockDriverStatus == "" {
-			return false, fmt.Errorf("mock driver attribute should be set on the client")
-		}
+	{
+		// Ensure the mock driver is registered on the client
+		testutil.WaitForResult(func() (bool, error) {
+			c1.configLock.Lock()
+			mockDriverStatus := node.Attributes[mockDriverName]
+			mockDriverInfo := node.Drivers["mock_driver"]
+			c1.configLock.Unlock()
+			if mockDriverStatus == "" {
+				return false, fmt.Errorf("mock driver attribute should be set on the client")
+			}
 
-		// assert that the Driver information for the node is also set correctly
-		mockDriverInfo := node.Drivers["mock_driver"]
-		if mockDriverInfo == nil {
-			return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
-		}
-		if !mockDriverInfo.Detected {
-			return false, fmt.Errorf("mock driver should be set as healthy")
-		}
-		if !mockDriverInfo.Healthy {
-			return false, fmt.Errorf("mock driver should be set as healthy")
-		}
-		if mockDriverInfo.HealthDescription == "" {
-			return false, fmt.Errorf("mock driver description should not be empty")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+			// assert that the Driver information for the node is also set correctly
+			if mockDriverInfo == nil {
+				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
+			}
+			if !mockDriverInfo.Detected {
+				return false, fmt.Errorf("mock driver should be set as healthy")
+			}
+			if !mockDriverInfo.Healthy {
+				return false, fmt.Errorf("mock driver should be set as healthy")
+			}
+			if mockDriverInfo.HealthDescription == "" {
+				return false, fmt.Errorf("mock driver description should not be empty")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
 
-	// Ensure that the client fingerprinter eventually removes this attribute
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatus := node.Attributes[mockDriverName]
-		if mockDriverStatus != "" {
-			return false, fmt.Errorf("mock driver attribute should not be set on the client")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	{
+		testutil.WaitForResult(func() (bool, error) {
+			c1.configLock.Lock()
+			mockDriverStatus := node.Attributes[mockDriverName]
+			c1.configLock.Unlock()
+			if mockDriverStatus != "" {
+				return false, fmt.Errorf("mock driver attribute should not be set on the client")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
 }
 
 // TestClient_MixedTLS asserts that when a server is running with TLS enabled

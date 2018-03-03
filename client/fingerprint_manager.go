@@ -136,10 +136,10 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 // particular driver. Takes the FingerprintResponse and converts it to the
 // proper DriverInfo update and then sets the prefix attributes as well
 func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Fingerprint) (bool, error) {
-	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	var response cstructs.FingerprintResponse
 
 	fm.nodeLock.Lock()
+	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	err := f.Fingerprint(request, &response)
 	fm.nodeLock.Unlock()
 
@@ -187,10 +187,10 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 // is meant to be run continuously, a process is launched to perform this
 // fingerprint on an ongoing basis in the background.
 func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint) (bool, error) {
-	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	var response cstructs.FingerprintResponse
 
 	fm.nodeLock.Lock()
+	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	err := f.Fingerprint(request, &response)
 	fm.nodeLock.Unlock()
 

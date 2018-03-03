@@ -154,28 +154,35 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	err := fm.Run()
 	require.Nil(err)
 
-	// Ensure the mock driver is registered and healthy on the client
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatus := node.Attributes["driver.mock_driver"]
-		if mockDriverStatus == "" {
-			return false, fmt.Errorf("mock driver attribute should be set on the client")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
+	{
+		// Ensure the mock driver is registered and healthy on the client
+		testutil.WaitForResult(func() (bool, error) {
+			fm.nodeLock.Lock()
+			mockDriverStatus := node.Attributes["driver.mock_driver"]
+			fm.nodeLock.Unlock()
+			if mockDriverStatus == "" {
+				return false, fmt.Errorf("mock driver attribute should be set on the client")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
 	// Ensure that the client fingerprinter eventually removes this attribute and
 	// marks the driver as unhealthy
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverStatus := node.Attributes["driver.mock_driver"]
-		if mockDriverStatus != "" {
-			return false, fmt.Errorf("mock driver attribute should not be set on the client")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	{
+		testutil.WaitForResult(func() (bool, error) {
+			fm.nodeLock.Lock()
+			mockDriverStatus := node.Attributes["driver.mock_driver"]
+			fm.nodeLock.Unlock()
+			if mockDriverStatus != "" {
+				return false, fmt.Errorf("mock driver attribute should not be set on the client")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
 }
 
 // This is a temporary measure to check that a driver has both attributes on a
@@ -273,32 +280,18 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 	require := require.New(t)
 
 	node := &structs.Node{
-		Drivers: make(map[string]*structs.DriverInfo, 0),
+		Attributes: make(map[string]string, 0),
+		Links:      make(map[string]string, 0),
+		Resources:  &structs.Resources{},
+		Drivers:    make(map[string]*structs.DriverInfo, 0),
 	}
-	updateNode := func(resp *cstructs.FingerprintResponse) *structs.Node {
-		for k, v := range resp.Drivers {
-			if node.Drivers[k] == nil {
-				node.Drivers[k] = v
-			} else {
-				node.Drivers[k].MergeFingerprintInfo(v)
-			}
-		}
-		return node
-	}
-	updateHealthCheck := func(resp *cstructs.HealthCheckResponse) *structs.Node {
-		for k, v := range resp.Drivers {
-			if node.Drivers[k] == nil {
-				node.Drivers[k] = v
-			} else {
-				node.Drivers[k].MergeHealthCheck(v)
-			}
-		}
-		return node
-	}
+	testConfig := config.Config{Node: node}
+	testClient := &Client{config: &testConfig}
+
 	conf := config.DefaultConfig()
 	conf.Options = map[string]string{
 		"test.shutdown_periodic_after":    "true",
-		"test.shutdown_periodic_duration": "2",
+		"test.shutdown_periodic_duration": "3",
 	}
 	getConfig := func() *config.Config {
 		return conf
@@ -313,49 +306,76 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 		getConfig,
 		node,
 		shutdownCh,
-		updateNode,
-		updateHealthCheck,
+		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromHealthCheck,
 		testLogger(),
 	)
 
 	err := fm.Run()
 	require.Nil(err)
 
-	// Ensure the mock driver is registered and healthy on the client
-	testutil.WaitForResult(func() (bool, error) {
-		mockDriverInfo := node.Drivers["mock_driver"]
-		if mockDriverInfo == nil {
-			return false, fmt.Errorf("mock driver info should be set on the client")
-		}
-		if !mockDriverInfo.Detected {
-			return false, fmt.Errorf("mock driver info should be detected")
-		}
-		if !mockDriverInfo.Healthy {
-			return false, fmt.Errorf("mock driver info should be healthy")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Ensure that the client health check eventually removes this attribute and
-	// marks the driver as unhealthy
-	testutil.WaitForResult(func() (bool, error) {
-
-		mockDriverInfo := node.Drivers["mock_driver"]
-		if mockDriverInfo == nil {
-			return false, fmt.Errorf("mock driver info should be set on the client")
-		}
-		if !mockDriverInfo.Detected {
-			return false, fmt.Errorf("mock driver should be detected")
-		}
-		if mockDriverInfo.Healthy {
-			return false, fmt.Errorf("mock driver should not be healthy")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	{
+		// Ensure the mock driver is registered and healthy on the client
+		testutil.WaitForResult(func() (bool, error) {
+			fm.nodeLock.Lock()
+			mockDriverInfo := node.Drivers["mock_driver"]
+			fm.nodeLock.Unlock()
+			if mockDriverInfo == nil {
+				return false, fmt.Errorf("mock driver info should be set on the client")
+			}
+			if !mockDriverInfo.Detected {
+				return false, fmt.Errorf("mock driver info should be detected")
+			}
+			if !mockDriverInfo.Healthy {
+				return false, fmt.Errorf("mock driver info should be healthy")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
+	{
+		// Ensure that the client health check eventually removes this attribute and
+		// marks the driver as unhealthy
+		testutil.WaitForResult(func() (bool, error) {
+			fm.nodeLock.Lock()
+			mockDriverInfo := node.Drivers["mock_driver"]
+			fm.nodeLock.Unlock()
+			if mockDriverInfo == nil {
+				return false, fmt.Errorf("mock driver info should be set on the client")
+			}
+			if !mockDriverInfo.Detected {
+				return false, fmt.Errorf("mock driver info should be detected")
+			}
+			if !mockDriverInfo.Healthy {
+				return false, fmt.Errorf("mock driver info should be healthy")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
+	{
+		// Ensure that the client health check eventually removes this attribute and
+		// marks the driver as unhealthy
+		testutil.WaitForResult(func() (bool, error) {
+			fm.nodeLock.Lock()
+			mockDriverInfo := node.Drivers["mock_driver"]
+			fm.nodeLock.Unlock()
+			if mockDriverInfo == nil {
+				return false, fmt.Errorf("mock driver info should be set on the client")
+			}
+			if !mockDriverInfo.Detected {
+				return false, fmt.Errorf("mock driver should be detected")
+			}
+			if mockDriverInfo.Healthy {
+				return false, fmt.Errorf("mock driver should not be healthy")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
+	}
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
