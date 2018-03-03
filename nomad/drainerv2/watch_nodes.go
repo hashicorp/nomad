@@ -32,7 +32,11 @@ func (n *NodeDrainer) Tracking(nodeID string) (*structs.Node, bool) {
 func (n *NodeDrainer) Remove(nodeID string) {
 	n.l.Lock()
 	defer n.l.Unlock()
+
+	// TODO test the notifier is updated
+	// Remove it from being tracked and remove it from the dealiner
 	delete(n.nodes, nodeID)
+	n.deadlineNotifier.Remove(nodeID)
 }
 
 // Update updates the node, either updating the tracked version or starting to
@@ -51,7 +55,21 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		return
 	}
 
+	// Update it and update the dealiner
 	draining.Update(node)
+
+	// TODO test the notifier is updated
+	if inf, deadline := node.DrainStrategy.DeadlineTime(); !inf {
+		n.deadlineNotifier.Watch(node.ID, deadline)
+	} else {
+		// TODO think about handling any race that may occur. I believe it is
+		// totally fine as long as the handlers are locked.
+
+		// There is an infinite deadline so it shouldn't be tracked for
+		// deadlining
+		n.deadlineNotifier.Remove(node.ID)
+	}
+
 }
 
 // nodeDrainWatcher is used to watch nodes that are entering, leaving or
