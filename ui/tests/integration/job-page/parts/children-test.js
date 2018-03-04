@@ -159,6 +159,8 @@ test('is sorted based on the sortProperty and sortDescending properties', functi
           `Child ${index} is ${child.get('name')}`
         );
       });
+
+      return wait();
     });
   });
 });
