@@ -26,7 +26,7 @@ Some tests run against a built Nomad binary. They expect this binary to either b
 in your `$PATH`, `$GOPATH/bin`, or current working directory (checked in that order).
 
 Usually, you should run `make dev` prior to each run of these tests, if you have made
-and changes outside of the tests themselves. This will ensure your changes are
+any changes outside of the tests themselves. This will ensure your changes are
 reflected in the test results. You'll also need to specify the `bin_test` tag to
 signal to the test suite that the Nomad binary is ready.
 
@@ -43,16 +43,14 @@ simple, e.g.:
 If that works, then the test does not require you to first set up a test Nomad binary.
 If not, you will see a message similar to:
 
-```
-        server_off.go:10: This test requires the bin_test tag to be set.
-                        ==> Tip: Ensure you've built your latest changes to nomad by
-                            running 'make dev' first, then run this test again with
-                            "-tags bin_test"
-```
+    server_off.go:10: This test requires the bin_test tag to be set.
+                      ==> Tip: Ensure you've built your latest changes to nomad by
+                          running 'make dev' first, then run this test again with
+                          "-tags bin_test"
 
 You can now follow that advice to run your test against the relevant binary.
 
 You'll now be running the following command each time...
 
-
    $ make dev && go test -v -tags nomad_test,bin_test -run TestAPI_OperatorAutopilotGetSetConfiguration ./api
+
