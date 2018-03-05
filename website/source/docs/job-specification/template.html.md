@@ -225,8 +225,7 @@ README](https://github.com/schmichael/go-envparse#readme).
 
 ## Vault Integration
 
-This example will grab a PKI certificate from Vault and put it out on local disk for your application in PEM format
-including the CA, public and private key in 1 file.
+This example acquires a PKI certificate from Vault in PEM format and stores it into your application's secret directory.
 
 ```
 template {
