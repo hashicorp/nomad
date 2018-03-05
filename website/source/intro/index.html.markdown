@@ -54,7 +54,8 @@ The key features of Nomad are:
   leader election and state replication to provide availability in the face
   of failures. Nomad is optimistically concurrent, enabling all servers to participate
   in scheduling decisions which increases the total throughput and reduces latency
-  to support demanding workloads.
+  to support demanding workloads. Nomad has been proven to scale to cluster sizes that 
+  exceed 10k nodes in real-world production environments.
 
 ## Next Steps
 
