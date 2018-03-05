@@ -3,6 +3,7 @@
 package disk
 
 import (
+	"context"
 	"path"
 	"unsafe"
 
@@ -11,6 +12,10 @@ import (
 )
 
 func Partitions(all bool) ([]PartitionStat, error) {
+	return PartitionsWithContext(context.Background(), all)
+}
+
+func PartitionsWithContext(ctx context.Context, all bool) ([]PartitionStat, error) {
 	var ret []PartitionStat
 
 	count, err := Getfsstat(nil, MntWait)
@@ -88,6 +93,10 @@ func Partitions(all bool) ([]PartitionStat, error) {
 }
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+	return GetfsstatWithContext(context.Background(), buf, flags)
+}
+
+func GetfsstatWithContext(ctx context.Context, buf []Statfs_t, flags int) (n int, err error) {
 	var _p0 unsafe.Pointer
 	var bufsize uintptr
 	if len(buf) > 0 {

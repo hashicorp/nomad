@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -14,6 +15,10 @@ import (
 // VirtualMemory for Solaris is a minimal implementation which only returns
 // what Nomad needs. It does take into account global vs zone, however.
 func VirtualMemory() (*VirtualMemoryStat, error) {
+	return VirtualMemoryWithContext(context.Background())
+}
+
+func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 	result := &VirtualMemoryStat{}
 
 	zoneName, err := zoneName()
@@ -39,6 +44,10 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 }
 
 func SwapMemory() (*SwapMemoryStat, error) {
+	return SwapMemoryWithContext(context.Background())
+}
+
+func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
 	return nil, common.ErrNotImplementedError
 }
 

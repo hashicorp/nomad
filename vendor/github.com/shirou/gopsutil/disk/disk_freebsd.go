@@ -4,6 +4,7 @@ package disk
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"path"
 	"strconv"
@@ -15,6 +16,10 @@ import (
 )
 
 func Partitions(all bool) ([]PartitionStat, error) {
+	return PartitionsWithContext(context.Background(), all)
+}
+
+func PartitionsWithContext(ctx context.Context, all bool) ([]PartitionStat, error) {
 	var ret []PartitionStat
 
 	// get length
@@ -96,6 +101,10 @@ func Partitions(all bool) ([]PartitionStat, error) {
 }
 
 func IOCounters(names ...string) (map[string]IOCountersStat, error) {
+	return IOCountersWithContext(context.Background(), names...)
+}
+
+func IOCountersWithContext(ctx context.Context, names ...string) (map[string]IOCountersStat, error) {
 	// statinfo->devinfo->devstat
 	// /usr/include/devinfo.h
 	ret := make(map[string]IOCountersStat)
@@ -150,6 +159,10 @@ func (b Bintime) Compute() float64 {
 // Getfsstat is borrowed from pkg/syscall/syscall_freebsd.go
 // change Statfs_t to Statfs in order to get more information
 func Getfsstat(buf []Statfs, flags int) (n int, err error) {
+	return GetfsstatWithContext(context.Background(), buf, flags)
+}
+
+func GetfsstatWithContext(ctx context.Context, buf []Statfs, flags int) (n int, err error) {
 	var _p0 unsafe.Pointer
 	var bufsize uintptr
 	if len(buf) > 0 {

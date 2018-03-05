@@ -3,6 +3,7 @@
 package mem
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,10 @@ import (
 )
 
 func VirtualMemory() (*VirtualMemoryStat, error) {
+	return VirtualMemoryWithContext(context.Background())
+}
+
+func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 	filename := common.HostProc("meminfo")
 	lines, _ := common.ReadLines(filename)
 	// flag if MemAvailable is in /proc/meminfo (kernel 3.14+)
@@ -72,6 +77,10 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 }
 
 func SwapMemory() (*SwapMemoryStat, error) {
+	return SwapMemoryWithContext(context.Background())
+}
+
+func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
 	sysinfo := &unix.Sysinfo_t{}
 
 	if err := unix.Sysinfo(sysinfo); err != nil {
