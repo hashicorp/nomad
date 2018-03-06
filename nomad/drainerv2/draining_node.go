@@ -1,6 +1,7 @@
 package drainerv2
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -8,32 +9,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// TODO make this an interface and then I can optimize the infinite case by
-// using a singleton object
-
-type drainCoordinator interface {
-	nodeDone(nodeID string)
-}
-
-func (n *NodeDrainer) nodeDone(nodeID string) {
-	select {
-	case <-n.ctx.Done():
-	case n.doneNodeCh <- nodeID:
-	}
-}
-
 type drainingNode struct {
-	coordinator drainCoordinator
-	state       *state.StateStore
-	node        *structs.Node
-	l           sync.RWMutex
+	state *state.StateStore
+	node  *structs.Node
+	l     sync.RWMutex
 }
 
-func NewDrainingNode(node *structs.Node, state *state.StateStore, coordinator drainCoordinator) *drainingNode {
+func NewDrainingNode(node *structs.Node, state *state.StateStore) *drainingNode {
 	return &drainingNode{
-		coordinator: coordinator,
-		state:       state,
-		node:        node,
+		state: state,
+		node:  node,
 	}
 }
 
@@ -62,10 +47,78 @@ func (n *drainingNode) DeadlineTime() (bool, time.Time) {
 	return n.node.DrainStrategy.DeadlineTime()
 }
 
+// IsDone returns if the node is done draining
+func (n *drainingNode) IsDone() (bool, error) {
+	n.l.RLock()
+	defer n.l.RUnlock()
+
+	// Should never happen
+	if n.node == nil || n.node.DrainStrategy == nil {
+		return false, fmt.Errorf("node doesn't have a drain strategy set")
+	}
+
+	// Grab the relevant drain info
+	ignoreSystem := n.node.DrainStrategy.IgnoreSystemJobs
+
+	// Retrieve the allocs on the node
+	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
+	if err != nil {
+		return false, err
+	}
+
+	for _, alloc := range allocs {
+		// Skip system if configured to
+		if alloc.Job.Type == structs.JobTypeSystem && ignoreSystem {
+			continue
+		}
+
+		// If there is a non-terminal we aren't done
+		if !alloc.TerminalStatus() {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 // DeadlineAllocs returns the set of allocations that should be drained given a
 // node is at its deadline
 func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
-	return nil, nil
+
+	// Should never happen
+	if n.node == nil || n.node.DrainStrategy == nil {
+		return nil, fmt.Errorf("node doesn't have a drain strategy set")
+	}
+
+	// Grab the relevant drain info
+	inf, _ := n.node.DrainStrategy.DeadlineTime()
+	if inf {
+		return nil, nil
+	}
+	ignoreSystem := n.node.DrainStrategy.IgnoreSystemJobs
+
+	// Retrieve the allocs on the node
+	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var drain []*structs.Allocation
+	for _, alloc := range allocs {
+		// Nothing to do on a terminal allocation
+		if alloc.TerminalStatus() {
+			continue
+		}
+
+		// Skip system if configured to
+		if alloc.Job.Type == structs.JobTypeSystem && ignoreSystem {
+			continue
+		}
+
+		drain = append(drain, alloc)
+	}
+
+	return drain, nil
 }
