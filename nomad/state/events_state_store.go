@@ -24,11 +24,11 @@ func (s *StateStore) upsertNodeEvent(index uint64, nodeID string, event *structs
 	node, err := s.NodeByID(ws, nodeID)
 
 	if err != nil {
-		return fmt.Errorf("unable to look up nodes by id %+v", err)
+		return fmt.Errorf("encountered error when looking up nodes by id to insert node event: %v", err)
 	}
 
 	if node == nil {
-		return fmt.Errorf("unable to look up nodes by id %s", nodeID)
+		return fmt.Errorf("unable to look up node by id %s to insert node event", nodeID)
 	}
 
 	event.CreateIndex = index

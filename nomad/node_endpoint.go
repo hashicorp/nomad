@@ -61,7 +61,7 @@ func (n *Node) EmitEvent(args *structs.EmitNodeEventRequest, reply *structs.Emit
 	_, index, err := n.srv.raftApply(structs.AddNodeEventType, args)
 
 	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventType failed: %+v", err)
+		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventType failed: %v", err)
 		return err
 	}
 
