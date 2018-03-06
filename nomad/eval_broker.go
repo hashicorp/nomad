@@ -161,14 +161,17 @@ func (b *EvalBroker) Enabled() bool {
 // should only be enabled on the active leader.
 func (b *EvalBroker) SetEnabled(enabled bool) {
 	b.l.Lock()
+	prevEnabled := b.enabled
 	b.enabled = enabled
-	// start the go routine for delayed evals
-	ctx, cancel := context.WithCancel(context.Background())
-	b.delayedEvalCancelFunc = cancel
-	go b.runDelayedEvalsWatcher(ctx)
+	if !prevEnabled && enabled {
+		// start the go routine for delayed evals
+		ctx, cancel := context.WithCancel(context.Background())
+		b.delayedEvalCancelFunc = cancel
+		go b.runDelayedEvalsWatcher(ctx)
+	}
 	b.l.Unlock()
 	if !enabled {
-		b.Flush()
+		b.flush()
 	}
 }
 
@@ -230,6 +233,7 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 
 	if !eval.WaitUntil.IsZero() {
 		b.delayHeap.Push(&evalWrapper{eval}, eval.WaitUntil)
+		b.stats.TotalWaiting += 1
 		// Signal an update.
 		select {
 		case b.delayedEvalsUpdateCh <- struct{}{}:
@@ -675,7 +679,7 @@ func (b *EvalBroker) ResumeNackTimeout(evalID, token string) error {
 }
 
 // Flush is used to clear the state of the broker
-func (b *EvalBroker) Flush() {
+func (b *EvalBroker) flush() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -733,11 +737,11 @@ func (d *evalWrapper) Namespace() string {
 	return d.eval.Namespace
 }
 
-// runDelayedEvalsWatcher is a long-lived function that waits till a job's periodic spec is met and
-// then creates an evaluation to run the job.
+// runDelayedEvalsWatcher is a long-lived function that waits till a time deadline is met for
+// pending evaluations before enqueuing them
 func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 	var timerChannel <-chan time.Time
-	for b.enabled {
+	for {
 		eval, waitUntil := b.nextDelayedEval()
 		if waitUntil.IsZero() {
 			timerChannel = nil
@@ -752,7 +756,10 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 		case <-timerChannel:
 			// remove from the heap since we can enqueue it now
 			b.delayHeap.Remove(&evalWrapper{eval})
+			b.l.Lock()
+			b.stats.TotalWaiting -= 1
 			b.enqueueLocked(eval, eval.Type)
+			b.l.Unlock()
 		case <-b.delayedEvalsUpdateCh:
 			continue
 		}
