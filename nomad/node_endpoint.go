@@ -41,7 +41,7 @@ type Node struct {
 
 	// updateFuture is used to wait for the pending batch update
 	// to complete. This may be nil if no batch is pending.
-	updateFuture *batchFuture
+	updateFuture *structs.BatchFuture
 
 	// updateTimer is the timer that will trigger the next batch
 	// update, and may be nil if there is no batch pending.
@@ -933,7 +933,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Start a new batch if none
 	future := n.updateFuture
 	if future == nil {
-		future = NewBatchFuture()
+		future = structs.NewBatchFuture()
 		n.updateFuture = future
 		n.updateTimer = time.AfterFunc(batchUpdateInterval, func() {
 			// Get the pending updates
@@ -962,7 +962,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 }
 
 // batchUpdate is used to update all the allocations
-func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
+func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
 	// Prepare the batch update
 	batch := &structs.AllocUpdateRequest{
 		Alloc:        updates,
@@ -1164,38 +1164,6 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		return nil, 0, err
 	}
 	return evalIDs, evalIndex, nil
-}
-
-// batchFuture is used to wait on a batch update to complete
-type batchFuture struct {
-	doneCh chan struct{}
-	err    error
-	index  uint64
-}
-
-// NewBatchFuture creates a new batch future
-func NewBatchFuture() *batchFuture {
-	return &batchFuture{
-		doneCh: make(chan struct{}),
-	}
-}
-
-// Wait is used to block for the future to complete and returns the error
-func (b *batchFuture) Wait() error {
-	<-b.doneCh
-	return b.err
-}
-
-// Index is used to return the index of the batch, only after Wait()
-func (b *batchFuture) Index() uint64 {
-	return b.index
-}
-
-// Respond is used to unblock the future
-func (b *batchFuture) Respond(index uint64, err error) {
-	b.index = index
-	b.err = err
-	close(b.doneCh)
 }
 
 // DeriveVaultToken is used by the clients to request wrapped Vault tokens for

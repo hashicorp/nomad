@@ -50,7 +50,7 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 
 	draining, ok := n.nodes[node.ID]
 	if !ok {
-		n.nodes[node.ID] = NewDrainingNode(node, n.state, n)
+		n.nodes[node.ID] = NewDrainingNode(node, n.state)
 		return
 	}
 
@@ -61,9 +61,6 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	if inf, deadline := node.DrainStrategy.DeadlineTime(); !inf {
 		n.deadlineNotifier.Watch(node.ID, deadline)
 	} else {
-		// TODO think about handling any race that may occur. I believe it is
-		// totally fine as long as the handlers are locked.
-
 		// There is an infinite deadline so it shouldn't be tracked for
 		// deadlining
 		n.deadlineNotifier.Remove(node.ID)
