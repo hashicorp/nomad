@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/time/rate"
@@ -21,17 +23,20 @@ const (
 	// LimitStateQueriesPerSecond is the number of state queries allowed per
 	// second
 	LimitStateQueriesPerSecond = 100.0
+
+	// BatchUpdateInterval is how long we wait to batch updates
+	BatchUpdateInterval = 1 * time.Second
+
+	// NodeDeadlineCoalesceWindow is the duration in which deadlining nodes will
+	// be coalesced together
+	NodeDeadlineCoalesceWindow = 5 * time.Second
 )
 
 // RaftApplier contains methods for applying the raft requests required by the
 // NodeDrainer.
 type RaftApplier interface {
-	AllocUpdateDesiredTransition(allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) error
-	NodeDrainComplete(nodeID string) error
-}
-
-type AllocDrainer interface {
-	drain(allocs []*structs.Allocation)
+	AllocUpdateDesiredTransition(allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) (uint64, error)
+	NodeDrainComplete(nodeID string) (uint64, error)
 }
 
 type NodeTracker interface {
@@ -44,6 +49,38 @@ type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.State
 type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, NodeTracker) DrainingNodeWatcher
 type DrainDeadlineNotifierFactory func(context.Context) DrainDeadlineNotifier
 
+func GetDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger) DrainingJobWatcher {
+	return NewDrainingJobWatcher(ctx, limiter, state, logger)
+}
+
+func GetDeadlineNotifier(ctx context.Context) DrainDeadlineNotifier {
+	return NewDeadlineHeap(ctx, NodeDeadlineCoalesceWindow)
+}
+
+func GetNodeWatcherFactory() DrainingNodeWatcherFactory {
+	return func(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger, tracker NodeTracker) DrainingNodeWatcher {
+		return NewNodeDrainWatcher(ctx, limiter, state, logger, tracker)
+	}
+}
+
+type allocMigrateBatcher struct {
+	// updates holds pending client status updates for allocations
+	updates []*structs.Allocation
+
+	// updateFuture is used to wait for the pending batch update
+	// to complete. This may be nil if no batch is pending.
+	updateFuture *structs.BatchFuture
+
+	// updateTimer is the timer that will trigger the next batch
+	// update, and may be nil if there is no batch pending.
+	updateTimer *time.Timer
+
+	batchWindow time.Duration
+
+	// synchronizes access to the updates list, the future and the timer.
+	sync.Mutex
+}
+
 type NodeDrainerConfig struct {
 	Logger                *log.Logger
 	Raft                  RaftApplier
@@ -51,17 +88,16 @@ type NodeDrainerConfig struct {
 	NodeFactory           DrainingNodeWatcherFactory
 	DrainDeadlineFactory  DrainDeadlineNotifierFactory
 	StateQueriesPerSecond float64
+	BatchUpdateInterval   time.Duration
 }
 
+// TODO Add stats
 type NodeDrainer struct {
 	enabled bool
 	logger  *log.Logger
 
 	// nodes is the set of draining nodes
 	nodes map[string]*drainingNode
-
-	// doneNodeCh is used to signal that a node is done draining
-	doneNodeCh chan string
 
 	nodeWatcher DrainingNodeWatcher
 	nodeFactory DrainingNodeWatcherFactory
@@ -81,6 +117,9 @@ type NodeDrainer struct {
 	// raft is a shim around the raft messages necessary for draining
 	raft RaftApplier
 
+	// batcher is used to batch alloc migrations.
+	batcher allocMigrateBatcher
+
 	// ctx and exitFn are used to cancel the watcher
 	ctx    context.Context
 	exitFn context.CancelFunc
@@ -96,6 +135,9 @@ func NewNodeDrainer(c *NodeDrainerConfig) *NodeDrainer {
 		nodeFactory:             c.NodeFactory,
 		deadlineNotifierFactory: c.DrainDeadlineFactory,
 		queryLimiter:            rate.NewLimiter(rate.Limit(c.StateQueriesPerSecond), 100),
+		batcher: allocMigrateBatcher{
+			batchWindow: c.BatchUpdateInterval,
+		},
 	}
 }
 
@@ -133,7 +175,6 @@ func (n *NodeDrainer) flush() {
 	n.nodeWatcher = n.nodeFactory(n.ctx, n.queryLimiter, n.state, n.logger, n)
 	n.deadlineNotifier = n.deadlineNotifierFactory(n.ctx)
 	n.nodes = make(map[string]*drainingNode, 32)
-	n.doneNodeCh = make(chan string, 4)
 }
 
 func (n *NodeDrainer) run(ctx context.Context) {
@@ -143,33 +184,145 @@ func (n *NodeDrainer) run(ctx context.Context) {
 			return
 		case nodes := <-n.deadlineNotifier.NextBatch():
 			n.handleDeadlinedNodes(nodes)
-		case allocs := <-n.jobWatcher.Drain():
-			n.handleJobAllocDrain(allocs)
-		case node := <-n.doneNodeCh:
-			// TODO probably remove this as a channel
-			n.handleDoneNode(node)
+		case req := <-n.jobWatcher.Drain():
+			n.handleJobAllocDrain(req)
+		case allocs := <-n.jobWatcher.Migrated():
+			n.handleMigratedAllocs(allocs)
 		}
 	}
 }
 
 func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
-	// TODO
+	// Retrieve the set of allocations that will be force stopped.
+	n.l.RLock()
+	var forceStop []*structs.Allocation
+	for _, node := range nodes {
+		draining, ok := n.nodes[node]
+		if !ok {
+			n.logger.Printf("[DEBUG] nomad.node_drainer: skipping untracked deadlined node %q", node)
+			continue
+		}
+
+		allocs, err := draining.DeadlineAllocs()
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.node_drainer: failed to retrive allocs on deadlined node %q: %v", node, err)
+			continue
+		}
+
+		forceStop = append(forceStop, allocs...)
+	}
+	n.l.RUnlock()
+	n.batchDrainAllocs(forceStop)
 }
 
-func (n *NodeDrainer) handleJobAllocDrain(allocs []*structs.Allocation) {
-	// TODO
-
-	// TODO Call check on the appropriate nodes when the final allocs
-	// transistion to stop so we have a place to determine with the node
-	// is done and the final drain of system allocs
-	// TODO This probably requires changing the interface such that it
-	// returns replaced allocs as well.
+func (n *NodeDrainer) handleJobAllocDrain(req *DrainRequest) {
+	// This should be syncronous
+	index, err := n.batchDrainAllocs(req.Allocs)
+	req.Resp.Respond(index, err)
 }
 
-func (n *NodeDrainer) handleDoneNode(nodeID string) {
-	// TODO
+func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
+	// Determine the set of nodes that were effected
+	nodes := make(map[string]struct{})
+	for _, alloc := range allocs {
+		nodes[alloc.NodeID] = struct{}{}
+	}
+
+	// For each node, check if it is now done
+	n.l.RLock()
+	var done []string
+	for node := range nodes {
+		draining, ok := n.nodes[node]
+		if !ok {
+			continue
+		}
+
+		isDone, err := draining.IsDone()
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.drain: checking if node %q is done draining: %v", node, err)
+			continue
+		}
+
+		if !isDone {
+			continue
+		}
+
+		done = append(done, node)
+	}
+	n.l.RUnlock()
+
+	// TODO This should probably be a single Raft transaction
+	for _, doneNode := range done {
+		index, err := n.raft.NodeDrainComplete(doneNode)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", doneNode, err)
+		} else {
+			n.logger.Printf("[INFO] nomad.drain: node %q completed draining at index %d", doneNode, index)
+		}
+	}
 }
 
-func (n *NodeDrainer) drain(allocs []*structs.Allocation) {
-	// TODO
+func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, error) {
+	// Add this to the batch
+	n.batcher.Lock()
+	n.batcher.updates = append(n.batcher.updates, allocs...)
+
+	// Start a new batch if none
+	future := n.batcher.updateFuture
+	if future == nil {
+		future = structs.NewBatchFuture()
+		n.batcher.updateFuture = future
+		n.batcher.updateTimer = time.AfterFunc(n.batcher.batchWindow, func() {
+			// Get the pending updates
+			n.batcher.Lock()
+			updates := n.batcher.updates
+			future := n.batcher.updateFuture
+			n.batcher.updates = nil
+			n.batcher.updateFuture = nil
+			n.batcher.updateTimer = nil
+			n.batcher.Unlock()
+
+			// Perform the batch update
+			n.drainAllocs(future, updates)
+		})
+	}
+	n.batcher.Unlock()
+
+	// Wait for the future
+	if err := future.Wait(); err != nil {
+		return 0, err
+	}
+
+	return future.Index(), nil
+}
+
+func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs.Allocation) {
+	// TODO This should shard to limit the size of the transaction.
+
+	// Compute the effected jobs and make the transistion map
+	jobs := make(map[string]*structs.Allocation, 4)
+	transistions := make(map[string]*structs.DesiredTransition, len(allocs))
+	for _, alloc := range allocs {
+		transistions[alloc.ID] = &structs.DesiredTransition{
+			Migrate: helper.BoolToPtr(true),
+		}
+		jobs[alloc.JobID] = alloc
+	}
+
+	evals := make([]*structs.Evaluation, 0, len(jobs))
+	for job, alloc := range jobs {
+		evals = append(evals, &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   alloc.Namespace,
+			Priority:    alloc.Job.Priority,
+			Type:        alloc.Job.Type,
+			TriggeredBy: structs.EvalTriggerNodeDrain,
+			JobID:       job,
+			Status:      structs.EvalStatusPending,
+		})
+	}
+
+	// Commit this update via Raft
+	index, err := n.raft.AllocUpdateDesiredTransition(transistions, evals)
+	future.Respond(index, err)
 }

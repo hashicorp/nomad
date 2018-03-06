@@ -14,17 +14,25 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type DrainRequest struct {
+	Allocs []*structs.Allocation
+	Resp   *structs.BatchFuture
+}
+
+func NewDrainRequest(allocs []*structs.Allocation) *DrainRequest {
+	return &DrainRequest{
+		Allocs: allocs,
+		Resp:   structs.NewBatchFuture(),
+	}
+}
+
 // DrainingJobWatcher is the interface for watching a job drain
 type DrainingJobWatcher interface {
 	// RegisterJob is used to start watching a draining job
 	RegisterJob(jobID, namespace string)
 
-	// TODO This should probably be a drain future such that we can block the
-	// next loop till the raft apply happens such that we don't emit the same
-	// drain many times. We would get the applied index back and block till
-	// then.
 	// Drain is used to emit allocations that should be drained.
-	Drain() <-chan []*structs.Allocation
+	Drain() <-chan *DrainRequest
 
 	// Migrated is allocations for draining jobs that have transistioned to
 	// stop. There is no guarantee that duplicates won't be published.
@@ -51,7 +59,7 @@ type drainingJobWatcher struct {
 	queryCancel context.CancelFunc
 
 	// drainCh and migratedCh are used to emit allocations
-	drainCh    chan []*structs.Allocation
+	drainCh    chan *DrainRequest
 	migratedCh chan []*structs.Allocation
 
 	l sync.RWMutex
@@ -73,7 +81,7 @@ func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *st
 		logger:      logger,
 		state:       state,
 		jobs:        make(map[structs.JobNs]struct{}, 64),
-		drainCh:     make(chan []*structs.Allocation, 8),
+		drainCh:     make(chan *DrainRequest, 8),
 		migratedCh:  make(chan []*structs.Allocation, 8),
 	}
 
@@ -103,7 +111,7 @@ func (w *drainingJobWatcher) RegisterJob(jobID, namespace string) {
 }
 
 // Drain returns the channel that emits allocations to drain.
-func (w *drainingJobWatcher) Drain() <-chan []*structs.Allocation {
+func (w *drainingJobWatcher) Drain() <-chan *DrainRequest {
 	return w.drainCh
 }
 
@@ -203,16 +211,34 @@ func (w *drainingJobWatcher) watch() {
 			}
 		}
 
-		if allDrain != nil {
+		if len(allDrain) != 0 {
+			// Create the request
+			req := NewDrainRequest(allDrain)
+
 			select {
-			case w.drainCh <- allDrain:
+			case w.drainCh <- req:
 			case <-w.ctx.Done():
 				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
 				return
 			}
+
+			// Wait for the request to be commited
+			select {
+			case <-req.Resp.WaitCh():
+			case <-w.ctx.Done():
+				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+				return
+			}
+
+			// See if it successfully committed
+			if err := req.Resp.Error(); err != nil {
+				w.logger.Printf("[ERR] nomad.drain.job_watcher: failed to transistion allocations: %v", err)
+			}
+
+			// TODO Probably want to wait till the new index
 		}
 
-		if allMigrated != nil {
+		if len(allMigrated) != 0 {
 			select {
 			case w.migratedCh <- allMigrated:
 			case <-w.ctx.Done():
