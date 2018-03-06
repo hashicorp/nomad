@@ -551,7 +551,7 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 	return nil
 }
 
-// HealthChck implements the interface for the HealthCheck interface. This
+// HealthCheck implements the interface for the HealthCheck interface. This
 // performs a health check on the docker driver, asserting whether the docker
 // driver is responsive to a `docker ps` command.
 func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
@@ -562,14 +562,14 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 
 	client, _, err := d.dockerClients()
 	if err != nil {
-		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
+		d.logger.Printf("[WARN] driver.docker: failed to retrieve Docker client in the process of a docker health check: %v", err)
 		resp.AddDriverInfo("docker", unhealthy)
 		return err
 	}
 
 	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
-		d.logger.Printf("[WARN] driver.docker: docker driver is available but is unresponsive to `docker ps`")
+		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a docker health check: %v", err)
 		resp.AddDriverInfo("docker", unhealthy)
 		return err
 	}

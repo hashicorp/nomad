@@ -1,7 +1,6 @@
 package structs
 
 import (
-	"strings"
 	"time"
 )
 
@@ -42,7 +41,7 @@ func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 		return false
 	}
 
-	if strings.Compare(di.HealthDescription, other.HealthDescription) != 0 {
+	if di.HealthDescription == other.HealthDescription {
 		return false
 	}
 

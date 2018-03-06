@@ -2,6 +2,7 @@ package client
 
 import (
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,7 +25,7 @@ type FingerprintManager struct {
 	// associated node
 	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node
 
-	// UpdateHealthCheck is a callback to the client to update the state of the
+	// updateHealthCheck is a callback to the client to update the state of the
 	// node for resources that require a health check
 	updateHealthCheck func(*cstructs.HealthCheckResponse) *structs.Node
 	logger            *log.Logger
@@ -76,7 +77,7 @@ func (fm *FingerprintManager) runHealthCheck(hc fingerprint.HealthCheck, period 
 		case <-time.After(period):
 			err := fm.healthCheck(name, hc)
 			if err != nil {
-				fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %+v", name, err)
+				fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %v", name, err)
 				continue
 			}
 
@@ -151,8 +152,14 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	// support this. Doing this so that we can enable this iteratively and also
 	// in a backwards compatible way, where node attributes for drivers will
 	// eventually be phased out.
+	strippedAttributes := make(map[string]string, 0)
+	for k, v := range response.Attributes {
+		copy := k
+		strings.Replace(copy, "driver.", "", 1)
+		strippedAttributes[k] = v
+	}
 	di := &structs.DriverInfo{
-		Attributes: response.Attributes,
+		Attributes: strippedAttributes,
 		Detected:   response.Detected,
 	}
 	response.AddDriver(name, di)
