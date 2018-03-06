@@ -24,11 +24,10 @@ func NewMockNodeTracker() *MockNodeTracker {
 	}
 }
 
-func (m *MockNodeTracker) Tracking(nodeID string) (*structs.Node, bool) {
+func (m *MockNodeTracker) TrackedNodes() map[string]*structs.Node {
 	m.Lock()
 	defer m.Unlock()
-	n, ok := m.Nodes[nodeID]
-	return n, ok
+	return m.Nodes
 }
 
 func (m *MockNodeTracker) Remove(nodeID string) {
