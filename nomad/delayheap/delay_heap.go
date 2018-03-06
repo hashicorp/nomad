@@ -9,21 +9,22 @@ import (
 )
 
 // DelayHeap wraps a heap and gives operations other than Push/Pop.
-// The inner heap is sorted by the time in the WaitUntil field of DelayHeapNode
+// The inner heap is sorted by the time in the WaitUntil field of delayHeapNode
 type DelayHeap struct {
-	index map[structs.NamespacedID]*DelayHeapNode
+	index map[structs.NamespacedID]*delayHeapNode
 	heap  delayedHeapImp
 }
 
+// HeapNode is an interface type implemented by objects stored in the DelayHeap
 type HeapNode interface {
-	Data() interface{}
-	ID() string
-	Namespace() string
+	Data() interface{} // The data object
+	ID() string        // ID of the object, used in conjunction with namespace for deduplication
+	Namespace() string // Namespace of the object, can be empty
 }
 
-// DelayHeapNode encapsulates the node stored in DelayHeap
+// delayHeapNode encapsulates the node stored in DelayHeap
 // WaitUntil is used as the sorting criteria
-type DelayHeapNode struct {
+type delayHeapNode struct {
 	// Node is the data object stored in the delay heap
 	Node HeapNode
 	// WaitUntil is the time delay associated with the node
@@ -33,7 +34,7 @@ type DelayHeapNode struct {
 	index int
 }
 
-type delayedHeapImp []*DelayHeapNode
+type delayedHeapImp []*delayHeapNode
 
 func (h delayedHeapImp) Len() int {
 	return len(h)
@@ -63,7 +64,7 @@ func (h delayedHeapImp) Swap(i, j int) {
 }
 
 func (h *delayedHeapImp) Push(x interface{}) {
-	node := x.(*DelayHeapNode)
+	node := x.(*delayHeapNode)
 	n := len(*h)
 	node.index = n
 	*h = append(*h, node)
@@ -80,7 +81,7 @@ func (h *delayedHeapImp) Pop() interface{} {
 
 func NewDelayHeap() *DelayHeap {
 	return &DelayHeap{
-		index: make(map[structs.NamespacedID]*DelayHeapNode),
+		index: make(map[structs.NamespacedID]*delayHeapNode),
 		heap:  make(delayedHeapImp, 0),
 	}
 }
@@ -94,18 +95,18 @@ func (p *DelayHeap) Push(dataNode HeapNode, next time.Time) error {
 		return fmt.Errorf("node %q (%s) already exists", dataNode.ID(), dataNode.Namespace())
 	}
 
-	delayHeapNode := &DelayHeapNode{dataNode, next, 0}
+	delayHeapNode := &delayHeapNode{dataNode, next, 0}
 	p.index[tuple] = delayHeapNode
 	heap.Push(&p.heap, delayHeapNode)
 	return nil
 }
 
-func (p *DelayHeap) Pop() *DelayHeapNode {
+func (p *DelayHeap) Pop() *delayHeapNode {
 	if len(p.heap) == 0 {
 		return nil
 	}
 
-	delayHeapNode := heap.Pop(&p.heap).(*DelayHeapNode)
+	delayHeapNode := heap.Pop(&p.heap).(*delayHeapNode)
 	tuple := structs.NamespacedID{
 		ID:        delayHeapNode.Node.ID(),
 		Namespace: delayHeapNode.Node.Namespace(),
@@ -114,7 +115,7 @@ func (p *DelayHeap) Pop() *DelayHeapNode {
 	return delayHeapNode
 }
 
-func (p *DelayHeap) Peek() *DelayHeapNode {
+func (p *DelayHeap) Peek() *delayHeapNode {
 	if len(p.heap) == 0 {
 		return nil
 	}

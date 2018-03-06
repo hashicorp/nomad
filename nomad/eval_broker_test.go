@@ -1141,7 +1141,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 	}
 }
 
-// Ensure fairness between schedulers
+// Ensure that delayed evaluations work as expected
 func TestEvalBroker_WaitUntil(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -1166,7 +1166,7 @@ func TestEvalBroker_WaitUntil(t *testing.T) {
 	eval3.WaitUntil = now.Add(20 * time.Millisecond)
 	eval3.CreateIndex = 1
 	b.Enqueue(eval3)
-
+	require.Equal(3, b.stats.TotalWaiting)
 	// sleep enough for two evals to be ready
 	time.Sleep(200 * time.Millisecond)
 
@@ -1184,6 +1184,7 @@ func TestEvalBroker_WaitUntil(t *testing.T) {
 	out, _, err = b.Dequeue(defaultSched, 2*time.Second)
 	require.Nil(err)
 	require.Equal(eval1, out)
+	require.Equal(0, b.stats.TotalWaiting)
 }
 
 // Ensure that priority is taken into account when enqueueing many evaluations.

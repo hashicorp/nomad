@@ -105,8 +105,8 @@ func TestDelayHeap_Update(t *testing.T) {
 
 }
 
-func getHeapEntries(delayHeap *DelayHeap, now time.Time) []*DelayHeapNode {
-	var entries []*DelayHeapNode
+func getHeapEntries(delayHeap *DelayHeap, now time.Time) []*delayHeapNode {
+	var entries []*delayHeapNode
 	for node := delayHeap.Pop(); node != nil; {
 		entries = append(entries, node)
 		node = delayHeap.Pop()
