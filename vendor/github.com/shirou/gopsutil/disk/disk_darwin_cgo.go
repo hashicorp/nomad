@@ -26,6 +26,7 @@ typedef struct
 import "C"
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"unsafe"
@@ -34,6 +35,10 @@ import (
 )
 
 func IOCounters(names ...string) (map[string]IOCountersStat, error) {
+	return IOCountersWithContext(context.Background(), names...)
+}
+
+func IOCountersWithContext(ctx context.Context, names ...string) (map[string]IOCountersStat, error) {
 	if C.StartIOCounterFetch() == 0 {
 		return nil, errors.New("Unable to fetch disk list")
 	}

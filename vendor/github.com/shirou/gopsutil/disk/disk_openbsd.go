@@ -4,6 +4,7 @@ package disk
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"path"
 	"unsafe"
@@ -13,6 +14,10 @@ import (
 )
 
 func Partitions(all bool) ([]PartitionStat, error) {
+	return PartitionsWithContext(context.Background(), all)
+}
+
+func PartitionsWithContext(ctx context.Context, all bool) ([]PartitionStat, error) {
 	var ret []PartitionStat
 
 	// get length
@@ -64,9 +69,13 @@ func Partitions(all bool) ([]PartitionStat, error) {
 }
 
 func IOCounters(names ...string) (map[string]IOCountersStat, error) {
+	return IOCountersWithContext(context.Background(), names...)
+}
+
+func IOCountersWithContext(ctx context.Context, names ...string) (map[string]IOCountersStat, error) {
 	ret := make(map[string]IOCountersStat)
 
-	r, err := unix.Sysctl("hw.diskstats")
+	r, err := unix.SysctlRaw("hw.diskstats")
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +115,10 @@ func IOCounters(names ...string) (map[string]IOCountersStat, error) {
 // Getfsstat is borrowed from pkg/syscall/syscall_freebsd.go
 // change Statfs_t to Statfs in order to get more information
 func Getfsstat(buf []Statfs, flags int) (n int, err error) {
+	return GetfsstatWithContext(context.Background(), buf, flags)
+}
+
+func GetfsstatWithContext(ctx context.Context, buf []Statfs, flags int) (n int, err error) {
 	var _p0 unsafe.Pointer
 	var bufsize uintptr
 	if len(buf) > 0 {
@@ -133,6 +146,10 @@ func parseDiskstats(buf []byte) (Diskstats, error) {
 }
 
 func Usage(path string) (*UsageStat, error) {
+	return UsageWithContext(context.Background(), path)
+}
+
+func UsageWithContext(ctx context.Context, path string) (*UsageStat, error) {
 	stat := unix.Statfs_t{}
 	err := unix.Statfs(path, &stat)
 	if err != nil {
