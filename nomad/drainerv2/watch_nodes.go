@@ -14,18 +14,17 @@ import (
 // DrainingNodeWatcher is the interface for watching for draining nodes.
 type DrainingNodeWatcher interface{}
 
-// Tracking returns the whether the node is being tracked and if so the copy of
-// the node object that is tracked.
-func (n *NodeDrainer) Tracking(nodeID string) (*structs.Node, bool) {
+// TrackedNodes returns the set of tracked nodes
+func (n *NodeDrainer) TrackedNodes() map[string]*structs.Node {
 	n.l.RLock()
 	defer n.l.RUnlock()
 
-	draining, ok := n.nodes[nodeID]
-	if !ok {
-		return nil, false
+	t := make(map[string]*structs.Node, len(n.nodes))
+	for n, d := range n.nodes {
+		t[n] = d.GetNode()
 	}
 
-	return draining.GetNode(), true
+	return t
 }
 
 // Remove removes the given node from being tracked
@@ -128,34 +127,42 @@ func (w *nodeDrainWatcher) watch() {
 		// update index for next run
 		nindex = index
 
-		for _, node := range nodes {
+		tracked := w.tracker.TrackedNodes()
+		for nodeID, node := range nodes {
 			newDraining := node.DrainStrategy != nil
-			currentNode, tracked := w.tracker.Tracking(node.ID)
+			currentNode, tracked := tracked[nodeID]
 
 			switch {
 			// If the node is tracked but not draining, untrack
 			case tracked && !newDraining:
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q is no longer draining", node.ID)
-				w.tracker.Remove(node.ID)
+				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q is no longer draining", nodeID)
+				w.tracker.Remove(nodeID)
 
 				// If the node is not being tracked but is draining, track
 			case !tracked && newDraining:
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: untracked node %q is draining", node.ID)
+				w.logger.Printf("[TRACE] nomad.drain.node_watcher: untracked node %q is draining", nodeID)
 				w.tracker.Update(node)
 
 				// If the node is being tracked but has changed, update:
 			case tracked && newDraining && !currentNode.DrainStrategy.Equal(node.DrainStrategy):
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q has updated drain", node.ID)
+				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q has updated drain", nodeID)
 				w.tracker.Update(node)
 			default:
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: node %q at index %v: tracked %v, draining %v", node.ID, node.ModifyIndex, tracked, newDraining)
+				w.logger.Printf("[TRACE] nomad.drain.node_watcher: node %q at index %v: tracked %v, draining %v", nodeID, node.ModifyIndex, tracked, newDraining)
+			}
+		}
+
+		for nodeID := range tracked {
+			if _, ok := nodes[nodeID]; !ok {
+				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q is no longer exists", nodeID)
+				w.tracker.Remove(nodeID)
 			}
 		}
 	}
 }
 
 // getNodes returns all nodes blocking until the nodes are after the given index.
-func (w *nodeDrainWatcher) getNodes(minIndex uint64) ([]*structs.Node, uint64, error) {
+func (w *nodeDrainWatcher) getNodes(minIndex uint64) (map[string]*structs.Node, uint64, error) {
 	if err := w.limiter.Wait(w.ctx); err != nil {
 		return nil, 0, err
 	}
@@ -165,7 +172,7 @@ func (w *nodeDrainWatcher) getNodes(minIndex uint64) ([]*structs.Node, uint64, e
 		return nil, 0, err
 	}
 
-	return resp.([]*structs.Node), index, nil
+	return resp.(map[string]*structs.Node), index, nil
 }
 
 // getNodesImpl is used to get nodes from the state store, returning the set of
@@ -181,7 +188,7 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 		return nil, 0, err
 	}
 
-	resp := make([]*structs.Node, 0, 64)
+	resp := make(map[string]*structs.Node, 64)
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -189,7 +196,7 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 		}
 
 		node := raw.(*structs.Node)
-		resp = append(resp, node)
+		resp[node.ID] = node
 	}
 
 	return resp, index, nil

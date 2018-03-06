@@ -63,11 +63,10 @@ func TestNodeDrainWatcher_AddDraining(t *testing.T) {
 		t.Fatal("No node drain events")
 	})
 
-	_, ok1 := m.Tracking(n1.ID)
-	out2, ok2 := m.Tracking(n2.ID)
-	require.False(ok1)
-	require.True(ok2)
-	require.Equal(n2, out2)
+	tracked := m.TrackedNodes()
+	require.NotContains(tracked, n1.ID)
+	require.Contains(tracked, n2.ID)
+	require.Equal(n2, tracked[n2.ID])
 
 }
 
@@ -93,9 +92,9 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 		t.Fatal("No node drain events")
 	})
 
-	out, ok := m.Tracking(n.ID)
-	require.True(ok)
-	require.Equal(n, out)
+	tracked := m.TrackedNodes()
+	require.Contains(tracked, n.ID)
+	require.Equal(n, tracked[n.ID])
 
 	// Change the node to be not draining and wait for it to be untracked
 	require.Nil(state.UpdateNodeDrain(101, n.ID, nil))
@@ -105,8 +104,46 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 		t.Fatal("No new node drain events")
 	})
 
-	_, ok = m.Tracking(n.ID)
-	require.False(ok)
+	tracked = m.TrackedNodes()
+	require.NotContains(tracked, n.ID)
+}
+
+func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	_, state, m := testNodeDrainWatcher(t)
+
+	// Create a draining node
+	n := mock.Node()
+	n.DrainStrategy = &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: time.Hour,
+		},
+		ForceDeadline: time.Now().Add(time.Hour),
+	}
+
+	// Wait for it to be tracked
+	require.Nil(state.UpsertNode(100, n))
+	testutil.WaitForResult(func() (bool, error) {
+		return len(m.Events) == 1, nil
+	}, func(err error) {
+		t.Fatal("No node drain events")
+	})
+
+	tracked := m.TrackedNodes()
+	require.Contains(tracked, n.ID)
+	require.Equal(n, tracked[n.ID])
+
+	// Delete the node
+	require.Nil(state.DeleteNode(101, n.ID))
+	testutil.WaitForResult(func() (bool, error) {
+		return len(m.Events) == 2, nil
+	}, func(err error) {
+		t.Fatal("No new node drain events")
+	})
+
+	tracked = m.TrackedNodes()
+	require.NotContains(tracked, n.ID)
 }
 
 func TestNodeDrainWatcher_Update(t *testing.T) {
@@ -131,9 +168,9 @@ func TestNodeDrainWatcher_Update(t *testing.T) {
 		t.Fatal("No node drain events")
 	})
 
-	out, ok := m.Tracking(n.ID)
-	require.True(ok)
-	require.Equal(n, out)
+	tracked := m.TrackedNodes()
+	require.Contains(tracked, n.ID)
+	require.Equal(n, tracked[n.ID])
 
 	// Change the node to have a new spec
 	s2 := n.DrainStrategy.Copy()
@@ -147,7 +184,7 @@ func TestNodeDrainWatcher_Update(t *testing.T) {
 		t.Fatal("No new node drain events")
 	})
 
-	out, ok = m.Tracking(n.ID)
-	require.True(ok)
-	require.Equal(out.DrainStrategy, s2)
+	tracked = m.TrackedNodes()
+	require.Contains(tracked, n.ID)
+	require.Equal(s2, tracked[n.ID].DrainStrategy)
 }
