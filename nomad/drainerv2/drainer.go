@@ -35,12 +35,12 @@ type AllocDrainer interface {
 }
 
 type NodeTracker interface {
-	Tracking(nodeID string) (*structs.Node, bool)
+	TrackedNodes() map[string]*structs.Node
 	Remove(nodeID string)
 	Update(node *structs.Node)
 }
 
-type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, AllocDrainer) DrainingJobWatcher
+type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger) DrainingJobWatcher
 type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, NodeTracker) DrainingNodeWatcher
 type DrainDeadlineNotifierFactory func(context.Context) DrainDeadlineNotifier
 
@@ -129,7 +129,7 @@ func (n *NodeDrainer) flush() {
 	}
 
 	n.ctx, n.exitFn = context.WithCancel(context.Background())
-	n.jobWatcher = n.jobFactory(n.ctx, n.queryLimiter, n.state, n.logger, n)
+	n.jobWatcher = n.jobFactory(n.ctx, n.queryLimiter, n.state, n.logger)
 	n.nodeWatcher = n.nodeFactory(n.ctx, n.queryLimiter, n.state, n.logger, n)
 	n.deadlineNotifier = n.deadlineNotifierFactory(n.ctx)
 	n.nodes = make(map[string]*drainingNode, 32)
@@ -146,6 +146,7 @@ func (n *NodeDrainer) run(ctx context.Context) {
 		case allocs := <-n.jobWatcher.Drain():
 			n.handleJobAllocDrain(allocs)
 		case node := <-n.doneNodeCh:
+			// TODO probably remove this as a channel
 			n.handleDoneNode(node)
 		}
 	}
