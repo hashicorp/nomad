@@ -45,6 +45,9 @@ Node Drain Options:
     Remaining allocations after the deadline are forced removed from the node.
     If unspecified, a default deadline of one hour is applied.
 
+  -detach
+    Return immediately instead of entering monitor mode.
+
   -force
     Force remove allocations off the node immediately.
 
@@ -80,6 +83,7 @@ func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 			"-disable":         complete.PredictNothing,
 			"-enable":          complete.PredictNothing,
 			"-deadline":        complete.PredictAnything,
+			"-detach":          complete.PredictNothing,
 			"-force":           complete.PredictNothing,
 			"-no-deadline":     complete.PredictNothing,
 			"-ignore-system":   complete.PredictNothing,
@@ -105,7 +109,7 @@ func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *NodeDrainCommand) Run(args []string) int {
-	var enable, disable, force,
+	var enable, disable, detach, force,
 		noDeadline, ignoreSystem, keepIneligible, self, autoYes bool
 	var deadline string
 
@@ -114,6 +118,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&enable, "enable", false, "Enable drain mode")
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
 	flags.StringVar(&deadline, "deadline", "", "Deadline after which allocations are force stopped")
+	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&force, "force", false, "Force immediate drain")
 	flags.BoolVar(&noDeadline, "no-deadline", false, "Drain node with no deadline")
 	flags.BoolVar(&ignoreSystem, "ignore-system", false, "Do not drain system job allocations from the node")
@@ -259,11 +264,136 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Toggle node draining
-	if _, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil); err != nil {
+	meta, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
 	}
 
 	c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
+
+	if enable && !detach {
+		if err := monitorDrain(c.Ui.Output, client.Nodes(), node.ID, meta.LastIndex); err != nil {
+			c.Ui.Error(fmt.Sprintf("Error monitoring drain: %v", err))
+			return 1
+		}
+
+		c.Ui.Output(fmt.Sprintf("Node %q drain complete", nodeID))
+	}
+
 	return 0
+}
+
+// monitorDrain monitors the node being drained and exits when the node has
+// finished draining.
+func monitorDrain(output func(string), nodeClient *api.Nodes, nodeID string, index uint64) error {
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	// Errors from either goroutine are sent here
+	errCh := make(chan error, 1)
+
+	// Monitor node changes and close chan when drain is complete
+	nodeCh := make(chan struct{})
+	go func() {
+		for {
+			q := api.QueryOptions{
+				AllowStale: true,
+				WaitIndex:  index,
+			}
+			node, meta, err := nodeClient.Info(nodeID, &q)
+			if err != nil {
+				select {
+				case errCh <- err:
+				case <-doneCh:
+				}
+				return
+			}
+
+			if node.DrainStrategy == nil {
+				close(nodeCh)
+				return
+			}
+
+			// Drain still ongoing
+			index = meta.LastIndex
+		}
+	}()
+
+	// Monitor alloc changes
+	allocCh := make(chan string, 1)
+	go func() {
+		allocs, meta, err := nodeClient.Allocations(nodeID, nil)
+		if err != nil {
+			select {
+			case errCh <- err:
+			case <-doneCh:
+			}
+			return
+		}
+
+		initial := make(map[string]*api.Allocation, len(allocs))
+		for _, a := range allocs {
+			initial[a.ID] = a
+		}
+
+		for {
+			q := api.QueryOptions{
+				AllowStale: true,
+				WaitIndex:  meta.LastIndex,
+			}
+
+			allocs, meta, err = nodeClient.Allocations(nodeID, &q)
+			if err != nil {
+				select {
+				case errCh <- err:
+				case <-doneCh:
+				}
+				return
+			}
+
+			for _, a := range allocs {
+				// Get previous version of alloc
+				orig, ok := initial[a.ID]
+
+				// Update local alloc state
+				initial[a.ID] = a
+
+				msg := ""
+				switch {
+				case !ok:
+					// Should only be possible if response
+					// from initial Allocations call was
+					// stale. No need to output
+
+				case orig.ClientStatus != a.ClientStatus:
+					// Alloc status has changed; output
+					msg = fmt.Sprintf("status %s -> %s", orig.ClientStatus, a.ClientStatus)
+
+				case !orig.DesiredTransition.ShouldMigrate() && a.DesiredTransition.ShouldMigrate():
+					// Alloc marked for migration
+					msg = "draining"
+				}
+
+				if msg != "" {
+					select {
+					case allocCh <- fmt.Sprintf("Alloc %q %s", a.ID, msg):
+					case <-doneCh:
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errCh:
+			return err
+		case <-nodeCh:
+			return nil
+		case msg := <-allocCh:
+			output(msg)
+		}
+	}
 }
