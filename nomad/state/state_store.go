@@ -975,7 +975,7 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 		namespace = structs.DefaultNamespace
 	}
 
-	// Lookup the node
+	// Lookup the job
 	existing, err := txn.First("jobs", "id", namespace, jobID)
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
