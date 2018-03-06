@@ -316,6 +316,10 @@ func HostEtc(combineWith ...string) string {
 	return GetEnv("HOST_ETC", "/etc", combineWith...)
 }
 
+func HostVar(combineWith ...string) string {
+	return GetEnv("HOST_VAR", "/var", combineWith...)
+}
+
 // https://gist.github.com/kylelemons/1525278
 func Pipeline(cmds ...*exec.Cmd) ([]byte, []byte, error) {
 	// Require at least one command
