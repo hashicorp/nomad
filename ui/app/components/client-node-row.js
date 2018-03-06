@@ -2,8 +2,9 @@ import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
+import WithVisibilityDetection from 'nomad-ui/mixins/with-component-visibility-detection';
 
-export default Component.extend({
+export default Component.extend(WithVisibilityDetection, {
   store: service(),
 
   tagName: 'tr',
@@ -24,6 +25,17 @@ export default Component.extend({
       node.reload().then(() => {
         this.get('watch').perform(node, 100);
       });
+    }
+  },
+
+  visibilityHandler() {
+    if (!document.visible) {
+      this.get('watch').cancelAll();
+    } else {
+      const node = this.get('node');
+      if (node) {
+        this.get('watch').perform(node, 100);
+      }
     }
   },
 
