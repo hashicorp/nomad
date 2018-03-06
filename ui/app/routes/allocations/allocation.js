@@ -5,9 +5,8 @@ import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default Route.extend(WithModelErrorHandling, WithWatchers, {
-  setupController(controller, model) {
+  startWatchers(controller, model) {
     controller.set('watcher', this.get('watch').perform(model));
-    return this._super(...arguments);
   },
 
   watch: watchRecord('allocation'),

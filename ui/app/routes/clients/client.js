@@ -19,10 +19,9 @@ export default Route.extend(WithWatchers, {
     return model && model.get('allocations');
   },
 
-  setupController(controller, model) {
+  startWatchers(controller, model) {
     controller.set('watchModel', this.get('watch').perform(model));
     controller.set('watchAllocations', this.get('watchAllocations').perform(model));
-    return this._super(...arguments);
   },
 
   watch: watchRecord('node'),

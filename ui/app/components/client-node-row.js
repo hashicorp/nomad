@@ -29,7 +29,7 @@ export default Component.extend(WithVisibilityDetection, {
   },
 
   visibilityHandler() {
-    if (!document.visible) {
+    if (document.hidden) {
       this.get('watch').cancelAll();
     } else {
       const node = this.get('node');

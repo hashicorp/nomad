@@ -9,9 +9,8 @@ export default Route.extend(WithWatchers, {
     return job.get('versions').then(() => job);
   },
 
-  setupController(controller, model) {
+  startWatchers(controller, model) {
     controller.set('watcher', this.get('watchVersions').perform(model));
-    return this._super(...arguments);
   },
 
   watchVersions: watchRelationship('versions'),

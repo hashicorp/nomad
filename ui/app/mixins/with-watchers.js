@@ -23,7 +23,7 @@ export default Mixin.create(WithVisibilityDetection, {
   },
 
   visibilityHandler() {
-    if (!document.visible) {
+    if (document.hidden) {
       this.cancelAllWatchers();
     } else {
       this.startWatchers(this.controller, this.controller.get('model'));
