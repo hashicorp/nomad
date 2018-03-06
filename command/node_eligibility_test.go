@@ -37,8 +37,9 @@ func TestNodeEligibilityCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope", "-enable", "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error toggling") {
-		t.Fatalf("expected failed toggle error, got: %s", out)
+	expected := "Error updating scheduling eligibility"
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, expected) {
+		t.Fatalf("expected %q, got: %s", expected, out)
 	}
 	ui.ErrorWriter.Reset()
 
