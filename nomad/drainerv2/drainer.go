@@ -159,7 +159,7 @@ func (n *NodeDrainer) SetEnabled(enabled bool, state *state.StateStore) {
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
-		n.run(n.ctx)
+		go n.run(n.ctx)
 	}
 }
 
