@@ -1036,6 +1036,10 @@ func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckRespons
 		}
 		oldVal := c.config.Node.Drivers[name]
 		if newVal.HealthCheckEquals(oldVal) {
+
+			// make sure we accurately reflect the last time a health check has been
+			// performed for the driver.
+			oldVal.UpdateTime = newVal.UpdateTime
 			continue
 		}
 		nodeHasChanged = true

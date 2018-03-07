@@ -99,6 +99,10 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			return err
 		}
 
+		if hc, ok := d.(fingerprint.HealthCheck); ok {
+			fm.healthCheck(name, hc)
+		}
+
 		detected, err := fm.fingerprintDriver(name, d)
 		if err != nil {
 			fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting for %v failed: %+v", name, err)
@@ -171,7 +175,9 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		return false, err
 	}
 
-	// TODO This is a temporary measure, as eventually all drivers will need to
+	// COMPAT: Remove in 0.9: As of Nomad 0.8 there is a temporary measure to
+	// update all driver attributes to its corresponding driver info object,
+	// as eventually all drivers will need to
 	// support this. Doing this so that we can enable this iteratively and also
 	// in a backwards compatible way, where node attributes for drivers will
 	// eventually be phased out.
@@ -193,13 +199,21 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		fm.nodeLock.Unlock()
 	}
 
-	if hc, ok := f.(fingerprint.HealthCheck); ok {
-		fm.healthCheck(name, hc)
-	} else {
-
+	// COMPAT: Remove in 0.9: As of Nomad 0.8, there is a driver info for every
+	// driver. As a compatibility mechanism, we proactively set this driver info
+	// for drivers which do not yet support health checks.
+	if _, ok := f.(fingerprint.HealthCheck); !ok {
 		resp := &cstructs.HealthCheckResponse{
 			Drivers: map[string]*structs.DriverInfo{
-				name: di,
+				name: &structs.DriverInfo{
+					// This achieves backwards compatibility- before, we only relied on the
+					// status of the fingerprint method to determine whether a driver was
+					// enabled. For drivers without health checks yet enabled, we should always
+					// set this to true, and then once we enable health checks, this can
+					// dynamically update this value.
+					Healthy:    true,
+					UpdateTime: time.Now(),
+				},
 			},
 		}
 

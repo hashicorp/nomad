@@ -113,6 +113,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 
 	require.NotEqual("", node.Attributes["driver.raw_exec"])
 	require.True(node.Drivers["raw_exec"].Detected)
+	require.True(node.Drivers["raw_exec"].Healthy)
 }
 
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
@@ -268,6 +269,24 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		}
 		if !rawExecInfo.Detected {
 			return false, fmt.Errorf("raw exec driver should be detected")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Ensure the mock driver is de-registered when it becomes unhealthy
+	testutil.WaitForResult(func() (bool, error) {
+		mockDriverAttribute := node.Attributes["driver.mock_driver"]
+		if mockDriverAttribute == "" {
+			return false, fmt.Errorf("mock driver info should be set on the client attributes")
+		}
+		mockDriverInfo := node.Drivers["mock_driver"]
+		if mockDriverInfo == nil {
+			return false, fmt.Errorf("mock driver info should be set on the client")
+		}
+		if !mockDriverInfo.Healthy {
+			return false, fmt.Errorf("mock driver info should not be healthy")
 		}
 		return true, nil
 	}, func(err error) {
