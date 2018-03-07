@@ -68,6 +68,7 @@ func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period t
 	}
 }
 
+// XXX Do we need this for now
 // runHealthCheck runs each health check individually on an ongoing basis
 func (fm *FingerprintManager) runHealthCheck(hc fingerprint.HealthCheck, period time.Duration, name string) {
 	fm.logger.Printf("[DEBUG] client.fingerprint_manager: healthchecking %s every %v", name, period)
@@ -294,6 +295,7 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 			go fm.runFingerprint(f, period, name)
 		}
 
+		// XXX This code path doesn't exist right now
 		if hc, ok := f.(fingerprint.HealthCheck); ok {
 			req := &cstructs.HealthCheckIntervalRequest{}
 			var resp cstructs.HealthCheckIntervalResponse

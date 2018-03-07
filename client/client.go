@@ -1006,6 +1006,14 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		c.config.Node.Resources.Merge(response.Resources)
 	}
 
+	// XXX --------------
+	// All drivers only expose DriverInfo
+	// This becomes a separate setter. So we have:
+	// * updateNodeFromFingerprinters
+	// * updateNodeFromDriver(fingerprint, health *DriverInfo)
+	///  TODO is anything updating the Node.Attributes based on updating
+	//        driverinfos
+
 	for name, newVal := range response.Drivers {
 		oldVal := c.config.Node.Drivers[name]
 		if oldVal == nil && newVal != nil {
@@ -1020,6 +1028,35 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 
 	return c.config.Node
 }
+
+/* Model for converging the periodic fingerprinting and health checking:
+
+func watcher(driver Driver) {
+   p := driver.Periodic()
+   healthChecker driver.HealthChecker()
+   hDur := healthChecker.Periodic()
+
+   var t1, t2 time.Timer
+
+   if healthChecker {
+      t2 = time.NewTimer(hDur)
+   }
+
+   for {
+     select {
+     case shutdown:
+     case periodicFingerprint <- t1.C:
+		 // Do stuff
+		 t1.Reset(its duration)
+     case healthCheck <- t2.C: // Nil: never fire
+		 // Do stuff
+		 newHealth := driver.HealthCheck()
+		 updateNodeFromDriver(nil, newHealth)
+		 t2.Reset(its duration)
+     }
+   }
+}
+*/
 
 // updateNodeFromHealthCheck receives a health check response and updates the
 // node accordingly
