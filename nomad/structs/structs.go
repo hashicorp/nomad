@@ -1773,18 +1773,14 @@ type JobNs struct {
 	ID, Namespace string
 }
 
-func NewJobNs(namespace, id string) *JobNs {
-	return &JobNs{
+func NewJobNs(namespace, id string) JobNs {
+	return JobNs{
 		ID:        id,
 		Namespace: namespace,
 	}
 }
 
-func (j *JobNs) String() string {
-	if j == nil {
-		return "<nil, nil>"
-	}
-
+func (j JobNs) String() string {
 	return fmt.Sprintf("<ns: %q, id: %q>", j.Namespace, j.ID)
 }
 

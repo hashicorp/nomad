@@ -50,12 +50,12 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 
 	draining, ok := n.nodes[node.ID]
 	if !ok {
-		n.nodes[node.ID] = NewDrainingNode(node, n.state)
-		return
+		draining = NewDrainingNode(node, n.state)
+		n.nodes[node.ID] = draining
+	} else {
+		// Update it
+		draining.Update(node)
 	}
-
-	// Update it and update the dealiner
-	draining.Update(node)
 
 	// TODO test the notifier is updated
 	if inf, deadline := node.DrainStrategy.DeadlineTime(); !inf {
@@ -65,6 +65,21 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		// deadlining
 		n.deadlineNotifier.Remove(node.ID)
 	}
+
+	// TODO Test this
+	// Register interest in the draining jobs.
+	jobs, err := draining.RunningServices()
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.drain: error retrieving services on node %q: %v", node.ID, err)
+		return
+	}
+	n.logger.Printf("[TRACE] nomad.drain: node %q has %d services on it", node.ID, len(jobs))
+	for _, job := range jobs {
+		n.jobWatcher.RegisterJob(job)
+	}
+
+	// TODO we need to check if the node is done such that if an operator drains
+	// a node with nothing on it we unset drain
 
 }
 
@@ -105,6 +120,7 @@ func (w *nodeDrainWatcher) watch() {
 	for {
 		w.logger.Printf("[TRACE] nomad.drain.node_watcher: getting nodes at index %d", nindex)
 		nodes, index, err := w.getNodes(nindex)
+		w.logger.Printf("[TRACE] nomad.drain.node_watcher: got nodes %d at index %d: %v", len(nodes), nindex, err)
 		if err != nil {
 			if err == context.Canceled {
 				w.logger.Printf("[TRACE] nomad.drain.node_watcher: shutting down")

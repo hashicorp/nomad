@@ -122,3 +122,32 @@ func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {
 
 	return drain, nil
 }
+
+// RunningServices returns the set of jobs on the node
+func (n *drainingNode) RunningServices() ([]structs.JobNs, error) {
+	n.l.RLock()
+	defer n.l.RUnlock()
+
+	// Retrieve the allocs on the node
+	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	jobIDs := make(map[structs.JobNs]struct{})
+	var jobs []structs.JobNs
+	for _, alloc := range allocs {
+		if alloc.TerminalStatus() || alloc.Job.Type != structs.JobTypeService {
+			continue
+		}
+
+		jns := structs.NewJobNs(alloc.Namespace, alloc.JobID)
+		if _, ok := jobIDs[jns]; ok {
+			continue
+		}
+		jobIDs[jns] = struct{}{}
+		jobs = append(jobs, jns)
+	}
+
+	return jobs, nil
+}
