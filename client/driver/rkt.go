@@ -61,7 +61,7 @@ const (
 	rktCmd = "rkt"
 
 	// rktNetworkDeadline is how long to wait for container network to start
-	rktNetworkDeadline = 5 * time.Second
+	rktNetworkDeadline = 30 * time.Second
 )
 
 // RktDriver is a driver for running images via Rkt
