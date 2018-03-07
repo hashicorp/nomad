@@ -35,7 +35,7 @@ The key features of Nomad are:
 
 * **Flexible Workloads**: Nomad has extensible support for task drivers, allowing it to run
   containerized, virtualized, and standalone applications. Users can easily start Docker
-  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD and OSX,
+  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD, and OSX,
   providing the flexibility to run any workload.
 
 * **Built for Scale**: Nomad was designed from the ground up to support global scale
