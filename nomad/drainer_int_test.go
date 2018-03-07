@@ -186,3 +186,46 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+func TestDrainer_DrainEmptyNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a node
+	n1 := mock.Node()
+	nodeReg := &structs.NodeRegisterRequest{
+		Node:         n1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var nodeResp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReg, &nodeResp))
+
+	// Drain the node
+	drainReq := &structs.NodeUpdateDrainRequest{
+		NodeID: n1.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Minute,
+			},
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
+
+	// Check that the node drain is removed
+	state := s1.State()
+	testutil.WaitForResult(func() (bool, error) {
+		node, err := state.NodeByID(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		return node.DrainStrategy == nil, fmt.Errorf("has drain strategy still set")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
