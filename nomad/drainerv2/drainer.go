@@ -39,30 +39,48 @@ type RaftApplier interface {
 	NodeDrainComplete(nodeID string) (uint64, error)
 }
 
+// NodeTracker is the interface to notify an object that is tracking draining
+// nodes of changes
 type NodeTracker interface {
+	// TrackedNodes returns all the nodes that are currently tracked as
+	// draining.
 	TrackedNodes() map[string]*structs.Node
+
+	// Remove removes a node from the draining set.
 	Remove(nodeID string)
+
+	// Update either updates the specification of a draining node or tracks the
+	// node as draining.
 	Update(node *structs.Node)
 }
 
+// DrainingJobWatcherFactory returns a new DrainingJobWatcher
 type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger) DrainingJobWatcher
+
+// DrainingNodeWatcherFactory returns a new DrainingNodeWatcher
 type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, NodeTracker) DrainingNodeWatcher
+
+// DrainDeadlineNotifierFactory returns a new DrainDeadlineNotifier
 type DrainDeadlineNotifierFactory func(context.Context) DrainDeadlineNotifier
 
+// GetDrainingJobWatcher returns a draining job watcher
 func GetDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger) DrainingJobWatcher {
 	return NewDrainingJobWatcher(ctx, limiter, state, logger)
 }
 
+// GetDeadlineNotifier returns a node deadline notifier with default coalescing.
 func GetDeadlineNotifier(ctx context.Context) DrainDeadlineNotifier {
 	return NewDeadlineHeap(ctx, NodeDeadlineCoalesceWindow)
 }
 
+// GetNodeWatcherFactory returns a DrainingNodeWatcherFactory
 func GetNodeWatcherFactory() DrainingNodeWatcherFactory {
 	return func(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger, tracker NodeTracker) DrainingNodeWatcher {
 		return NewNodeDrainWatcher(ctx, limiter, state, logger, tracker)
 	}
 }
 
+// allocMigrateBatcher is used to batch allocation updates.
 type allocMigrateBatcher struct {
 	// updates holds pending client status updates for allocations
 	updates []*structs.Allocation
@@ -81,17 +99,24 @@ type allocMigrateBatcher struct {
 	sync.Mutex
 }
 
+// NodeDrainerConfig is used to configure a new node drainer.
 type NodeDrainerConfig struct {
-	Logger                *log.Logger
-	Raft                  RaftApplier
-	JobFactory            DrainingJobWatcherFactory
-	NodeFactory           DrainingNodeWatcherFactory
-	DrainDeadlineFactory  DrainDeadlineNotifierFactory
+	Logger               *log.Logger
+	Raft                 RaftApplier
+	JobFactory           DrainingJobWatcherFactory
+	NodeFactory          DrainingNodeWatcherFactory
+	DrainDeadlineFactory DrainDeadlineNotifierFactory
+
+	// StateQueriesPerSecond configures the query limit against the state store
+	// that is allowed by the node drainer.
 	StateQueriesPerSecond float64
-	BatchUpdateInterval   time.Duration
+
+	// BatchUpdateInterval is the interval in which allocation updates are
+	// batched.
+	BatchUpdateInterval time.Duration
 }
 
-// TODO Add stats
+// TODO(alex) Add stats
 type NodeDrainer struct {
 	enabled bool
 	logger  *log.Logger
@@ -99,12 +124,16 @@ type NodeDrainer struct {
 	// nodes is the set of draining nodes
 	nodes map[string]*drainingNode
 
+	// nodeWatcher watches for nodes to transistion in and out of drain state.
 	nodeWatcher DrainingNodeWatcher
 	nodeFactory DrainingNodeWatcherFactory
 
+	// jobWatcher watches draining jobs and emits desired drains and notifies
+	// when migrations take place.
 	jobWatcher DrainingJobWatcher
 	jobFactory DrainingJobWatcherFactory
 
+	// deadlineNotifier notifies when nodes reach their drain deadline.
 	deadlineNotifier        DrainDeadlineNotifier
 	deadlineNotifierFactory DrainDeadlineNotifierFactory
 
@@ -127,6 +156,10 @@ type NodeDrainer struct {
 	l sync.RWMutex
 }
 
+// NewNodeDrainer returns a new new node drainer. The node drainer is
+// responsible for marking allocations on draining nodes with a desired
+// migration transistion, updating the drain strategy on nodes when they are
+// complete and creating evaluations for the system to react to these changes.
 func NewNodeDrainer(c *NodeDrainerConfig) *NodeDrainer {
 	return &NodeDrainer{
 		raft:                    c.Raft,
@@ -177,6 +210,8 @@ func (n *NodeDrainer) flush() {
 	n.nodes = make(map[string]*drainingNode, 32)
 }
 
+// run is a long lived event handler that receives changes from the relevant
+// watchers and takes action based on them.
 func (n *NodeDrainer) run(ctx context.Context) {
 	for {
 		select {
@@ -192,6 +227,9 @@ func (n *NodeDrainer) run(ctx context.Context) {
 	}
 }
 
+// handleDeadlinedNodes handles a set of nodes reaching their drain deadline.
+// The handler detects the remaining allocations on the nodes and immediately
+// marks them for migration.
 func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	// Retrieve the set of allocations that will be force stopped.
 	n.l.RLock()
@@ -215,12 +253,18 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	n.batchDrainAllocs(forceStop)
 }
 
+// handleJobAllocDrain handles marking a set of allocations as having a desired
+// transistion to drain. The handler blocks till the changes to the allocation
+// have occured.
 func (n *NodeDrainer) handleJobAllocDrain(req *DrainRequest) {
 	// This should be syncronous
 	index, err := n.batchDrainAllocs(req.Allocs)
 	req.Resp.Respond(index, err)
 }
 
+// handleMigratedAllocs checks to see if any nodes can be considered done
+// draining based on the set of allocations that have migrated because of an
+// ongoing drain for a job.
 func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	// Determine the set of nodes that were effected
 	nodes := make(map[string]struct{})
@@ -251,7 +295,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	}
 	n.l.RUnlock()
 
-	// TODO This should probably be a single Raft transaction
+	// TODO(alex) This should probably be a single Raft transaction
 	for _, doneNode := range done {
 		index, err := n.raft.NodeDrainComplete(doneNode)
 		if err != nil {
@@ -262,6 +306,8 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	}
 }
 
+// batchDrainAllocs is used to batch the draining of allocations. It will block
+// until the batch is complete.
 func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, error) {
 	// Add this to the batch
 	n.batcher.Lock()
@@ -296,8 +342,11 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, er
 	return future.Index(), nil
 }
 
+// drainAllocs is a non batch, marking of the desired transistion to migrate for
+// the set of allocations. It will also create the necessary evaluations for the
+// affected jobs.
 func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs.Allocation) {
-	// TODO This should shard to limit the size of the transaction.
+	// TODO(alex) This should shard to limit the size of the transaction.
 
 	// Compute the effected jobs and make the transistion map
 	jobs := make(map[string]*structs.Allocation, 4)
