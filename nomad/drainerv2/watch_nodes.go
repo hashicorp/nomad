@@ -78,9 +78,22 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		n.jobWatcher.RegisterJob(job)
 	}
 
-	// TODO we need to check if the node is done such that if an operator drains
-	// a node with nothing on it we unset drain
+	// Check if the node is done such that if an operator drains a node with
+	// nothing on it we unset drain
+	done, err := draining.IsDone()
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.drain: failed to check if node %q is done draining: %v", node.ID, err)
+		return
+	}
 
+	if done {
+		index, err := n.raft.NodeDrainComplete(node.ID)
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", node.ID, err)
+		} else {
+			n.logger.Printf("[INFO] nomad.drain: node %q completed draining at index %d", node.ID, index)
+		}
+	}
 }
 
 // nodeDrainWatcher is used to watch nodes that are entering, leaving or
