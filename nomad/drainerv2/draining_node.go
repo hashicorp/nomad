@@ -81,6 +81,7 @@ func (n *drainingNode) IsDone() (bool, error) {
 	return true, nil
 }
 
+// TODO test that we return the right thing given the strategies
 // DeadlineAllocs returns the set of allocations that should be drained given a
 // node is at its deadline
 func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {

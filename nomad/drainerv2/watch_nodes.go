@@ -78,6 +78,8 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		n.jobWatcher.RegisterJob(job)
 	}
 
+	// TODO Test at this layer as well that a node drain on a node without
+	// allocs immediately gets unmarked as draining
 	// Check if the node is done such that if an operator drains a node with
 	// nothing on it we unset drain
 	done, err := draining.IsDone()
@@ -176,6 +178,8 @@ func (w *nodeDrainWatcher) watch() {
 			default:
 				w.logger.Printf("[TRACE] nomad.drain.node_watcher: node %q at index %v: tracked %v, draining %v", nodeID, node.ModifyIndex, tracked, newDraining)
 			}
+
+			// TODO(schmichael) handle the case of a lost node
 		}
 
 		for nodeID := range tracked {
