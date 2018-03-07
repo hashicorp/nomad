@@ -239,3 +239,10 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 	}
 
 }
+
+func TestAllocations_ShouldMigrate(t *testing.T) {
+	t.Parallel()
+	require.True(t, DesiredTransition{Migrate: helper.BoolToPtr(true)}.ShouldMigrate())
+	require.False(t, DesiredTransition{}.ShouldMigrate())
+	require.False(t, DesiredTransition{Migrate: helper.BoolToPtr(false)}.ShouldMigrate())
+}
