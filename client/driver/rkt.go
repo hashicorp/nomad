@@ -675,7 +675,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 			// If a portmap was given, this turns into a fatal error
 			if len(driverConfig.PortMap) != 0 {
 				pluginClient.Kill()
-				return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+				return nil, fmt.Errorf("Trying to map ports but driver could not determine network information, err: %v", err)
 			}
 		}
 	}
