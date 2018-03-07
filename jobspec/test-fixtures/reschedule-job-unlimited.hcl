@@ -2,10 +2,10 @@ job "foo" {
   datacenters = ["dc1"]
   type = "batch"
   reschedule {
-      attempts = 15
-      interval = "30m"
-      delay = "10s",
-      delay_function = "linear"
+    delay = "10s",
+    delay_function = "exponential"
+    delay_ceiling="120s"
+    unlimited = true
   }
   group "bar" {
     count = 3
