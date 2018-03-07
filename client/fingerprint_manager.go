@@ -110,26 +110,49 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			availDrivers = append(availDrivers, name)
 		}
 
-		p, period := d.Periodic()
-		if p {
-			go fm.runFingerprint(d, period, name)
-		}
-
 		// We should only run the health check task if the driver is detected
 		// Note that if the driver is detected later in a periodic health check,
 		// this won't automateically trigger the periodic health check.
 		if hc, ok := d.(fingerprint.HealthCheck); ok && detected {
+			p, period := d.Periodic()
+			if p {
+				go fm.runFingerprint(d, period, name)
+			}
+
 			req := &cstructs.HealthCheckIntervalRequest{}
 			resp := &cstructs.HealthCheckIntervalResponse{}
 			hc.GetHealthCheckInterval(req, resp)
 			if resp.Eligible {
 				go fm.runHealthCheck(hc, resp.Period, name)
 			}
+		} else {
+			p, period := d.Periodic()
+			if p {
+				go fm.runFingerprintDriver(d, period, name)
+			}
 		}
 	}
 
 	fm.logger.Printf("[DEBUG] client.fingerprint_manager: detected drivers %v", availDrivers)
 	return nil
+}
+
+func (fm *FingerprintManager) runFingerprintDriver(f fingerprint.Fingerprint, period time.Duration, name string) {
+	fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting driver %s every %v", name, period)
+
+	for {
+		select {
+		case <-time.After(period):
+			_, err := fm.fingerprintDriver(name, f)
+			if err != nil {
+				fm.logger.Printf("[DEBUG] client.fingerprint_manager: periodic fingerprinting for driver %v failed: %+v", name, err)
+				continue
+			}
+
+		case <-fm.shutdownCh:
+			return
+		}
+	}
 }
 
 // fingerprintDriver is a temporary solution to move towards DriverInfo and
