@@ -322,6 +322,7 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	var drainable []*structs.Allocation
 
 	for _, alloc := range allocs {
+		// TODO Remove at the end/when no more bugs
 		fmt.Printf("--- Looking at alloc %q\n", alloc.ID)
 
 		// Check if the alloc is on a draining node.
