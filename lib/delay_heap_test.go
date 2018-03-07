@@ -1,4 +1,4 @@
-package delayheap
+package lib
 
 import (
 	"testing"
