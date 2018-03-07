@@ -16,10 +16,14 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 
 	node := mock.Node()
 
+	// We create a new node event every time we register a node
 	err := state.UpsertNode(1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	require.Equal(1, len(node.NodeEvents))
+	require.Equal(structs.Subsystem("Server"), node.NodeEvents[0].Subsystem)
+	require.Equal("Node Registered", node.NodeEvents[0].Message)
 
 	nodeEvent := &structs.NodeEvent{
 		Message:   "failed",
@@ -32,8 +36,8 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	actualNode, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.Equal(1, len(actualNode.NodeEvents))
-	require.Equal(nodeEvent, actualNode.NodeEvents[0])
+	require.Equal(2, len(actualNode.NodeEvents))
+	require.Equal(nodeEvent, actualNode.NodeEvents[1])
 }
 
 // To prevent stale node events from accumulating, we limit the number of
@@ -48,6 +52,9 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	require.Equal(1, len(node.NodeEvents))
+	require.Equal(structs.Subsystem("Server"), node.NodeEvents[0].Subsystem)
+	require.Equal("Node Registered", node.NodeEvents[0].Message)
 
 	for i := 1; i <= 20; i++ {
 		nodeEvent := &structs.NodeEvent{

@@ -129,16 +129,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
-	} else {
-		// Because this is the first time the node is being registered, we should
-		// also create a node registration event
-		nodeEvent := &structs.NodeEvent{
-			Message:   "Node Registered",
-			Subsystem: "Server",
-			Timestamp: time.Now().Unix(),
-		}
-		args.Node.NodeEvents = make([]*structs.NodeEvent, 0)
-		args.Node.NodeEvents = append(args.Node.NodeEvents, nodeEvent)
 	}
 
 	// We have a valid node connection, so add the mapping to cache the
