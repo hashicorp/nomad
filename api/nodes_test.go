@@ -177,7 +177,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	spec := &DrainSpec{
 		Deadline: 10 * time.Second,
 	}
-	wm, err := nodes.UpdateDrain(nodeID, spec, nil)
+	wm, err := nodes.UpdateDrain(nodeID, spec, false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -193,7 +193,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 
 	// Toggle off again
-	wm, err = nodes.UpdateDrain(nodeID, nil, nil)
+	wm, err = nodes.UpdateDrain(nodeID, nil, true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -209,6 +209,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+		t.Fatalf("should be eligible")
 	}
 }
 

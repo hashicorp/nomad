@@ -56,6 +56,11 @@ Node Drain Options:
     Ignore system allows the drain to complete without stopping system job
     allocations. By default system jobs are stopped last.
 
+  -keep-ineligible
+    Keep ineligible will maintain the node's scheduling ineligibility even if
+    the drain is being disabled. This is useful when an existing drain is being
+    cancelled but additional scheduling on the node is not desired.
+
   -self
     Set the drain status of the local node.
 
@@ -72,14 +77,15 @@ func (c *NodeDrainCommand) Synopsis() string {
 func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-disable":       complete.PredictNothing,
-			"-enable":        complete.PredictNothing,
-			"-deadline":      complete.PredictAnything,
-			"-force":         complete.PredictNothing,
-			"-no-deadline":   complete.PredictNothing,
-			"-ignore-system": complete.PredictNothing,
-			"-self":          complete.PredictNothing,
-			"-yes":           complete.PredictNothing,
+			"-disable":         complete.PredictNothing,
+			"-enable":          complete.PredictNothing,
+			"-deadline":        complete.PredictAnything,
+			"-force":           complete.PredictNothing,
+			"-no-deadline":     complete.PredictNothing,
+			"-ignore-system":   complete.PredictNothing,
+			"-keep-ineligible": complete.PredictNothing,
+			"-self":            complete.PredictNothing,
+			"-yes":             complete.PredictNothing,
 		})
 }
 
@@ -100,7 +106,7 @@ func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, force,
-		noDeadline, ignoreSystem, self, autoYes bool
+		noDeadline, ignoreSystem, keepIneligible, self, autoYes bool
 	var deadline string
 
 	flags := c.Meta.FlagSet("node-drain", FlagSetClient)
@@ -111,6 +117,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&force, "force", false, "Force immediate drain")
 	flags.BoolVar(&noDeadline, "no-deadline", false, "Drain node with no deadline")
 	flags.BoolVar(&ignoreSystem, "ignore-system", false, "Do not drain system job allocations from the node")
+	flags.BoolVar(&keepIneligible, "keep-ineligible", false, "Do not update the nodes scheduling eligibility")
 	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
 
@@ -252,7 +259,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Toggle node draining
-	if _, err := client.Nodes().UpdateDrain(node.ID, spec, nil); err != nil {
+	if _, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
 	}

@@ -51,13 +51,19 @@ type NodeUpdateDrainRequest struct {
 	// DrainSpec is the drain specification to set for the node. A nil DrainSpec
 	// will disable draining.
 	DrainSpec *DrainSpec
+
+	// MarkEligible marks the node as eligible if removing the drain strategy.
+	MarkEligible bool
 }
 
-// UpdateDrain is used to update the drain strategy for a given node.
-func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, q *WriteOptions) (*WriteMeta, error) {
+// UpdateDrain is used to update the drain strategy for a given node. If
+// markEligible is true and the drain is being removed, the node will be marked
+// as having its scheduling being elibile
+func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*WriteMeta, error) {
 	req := &NodeUpdateDrainRequest{
-		NodeID:    nodeID,
-		DrainSpec: spec,
+		NodeID:       nodeID,
+		DrainSpec:    spec,
+		MarkEligible: markEligible,
 	}
 
 	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, nil, q)
