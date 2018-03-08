@@ -4437,7 +4437,8 @@ func Test_updateRescheduleTracker(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			require := require.New(t)
 			prevAlloc.RescheduleTracker = &structs.RescheduleTracker{Events: tc.prevAllocEvents}
-			updateRescheduleTracker(alloc, prevAlloc, tc.reschedPolicy, tc.reschedTime)
+			prevAlloc.Job.LookupTaskGroup(prevAlloc.TaskGroup).ReschedulePolicy = tc.reschedPolicy
+			updateRescheduleTracker(alloc, prevAlloc, tc.reschedTime)
 			require.Equal(tc.expectedRescheduleEvents, alloc.RescheduleTracker.Events)
 		})
 	}

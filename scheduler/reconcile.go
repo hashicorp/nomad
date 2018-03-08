@@ -344,7 +344,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, tg.ReschedulePolicy)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch)
 
 	// Create batched follow up evaluations for allocations that are reschedulable later
 	var rescheduleLaterAllocs map[string]*structs.Allocation
