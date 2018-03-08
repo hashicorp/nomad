@@ -4,17 +4,17 @@ package structs
 type Subsystem string
 
 const (
-	Drain        Subsystem = "Drain"
-	Driver       Subsystem = "Driver"
-	Heartbeating Subsystem = "Heartbeating"
-	Server       Subsystem = "Server"
+	Drain     Subsystem = "Drain"
+	Driver    Subsystem = "Driver"
+	Heartbeat Subsystem = "Heartbeat"
+	Server    Subsystem = "Server"
+	Cluster   Subsystem = "Cluster"
 )
 
 // NodeEvent is a single unit representing a node’s state change
 type NodeEvent struct {
-	NodeID  string
-	Message string
-	Subsystem
+	Message   string
+	Subsystem Subsystem
 	Details   map[string]string
 	Timestamp int64
 
@@ -33,5 +33,5 @@ type EmitNodeEventRequest struct {
 // the node event source update.
 type EmitNodeEventResponse struct {
 	Index uint64
-	WriteRequest
+	WriteMeta
 }

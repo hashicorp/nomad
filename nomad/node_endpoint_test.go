@@ -83,9 +83,15 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 	require := require.New(t)
 
 	s1 := TestServer(t, nil)
+	state := s1.fsm.State()
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a node that we can register our event to
+	node := mock.Node()
+	err := state.UpsertNode(2, node)
+	require.Nil(err)
 
 	nodeEvent := &structs.NodeEvent{
 		Message:   "Registration failed",
@@ -99,7 +105,7 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 	}
 
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "Node.EmitEvent", &req, &resp)
+	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvent", &req, &resp)
 	require.Nil(err)
 	require.NotEqual(0, resp.Index)
 }

@@ -88,8 +88,8 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 	}
 
 	nodeEvent := &structs.NodeEvent{
-		Message:   "Registration failed",
-		Subsystem: "Server",
+		Message:   "Heartbeating failed",
+		Subsystem: "Heartbeat",
 		Timestamp: time.Now().Unix(),
 	}
 
@@ -108,9 +108,9 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 	actualNode, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 
-	require.Equal(1, len(actualNode.NodeEvents))
+	require.Equal(2, len(actualNode.NodeEvents))
 
-	first := actualNode.NodeEvents[0]
+	first := node.NodeEvents[1]
 	require.Equal(uint64(1), first.CreateIndex)
 	require.Equal("Registration failed", first.Message)
 }
