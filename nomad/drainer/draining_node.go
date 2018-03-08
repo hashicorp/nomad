@@ -1,4 +1,4 @@
-package drainerv2
+package drainer
 
 import (
 	"fmt"
