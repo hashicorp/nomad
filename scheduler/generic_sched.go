@@ -76,7 +76,7 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
-	// Deprecated, was used in pre Nomad 0.7 rolling update stanza
+	// Deprecated, was used in pre Nomad 0.7 rolling update stanza and in node draining prior to Nomad 0.8
 	followupEvalWait time.Duration
 	nextEval         *structs.Evaluation
 	followUpEvals    []*structs.Evaluation
