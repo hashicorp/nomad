@@ -4,9 +4,8 @@ import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default Route.extend(WithWatchers, {
-  setupController(controller) {
+  startWatchers(controller) {
     controller.set('modelWatch', this.get('watch').perform());
-    return this._super(...arguments);
   },
 
   watch: watchAll('job'),

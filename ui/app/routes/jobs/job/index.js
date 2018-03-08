@@ -4,15 +4,13 @@ import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch'
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default Route.extend(WithWatchers, {
-  setupController(controller, model) {
+  startWatchers(controller, model) {
     controller.set('watchers', {
       model: this.get('watch').perform(model),
       summary: this.get('watchSummary').perform(model),
       evaluations: this.get('watchEvaluations').perform(model),
       deployments: this.get('watchDeployments').perform(model),
     });
-
-    return this._super(...arguments);
   },
 
   watch: watchRecord('job'),

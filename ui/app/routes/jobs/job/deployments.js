@@ -10,10 +10,9 @@ export default Route.extend(WithWatchers, {
     return RSVP.all([job.get('deployments'), job.get('versions')]).then(() => job);
   },
 
-  setupController(controller, model) {
+  startWatchers(controller, model) {
     controller.set('watchDeployments', this.get('watchDeployments').perform(model));
     controller.set('watchVersions', this.get('watchVersions').perform(model));
-    return this._super(...arguments);
   },
 
   watchDeployments: watchRelationship('deployments'),

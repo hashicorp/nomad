@@ -113,6 +113,7 @@ export default Factory.extend({
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
       groupNames: groups.mapBy('name'),
       job,
+      job_id: job.id,
       namespace: job.namespace,
     });
 
