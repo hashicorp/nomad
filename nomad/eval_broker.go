@@ -741,13 +741,21 @@ func (d *evalWrapper) Namespace() string {
 // pending evaluations before enqueuing them
 func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 	var timerChannel <-chan time.Time
+	var delayTimer *time.Timer
+	init := false
 	for {
 		eval, waitUntil := b.nextDelayedEval()
 		if waitUntil.IsZero() {
 			timerChannel = nil
 		} else {
 			launchDur := waitUntil.Sub(time.Now().UTC())
-			timerChannel = time.After(launchDur)
+			if !init {
+				delayTimer = time.NewTimer(launchDur)
+				init = true
+			} else {
+				delayTimer.Reset(launchDur)
+			}
+			timerChannel = delayTimer.C
 		}
 
 		select {
