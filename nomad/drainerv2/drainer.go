@@ -116,7 +116,8 @@ type NodeDrainerConfig struct {
 	BatchUpdateInterval time.Duration
 }
 
-// TODO(alex) Add stats
+// NodeDrainer is used to orchestrate migrating allocations off of draining
+// nodes.
 type NodeDrainer struct {
 	enabled bool
 	logger  *log.Logger
@@ -180,27 +181,27 @@ func (n *NodeDrainer) SetEnabled(enabled bool, state *state.StateStore) {
 	n.l.Lock()
 	defer n.l.Unlock()
 
-	wasEnabled := n.enabled
+	// If we are starting now or have a new state, init state and start the
+	// run loop
 	n.enabled = enabled
-
-	if state != nil {
-		n.state = state
-	}
-
-	// Flush the state to create the necessary objects
-	n.flush()
-
-	// If we are starting now, launch the watch daemon
-	if enabled && !wasEnabled {
+	if enabled {
+		n.flush(state)
 		go n.run(n.ctx)
+	} else if !enabled && n.exitFn != nil {
+		n.exitFn()
 	}
 }
 
 // flush is used to clear the state of the watcher
-func (n *NodeDrainer) flush() {
-	// Kill everything associated with the watcher
+func (n *NodeDrainer) flush(state *state.StateStore) {
+	// Cancel anything that may be running.
 	if n.exitFn != nil {
 		n.exitFn()
+	}
+
+	// Store the new state
+	if state != nil {
+		n.state = state
 	}
 
 	n.ctx, n.exitFn = context.WithCancel(context.Background())

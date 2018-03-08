@@ -31,8 +31,8 @@ type deadlineHeap struct {
 	coalesceWindow time.Duration
 	batch          chan []string
 	nodes          map[string]time.Time
-	trigger        chan string
-	l              sync.RWMutex
+	trigger        chan struct{}
+	mu             sync.Mutex
 }
 
 // NewDeadlineHeap returns a new deadline heap that coalesces for the given
@@ -41,9 +41,9 @@ func NewDeadlineHeap(ctx context.Context, coalesceWindow time.Duration) *deadlin
 	d := &deadlineHeap{
 		ctx:            ctx,
 		coalesceWindow: coalesceWindow,
-		batch:          make(chan []string, 4),
+		batch:          make(chan []string),
 		nodes:          make(map[string]time.Time, 64),
-		trigger:        make(chan string, 4),
+		trigger:        make(chan struct{}),
 	}
 
 	go d.watch()
@@ -71,17 +71,18 @@ func (d *deadlineHeap) watch() {
 				continue
 			}
 
-			d.l.Lock()
+			d.mu.Lock()
 			var batch []string
 			for nodeID, nodeDeadline := range d.nodes {
 				if !nodeDeadline.After(nextDeadline) {
 					batch = append(batch, nodeID)
+					delete(d.nodes, nodeID)
 				}
 			}
+			d.mu.Unlock()
 
 			// If there is nothing exit early
 			if len(batch) == 0 {
-				d.l.Unlock()
 				goto CALC
 			}
 
@@ -89,15 +90,8 @@ func (d *deadlineHeap) watch() {
 			select {
 			case d.batch <- batch:
 			case <-d.ctx.Done():
-				d.l.Unlock()
 				return
 			}
-
-			// Clean up the nodes
-			for _, nodeID := range batch {
-				delete(d.nodes, nodeID)
-			}
-			d.l.Unlock()
 		case <-d.trigger:
 		}
 
@@ -117,8 +111,8 @@ func (d *deadlineHeap) watch() {
 // calculateNextDeadline returns the next deadline in which to scan for
 // deadlined nodes. It applies the coalesce window.
 func (d *deadlineHeap) calculateNextDeadline() (time.Time, bool) {
-	d.l.Lock()
-	defer d.l.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	if len(d.nodes) == 0 {
 		return time.Time{}, false
@@ -151,23 +145,23 @@ func (d *deadlineHeap) NextBatch() <-chan []string {
 }
 
 func (d *deadlineHeap) Remove(nodeID string) {
-	d.l.Lock()
-	defer d.l.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	delete(d.nodes, nodeID)
 
 	select {
-	case d.trigger <- nodeID:
+	case d.trigger <- struct{}{}:
 	default:
 	}
 }
 
 func (d *deadlineHeap) Watch(nodeID string, deadline time.Time) {
-	d.l.Lock()
-	defer d.l.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.nodes[nodeID] = deadline
 
 	select {
-	case d.trigger <- nodeID:
+	case d.trigger <- struct{}{}:
 	default:
 	}
 }
