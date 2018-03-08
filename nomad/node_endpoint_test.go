@@ -984,6 +984,14 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
 	}
 
+	// assert that the node register event was set correctly
+	if len(resp2.Node.NodeEvents) != 1 {
+		t.Fatalf("Did not set node events: %#v", resp2.Node)
+	}
+	if resp2.Node.NodeEvents[0].Message != "Node Registered" {
+		t.Fatalf("Did not set node register event correctly: %#v", resp2.Node)
+	}
+
 	// Lookup non-existing node
 	get.NodeID = "12345678-abcd-efab-cdef-123456789abc"
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", get, &resp2); err != nil {

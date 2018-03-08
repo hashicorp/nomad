@@ -113,8 +113,30 @@ type Node struct {
 	Status            string
 	StatusDescription string
 	StatusUpdatedAt   int64
+	NodeEvents        []*NodeEvent
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+// Subsystem denotes the subsystem where a node event took place.
+type Subsystem string
+
+const (
+	Drain     Subsystem = "Drain"
+	Driver    Subsystem = "Driver"
+	Heartbeat Subsystem = "Heartbeat"
+	Server    Subsystem = "Server"
+	Cluster   Subsystem = "Cluster"
+)
+
+// NodeEvent is a single unit representing a node’s state change
+type NodeEvent struct {
+	Message   string
+	Subsystem Subsystem
+	Details   map[string]string
+	Timestamp int64
+
+	CreateIndex uint64
 }
 
 // HostStats represents resource usage stats of the host running a Nomad client

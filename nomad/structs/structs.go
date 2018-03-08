@@ -1178,7 +1178,16 @@ func (n *Node) Copy() *Node {
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
+	nn.NodeEvents = copyNodeEvents(n)
 	return nn
+}
+
+func copyNodeEvents(first *Node) []*NodeEvent {
+	nodeEvents := make([]*NodeEvent, 0)
+	for _, e := range first.NodeEvents {
+		nodeEvents = append(nodeEvents, e)
+	}
+	return nodeEvents
 }
 
 // TerminalStatus returns if the current status is terminal and

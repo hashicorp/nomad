@@ -134,6 +134,10 @@ func TestNodes_Info(t *testing.T) {
 	if result.StatusUpdatedAt < startTime {
 		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
 	}
+
+	if len(result.NodeEvents) < 1 {
+		t.Fatalf("Expected at minimum the node register event to be populated: %+v", result)
+	}
 }
 
 func TestNodes_ToggleDrain(t *testing.T) {

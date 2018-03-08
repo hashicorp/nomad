@@ -112,7 +112,7 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 
 	first := node.NodeEvents[1]
 	require.Equal(uint64(1), first.CreateIndex)
-	require.Equal("Registration failed", first.Message)
+	require.Equal("Heartbeating failed", first.Message)
 }
 
 func TestFSM_UpsertNode(t *testing.T) {

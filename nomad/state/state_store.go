@@ -526,6 +526,9 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
 		node.Drain = exist.Drain // Retain the drain mode
+
+		// retain node events that have already been set on the node
+		node.NodeEvents = exist.NodeEvents
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
