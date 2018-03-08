@@ -1,6 +1,5 @@
 import { get, computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
-import { makeArray } from '@ember/array';
 import { inject as service } from '@ember/service';
 import queryString from 'npm:query-string';
 import ApplicationAdapter from './application';
@@ -37,15 +36,11 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
+      this.cancelFindAll(type.modelName);
     }
 
     return this.ajax(url, 'GET', {
       data: params,
-    }).catch(error => {
-      if (error instanceof AbortError) {
-        return [];
-      }
-      throw error;
     });
   },
 
@@ -55,6 +50,7 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
+      this.cancelFindRecord(type.modelName, id);
     }
 
     return this.ajax(url, 'GET', {
@@ -79,6 +75,7 @@ export default ApplicationAdapter.extend({
 
       if (watch) {
         params.index = this.get('watchList').getIndexFor(url);
+        this.cancelReloadRelationship(model, relationshipName);
       }
 
       if (url.includes('?')) {
@@ -89,9 +86,15 @@ export default ApplicationAdapter.extend({
         data: params,
       }).then(
         json => {
-          this.get('store').pushPayload(relationship.type, {
-            [relationship.type]: makeArray(json),
-          });
+          const store = this.get('store');
+          const normalizeMethod =
+            relationship.kind === 'belongsTo'
+              ? 'normalizeFindBelongsToResponse'
+              : 'normalizeFindHasManyResponse';
+          const serializer = store.serializerFor(relationship.type);
+          const modelClass = store.modelFor(relationship.type);
+          const normalizedData = serializer[normalizeMethod](store, modelClass, json);
+          store.push(normalizedData);
         },
         error => {
           if (error instanceof AbortError) {

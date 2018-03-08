@@ -11,6 +11,7 @@ moduleForAdapter('job', 'Unit | Adapter | Job', {
     'service:token',
     'service:system',
     'model:namespace',
+    'model:job-summary',
     'adapter:application',
     'service:watchList',
   ],
@@ -191,10 +192,12 @@ test('findAll can be canceled', function(assert) {
   const { pretender } = this.server;
   pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
 
-  this.subject().findAll(null, { modelName: 'job' }, null, {
-    reload: true,
-    adapterOptions: { watch: true },
-  });
+  this.subject()
+    .findAll(null, { modelName: 'job' }, null, {
+      reload: true,
+      adapterOptions: { watch: true },
+    })
+    .catch(() => {});
 
   const { request: xhr } = pretender.requestReferences[0];
   assert.equal(xhr.status, 0, 'Request is still pending');

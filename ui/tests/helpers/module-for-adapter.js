@@ -25,8 +25,8 @@ export default function(modelName, description, options = { needs: [] }) {
       }
     },
     afterEach() {
-      if (options.beforeEach) {
-        options.beforeEach.apply(this, arguments);
+      if (options.afterEach) {
+        options.afterEach.apply(this, arguments);
       }
     },
   });
