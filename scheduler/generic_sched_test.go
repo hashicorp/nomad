@@ -4390,7 +4390,7 @@ func Test_updateRescheduleTracker(t *testing.T) {
 					Delay:          5 * time.Second,
 				},
 				{
-					RescheduleTime: t1.Add(-1 * time.Hour).UnixNano(),
+					RescheduleTime: t1.Add(-70 * time.Minute).UnixNano(),
 					PrevAllocID:    prevAlloc.ID,
 					PrevNodeID:     prevAlloc.NodeID,
 					Delay:          10 * time.Second,
