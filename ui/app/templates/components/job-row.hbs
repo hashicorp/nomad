@@ -5,10 +5,10 @@
 <td data-test-job-type>{{job.displayType}}</td>
 <td data-test-job-priority>{{job.priority}}</td>
 <td data-test-job-task-groups>
-  {{#if job.isReloading}}
-    ...
-  {{else}}
+  {{#if job.taskGroups.length}}
     {{job.taskGroups.length}}
+  {{else}}
+    --
   {{/if}}
 </td>
 <td data-test-job-allocations>
