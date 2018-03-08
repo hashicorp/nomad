@@ -27,7 +27,7 @@ import (
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
-	"github.com/hashicorp/nomad/nomad/drainerv2"
+	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -168,7 +168,7 @@ type Server struct {
 	deploymentWatcher *deploymentwatcher.Watcher
 
 	// nodeDrainer is used to drain allocations from nodes.
-	nodeDrainer *drainerv2.NodeDrainer
+	nodeDrainer *drainer.NodeDrainer
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
@@ -886,16 +886,16 @@ func (s *Server) setupDeploymentWatcher() error {
 func (s *Server) setupNodeDrainer() {
 	// Create a shim around Raft requests
 	shim := drainerShim{s}
-	c := &drainerv2.NodeDrainerConfig{
+	c := &drainer.NodeDrainerConfig{
 		Logger:                s.logger,
 		Raft:                  shim,
-		JobFactory:            drainerv2.GetDrainingJobWatcher,
-		NodeFactory:           drainerv2.GetNodeWatcherFactory(),
-		DrainDeadlineFactory:  drainerv2.GetDeadlineNotifier,
-		StateQueriesPerSecond: drainerv2.LimitStateQueriesPerSecond,
-		BatchUpdateInterval:   drainerv2.BatchUpdateInterval,
+		JobFactory:            drainer.GetDrainingJobWatcher,
+		NodeFactory:           drainer.GetNodeWatcherFactory(),
+		DrainDeadlineFactory:  drainer.GetDeadlineNotifier,
+		StateQueriesPerSecond: drainer.LimitStateQueriesPerSecond,
+		BatchUpdateInterval:   drainer.BatchUpdateInterval,
 	}
-	s.nodeDrainer = drainerv2.NewNodeDrainer(c)
+	s.nodeDrainer = drainer.NewNodeDrainer(c)
 }
 
 // setupVaultClient is used to set up the Vault API client.
