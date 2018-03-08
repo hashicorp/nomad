@@ -100,6 +100,7 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 	}
 
 	req := structs.EmitNodeEventRequest{
+		NodeID:       node.ID,
 		NodeEvent:    nodeEvent,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
@@ -108,6 +109,16 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvent", &req, &resp)
 	require.Nil(err)
 	require.NotEqual(0, resp.Index)
+
+	// Check for the node in the FSM
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out.NodeEvents) < 2 {
+		t.Fatalf("expected node to have a register event")
+	}
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
