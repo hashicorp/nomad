@@ -81,8 +81,8 @@ func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *st
 		logger:      logger,
 		state:       state,
 		jobs:        make(map[structs.JobNs]struct{}, 64),
-		drainCh:     make(chan *DrainRequest, 8),
-		migratedCh:  make(chan []*structs.Allocation, 8),
+		drainCh:     make(chan *DrainRequest),
+		migratedCh:  make(chan []*structs.Allocation),
 	}
 
 	go w.watch()
