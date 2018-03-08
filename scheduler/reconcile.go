@@ -12,6 +12,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// batchedFailedAllocWindowSize is the window size used
+	// to batch up failed allocations before creating an eval
+	batchedFailedAllocWindowSize = 5 * time.Second
+)
+
 // allocUpdateType takes an existing allocation and a new job definition and
 // returns whether the allocation can ignore the change, requires a destructive
 // update, or can be inplace updated. If it can be inplace updated, an updated
@@ -290,8 +296,6 @@ func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescript
 	}
 }
 
-const batchedFailedAllocWindowSize = 5 * time.Second
-
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
 func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
@@ -343,7 +347,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, tg.ReschedulePolicy)
 
 	// Create batched follow up evaluations for allocations that are reschedulable later
-	rescheduleLaterAllocs := make(map[string]*structs.Allocation)
+	var rescheduleLaterAllocs map[string]*structs.Allocation
 	if len(rescheduleLater) > 0 {
 		rescheduleLaterAllocs = a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
 	}
@@ -831,6 +835,9 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted, re
 
 	return
 }
+
+// handleDelayedReschedules creates batched followup evaluations with the WaitUntil field set
+// for allocations that are eligible to be rescheduled later
 func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) allocSet {
 	// Sort by time
 	sort.Slice(rescheduleLater, func(i, j int) bool {

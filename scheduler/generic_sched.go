@@ -42,6 +42,10 @@ const (
 	// blockedEvalFailedPlacements is the description used for blocked evals
 	// that are a result of failing to place all allocations.
 	blockedEvalFailedPlacements = "created to place remaining allocations"
+
+	// maxPastRescheduleEvents is the maximum number of past reschedule event
+	// that we track when unlimited rescheduling is enabled
+	maxPastRescheduleEvents = 5
 )
 
 // SetStatusError is used to set the status of the evaluation to the given error
@@ -206,6 +210,7 @@ func (s *GenericScheduler) process() (bool, error) {
 		numTaskGroups = len(s.job.TaskGroups)
 	}
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
+	s.followUpEvals = nil
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
@@ -486,9 +491,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
+					now := time.Now()
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
-						updateRescheduleTracker(alloc, prevAllocation, tg.ReschedulePolicy, time.Now())
+						updateRescheduleTracker(alloc, prevAllocation, tg.ReschedulePolicy, now)
 					}
 				}
 
@@ -544,8 +550,6 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	return selectOptions
 }
 
-const max_past_reschedule_events = 5
-
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
 func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, reschedPolicy *structs.ReschedulePolicy, now time.Time) {
 	var rescheduleEvents []*structs.RescheduleEvent
@@ -554,10 +558,10 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 		if reschedPolicy != nil {
 			interval = reschedPolicy.Interval
 		}
-		// if attempts is set copy all events in the interval range
+		// If attempts is set copy all events in the interval range
 		if reschedPolicy.Attempts > 0 {
 			for _, reschedEvent := range prev.RescheduleTracker.Events {
-				timeDiff := time.Now().UTC().UnixNano() - reschedEvent.RescheduleTime
+				timeDiff := now.UnixNano() - reschedEvent.RescheduleTime
 				// Only copy over events that are within restart interval
 				// This keeps the list of events small in cases where there's a long chain of old restart events
 				if interval > 0 && timeDiff <= interval.Nanoseconds() {
@@ -565,16 +569,14 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 				}
 			}
 		} else {
-			// for unlimited restarts, only copy the last n
-			copied := 0
-			for i := len(prev.RescheduleTracker.Events) - 1; i >= 0 && copied < max_past_reschedule_events; i-- {
+			// Only copy the last n if unlimited is set
+			start := 0
+			if len(prev.RescheduleTracker.Events) > maxPastRescheduleEvents {
+				start = len(prev.RescheduleTracker.Events) - maxPastRescheduleEvents
+			}
+			for i := start; i < len(prev.RescheduleTracker.Events); i++ {
 				reschedEvent := prev.RescheduleTracker.Events[i]
 				rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
-				copied++
-			}
-			// reverse it to get the correct order
-			for left, right := 0, len(rescheduleEvents)-1; left < right; left, right = left+1, right-1 {
-				rescheduleEvents[left], rescheduleEvents[right] = rescheduleEvents[right], rescheduleEvents[left]
 			}
 		}
 	}
