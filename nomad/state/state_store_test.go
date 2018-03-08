@@ -716,7 +716,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain))
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -730,6 +730,43 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	index, err := state.Index("nodes")
 	require.Nil(err)
 	require.EqualValues(1001, index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+	node := mock.Node()
+	require.Nil(state.UpsertNode(1000, node))
+
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	drain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
+	}
+
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false))
+	require.True(watchFired(ws))
+
+	// Remove the drain
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.False(out.Drain)
+	require.Nil(out.DrainStrategy)
+	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	require.EqualValues(1002, out.ModifyIndex)
+
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1002, index)
 	require.False(watchFired(ws))
 }
 
@@ -771,7 +808,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 			Deadline: -1 * time.Second,
 		},
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false))
 
 	// Try to set the node to eligible
 	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible)

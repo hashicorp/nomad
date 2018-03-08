@@ -300,6 +300,9 @@ type NodeUpdateDrainRequest struct {
 	NodeID        string
 	Drain         bool // TODO Deprecate
 	DrainStrategy *DrainStrategy
+
+	// MarkEligible marks the node as eligible if removing the drain strategy.
+	MarkEligible bool
 	WriteRequest
 }
 
