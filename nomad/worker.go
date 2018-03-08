@@ -327,7 +327,7 @@ SUBMIT:
 		}
 		return nil, nil, err
 	} else {
-		w.logger.Printf("[DEBUG] worker: submitted plan for evaluation %s", plan.EvalID)
+		w.logger.Printf("[DEBUG] worker: submitted plan at index %d for evaluation %s", resp.Index, plan.EvalID)
 		w.backoffReset()
 	}
 

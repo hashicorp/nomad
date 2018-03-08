@@ -1621,6 +1621,22 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
+// JobNs is a Job.ID and Namespace tuple
+type JobNs struct {
+	ID, Namespace string
+}
+
+func NewJobNs(namespace, id string) JobNs {
+	return JobNs{
+		ID:        id,
+		Namespace: namespace,
+	}
+}
+
+func (j JobNs) String() string {
+	return fmt.Sprintf("<ns: %q, id: %q>", j.Namespace, j.ID)
+}
+
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
@@ -6619,4 +6635,46 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// BatchFuture is used to wait on a batch update to complete
+type BatchFuture struct {
+	doneCh chan struct{}
+	err    error
+	index  uint64
+}
+
+// NewBatchFuture creates a new batch future
+func NewBatchFuture() *BatchFuture {
+	return &BatchFuture{
+		doneCh: make(chan struct{}),
+	}
+}
+
+// Wait is used to block for the future to complete and returns the error
+func (b *BatchFuture) Wait() error {
+	<-b.doneCh
+	return b.err
+}
+
+// WaitCh is used to block for the future to complete
+func (b *BatchFuture) WaitCh() <-chan struct{} {
+	return b.doneCh
+}
+
+// Error is used to return the error of the batch, only after Wait()
+func (b *BatchFuture) Error() error {
+	return b.err
+}
+
+// Index is used to return the index of the batch, only after Wait()
+func (b *BatchFuture) Index() uint64 {
+	return b.index
+}
+
+// Respond is used to unblock the future
+func (b *BatchFuture) Respond(index uint64, err error) {
+	b.index = index
+	b.err = err
+	close(b.doneCh)
 }
