@@ -3476,7 +3476,11 @@ func TestAllocation_NextDelay(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			require := require.New(t)
-			reschedTime, allowed := tc.alloc.NextRescheduleTime(tc.reschedulePolicy)
+			j := testJob()
+			j.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+			tc.alloc.Job = j
+			tc.alloc.TaskGroup = j.TaskGroups[0].Name
+			reschedTime, allowed := tc.alloc.NextRescheduleTime()
 			require.Equal(tc.expectedRescheduleEligible, allowed)
 			require.Equal(tc.expectedRescheduleTime, reschedTime)
 		})

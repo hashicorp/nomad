@@ -5385,14 +5385,25 @@ func (a *Allocation) LastEventTime() time.Time {
 	return lastEventTime
 }
 
+// ReschedulePolicy returns the reschedule policy based on the task group
+func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+	return tg.ReschedulePolicy
+}
+
 // NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
 // and whether the next reschedule time is within policy's interval if the policy doesn't allow unlimited reschedules
-func (a *Allocation) NextRescheduleTime(reschedulePolicy *ReschedulePolicy) (time.Time, bool) {
+func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
-	if a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() {
+	reschedulePolicy := a.ReschedulePolicy()
+	if a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
-	nextDelay := a.NextDelay(reschedulePolicy)
+
+	nextDelay := a.NextDelay()
 	nextRescheduleTime := failTime.Add(nextDelay)
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
 	if reschedulePolicy.Attempts > 0 && a.RescheduleTracker != nil && a.RescheduleTracker.Events != nil {
@@ -5412,7 +5423,8 @@ func (a *Allocation) NextRescheduleTime(reschedulePolicy *ReschedulePolicy) (tim
 
 // NextDelay returns a duration after which the allocation can be rescheduled.
 // It is calculated according to the delay function and previous reschedule attempts.
-func (a *Allocation) NextDelay(policy *ReschedulePolicy) time.Duration {
+func (a *Allocation) NextDelay() time.Duration {
+	policy := a.ReschedulePolicy()
 	delayDur := policy.Delay
 	if a.RescheduleTracker == nil || a.RescheduleTracker.Events == nil || len(a.RescheduleTracker.Events) == 0 {
 		return delayDur

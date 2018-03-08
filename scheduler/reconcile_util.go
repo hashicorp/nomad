@@ -230,7 +230,7 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 // filterByRescheduleable filters the allocation set to return the set of allocations that are either
 // terminal or running, and a set of allocations that must be rescheduled now. Allocations that can be rescheduled
 // at a future time are also returned so that we can create follow up evaluations for them
-func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs.ReschedulePolicy) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
+func (a allocSet) filterByRescheduleable(isBatch bool) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
 	untainted = make(map[string]*structs.Allocation)
 	rescheduleNow = make(map[string]*structs.Allocation)
 
@@ -253,12 +253,12 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 			}
 			if alloc.NextAllocation == "" {
 				// Ignore allocs that have already been rescheduled
-				isUntainted, eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, reschedulePolicy, now, true)
+				isUntainted, eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, true)
 			}
 		} else {
 			// Ignore allocs that have already been rescheduled
 			if alloc.NextAllocation == "" {
-				isUntainted, eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, reschedulePolicy, now, false)
+				isUntainted, eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, false)
 			}
 		}
 		if isUntainted {
@@ -275,14 +275,14 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
-func updateByReschedulable(alloc *structs.Allocation, reschedulePolicy *structs.ReschedulePolicy, now time.Time, batch bool) (untainted, rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+func updateByReschedulable(alloc *structs.Allocation, now time.Time, batch bool) (untainted, rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
 	shouldAllow := true
 	if !batch {
 		// For service type jobs we ignore allocs whose desired state is stop/evict
 		// everything else is either rescheduleable or untainted
 		shouldAllow = alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict
 	}
-	rescheduleTime, eligible := alloc.NextRescheduleTime(reschedulePolicy)
+	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	// We consider a time difference of less than 5 seconds to be eligible
 	// because we collapse allocations that failed within 5 seconds into a single evaluation
 	if eligible && now.After(rescheduleTime) {

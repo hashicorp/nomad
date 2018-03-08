@@ -494,7 +494,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					now := time.Now()
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
-						updateRescheduleTracker(alloc, prevAllocation, tg.ReschedulePolicy, now)
+						updateRescheduleTracker(alloc, prevAllocation, now)
 					}
 				}
 
@@ -551,7 +551,8 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 }
 
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
-func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, reschedPolicy *structs.ReschedulePolicy, now time.Time) {
+func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, now time.Time) {
+	reschedPolicy := prev.ReschedulePolicy()
 	var rescheduleEvents []*structs.RescheduleEvent
 	if prev.RescheduleTracker != nil {
 		var interval time.Duration
@@ -580,7 +581,7 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 			}
 		}
 	}
-	nextDelay := prev.NextDelay(reschedPolicy)
+	nextDelay := prev.NextDelay()
 	rescheduleEvent := structs.NewRescheduleEvent(now.UnixNano(), prev.ID, prev.NodeID, nextDelay)
 	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
 	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
