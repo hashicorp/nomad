@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -406,7 +407,7 @@ func (v *vaultClient) establishConnection() {
 	// Create the retry timer and set initial duration to zero so it fires
 	// immediately
 	retryTimer := time.NewTimer(0)
-
+	initStatus := false
 OUTER:
 	for {
 		select {
@@ -414,25 +415,35 @@ OUTER:
 			return
 		case <-retryTimer.C:
 			// Ensure the API is reachable
-			if _, err := v.client.Sys().InitStatus(); err != nil {
-				v.logger.Printf("[WARN] vault: failed to contact Vault API. Retrying in %v: %v",
-					v.config.ConnectionRetryIntv, err)
-				retryTimer.Reset(v.config.ConnectionRetryIntv)
-				continue OUTER
+			if !initStatus {
+				if _, err := v.client.Sys().InitStatus(); err != nil {
+					v.logger.Printf("[WARN] vault: failed to contact Vault API. Retrying in %v: %v",
+						v.config.ConnectionRetryIntv, err)
+					retryTimer.Reset(v.config.ConnectionRetryIntv)
+					continue OUTER
+				}
+				initStatus = true
 			}
-
+			// Retrieve our token, validate it and parse the lease duration
+			if err := v.parseSelfToken(); err != nil {
+				// Retry if vault is sealed
+				//TODO(preetha) : is there a nicer way to figure out whether vault is sealed
+				if strings.Contains(err.Error(), "is sealed") {
+					v.logger.Printf("[ERR] vault: failed to validate self token/role. Retrying in %v: %v", v.config.ConnectionRetryIntv, err)
+					retryTimer.Reset(v.config.ConnectionRetryIntv)
+					continue OUTER
+				} else {
+					// Irrecoverable error so we return
+					v.logger.Printf("[ERR] vault: failed to validate self token/role and not retrying: %v", err)
+					v.l.Lock()
+					v.connEstablished = false
+					v.connEstablishedErr = err
+					v.l.Unlock()
+					return
+				}
+			}
 			break OUTER
 		}
-	}
-
-	// Retrieve our token, validate it and parse the lease duration
-	if err := v.parseSelfToken(); err != nil {
-		v.logger.Printf("[ERR] vault: failed to validate self token/role and not retrying: %v", err)
-		v.l.Lock()
-		v.connEstablished = false
-		v.connEstablishedErr = err
-		v.l.Unlock()
-		return
 	}
 
 	// Set the wrapping function such that token creation is wrapped now
