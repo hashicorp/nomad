@@ -8,40 +8,44 @@ import (
 )
 
 // addNodeEvent is a function which wraps upsertNodeEvent
-func (s *StateStore) AddNodeEvent(index uint64, nodeID string, event *structs.NodeEvent) error {
+func (s *StateStore) AddNodeEvent(index uint64, node *structs.Node, event *structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	return s.upsertNodeEvent(index, nodeID, event, txn)
+	err := s.upsertNodeEvent(index, node, event, txn)
+	txn.Commit()
+	return err
 }
 
 // upsertNodeEvent upserts a node event for a respective node. It also maintains
 // that only 10 node events are ever stored simultaneously, deleting older
 // events once this bound has been reached.
-func (s *StateStore) upsertNodeEvent(index uint64, nodeID string, event *structs.NodeEvent, txn *memdb.Txn) error {
-
-	ws := memdb.NewWatchSet()
-	node, err := s.NodeByID(ws, nodeID)
-
-	if err != nil {
-		return fmt.Errorf("encountered error when looking up nodes by id to insert node event: %v", err)
-	}
-
-	if node == nil {
-		return fmt.Errorf("unable to look up node by id %s to insert node event", nodeID)
-	}
+func (s *StateStore) upsertNodeEvent(index uint64, node *structs.Node, event *structs.NodeEvent, txn *memdb.Txn) error {
 
 	event.CreateIndex = index
+	event.ModifyIndex = index
+
+	// Copy the existing node
+	copyNode := new(structs.Node)
+	*copyNode = *node
 
 	nodeEvents := node.NodeEvents
 
+	// keep node events pruned to below 10 simultaneously
 	if len(nodeEvents) >= 10 {
 		delta := len(nodeEvents) - 10
 		nodeEvents = nodeEvents[delta+1:]
 	}
 	nodeEvents = append(nodeEvents, event)
-	node.NodeEvents = nodeEvents
+	copyNode.NodeEvents = nodeEvents
 
-	txn.Commit()
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	return nil
 }

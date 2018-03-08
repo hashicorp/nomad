@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,26 +19,33 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 
 	// We create a new node event every time we register a node
 	err := state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
+
 	require.Equal(1, len(node.NodeEvents))
-	require.Equal(structs.Subsystem("Server"), node.NodeEvents[0].Subsystem)
+	require.Equal(structs.Subsystem("Cluster"), node.NodeEvents[0].Subsystem)
 	require.Equal("Node Registered", node.NodeEvents[0].Message)
+
+	// Create a watchset so we can test that AddNodeEvent fires the watch
+	ws := memdb.NewWatchSet()
+	_, err = state.NodeByID(ws, node.ID)
+	require.Nil(err)
 
 	nodeEvent := &structs.NodeEvent{
 		Message:   "failed",
 		Subsystem: "Driver",
 		Timestamp: time.Now().Unix(),
 	}
-	err = state.AddNodeEvent(1001, node.ID, nodeEvent)
+	err = state.AddNodeEvent(1001, node, nodeEvent)
 	require.Nil(err)
 
-	ws := memdb.NewWatchSet()
-	actualNode, err := state.NodeByID(ws, node.ID)
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.Equal(2, len(actualNode.NodeEvents))
-	require.Equal(nodeEvent, actualNode.NodeEvents[1])
+
+	require.Equal(2, len(out.NodeEvents))
+	require.Equal(nodeEvent, out.NodeEvents[1])
 }
 
 // To prevent stale node events from accumulating, we limit the number of
@@ -53,24 +61,34 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	require.Equal(1, len(node.NodeEvents))
-	require.Equal(structs.Subsystem("Server"), node.NodeEvents[0].Subsystem)
+	require.Equal(structs.Subsystem("Cluster"), node.NodeEvents[0].Subsystem)
 	require.Equal("Node Registered", node.NodeEvents[0].Message)
 
+	var out *structs.Node
 	for i := 1; i <= 20; i++ {
+		ws := memdb.NewWatchSet()
+		out, err = state.NodeByID(ws, node.ID)
+		require.Nil(err)
+
 		nodeEvent := &structs.NodeEvent{
-			Message:   "failed",
+			Message:   fmt.Sprintf("%dith failed", i),
 			Subsystem: "Driver",
 			Timestamp: time.Now().Unix(),
 		}
-		err := state.AddNodeEvent(uint64(i), node.ID, nodeEvent)
+		err := state.AddNodeEvent(uint64(i), out, nodeEvent)
+		require.Nil(err)
+
+		require.True(watchFired(ws))
+		ws = memdb.NewWatchSet()
+		out, err = state.NodeByID(ws, node.ID)
 		require.Nil(err)
 	}
 
 	ws := memdb.NewWatchSet()
-	actualNode, err := state.NodeByID(ws, node.ID)
+	out, err = state.NodeByID(ws, node.ID)
 	require.Nil(err)
 
-	require.Equal(10, len(actualNode.NodeEvents))
-	require.Equal(uint64(11), actualNode.NodeEvents[0].CreateIndex)
-	require.Equal(uint64(20), actualNode.NodeEvents[len(actualNode.NodeEvents)-1].CreateIndex)
+	require.Equal(10, len(out.NodeEvents))
+	require.Equal(uint64(11), out.NodeEvents[0].CreateIndex)
+	require.Equal(uint64(20), out.NodeEvents[len(out.NodeEvents)-1].CreateIndex)
 }

@@ -639,7 +639,18 @@ func (n *nomadFSM) applyAddNodeEventType(buf []byte, index uint64) interface{} {
 		return err
 	}
 
-	if err := n.state.AddNodeEvent(index, req.NodeID, req.NodeEvent); err != nil {
+	ws := memdb.NewWatchSet()
+	node, err := n.state.NodeByID(ws, req.NodeID)
+
+	if err != nil {
+		return fmt.Errorf("encountered error when looking up nodes by id to insert node event: %v", err)
+	}
+
+	if node == nil {
+		return fmt.Errorf("unable to look up node by id %s to insert node event", req.NodeID)
+	}
+
+	if err := n.state.AddNodeEvent(index, node, req.NodeEvent); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: EmitNodeEventRequest failed to add node event: %v", err)
 		return err
 	}

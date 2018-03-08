@@ -125,7 +125,6 @@ const (
 	Drain     Subsystem = "Drain"
 	Driver    Subsystem = "Driver"
 	Heartbeat Subsystem = "Heartbeat"
-	Server    Subsystem = "Server"
 	Cluster   Subsystem = "Cluster"
 )
 
@@ -137,6 +136,7 @@ type NodeEvent struct {
 	Timestamp int64
 
 	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // HostStats represents resource usage stats of the host running a Nomad client

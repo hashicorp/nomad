@@ -1154,7 +1154,7 @@ type Node struct {
 	// updated
 	StatusUpdatedAt int64
 
-	// NodeEvents is a list of the last 10 or lest events for this node
+	// NodeEvents is the most recent set of events generated for the node
 	NodeEvents []*NodeEvent
 
 	// Raft Indexes
@@ -1169,8 +1169,7 @@ const (
 	Drain     Subsystem = "Drain"
 	Driver    Subsystem = "Driver"
 	Heartbeat Subsystem = "Heartbeat"
-	Server    Subsystem = "Server"
-	Cluster   Subsystem = "Cluster"
+	Cluster   Subsystem = "CLuster"
 )
 
 // NodeEvent is a single unit representing a node’s state change
@@ -1181,9 +1180,10 @@ type NodeEvent struct {
 	Timestamp int64
 
 	CreateIndex uint64
+	ModifyIndex uint64
 }
 
-// EmitNodeEventRequest is a client request to update the node events source
+// EmitNodeEventRequest is a request to update the node events source
 // with a new client-side event
 type EmitNodeEventRequest struct {
 	NodeID    string
@@ -1191,7 +1191,7 @@ type EmitNodeEventRequest struct {
 	WriteRequest
 }
 
-// EmitNodeEventResponse is a server response to the client about the status of
+// EmitNodeEventResponse is a response to the client about the status of
 // the node event source update.
 type EmitNodeEventResponse struct {
 	Index uint64

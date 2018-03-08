@@ -113,12 +113,8 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 	// Check for the node in the FSM
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(out.NodeEvents) < 2 {
-		t.Fatalf("expected node to have a register event")
-	}
+	require.Nil(err)
+	require.False(len(out.NodeEvents) < 2)
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {

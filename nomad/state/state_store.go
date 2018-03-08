@@ -534,7 +534,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		// also create a node registration event
 		nodeEvent := &structs.NodeEvent{
 			Message:   "Node Registered",
-			Subsystem: "Server",
+			Subsystem: "Cluster",
 			Timestamp: node.StatusUpdatedAt,
 		}
 
