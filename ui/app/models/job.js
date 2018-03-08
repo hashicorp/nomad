@@ -1,4 +1,4 @@
-import { alias, bool, equal, or } from '@ember/object/computed';
+import { alias, equal, or, and } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
@@ -106,7 +106,13 @@ export default Model.extend({
   evaluations: hasMany('evaluations'),
   namespace: belongsTo('namespace'),
 
-  hasPlacementFailures: bool('latestFailureEvaluation'),
+  hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
+    return this.get('evaluations')
+      .toArray()
+      .some(evaluation => evaluation.get('isBlocked'));
+  }),
+
+  hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
 
   latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
     const evaluations = this.get('evaluations');

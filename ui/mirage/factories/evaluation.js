@@ -4,7 +4,7 @@ import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
 const EVAL_TYPES = ['system', 'service', 'batch'];
-const EVAL_STATUSES = ['blocked', 'pending', 'complete', 'failed', 'canceled'];
+const EVAL_STATUSES = ['pending', 'complete', 'failed', 'canceled'];
 const EVAL_TRIGGERED_BY = [
   'job-register',
   'job-deregister',
@@ -55,7 +55,7 @@ export default Factory.extend({
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
   withPlacementFailures: trait({
-    status: faker.list.random(...EVAL_STATUSES.without('blocked')),
+    status: 'blocked',
     afterCreate(evaluation, server) {
       assignJob(evaluation, server);
       const taskGroups = server.db.taskGroups.where({ jobId: evaluation.jobId });
