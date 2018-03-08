@@ -5502,7 +5502,7 @@ func (a *Allocation) LastEventTime() time.Time {
 	return lastEventTime
 }
 
-// NextRescheduleTime returns a time delta after which the allocation is eligible to be rescheduled
+// NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
 // and whether the next reschedule time is within policy's interval if the policy doesn't allow unlimited reschedules
 func (a *Allocation) NextRescheduleTime(reschedulePolicy *ReschedulePolicy) (time.Time, bool) {
 	failTime := a.LastEventTime()
@@ -5527,6 +5527,8 @@ func (a *Allocation) NextRescheduleTime(reschedulePolicy *ReschedulePolicy) (tim
 	return nextRescheduleTime, rescheduleEligible
 }
 
+// NextDelay returns a duration after which the allocation can be rescheduled.
+// It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay(policy *ReschedulePolicy) time.Duration {
 	delayDur := policy.Delay
 	if a.RescheduleTracker == nil || a.RescheduleTracker.Events == nil || len(a.RescheduleTracker.Events) == 0 {
@@ -5554,13 +5556,13 @@ func (a *Allocation) NextDelay(policy *ReschedulePolicy) time.Duration {
 	if policy.DelayCeiling > 0 && delayDur > policy.DelayCeiling {
 		delayDur = policy.DelayCeiling
 		// check if delay needs to be reset
-		if len(a.RescheduleTracker.Events) > 0 {
-			lastRescheduleEvent := a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1]
-			timeDiff := a.LastEventTime().UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
-			if timeDiff > delayDur.Nanoseconds() {
-				delayDur = policy.Delay
-			}
+
+		lastRescheduleEvent := a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1]
+		timeDiff := a.LastEventTime().UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
+		if timeDiff > delayDur.Nanoseconds() {
+			delayDur = policy.Delay
 		}
+
 	}
 
 	return delayDur
@@ -5670,12 +5672,11 @@ type AllocListStub struct {
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
-
-	FollowupEvalID string
-	CreateIndex    uint64
-	ModifyIndex    uint64
-	CreateTime     int64
-	ModifyTime     int64
+	FollowupEvalID     string
+	CreateIndex        uint64
+	ModifyIndex        uint64
+	CreateTime         int64
+	ModifyTime         int64
 }
 
 // SetEventDisplayMessage populates the display message if its not already set,
