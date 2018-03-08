@@ -845,16 +845,29 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	})
 
 	var evals []*structs.Evaluation
-	var allocIDs []string
 	nextReschedTime := rescheduleLater[0].rescheduleTime
 	allocIDToFollowupEvalID := make(map[string]string, len(rescheduleLater))
+	// Create a new eval for the first batch
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      a.job.Namespace,
+		Priority:       a.job.Priority,
+		Type:           a.job.Type,
+		TriggeredBy:    structs.EvalTriggerRetryFailedAlloc,
+		JobID:          a.job.ID,
+		JobModifyIndex: a.job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+		WaitUntil:      nextReschedTime,
+	}
+	evals = append(evals, eval)
 	for _, allocReschedInfo := range rescheduleLater {
-		if allocReschedInfo.rescheduleTime.UTC().UnixNano()-nextReschedTime.UTC().UnixNano() < batchedFailedAllocWindowSize.Nanoseconds() {
-			// add to batch
-			allocIDs = append(allocIDs, allocReschedInfo.allocID)
+		if allocReschedInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
+			allocIDToFollowupEvalID[allocReschedInfo.allocID] = eval.ID
 		} else {
-			// create a new eval for the previous batch
-			eval := &structs.Evaluation{
+			// Start a new batch
+			nextReschedTime = allocReschedInfo.rescheduleTime
+			// Create a new eval for the new batch
+			eval = &structs.Evaluation{
 				ID:             uuid.Generate(),
 				Namespace:      a.job.Namespace,
 				Priority:       a.job.Priority,
@@ -866,37 +879,14 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 				WaitUntil:      nextReschedTime,
 			}
 			evals = append(evals, eval)
-			for _, allocID := range allocIDs {
-				allocIDToFollowupEvalID[allocID] = eval.ID
-			}
-			nextReschedTime = allocReschedInfo.rescheduleTime
-			// clear out this batch and start it again
-			allocIDs = nil
-			allocIDs = append(allocIDs, allocReschedInfo.allocID)
-		}
-	}
-	// Deal with the last batch
-	if len(allocIDs) > 0 {
-		eval := &structs.Evaluation{
-			ID:             uuid.Generate(),
-			Namespace:      a.job.Namespace,
-			Priority:       a.job.Priority,
-			Type:           a.job.Type,
-			TriggeredBy:    structs.EvalTriggerRetryFailedAlloc,
-			JobID:          a.job.ID,
-			JobModifyIndex: a.job.ModifyIndex,
-			Status:         structs.EvalStatusPending,
-			WaitUntil:      nextReschedTime,
-		}
-		evals = append(evals, eval)
-		for _, allocID := range allocIDs {
-			allocIDToFollowupEvalID[allocID] = eval.ID
+			// Set the evalID for the first alloc in this new batch
+			allocIDToFollowupEvalID[allocReschedInfo.allocID] = eval.ID
 		}
 	}
 
 	a.result.desiredFollowupEvals[tgName] = evals
 
-	// create inplace updates for every alloc ID that needs to be updated with its follow up eval ID
+	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
 	rescheduleLaterAllocs := make(map[string]*structs.Allocation)
 	for allocID, evalID := range allocIDToFollowupEvalID {
 		existingAlloc := all[allocID]
