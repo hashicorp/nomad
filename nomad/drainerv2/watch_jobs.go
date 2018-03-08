@@ -34,7 +34,7 @@ type DrainingJobWatcher interface {
 	// Drain is used to emit allocations that should be drained.
 	Drain() <-chan *DrainRequest
 
-	// Migrated is allocations for draining jobs that have transistioned to
+	// Migrated is allocations for draining jobs that have transitioned to
 	// stop. There is no guarantee that duplicates won't be published.
 	Migrated() <-chan []*structs.Allocation
 }
@@ -224,7 +224,7 @@ func (w *drainingJobWatcher) watch() {
 				return
 			}
 
-			// Wait for the request to be commited
+			// Wait for the request to be committed
 			select {
 			case <-req.Resp.WaitCh():
 			case <-w.ctx.Done():
@@ -234,7 +234,7 @@ func (w *drainingJobWatcher) watch() {
 
 			// See if it successfully committed
 			if err := req.Resp.Error(); err != nil {
-				w.logger.Printf("[ERR] nomad.drain.job_watcher: failed to transistion allocations: %v", err)
+				w.logger.Printf("[ERR] nomad.drain.job_watcher: failed to transition allocations: %v", err)
 			}
 
 			// Wait until the new index

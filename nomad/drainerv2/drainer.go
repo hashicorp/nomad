@@ -124,7 +124,7 @@ type NodeDrainer struct {
 	// nodes is the set of draining nodes
 	nodes map[string]*drainingNode
 
-	// nodeWatcher watches for nodes to transistion in and out of drain state.
+	// nodeWatcher watches for nodes to transition in and out of drain state.
 	nodeWatcher DrainingNodeWatcher
 	nodeFactory DrainingNodeWatcherFactory
 
@@ -158,7 +158,7 @@ type NodeDrainer struct {
 
 // NewNodeDrainer returns a new new node drainer. The node drainer is
 // responsible for marking allocations on draining nodes with a desired
-// migration transistion, updating the drain strategy on nodes when they are
+// migration transition, updating the drain strategy on nodes when they are
 // complete and creating evaluations for the system to react to these changes.
 func NewNodeDrainer(c *NodeDrainerConfig) *NodeDrainer {
 	return &NodeDrainer{
@@ -254,10 +254,9 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 }
 
 // handleJobAllocDrain handles marking a set of allocations as having a desired
-// transistion to drain. The handler blocks till the changes to the allocation
-// have occured.
+// transition to drain. The handler blocks till the changes to the allocation
+// have occurred.
 func (n *NodeDrainer) handleJobAllocDrain(req *DrainRequest) {
-	// This should be syncronous
 	index, err := n.batchDrainAllocs(req.Allocs)
 	req.Resp.Respond(index, err)
 }
@@ -342,17 +341,17 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, er
 	return future.Index(), nil
 }
 
-// drainAllocs is a non batch, marking of the desired transistion to migrate for
+// drainAllocs is a non batch, marking of the desired transition to migrate for
 // the set of allocations. It will also create the necessary evaluations for the
 // affected jobs.
 func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs.Allocation) {
 	// TODO(alex) This should shard to limit the size of the transaction.
 
-	// Compute the effected jobs and make the transistion map
+	// Compute the effected jobs and make the transition map
 	jobs := make(map[string]*structs.Allocation, 4)
-	transistions := make(map[string]*structs.DesiredTransition, len(allocs))
+	transitions := make(map[string]*structs.DesiredTransition, len(allocs))
 	for _, alloc := range allocs {
-		transistions[alloc.ID] = &structs.DesiredTransition{
+		transitions[alloc.ID] = &structs.DesiredTransition{
 			Migrate: helper.BoolToPtr(true),
 		}
 		jobs[alloc.JobID] = alloc
@@ -372,6 +371,6 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 	}
 
 	// Commit this update via Raft
-	index, err := n.raft.AllocUpdateDesiredTransition(transistions, evals)
+	index, err := n.raft.AllocUpdateDesiredTransition(transitions, evals)
 	future.Respond(index, err)
 }
