@@ -617,12 +617,34 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 	return nil
 }
 
+// BatchUpdateNodeDrain is used to update the drain of a node set of nodes
+func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	for node, update := range updates {
+		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible); err != nil {
+			return err
+		}
+	}
+	txn.Commit()
+	return nil
+}
+
 // UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 	drain *structs.DrainStrategy, markEligible bool) error {
 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool) error {
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -656,7 +678,6 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 

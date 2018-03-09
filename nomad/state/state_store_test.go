@@ -698,6 +698,53 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	}
 }
 
+func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	n1, n2 := mock.Node(), mock.Node()
+	require.Nil(state.UpsertNode(1000, n1))
+	require.Nil(state.UpsertNode(1001, n2))
+
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NodeByID(ws, n1.ID)
+	require.Nil(err)
+
+	expectedDrain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
+	}
+
+	update := map[string]*structs.DrainUpdate{
+		n1.ID: &structs.DrainUpdate{
+			DrainStrategy: expectedDrain,
+		},
+		n2.ID: &structs.DrainUpdate{
+			DrainStrategy: expectedDrain,
+		},
+	}
+
+	require.Nil(state.BatchUpdateNodeDrain(1002, update))
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	for _, id := range []string{n1.ID, n2.ID} {
+		out, err := state.NodeByID(ws, id)
+		require.Nil(err)
+		require.True(out.Drain)
+		require.NotNil(out.DrainStrategy)
+		require.Equal(out.DrainStrategy, expectedDrain)
+		require.EqualValues(1002, out.ModifyIndex)
+	}
+
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1002, index)
+	require.False(watchFired(ws))
+}
+
 func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	require := require.New(t)
 	state := testStateStore(t)

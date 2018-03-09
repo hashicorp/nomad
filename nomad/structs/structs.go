@@ -80,6 +80,7 @@ const (
 	JobBatchDeregisterRequestType
 	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
+	BatchNodeUpdateDrainRequestType
 )
 
 const (
@@ -312,6 +313,23 @@ type NodeUpdateDrainRequest struct {
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
 	WriteRequest
+}
+
+// BatchNodeUpdateDrainRequest is used for updating the drain strategy for a
+// batch of nodes
+type BatchNodeUpdateDrainRequest struct {
+	// Updates is a mapping of nodes to their updated drain strategy
+	Updates map[string]*DrainUpdate
+	WriteRequest
+}
+
+// DrainUpdate is used to update the drain of a node
+type DrainUpdate struct {
+	// DrainStrategy is the new strategy for the node
+	DrainStrategy *DrainStrategy
+
+	// MarkEligible marks the node as eligible if removing the drain strategy.
+	MarkEligible bool
 }
 
 // NodeUpdateEligibilityRequest is used for updating the scheduling	eligibility
