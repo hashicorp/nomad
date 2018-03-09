@@ -7,7 +7,6 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -424,23 +423,15 @@ OUTER:
 				}
 				initStatus = true
 			}
-			// Retrieve our token, validate it and parse the lease duration
+			// Retry parsing the token till success
 			if err := v.parseSelfToken(); err != nil {
-				// Retry if vault is sealed
-				//TODO(preetha) : is there a nicer way to figure out whether vault is sealed
-				if strings.Contains(err.Error(), "is sealed") {
-					v.logger.Printf("[ERR] vault: failed to validate self token/role. Retrying in %v: %v", v.config.ConnectionRetryIntv, err)
-					retryTimer.Reset(v.config.ConnectionRetryIntv)
-					continue OUTER
-				} else {
-					// Irrecoverable error so we return
-					v.logger.Printf("[ERR] vault: failed to validate self token/role and not retrying: %v", err)
-					v.l.Lock()
-					v.connEstablished = false
-					v.connEstablishedErr = err
-					v.l.Unlock()
-					return
-				}
+				v.logger.Printf("[ERR] vault: failed to validate self token/role. Retrying in %v: %v", v.config.ConnectionRetryIntv, err)
+				retryTimer.Reset(v.config.ConnectionRetryIntv)
+				v.l.Lock()
+				v.connEstablished = true
+				v.connEstablishedErr = fmt.Errorf("Connection to Vault failed: %v", err)
+				v.l.Unlock()
+				continue OUTER
 			}
 			break OUTER
 		}
@@ -855,8 +846,8 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if !established {
-		return nil, fmt.Errorf("Connection to Vault failed: %v", err)
+	} else if err != nil {
+		return nil, err
 	}
 
 	// Track how long the request takes
@@ -933,8 +924,8 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if !established {
-		return nil, fmt.Errorf("Connection to Vault failed: %v", err)
+	} else if err != nil {
+		return nil, err
 	}
 
 	// Track how long the request takes
@@ -1052,8 +1043,8 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if !established {
-		return fmt.Errorf("Connection to Vault failed: %v", err)
+	} else if err != nil {
+		return err
 	}
 
 	g, pCtx := errgroup.WithContext(ctx)

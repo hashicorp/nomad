@@ -260,8 +260,8 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	var connErr error
 	testutil.WaitForResult(func() (bool, error) {
 		conn, connErr = client.ConnectionEstablished()
-		if conn {
-			return false, fmt.Errorf("Should not connect")
+		if !conn {
+			return false, fmt.Errorf("Should connect")
 		}
 
 		if connErr == nil {
@@ -303,8 +303,8 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 	var connErr error
 	testutil.WaitForResult(func() (bool, error) {
 		conn, connErr = client.ConnectionEstablished()
-		if conn {
-			return false, fmt.Errorf("Should not connect")
+		if !conn {
+			return false, fmt.Errorf("Should connect")
 		}
 
 		if connErr == nil {
@@ -351,8 +351,8 @@ func TestVaultClient_ValidateToken(t *testing.T) {
 	var connErr error
 	testutil.WaitForResult(func() (bool, error) {
 		conn, connErr = client.ConnectionEstablished()
-		if conn {
-			return false, fmt.Errorf("Should not connect")
+		if !conn {
+			return false, fmt.Errorf("Should connect")
 		}
 
 		if connErr == nil {
@@ -967,10 +967,9 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		established, err := client.ConnectionEstablished()
-		if established {
-			return false, fmt.Errorf("Shouldn't establish")
+		if !established {
+			return false, fmt.Errorf("Should establish")
 		}
-
 		return err != nil, nil
 	}, func(err error) {
 		t.Fatalf("Connection not established")
