@@ -35,7 +35,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 		Subsystem: "Driver",
 		Timestamp: time.Now().Unix(),
 	}
-	err = state.AddNodeEvent(1001, node, nodeEvent)
+	err = state.AddNodeEvent(1001, node, []*structs.NodeEvent{nodeEvent})
 	require.Nil(err)
 
 	require.True(watchFired(ws))
@@ -75,7 +75,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 			Subsystem: "Driver",
 			Timestamp: time.Now().Unix(),
 		}
-		err := state.AddNodeEvent(uint64(i), out, nodeEvent)
+		err := state.AddNodeEvent(uint64(i), out, []*structs.NodeEvent{nodeEvent})
 		require.Nil(err)
 
 		require.True(watchFired(ws))

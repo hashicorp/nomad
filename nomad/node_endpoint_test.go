@@ -99,9 +99,9 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 		Timestamp: time.Now().Unix(),
 	}
 
+	nodeEvents := map[string][]*structs.NodeEvent{node.ID: []*structs.NodeEvent{nodeEvent}}
 	req := structs.EmitNodeEventRequest{
-		NodeID:       node.ID,
-		NodeEvent:    nodeEvent,
+		NodeEvents:   nodeEvents,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 

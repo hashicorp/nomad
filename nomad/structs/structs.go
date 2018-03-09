@@ -1186,8 +1186,10 @@ type NodeEvent struct {
 // EmitNodeEventRequest is a request to update the node events source
 // with a new client-side event
 type EmitNodeEventRequest struct {
-	NodeID    string
-	NodeEvent *NodeEvent
+	// NodeEvents are a map where the key is a node id, and value is a list of
+	// events for that node
+	NodeEvents map[string][]*NodeEvent
+
 	WriteRequest
 }
 

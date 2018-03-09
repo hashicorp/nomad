@@ -93,9 +93,11 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 		Timestamp: time.Now().Unix(),
 	}
 
+	nodeEvents := []*structs.NodeEvent{nodeEvent}
+	allEvents := map[string][]*structs.NodeEvent{node.ID: nodeEvents}
+
 	req := structs.EmitNodeEventRequest{
-		NodeID:       node.ID,
-		NodeEvent:    nodeEvent,
+		NodeEvents:   allEvents,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	buf, err := structs.Encode(structs.AddNodeEventType, req)
@@ -106,12 +108,12 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 	require.Nil(resp)
 
 	ws := memdb.NewWatchSet()
-	actualNode, err := state.NodeByID(ws, node.ID)
+	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 
-	require.Equal(2, len(actualNode.NodeEvents))
+	require.Equal(2, len(out.NodeEvents))
 
-	first := node.NodeEvents[1]
+	first := out.NodeEvents[1]
 	require.Equal(uint64(1), first.CreateIndex)
 	require.Equal("Heartbeating failed", first.Message)
 }

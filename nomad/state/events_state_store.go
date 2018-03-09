@@ -8,11 +8,11 @@ import (
 )
 
 // addNodeEvent is a function which wraps upsertNodeEvent
-func (s *StateStore) AddNodeEvent(index uint64, node *structs.Node, event *structs.NodeEvent) error {
+func (s *StateStore) AddNodeEvent(index uint64, node *structs.Node, events []*structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	err := s.upsertNodeEvent(index, node, event, txn)
+	err := s.upsertNodeEvents(index, node, events, txn)
 	txn.Commit()
 	return err
 }
@@ -20,10 +20,7 @@ func (s *StateStore) AddNodeEvent(index uint64, node *structs.Node, event *struc
 // upsertNodeEvent upserts a node event for a respective node. It also maintains
 // that only 10 node events are ever stored simultaneously, deleting older
 // events once this bound has been reached.
-func (s *StateStore) upsertNodeEvent(index uint64, node *structs.Node, event *structs.NodeEvent, txn *memdb.Txn) error {
-
-	event.CreateIndex = index
-	event.ModifyIndex = index
+func (s *StateStore) upsertNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEvent, txn *memdb.Txn) error {
 
 	// Copy the existing node
 	copyNode := new(structs.Node)
@@ -31,13 +28,18 @@ func (s *StateStore) upsertNodeEvent(index uint64, node *structs.Node, event *st
 
 	nodeEvents := node.NodeEvents
 
-	// keep node events pruned to below 10 simultaneously
-	if len(nodeEvents) >= 10 {
-		delta := len(nodeEvents) - 10
-		nodeEvents = nodeEvents[delta+1:]
+	for _, e := range events {
+		e.CreateIndex = index
+		e.ModifyIndex = index
+
+		// keep node events pruned to below 10 simultaneously
+		if len(nodeEvents) >= 10 {
+			delta := len(nodeEvents) - 10
+			nodeEvents = nodeEvents[delta+1:]
+		}
+		nodeEvents = append(nodeEvents, e)
+		copyNode.NodeEvents = nodeEvents
 	}
-	nodeEvents = append(nodeEvents, event)
-	copyNode.NodeEvents = nodeEvents
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {
