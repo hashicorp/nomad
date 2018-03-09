@@ -52,8 +52,8 @@ var _ = Describe("Server Side Restart Tests", func() {
 
 		// Create client
 		client, err := api.NewClient(conf)
-		jobs = client.Jobs()
 		Expect(err).ShouldNot(HaveOccurred())
+		jobs = client.Jobs()
 		system = client.System()
 	})
 
