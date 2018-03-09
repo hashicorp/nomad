@@ -2855,7 +2855,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ShouldReschedule: false,
 		},
 		{
-			Desc:             "Disabled recheduling",
+			Desc:             "Disabled rescheduling",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
@@ -2961,6 +2961,529 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 	}
 }
 
+func TestAllocation_LastEventTime(t *testing.T) {
+	type testCase struct {
+		desc                  string
+		taskState             map[string]*TaskState
+		expectedLastEventTime time.Time
+	}
+	var timeZero time.Time
+
+	t1 := time.Now()
+
+	testCases := []testCase{
+		{
+			desc: "nil task state",
+			expectedLastEventTime: timeZero,
+		},
+		{
+			desc:                  "empty task state",
+			taskState:             make(map[string]*TaskState),
+			expectedLastEventTime: timeZero,
+		},
+		{
+			desc: "Finished At not set",
+			taskState: map[string]*TaskState{"foo": {State: "start",
+				StartedAt: t1.Add(-2 * time.Hour)}},
+			expectedLastEventTime: timeZero,
+		},
+		{
+			desc: "One finished event",
+			taskState: map[string]*TaskState{"foo": {State: "start",
+				StartedAt:  t1.Add(-2 * time.Hour),
+				FinishedAt: t1.Add(-1 * time.Hour)}},
+			expectedLastEventTime: t1.Add(-1 * time.Hour),
+		},
+		{
+			desc: "Multiple events",
+			taskState: map[string]*TaskState{"foo": {State: "start",
+				StartedAt:  t1.Add(-2 * time.Hour),
+				FinishedAt: t1.Add(-1 * time.Hour)},
+				"bar": {State: "start",
+					StartedAt:  t1.Add(-2 * time.Hour),
+					FinishedAt: t1.Add(-40 * time.Minute)}},
+			expectedLastEventTime: t1.Add(-40 * time.Minute),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			alloc := &Allocation{}
+			alloc.TaskStates = tc.taskState
+			require.Equal(t, tc.expectedLastEventTime, alloc.LastEventTime())
+		})
+	}
+}
+
+func TestAllocation_NextDelay(t *testing.T) {
+	type testCase struct {
+		desc                       string
+		reschedulePolicy           *ReschedulePolicy
+		alloc                      *Allocation
+		expectedRescheduleTime     time.Time
+		expectedRescheduleEligible bool
+	}
+	now := time.Now()
+	testCases := []testCase{
+		{
+			desc: "Allocation hasn't failed yet",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "linear",
+				Delay:         5 * time.Second,
+			},
+			alloc: &Allocation{},
+			expectedRescheduleTime:     time.Time{},
+			expectedRescheduleEligible: false,
+		},
+		{
+			desc: "Allocation lacks task state",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "linear",
+				Delay:         5 * time.Second,
+			},
+			alloc: &Allocation{ClientStatus: AllocClientStatusFailed},
+			expectedRescheduleTime:     time.Time{},
+			expectedRescheduleEligible: false,
+		},
+		{
+			desc: "linear delay, unlimited restarts, no reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "linear",
+				Delay:         5 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "dead",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+			},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "linear delay with reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "linear",
+				Delay:         5 * time.Second,
+				Interval:      10 * time.Minute,
+				Attempts:      2,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{{
+						RescheduleTime: now.Add(-2 * time.Minute).UTC().UnixNano(),
+						Delay:          5 * time.Second,
+					}},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "linear delay with reschedule tracker, attempts exhausted",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "linear",
+				Delay:         5 * time.Second,
+				Interval:      10 * time.Minute,
+				Attempts:      2,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-2 * time.Minute).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: false,
+		},
+		{
+			desc: "exponential delay - no reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+			},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "exponential delay with reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          20 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(40 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "exponential delay with delay ceiling reached",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-15 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          20 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-40 * time.Second).UTC().UnixNano(),
+							Delay:          80 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-15 * time.Second).Add(90 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			// Test case where most recent reschedule ran longer than delay ceiling
+			desc: "exponential delay, delay ceiling reset condition met",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-15 * time.Minute)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          20 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          80 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          90 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          90 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-15 * time.Minute).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay - no reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-5 * time.Second).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(10 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with more events",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				DelayCeiling:  90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(40 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with delay ceiling reached",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				DelayCeiling:  50 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-15 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-40 * time.Second).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-15 * time.Second).Add(50 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with delay reset condition met",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				DelayCeiling:  50 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-5 * time.Minute)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-5 * time.Minute).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with the most recent event that reset delay value",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				DelayCeiling:  50 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-5 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          50 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Minute).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-5 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			reschedTime, allowed := tc.alloc.NextRescheduleTime(tc.reschedulePolicy)
+			require.Equal(tc.expectedRescheduleEligible, allowed)
+			require.Equal(tc.expectedRescheduleTime, reschedTime)
+		})
+	}
+
+}
+
 func TestRescheduleTracker_Copy(t *testing.T) {
 	type testCase struct {
 		original *RescheduleTracker
@@ -2970,9 +3493,15 @@ func TestRescheduleTracker_Copy(t *testing.T) {
 	cases := []testCase{
 		{nil, nil},
 		{&RescheduleTracker{Events: []*RescheduleEvent{
-			{2, "12", "12"},
+			{RescheduleTime: 2,
+				PrevAllocID: "12",
+				PrevNodeID:  "12",
+				Delay:       30 * time.Second},
 		}}, &RescheduleTracker{Events: []*RescheduleEvent{
-			{2, "12", "12"},
+			{RescheduleTime: 2,
+				PrevAllocID: "12",
+				PrevNodeID:  "12",
+				Delay:       30 * time.Second},
 		}}},
 	}
 
