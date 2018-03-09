@@ -95,7 +95,7 @@ func TestDeadlineHeap_MultiwatchAndDelete(t *testing.T) {
 func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	h := NewDeadlineHeap(context.Background(), 250*time.Millisecond)
+	h := NewDeadlineHeap(context.Background(), 100*time.Millisecond)
 
 	now := time.Now()
 
@@ -107,7 +107,7 @@ func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 	}
 
 	group2 := map[string]time.Time{
-		"10": now.Add(355 * time.Millisecond),
+		"10": now.Add(350 * time.Millisecond),
 		"11": now.Add(360 * time.Millisecond),
 	}
 

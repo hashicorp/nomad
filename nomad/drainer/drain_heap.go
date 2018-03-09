@@ -43,7 +43,7 @@ func NewDeadlineHeap(ctx context.Context, coalesceWindow time.Duration) *deadlin
 		coalesceWindow: coalesceWindow,
 		batch:          make(chan []string),
 		nodes:          make(map[string]time.Time, 64),
-		trigger:        make(chan struct{}),
+		trigger:        make(chan struct{}, 1),
 	}
 
 	go d.watch()
@@ -51,12 +51,11 @@ func NewDeadlineHeap(ctx context.Context, coalesceWindow time.Duration) *deadlin
 }
 
 func (d *deadlineHeap) watch() {
-	timer := time.NewTimer(0 * time.Millisecond)
-	if !timer.Stop() {
-		select {
-		case <-timer.C:
-		default:
-		}
+	timer := time.NewTimer(0)
+	timer.Stop()
+	select {
+	case <-timer.C:
+	default:
 	}
 
 	var nextDeadline time.Time
@@ -71,8 +70,9 @@ func (d *deadlineHeap) watch() {
 				continue
 			}
 
-			d.mu.Lock()
 			var batch []string
+
+			d.mu.Lock()
 			for nodeID, nodeDeadline := range d.nodes {
 				if !nodeDeadline.After(nextDeadline) {
 					batch = append(batch, nodeID)
@@ -81,21 +81,19 @@ func (d *deadlineHeap) watch() {
 			}
 			d.mu.Unlock()
 
-			// If there is nothing exit early
-			if len(batch) == 0 {
-				goto CALC
+			if len(batch) > 0 {
+				// Send the batch
+				select {
+				case d.batch <- batch:
+				case <-d.ctx.Done():
+					return
+				}
 			}
 
-			// Send the batch
-			select {
-			case d.batch <- batch:
-			case <-d.ctx.Done():
-				return
-			}
 		case <-d.trigger:
 		}
 
-	CALC:
+		// Calculate the next deadline
 		deadline, ok := d.calculateNextDeadline()
 		if !ok {
 			continue
