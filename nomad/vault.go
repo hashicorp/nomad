@@ -429,7 +429,7 @@ OUTER:
 				retryTimer.Reset(v.config.ConnectionRetryIntv)
 				v.l.Lock()
 				v.connEstablished = true
-				v.connEstablishedErr = fmt.Errorf("Connection to Vault failed: %v", err)
+				v.connEstablishedErr = fmt.Errorf("Nomad Server failed to establish connections to Vault: %v", err)
 				v.l.Unlock()
 				continue OUTER
 			}
