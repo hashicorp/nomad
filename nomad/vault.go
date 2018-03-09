@@ -423,7 +423,7 @@ OUTER:
 				}
 				initStatus = true
 			}
-			// Retry parsing the token till success
+			// Retry validating the token till success
 			if err := v.parseSelfToken(); err != nil {
 				v.logger.Printf("[ERR] vault: failed to validate self token/role. Retrying in %v: %v", v.config.ConnectionRetryIntv, err)
 				retryTimer.Reset(v.config.ConnectionRetryIntv)
