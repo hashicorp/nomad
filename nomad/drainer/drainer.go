@@ -36,7 +36,7 @@ const (
 // NodeDrainer.
 type RaftApplier interface {
 	AllocUpdateDesiredTransition(allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) (uint64, error)
-	NodeDrainComplete(nodeID string) (uint64, error)
+	NodesDrainComplete(nodes []string) (uint64, error)
 }
 
 // NodeTracker is the interface to notify an object that is tracking draining
@@ -295,14 +295,9 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	}
 	n.l.RUnlock()
 
-	// TODO(alex) This should probably be a single Raft transaction
-	for _, doneNode := range done {
-		index, err := n.raft.NodeDrainComplete(doneNode)
-		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", doneNode, err)
-		} else {
-			n.logger.Printf("[INFO] nomad.drain: node %q completed draining at index %d", doneNode, index)
-		}
+	// TODO(alex) Shard
+	if _, err := n.raft.NodesDrainComplete(done); err != nil {
+		n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
 	}
 }
 
