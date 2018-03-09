@@ -672,10 +672,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		if err != nil && !pluginClient.Exited() {
 			d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
 
-			// If a portmap was given, this turns into a fatal error
+			// If a portmap was given, this turns into a recoverable error
 			if len(driverConfig.PortMap) != 0 {
 				pluginClient.Kill()
-				return nil, structs.NewRecoverableError(fmt.Errorf("Trying to map ports but driver could not determine network information, err: %v", err), true)
+				return nil, structs.NewRecoverableError(fmt.Errorf("Failed to map ports because driver could not determine network information: %v:", err), true)
 			}
 		}
 	}
