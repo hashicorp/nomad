@@ -259,7 +259,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
-		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromHealthCheck, c.logger)
+		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromHealthCheck,
+		c.updateNodeFromDriver, c.logger)
 
 	// Fingerprint the node and scan for drivers
 	if err := fingerprintManager.Run(); err != nil {
@@ -1006,23 +1007,66 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		c.config.Node.Resources.Merge(response.Resources)
 	}
 
-	// XXX --------------
-	// All drivers only expose DriverInfo
-	// This becomes a separate setter. So we have:
-	// * updateNodeFromFingerprinters
-	// * updateNodeFromDriver(fingerprint, health *DriverInfo)
-	///  TODO is anything updating the Node.Attributes based on updating
-	//        driverinfos
+	if nodeHasChanged {
+		c.updateNode()
+	}
 
-	for name, newVal := range response.Drivers {
-		oldVal := c.config.Node.Drivers[name]
-		if oldVal == nil && newVal != nil {
-			c.config.Node.Drivers[name] = newVal
-		} else if newVal != nil && newVal.Detected != oldVal.Detected {
-			c.config.Node.Drivers[name].MergeFingerprintInfo(newVal)
+	return c.config.Node
+}
+
+// updateNodeFromDriver receives either a fingerprint of the driver or its
+// health and merges this into a single DriverInfo object
+func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.DriverInfo) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	var hasChanged bool
+
+	if fingerprint != nil {
+		if c.config.Node.Drivers[name] == nil {
+			hasChanged = true
+			c.config.Node.Drivers[name] = fingerprint
+		} else {
+			if c.config.Node.Drivers[name].Detected != fingerprint.Detected {
+				hasChanged = true
+				c.config.Node.Drivers[name].Detected = fingerprint.Detected
+			}
+
+			for attrName, newVal := range fingerprint.Attributes {
+				oldVal := c.config.Node.Drivers[name].Attributes[attrName]
+				if oldVal == newVal {
+					continue
+				}
+
+				hasChanged = true
+				if newVal == "" {
+					delete(c.config.Node.Attributes, attrName)
+				} else {
+					c.config.Node.Attributes[attrName] = newVal
+				}
+			}
 		}
 	}
-	if nodeHasChanged {
+
+	if health != nil {
+		if c.config.Node.Drivers[name] == nil {
+			hasChanged = true
+			c.config.Node.Drivers[name] = health
+		} else {
+			oldVal := c.config.Node.Drivers[name]
+			if !health.HealthCheckEquals(oldVal) {
+				hasChanged = true
+				c.config.Node.Drivers[name].MergeHealthCheck(health)
+			} else {
+				// make sure we accurately reflect the last time a health check has been
+				// performed for the driver.
+				oldVal.UpdateTime = health.UpdateTime
+			}
+		}
+	}
+
+	if hasChanged {
+		c.config.Node.Drivers[name].UpdateTime = time.Now()
 		c.updateNode()
 	}
 
@@ -1060,6 +1104,7 @@ func watcher(driver Driver) {
 
 // updateNodeFromHealthCheck receives a health check response and updates the
 // node accordingly
+// TODO is this even needed?
 func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckResponse) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
@@ -1083,7 +1128,6 @@ func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckRespons
 		if oldVal == nil {
 			c.config.Node.Drivers[name] = newVal
 		} else {
-			c.config.Node.Drivers[name].MergeHealthCheck(newVal)
 		}
 	}
 
