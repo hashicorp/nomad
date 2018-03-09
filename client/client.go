@@ -1152,7 +1152,7 @@ func (c *Client) run() {
 }
 
 // submitNodeEvents is used to submit a client-side node event. Examples of
-// these kinds of events include when a driver moves from healthy to unhealhty
+// these kinds of events include when a driver moves from healthy to unhealthy
 // (and vice versa)
 func (c *Client) submitNodeEvents(e []*structs.NodeEvent) error {
 	node := c.Node()
