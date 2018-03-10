@@ -175,6 +175,10 @@ func NewNodeDrainer(c *NodeDrainerConfig) *NodeDrainer {
 	}
 }
 
+//TODO Get/Set Config for integration testing
+func (n *NodeDrainer) UpdateConfig() {
+}
+
 // SetEnabled will start or stop the node draining goroutine depending on the
 // enabled boolean.
 func (n *NodeDrainer) SetEnabled(enabled bool, state *state.StateStore) {

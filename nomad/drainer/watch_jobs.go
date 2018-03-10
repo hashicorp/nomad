@@ -167,7 +167,6 @@ func (w *drainingJobWatcher) watch() {
 			}
 		}
 
-		// update index for next run
 		lastHandled := waitIndex
 		waitIndex = index
 
@@ -385,6 +384,8 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		return nil
 	}
 
+	fmt.Printf("------- DRAINing allocs: n: %d drainable:%d  healthy:%d thresholdCount:%d\n",
+		numToDrain, len(drainable), healthy, thresholdCount)
 	result.drain = append(result.drain, drainable[0:numToDrain]...)
 	return nil
 }
