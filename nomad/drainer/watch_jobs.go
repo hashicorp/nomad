@@ -29,7 +29,7 @@ func NewDrainRequest(allocs []*structs.Allocation) *DrainRequest {
 // DrainingJobWatcher is the interface for watching a job drain
 type DrainingJobWatcher interface {
 	// RegisterJob is used to start watching a draining job
-	RegisterJob(job structs.JobNs)
+	RegisterJobs(job []structs.JobNs)
 
 	// Drain is used to emit allocations that should be drained.
 	Drain() <-chan *DrainRequest
@@ -90,21 +90,28 @@ func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *st
 }
 
 // RegisterJob marks the given job as draining and adds it to being watched.
-func (w *drainingJobWatcher) RegisterJob(job structs.JobNs) {
+func (w *drainingJobWatcher) RegisterJobs(jobs []structs.JobNs) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
-	if _, ok := w.jobs[job]; ok {
-		return
+	updated := false
+	for _, jns := range jobs {
+		if _, ok := w.jobs[jns]; ok {
+			continue
+		}
+
+		// Add the job and cancel the context
+		w.logger.Printf("[TRACE] nomad.drain.job_watcher: registering job %v", jns)
+		w.jobs[jns] = struct{}{}
+		updated = true
 	}
 
-	// Add the job and cancel the context
-	w.logger.Printf("[TRACE] nomad.drain.job_watcher: registering job %v", job)
-	w.jobs[job] = struct{}{}
-	w.queryCancel()
+	if updated {
+		w.queryCancel()
 
-	// Create a new query context
-	w.queryCtx, w.queryCancel = context.WithCancel(w.ctx)
+		// Create a new query context
+		w.queryCtx, w.queryCancel = context.WithCancel(w.ctx)
+	}
 }
 
 // Drain returns the channel that emits allocations to drain.
@@ -184,7 +191,7 @@ func (w *drainingJobWatcher) watch() {
 
 			// Lookup the job
 			job, err := w.state.JobByID(nil, jns.Namespace, jns.ID)
-			if err != nil {
+			if err != nil || job == nil {
 				w.logger.Printf("[WARN] nomad.drain.job_watcher: failed to lookup job %v: %v", jns, err)
 				continue
 			}
@@ -223,24 +230,6 @@ func (w *drainingJobWatcher) watch() {
 				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
 				return
 			}
-
-			// Wait for the request to be committed
-			select {
-			case <-req.Resp.WaitCh():
-			case <-w.ctx.Done():
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
-				return
-			}
-
-			// See if it successfully committed
-			if err := req.Resp.Error(); err != nil {
-				w.logger.Printf("[ERR] nomad.drain.job_watcher: failed to transition allocations: %v", err)
-			}
-
-			// Wait until the new index
-			if index := req.Resp.Index(); index > waitIndex {
-				waitIndex = index
-			}
 		}
 
 		if len(allMigrated) != 0 {
@@ -268,7 +257,8 @@ type jobResult struct {
 	done bool
 }
 
-// newJobResult returns an initialized jobResult
+// newJobResult returns a jobResult with done=true. It is the responsibility of
+// callers to set done=false when a remaining drainable alloc is found.
 func newJobResult() *jobResult {
 	return &jobResult{
 		done: true,
@@ -390,7 +380,8 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	numToDrain := healthy - thresholdCount
 	numToDrain = helper.IntMin(len(drainable), numToDrain)
 	if numToDrain <= 0 {
-		fmt.Printf("------- Not draining any allocs\n")
+		fmt.Printf("------- Not draining any allocs: drainable:%d  healthy:%d thresholdCount:%d\n",
+			len(drainable), healthy, thresholdCount)
 		return nil
 	}
 

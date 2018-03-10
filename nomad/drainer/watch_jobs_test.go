@@ -2,7 +2,6 @@ package drainer
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,309 +10,327 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 )
 
-func testDrainingJobWatcher(t *testing.T) (*drainingJobWatcher, *state.StateStore) {
+func testNodes(t *testing.T, state *state.StateStore) (drainingNode, runningNode *structs.Node) {
+	n1 := mock.Node()
+	n1.Name = "draining"
+	n1.DrainStrategy = &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: time.Minute,
+		},
+		ForceDeadline: time.Now().Add(time.Minute),
+	}
+	require.Nil(t, state.UpsertNode(100, n1))
+
+	// Create a non-draining node
+	n2 := mock.Node()
+	n2.Name = "running"
+	require.Nil(t, state.UpsertNode(101, n2))
+	return n1, n2
+}
+
+func testDrainingJobWatcher(t *testing.T, state *state.StateStore) *drainingJobWatcher {
 	t.Helper()
 
-	state := state.TestStateStore(t)
 	limiter := rate.NewLimiter(100.0, 100)
 	logger := testlog.Logger(t)
 	w := NewDrainingJobWatcher(context.Background(), limiter, state, logger)
-	return w, state
+	return w
 }
 
+// TestDrainingJobWatcher_Interface is a compile-time assertion that we
+// implement the intended interface.
 func TestDrainingJobWatcher_Interface(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	w, _ := testDrainingJobWatcher(t)
-	require.Implements((*DrainingJobWatcher)(nil), w)
+	var _ DrainingJobWatcher = testDrainingJobWatcher(t, state.TestStateStore(t))
 }
 
-// DrainingJobWatcher tests:
-// TODO Test that several jobs allocation changes get batched
-// TODO Test that jobs are deregistered when they have no more to migrate
-// TODO Test that the watcher gets triggered on alloc changes
-// TODO Test that the watcher cancels its query when a new job is registered
-
-func TestHandleTaskGroup_AllDone(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	// Create a non-draining node
 	state := state.TestStateStore(t)
-	n := mock.Node()
-	require.Nil(state.UpsertNode(100, n))
 
-	job := mock.Job()
-	require.Nil(state.UpsertJob(101, job))
-
-	// Create 10 running allocs on the healthy node
-	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
-		a := mock.Alloc()
-		a.Job = job
-		a.TaskGroup = job.TaskGroups[0].Name
-		a.NodeID = n.ID
-		a.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: helper.BoolToPtr(false),
-		}
-		allocs = append(allocs, a)
-	}
-	require.Nil(state.UpsertAllocs(102, allocs))
-
-	snap, err := state.Snapshot()
-	require.Nil(err)
-
-	res := &jobResult{}
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 101, res))
-	require.Empty(res.drain)
-	require.Empty(res.migrated)
-	require.True(res.done)
-}
-
-func TestHandleTaskGroup_AllOnDrainingNodes(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	// The loop value sets the max parallel for the drain strategy
-	for i := 1; i < 8; i++ {
-		// Create a draining node
-		state := state.TestStateStore(t)
-		n := mock.Node()
-		n.DrainStrategy = &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{
-				Deadline: 5 * time.Minute,
-			},
-			ForceDeadline: time.Now().Add(1 * time.Minute),
-		}
-		require.Nil(state.UpsertNode(100, n))
 
 		job := mock.Job()
-		job.TaskGroups[0].Migrate.MaxParallel = i
-		require.Nil(state.UpsertJob(101, job))
 
-		// Create 10 running allocs on the draining node
 		var allocs []*structs.Allocation
 		for i := 0; i < 10; i++ {
 			a := mock.Alloc()
 			a.Job = job
 			a.TaskGroup = job.TaskGroups[0].Name
-			a.NodeID = n.ID
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: helper.BoolToPtr(false),
 			}
 			allocs = append(allocs, a)
 		}
-		require.Nil(state.UpsertAllocs(102, allocs))
 
-		snap, err := state.Snapshot()
-		require.Nil(err)
 
-		res := &jobResult{}
-		require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 101, res))
-		require.Len(res.drain, i)
-		require.Empty(res.migrated)
-		require.False(res.done)
+	}
+// handleTaskGroupTestCase is the test case struct for TestHandleTaskGroup
+//
+// Two nodes will be initialized: one draining and one running.
+type handleTaskGroupTestCase struct {
+	// Name of test
+	Name string
+
+	// Expectations
+	ExpectedDrained  int
+	ExpectedMigrated int
+	ExpectedDone     bool
+
+	// Count overrides the default count of 10 if set
+	Count int
+
+	// MaxParallel overrides the default max_parallel of 1 if set
+	MaxParallel int
+
+	// AddAlloc will be called 10 times to create test allocs
+	//
+	// Allocs default to be healthy on the draining node
+	AddAlloc func(i int, a *structs.Allocation, drainingID, runningID string)
+}
+
+func TestHandeTaskGroup_Table(t *testing.T) {
+	cases := []handleTaskGroupTestCase{
+		{
+			// All allocs on draining node
+			Name:             "AllDraining",
+			ExpectedDrained:  1,
+			ExpectedMigrated: 0,
+			ExpectedDone:     false,
+		},
+		{
+			// All allocs on non-draining node
+			Name:             "AllNonDraining",
+			ExpectedDrained:  0,
+			ExpectedMigrated: 0,
+			ExpectedDone:     true,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				a.NodeID = runningID
+			},
+		},
+		{
+			// Some allocs on non-draining node but not healthy
+			Name:             "SomeNonDrainingUnhealthy",
+			ExpectedDrained:  0,
+			ExpectedMigrated: 0,
+			ExpectedDone:     false,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i%2 == 0 {
+					a.NodeID = runningID
+					a.DeploymentStatus = nil
+				}
+			},
+		},
+		{
+			// One draining, other allocs on non-draining node and healthy
+			Name:             "OneDraining",
+			ExpectedDrained:  1,
+			ExpectedMigrated: 0,
+			ExpectedDone:     false,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i != 0 {
+					a.NodeID = runningID
+				}
+			},
+		},
+		{
+			// One already draining, other allocs on non-draining node and healthy
+			Name:             "OneAlreadyDraining",
+			ExpectedDrained:  0,
+			ExpectedMigrated: 0,
+			ExpectedDone:     false,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i == 0 {
+					a.DesiredTransition.Migrate = helper.BoolToPtr(true)
+					return
+				}
+				a.NodeID = runningID
+			},
+		},
+		{
+			// One already drained, other allocs on non-draining node and healthy
+			Name:             "OneAlreadyDrained",
+			ExpectedDrained:  0,
+			ExpectedMigrated: 1,
+			ExpectedDone:     true,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i == 0 {
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+					return
+				}
+				a.NodeID = runningID
+			},
+		},
+		{
+			// All allocs are terminl, nothing to be drained
+			Name:             "AllMigrating",
+			ExpectedDrained:  0,
+			ExpectedMigrated: 10,
+			ExpectedDone:     true,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				a.DesiredStatus = structs.AllocDesiredStatusStop
+			},
+		},
+		{
+			// All allocs may be drained at once
+			Name:             "AllAtOnce",
+			ExpectedDrained:  10,
+			ExpectedMigrated: 0,
+			ExpectedDone:     false,
+			MaxParallel:      10,
+		},
+		{
+			// Drain 2
+			Name:             "Drain2",
+			ExpectedDrained:  2,
+			ExpectedMigrated: 0,
+			ExpectedDone:     false,
+			MaxParallel:      2,
+		},
+		{
+			// One on new node, one drained, and one draining
+			ExpectedDrained:  1,
+			ExpectedMigrated: 1,
+			MaxParallel:      2,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				switch i {
+				case 0:
+					// One alloc on running node
+					a.NodeID = runningID
+				case 1:
+					// One alloc already migrated
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+				}
+			},
+		},
+		{
+			// 8 on new node, one drained, and one draining
+			ExpectedDrained:  1,
+			ExpectedMigrated: 1,
+			MaxParallel:      2,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				switch i {
+				case 0, 1, 2, 3, 4, 5, 6, 7:
+					a.NodeID = runningID
+				case 8:
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+				}
+			},
+		},
+		{
+			// 5 on new node, two drained, and three draining
+			ExpectedDrained:  3,
+			ExpectedMigrated: 2,
+			MaxParallel:      5,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				switch i {
+				case 0, 1, 2, 3, 4:
+					a.NodeID = runningID
+				case 8, 9:
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+				}
+			},
+		},
+		{
+			// Not all on new node have health set
+			Name:             "PendingHealth",
+			ExpectedDrained:  1,
+			ExpectedMigrated: 1,
+			MaxParallel:      3,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				switch i {
+				case 0:
+					// Deployment status UNset for 1 on new node
+					a.NodeID = runningID
+					a.DeploymentStatus = nil
+				case 1, 2, 3, 4:
+					// Deployment status set for 4 on new node
+					a.NodeID = runningID
+				case 9:
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+				}
+			},
+		},
+		{
+			// 5 max parallel - 1 migrating - 2 with unset health = 2 drainable
+			Name:             "PendingHealthHigherMax",
+			ExpectedDrained:  2,
+			ExpectedMigrated: 1,
+			MaxParallel:      5,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				switch i {
+				case 0, 1:
+					// Deployment status UNset for 2 on new node
+					a.NodeID = runningID
+					a.DeploymentStatus = nil
+				case 2, 3, 4:
+					// Deployment status set for 3 on new node
+					a.NodeID = runningID
+				case 9:
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+				}
+			},
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			testHandleTaskGroup(t, testCase)
+		})
 	}
 }
 
-func TestHandleTaskGroup_MixedHealth(t *testing.T) {
-	cases := []struct {
-		maxParallel        int
-		drainingNodeAllocs int
-		healthSet          int
-		healthUnset        int
-		expectedDrain      int
-		expectedMigrated   int
-		expectedDone       bool
-	}{
-		{
-			maxParallel:        2,
-			drainingNodeAllocs: 10,
-			healthSet:          0,
-			healthUnset:        0,
-			expectedDrain:      2,
-			expectedMigrated:   0,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        2,
-			drainingNodeAllocs: 9,
-			healthSet:          0,
-			healthUnset:        0,
-			expectedDrain:      1,
-			expectedMigrated:   1,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        5,
-			drainingNodeAllocs: 9,
-			healthSet:          0,
-			healthUnset:        0,
-			expectedDrain:      4,
-			expectedMigrated:   1,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        2,
-			drainingNodeAllocs: 5,
-			healthSet:          2,
-			healthUnset:        0,
-			expectedDrain:      0,
-			expectedMigrated:   5,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        2,
-			drainingNodeAllocs: 5,
-			healthSet:          3,
-			healthUnset:        0,
-			expectedDrain:      0,
-			expectedMigrated:   5,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        2,
-			drainingNodeAllocs: 5,
-			healthSet:          4,
-			healthUnset:        0,
-			expectedDrain:      1,
-			expectedMigrated:   5,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        2,
-			drainingNodeAllocs: 5,
-			healthSet:          4,
-			healthUnset:        1,
-			expectedDrain:      1,
-			expectedMigrated:   5,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        1,
-			drainingNodeAllocs: 5,
-			healthSet:          4,
-			healthUnset:        1,
-			expectedDrain:      0,
-			expectedMigrated:   5,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        3,
-			drainingNodeAllocs: 5,
-			healthSet:          3,
-			healthUnset:        0,
-			expectedDrain:      1,
-			expectedMigrated:   5,
-			expectedDone:       false,
-		},
-		{
-			maxParallel:        3,
-			drainingNodeAllocs: 0,
-			healthSet:          10,
-			healthUnset:        0,
-			expectedDrain:      0,
-			expectedMigrated:   10,
-			expectedDone:       true,
-		},
-		{
-			// Is the case where deadline is hit and all 10 are just marked
-			// stopped. We should detect the job as done.
-			maxParallel:        3,
-			drainingNodeAllocs: 0,
-			healthSet:          0,
-			healthUnset:        0,
-			expectedDrain:      0,
-			expectedMigrated:   10,
-			expectedDone:       true,
-		},
+func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
+	t.Parallel()
+	require := require.New(t)
+	assert := assert.New(t)
+
+	// Create nodes
+	state := state.TestStateStore(t)
+	drainingNode, runningNode := testNodes(t, state)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 10
+	if tc.Count > 0 {
+		job.TaskGroups[0].Count = tc.Count
+	}
+	if tc.MaxParallel > 0 {
+		job.TaskGroups[0].Migrate.MaxParallel = tc.MaxParallel
+	}
+	require.Nil(state.UpsertJob(102, job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		a := mock.Alloc()
+		a.JobID = job.ID
+		a.Job = job
+		a.TaskGroup = job.TaskGroups[0].Name
+
+		// Default to being healthy on the draining node
+		a.NodeID = drainingNode.ID
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		if tc.AddAlloc != nil {
+			tc.AddAlloc(i, a, drainingNode.ID, runningNode.ID)
+		}
+		allocs = append(allocs, a)
 	}
 
-	for cnum, c := range cases {
-		t.Run(fmt.Sprintf("%d", cnum), func(t *testing.T) {
-			require := require.New(t)
+	require.Nil(state.UpsertAllocs(103, allocs))
+	snap, err := state.Snapshot()
+	require.Nil(err)
 
-			// Create a draining node
-			state := state.TestStateStore(t)
-
-			drainingNode := mock.Node()
-			drainingNode.DrainStrategy = &structs.DrainStrategy{
-				DrainSpec: structs.DrainSpec{
-					Deadline: 5 * time.Minute,
-				},
-				ForceDeadline: time.Now().Add(1 * time.Minute),
-			}
-			require.Nil(state.UpsertNode(100, drainingNode))
-
-			healthyNode := mock.Node()
-			require.Nil(state.UpsertNode(101, healthyNode))
-
-			job := mock.Job()
-			job.TaskGroups[0].Migrate.MaxParallel = c.maxParallel
-			require.Nil(state.UpsertJob(101, job))
-
-			// Create running allocs on the draining node with health set
-			var allocs []*structs.Allocation
-			for i := 0; i < c.drainingNodeAllocs; i++ {
-				a := mock.Alloc()
-				a.Job = job
-				a.TaskGroup = job.TaskGroups[0].Name
-				a.NodeID = drainingNode.ID
-				a.DeploymentStatus = &structs.AllocDeploymentStatus{
-					Healthy: helper.BoolToPtr(false),
-				}
-				allocs = append(allocs, a)
-			}
-
-			// Create stopped allocs on the draining node
-			for i := 10 - c.drainingNodeAllocs; i > 0; i-- {
-				a := mock.Alloc()
-				a.Job = job
-				a.TaskGroup = job.TaskGroups[0].Name
-				a.NodeID = drainingNode.ID
-				a.DeploymentStatus = &structs.AllocDeploymentStatus{
-					Healthy: helper.BoolToPtr(false),
-				}
-				a.DesiredStatus = structs.AllocDesiredStatusStop
-				allocs = append(allocs, a)
-			}
-
-			// Create allocs on the healthy node with health set
-			for i := 0; i < c.healthSet; i++ {
-				a := mock.Alloc()
-				a.Job = job
-				a.TaskGroup = job.TaskGroups[0].Name
-				a.NodeID = healthyNode.ID
-				a.DeploymentStatus = &structs.AllocDeploymentStatus{
-					Healthy: helper.BoolToPtr(false),
-				}
-				allocs = append(allocs, a)
-			}
-
-			// Create allocs on the healthy node with health not set
-			for i := 0; i < c.healthUnset; i++ {
-				a := mock.Alloc()
-				a.Job = job
-				a.TaskGroup = job.TaskGroups[0].Name
-				a.NodeID = healthyNode.ID
-				allocs = append(allocs, a)
-			}
-			require.Nil(state.UpsertAllocs(103, allocs))
-
-			snap, err := state.Snapshot()
-			require.Nil(err)
-
-			res := &jobResult{}
-			require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 101, res))
-			require.Len(res.drain, c.expectedDrain)
-			require.Len(res.migrated, c.expectedMigrated)
-			require.Equal(c.expectedDone, res.done)
-		})
-	}
+	res := newJobResult()
+	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 102, res))
+	assert.Lenf(res.drain, tc.ExpectedDrained, "Drain expected %d but found: %d",
+		tc.ExpectedDrained, len(res.drain))
+	assert.Lenf(res.migrated, tc.ExpectedMigrated, "Migrate expected %d but found: %d",
+		tc.ExpectedMigrated, len(res.migrated))
+	assert.Equal(tc.ExpectedDone, res.done)
 }
 
 func TestHandleTaskGroup_Migrations(t *testing.T) {
