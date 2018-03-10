@@ -1794,13 +1794,13 @@ func (n *NetworkResource) PortLabels() map[string]int {
 
 // JobNs is a Job.ID and Namespace tuple
 type JobNs struct {
-	ID, Namespace string
+	Namespace, ID string
 }
 
 func NewJobNs(namespace, id string) JobNs {
 	return JobNs{
-		ID:        id,
 		Namespace: namespace,
+		ID:        id,
 	}
 }
 

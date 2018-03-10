@@ -74,9 +74,7 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		return
 	}
 	n.logger.Printf("[TRACE] nomad.drain: node %q has %d services on it", node.ID, len(jobs))
-	for _, job := range jobs {
-		n.jobWatcher.RegisterJob(job)
-	}
+	n.jobWatcher.RegisterJobs(jobs)
 
 	// TODO Test at this layer as well that a node drain on a node without
 	// allocs immediately gets unmarked as draining

@@ -332,7 +332,6 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, er
 	}
 	n.batcher.Unlock()
 
-	// Wait for the future
 	if err := future.Wait(); err != nil {
 		return 0, err
 	}
