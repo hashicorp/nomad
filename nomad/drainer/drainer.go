@@ -295,9 +295,12 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	}
 	n.l.RUnlock()
 
-	// TODO(alex) Shard
-	if _, err := n.raft.NodesDrainComplete(done); err != nil {
-		n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
+	// Submit the node transistions in a sharded form to ensure a reasonable
+	// Raft transaction size.
+	for _, nodes := range partitionIds(done) {
+		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
+		}
 	}
 }
 
@@ -341,13 +344,11 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, er
 // the set of allocations. It will also create the necessary evaluations for the
 // affected jobs.
 func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs.Allocation) {
-	// TODO(alex) This should shard to limit the size of the transaction.
-
 	// Compute the effected jobs and make the transition map
 	jobs := make(map[string]*structs.Allocation, 4)
-	transitions := make(map[string]*structs.DesiredTransition, len(allocs))
+	transistions := make(map[string]*structs.DesiredTransition, len(allocs))
 	for _, alloc := range allocs {
-		transitions[alloc.ID] = &structs.DesiredTransition{
+		transistions[alloc.ID] = &structs.DesiredTransition{
 			Migrate: helper.BoolToPtr(true),
 		}
 		jobs[alloc.JobID] = alloc
@@ -367,6 +368,14 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 	}
 
 	// Commit this update via Raft
-	index, err := n.raft.AllocUpdateDesiredTransition(transitions, evals)
-	future.Respond(index, err)
+	var finalIndex uint64
+	for _, u := range partitionAllocDrain(transistions, evals) {
+		index, err := n.raft.AllocUpdateDesiredTransition(u.Transistions, u.Evals)
+		if err != nil {
+			future.Respond(index, err)
+		}
+		finalIndex = index
+	}
+
+	future.Respond(finalIndex, nil)
 }
