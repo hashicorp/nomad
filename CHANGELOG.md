@@ -759,7 +759,7 @@ BUG FIXES:
   * core: Fix blocked evaluations being run without properly accounting for
     priority [[GH-1183](https://github.com/hashicorp/nomad/issues/1183)]
   * api: Tasks are no longer allowed to have slashes in their name [[GH-1210](https://github.com/hashicorp/nomad/issues/1210)]
-  * client: Delete tmp files used to communicate with execcutor [[GH-1241](https://github.com/hashicorp/nomad/issues/1241)]
+  * client: Delete tmp files used to communicate with executor [[GH-1241](https://github.com/hashicorp/nomad/issues/1241)]
   * client: Prevent the client from restoring with incorrect task state [[GH-1294](https://github.com/hashicorp/nomad/issues/1294)]
   * discovery: Ensure service and check names are unique [GH-1143, GH-1144]
   * driver/docker: Ensure docker client doesn't time out after a minute.
