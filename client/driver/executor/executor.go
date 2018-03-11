@@ -438,7 +438,7 @@ var (
 )
 
 // ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
-// reminants of a child UniversalExecutor.
+// remnants of a child UniversalExecutor.
 func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return clientCleanup(ic, pid)
 }
