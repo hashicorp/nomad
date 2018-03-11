@@ -695,7 +695,7 @@ func TestConsul_RegServices(t *testing.T) {
 	ctx.Task.Services[0].Name = "taskname-service2"
 	ctx.Task.Services[0].Tags[0] = "tag3"
 	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, nil, nil); err != nil {
-		t.Fatalf("unpexpected error registering task: %v", err)
+		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
 	// Assert check update is pending
