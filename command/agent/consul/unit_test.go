@@ -147,7 +147,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg1.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg1.NumChecks(); num != 0 {
 		t.Fatalf("Wrong number of checks: got %d; want 0", num)
@@ -199,7 +199,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg2.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg2.NumChecks(); num != 0 {
 		t.Fatalf("Wrong number of checks: got %d; want 0", num)
@@ -448,7 +448,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg1.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg1.NumChecks(); num != 1 {
 		t.Fatalf("Wrong number of checks: got %d; want 1", num)
@@ -562,7 +562,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg2.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg2.NumChecks(); num != 2 {
 		t.Fatalf("Wrong number of checks: got %d; want 2", num)
