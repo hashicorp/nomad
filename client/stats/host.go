@@ -53,7 +53,7 @@ type DiskStats struct {
 	InodesUsedPercent float64
 }
 
-// NodeStatsCollector is an interface which is used for the puproses of mocking
+// NodeStatsCollector is an interface which is used for the purposes of mocking
 // the HostStatsCollector in the tests
 type NodeStatsCollector interface {
 	Collect() error
