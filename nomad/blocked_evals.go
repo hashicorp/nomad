@@ -177,7 +177,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	}
 
 	// Check if the job already has a blocked evaluation. If it does add it to
-	// the list of duplicates. We omly ever want one blocked evaluation per job,
+	// the list of duplicates. We only ever want one blocked evaluation per job,
 	// otherwise we would create unnecessary work for the scheduler as multiple
 	// evals for the same job would be run, all producing the same outcome.
 	if _, existing := b.jobs[eval.JobID]; existing {
