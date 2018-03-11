@@ -168,6 +168,6 @@ func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 	// Fetch the response
 	var resp structs.PeriodicForceResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp); err == nil {
-		t.Fatalf("Force on non-perodic job should err")
+		t.Fatalf("Force on non-periodic job should err")
 	}
 }

@@ -329,7 +329,7 @@ func deploymentSchema() *memdb.TableSchema {
 }
 
 // periodicLaunchTableSchema returns the MemDB schema tracking the most recent
-// launch time for a perioidic job.
+// launch time for a periodic job.
 func periodicLaunchTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "periodic_launch",

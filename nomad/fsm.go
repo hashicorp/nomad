@@ -442,7 +442,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		}
 
 		// We always delete from the periodic launch table because it is possible that
-		// the job was updated to be non-perioidic, thus checking if it is periodic
+		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
 		n.state.DeletePeriodicLaunch(index, req.Namespace, req.JobID)
 	} else {
