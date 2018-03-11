@@ -65,7 +65,7 @@ type BlockedEvals struct {
 	// duplicates.
 	duplicateCh chan struct{}
 
-	// timetable is used to coorelate indexes with their insertion time. This
+	// timetable is used to correlate indexes with their insertion time. This
 	// allows us to prune based on time.
 	timetable *TimeTable
 
