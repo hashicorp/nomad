@@ -43,7 +43,7 @@ var (
 	// task.
 	TmpDirName = "tmp"
 
-	// The set of directories that exist inside eache shared alloc directory.
+	// The set of directories that exist inside each shared alloc directory.
 	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// The name of the directory that exists inside each task directory
