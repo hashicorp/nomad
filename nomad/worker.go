@@ -516,7 +516,7 @@ func (w *Worker) shouldResubmit(err error) bool {
 
 // backoffErr is used to do an exponential back off on error. This is
 // maintained statefully for the worker. Returns if attempts should be
-// abandoneded due to shutdown.
+// abandoned due to shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {
