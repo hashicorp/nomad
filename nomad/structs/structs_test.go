@@ -2211,13 +2211,13 @@ func TestService_Canonicalize(t *testing.T) {
 	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
 	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
 	}
 
 	s.Name = "${BASE}-db"
 	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
 	}
 
 }
