@@ -494,7 +494,7 @@ BUG FIXES:
     manifested as slow starts, delayed kills, etc [[GH-2177](https://github.com/hashicorp/nomad/issues/2177)]
   * client: Fix a panic that would occur with a racy alloc migration
     cancellation [[GH-2231](https://github.com/hashicorp/nomad/issues/2231)]
-  * config: Fix merging of Consul options which caused auto_adverise to be
+  * config: Fix merging of Consul options which caused auto_advertise to be
     ignored [[GH-2159](https://github.com/hashicorp/nomad/issues/2159)]
   * driver: Fix image based drivers (eg docker) having host env vars set [[GH-2211](https://github.com/hashicorp/nomad/issues/2211)]
   * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
