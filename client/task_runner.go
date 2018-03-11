@@ -648,7 +648,7 @@ func (r *TaskRunner) validateTask() error {
 		// Verify the artifact doesn't escape the task directory.
 		if err := artifact.Validate(); err != nil {
 			// If this error occurs there is potentially a server bug or
-			// mallicious, server spoofing.
+			// malicious, server spoofing.
 			r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
 				r.alloc.ID, r.task.Name, artifact, i, err)
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("artifact (%d) failed validation: %v", i, err))
