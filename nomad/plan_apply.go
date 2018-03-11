@@ -300,7 +300,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 	outstanding := 0
 	didCancel := false
 
-	// Evalute each node in the plan, handling results as they are ready to
+	// Evaluate each node in the plan, handling results as they are ready to
 	// avoid blocking.
 OUTER:
 	for len(nodeIDList) > 0 {
