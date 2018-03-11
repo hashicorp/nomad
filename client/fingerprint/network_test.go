@@ -68,18 +68,18 @@ var (
 )
 
 // A fake network detector which returns no devices
-type NetworkIntefaceDetectorNoDevices struct {
+type NetworkInterfaceDetectorNoDevices struct {
 }
 
-func (f *NetworkIntefaceDetectorNoDevices) Interfaces() ([]net.Interface, error) {
+func (f *NetworkInterfaceDetectorNoDevices) Interfaces() ([]net.Interface, error) {
 	return make([]net.Interface, 0), nil
 }
 
-func (f *NetworkIntefaceDetectorNoDevices) InterfaceByName(name string) (*net.Interface, error) {
+func (f *NetworkInterfaceDetectorNoDevices) InterfaceByName(name string) (*net.Interface, error) {
 	return nil, fmt.Errorf("Device with name %s doesn't exist", name)
 }
 
-func (f *NetworkIntefaceDetectorNoDevices) Addrs(intf *net.Interface) ([]net.Addr, error) {
+func (f *NetworkInterfaceDetectorNoDevices) Addrs(intf *net.Interface) ([]net.Addr, error) {
 	return nil, fmt.Errorf("No interfaces found for device %v", intf.Name)
 }
 
