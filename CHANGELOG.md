@@ -185,7 +185,7 @@ BUG FIXES:
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [[GH-3195](https://github.com/hashicorp/nomad/issues/3195)]
  * client: Fix data race that could lead to concurrent map read/writes during
-   hearbeating and fingerprinting [[GH-3461](https://github.com/hashicorp/nomad/issues/3461)]
+   heartbeating and fingerprinting [[GH-3461](https://github.com/hashicorp/nomad/issues/3461)]
  * driver/docker: Fix docker user specified syslogging [[GH-3184](https://github.com/hashicorp/nomad/issues/3184)]
  * driver/docker: Fix issue where CPU usage statistics were artificially high
    [[GH-3229](https://github.com/hashicorp/nomad/issues/3229)]

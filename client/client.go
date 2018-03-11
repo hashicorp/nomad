@@ -1044,7 +1044,7 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 }
 
 // registerAndHeartbeat is a long lived goroutine used to register the client
-// and then start heartbeatng to the server.
+// and then start heartbeating to the server.
 func (c *Client) registerAndHeartbeat() {
 	// Register the node
 	c.retryRegisterNode()
