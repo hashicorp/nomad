@@ -562,7 +562,7 @@ type AllocsGetRequest struct {
 	QueryOptions
 }
 
-// PeriodicForceReqeuest is used to force a specific periodic job.
+// PeriodicForceRequest is used to force a specific periodic job.
 type PeriodicForceRequest struct {
 	JobID string
 	WriteRequest
