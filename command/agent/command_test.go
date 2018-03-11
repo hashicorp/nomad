@@ -52,7 +52,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 	}
 	for _, tc := range tcases {
-		// Make a new command. We pre-emptively close the shutdownCh
+		// Make a new command. We preemptively close the shutdownCh
 		// so that the command exits immediately instead of blocking.
 		ui := new(cli.MockUi)
 		shutdownCh := make(chan struct{})
