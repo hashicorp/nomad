@@ -57,7 +57,7 @@ type BlockedEvals struct {
 
 	// duplicates is the set of evaluations for jobs that had pre-existing
 	// blocked evaluations. These should be marked as cancelled since only one
-	// blocked eval is neeeded per job.
+	// blocked eval is needed per job.
 	duplicates []*structs.Evaluation
 
 	// duplicateCh is used to signal that a duplicate eval was added to the
