@@ -122,7 +122,7 @@ const (
 
 	// This is cpu.cfs_period_us: the length of a period.
 	// The default values is 100 milliseconds (ms) represented in microseconds (us).
-	// Below is the documnentation:
+	// Below is the documentation:
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	// https://docs.docker.com/engine/api/v1.35/#
 	defaultCFSPeriodUS = 100000
