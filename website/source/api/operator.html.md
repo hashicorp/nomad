@@ -184,7 +184,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required     |
 | ---------------- | ----------------- | ---------------- |
-| `NO`             | `none`            | `opreator:write` |
+| `NO`             | `none`            | `operator:write` |
 
 ### Parameters
 
@@ -249,7 +249,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required    |
 | ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `opreator:read` |
+| `NO`             | `none`            | `operator:read` |
 
 ### Sample Request
 
