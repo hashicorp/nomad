@@ -181,7 +181,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	// Write a symlink to the task local
 	link1 := "baz"
 	if err := os.Symlink("bar", filepath.Join(td1.LocalDir, link1)); err != nil {
-		t.Fatalf("couldn't write symlink to task local dirctory :%v", err)
+		t.Fatalf("couldn't write symlink to task local directory :%v", err)
 	}
 
 	var b bytes.Buffer
