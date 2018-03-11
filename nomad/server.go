@@ -132,7 +132,7 @@ type Server struct {
 	staticEndpoints endpoints
 
 	// streamingRpcs is the registry holding our streaming RPC handlers.
-	streamingRpcs *structs.StreamingRpcRegistery
+	streamingRpcs *structs.StreamingRpcRegistry
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
@@ -283,7 +283,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		logger:        logger,
 		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
-		streamingRpcs: structs.NewStreamingRpcRegistery(),
+		streamingRpcs: structs.NewStreamingRpcRegistry(),
 		nodeConns:     make(map[string]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
