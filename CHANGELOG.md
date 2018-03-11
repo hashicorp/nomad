@@ -146,7 +146,7 @@ __BACKWARDS INCOMPATIBILITIES:__
    version.
 
 IMPROVEMENTS:
- * core: Capability based ACL system with authoratative region, providing
+ * core: Capability based ACL system with authoritative region, providing
    federated ACLs.
  * core/enterprise: Sentinel integration for fine grain policy enforcement.
  * core/enterprise: Namespace support allowing jobs and their associated

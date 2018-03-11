@@ -987,8 +987,8 @@ ACL Options:
 
   -acl-replication-token
     The replication token for servers to use when replicating from the
-    authoratative region. The token must be a valid management token from the
-    authoratative region.
+    authoritative region. The token must be a valid management token from the
+    authoritative region.
 
 Consul Options:
 
