@@ -75,7 +75,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 		return nil
 	}
 
-	// newNetwork is populated and addded to the Nodes resources
+	// newNetwork is populated and added to the Nodes resources
 	newNetwork := &structs.NetworkResource{
 		Device: "eth0",
 	}
