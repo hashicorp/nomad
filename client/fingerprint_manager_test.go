@@ -167,7 +167,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	})
 }
 
-func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
+func TestFingerprintManager_Run_InWhitelist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -203,7 +203,7 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	require.NotEqual(node.Attributes["cpu.frequency"], "")
 }
 
-func TestFimgerprintManager_Run_InBlacklist(t *testing.T) {
+func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -241,7 +241,7 @@ func TestFimgerprintManager_Run_InBlacklist(t *testing.T) {
 	require.NotEqual(node.Attributes["memory.totalbytes"], "")
 }
 
-func TestFimgerprintManager_Run_Combination(t *testing.T) {
+func TestFingerprintManager_Run_Combination(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -281,7 +281,7 @@ func TestFimgerprintManager_Run_Combination(t *testing.T) {
 	require.Equal(node.Attributes["nomad.version"], "")
 }
 
-func TestFimgerprintManager_Run_WhitelistDrivers(t *testing.T) {
+func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -320,7 +320,7 @@ func TestFimgerprintManager_Run_WhitelistDrivers(t *testing.T) {
 	require.NotEqual(node.Attributes["driver.raw_exec"], "")
 }
 
-func TestFimgerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
+func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -360,7 +360,7 @@ func TestFimgerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	require.Equal(node.Attributes["driver.docker"], "")
 }
 
-func TestFimgerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.T) {
+func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -404,7 +404,7 @@ func TestFimgerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 	require.Equal(node.Attributes["baz"], "")
 }
 
-func TestFimgerprintManager_Run_DriversInBlacklist(t *testing.T) {
+func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
