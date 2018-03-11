@@ -101,7 +101,7 @@ type dockerCoordinator struct {
 	// imageRefCount is the reference count of image IDs
 	imageRefCount map[string]map[string]struct{}
 
-	// deleteFuture is indexed by image ID and has a cancable delete future
+	// deleteFuture is indexed by image ID and has a cancelable delete future
 	deleteFuture map[string]context.CancelFunc
 }
 
