@@ -408,7 +408,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "", fmt.Errorf("failed to get node '%s': %v", nodeID, err)
 	}
 
-	// If the node does not exist or is not ready for schduling it is not fit
+	// If the node does not exist or is not ready for scheduling it is not fit
 	// XXX: There is a potential race between when we do this check and when
 	// the Raft commit happens.
 	if node == nil {
