@@ -209,7 +209,7 @@ type Driver interface {
 	fingerprint.Fingerprint
 
 	// Prestart prepares the task environment and performs expensive
-	// intialization steps like downloading images.
+	// initialization steps like downloading images.
 	//
 	// CreatedResources may be non-nil even when an error occurs.
 	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
