@@ -191,7 +191,7 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	// Query the metadata url for the ami-id, to veryify we're on AWS
+	// Query the metadata url for the ami-id, to verify we're on AWS
 	resp, err := client.Get(metadataURL + "ami-id")
 	if err != nil {
 		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
