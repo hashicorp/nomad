@@ -549,7 +549,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 }
 
 // aclPolicyTableSchema returns the MemDB schema for the policy table.
-// This table is used to store the policies which are refrenced by tokens
+// This table is used to store the policies which are referenced by tokens
 func aclPolicyTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "acl_policy",
