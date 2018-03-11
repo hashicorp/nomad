@@ -1016,7 +1016,7 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 }
 
 // storeForRevocation stores the passed set of accessors for revocation. It
-// captrues their effective TTL by storing their create TTL plus the current
+// captures their effective TTL by storing their create TTL plus the current
 // time.
 func (v *vaultClient) storeForRevocation(accessors []*structs.VaultAccessor) {
 	v.revLock.Lock()
