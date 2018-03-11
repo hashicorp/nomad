@@ -1792,7 +1792,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	return unwrappedTokens, nil
 }
 
-// triggerDiscovery causes a Consul discovery to begin (if one hasn't alread)
+// triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
 	select {
 	case c.triggerDiscoveryCh <- struct{}{}:
