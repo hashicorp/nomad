@@ -2966,7 +2966,7 @@ func TestACLTokenValidate(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	// Invalid policices
+	// Invalid policies
 	tk.Type = ACLManagementToken
 	tk.Policies = []string{"foo"}
 	err = tk.Validate()
@@ -2975,7 +2975,7 @@ func TestACLTokenValidate(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	// Name too long policices
+	// Name too long policies
 	tk.Name = uuid.Generate() + uuid.Generate()
 	tk.Policies = nil
 	err = tk.Validate()
