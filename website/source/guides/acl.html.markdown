@@ -371,12 +371,12 @@ This is because the reset file is in place, but with the incorrect index.
 The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
 ## Vault Integration
-Hashicorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
+HashiCorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
 authentication backends, it could provide a workflow where a user or orchestration system authenticates
 using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived
 Nomad token.
 
-~> Hashicorp Vault is a standalone product with it's own set of deployment and
+~> HashiCorp Vault is a standalone product with it's own set of deployment and
    configuration best practices. Please review [Vault's
    documentation](https://www.vaultproject.io/docs/index.html) before deploying it
    in production.
