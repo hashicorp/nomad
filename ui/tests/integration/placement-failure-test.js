@@ -99,7 +99,7 @@ test('should render correctly when a node is not evaluated', function(assert) {
   assert.equal(
     findAll('[data-test-placement-failure-nodes-exhausted]').length,
     0,
-    'Nodes exhausted message NOT shown when there are no nodes exausted'
+    'Nodes exhausted message NOT shown when there are no nodes exhausted'
   );
 });
 
