@@ -528,7 +528,7 @@ type ApplyPlanResultsRequest struct {
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
-// to cause evictions or to assign new allocaitons. Both can be done
+// to cause evictions or to assign new allocations. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
 	// Alloc is the list of new allocations to assign
@@ -2255,7 +2255,7 @@ type UpdateStrategy struct {
 	HealthCheck string
 
 	// MinHealthyTime is the minimum time an allocation must be in the healthy
-	// state before it is marked as healthy, unblocking more alllocations to be
+	// state before it is marked as healthy, unblocking more allocations to be
 	// rolled.
 	MinHealthyTime time.Duration
 

@@ -1732,7 +1732,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		}
 		if !found {
 			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
-			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocation", taskName)
 		}
 		verifiedTasks = append(verifiedTasks, taskName)
 	}
