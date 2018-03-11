@@ -35,7 +35,7 @@ Apply Options:
     Sets the scope of the policy and when it should be enforced.
 
   -level (default: advisory)
-    Sets the enforcment level of the policy. Must be one of advisory,
+    Sets the enforcement level of the policy. Must be one of advisory,
     soft-mandatory, hard-mandatory.
 
 `
