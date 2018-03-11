@@ -2023,7 +2023,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	}, func(err error) {
 		services, _ := ctx.consul.Services()
 		for _, s := range services {
-			t.Logf(pretty.Sprint("Serivce: ", s))
+			t.Logf(pretty.Sprint("Service: ", s))
 		}
 		for _, c := range ctx.consul.CheckRegs() {
 			t.Logf(pretty.Sprint("Check:   ", c))
