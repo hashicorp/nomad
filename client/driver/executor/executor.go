@@ -129,7 +129,7 @@ type nomadPid struct {
 	cpuStatsSys   *stats.CpuStats
 }
 
-// SyslogServerState holds the address and islation information of a launched
+// SyslogServerState holds the address and isolation information of a launched
 // syslog server
 type SyslogServerState struct {
 	IsolationConfig *dstructs.IsolationConfig
