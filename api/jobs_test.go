@@ -892,7 +892,7 @@ func TestJobs_Allocations(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Looking up by a non-existent job returns nothing
+	// Looking up by a non-Existent job returns nothing
 	allocs, qm, err := jobs.Allocations("job1", true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -914,7 +914,7 @@ func TestJobs_Evaluations(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Looking up by a non-existent job ID returns nothing
+	// Looking up by a non-Existent job ID returns nothing
 	evals, qm, err := jobs.Evaluations("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -1016,7 +1016,7 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Force-eval on a non-existent job fails
+	// Force-eval on a non-Existent job fails
 	_, _, err := jobs.ForceEvaluate("job1", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -1056,7 +1056,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Force-eval on a non-existent job fails
+	// Force-eval on a non-Existent job fails
 	_, _, err := jobs.PeriodicForce("job1", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)

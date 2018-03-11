@@ -579,14 +579,14 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	// Determine if we are deleting local or global tokens
 	hasGlobal := false
 	allGlobal := true
-	nonexistentTokens := make([]string, 0)
+	nonExistentTokens := make([]string, 0)
 	for _, accessor := range args.AccessorIDs {
 		token, err := state.ACLTokenByAccessorID(nil, accessor)
 		if err != nil {
 			return fmt.Errorf("token lookup failed: %v", err)
 		}
 		if token == nil {
-			nonexistentTokens = append(nonexistentTokens, accessor)
+			nonExistentTokens = append(nonExistentTokens, accessor)
 			continue
 		}
 		if token.Global {
@@ -596,8 +596,8 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 		}
 	}
 
-	if len(nonexistentTokens) != 0 {
-		return fmt.Errorf("Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
+	if len(nonExistentTokens) != 0 {
+		return fmt.Errorf("Cannot delete nonExistent tokens: %v", strings.Join(nonExistentTokens, ", "))
 	}
 
 	// Disallow mixed requests with global and non-global tokens since we forward

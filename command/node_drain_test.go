@@ -42,7 +42,7 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	// Fails on non-existent node
+	// Fails on non-Existent node
 	if code := cmd.Run([]string{"-address=" + url, "-enable", "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}

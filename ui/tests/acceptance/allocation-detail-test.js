@@ -128,7 +128,7 @@ test('when the allocation is not found, an error message is shown, but the URL p
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
-      'A request to the non-existent allocation is made'
+      'A request to the non-Existent allocation is made'
     );
     assert.equal(currentURL(), '/allocations/not-a-real-allocation', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');

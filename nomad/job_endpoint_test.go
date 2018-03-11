@@ -161,7 +161,7 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	// Try without a token, expect failure
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "non-existent namespace") {
+	if err == nil || !strings.Contains(err.Error(), "non-Existent namespace") {
 		t.Fatalf("expected namespace error: %v", err)
 	}
 

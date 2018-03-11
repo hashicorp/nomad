@@ -93,7 +93,7 @@ func TestNodes_Info(t *testing.T) {
 	defer s.Stop()
 	nodes := c.Nodes()
 
-	// Retrieving a non-existent node returns error
+	// Retrieving a non-Existent node returns error
 	_, _, err := nodes.Info("12345678-abcd-efab-cdef-123456789abc", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -208,7 +208,7 @@ func TestNodes_Allocations(t *testing.T) {
 	defer s.Stop()
 	nodes := c.Nodes()
 
-	// Looking up by a non-existent node returns nothing. We
+	// Looking up by a non-Existent node returns nothing. We
 	// don't check the index here because it's possible the node
 	// has already registered, in which case we will get a non-
 	// zero result anyways.
@@ -229,7 +229,7 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 	defer s.Stop()
 	nodes := c.Nodes()
 
-	// Force-eval on a non-existent node fails
+	// Force-eval on a non-Existent node fails
 	_, _, err := nodes.ForceEvaluate("12345678-abcd-efab-cdef-123456789abc", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)

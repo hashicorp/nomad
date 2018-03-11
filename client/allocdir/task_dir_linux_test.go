@@ -26,13 +26,13 @@ func TestLinuxSpecialDirs(t *testing.T) {
 	// Despite the task dir not existing, unmountSpecialDirs should *not*
 	// return an error
 	if err := td.unmountSpecialDirs(); err != nil {
-		t.Fatalf("error removing nonexistent special dirs: %v", err)
+		t.Fatalf("error removing nonExistent special dirs: %v", err)
 	}
 
-	// Mounting special dirs in a nonexistent task dir *should* return an
+	// Mounting special dirs in a nonExistent task dir *should* return an
 	// error
 	if err := td.mountSpecialDirs(); err == nil {
-		t.Fatalf("expected mounting in a nonexistent task dir %q to fail", td.Dir)
+		t.Fatalf("expected mounting in a nonExistent task dir %q to fail", td.Dir)
 	}
 
 	// Create the task dir like TaskDir.Build would

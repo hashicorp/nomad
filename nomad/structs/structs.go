@@ -3632,7 +3632,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 func validateServices(t *Task) error {
 	var mErr multierror.Error
 
-	// Ensure that services don't ask for non-existent ports and their names are
+	// Ensure that services don't ask for non-Existent ports and their names are
 	// unique.
 	servicePorts := make(map[string]map[string]struct{})
 	addServicePort := func(label, service string) {

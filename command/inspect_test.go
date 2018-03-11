@@ -32,7 +32,7 @@ func TestInspectCommand_Fails(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	// Fails on non-existent job ID
+	// Fails on non-Existent job ID
 	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
