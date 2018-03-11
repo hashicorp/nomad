@@ -153,7 +153,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				return
 			}
 
-			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deploylements: %v", err)
+			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deployments: %v", err)
 		}
 
 		// Update the latest index
