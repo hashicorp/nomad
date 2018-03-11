@@ -883,7 +883,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	if c.NetworkSettings == nil {
 		// This should only happen if there's been a coding error (such
-		// as not calling InspetContainer after CreateContainer). Code
+		// as not calling InspectContainer after CreateContainer). Code
 		// defensively in case the Docker API changes subtly.
 		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
 		return "", false
