@@ -613,7 +613,7 @@ func (c *Client) SetServers(in []string) error {
 }
 
 // setServersImpl sets a new list of nomad servers to connect to. If force is
-// set, we add the server to the internal severlist even if the server could not
+// set, we add the server to the internal serverlist even if the server could not
 // be pinged. An error is returned if no endpoints were valid when non-forcing.
 //
 // Force should be used when setting the servers from the initial configuration
