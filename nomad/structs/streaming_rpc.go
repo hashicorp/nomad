@@ -14,7 +14,7 @@ type StreamingRpcHeader struct {
 }
 
 // StreamingRpcAck is used to acknowledge receiving the StreamingRpcHeader and
-// routing to the requirested handler.
+// routing to the requested handler.
 type StreamingRpcAck struct {
 	// Error is used to return whether an error occurred establishing the
 	// streaming RPC. This error occurs before entering the RPC handler.
