@@ -1609,7 +1609,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	}
 
 	// Trigger the GC once more now that new allocs are started that could
-	// have caused thesholds to be exceeded
+	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
 }
 
