@@ -318,7 +318,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, reschedule := untainted.filterByRescheduleable(a.batch, tg.ReschedulePolicy)
+	untainted, reschedule := untainted.filterByReschedulable(a.batch, tg.ReschedulePolicy)
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)

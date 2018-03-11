@@ -227,9 +227,9 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 	return
 }
 
-// filterByRescheduleable filters the allocation set to return the set of allocations that are either
+// filterByReschedulable filters the allocation set to return the set of allocations that are either
 // terminal or running, and a set of allocations that must be rescheduled
-func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs.ReschedulePolicy) (untainted, reschedule allocSet) {
+func (a allocSet) filterByReschedulable(isBatch bool, reschedulePolicy *structs.ReschedulePolicy) (untainted, reschedule allocSet) {
 	untainted = make(map[string]*structs.Allocation)
 	reschedule = make(map[string]*structs.Allocation)
 
@@ -259,7 +259,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, reschedulePolicy *structs
 			//ignore allocs that have already been rescheduled
 			if alloc.NextAllocation == "" {
 				// ignore allocs whose desired state is stop/evict
-				// everything else is either rescheduleable or untainted
+				// everything else is either reschedulable or untainted
 				if alloc.ShouldReschedule(reschedulePolicy, now) {
 					reschedule[alloc.ID] = alloc
 				} else if alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict {
