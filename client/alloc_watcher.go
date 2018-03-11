@@ -260,7 +260,7 @@ func (p *remotePrevAlloc) IsMigrating() bool {
 	return b
 }
 
-// Wait until the remote previousl allocation has terminated.
+// Wait until the remote previous allocation has terminated.
 func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 	p.waitingLock.Lock()
 	p.waiting = true
