@@ -5847,7 +5847,7 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
-// not been overcommitted before admiting the plan.
+// not been overcommitted before admitting the plan.
 type Plan struct {
 	// EvalID is the evaluation ID this plan is associated with
 	EvalID string
