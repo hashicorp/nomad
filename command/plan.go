@@ -504,7 +504,7 @@ func getDiffString(diffType string) (string, int) {
 	}
 }
 
-// colorAnnotations returns a comma concatonated list of the annotations where
+// colorAnnotations returns a comma concatenated list of the annotations where
 // the annotations are colored where possible.
 func colorAnnotations(annotations []string) string {
 	l := len(annotations)
