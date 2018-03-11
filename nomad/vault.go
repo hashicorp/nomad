@@ -320,7 +320,7 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	v.l.Lock()
 	defer v.l.Unlock()
 
-	// Kill any background routintes
+	// Kill any background routines
 	if v.running {
 		// Stop accepting any new request
 		v.connEstablished = false
