@@ -5493,7 +5493,7 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
 // deployment. This can include things like if the allocation has been marked as
-// heatlhy.
+// healthy.
 type AllocDeploymentStatus struct {
 	// Healthy marks whether the allocation has been marked healthy or unhealthy
 	// as part of a deployment. It can be unset if it has neither been marked
