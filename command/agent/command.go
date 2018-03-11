@@ -956,7 +956,7 @@ Client Options:
     specified a subdirectory under the "-data-dir" will be used.
 
   -alloc-dir
-    The directory used to store allocation data such as downloaded artificats as
+    The directory used to store allocation data such as downloaded artifacts as
     well as data produced by tasks. If not specified, a subdirectory under the
     "-data-dir" will be used.
 
