@@ -84,7 +84,7 @@ func (s *Server) monitorLeadership() {
 }
 
 // leaderLoop runs as long as we are the leader to run various
-// maintence activities
+// maintenance activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
 	establishedLeader := false
