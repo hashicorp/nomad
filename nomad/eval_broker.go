@@ -210,7 +210,7 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 }
 
 // processWaitingEnqueue waits the given duration on the evaluation before
-// enqueueing.
+// enqueuing.
 func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation) {
 	timer := time.AfterFunc(eval.Wait, func() {
 		b.enqueueWaiting(eval)
