@@ -291,7 +291,7 @@ func (a AgentMembersNameSort) Less(i, j int) bool {
 
 }
 
-// AgentHealthResponse is the response from the Health endpoint desecribing an
+// AgentHealthResponse is the response from the Health endpoint describing an
 // agent's health.
 type AgentHealthResponse struct {
 	Client *AgentHealth `json:"client,omitempty"`
