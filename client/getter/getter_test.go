@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// fakeReplacer is a noop version of env.TaskEnv.ReplanceEnv
+// fakeReplacer is a noop version of env.TaskEnv.ReplaceEnv
 type fakeReplacer struct{}
 
 func (fakeReplacer) ReplaceEnv(s string) string {
