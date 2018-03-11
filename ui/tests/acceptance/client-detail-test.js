@@ -70,7 +70,7 @@ test('/clients/:id should list additional detail for the node below the title', 
     assert.equal(
       find('[data-test-address-definition]').textContent,
       `Address ${node.httpAddr}`,
-      'Address is in additional detals'
+      'Address is in additional details'
     );
     assert.equal(
       find('[data-test-datacenter-definition]').textContent,
