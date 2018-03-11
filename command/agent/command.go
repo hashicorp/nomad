@@ -1069,7 +1069,7 @@ Vault Options:
     The role name to create tokens for tasks from.
 
   -vault-allow-unauthenticated
-    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    Whether to allow jobs to be submitted that request Vault Tokens but do not
     authentication. The flag only applies to Servers.
 
   -vault-ca-file=<path>
