@@ -25,7 +25,7 @@ var (
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
 
-	// DefaulUserBlacklist is the default set of users that tasks are not
+	// DefaultUserBlacklist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
 	DefaultUserBlacklist = strings.Join([]string{
 		"root",
