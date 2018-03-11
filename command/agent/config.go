@@ -125,7 +125,7 @@ type Config struct {
 	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
-	// set arbritrary headers on API responses
+	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 
 	// Sentinel holds sentinel related settings
