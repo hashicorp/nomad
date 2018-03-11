@@ -339,7 +339,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	/* Handle upgrade paths:
 	 * - Empty maps and slices should be treated as nil to avoid
 	 *   un-intended destructive updates in scheduler since we use
-	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 	 *   the incoming job.
 	 * - Migrate from old style upgrade stanza that used only a stagger.
 	 */
@@ -943,7 +943,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			/* Handle upgrade paths:
 			 * - Empty maps and slices should be treated as nil to avoid
 			 *   un-intended destructive updates in scheduler since we use
-			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 			 *   the incoming job.
 			 * - Migrate from old style upgrade stanza that used only a stagger.
 			 */

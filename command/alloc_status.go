@@ -145,7 +145,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	allocID = sanatizeUUIDPrefix(allocID)
+	allocID = sanitizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
