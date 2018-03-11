@@ -204,7 +204,7 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) e
 	return moveErr
 }
 
-// remotePrevAlloc is a prevAllcWatcher for previous allocations on remote
+// remotePrevAlloc is a prevAllocWatcher for previous allocations on remote
 // nodes as an updated allocation.
 type remotePrevAlloc struct {
 	// allocID is the ID of the alloc being blocked
