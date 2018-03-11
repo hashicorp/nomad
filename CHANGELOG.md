@@ -163,7 +163,7 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [[GH-3201](https://github.com/hashicorp/nomad/issues/3201)]
  * core: Run deployment garbage collector on an interval [[GH-3267](https://github.com/hashicorp/nomad/issues/3267)]
- * core: Fix paramterized jobs occasionally showing status dead incorrectly
+ * core: Fix parameterized jobs occasionally showing status dead incorrectly
    [[GH-3460](https://github.com/hashicorp/nomad/issues/3460)]
  * core: Fix issue in which job versions above a threshold potentially wouldn't
    be stored [[GH-3372](https://github.com/hashicorp/nomad/issues/3372)]
@@ -431,7 +431,7 @@ IMPROVEMENTS:
   * vault: Disallow root policy from being specified [[GH-2309](https://github.com/hashicorp/nomad/issues/2309)]
 
 BUG FIXES:
-  * core: Handle periodic paramaterized jobs [[GH-2385](https://github.com/hashicorp/nomad/issues/2385)]
+  * core: Handle periodic parameterized jobs [[GH-2385](https://github.com/hashicorp/nomad/issues/2385)]
   * core: Improve garbage collection of stopped batch jobs [[GH-2432](https://github.com/hashicorp/nomad/issues/2432)]
   * api: Fix escaping of HTML characters [[GH-2322](https://github.com/hashicorp/nomad/issues/2322)]
   * cli: Display disk resources in alloc-status [[GH-2404](https://github.com/hashicorp/nomad/issues/2404)]
