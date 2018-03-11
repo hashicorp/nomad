@@ -681,7 +681,7 @@ BUG FIXES:
   * core: Fix race in which a Node registers and doesn't receive system jobs
     [[GH-1456](https://github.com/hashicorp/nomad/issues/1456)]
   * core: Fix issue in which Nodes with large amount of reserved ports would
-    casue dynamic port allocations to fail [[GH-1526](https://github.com/hashicorp/nomad/issues/1526)]
+    cause dynamic port allocations to fail [[GH-1526](https://github.com/hashicorp/nomad/issues/1526)]
   * core: Fix a condition in which old batch allocations could get updated even
     after terminal. In a rare case this could cause a server panic [[GH-1471](https://github.com/hashicorp/nomad/issues/1471)]
   * core: Do not update the Job attached to Allocations that have been marked
