@@ -25,7 +25,7 @@ type HostStats struct {
 	CPUTicksConsumed float64
 }
 
-// MemoryStats represnts stats related to virtual memory usage
+// MemoryStats represents stats related to virtual memory usage
 type MemoryStats struct {
 	Total     uint64
 	Available uint64
