@@ -2951,7 +2951,7 @@ func TestIsRecoverable(t *testing.T) {
 func TestACLTokenValidate(t *testing.T) {
 	tk := &ACLToken{}
 
-	// Mising a type
+	// Missing a type
 	err := tk.Validate()
 	assert.NotNil(t, err)
 	if !strings.Contains(err.Error(), "client or management") {
