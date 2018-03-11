@@ -19,7 +19,7 @@ moduleForAcceptance('Acceptance | client detail', {
   },
 });
 
-test('/clients/:id should have a breadrcumb trail linking back to clients', function(assert) {
+test('/clients/:id should have a breadcrumb trail linking back to clients', function(assert) {
   visit(`/clients/${node.id}`);
 
   andThen(() => {
