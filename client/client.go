@@ -2102,7 +2102,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	}
 }
 
-// No lables are required so we emit with only a key/value syntax
+// No labels are required so we emit with only a key/value syntax
 func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 	if !c.config.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"uptime"}, float32(hStats.Uptime), c.baseLabels)
