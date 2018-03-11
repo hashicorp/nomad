@@ -1039,7 +1039,7 @@ func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, res
 
 		// Block for consul-template
 		// TODO Hooks should register themselves as blocking and then we can
-		// perioidcally enumerate what we are still blocked on
+		// periodically enumerate what we are still blocked on
 		select {
 		case <-r.unblockCh:
 			// Send the start signal
