@@ -2159,7 +2159,7 @@ type JobSummary struct {
 	// Namespace is the namespace of the job and its summary
 	Namespace string
 
-	// Summmary contains the summary per task group for the Job
+	// Summary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
 
 	// Children contains a summary for the children of this job.
