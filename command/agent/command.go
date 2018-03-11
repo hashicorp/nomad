@@ -479,7 +479,7 @@ func (c *Command) Run(args []string) int {
 	}
 	defer c.agent.Shutdown()
 
-	// Shudown the HTTP server at the end
+	// Shutdown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
