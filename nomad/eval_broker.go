@@ -160,7 +160,7 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 // EnqueueAll is used to enqueue many evaluations. The map allows evaluations
 // that are being re-enqueued to include their token.
 //
-// When requeueing an evaluation that potentially may be already
+// When requeuing an evaluation that potentially may be already
 // enqueued. The evaluation is handled in one of the following ways:
 // * Evaluation not outstanding: Process as a normal Enqueue
 // * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
