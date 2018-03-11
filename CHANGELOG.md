@@ -497,7 +497,7 @@ BUG FIXES:
   * config: Fix merging of Consul options which caused auto_advertise to be
     ignored [[GH-2159](https://github.com/hashicorp/nomad/issues/2159)]
   * driver: Fix image based drivers (eg docker) having host env vars set [[GH-2211](https://github.com/hashicorp/nomad/issues/2211)]
-  * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
+  * driver/docker: Fix Docker auth/logging interpolation [GH-2063, GH-2130]
   * driver/docker: Fix parsing of Docker Auth Configurations. New parsing is
     in-line with Docker itself. Also log debug message if auth lookup failed
     [[GH-2190](https://github.com/hashicorp/nomad/issues/2190)]
@@ -849,7 +849,7 @@ BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
     [[GH-884](https://github.com/hashicorp/nomad/issues/884)]
   * api: Guard client/fs/ APIs from being accessed on a non-client node [[GH-890](https://github.com/hashicorp/nomad/issues/890)]
-  * client: Allow dashes in variable names during interprelation [[GH-857](https://github.com/hashicorp/nomad/issues/857)]
+  * client: Allow dashes in variable names during interpolation [[GH-857](https://github.com/hashicorp/nomad/issues/857)]
   * client: Updating kill timeout adheres to operator specified maximum value [[GH-878](https://github.com/hashicorp/nomad/issues/878)]
   * client: Fix a case in which clients would pull but not run allocations
     [[GH-906](https://github.com/hashicorp/nomad/issues/906)]

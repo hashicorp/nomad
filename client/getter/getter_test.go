@@ -91,7 +91,7 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 }
 
-func TestGetGetterUrl_Interprolation(t *testing.T) {
+func TestGetGetterUrl_Interpolation(t *testing.T) {
 	// Create the artifact
 	artifact := &structs.TaskArtifact{
 		GetterSource: "${NOMAD_META_ARTIFACT}",
