@@ -1665,7 +1665,7 @@ type Job struct {
 	// of a deployment and can be manually set via APIs.
 	Stable bool
 
-	// Version is a monitonically increasing version number that is incremened
+	// Version is a monitonically increasing version number that is incremented
 	// on each job register.
 	Version uint64
 
