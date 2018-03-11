@@ -190,7 +190,7 @@ type ServiceClient struct {
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 
-	// skipVerifySupport is true if the local Consul agent suppots TLSSkipVerify
+	// skipVerifySupport is true if the local Consul agent supports TLSSkipVerify
 	skipVerifySupport bool
 
 	// exitCh is closed when the main Run loop exits
