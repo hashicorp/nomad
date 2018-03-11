@@ -107,7 +107,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 }
 
 // Tests GC behavior on allocations being rescheduled
-func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
+func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)
 	defer s1.Shutdown()

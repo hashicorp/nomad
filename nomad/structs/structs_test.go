@@ -2715,7 +2715,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ShouldReschedule: false,
 		},
 		{
-			Desc:             "Disabled recheduling",
+			Desc:             "Disabled rescheduling",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
