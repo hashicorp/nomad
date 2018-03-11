@@ -908,7 +908,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	return reg, nil
 }
 
-// Shutdown the Consul client. Update running task registations and deregister
+// Shutdown the Consul client. Update running task registrations and deregister
 // agent from Consul. On first call blocks up to shutdownWait before giving up
 // on syncing operations.
 func (c *ServiceClient) Shutdown() error {
