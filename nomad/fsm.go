@@ -108,7 +108,7 @@ type FSMConfig struct {
 	// added/removed from
 	Periodic *PeriodicDispatch
 
-	// BlockedEvals is the blocked eval tracker that blocked evaulations should
+	// BlockedEvals is the blocked eval tracker that blocked evaluations should
 	// be added to.
 	Blocked *BlockedEvals
 

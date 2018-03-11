@@ -105,7 +105,7 @@ type PendingEvaluations []*structs.Evaluation
 // with the timeout used for messages that are not acknowledged before we
 // assume a Nack and attempt to redeliver as well as the deliveryLimit
 // which prevents a failing eval from being endlessly delivered. The
-// initialNackDelay is the delay before making a Nacked evalution available
+// initialNackDelay is the delay before making a Nacked evaluation available
 // again for the first Nack and subsequentNackDelay is the compounding delay
 // after the first Nack.
 func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
@@ -755,7 +755,7 @@ func (p PendingEvaluations) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// Push is used to add a new evalution to the slice
+// Push is used to add a new evaluation to the slice
 func (p *PendingEvaluations) Push(e interface{}) {
 	*p = append(*p, e.(*structs.Evaluation))
 }
