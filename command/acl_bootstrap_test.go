@@ -33,7 +33,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 	assert.Contains(out, "Secret ID")
 }
 
-// If a bootsrap token has already been created, attempts to create more should
+// If a bootstrap token has already been created, attempts to create more should
 // fail.
 func TestACLBootstrapCommand_ExistingBootstrapToken(t *testing.T) {
 	t.Parallel()
