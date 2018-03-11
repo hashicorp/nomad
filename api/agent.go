@@ -234,7 +234,7 @@ func (a *Agent) Health() (*AgentHealthResponse, error) {
 	}
 
 	// Return custom error when response is not expected JSON format
-	return nil, fmt.Errorf("unable to unmarhsal response with status %d: %v", resp.StatusCode, err)
+	return nil, fmt.Errorf("unable to unmarshal response with status %d: %v", resp.StatusCode, err)
 }
 
 // joinResponse is used to decode the response we get while
