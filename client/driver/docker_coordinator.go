@@ -16,7 +16,7 @@ var (
 	// createCoordinator allows us to only create a single coordinator
 	createCoordinator sync.Once
 
-	// globalCoordinator is the shared coordinator and should only be retreived
+	// globalCoordinator is the shared coordinator and should only be retrieved
 	// using the GetDockerCoordinator() method.
 	globalCoordinator *dockerCoordinator
 
