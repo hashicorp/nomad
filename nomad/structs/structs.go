@@ -2260,7 +2260,7 @@ type UpdateStrategy struct {
 	MinHealthyTime time.Duration
 
 	// HealthyDeadline is the time in which an allocation must be marked as
-	// healthy before it is automatically transistioned to unhealthy. This time
+	// healthy before it is automatically transitioned to unhealthy. This time
 	// period doesn't count against the MinHealthyTime.
 	HealthyDeadline time.Duration
 
@@ -3931,7 +3931,7 @@ type TaskState struct {
 	// task starts
 	StartedAt time.Time
 
-	// FinishedAt is the time at which the task transistioned to dead and will
+	// FinishedAt is the time at which the task transitioned to dead and will
 	// not be started again.
 	FinishedAt time.Time
 

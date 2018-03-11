@@ -387,7 +387,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 }
 
 // transitionedToReady is a helper that takes a nodes new and old status and
-// returns whether it has transistioned to ready.
+// returns whether it has transitioned to ready.
 func transitionedToReady(newStatus, oldStatus string) bool {
 	initToReady := oldStatus == structs.NodeStatusInit && newStatus == structs.NodeStatusReady
 	terminalToReady := oldStatus == structs.NodeStatusDown && newStatus == structs.NodeStatusReady

@@ -43,7 +43,7 @@ type deploymentTriggers interface {
 }
 
 // deploymentWatcher is used to watch a single deployment and trigger the
-// scheduler when allocation health transistions.
+// scheduler when allocation health transitions.
 type deploymentWatcher struct {
 	// queryLimiter is used to limit the rate of blocking queries
 	queryLimiter *rate.Limiter

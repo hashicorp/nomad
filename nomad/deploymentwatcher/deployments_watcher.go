@@ -53,7 +53,7 @@ type DeploymentRaftEndpoints interface {
 
 // Watcher is used to watch deployments and their allocations created
 // by the scheduler and trigger the scheduler when allocation health
-// transistions.
+// transitions.
 type Watcher struct {
 	enabled bool
 	logger  *log.Logger
