@@ -3023,7 +3023,7 @@ type ServiceCheck struct {
 	Name          string              // Name of the check, defaults to id
 	Type          string              // Type of the check - tcp, http, docker and script
 	Command       string              // Command is the command to run for script checks
-	Args          []string            // Args is a list of argumes for script checks
+	Args          []string            // Args is a list of arguments for script checks
 	Path          string              // path of the health check url for http type check
 	Protocol      string              // Protocol to use if check is http, defaults to http
 	PortLabel     string              // The port to use for tcp/http checks
