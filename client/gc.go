@@ -212,7 +212,7 @@ func (a *AllocGarbageCollector) Collect(allocID string) bool {
 	return false
 }
 
-// CollectAll garbage collects all termianated allocations on a node
+// CollectAll garbage collects all terminated allocations on a node
 func (a *AllocGarbageCollector) CollectAll() {
 	for {
 		select {
