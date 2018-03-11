@@ -11,7 +11,7 @@ description: |-
 # Nomad Enterprise Namespaces
 
 In [Nomad Enterprise](https://www.hashicorp.com/products/nomad/), a shared
-cluster can be partioned into [namespaces](/guides/namespaces.html) which allows
+cluster can be partitioned into [namespaces](/guides/namespaces.html) which allows
 jobs and their associated objects to be isolated from each other and other users
 of the cluster.
 
