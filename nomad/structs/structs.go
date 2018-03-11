@@ -752,7 +752,7 @@ type GenericResponse struct {
 	WriteMeta
 }
 
-// VersionResponse is used for the Status.Version reseponse
+// VersionResponse is used for the Status.Version response
 type VersionResponse struct {
 	Build    string
 	Versions map[string]int
