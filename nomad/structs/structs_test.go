@@ -193,7 +193,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -234,7 +234,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeBatch),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeBatch),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 					},
 				},
@@ -278,7 +278,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeBatch),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeBatch),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 					},
 				},
@@ -328,7 +328,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         2 * time.Second,
@@ -371,7 +371,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -423,7 +423,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -439,7 +439,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "bar",
 						Count:            14,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -456,7 +456,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Count:            26,
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     3,

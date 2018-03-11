@@ -2705,7 +2705,7 @@ func (r *ReschedulePolicy) Validate() error {
 	return nil
 }
 
-func NewReshedulePolicy(jobType string) *ReschedulePolicy {
+func NewReschedulePolicy(jobType string) *ReschedulePolicy {
 	switch jobType {
 	case JobTypeService:
 		rp := DefaultServiceJobReschedulePolicy
@@ -2794,7 +2794,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	if tg.ReschedulePolicy == nil {
-		tg.ReschedulePolicy = NewReshedulePolicy(job.Type)
+		tg.ReschedulePolicy = NewReschedulePolicy(job.Type)
 	}
 
 	// Set a default ephemeral disk object if the user has not requested for one
