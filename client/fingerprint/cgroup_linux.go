@@ -26,7 +26,7 @@ func FindCgroupMountpointDir() (string, error) {
 	return mount, nil
 }
 
-// Fingerprint tries to find a valid cgroup moint point
+// Fingerprint tries to find a valid cgroup mount point
 func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	mount, err := f.mountPointDetector.MountPoint()
 	if err != nil {
