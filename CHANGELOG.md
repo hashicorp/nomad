@@ -270,7 +270,7 @@ BUG FIXES:
  * core: Fix restoration of parameterized, periodic jobs [[GH-2959](https://github.com/hashicorp/nomad/issues/2959)]
  * core: Fix incorrect destructive update with `distinct_property` constraint
    [[GH-2939](https://github.com/hashicorp/nomad/issues/2939)]
- * cli: Fix autocmpleting global flags [[GH-2928](https://github.com/hashicorp/nomad/issues/2928)]
+ * cli: Fix autocompleting global flags [[GH-2928](https://github.com/hashicorp/nomad/issues/2928)]
  * cli: Fix panic when using 0.6.0 cli with an older cluster [[GH-2929](https://github.com/hashicorp/nomad/issues/2929)]
  * cli: Fix TLS handling for alloc stats API calls [[GH-3108](https://github.com/hashicorp/nomad/issues/3108)]
  * client: Fix `LC_ALL=C` being set on subprocesses [[GH-3041](https://github.com/hashicorp/nomad/issues/3041)]
