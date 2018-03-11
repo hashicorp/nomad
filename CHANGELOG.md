@@ -586,7 +586,7 @@ IMPROVEMENTS:
   * driver/lxc: Support for LXC containers [[GH-1699](https://github.com/hashicorp/nomad/issues/1699)]
   * driver/rkt: Support network configurations [[GH-1862](https://github.com/hashicorp/nomad/issues/1862)]
   * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [[GH-1812](https://github.com/hashicorp/nomad/issues/1812)]
-  * server/rpc: Added an RPC endpoint for retreiving server members [[GH-1947](https://github.com/hashicorp/nomad/issues/1947)]
+  * server/rpc: Added an RPC endpoint for retrieving server members [[GH-1947](https://github.com/hashicorp/nomad/issues/1947)]
 
 BUG FIXES:
   * core: Fix case where dead nodes were not properly handled by System
