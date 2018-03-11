@@ -258,7 +258,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 		return
 	}
 
-	// This should never be the case but we safefty guard so we don't leak a
+	// This should never be the case but we safety guard so we don't leak a
 	// cancel.
 	if cancel, ok := d.deleteFuture[imageID]; ok {
 		d.logger.Printf("[ERR] driver.docker: image id %q has lingering delete future", imageID)
