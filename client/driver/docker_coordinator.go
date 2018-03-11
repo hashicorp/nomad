@@ -275,7 +275,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 }
 
 // removeImageImpl is used to remove an image. It wil wait the specified remove
-// delay to remove the image. If the context is cancalled before that the image
+// delay to remove the image. If the context is cancelled before that the image
 // removal will be cancelled.
 func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	// Wait for the delay or a cancellation event
