@@ -275,7 +275,7 @@ BUG FIXES:
  * cli: Fix TLS handling for alloc stats API calls [[GH-3108](https://github.com/hashicorp/nomad/issues/3108)]
  * client: Fix `LC_ALL=C` being set on subprocesses [[GH-3041](https://github.com/hashicorp/nomad/issues/3041)]
  * client/networking: Handle interfaces that only have link-local addresses
-   while prefering globally routable addresses [[GH-3089](https://github.com/hashicorp/nomad/issues/3089)]
+   while preferring globally routable addresses [[GH-3089](https://github.com/hashicorp/nomad/issues/3089)]
  * deployment: Fix alloc health with services/checks using interpolation
    [[GH-2984](https://github.com/hashicorp/nomad/issues/2984)]
  * discovery: Fix timeout validation for script checks [[GH-3022](https://github.com/hashicorp/nomad/issues/3022)]
