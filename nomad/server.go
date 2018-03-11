@@ -59,7 +59,7 @@ const (
 	// serverRPCCache controls how long we keep an idle connection open to a server
 	serverRPCCache = 2 * time.Minute
 
-	// serverMaxStreams controsl how many idle streams we keep open to a server
+	// serverMaxStreams controls how many idle streams we keep open to a server
 	serverMaxStreams = 64
 
 	// raftLogCacheSize is the maximum number of logs to cache in-memory.

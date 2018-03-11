@@ -43,7 +43,7 @@ const (
 	// open to a server
 	clientRPCCache = 5 * time.Minute
 
-	// clientMaxStreams controsl how many idle streams we keep
+	// clientMaxStreams controls how many idle streams we keep
 	// open to a server
 	clientMaxStreams = 2
 
