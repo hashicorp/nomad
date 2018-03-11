@@ -210,7 +210,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyReconcileSummaries(buf[1:], log.Index)
 	case structs.VaultAccessorRegisterRequestType:
 		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
-	case structs.VaultAccessorDegisterRequestType:
+	case structs.VaultAccessorDeregisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	case structs.ApplyPlanResultsRequestType:
 		return n.applyPlanResults(buf[1:], log.Index)

@@ -61,7 +61,7 @@ const (
 	AllocClientUpdateRequestType
 	ReconcileJobSummariesRequestType
 	VaultAccessorRegisterRequestType
-	VaultAccessorDegisterRequestType
+	VaultAccessorDeregisterRequestType
 	ApplyPlanResultsRequestType
 	DeploymentStatusUpdateRequestType
 	DeploymentPromoteRequestType

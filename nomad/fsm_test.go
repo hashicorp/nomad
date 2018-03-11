@@ -1186,7 +1186,7 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 	req := structs.VaultAccessorsRequest{
 		Accessors: accessors,
 	}
-	buf, err := structs.Encode(structs.VaultAccessorDegisterRequestType, req)
+	buf, err := structs.Encode(structs.VaultAccessorDeregisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
