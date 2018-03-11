@@ -122,7 +122,7 @@ func (s *Server) planApply() {
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	// Determine the miniumum number of updates, could be more if there
+	// Determine the minimum number of updates, could be more if there
 	// are multiple updates per node
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
