@@ -2450,7 +2450,7 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
-		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
+		t.Fatalf("expected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
 	}
 }
 

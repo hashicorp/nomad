@@ -241,7 +241,7 @@ func TestAgents_Sort(t *testing.T) {
 	for _, tt := range sortTests {
 		sort.Sort(AgentMembersNameSort(tt.in))
 		if !reflect.DeepEqual(tt.in, tt.out) {
-			t.Errorf("\necpected: %s\nget     : %s", tt.in, tt.out)
+			t.Errorf("\nexpected: %s\nget     : %s", tt.in, tt.out)
 		}
 	}
 }

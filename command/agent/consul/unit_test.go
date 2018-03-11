@@ -1190,12 +1190,12 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 				case c.TCP != "":
 					// Checks should always use host port though
 					if c.TCP != ":1234" { // xPort
-						t.Errorf("exepcted service %s check 1's port to be %d but found %q",
+						t.Errorf("expected service %s check 1's port to be %d but found %q",
 							v.Name, xPort, c.TCP)
 					}
 				case c.HTTP != "":
 					if c.HTTP != "http://:1235" { // yPort
-						t.Errorf("exepcted service %s check 2's port to be %d but found %q",
+						t.Errorf("expected service %s check 2's port to be %d but found %q",
 							v.Name, yPort, c.HTTP)
 					}
 				default:
