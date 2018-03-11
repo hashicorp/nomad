@@ -466,7 +466,7 @@ IMPROVEMENTS:
     [[GH-2235](https://github.com/hashicorp/nomad/issues/2235)]
   * cli: Defaulting to showing allocations which belong to currently registered
     job [[GH-2032](https://github.com/hashicorp/nomad/issues/2032)]
-  * client: Garbage collect Allocation Runners to free up disk resouces
+  * client: Garbage collect Allocation Runners to free up disk resources
     [[GH-2081](https://github.com/hashicorp/nomad/issues/2081)]
   * client: Don't retrieve Driver Stats if unsupported [[GH-2173](https://github.com/hashicorp/nomad/issues/2173)]
   * client: Filter log lines in the executor based on client's log level

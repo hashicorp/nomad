@@ -126,7 +126,7 @@ func (r *CreatedResources) Remove(k, needle string) bool {
 	return false
 }
 
-// Copy returns a new deep copy of CreatedResrouces.
+// Copy returns a new deep copy of CreatedResources.
 func (r *CreatedResources) Copy() *CreatedResources {
 	if r == nil {
 		return nil
