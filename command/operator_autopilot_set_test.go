@@ -13,7 +13,7 @@ func TestOperator_Autopilot_SetConfig_Implements(t *testing.T) {
 	var _ cli.Command = &OperatorRaftListCommand{}
 }
 
-func TestOperatorAutopilotSetConfigCommmand(t *testing.T) {
+func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
 	t.Parallel()
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
