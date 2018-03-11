@@ -266,7 +266,7 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix purging of job versions [[GH-3056](https://github.com/hashicorp/nomad/issues/3056)]
  * core: Fix race creating EvalFuture [[GH-3051](https://github.com/hashicorp/nomad/issues/3051)]
- * core: Fix panic occuring from improper bitmap size [[GH-3023](https://github.com/hashicorp/nomad/issues/3023)]
+ * core: Fix panic occurring from improper bitmap size [[GH-3023](https://github.com/hashicorp/nomad/issues/3023)]
  * core: Fix restoration of parameterized, periodic jobs [[GH-2959](https://github.com/hashicorp/nomad/issues/2959)]
  * core: Fix incorrect destructive update with `distinct_property` constraint
    [[GH-2939](https://github.com/hashicorp/nomad/issues/2939)]
