@@ -221,7 +221,7 @@ type ServiceClient struct {
 	agentChecks   map[string]struct{}
 	agentLock     sync.Mutex
 
-	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
+	// seen is 1 if Consul has ever been seen; otherwise 0. Accessed with
 	// atomics.
 	seen int32
 

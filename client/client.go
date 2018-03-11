@@ -336,7 +336,7 @@ func (c *Client) init() error {
 		}
 
 	} else {
-		// Othewise make a temp directory to use.
+		// Otherwise make a temp directory to use.
 		p, err := ioutil.TempDir("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the StateDir: %v", err)
@@ -364,7 +364,7 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
-		// Othewise make a temp directory to use.
+		// Otherwise make a temp directory to use.
 		p, err := ioutil.TempDir("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
