@@ -1604,7 +1604,7 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
-	// Insert an active, terminal, and terminal with allocations edeployment
+	// Insert an active, terminal, and terminal with allocations deployment
 	state := s1.fsm.State()
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
