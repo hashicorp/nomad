@@ -916,7 +916,7 @@ Server Options:
 
   -bootstrap-expect=<num>
     Configures the expected number of servers nodes to wait for before
-    bootstrapping the cluster. Once <num> servers have joined eachother,
+    bootstrapping the cluster. Once <num> servers have joined each other,
     Nomad initiates the bootstrap process.
 
   -encrypt=<key>
