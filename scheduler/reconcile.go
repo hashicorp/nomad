@@ -581,7 +581,7 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 // are the group definition, the untainted, destructive, and migrate allocation
 // set and whether we are in a canary state.
 func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
-	// If there is no update stategy or deployment for the group we can deploy
+	// If there is no update strategy or deployment for the group we can deploy
 	// as many as the group has
 	if group.Update == nil || len(destructive)+len(migrate) == 0 {
 		return group.Count
