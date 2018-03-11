@@ -257,7 +257,7 @@ type LogEventFn func(message string, args ...interface{})
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and
 // node attributes into a Driver without having to change the Driver interface
-// each time we do it. Used in conjection with Factory, above.
+// each time we do it. Used in conjunction with Factory, above.
 type DriverContext struct {
 	taskName string
 	allocID  string
