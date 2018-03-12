@@ -679,8 +679,42 @@ func TestParse(t *testing.T) {
 				Type:        helper.StringToPtr("batch"),
 				Datacenters: []string{"dc1"},
 				Reschedule: &api.ReschedulePolicy{
-					Attempts: helper.IntToPtr(15),
-					Interval: helper.TimeToPtr(30 * time.Minute),
+					Attempts:      helper.IntToPtr(15),
+					Interval:      helper.TimeToPtr(30 * time.Minute),
+					DelayFunction: helper.StringToPtr("linear"),
+					Delay:         helper.TimeToPtr(10 * time.Second),
+				},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"reschedule-job-unlimited.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Type:        helper.StringToPtr("batch"),
+				Datacenters: []string{"dc1"},
+				Reschedule: &api.ReschedulePolicy{
+					DelayFunction: helper.StringToPtr("exponential"),
+					Delay:         helper.TimeToPtr(10 * time.Second),
+					DelayCeiling:  helper.TimeToPtr(120 * time.Second),
+					Unlimited:     helper.BoolToPtr(true),
 				},
 				TaskGroups: []*api.TaskGroup{
 					{
