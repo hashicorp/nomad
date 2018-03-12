@@ -72,9 +72,6 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
-	followupEvalWait time.Duration
-	nextEval         *structs.Evaluation
-
 	deployment *structs.Deployment
 
 	blocked        *structs.Evaluation
@@ -119,7 +116,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+		return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs,
 			s.deployment.GetID())
 	}
@@ -138,7 +135,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+			if err := setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
@@ -160,7 +157,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+	return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs,
 		s.deployment.GetID())
 }
@@ -252,16 +249,6 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// If we need a followup eval and we haven't created one, do so.
-	if s.followupEvalWait != 0 && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.followupEvalWait)
-		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling migration: %v", s.eval, err)
-			return false, err
-		}
-		s.logger.Printf("[DEBUG] sched: %#v: rolling migration limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
-	}
-
 	// Submit the plan and store the results.
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
@@ -332,10 +319,6 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Add the deployment changes to the plan
 	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
-
-	// Store the the follow up eval wait duration. If set this will trigger a
-	// follow up eval to handle node draining.
-	s.followupEvalWait = results.followupEvalWait
 
 	// Update the stored deployment
 	if results.deployment != nil {
