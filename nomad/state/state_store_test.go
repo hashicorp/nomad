@@ -6494,7 +6494,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 		Timestamp: time.Now().Unix(),
 	}
 	nodeEvents := map[string][]*structs.NodeEvent{
-		node.ID: []*structs.NodeEvent{nodeEvent},
+		node.ID: {nodeEvent},
 	}
 	err = state.AddNodeEvent(uint64(1001), nodeEvents)
 	require.Nil(err)
@@ -6538,7 +6538,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 		}
 
 		nodeEvents := map[string][]*structs.NodeEvent{
-			out.ID: []*structs.NodeEvent{nodeEvent},
+			out.ID: {nodeEvent},
 		}
 		err := state.AddNodeEvent(uint64(i), nodeEvents)
 		require.Nil(err)
