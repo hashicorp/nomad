@@ -35,6 +35,8 @@ BUG FIXES:
  * core: Fix an issue in which batch jobs with queued placements and lost
    allocations could result in improper placement counts [[GH-3717](https://github.com/hashicorp/nomad/issues/3717)]
  * core: Fix an issue where an entire region leaving caused `nomad server-members` to fail with a 500 response [[GH-1515](https://github.com/hashicorp/nomad/issues/1515)]
+ * core: Fix an issue in which multiple servers could be acting as a leader. A
+   prominent side-effect being nodes TTLing incorrectly [[GH-3890](https://github.com/hashicorp/nomad/issues/3890)]
  * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
  * client: Always advertise driver IP when in driver address mode [[GH-3682](https://github.com/hashicorp/nomad/issues/3682)]
  * client: Improve auto-detection of network interface when interface name has a
