@@ -982,7 +982,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 }
 
 func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 

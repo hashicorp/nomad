@@ -64,7 +64,7 @@ func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3 // Won't become leader
 		c.DevDisableBootstrap = true
 	})
