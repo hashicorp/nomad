@@ -161,7 +161,7 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	// Try without a token, expect failure
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "non-Existent namespace") {
+	if err == nil || !strings.Contains(err.Error(), "nonexistent namespace") {
 		t.Fatalf("expected namespace error: %v", err)
 	}
 
@@ -1684,7 +1684,7 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	assert.Equal(eval.Status, structs.EvalStatusPending)
 }
 
-func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
+func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

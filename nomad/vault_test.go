@@ -291,7 +291,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 	v.Config.Token = v.RootToken
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	v.Config.Role = "test-nonExistent"
+	v.Config.Role = "test-nonexistent"
 	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)

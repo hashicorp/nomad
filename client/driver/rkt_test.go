@@ -679,7 +679,7 @@ func TestRktDriver_Remove_Error(t *testing.T) {
 
 	ctestutils.RktCompatible(t)
 
-	// Removing a non-Existent pod should return an error
+	// Removing a nonexistent pod should return an error
 	if err := rktRemove("00000000-0000-0000-0000-000000000000"); err == nil {
 		t.Fatalf("expected an error")
 	}

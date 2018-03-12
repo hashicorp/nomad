@@ -907,7 +907,7 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	assert.NotEqual(t, uint64(0), resp.Index)
 }
 
-func TestACLEndpoint_DeleteTokens_WithNonExistentToken(t *testing.T) {
+func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
@@ -916,11 +916,11 @@ func TestACLEndpoint_DeleteTokens_WithNonExistentToken(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	nonExistentToken := mock.ACLToken()
+	nonexistentToken := mock.ACLToken()
 
 	// Lookup the policies
 	req := &structs.ACLTokenDeleteRequest{
-		AccessorIDs: []string{nonExistentToken.AccessorID},
+		AccessorIDs: []string{nonexistentToken.AccessorID},
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			AuthToken: root.SecretID,
@@ -930,7 +930,7 @@ func TestACLEndpoint_DeleteTokens_WithNonExistentToken(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "ACL.DeleteTokens", req, &resp)
 
 	assert.NotNil(err)
-	expectedError := fmt.Sprintf("Cannot delete nonExistent tokens: %s", nonExistentToken.AccessorID)
+	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonexistentToken.AccessorID)
 	assert.Contains(expectedError, err.Error())
 }
 

@@ -360,7 +360,7 @@ BUG FIXES:
    set [[GH-2544](https://github.com/hashicorp/nomad/issues/2544)]
  * server/periodic: Restoring periodic jobs takes launch time zone into
    consideration [[GH-2808](https://github.com/hashicorp/nomad/issues/2808)]
- * server/vault: Fix Vault Client panic when given nonExistent role [[GH-2648](https://github.com/hashicorp/nomad/issues/2648)]
+ * server/vault: Fix Vault Client panic when given nonexistent role [[GH-2648](https://github.com/hashicorp/nomad/issues/2648)]
  * telemetry: Fix merging of use node name [[GH-2762](https://github.com/hashicorp/nomad/issues/2762)]
 
 ## 0.5.6 (March 31, 2017)

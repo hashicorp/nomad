@@ -417,7 +417,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp.Allocs)
 	}
 
-	// Lookup non-Existent allocs.
+	// Lookup nonexistent allocs.
 	get = &structs.AllocsGetRequest{
 		AllocIDs:     []string{"foo"},
 		QueryOptions: structs.QueryOptions{Region: "global"},
