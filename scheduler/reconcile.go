@@ -318,7 +318,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, reschedule := untainted.filterByRescheduleable(a.batch, tg.ReschedulePolicy)
+	untainted, reschedule := untainted.filterByReschedulable(a.batch, tg.ReschedulePolicy)
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
@@ -581,7 +581,7 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 // are the group definition, the untainted, destructive, and migrate allocation
 // set and whether we are in a canary state.
 func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
-	// If there is no update stategy or deployment for the group we can deploy
+	// If there is no update strategy or deployment for the group we can deploy
 	// as many as the group has
 	if group.Update == nil || len(destructive)+len(migrate) == 0 {
 		return group.Count

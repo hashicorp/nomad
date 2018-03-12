@@ -146,7 +146,7 @@ __BACKWARDS INCOMPATIBILITIES:__
    version.
 
 IMPROVEMENTS:
- * core: Capability based ACL system with authoratative region, providing
+ * core: Capability based ACL system with authoritative region, providing
    federated ACLs.
  * core/enterprise: Sentinel integration for fine grain policy enforcement.
  * core/enterprise: Namespace support allowing jobs and their associated
@@ -163,7 +163,7 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix restoration of stopped periodic jobs [[GH-3201](https://github.com/hashicorp/nomad/issues/3201)]
  * core: Run deployment garbage collector on an interval [[GH-3267](https://github.com/hashicorp/nomad/issues/3267)]
- * core: Fix paramterized jobs occasionally showing status dead incorrectly
+ * core: Fix parameterized jobs occasionally showing status dead incorrectly
    [[GH-3460](https://github.com/hashicorp/nomad/issues/3460)]
  * core: Fix issue in which job versions above a threshold potentially wouldn't
    be stored [[GH-3372](https://github.com/hashicorp/nomad/issues/3372)]
@@ -185,7 +185,7 @@ BUG FIXES:
  * client: Fix lock contention that could cause a node to miss a heartbeat and
    be marked as down [[GH-3195](https://github.com/hashicorp/nomad/issues/3195)]
  * client: Fix data race that could lead to concurrent map read/writes during
-   hearbeating and fingerprinting [[GH-3461](https://github.com/hashicorp/nomad/issues/3461)]
+   heartbeating and fingerprinting [[GH-3461](https://github.com/hashicorp/nomad/issues/3461)]
  * driver/docker: Fix docker user specified syslogging [[GH-3184](https://github.com/hashicorp/nomad/issues/3184)]
  * driver/docker: Fix issue where CPU usage statistics were artificially high
    [[GH-3229](https://github.com/hashicorp/nomad/issues/3229)]
@@ -266,16 +266,16 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix purging of job versions [[GH-3056](https://github.com/hashicorp/nomad/issues/3056)]
  * core: Fix race creating EvalFuture [[GH-3051](https://github.com/hashicorp/nomad/issues/3051)]
- * core: Fix panic occuring from improper bitmap size [[GH-3023](https://github.com/hashicorp/nomad/issues/3023)]
+ * core: Fix panic occurring from improper bitmap size [[GH-3023](https://github.com/hashicorp/nomad/issues/3023)]
  * core: Fix restoration of parameterized, periodic jobs [[GH-2959](https://github.com/hashicorp/nomad/issues/2959)]
  * core: Fix incorrect destructive update with `distinct_property` constraint
    [[GH-2939](https://github.com/hashicorp/nomad/issues/2939)]
- * cli: Fix autocmpleting global flags [[GH-2928](https://github.com/hashicorp/nomad/issues/2928)]
+ * cli: Fix autocompleting global flags [[GH-2928](https://github.com/hashicorp/nomad/issues/2928)]
  * cli: Fix panic when using 0.6.0 cli with an older cluster [[GH-2929](https://github.com/hashicorp/nomad/issues/2929)]
  * cli: Fix TLS handling for alloc stats API calls [[GH-3108](https://github.com/hashicorp/nomad/issues/3108)]
  * client: Fix `LC_ALL=C` being set on subprocesses [[GH-3041](https://github.com/hashicorp/nomad/issues/3041)]
  * client/networking: Handle interfaces that only have link-local addresses
-   while prefering globally routable addresses [[GH-3089](https://github.com/hashicorp/nomad/issues/3089)]
+   while preferring globally routable addresses [[GH-3089](https://github.com/hashicorp/nomad/issues/3089)]
  * deployment: Fix alloc health with services/checks using interpolation
    [[GH-2984](https://github.com/hashicorp/nomad/issues/2984)]
  * discovery: Fix timeout validation for script checks [[GH-3022](https://github.com/hashicorp/nomad/issues/3022)]
@@ -360,7 +360,7 @@ BUG FIXES:
    set [[GH-2544](https://github.com/hashicorp/nomad/issues/2544)]
  * server/periodic: Restoring periodic jobs takes launch time zone into
    consideration [[GH-2808](https://github.com/hashicorp/nomad/issues/2808)]
- * server/vault: Fix Vault Client panic when given nonexistant role [[GH-2648](https://github.com/hashicorp/nomad/issues/2648)]
+ * server/vault: Fix Vault Client panic when given nonExistent role [[GH-2648](https://github.com/hashicorp/nomad/issues/2648)]
  * telemetry: Fix merging of use node name [[GH-2762](https://github.com/hashicorp/nomad/issues/2762)]
 
 ## 0.5.6 (March 31, 2017)
@@ -431,7 +431,7 @@ IMPROVEMENTS:
   * vault: Disallow root policy from being specified [[GH-2309](https://github.com/hashicorp/nomad/issues/2309)]
 
 BUG FIXES:
-  * core: Handle periodic paramaterized jobs [[GH-2385](https://github.com/hashicorp/nomad/issues/2385)]
+  * core: Handle periodic parameterized jobs [[GH-2385](https://github.com/hashicorp/nomad/issues/2385)]
   * core: Improve garbage collection of stopped batch jobs [[GH-2432](https://github.com/hashicorp/nomad/issues/2432)]
   * api: Fix escaping of HTML characters [[GH-2322](https://github.com/hashicorp/nomad/issues/2322)]
   * cli: Display disk resources in alloc-status [[GH-2404](https://github.com/hashicorp/nomad/issues/2404)]
@@ -466,7 +466,7 @@ IMPROVEMENTS:
     [[GH-2235](https://github.com/hashicorp/nomad/issues/2235)]
   * cli: Defaulting to showing allocations which belong to currently registered
     job [[GH-2032](https://github.com/hashicorp/nomad/issues/2032)]
-  * client: Garbage collect Allocation Runners to free up disk resouces
+  * client: Garbage collect Allocation Runners to free up disk resources
     [[GH-2081](https://github.com/hashicorp/nomad/issues/2081)]
   * client: Don't retrieve Driver Stats if unsupported [[GH-2173](https://github.com/hashicorp/nomad/issues/2173)]
   * client: Filter log lines in the executor based on client's log level
@@ -494,10 +494,10 @@ BUG FIXES:
     manifested as slow starts, delayed kills, etc [[GH-2177](https://github.com/hashicorp/nomad/issues/2177)]
   * client: Fix a panic that would occur with a racy alloc migration
     cancellation [[GH-2231](https://github.com/hashicorp/nomad/issues/2231)]
-  * config: Fix merging of Consul options which caused auto_adverise to be
+  * config: Fix merging of Consul options which caused auto_advertise to be
     ignored [[GH-2159](https://github.com/hashicorp/nomad/issues/2159)]
   * driver: Fix image based drivers (eg docker) having host env vars set [[GH-2211](https://github.com/hashicorp/nomad/issues/2211)]
-  * driver/docker: Fix Docker auth/logging interprelation [GH-2063, GH-2130]
+  * driver/docker: Fix Docker auth/logging interpolation [GH-2063, GH-2130]
   * driver/docker: Fix parsing of Docker Auth Configurations. New parsing is
     in-line with Docker itself. Also log debug message if auth lookup failed
     [[GH-2190](https://github.com/hashicorp/nomad/issues/2190)]
@@ -586,7 +586,7 @@ IMPROVEMENTS:
   * driver/lxc: Support for LXC containers [[GH-1699](https://github.com/hashicorp/nomad/issues/1699)]
   * driver/rkt: Support network configurations [[GH-1862](https://github.com/hashicorp/nomad/issues/1862)]
   * driver/rkt: Support rkt volumes (rkt >= 1.0.0 required) [[GH-1812](https://github.com/hashicorp/nomad/issues/1812)]
-  * server/rpc: Added an RPC endpoint for retreiving server members [[GH-1947](https://github.com/hashicorp/nomad/issues/1947)]
+  * server/rpc: Added an RPC endpoint for retrieving server members [[GH-1947](https://github.com/hashicorp/nomad/issues/1947)]
 
 BUG FIXES:
   * core: Fix case where dead nodes were not properly handled by System
@@ -681,7 +681,7 @@ BUG FIXES:
   * core: Fix race in which a Node registers and doesn't receive system jobs
     [[GH-1456](https://github.com/hashicorp/nomad/issues/1456)]
   * core: Fix issue in which Nodes with large amount of reserved ports would
-    casue dynamic port allocations to fail [[GH-1526](https://github.com/hashicorp/nomad/issues/1526)]
+    cause dynamic port allocations to fail [[GH-1526](https://github.com/hashicorp/nomad/issues/1526)]
   * core: Fix a condition in which old batch allocations could get updated even
     after terminal. In a rare case this could cause a server panic [[GH-1471](https://github.com/hashicorp/nomad/issues/1471)]
   * core: Do not update the Job attached to Allocations that have been marked
@@ -694,7 +694,7 @@ BUG FIXES:
   * client: Killing an allocation doesn't cause allocation stats to block
     [[GH-1454](https://github.com/hashicorp/nomad/issues/1454)]
   * driver/docker: Disable swap on docker driver [[GH-1480](https://github.com/hashicorp/nomad/issues/1480)]
-  * driver/docker: Fix improper gating on priviledged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
+  * driver/docker: Fix improper gating on privileged mode [[GH-1506](https://github.com/hashicorp/nomad/issues/1506)]
   * driver/docker: Default network type is "nat" on Windows [[GH-1521](https://github.com/hashicorp/nomad/issues/1521)]
   * driver/docker: Cleanup created volume when destroying container [[GH-1519](https://github.com/hashicorp/nomad/issues/1519)]
   * driver/rkt: Set host environment variables [[GH-1581](https://github.com/hashicorp/nomad/issues/1581)]
@@ -725,7 +725,7 @@ IMPROVEMENTS:
     modified from a known state [[GH-1243](https://github.com/hashicorp/nomad/issues/1243)]
   * api/client: Add resource usage APIs for retrieving tasks/allocations/host
     resource usage [[GH-1189](https://github.com/hashicorp/nomad/issues/1189)]
-  * cli: Faster when displaying large amounts ouptuts [[GH-1362](https://github.com/hashicorp/nomad/issues/1362)]
+  * cli: Faster when displaying large amounts outputs [[GH-1362](https://github.com/hashicorp/nomad/issues/1362)]
   * cli: Deprecate `eval-monitor` and introduce `eval-status` [[GH-1206](https://github.com/hashicorp/nomad/issues/1206)]
   * cli: Unify the `fs` family of commands to be a single command [[GH-1150](https://github.com/hashicorp/nomad/issues/1150)]
   * cli: Introduce `nomad plan` to dry-run a job through the scheduler and
@@ -759,7 +759,7 @@ BUG FIXES:
   * core: Fix blocked evaluations being run without properly accounting for
     priority [[GH-1183](https://github.com/hashicorp/nomad/issues/1183)]
   * api: Tasks are no longer allowed to have slashes in their name [[GH-1210](https://github.com/hashicorp/nomad/issues/1210)]
-  * client: Delete tmp files used to communicate with execcutor [[GH-1241](https://github.com/hashicorp/nomad/issues/1241)]
+  * client: Delete tmp files used to communicate with executor [[GH-1241](https://github.com/hashicorp/nomad/issues/1241)]
   * client: Prevent the client from restoring with incorrect task state [[GH-1294](https://github.com/hashicorp/nomad/issues/1294)]
   * discovery: Ensure service and check names are unique [GH-1143, GH-1144]
   * driver/docker: Ensure docker client doesn't time out after a minute.
@@ -849,7 +849,7 @@ BUG FIXES:
   * core: No longer cancel evaluations that are delayed in the plan queue
     [[GH-884](https://github.com/hashicorp/nomad/issues/884)]
   * api: Guard client/fs/ APIs from being accessed on a non-client node [[GH-890](https://github.com/hashicorp/nomad/issues/890)]
-  * client: Allow dashes in variable names during interprelation [[GH-857](https://github.com/hashicorp/nomad/issues/857)]
+  * client: Allow dashes in variable names during interpolation [[GH-857](https://github.com/hashicorp/nomad/issues/857)]
   * client: Updating kill timeout adheres to operator specified maximum value [[GH-878](https://github.com/hashicorp/nomad/issues/878)]
   * client: Fix a case in which clients would pull but not run allocations
     [[GH-906](https://github.com/hashicorp/nomad/issues/906)]
@@ -863,7 +863,7 @@ __BACKWARDS INCOMPATIBILITIES:__
   * Stdout and Stderr log files of tasks have moved from task/local to
     alloc/logs [[GH-851](https://github.com/hashicorp/nomad/issues/851)]
   * Any users of the runtime environment variable `$NOMAD_PORT_` will need to
-    update to the new `${NOMAD_ADDR_}` varriable [[GH-704](https://github.com/hashicorp/nomad/issues/704)]
+    update to the new `${NOMAD_ADDR_}` variable [[GH-704](https://github.com/hashicorp/nomad/issues/704)]
   * Service names that include periods will fail validation. To fix, remove any
     periods from the service name before running the job [[GH-770](https://github.com/hashicorp/nomad/issues/770)]
   * Task resources are now validated and enforce minimum resources. If a job

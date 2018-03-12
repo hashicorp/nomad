@@ -320,7 +320,7 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	v.l.Lock()
 	defer v.l.Unlock()
 
-	// Kill any background routintes
+	// Kill any background routines
 	if v.running {
 		// Stop accepting any new request
 		v.connEstablished = false
@@ -1016,7 +1016,7 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 }
 
 // storeForRevocation stores the passed set of accessors for revocation. It
-// captrues their effective TTL by storing their create TTL plus the current
+// captures their effective TTL by storing their create TTL plus the current
 // time.
 func (v *vaultClient) storeForRevocation(accessors []*structs.VaultAccessor) {
 	v.revLock.Lock()
@@ -1164,7 +1164,7 @@ func (v *vaultClient) revokeDaemon() {
 func (s *Server) purgeVaultAccessors(accessors []*structs.VaultAccessor) error {
 	// Commit this update via Raft
 	req := structs.VaultAccessorsRequest{Accessors: accessors}
-	_, _, err := s.raftApply(structs.VaultAccessorDegisterRequestType, req)
+	_, _, err := s.raftApply(structs.VaultAccessorDeregisterRequestType, req)
 	return err
 }
 

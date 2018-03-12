@@ -246,7 +246,7 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	t.Parallel()
 	p, m := testPeriodicDispatcher()
 
-	// Create a job that won't be evalauted for a while.
+	// Create a job that won't be evaluated for a while.
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
 
 	// Add it.
@@ -360,7 +360,7 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 	t.Parallel()
 	p, m := testPeriodicDispatcher()
 
-	// Create a job that won't be evalauted for a while.
+	// Create a job that won't be evaluated for a while.
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
 
 	// Add it.

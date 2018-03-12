@@ -193,7 +193,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -234,7 +234,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeBatch),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeBatch),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 					},
 				},
@@ -278,7 +278,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeBatch),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeBatch),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeBatch),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 					},
 				},
@@ -328,7 +328,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         2 * time.Second,
@@ -371,7 +371,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -423,7 +423,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "foo",
 						Count:            2,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -439,7 +439,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Name:             "bar",
 						Count:            14,
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
@@ -456,7 +456,7 @@ func TestJob_Canonicalize_Update(t *testing.T) {
 						Count:            26,
 						EphemeralDisk:    DefaultEphemeralDisk(),
 						RestartPolicy:    NewRestartPolicy(JobTypeService),
-						ReschedulePolicy: NewReshedulePolicy(JobTypeService),
+						ReschedulePolicy: NewReschedulePolicy(JobTypeService),
 						Update: &UpdateStrategy{
 							Stagger:         30 * time.Second,
 							MaxParallel:     3,
@@ -2211,13 +2211,13 @@ func TestService_Canonicalize(t *testing.T) {
 	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
 	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
 	}
 
 	s.Name = "${BASE}-db"
 	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
 	}
 
 }
@@ -2715,7 +2715,7 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ShouldReschedule: false,
 		},
 		{
-			Desc:             "Disabled recheduling",
+			Desc:             "Disabled rescheduling",
 			ClientStatus:     AllocClientStatusFailed,
 			DesiredStatus:    AllocDesiredStatusRun,
 			FailTime:         fail,
@@ -2951,7 +2951,7 @@ func TestIsRecoverable(t *testing.T) {
 func TestACLTokenValidate(t *testing.T) {
 	tk := &ACLToken{}
 
-	// Mising a type
+	// Missing a type
 	err := tk.Validate()
 	assert.NotNil(t, err)
 	if !strings.Contains(err.Error(), "client or management") {
@@ -2966,7 +2966,7 @@ func TestACLTokenValidate(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	// Invalid policices
+	// Invalid policies
 	tk.Type = ACLManagementToken
 	tk.Policies = []string{"foo"}
 	err = tk.Validate()
@@ -2975,7 +2975,7 @@ func TestACLTokenValidate(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	// Name too long policices
+	// Name too long policies
 	tk.Name = uuid.Generate() + uuid.Generate()
 	tk.Policies = nil
 	err = tk.Validate()

@@ -108,7 +108,7 @@ type FSMConfig struct {
 	// added/removed from
 	Periodic *PeriodicDispatch
 
-	// BlockedEvals is the blocked eval tracker that blocked evaulations should
+	// BlockedEvals is the blocked eval tracker that blocked evaluations should
 	// be added to.
 	Blocked *BlockedEvals
 
@@ -210,7 +210,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyReconcileSummaries(buf[1:], log.Index)
 	case structs.VaultAccessorRegisterRequestType:
 		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
-	case structs.VaultAccessorDegisterRequestType:
+	case structs.VaultAccessorDeregisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	case structs.ApplyPlanResultsRequestType:
 		return n.applyPlanResults(buf[1:], log.Index)
@@ -339,7 +339,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	/* Handle upgrade paths:
 	 * - Empty maps and slices should be treated as nil to avoid
 	 *   un-intended destructive updates in scheduler since we use
-	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 	 *   the incoming job.
 	 * - Migrate from old style upgrade stanza that used only a stagger.
 	 */
@@ -442,7 +442,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		}
 
 		// We always delete from the periodic launch table because it is possible that
-		// the job was updated to be non-perioidic, thus checking if it is periodic
+		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
 		n.state.DeletePeriodicLaunch(index, req.Namespace, req.JobID)
 	} else {
@@ -943,7 +943,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			/* Handle upgrade paths:
 			 * - Empty maps and slices should be treated as nil to avoid
 			 *   un-intended destructive updates in scheduler since we use
-			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 			 *   the incoming job.
 			 * - Migrate from old style upgrade stanza that used only a stagger.
 			 */

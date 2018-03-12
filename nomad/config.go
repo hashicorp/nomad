@@ -195,7 +195,7 @@ type Config struct {
 	// an evaluation that has been Nacked more than once. This delay is
 	// compounding after the first Nack. This value should be significantly
 	// longer than the initial delay as the purpose it severs is to apply
-	// back-pressure as evaluatiions are being Nacked either due to scheduler
+	// back-pressure as evaluations are being Nacked either due to scheduler
 	// failures or because they are hitting their Nack timeout, both of which
 	// are signs of high server resource usage.
 	EvalNackSubsequentReenqueueDelay time.Duration
@@ -270,7 +270,7 @@ type Config struct {
 	DisableTaggedMetrics bool
 
 	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older verions, or to only show the new format
+	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
 
 	// AutopilotConfig is used to apply the initial autopilot config when
@@ -362,7 +362,7 @@ func DefaultConfig() *Config {
 	}
 	c.EnabledSchedulers = append(c.EnabledSchedulers, structs.JobTypeCore)
 
-	// Default the number of schedulers to match the coores
+	// Default the number of schedulers to match the cores
 	c.NumSchedulers = runtime.NumCPU()
 
 	// Increase our reap interval to 3 days instead of 24h.

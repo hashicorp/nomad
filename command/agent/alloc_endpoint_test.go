@@ -491,7 +491,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		}
 
 		// Make the request via the mux to make sure the error returned
-		// by Snapshot is properly propogated via HTTP
+		// by Snapshot is properly propagated via HTTP
 		s.Server.mux.ServeHTTP(respW, req)
 		resp := respW.Result()
 		r := tar.NewReader(resp.Body)

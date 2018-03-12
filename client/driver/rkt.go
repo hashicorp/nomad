@@ -404,7 +404,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		}
 		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trustPrefix)
 	} else {
-		// Disble signature verification if the trust command was not run.
+		// Disable signature verification if the trust command was not run.
 		insecure = true
 	}
 

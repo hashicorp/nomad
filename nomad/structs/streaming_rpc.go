@@ -14,7 +14,7 @@ type StreamingRpcHeader struct {
 }
 
 // StreamingRpcAck is used to acknowledge receiving the StreamingRpcHeader and
-// routing to the requirested handler.
+// routing to the requested handler.
 type StreamingRpcAck struct {
 	// Error is used to return whether an error occurred establishing the
 	// streaming RPC. This error occurs before entering the RPC handler.
@@ -24,26 +24,26 @@ type StreamingRpcAck struct {
 // StreamingRpcHandler defines the handler for a streaming RPC.
 type StreamingRpcHandler func(conn io.ReadWriteCloser)
 
-// StreamingRpcRegistery is used to add and retrieve handlers
-type StreamingRpcRegistery struct {
+// StreamingRpcRegistry is used to add and retrieve handlers
+type StreamingRpcRegistry struct {
 	registry map[string]StreamingRpcHandler
 }
 
-// NewStreamingRpcRegistery creates a new registry. All registrations of
+// NewStreamingRpcRegistry creates a new registry. All registrations of
 // handlers should be done before retrieving handlers.
-func NewStreamingRpcRegistery() *StreamingRpcRegistery {
-	return &StreamingRpcRegistery{
+func NewStreamingRpcRegistry() *StreamingRpcRegistry {
+	return &StreamingRpcRegistry{
 		registry: make(map[string]StreamingRpcHandler),
 	}
 }
 
 // Register registers a new handler for the given method name
-func (s *StreamingRpcRegistery) Register(method string, handler StreamingRpcHandler) {
+func (s *StreamingRpcRegistry) Register(method string, handler StreamingRpcHandler) {
 	s.registry[method] = handler
 }
 
 // GetHandler returns a handler for the given method or an error if it doesn't exist.
-func (s *StreamingRpcRegistery) GetHandler(method string) (StreamingRpcHandler, error) {
+func (s *StreamingRpcRegistry) GetHandler(method string) (StreamingRpcHandler, error) {
 	h, ok := s.registry[method]
 	if !ok {
 		return nil, fmt.Errorf("%s: %q", ErrUnknownMethod, method)

@@ -242,7 +242,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("should have set bootstrap mode")
 	}
 	if out.BootstrapExpect != 0 {
-		t.Fatalf("boostrap expect should be 0")
+		t.Fatalf("bootstrap expect should be 0")
 	}
 
 	conf.Server.BootstrapExpect = 3

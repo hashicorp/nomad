@@ -213,7 +213,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
-	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
+	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)

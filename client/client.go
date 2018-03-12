@@ -43,7 +43,7 @@ const (
 	// open to a server
 	clientRPCCache = 5 * time.Minute
 
-	// clientMaxStreams controsl how many idle streams we keep
+	// clientMaxStreams controls how many idle streams we keep
 	// open to a server
 	clientMaxStreams = 2
 
@@ -172,7 +172,7 @@ type Client struct {
 	// rpcServer is used to serve RPCs by the local agent.
 	rpcServer     *rpc.Server
 	endpoints     rpcEndpoints
-	streamingRpcs *structs.StreamingRpcRegistery
+	streamingRpcs *structs.StreamingRpcRegistry
 
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
@@ -206,7 +206,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		start:               time.Now(),
 		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		tlsWrap:             tlsWrap,
-		streamingRpcs:       structs.NewStreamingRpcRegistery(),
+		streamingRpcs:       structs.NewStreamingRpcRegistry(),
 		logger:              logger,
 		allocs:              make(map[string]*AllocRunner),
 		allocUpdates:        make(chan *structs.Allocation, 64),
@@ -336,7 +336,7 @@ func (c *Client) init() error {
 		}
 
 	} else {
-		// Othewise make a temp directory to use.
+		// Otherwise make a temp directory to use.
 		p, err := ioutil.TempDir("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the StateDir: %v", err)
@@ -364,7 +364,7 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
-		// Othewise make a temp directory to use.
+		// Otherwise make a temp directory to use.
 		p, err := ioutil.TempDir("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
@@ -613,7 +613,7 @@ func (c *Client) SetServers(in []string) error {
 }
 
 // setServersImpl sets a new list of nomad servers to connect to. If force is
-// set, we add the server to the internal severlist even if the server could not
+// set, we add the server to the internal serverlist even if the server could not
 // be pinged. An error is returned if no endpoints were valid when non-forcing.
 //
 // Force should be used when setting the servers from the initial configuration
@@ -674,7 +674,7 @@ func (c *Client) restoreState() error {
 	}
 
 	// COMPAT: Remove in 0.7.0
-	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// 0.6.0 transitioned from individual state files to a single bolt-db.
 	// The upgrade path is to:
 	// Check if old state exists
 	//   If so, restore from that and delete old state
@@ -1044,7 +1044,7 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 }
 
 // registerAndHeartbeat is a long lived goroutine used to register the client
-// and then start heartbeatng to the server.
+// and then start heartbeating to the server.
 func (c *Client) registerAndHeartbeat() {
 	// Register the node
 	c.retryRegisterNode()
@@ -1609,7 +1609,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	}
 
 	// Trigger the GC once more now that new allocs are started that could
-	// have caused thesholds to be exceeded
+	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
 }
 
@@ -1732,7 +1732,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		}
 		if !found {
 			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
-			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocation", taskName)
 		}
 		verifiedTasks = append(verifiedTasks, taskName)
 	}
@@ -1792,7 +1792,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	return unwrappedTokens, nil
 }
 
-// triggerDiscovery causes a Consul discovery to begin (if one hasn't alread)
+// triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
 	select {
 	case c.triggerDiscoveryCh <- struct{}{}:
@@ -2102,7 +2102,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	}
 }
 
-// No lables are required so we emit with only a key/value syntax
+// No labels are required so we emit with only a key/value syntax
 func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 	if !c.config.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"uptime"}, float32(hStats.Uptime), c.baseLabels)

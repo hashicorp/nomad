@@ -9,7 +9,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
-// Test that building a chroot will skip nonexistent directories.
+// Test that building a chroot will skip nonExistent directories.
 func TestTaskDir_EmbedNonExistent(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
@@ -63,11 +63,11 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 	file := "foo"
 	subFile := "bar"
 	if err := ioutil.WriteFile(filepath.Join(host, file), []byte{'a'}, 0777); err != nil {
-		t.Fatalf("Coudn't create file in host dir %v: %v", host, err)
+		t.Fatalf("Couldn't create file in host dir %v: %v", host, err)
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(subDir, subFile), []byte{'a'}, 0777); err != nil {
-		t.Fatalf("Coudn't create file in host subdir %v: %v", subDir, err)
+		t.Fatalf("Couldn't create file in host subdir %v: %v", subDir, err)
 	}
 
 	// Create mapping from host dir to task dir.

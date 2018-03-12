@@ -61,7 +61,7 @@ const (
 	AllocClientUpdateRequestType
 	ReconcileJobSummariesRequestType
 	VaultAccessorRegisterRequestType
-	VaultAccessorDegisterRequestType
+	VaultAccessorDeregisterRequestType
 	ApplyPlanResultsRequestType
 	DeploymentStatusUpdateRequestType
 	DeploymentPromoteRequestType
@@ -528,7 +528,7 @@ type ApplyPlanResultsRequest struct {
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
-// to cause evictions or to assign new allocaitons. Both can be done
+// to cause evictions or to assign new allocations. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
 	// Alloc is the list of new allocations to assign
@@ -562,7 +562,7 @@ type AllocsGetRequest struct {
 	QueryOptions
 }
 
-// PeriodicForceReqeuest is used to force a specific periodic job.
+// PeriodicForceRequest is used to force a specific periodic job.
 type PeriodicForceRequest struct {
 	JobID string
 	WriteRequest
@@ -752,7 +752,7 @@ type GenericResponse struct {
 	WriteMeta
 }
 
-// VersionResponse is used for the Status.Version reseponse
+// VersionResponse is used for the Status.Version response
 type VersionResponse struct {
 	Build    string
 	Versions map[string]int
@@ -1665,7 +1665,7 @@ type Job struct {
 	// of a deployment and can be manually set via APIs.
 	Stable bool
 
-	// Version is a monitonically increasing version number that is incremened
+	// Version is a monotonically increasing version number that is incremented
 	// on each job register.
 	Version uint64
 
@@ -2159,7 +2159,7 @@ type JobSummary struct {
 	// Namespace is the namespace of the job and its summary
 	Namespace string
 
-	// Summmary contains the summary per task group for the Job
+	// Summary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
 
 	// Children contains a summary for the children of this job.
@@ -2255,12 +2255,12 @@ type UpdateStrategy struct {
 	HealthCheck string
 
 	// MinHealthyTime is the minimum time an allocation must be in the healthy
-	// state before it is marked as healthy, unblocking more alllocations to be
+	// state before it is marked as healthy, unblocking more allocations to be
 	// rolled.
 	MinHealthyTime time.Duration
 
 	// HealthyDeadline is the time in which an allocation must be marked as
-	// healthy before it is automatically transistioned to unhealthy. This time
+	// healthy before it is automatically transitioned to unhealthy. This time
 	// period doesn't count against the MinHealthyTime.
 	HealthyDeadline time.Duration
 
@@ -2705,7 +2705,7 @@ func (r *ReschedulePolicy) Validate() error {
 	return nil
 }
 
-func NewReshedulePolicy(jobType string) *ReschedulePolicy {
+func NewReschedulePolicy(jobType string) *ReschedulePolicy {
 	switch jobType {
 	case JobTypeService:
 		rp := DefaultServiceJobReschedulePolicy
@@ -2794,7 +2794,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	if tg.ReschedulePolicy == nil {
-		tg.ReschedulePolicy = NewReshedulePolicy(job.Type)
+		tg.ReschedulePolicy = NewReschedulePolicy(job.Type)
 	}
 
 	// Set a default ephemeral disk object if the user has not requested for one
@@ -3023,7 +3023,7 @@ type ServiceCheck struct {
 	Name          string              // Name of the check, defaults to id
 	Type          string              // Type of the check - tcp, http, docker and script
 	Command       string              // Command is the command to run for script checks
-	Args          []string            // Args is a list of argumes for script checks
+	Args          []string            // Args is a list of arguments for script checks
 	Path          string              // path of the health check url for http type check
 	Protocol      string              // Protocol to use if check is http, defaults to http
 	PortLabel     string              // The port to use for tcp/http checks
@@ -3632,7 +3632,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 func validateServices(t *Task) error {
 	var mErr multierror.Error
 
-	// Ensure that services don't ask for non-existent ports and their names are
+	// Ensure that services don't ask for non-Existent ports and their names are
 	// unique.
 	servicePorts := make(map[string]map[string]struct{})
 	addServicePort := func(label, service string) {
@@ -3931,7 +3931,7 @@ type TaskState struct {
 	// task starts
 	StartedAt time.Time
 
-	// FinishedAt is the time at which the task transistioned to dead and will
+	// FinishedAt is the time at which the task transitioned to dead and will
 	// not be started again.
 	FinishedAt time.Time
 
@@ -4788,7 +4788,7 @@ func DeploymentStatusDescriptionRollbackNoop(baseDescription string, jobVersion 
 }
 
 // DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
-// a deployment when there is no target to rollback to but autorevet is desired.
+// a deployment when there is no target to rollback to but autorevert is desired.
 func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
 	return fmt.Sprintf("%s - no stable job version to auto revert to", baseDescription)
 }
@@ -5493,7 +5493,7 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
 // deployment. This can include things like if the allocation has been marked as
-// heatlhy.
+// healthy.
 type AllocDeploymentStatus struct {
 	// Healthy marks whether the allocation has been marked healthy or unhealthy
 	// as part of a deployment. It can be unset if it has neither been marked
@@ -5847,7 +5847,7 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
-// not been overcommitted before admiting the plan.
+// not been overcommitted before admitting the plan.
 type Plan struct {
 	// EvalID is the evaluation ID this plan is associated with
 	EvalID string

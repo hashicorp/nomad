@@ -190,7 +190,7 @@ type ServiceClient struct {
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 
-	// skipVerifySupport is true if the local Consul agent suppots TLSSkipVerify
+	// skipVerifySupport is true if the local Consul agent supports TLSSkipVerify
 	skipVerifySupport bool
 
 	// exitCh is closed when the main Run loop exits
@@ -221,7 +221,7 @@ type ServiceClient struct {
 	agentChecks   map[string]struct{}
 	agentLock     sync.Mutex
 
-	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
+	// seen is 1 if Consul has ever been seen; otherwise 0. Accessed with
 	// atomics.
 	seen int32
 
@@ -681,7 +681,7 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 // If the service IP is set it used as the address in the service registration.
 // Checks will always use the IP from the Task struct (host's IP).
 //
-// Actual communication with Consul is done asynchrously (see Run).
+// Actual communication with Consul is done asynchronously (see Run).
 func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	// Fast path
 	numServices := len(task.Services)
@@ -842,7 +842,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 
 // RemoveTask from Consul. Removes all service entries and checks.
 //
-// Actual communication with Consul is done asynchrously (see Run).
+// Actual communication with Consul is done asynchronously (see Run).
 func (c *ServiceClient) RemoveTask(allocID string, task *structs.Task) {
 	ops := operations{}
 
@@ -908,7 +908,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	return reg, nil
 }
 
-// Shutdown the Consul client. Update running task registations and deregister
+// Shutdown the Consul client. Update running task registrations and deregister
 // agent from Consul. On first call blocks up to shutdownWait before giving up
 // on syncing operations.
 func (c *ServiceClient) Shutdown() error {

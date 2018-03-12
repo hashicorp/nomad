@@ -19,7 +19,7 @@ moduleForAcceptance('Acceptance | client detail', {
   },
 });
 
-test('/clients/:id should have a breadrcumb trail linking back to clients', function(assert) {
+test('/clients/:id should have a breadcrumb trail linking back to clients', function(assert) {
   visit(`/clients/${node.id}`);
 
   andThen(() => {
@@ -70,7 +70,7 @@ test('/clients/:id should list additional detail for the node below the title', 
     assert.equal(
       find('[data-test-address-definition]').textContent,
       `Address ${node.httpAddr}`,
-      'Address is in additional detals'
+      'Address is in additional details'
     );
     assert.equal(
       find('[data-test-datacenter-definition]').textContent,
@@ -325,7 +325,7 @@ test('when the node is not found, an error message is shown, but the URL persist
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/node/not-a-real-node',
-      'A request to the non-existent node is made'
+      'A request to the non-Existent node is made'
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');

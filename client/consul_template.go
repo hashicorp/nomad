@@ -568,7 +568,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	cc := config.ClientConfig
 	conf := ctconf.DefaultConfig()
 
-	// Gather the consul-template tempates
+	// Gather the consul-template templates
 	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(templateMapping)))
 	for ctmpl := range templateMapping {
 		local := ctmpl

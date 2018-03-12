@@ -1415,7 +1415,7 @@ type mockFeasibilityChecker struct {
 	i       int
 }
 
-func newMockFeasiblityChecker(values ...bool) *mockFeasibilityChecker {
+func newMockFeasibilityChecker(values ...bool) *mockFeasibilityChecker {
 	return &mockFeasibilityChecker{retVals: values}
 }
 
@@ -1437,7 +1437,7 @@ func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
-	mocked := newMockFeasiblityChecker(false)
+	mocked := newMockFeasibilityChecker(false)
 	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
 
 	// Set the job to ineligible
@@ -1455,7 +1455,7 @@ func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
-	mocked := newMockFeasiblityChecker(false)
+	mocked := newMockFeasibilityChecker(false)
 	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
 
 	// Set the job to escaped
@@ -1480,8 +1480,8 @@ func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
-	jobMock := newMockFeasiblityChecker(true)
-	tgMock := newMockFeasiblityChecker(false)
+	jobMock := newMockFeasibilityChecker(true)
+	tgMock := newMockFeasibilityChecker(false)
 	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
 
 	// Set the job to escaped
@@ -1502,8 +1502,8 @@ func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
-	jobMock := newMockFeasiblityChecker(true)
-	tgMock := newMockFeasiblityChecker(false)
+	jobMock := newMockFeasibilityChecker(true)
+	tgMock := newMockFeasibilityChecker(false)
 	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
 
 	// Set the job to escaped
@@ -1524,8 +1524,8 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
-	jobMock := newMockFeasiblityChecker(true)
-	tgMock := newMockFeasiblityChecker(true)
+	jobMock := newMockFeasibilityChecker(true)
+	tgMock := newMockFeasibilityChecker(true)
 	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
 
 	// Set the job to escaped

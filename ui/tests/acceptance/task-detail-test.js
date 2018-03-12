@@ -143,7 +143,7 @@ test('when the allocation is not found, the application errors', function(assert
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
-      'A request to the non-existent allocation is made'
+      'A request to the non-Existent allocation is made'
     );
     assert.equal(
       currentURL(),

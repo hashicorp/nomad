@@ -352,7 +352,7 @@ func NewClient(config *Config) (*Client, error) {
 		config.httpClient = defConfig.httpClient
 	}
 
-	// Configure the TLS cofigurations
+	// Configure the TLS configurations
 	if err := config.ConfigureTLS(); err != nil {
 		return nil, err
 	}

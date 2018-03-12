@@ -1140,7 +1140,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 	}
 }
 
-// Ensure that priority is taken into account when enqueueing many evaluations.
+// Ensure that priority is taken into account when enqueuing many evaluations.
 func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	t.Parallel()
 	b := testBroker(t, 0)

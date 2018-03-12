@@ -147,7 +147,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg1.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg1.NumChecks(); num != 0 {
 		t.Fatalf("Wrong number of checks: got %d; want 0", num)
@@ -199,7 +199,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg2.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg2.NumChecks(); num != 0 {
 		t.Fatalf("Wrong number of checks: got %d; want 0", num)
@@ -448,7 +448,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg1.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg1.NumChecks(); num != 1 {
 		t.Fatalf("Wrong number of checks: got %d; want 1", num)
@@ -562,7 +562,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("Nil alloc registrations: %v", err)
 	}
 	if num := reg2.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of servies: got %d; want 1", num)
+		t.Fatalf("Wrong number of services: got %d; want 1", num)
 	}
 	if num := reg2.NumChecks(); num != 2 {
 		t.Fatalf("Wrong number of checks: got %d; want 2", num)
@@ -695,7 +695,7 @@ func TestConsul_RegServices(t *testing.T) {
 	ctx.Task.Services[0].Name = "taskname-service2"
 	ctx.Task.Services[0].Tags[0] = "tag3"
 	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, nil, nil); err != nil {
-		t.Fatalf("unpexpected error registering task: %v", err)
+		t.Fatalf("unexpected error registering task: %v", err)
 	}
 
 	// Assert check update is pending
@@ -1190,12 +1190,12 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 				case c.TCP != "":
 					// Checks should always use host port though
 					if c.TCP != ":1234" { // xPort
-						t.Errorf("exepcted service %s check 1's port to be %d but found %q",
+						t.Errorf("expected service %s check 1's port to be %d but found %q",
 							v.Name, xPort, c.TCP)
 					}
 				case c.HTTP != "":
 					if c.HTTP != "http://:1235" { // yPort
-						t.Errorf("exepcted service %s check 2's port to be %d but found %q",
+						t.Errorf("expected service %s check 2's port to be %d but found %q",
 							v.Name, yPort, c.HTTP)
 					}
 				default:

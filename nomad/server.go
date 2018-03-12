@@ -59,7 +59,7 @@ const (
 	// serverRPCCache controls how long we keep an idle connection open to a server
 	serverRPCCache = 2 * time.Minute
 
-	// serverMaxStreams controsl how many idle streams we keep open to a server
+	// serverMaxStreams controls how many idle streams we keep open to a server
 	serverMaxStreams = 64
 
 	// raftLogCacheSize is the maximum number of logs to cache in-memory.
@@ -132,7 +132,7 @@ type Server struct {
 	staticEndpoints endpoints
 
 	// streamingRpcs is the registry holding our streaming RPC handlers.
-	streamingRpcs *structs.StreamingRpcRegistery
+	streamingRpcs *structs.StreamingRpcRegistry
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
@@ -283,7 +283,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		logger:        logger,
 		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
-		streamingRpcs: structs.NewStreamingRpcRegistery(),
+		streamingRpcs: structs.NewStreamingRpcRegistry(),
 		nodeConns:     make(map[string]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
@@ -855,7 +855,7 @@ func (s *Server) setupConsulSyncer() error {
 }
 
 // setupDeploymentWatcher creates a deployment watcher that consumes the RPC
-// endpoints for state information and makes transistions via Raft through a
+// endpoints for state information and makes transitions via Raft through a
 // shim that provides the appropriate methods.
 func (s *Server) setupDeploymentWatcher() error {
 

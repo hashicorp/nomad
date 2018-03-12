@@ -105,7 +105,7 @@ type PendingEvaluations []*structs.Evaluation
 // with the timeout used for messages that are not acknowledged before we
 // assume a Nack and attempt to redeliver as well as the deliveryLimit
 // which prevents a failing eval from being endlessly delivered. The
-// initialNackDelay is the delay before making a Nacked evalution available
+// initialNackDelay is the delay before making a Nacked evaluation available
 // again for the first Nack and subsequentNackDelay is the compounding delay
 // after the first Nack.
 func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
@@ -160,7 +160,7 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 // EnqueueAll is used to enqueue many evaluations. The map allows evaluations
 // that are being re-enqueued to include their token.
 //
-// When requeueing an evaluation that potentially may be already
+// When requeuing an evaluation that potentially may be already
 // enqueued. The evaluation is handled in one of the following ways:
 // * Evaluation not outstanding: Process as a normal Enqueue
 // * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
@@ -210,7 +210,7 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 }
 
 // processWaitingEnqueue waits the given duration on the evaluation before
-// enqueueing.
+// enqueuing.
 func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation) {
 	timer := time.AfterFunc(eval.Wait, func() {
 		b.enqueueWaiting(eval)
@@ -755,7 +755,7 @@ func (p PendingEvaluations) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// Push is used to add a new evalution to the slice
+// Push is used to add a new evaluation to the slice
 func (p *PendingEvaluations) Push(e interface{}) {
 	*p = append(*p, e.(*structs.Evaluation))
 }

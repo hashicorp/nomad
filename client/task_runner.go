@@ -329,7 +329,7 @@ func (r *TaskRunner) pre060StateFilePath() string {
 // executor.
 func (r *TaskRunner) RestoreState() (string, error) {
 	// COMPAT: Remove in 0.7.0
-	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// 0.6.0 transitioned from individual state files to a single bolt-db.
 	// The upgrade path is to:
 	// Check if old state exists
 	//   If so, restore from that and delete old state
@@ -648,7 +648,7 @@ func (r *TaskRunner) validateTask() error {
 		// Verify the artifact doesn't escape the task directory.
 		if err := artifact.Validate(); err != nil {
 			// If this error occurs there is potentially a server bug or
-			// mallicious, server spoofing.
+			// malicious, server spoofing.
 			r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
 				r.alloc.ID, r.task.Name, artifact, i, err)
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("artifact (%d) failed validation: %v", i, err))
@@ -1039,7 +1039,7 @@ func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, res
 
 		// Block for consul-template
 		// TODO Hooks should register themselves as blocking and then we can
-		// perioidcally enumerate what we are still blocked on
+		// periodically enumerate what we are still blocked on
 		select {
 		case <-r.unblockCh:
 			// Send the start signal

@@ -122,7 +122,7 @@ const (
 
 	// This is cpu.cfs_period_us: the length of a period.
 	// The default values is 100 milliseconds (ms) represented in microseconds (us).
-	// Below is the documnentation:
+	// Below is the documentation:
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	// https://docs.docker.com/engine/api/v1.35/#
 	defaultCFSPeriodUS = 100000
@@ -883,7 +883,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	if c.NetworkSettings == nil {
 		// This should only happen if there's been a coding error (such
-		// as not calling InspetContainer after CreateContainer). Code
+		// as not calling InspectContainer after CreateContainer). Code
 		// defensively in case the Docker API changes subtly.
 		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
 		return "", false
@@ -1797,7 +1797,7 @@ func (h *DockerHandle) Kill() error {
 
 		// Container has already been removed.
 		if strings.Contains(err.Error(), NoSuchContainerError) {
-			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
+			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-Existent container %s", h.containerID)
 			return nil
 		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)

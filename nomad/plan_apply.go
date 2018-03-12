@@ -122,7 +122,7 @@ func (s *Server) planApply() {
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	// Determine the miniumum number of updates, could be more if there
+	// Determine the minimum number of updates, could be more if there
 	// are multiple updates per node
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
@@ -300,7 +300,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 	outstanding := 0
 	didCancel := false
 
-	// Evalute each node in the plan, handling results as they are ready to
+	// Evaluate each node in the plan, handling results as they are ready to
 	// avoid blocking.
 OUTER:
 	for len(nodeIDList) > 0 {
@@ -408,7 +408,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "", fmt.Errorf("failed to get node '%s': %v", nodeID, err)
 	}
 
-	// If the node does not exist or is not ready for schduling it is not fit
+	// If the node does not exist or is not ready for scheduling it is not fit
 	// XXX: There is a potential race between when we do this check and when
 	// the Raft commit happens.
 	if node == nil {

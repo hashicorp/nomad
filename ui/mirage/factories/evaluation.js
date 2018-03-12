@@ -11,7 +11,7 @@ const EVAL_TRIGGERED_BY = [
   'periodic-job',
   'node-update',
   'scheduled',
-  'roling-update',
+  'rolling-update',
   'deployment-watcher',
   'failed-follow-up',
   'max-plan-attempts',
