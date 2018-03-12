@@ -775,7 +775,7 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 }
 
 // nextDelayedEval returns the next delayed eval to launch and when it should be enqueued.
-// This peeks at the heap to return the top.
+// This peeks at the heap to return the top. If the heap is empty, this returns nil and zero time.
 func (b *EvalBroker) nextDelayedEval() (*structs.Evaluation, time.Time) {
 	// If there is nothing wait for an update.
 	if b.delayHeap.Length() == 0 {
