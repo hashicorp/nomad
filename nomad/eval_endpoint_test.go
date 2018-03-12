@@ -949,7 +949,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 	}
 }
 
-func TestEvalEndpoint_Reblock_NonExistent(t *testing.T) {
+func TestEvalEndpoint_Reblock_Nonexistent(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue

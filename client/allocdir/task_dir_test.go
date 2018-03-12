@@ -9,8 +9,8 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
-// Test that building a chroot will skip nonExistent directories.
-func TestTaskDir_EmbedNonExistent(t *testing.T) {
+// Test that building a chroot will skip nonexistent directories.
+func TestTaskDir_EmbedNonexistent(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)

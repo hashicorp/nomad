@@ -416,7 +416,7 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("resp not of error type: %T %v", resp, resp)
 	}
-	if !strings.Contains(err.Error(), "non-Existent namespace") {
+	if !strings.Contains(err.Error(), "nonexistent namespace") {
 		t.Fatalf("bad error: %v", err)
 	}
 

@@ -60,13 +60,13 @@ func TestLinuxRootSecretDir(t *testing.T) {
 
 	secretsDir := filepath.Join(tmpdir, TaskSecrets)
 
-	// removing a nonExistent secrets dir should NOT error
+	// removing a nonexistent secrets dir should NOT error
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing nonExistent secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 	// run twice as it should be idempotent
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing nonExistent secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 
 	// creating a secrets dir should work
@@ -102,7 +102,7 @@ func TestLinuxRootSecretDir(t *testing.T) {
 
 	// removing again should be a noop
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing nonExistent secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 }
 
@@ -120,13 +120,13 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 
 	secretsDir := filepath.Join(tmpdir, TaskSecrets)
 
-	// removing a nonExistent secrets dir should NOT error
+	// removing a nonexistent secrets dir should NOT error
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing nonExistent secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 	// run twice as it should be idempotent
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing nonExistent secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 
 	// creating a secrets dir should work
@@ -162,6 +162,6 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 
 	// removing again should be a noop
 	if err := removeSecretDir(secretsDir); err != nil {
-		t.Fatalf("error removing nonExistent secrets dir %q: %v", secretsDir, err)
+		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 }

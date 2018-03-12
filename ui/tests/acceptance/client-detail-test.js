@@ -325,7 +325,7 @@ test('when the node is not found, an error message is shown, but the URL persist
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/node/not-a-real-node',
-      'A request to the non-Existent node is made'
+      'A request to the nonexistent node is made'
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');
