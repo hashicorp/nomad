@@ -429,6 +429,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	// Update the set of placement nodes
 	s.stack.SetNodes(nodes)
 
+	// Capture current time to use as the start time for any rescheduled allocations
+	now := time.Now()
+
 	// Have to handle destructive changes first as we need to discount their
 	// resources. To understand this imagine the resources were reduced and the
 	// count was scaled up.
@@ -491,7 +494,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
-					now := time.Now()
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
 						updateRescheduleTracker(alloc, prevAllocation, now)
