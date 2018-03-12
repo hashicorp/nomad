@@ -700,7 +700,9 @@ func (b *EvalBroker) flush() {
 	}
 
 	// Cancel the delayed evaluations goroutine
-	b.delayedEvalCancelFunc()
+	if b.delayedEvalCancelFunc != nil {
+		b.delayedEvalCancelFunc()
+	}
 
 	// Clear out the update channel for delayed evaluations
 	b.delayedEvalsUpdateCh = make(chan struct{}, 1)
@@ -742,16 +744,14 @@ func (d *evalWrapper) Namespace() string {
 func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 	var timerChannel <-chan time.Time
 	var delayTimer *time.Timer
-	init := false
 	for {
 		eval, waitUntil := b.nextDelayedEval()
 		if waitUntil.IsZero() {
 			timerChannel = nil
 		} else {
 			launchDur := waitUntil.Sub(time.Now().UTC())
-			if !init {
+			if delayTimer == nil {
 				delayTimer = time.NewTimer(launchDur)
-				init = true
 			} else {
 				delayTimer.Reset(launchDur)
 			}
