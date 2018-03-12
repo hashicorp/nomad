@@ -183,8 +183,9 @@ type DrainStrategy struct {
 	// DrainSpec is the user declared drain specification
 	DrainSpec
 
-	// DeadlineTime is the deadline time for the drain.
-	DeadlineTime time.Time
+	// ForceDeadline is the deadline time for the drain after which drains will
+	// be forced
+	ForceDeadline time.Time
 }
 
 // DrainSpec describes a Node's drain behavior.

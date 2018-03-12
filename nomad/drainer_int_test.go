@@ -187,6 +187,94 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	})
 }
 
+func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a node
+	n1 := mock.Node()
+	nodeReg := &structs.NodeRegisterRequest{
+		Node:         n1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var nodeResp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReg, &nodeResp))
+
+	// Create a job that runs on just one
+	job := mock.Job()
+	job.Update = *structs.DefaultUpdateStrategy
+	job.Update.Stagger = 30 * time.Second
+	job.TaskGroups[0].Count = 2
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Wait for the two allocations to be placed
+	state := s1.State()
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := state.AllocsByJob(nil, job.Namespace, job.ID, false)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) == 2, fmt.Errorf("got %d allocs", len(allocs))
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Drain the node
+	drainReq := &structs.NodeUpdateDrainRequest{
+		NodeID: n1.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 1 * time.Second,
+			},
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
+
+	// Wait for the allocs to be stopped
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := state.AllocsByNode(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, alloc := range allocs {
+			if alloc.DesiredStatus != structs.AllocDesiredStatusStop {
+				return false, fmt.Errorf("got desired status %v", alloc.DesiredStatus)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Check that the node drain is removed
+	testutil.WaitForResult(func() (bool, error) {
+		node, err := state.NodeByID(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		return node.DrainStrategy == nil, fmt.Errorf("has drain strategy still set")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestDrainer_DrainEmptyNode(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
