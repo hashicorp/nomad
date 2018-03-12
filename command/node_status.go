@@ -389,6 +389,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 }
 
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
+	if !c.verbose {
+		return
+	}
+
 	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events "))
 	c.outputNodeEvent(node.NodeEvents)
 }
@@ -396,7 +400,7 @@ func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
 func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
 	size := len(events)
 	nodeEvents := make([]string, size+1)
-	nodeEvents[0] = "Timestamp|Subsystem|Message|Details"
+	nodeEvents[0] = "Time|Subsystem|Message|Details"
 
 	for i, event := range events {
 		timestamp := formatUnixNanoTime(event.Timestamp)

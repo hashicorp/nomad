@@ -1097,14 +1097,6 @@ func (c *Client) registerAndHeartbeat() {
 
 				// if heartbeating fails, trigger Consul discovery
 				c.triggerDiscovery()
-
-				// trigger a node event to register that the heartbeat failed
-				nodeEvent := &structs.NodeEvent{
-					Message:   fmt.Sprintf("Client heartbeat failed at %s", intv),
-					Subsystem: "Heartbeat",
-					Timestamp: time.Now().Unix(),
-				}
-				c.triggerNodeEvent(nodeEvent)
 			}
 		} else {
 			c.heartbeatLock.Lock()
@@ -1154,28 +1146,26 @@ func (c *Client) run() {
 // submitNodeEvents is used to submit a client-side node event. Examples of
 // these kinds of events include when a driver moves from healthy to unhealthy
 // (and vice versa)
-func (c *Client) submitNodeEvents(e []*structs.NodeEvent) error {
-	node := c.Node()
+func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
+	nodeID := c.Node().ID
 	nodeEvents := map[string][]*structs.NodeEvent{
-		node.ID: e,
+		nodeID: events,
 	}
-	req := structs.EmitNodeEventRequest{
+	req := structs.EmitNodeEventsRequest{
 		NodeEvents:   nodeEvents,
 		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
-	var resp structs.EmitNodeEventResponse
-	if err := c.RPC("Node.EmitEvent", &req, &resp); err != nil {
-		c.logger.Printf("[ERR] client: emitting node events failed %v", err)
-		return err
+	var resp structs.EmitNodeEventsResponse
+	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
+		return fmt.Errorf("Emitting node event failed: %v", err)
 	}
 	c.logger.Printf("[INFO] client: emit node events complete")
 	return nil
 }
 
-// emitEvent is a handler which receives node events and on a interval and
+// watchEmitEvents is a handler which receives node events and on a interval and
 // submits them in batch format to the server
 func (c *Client) watchEmitEvents() {
-	batchEventsLock := sync.Mutex{}
 	batchEvents := make([]*structs.NodeEvent, 0)
 
 	timer := time.NewTimer(c.retryIntv(nodeEventsEmitIntv))
@@ -1184,23 +1174,25 @@ func (c *Client) watchEmitEvents() {
 	for {
 		select {
 		case event := <-c.triggerEmitNodeEvent:
-			batchEventsLock.Lock()
 			batchEvents = append(batchEvents, event)
-			batchEventsLock.Unlock()
 
 		case <-timer.C:
 			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 
-			batchEventsLock.Lock()
 			if len(batchEvents) == 0 {
 				// if we haven't received any events to emit, continue until the next
 				// time interval
-				batchEventsLock.Unlock()
 				continue
 			}
 
-			c.submitNodeEvents(batchEvents)
-			batchEventsLock.Unlock()
+			err := c.submitNodeEvents(batchEvents)
+			if err != nil {
+				batchEvents = make([]*structs.NodeEvent, 0)
+				c.logger.Printf("[ERR] client: Failure in thie process of trying to submit node events: %v", err)
+			} else if len(batchEvents) >= structs.MaxRetainedNodeEvents {
+				// Truncate list to under 10
+				batchEvents = make([]*structs.NodeEvent, 0)
+			}
 
 		case <-c.shutdownCh:
 			return
@@ -1209,7 +1201,7 @@ func (c *Client) watchEmitEvents() {
 	}
 }
 
-// emitEvent triggers a emit node event
+// triggerNodeEvent triggers a emit node event
 func (c *Client) triggerNodeEvent(nodeEvent *structs.NodeEvent) {
 	select {
 	case c.triggerEmitNodeEvent <- nodeEvent:

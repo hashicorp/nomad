@@ -74,7 +74,7 @@ const (
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
-	AddNodeEventType
+	AddNodeEventsType
 )
 
 const (
@@ -123,6 +123,10 @@ const (
 	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
 	// applied to RPCHoldTimeout.
 	JitterFraction = 16
+
+	// MaxRetainedNodeEvents is the maximum number of node events that will be
+	// retained for a single node
+	MaxRetainedNodeEvents = 10
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -1154,7 +1158,8 @@ type Node struct {
 	// updated
 	StatusUpdatedAt int64
 
-	// NodeEvents is the most recent set of events generated for the node
+	// NodeEvents is the most recent set of events generated for the node,
+	// retaining only MaxRetainedNodeEvents number at a time
 	NodeEvents []*NodeEvent
 
 	// Raft Indexes
@@ -1183,9 +1188,9 @@ type NodeEvent struct {
 	ModifyIndex uint64
 }
 
-// EmitNodeEventRequest is a request to update the node events source
+// EmitNodeEventsRequest is a request to update the node events source
 // with a new client-side event
-type EmitNodeEventRequest struct {
+type EmitNodeEventsRequest struct {
 	// NodeEvents are a map where the key is a node id, and value is a list of
 	// events for that node
 	NodeEvents map[string][]*NodeEvent
@@ -1193,9 +1198,9 @@ type EmitNodeEventRequest struct {
 	WriteRequest
 }
 
-// EmitNodeEventResponse is a response to the client about the status of
+// EmitNodeEventsResponse is a response to the client about the status of
 // the node event source update.
-type EmitNodeEventResponse struct {
+type EmitNodeEventsResponse struct {
 	Index uint64
 	WriteMeta
 }

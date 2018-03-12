@@ -78,7 +78,7 @@ func TestClientEndpoint_Register(t *testing.T) {
 	})
 }
 
-func TestClientEndpoint_EmitEvent(t *testing.T) {
+func TestClientEndpoint_EmitEvents(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -100,13 +100,13 @@ func TestClientEndpoint_EmitEvent(t *testing.T) {
 	}
 
 	nodeEvents := map[string][]*structs.NodeEvent{node.ID: {nodeEvent}}
-	req := structs.EmitNodeEventRequest{
+	req := structs.EmitNodeEventsRequest{
 		NodeEvents:   nodeEvents,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
 	var resp structs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvent", &req, &resp)
+	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
 	require.Nil(err)
 	require.NotEqual(0, resp.Index)
 

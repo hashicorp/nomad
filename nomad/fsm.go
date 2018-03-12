@@ -236,7 +236,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
-	case structs.AddNodeEventType:
+	case structs.AddNodeEventsType:
 		return n.applyAddNodeEventType(buf[1:], log.Index)
 	}
 
@@ -633,28 +633,15 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 // applyAddNodeEventType applies a node event to the set of currently-available
 // events.
 func (n *nomadFSM) applyAddNodeEventType(buf []byte, index uint64) interface{} {
-	var req structs.EmitNodeEventRequest
+	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventREquest: %v", err)
+		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventRequest: %v", err)
 		return err
 	}
 
-	for nodeID, nodeEvents := range req.NodeEvents {
-		ws := memdb.NewWatchSet()
-		node, err := n.state.NodeByID(ws, nodeID)
-
-		if err != nil {
-			return fmt.Errorf("encountered error when looking up nodes by id to insert node event: %v", err)
-		}
-
-		if node == nil {
-			return fmt.Errorf("unable to look up node by id %s to insert node event", nodeID)
-		}
-
-		if err := n.state.AddNodeEvent(index, node, nodeEvents); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: EmitNodeEventRequest failed to add node event: %v", err)
-			return err
-		}
+	if err := n.state.AddNodeEvent(index, req.NodeEvents); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: EmitNodeEventRequest failed to add node event: %v", err)
+		return err
 	}
 
 	return nil

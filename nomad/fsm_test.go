@@ -96,11 +96,11 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 	nodeEvents := []*structs.NodeEvent{nodeEvent}
 	allEvents := map[string][]*structs.NodeEvent{node.ID: nodeEvents}
 
-	req := structs.EmitNodeEventRequest{
+	req := structs.EmitNodeEventsRequest{
 		NodeEvents:   allEvents,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	buf, err := structs.Encode(structs.AddNodeEventType, req)
+	buf, err := structs.Encode(structs.AddNodeEventsType, req)
 	require.Nil(err)
 
 	// the response in this case will be an error

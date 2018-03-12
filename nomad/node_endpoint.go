@@ -52,16 +52,16 @@ type Node struct {
 	updatesLock sync.Mutex
 }
 
-func (n *Node) EmitEvent(args *structs.EmitNodeEventRequest, reply *structs.EmitNodeEventResponse) error {
-	if done, err := n.srv.forward("Node.EmitEvent", args, args, reply); done {
+func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
+	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_event"}, time.Now())
 
-	_, index, err := n.srv.raftApply(structs.AddNodeEventType, args)
+	_, index, err := n.srv.raftApply(structs.AddNodeEventsType, args)
 
 	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventType failed: %v", err)
+		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventsType failed: %v", err)
 		return err
 	}
 
