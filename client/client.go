@@ -1171,6 +1171,7 @@ func (c *Client) registerNode() error {
 	// Update the node status to ready after we register.
 	c.configLock.Lock()
 	node.Status = structs.NodeStatusReady
+	c.config.Node.Status = structs.NodeStatusReady
 	c.configLock.Unlock()
 
 	c.logger.Printf("[INFO] client: node registration complete")

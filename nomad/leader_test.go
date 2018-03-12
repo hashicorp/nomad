@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLeader_LeftServer(t *testing.T) {
@@ -978,4 +979,20 @@ func TestLeader_RollRaftServer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
+	s1 := testServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should have finished establish leader loop")
+	})
+
+	require.Nil(t, s1.revokeLeadership())
+	require.Nil(t, s1.revokeLeadership())
+	require.Nil(t, s1.revokeLeadership())
 }
