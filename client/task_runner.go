@@ -858,7 +858,7 @@ func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 		if structs.IsServerSide(err) {
 			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
 				r.task.Name, r.alloc.ID, err)
-			r.Kill("vault", fmt.Sprintf("server error in deriving vault token: %v", err), true)
+			r.Kill("vault", fmt.Sprintf("server error deriving vault token: %v", err), true)
 			return "", true
 		}
 		// Check if we can't recover from the error
