@@ -3077,7 +3077,7 @@ func TestTaskEventPopulate(t *testing.T) {
 		{NewTaskEvent(TaskRestarting).SetRestartDelay(2 * time.Second).SetRestartReason(ReasonWithinPolicy), "Task restarting in 2s"},
 		{NewTaskEvent(TaskRestarting).SetRestartReason("Chaos Monkey did it"), "Chaos Monkey did it - Task restarting in 0s"},
 		{NewTaskEvent(TaskKilling), "Sent interrupt"},
-		{NewTaskEvent(TaskKilling).SetKillReason("Its time for you to die"), "Killing task: Its time for you to die"},
+		{NewTaskEvent(TaskKilling).SetKillReason("Its time for you to die"), "Its time for you to die"},
 		{NewTaskEvent(TaskKilling).SetKillTimeout(1 * time.Second), "Sent interrupt. Waiting 1s before force killing"},
 		{NewTaskEvent(TaskTerminated).SetExitCode(-1).SetSignal(3), "Exit Code: -1, Signal: 3"},
 		{NewTaskEvent(TaskTerminated).SetMessage("Goodbye"), "Exit Code: 0, Exit Message: \"Goodbye\""},

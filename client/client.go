@@ -1754,11 +1754,11 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	var resp structs.DeriveVaultTokenResponse
 	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
 		c.logger.Printf("[ERR] client.vault: DeriveVaultToken RPC failed: %v", err)
-		return nil, fmt.Errorf("DeriveVaultToken RPC failed: %v", err)
+		return nil, structs.NewWrappedServerError(resp.Error)
 	}
 	if resp.Error != nil {
 		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", resp.Error)
-		return nil, resp.Error
+		return nil, structs.NewWrappedServerError(resp.Error)
 	}
 	if resp.Tasks == nil {
 		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")

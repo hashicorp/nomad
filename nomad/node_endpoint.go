@@ -1143,7 +1143,14 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 		if e == nil {
 			return
 		}
-		reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
+		re, ok := e.(structs.Recoverable)
+		if ok {
+			// No need to wrap if error already implements Recoverable
+			reply.Error = re.(*structs.RecoverableError)
+		} else {
+			reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
+		}
+
 		n.srv.logger.Printf("[ERR] nomad.client: DeriveVaultToken failed (recoverable %v): %v", recoverable, e)
 	}
 
@@ -1269,8 +1276,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 
 					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
 					if err != nil {
-						wrapped := fmt.Sprintf("failed to create token for task %q on alloc %q: %v", task, alloc.ID, err)
-						return structs.WrapRecoverable(wrapped, err)
+						return err
 					}
 
 					results[task] = secret
