@@ -303,7 +303,8 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	return formatKV(basic), nil
 }
 
-// lookupEvalTime returns a human
+// futureEvalTimePretty returns when the eval is eligible to reschedule
+// relative to current time, based on the WaitUntil field
 func futureEvalTimePretty(evalID string, client *api.Client) string {
 	evaluation, _, err := client.Evaluations().Info(evalID, nil)
 	// Eval time is not a critical output,
