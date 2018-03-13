@@ -643,7 +643,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Interval:      *taskGroup.ReschedulePolicy.Interval,
 		Delay:         *taskGroup.ReschedulePolicy.Delay,
 		DelayFunction: *taskGroup.ReschedulePolicy.DelayFunction,
-		DelayCeiling:  *taskGroup.ReschedulePolicy.DelayCeiling,
+		MaxDelay:      *taskGroup.ReschedulePolicy.MaxDelay,
 		Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
 	}
 

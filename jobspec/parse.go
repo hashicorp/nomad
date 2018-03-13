@@ -448,7 +448,7 @@ func parseReschedulePolicy(final **api.ReschedulePolicy, list *ast.ObjectList) e
 		"interval",
 		"unlimited",
 		"delay",
-		"delay_ceiling",
+		"max_delay",
 		"delay_function",
 	}
 	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {

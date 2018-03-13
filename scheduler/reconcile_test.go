@@ -1456,7 +1456,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	now := time.Now()
 	// Set up reschedule policy
 	delayDur := 15 * time.Second
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: delayDur, DelayCeiling: 1 * time.Hour}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: delayDur, MaxDelay: 1 * time.Hour}
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
@@ -1526,7 +1526,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
 	// Set up reschedule policy
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: 5 * time.Second, DelayCeiling: 1 * time.Hour}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: 5 * time.Second, MaxDelay: 1 * time.Hour}
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation

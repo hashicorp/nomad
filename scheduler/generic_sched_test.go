@@ -2733,7 +2733,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 		Attempts:      1,
 		Interval:      15 * time.Minute,
 		Delay:         5 * time.Second,
-		DelayCeiling:  1 * time.Minute,
+		MaxDelay:      1 * time.Minute,
 		DelayFunction: "linear",
 	}
 	tgName := job.TaskGroups[0].Name
@@ -2846,7 +2846,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 		Attempts:      1,
 		Interval:      15 * time.Minute,
 		Delay:         delayDuration,
-		DelayCeiling:  1 * time.Minute,
+		MaxDelay:      1 * time.Minute,
 		DelayFunction: "linear",
 	}
 	tgName := job.TaskGroups[0].Name
@@ -3072,7 +3072,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
 		DelayFunction: "exponential",
-		DelayCeiling:  1 * time.Hour,
+		MaxDelay:      1 * time.Hour,
 		Delay:         5 * time.Second,
 		Unlimited:     true,
 	}
@@ -4270,7 +4270,7 @@ func Test_updateRescheduleTracker(t *testing.T) {
 					PrevAllocID: prevAlloc.ID,
 					PrevNodeID:  prevAlloc.NodeID,
 					Delay:       5 * time.Second}},
-			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second, DelayFunction: "fibonacci", DelayCeiling: 60 * time.Second},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second, DelayFunction: "fibonacci", MaxDelay: 60 * time.Second},
 			reschedTime:   t1,
 			expectedRescheduleEvents: []*structs.RescheduleEvent{
 				{
@@ -4339,7 +4339,7 @@ func Test_updateRescheduleTracker(t *testing.T) {
 					Delay:          105 * time.Second,
 				},
 			},
-			reschedPolicy: &structs.ReschedulePolicy{Unlimited: true, Delay: 5 * time.Second, DelayFunction: "fibonacci", DelayCeiling: 240 * time.Second},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: true, Delay: 5 * time.Second, DelayFunction: "fibonacci", MaxDelay: 240 * time.Second},
 			reschedTime:   t1,
 			expectedRescheduleEvents: []*structs.RescheduleEvent{
 				{
@@ -4408,7 +4408,7 @@ func Test_updateRescheduleTracker(t *testing.T) {
 					Delay:          40 * time.Second,
 				},
 			},
-			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 1 * time.Hour, Attempts: 5, Delay: 5 * time.Second, DelayFunction: "exponential", DelayCeiling: 240 * time.Second},
+			reschedPolicy: &structs.ReschedulePolicy{Unlimited: false, Interval: 1 * time.Hour, Attempts: 5, Delay: 5 * time.Second, DelayFunction: "exponential", MaxDelay: 240 * time.Second},
 			reschedTime:   t1,
 			expectedRescheduleEvents: []*structs.RescheduleEvent{
 				{
