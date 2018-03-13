@@ -389,9 +389,6 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 }
 
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
-	if !c.verbose {
-		return
-	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events "))
 	c.outputNodeEvent(node.NodeEvents)
@@ -400,14 +397,22 @@ func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
 func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
 	size := len(events)
 	nodeEvents := make([]string, size+1)
-	nodeEvents[0] = "Time|Subsystem|Message|Details"
+	if c.verbose {
+		nodeEvents[0] = "Time|Subsystem|Message|Details"
+	} else {
+		nodeEvents[0] = "Time|Subsystem|Message"
+	}
 
 	for i, event := range events {
 		timestamp := formatUnixNanoTime(event.Timestamp)
 		subsystem := event.Subsystem
 		msg := event.Message
-		details := formatEventDetails(event.Details)
-		nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s|%s", timestamp, subsystem, msg, details)
+		if c.verbose {
+			details := formatEventDetails(event.Details)
+			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s|%s", timestamp, subsystem, msg, details)
+		} else {
+			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s", timestamp, subsystem, msg)
+		}
 	}
 	c.Ui.Output(formatList(nodeEvents))
 }

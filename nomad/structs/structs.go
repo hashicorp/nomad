@@ -1188,6 +1188,15 @@ type NodeEvent struct {
 	ModifyIndex uint64
 }
 
+func (ne *NodeEvent) String() string {
+	var details string
+	for k, v := range ne.Details {
+		details = fmt.Sprintf("%s: %s", k, v)
+	}
+
+	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, string(ne.Subsystem), details, ne.Timestamp)
+}
+
 // EmitNodeEventsRequest is a request to update the node events source
 // with a new client-side event
 type EmitNodeEventsRequest struct {
@@ -1221,16 +1230,14 @@ func (n *Node) Copy() *Node {
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
-	nn.NodeEvents = copyNodeEvents(n)
+	nn.NodeEvents = copyNodeEvents(n.NodeEvents)
 	return nn
 }
 
-func copyNodeEvents(first *Node) []*NodeEvent {
-	nodeEvents := make([]*NodeEvent, 0)
-	for _, e := range first.NodeEvents {
-		nodeEvents = append(nodeEvents, e)
-	}
-	return nodeEvents
+func copyNodeEvents(first []*NodeEvent) []*NodeEvent {
+	second := make([]*NodeEvent, len(first))
+	copy(second, first)
+	return second
 }
 
 // TerminalStatus returns if the current status is terminal and

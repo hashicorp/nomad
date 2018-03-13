@@ -3722,8 +3722,7 @@ func (s *StateStore) upsertNodeEvents(index uint64, nodeEvents map[string][]*str
 		}
 
 		// Copy the existing node
-		copyNode := new(structs.Node)
-		*copyNode = *node
+		copyNode := node.Copy()
 
 		nodeEvents := node.NodeEvents
 
@@ -3733,7 +3732,7 @@ func (s *StateStore) upsertNodeEvents(index uint64, nodeEvents map[string][]*str
 
 			// keep node events pruned to below 10 simultaneously
 			if len(nodeEvents) >= structs.MaxRetainedNodeEvents {
-				delta := len(nodeEvents) - 10
+				delta := len(nodeEvents) - structs.MaxRetainedNodeEvents
 				nodeEvents = nodeEvents[delta+1:]
 			}
 			nodeEvents = append(nodeEvents, e)

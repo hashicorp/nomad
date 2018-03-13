@@ -58,6 +58,12 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_event"}, time.Now())
 
+	if args.NodeEvents == nil {
+		err := fmt.Errorf("No event to add; node event map is nil")
+		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventsType failed: %v", err)
+		return err
+	}
+
 	_, index, err := n.srv.raftApply(structs.AddNodeEventsType, args)
 
 	if err != nil {

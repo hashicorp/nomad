@@ -81,10 +81,6 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
-
-	// nodeEventsEmitIntv is the interval at which node events are synced with
-	// the server
-	nodeEventsEmitIntv = 3 * time.Second
 )
 
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
@@ -1062,7 +1058,7 @@ func (c *Client) registerAndHeartbeat() {
 	go c.watchNodeUpdates()
 
 	// Start watching for emitting node events
-	go c.watchEmitEvents()
+	go c.watchNodeEvents()
 
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
@@ -1147,7 +1143,7 @@ func (c *Client) run() {
 // these kinds of events include when a driver moves from healthy to unhealthy
 // (and vice versa)
 func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
-	nodeID := c.Node().ID
+	nodeID := c.NodeID()
 	nodeEvents := map[string][]*structs.NodeEvent{
 		nodeID: events,
 	}
@@ -1159,44 +1155,42 @@ func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
 	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
 		return fmt.Errorf("Emitting node event failed: %v", err)
 	}
-	c.logger.Printf("[INFO] client: emit node events complete")
 	return nil
 }
 
-// watchEmitEvents is a handler which receives node events and on a interval and
-// submits them in batch format to the server
-func (c *Client) watchEmitEvents() {
-	batchEvents := make([]*structs.NodeEvent, 0)
+// watchNodeEvents is a handler which receives node events and on a interval
+// and submits them in batch format to the server
+func (c *Client) watchNodeEvents() {
+	// batchEvents stores events that have yet to be published
+	var batchEvents []*structs.NodeEvent
 
-	timer := time.NewTimer(c.retryIntv(nodeEventsEmitIntv))
+	// Create and drain the timer
+	timer := time.NewTimer(0)
+	timer.Stop()
+	select {
+	case <-timer.C:
+	default:
+	}
 	defer timer.Stop()
 
 	for {
 		select {
 		case event := <-c.triggerEmitNodeEvent:
-			batchEvents = append(batchEvents, event)
-
-		case <-timer.C:
+			if l := len(batchEvents); l <= structs.MaxRetainedNodeEvents {
+				batchEvents = append(batchEvents, event)
+			} else {
+				// Drop the oldest event
+				c.logger.Printf("[WARN] client: dropping node event: %v", batchEvents[0])
+				batchEvents = append(batchEvents[1:], event)
+			}
 			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
-
-			if len(batchEvents) == 0 {
-				// if we haven't received any events to emit, continue until the next
-				// time interval
-				continue
+		case <-timer.C:
+			if err := c.submitNodeEvents(batchEvents); err != nil {
+				c.logger.Printf("[ERR] client: submitting node events failed: %v", err)
+				timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 			}
-
-			err := c.submitNodeEvents(batchEvents)
-			if err != nil {
-				batchEvents = make([]*structs.NodeEvent, 0)
-				c.logger.Printf("[ERR] client: Failure in thie process of trying to submit node events: %v", err)
-			} else if len(batchEvents) >= structs.MaxRetainedNodeEvents {
-				// Truncate list to under 10
-				batchEvents = make([]*structs.NodeEvent, 0)
-			}
-
 		case <-c.shutdownCh:
 			return
-		default:
 		}
 	}
 }
