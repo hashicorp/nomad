@@ -83,7 +83,8 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 		// Total amount of memory allowed to consume
 		e.resConCtx.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		e.resConCtx.groups.Resources.MemorySwap = int64(-1)
+		var memSwappiness int64 = 0
+		e.resConCtx.groups.Resources.MemorySwappiness = &memSwappiness
 	}
 
 	if resources.CPU < 2 {
