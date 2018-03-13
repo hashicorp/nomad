@@ -713,7 +713,7 @@ func TestParse(t *testing.T) {
 				Reschedule: &api.ReschedulePolicy{
 					DelayFunction: helper.StringToPtr("exponential"),
 					Delay:         helper.TimeToPtr(10 * time.Second),
-					DelayCeiling:  helper.TimeToPtr(120 * time.Second),
+					MaxDelay:      helper.TimeToPtr(120 * time.Second),
 					Unlimited:     helper.BoolToPtr(true),
 				},
 				TaskGroups: []*api.TaskGroup{

@@ -2660,7 +2660,7 @@ var (
 	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
 		Delay:         30 * time.Second,
 		DelayFunction: "exponential",
-		DelayCeiling:  1 * time.Hour,
+		MaxDelay:      1 * time.Hour,
 		Unlimited:     true,
 	}
 	DefaultBatchJobReschedulePolicy = ReschedulePolicy{
@@ -2770,8 +2770,8 @@ type ReschedulePolicy struct {
 	// attempts. Valid values are "exponential", "linear", and "fibonacci".
 	DelayFunction string
 
-	// DelayCeiling is an upper bound on the delay.
-	DelayCeiling time.Duration
+	// MaxDelay is an upper bound on the delay.
+	MaxDelay time.Duration
 
 	// Unlimited allows infinite rescheduling attempts. Only allowed when delay is set
 	// between reschedule attempts.
@@ -2812,14 +2812,14 @@ func (r *ReschedulePolicy) Validate() error {
 		delayPreCheck = false
 	}
 
-	// Validate DelayCeiling if not using linear delay progression
+	// Validate MaxDelay if not using linear delay progression
 	if r.DelayFunction != "linear" {
-		if r.DelayCeiling.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
+		if r.MaxDelay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
 			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
 			delayPreCheck = false
 		}
-		if r.DelayCeiling < r.Delay {
-			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", r.Delay, r.DelayCeiling))
+		if r.MaxDelay < r.Delay {
+			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
 			delayPreCheck = false
 		}
 
@@ -2862,7 +2862,7 @@ func (r *ReschedulePolicy) validateDelayParams() error {
 			"delay function %q", possibleAttempts, r.Interval, r.Delay, r.DelayFunction))
 	} else {
 		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
-			"delay function %q, and delay ceiling %v", possibleAttempts, r.Interval, r.Delay, r.DelayFunction, r.DelayCeiling))
+			"delay function %q, and delay ceiling %v", possibleAttempts, r.Interval, r.Delay, r.DelayFunction, r.MaxDelay))
 	}
 	multierror.Append(&mErr, fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", recommendedInterval.Round(time.Minute), r.Attempts))
 	return mErr.ErrorOrNil()
@@ -2882,8 +2882,8 @@ func (r *ReschedulePolicy) viableAttempts() (bool, int, time.Duration) {
 	case "exponential":
 		for i := 0; i < r.Attempts; i++ {
 			nextDelay := time.Duration(math.Pow(2, float64(i))) * r.Delay
-			if nextDelay > r.DelayCeiling {
-				nextDelay = r.DelayCeiling
+			if nextDelay > r.MaxDelay {
+				nextDelay = r.MaxDelay
 				recommendedInterval += nextDelay
 			} else {
 				recommendedInterval = nextDelay
@@ -2904,11 +2904,11 @@ func (r *ReschedulePolicy) viableAttempts() (bool, int, time.Duration) {
 			var nextDelay time.Duration
 			if reachedCeiling {
 				//switch to linear
-				nextDelay = slots[i-1] + r.DelayCeiling
+				nextDelay = slots[i-1] + r.MaxDelay
 			} else {
 				nextDelay = slots[i-1] + slots[i-2]
-				if nextDelay > r.DelayCeiling {
-					nextDelay = r.DelayCeiling
+				if nextDelay > r.MaxDelay {
+					nextDelay = r.MaxDelay
 					reachedCeiling = true
 				}
 			}
@@ -5556,7 +5556,7 @@ func (a *Allocation) NextDelay() time.Duration {
 			fibN2Delay := events[len(events)-2].Delay
 			// Handle reset of delay ceiling which should cause
 			// a new series to start
-			if fibN2Delay == policy.DelayCeiling && fibN1Delay == policy.Delay {
+			if fibN2Delay == policy.MaxDelay && fibN1Delay == policy.Delay {
 				delayDur = fibN1Delay
 			} else {
 				delayDur = fibN1Delay + fibN2Delay
@@ -5565,8 +5565,8 @@ func (a *Allocation) NextDelay() time.Duration {
 	default:
 		return delayDur
 	}
-	if policy.DelayCeiling > 0 && delayDur > policy.DelayCeiling {
-		delayDur = policy.DelayCeiling
+	if policy.MaxDelay > 0 && delayDur > policy.MaxDelay {
+		delayDur = policy.MaxDelay
 		// check if delay needs to be reset
 
 		lastRescheduleEvent := a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1]

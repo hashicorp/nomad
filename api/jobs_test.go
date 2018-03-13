@@ -140,7 +140,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval:      helper.TimeToPtr(0),
 							DelayFunction: helper.StringToPtr("exponential"),
 							Delay:         helper.TimeToPtr(30 * time.Second),
-							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						Tasks: []*Task{
@@ -210,7 +210,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval:      helper.TimeToPtr(0),
 							DelayFunction: helper.StringToPtr("exponential"),
 							Delay:         helper.TimeToPtr(30 * time.Second),
-							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						Tasks: []*Task{
@@ -347,7 +347,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval:      helper.TimeToPtr(0),
 							DelayFunction: helper.StringToPtr("exponential"),
 							Delay:         helper.TimeToPtr(30 * time.Second),
-							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
@@ -566,7 +566,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval:      helper.TimeToPtr(0),
 							DelayFunction: helper.StringToPtr("exponential"),
 							Delay:         helper.TimeToPtr(30 * time.Second),
-							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
@@ -606,7 +606,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval:      helper.TimeToPtr(0),
 							DelayFunction: helper.StringToPtr("exponential"),
 							Delay:         helper.TimeToPtr(30 * time.Second),
-							DelayCeiling:  helper.TimeToPtr(1 * time.Hour),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{

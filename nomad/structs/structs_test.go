@@ -2464,7 +2464,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      5,
 				Interval:      1 * time.Hour,
 				Delay:         30 * time.Second,
-				DelayCeiling:  5 * time.Minute,
+				MaxDelay:      5 * time.Minute,
 				DelayFunction: "exponential"},
 		},
 		{
@@ -2473,7 +2473,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      5,
 				Interval:      15 * time.Minute,
 				Delay:         10 * time.Second,
-				DelayCeiling:  5 * time.Minute,
+				MaxDelay:      5 * time.Minute,
 				DelayFunction: "fibonacci"},
 		},
 		{
@@ -2495,7 +2495,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Interval:      8 * time.Second,
 				DelayFunction: "exponential",
 				Delay:         15 * time.Second,
-				DelayCeiling:  5 * time.Second},
+				MaxDelay:      5 * time.Second},
 			errors: []error{
 				fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)",
 					15*time.Second, 5*time.Second),
@@ -2535,7 +2535,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      10,
 				Interval:      30 * time.Minute,
 				Delay:         5 * time.Minute,
-				DelayCeiling:  40 * time.Minute,
+				MaxDelay:      40 * time.Minute,
 				DelayFunction: "exponential",
 			},
 			errors: []error{
@@ -2554,7 +2554,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      10,
 				Interval:      1 * time.Hour,
 				Delay:         20 * time.Minute,
-				DelayCeiling:  80 * time.Minute,
+				MaxDelay:      80 * time.Minute,
 				DelayFunction: "fibonacci",
 			},
 			errors: []error{
@@ -2572,7 +2572,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Unlimited:     true,
 				DelayFunction: "exponential",
 				Delay:         5 * time.Minute,
-				DelayCeiling:  1 * time.Hour,
+				MaxDelay:      1 * time.Hour,
 			},
 		},
 		{
@@ -3115,7 +3115,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "exponential",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3132,7 +3132,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "exponential",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3164,7 +3164,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "exponential",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3205,7 +3205,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "exponential",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3253,7 +3253,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "fibonacci",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3269,7 +3269,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "fibonacci",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3297,7 +3297,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "fibonacci",
 				Delay:         5 * time.Second,
-				DelayCeiling:  90 * time.Second,
+				MaxDelay:      90 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3337,7 +3337,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "fibonacci",
 				Delay:         5 * time.Second,
-				DelayCeiling:  50 * time.Second,
+				MaxDelay:      50 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3381,7 +3381,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "fibonacci",
 				Delay:         5 * time.Second,
-				DelayCeiling:  50 * time.Second,
+				MaxDelay:      50 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{
@@ -3425,7 +3425,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "fibonacci",
 				Delay:         5 * time.Second,
-				DelayCeiling:  50 * time.Second,
+				MaxDelay:      50 * time.Second,
 				Unlimited:     true,
 			},
 			alloc: &Allocation{

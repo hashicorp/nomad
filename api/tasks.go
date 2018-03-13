@@ -95,8 +95,8 @@ type ReschedulePolicy struct {
 	// attempts. Valid values are "exponential", "linear", and "fibonacci".
 	DelayFunction *string `mapstructure:"delay_function"`
 
-	// DelayCeiling is an upper bound on the delay.
-	DelayCeiling *time.Duration `mapstructure:"delay_ceiling"`
+	// MaxDelay is an upper bound on the delay.
+	MaxDelay *time.Duration `mapstructure:"max_delay"`
 
 	// Unlimited allows rescheduling attempts until they succeed
 	Unlimited *bool `mapstructure:"unlimited"`
@@ -115,8 +115,8 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 	if rp.DelayFunction != nil {
 		r.DelayFunction = rp.DelayFunction
 	}
-	if rp.DelayCeiling != nil {
-		r.DelayCeiling = rp.DelayCeiling
+	if rp.MaxDelay != nil {
+		r.MaxDelay = rp.MaxDelay
 	}
 	if rp.Unlimited != nil {
 		r.Unlimited = rp.Unlimited
@@ -346,7 +346,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
 			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
 			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
-			DelayCeiling:  helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.DelayCeiling),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.MaxDelay),
 			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
 		}
 	case "batch":
@@ -355,7 +355,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
 			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
 			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-			DelayCeiling:  helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.DelayCeiling),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
 			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 		}
 	default:
