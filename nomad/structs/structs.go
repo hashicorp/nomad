@@ -6159,8 +6159,8 @@ func (r *WrappedServerError) IsServerSide() bool {
 	return true
 }
 
-// Recoverable is an interface for errors to implement to indicate whether or
-// not they are fatal or recoverable.
+// ServerSideError is an interface for errors to implement to indicate
+// errors occuring after the request makes it to a server
 type ServerSideError interface {
 	error
 	IsServerSide() bool
