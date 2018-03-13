@@ -262,8 +262,8 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 // transition to drain. The handler blocks till the changes to the allocation
 // have occurred.
 func (n *NodeDrainer) handleJobAllocDrain(req *DrainRequest) {
-	// No need to block on future
-	n.batchDrainAllocs(req.Allocs)
+	index, err := n.batchDrainAllocs(req.Allocs)
+	req.Resp.Respond(index, err)
 }
 
 // handleMigratedAllocs checks to see if any nodes can be considered done
@@ -310,7 +310,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 
 // batchDrainAllocs is used to batch the draining of allocations. It will block
 // until the batch is complete.
-func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) *structs.BatchFuture {
+func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, error) {
 	// Add this to the batch
 	n.batcher.Lock()
 	n.batcher.updates = append(n.batcher.updates, allocs...)
@@ -336,7 +336,11 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) *structs.Ba
 	}
 	n.batcher.Unlock()
 
-	return future
+	if err := future.Wait(); err != nil {
+		return 0, err
+	}
+
+	return future.Index(), nil
 }
 
 // drainAllocs is a non batch, marking of the desired transition to migrate for

@@ -229,6 +229,24 @@ func (w *drainingJobWatcher) watch() {
 				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
 				return
 			}
+
+			// Wait for the request to be committed
+			select {
+			case <-req.Resp.WaitCh():
+			case <-w.ctx.Done():
+				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+				return
+			}
+
+			// See if it successfully committed
+			if err := req.Resp.Error(); err != nil {
+				w.logger.Printf("[ERR] nomad.drain.job_watcher: failed to transition allocations: %v", err)
+			}
+
+			// Wait until the new index
+			if index := req.Resp.Index(); index > waitIndex {
+				waitIndex = index
+			}
 		}
 
 		if len(allMigrated) != 0 {
