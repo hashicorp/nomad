@@ -1502,7 +1502,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Attempts:      1,
 					Interval:      15 * time.Second,
 					Delay:         5 * time.Second,
-					DelayCeiling:  20 * time.Second,
+					MaxDelay:      20 * time.Second,
 					DelayFunction: "exponential",
 					Unlimited:     false,
 				},
@@ -1528,12 +1528,6 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "DelayCeiling",
-								Old:  "",
-								New:  "20000000000",
-							},
-							{
-								Type: DiffTypeAdded,
 								Name: "DelayFunction",
 								Old:  "",
 								New:  "exponential",
@@ -1543,6 +1537,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Interval",
 								Old:  "",
 								New:  "15000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "MaxDelay",
+								Old:  "",
+								New:  "20000000000",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -1562,7 +1562,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Attempts:      1,
 					Interval:      15 * time.Second,
 					Delay:         5 * time.Second,
-					DelayCeiling:  20 * time.Second,
+					MaxDelay:      20 * time.Second,
 					DelayFunction: "exponential",
 					Unlimited:     false,
 				},
@@ -1589,12 +1589,6 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
-								Name: "DelayCeiling",
-								Old:  "20000000000",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
 								Name: "DelayFunction",
 								Old:  "exponential",
 								New:  "",
@@ -1603,6 +1597,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Interval",
 								Old:  "15000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "MaxDelay",
+								Old:  "20000000000",
 								New:  "",
 							},
 							{
@@ -1624,7 +1624,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Interval:      1 * time.Second,
 					DelayFunction: "exponential",
 					Delay:         20 * time.Second,
-					DelayCeiling:  1 * time.Minute,
+					MaxDelay:      1 * time.Minute,
 					Unlimited:     false,
 				},
 			},
@@ -1634,7 +1634,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Interval:      2 * time.Second,
 					DelayFunction: "linear",
 					Delay:         30 * time.Second,
-					DelayCeiling:  1 * time.Minute,
+					MaxDelay:      1 * time.Minute,
 					Unlimited:     true,
 				},
 			},
@@ -1715,12 +1715,6 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
-								Name: "DelayCeiling",
-								Old:  "0",
-								New:  "0",
-							},
-							{
-								Type: DiffTypeNone,
 								Name: "DelayFunction",
 								Old:  "",
 								New:  "",
@@ -1730,6 +1724,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Interval",
 								Old:  "1000000000",
 								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MaxDelay",
+								Old:  "0",
+								New:  "0",
 							},
 							{
 								Type: DiffTypeNone,

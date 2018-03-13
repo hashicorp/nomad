@@ -4,7 +4,7 @@ job "foo" {
   reschedule {
     delay = "10s",
     delay_function = "exponential"
-    delay_ceiling="120s"
+    max_delay="120s"
     unlimited = true
   }
   group "bar" {

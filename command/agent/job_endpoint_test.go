@@ -1177,7 +1177,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					DelayFunction: helper.StringToPtr("linear"),
 					Delay:         helper.TimeToPtr(30 * time.Second),
 					Unlimited:     helper.BoolToPtr(true),
-					DelayCeiling:  helper.TimeToPtr(20 * time.Minute),
+					MaxDelay:      helper.TimeToPtr(20 * time.Minute),
 				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
@@ -1393,7 +1393,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					DelayFunction: "linear",
 					Delay:         30 * time.Second,
 					Unlimited:     true,
-					DelayCeiling:  20 * time.Minute,
+					MaxDelay:      20 * time.Minute,
 				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB:  100,

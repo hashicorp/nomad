@@ -513,7 +513,7 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 		}
 
 		// web task should have completed successfully while bad task
-		// retries artififact fetching
+		// retries artifact fetching
 		webstate := last.TaskStates["web"]
 		if webstate.State != structs.TaskStateDead {
 			return false, fmt.Errorf("expected web to be dead but found %q", last.TaskStates["web"].State)
