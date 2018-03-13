@@ -1143,10 +1143,10 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 		if e == nil {
 			return
 		}
-		re, ok := e.(structs.Recoverable)
+		re, ok := e.(*structs.RecoverableError)
 		if ok {
-			// No need to wrap if error already implements Recoverable
-			reply.Error = re.(*structs.RecoverableError)
+			// No need to wrap if error is already a RecoverableError
+			reply.Error = re
 		} else {
 			reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
 		}
