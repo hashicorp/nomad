@@ -311,7 +311,7 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	resp = fsm.Apply(makeLog(buf))
 	require.Nil(resp)
 
-	// Verify we are NOT registered
+	// Verify drain is set
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
