@@ -1193,6 +1193,18 @@ func (s *Server) setupWorkers() error {
 		return nil
 	}
 
+	// Check if the core scheduler is not enabled
+	found := false
+	for _, scheduler := range s.config.EnabledSchedulers {
+		if scheduler == structs.JobTypeCore {
+			found = true
+			break
+		}
+	}
+	if !found {
+		panic(fmt.Sprintf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore))
+	}
+
 	// Start the workers
 	for i := 0; i < s.config.NumSchedulers; i++ {
 		if w, err := NewWorker(s); err != nil {
