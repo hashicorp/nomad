@@ -156,7 +156,6 @@ func TestJob_Warnings(t *testing.T) {
 	}
 }
 
-
 func TestJob_SpecChanged(t *testing.T) {
 	// Get a base test job
 	base := testJob()
