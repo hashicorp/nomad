@@ -114,6 +114,7 @@ export default Factory.extend({
       groupNames: groups.mapBy('name'),
       job,
       job_id: job.id,
+      JobID: job.id,
       namespace: job.namespace,
     });
 
