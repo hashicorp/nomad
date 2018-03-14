@@ -1379,8 +1379,6 @@ func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.Em
 		}
 	}
 
-	// TODO ACLs
-
 	_, index, err := n.srv.raftApply(structs.UpsertNodeEventsType, args)
 	if err != nil {
 		n.srv.logger.Printf("[ERR] nomad.node upserting node events failed: %v", err)
