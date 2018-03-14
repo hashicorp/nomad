@@ -1189,7 +1189,7 @@ func (c *Client) watchNodeEvents() {
 				c.logger.Printf("[ERR] client: submitting node events failed: %v", err)
 				timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 			} else {
-				// Reset the events since we succesfully sent them.
+				// Reset the events since we successfully sent them.
 				batchEvents = nil
 			}
 		case <-c.shutdownCh:
