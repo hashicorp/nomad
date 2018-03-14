@@ -6137,7 +6137,7 @@ func IsRecoverable(e error) bool {
 // WrappedServerError wraps an error and satisfies
 // both the Recoverable and the ServerSideError interfaces
 type WrappedServerError struct {
-	Err         error
+	Err error
 }
 
 // NewWrappedServerError is used to create a wrapped server side error
@@ -6160,7 +6160,7 @@ func (r *WrappedServerError) IsServerSide() bool {
 }
 
 // ServerSideError is an interface for errors to implement to indicate
-// errors occuring after the request makes it to a server
+// errors occurring after the request makes it to a server
 type ServerSideError interface {
 	error
 	IsServerSide() bool
