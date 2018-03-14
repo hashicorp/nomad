@@ -4189,7 +4189,7 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 		}
 	case TaskKilling:
 		if event.KillReason != "" {
-			desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+			desc = event.KillReason
 		} else if event.KillTimeout != 0 {
 			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
 		} else {
@@ -6130,6 +6130,47 @@ type Recoverable interface {
 func IsRecoverable(e error) bool {
 	if re, ok := e.(Recoverable); ok {
 		return re.IsRecoverable()
+	}
+	return false
+}
+
+// WrappedServerError wraps an error and satisfies
+// both the Recoverable and the ServerSideError interfaces
+type WrappedServerError struct {
+	Err error
+}
+
+// NewWrappedServerError is used to create a wrapped server side error
+func NewWrappedServerError(e error) error {
+	return &WrappedServerError{
+		Err: e,
+	}
+}
+
+func (r *WrappedServerError) IsRecoverable() bool {
+	return IsRecoverable(r.Err)
+}
+
+func (r *WrappedServerError) Error() string {
+	return r.Err.Error()
+}
+
+func (r *WrappedServerError) IsServerSide() bool {
+	return true
+}
+
+// ServerSideError is an interface for errors to implement to indicate
+// errors occurring after the request makes it to a server
+type ServerSideError interface {
+	error
+	IsServerSide() bool
+}
+
+// IsServerSide returns true if error is a wrapped
+// server side error
+func IsServerSide(e error) bool {
+	if se, ok := e.(ServerSideError); ok {
+		return se.IsServerSide()
 	}
 	return false
 }
