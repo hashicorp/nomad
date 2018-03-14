@@ -352,7 +352,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		rescheduleLaterAllocs = a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
 	}
 
-
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
 	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate, rescheduleNow))
