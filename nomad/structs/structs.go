@@ -74,7 +74,7 @@ const (
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
-	AddNodeEventsType
+	UpsertNodeEventsType
 )
 
 const (
@@ -1055,6 +1055,60 @@ type NodeConnQueryResponse struct {
 	QueryMeta
 }
 
+// EmitNodeEventsRequest is a request to update the node events source
+// with a new client-side event
+type EmitNodeEventsRequest struct {
+	// NodeEvents are a map where the key is a node id, and value is a list of
+	// events for that node
+	NodeEvents map[string][]*NodeEvent
+
+	WriteRequest
+}
+
+// EmitNodeEventsResponse is a response to the client about the status of
+// the node event source update.
+type EmitNodeEventsResponse struct {
+	Index uint64
+	WriteMeta
+}
+
+// TODO needs to be a more specific name
+// Subsystem denotes the subsystem where a node event took place.
+type Subsystem string
+
+const (
+	Drain     Subsystem = "Drain"
+	Driver    Subsystem = "Driver"
+	Heartbeat Subsystem = "Heartbeat"
+	Cluster   Subsystem = "Cluster"
+)
+
+// NodeEvent is a single unit representing a node’s state change
+type NodeEvent struct {
+	Message     string
+	Subsystem   Subsystem
+	Details     map[string]string
+	Timestamp   int64
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (ne *NodeEvent) String() string {
+	var details []string
+	for k, v := range ne.Details {
+		details = append(details, fmt.Sprintf("%s: %s", k, v))
+	}
+
+	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, string(ne.Subsystem), strings.Join(details, ","), ne.Timestamp)
+}
+
+func (ne *NodeEvent) Copy() *NodeEvent {
+	c := new(NodeEvent)
+	*c = *ne
+	c.Details = helper.CopyMapStringString(ne.Details)
+	return c
+}
+
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"
@@ -1167,53 +1221,6 @@ type Node struct {
 	ModifyIndex uint64
 }
 
-// Subsystem denotes the subsystem where a node event took place.
-type Subsystem string
-
-const (
-	Drain     Subsystem = "Drain"
-	Driver    Subsystem = "Driver"
-	Heartbeat Subsystem = "Heartbeat"
-	Cluster   Subsystem = "CLuster"
-)
-
-// NodeEvent is a single unit representing a node’s state change
-type NodeEvent struct {
-	Message   string
-	Subsystem Subsystem
-	Details   map[string]string
-	Timestamp int64
-
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-func (ne *NodeEvent) String() string {
-	var details string
-	for k, v := range ne.Details {
-		details = fmt.Sprintf("%s: %s", k, v)
-	}
-
-	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, string(ne.Subsystem), details, ne.Timestamp)
-}
-
-// EmitNodeEventsRequest is a request to update the node events source
-// with a new client-side event
-type EmitNodeEventsRequest struct {
-	// NodeEvents are a map where the key is a node id, and value is a list of
-	// events for that node
-	NodeEvents map[string][]*NodeEvent
-
-	WriteRequest
-}
-
-// EmitNodeEventsResponse is a response to the client about the status of
-// the node event source update.
-type EmitNodeEventsResponse struct {
-	Index uint64
-	WriteMeta
-}
-
 // Ready returns if the node is ready for running allocations
 func (n *Node) Ready() bool {
 	return n.Status == NodeStatusReady && !n.Drain
@@ -1234,10 +1241,18 @@ func (n *Node) Copy() *Node {
 	return nn
 }
 
-func copyNodeEvents(first []*NodeEvent) []*NodeEvent {
-	second := make([]*NodeEvent, len(first))
-	copy(second, first)
-	return second
+// copyNodeEvents is a helper to copy a list of NodeEvent's
+func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
+	l := len(events)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*NodeEvent, l)
+	for i, event := range events {
+		c[i] = event.Copy()
+	}
+	return c
 }
 
 // TerminalStatus returns if the current status is terminal and

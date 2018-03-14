@@ -537,10 +537,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 			Subsystem: "Cluster",
 			Timestamp: node.StatusUpdatedAt,
 		}
-
-		node.NodeEvents = make([]*structs.NodeEvent, 0, 1)
-		node.NodeEvents = append(node.NodeEvents, nodeEvent)
-
+		node.NodeEvents = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index
 		node.ModifyIndex = index
 	}
@@ -634,8 +631,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
 
 	// Update the drain in the copy
 	copyNode.Drain = drain
@@ -650,6 +646,63 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 	}
 
 	txn.Commit()
+	return nil
+}
+
+// UpsertNodeEvents adds the node events to the nodes, rotating events as
+// necessary.
+func (s *StateStore) UpsertNodeEvents(index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for nodeID, events := range nodeEvents {
+		if err := s.upsertNodeEvents(index, nodeID, events, txn); err != nil {
+			return err
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// upsertNodeEvent upserts a node event for a respective node. It also maintains
+// that a fixed number of node events are ever stored simultaneously, deleting
+// older events once this bound has been reached.
+func (s *StateStore) upsertNodeEvents(index uint64, nodeID string, events []*structs.NodeEvent, txn *memdb.Txn) error {
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Add the events, updating the indexes
+	for _, e := range events {
+		e.CreateIndex = index
+		e.ModifyIndex = index
+		copyNode.NodeEvents = append(copyNode.NodeEvents, e)
+	}
+
+	// Keep node events pruned to not exceed the max allowed
+	if l := len(copyNode.NodeEvents); l > structs.MaxRetainedNodeEvents {
+		delta := l - structs.MaxRetainedNodeEvents
+		copyNode.NodeEvents = copyNode.NodeEvents[delta:]
+	}
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	return nil
 }
 
@@ -3692,61 +3745,4 @@ func (r *StateRestore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 			SizeMB: sizeMB,
 		}
 	}
-}
-
-// addNodeEvent is a function which wraps upsertNodeEvent
-func (s *StateStore) AddNodeEvent(index uint64, events map[string][]*structs.NodeEvent) error {
-	txn := s.db.Txn(true)
-	defer txn.Abort()
-
-	err := s.upsertNodeEvents(index, events, txn)
-	txn.Commit()
-	return err
-}
-
-// upsertNodeEvent upserts a node event for a respective node. It also maintains
-// that only 10 node events are ever stored simultaneously, deleting older
-// events once this bound has been reached.
-func (s *StateStore) upsertNodeEvents(index uint64, nodeEvents map[string][]*structs.NodeEvent, txn *memdb.Txn) error {
-
-	for nodeID, events := range nodeEvents {
-		ws := memdb.NewWatchSet()
-		node, err := s.NodeByID(ws, nodeID)
-
-		if err != nil {
-			return fmt.Errorf("encountered error when looking up nodes by id to insert node event: %v", err)
-		}
-
-		if node == nil {
-			return fmt.Errorf("unable to look up node by id %s to insert node event", nodeID)
-		}
-
-		// Copy the existing node
-		copyNode := node.Copy()
-
-		nodeEvents := node.NodeEvents
-
-		for _, e := range events {
-			e.CreateIndex = index
-			e.ModifyIndex = index
-
-			// keep node events pruned to below 10 simultaneously
-			if len(nodeEvents) >= structs.MaxRetainedNodeEvents {
-				delta := len(nodeEvents) - structs.MaxRetainedNodeEvents
-				nodeEvents = nodeEvents[delta+1:]
-			}
-			nodeEvents = append(nodeEvents, e)
-			copyNode.NodeEvents = nodeEvents
-		}
-
-		// Insert the node
-		if err := txn.Insert("nodes", copyNode); err != nil {
-			return fmt.Errorf("node update failed: %v", err)
-		}
-		if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
-		}
-	}
-
-	return nil
 }

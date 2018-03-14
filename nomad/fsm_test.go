@@ -74,7 +74,7 @@ func makeLog(buf []byte) *raft.Log {
 	}
 }
 
-func TestFSM_ApplyNodeEvent(t *testing.T) {
+func TestFSM_UpsertNodeEvents(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
@@ -100,7 +100,7 @@ func TestFSM_ApplyNodeEvent(t *testing.T) {
 		NodeEvents:   allEvents,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	buf, err := structs.Encode(structs.AddNodeEventsType, req)
+	buf, err := structs.Encode(structs.UpsertNodeEventsType, req)
 	require.Nil(err)
 
 	// the response in this case will be an error

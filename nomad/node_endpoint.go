@@ -52,29 +52,6 @@ type Node struct {
 	updatesLock sync.Mutex
 }
 
-func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
-		return err
-	}
-	defer metrics.MeasureSince([]string{"nomad", "client", "emit_event"}, time.Now())
-
-	if args.NodeEvents == nil {
-		err := fmt.Errorf("No event to add; node event map is nil")
-		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventsType failed: %v", err)
-		return err
-	}
-
-	_, index, err := n.srv.raftApply(structs.AddNodeEventsType, args)
-
-	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.node AddNodeEventsType failed: %v", err)
-		return err
-	}
-
-	reply.Index = index
-	return nil
-}
-
 // Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
@@ -1378,5 +1355,32 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	reply.Index = index
 	reply.Tasks = tokens
 	n.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
+	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
+
+	if len(args.NodeEvents) == 0 {
+		return fmt.Errorf("no node events given")
+	}
+	for nodeID, events := range args.NodeEvents {
+		if len(events) == 0 {
+			return fmt.Errorf("no node events given for node %q", nodeID)
+		}
+	}
+
+	// TODO ACLs
+
+	_, index, err := n.srv.raftApply(structs.UpsertNodeEventsType, args)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.node upserting node events failed: %v", err)
+		return err
+	}
+
+	reply.Index = index
 	return nil
 }

@@ -389,7 +389,6 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 }
 
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
-
 	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events "))
 	c.outputNodeEvent(node.NodeEvents)
 }
@@ -418,11 +417,11 @@ func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
 }
 
 func formatEventDetails(details map[string]string) string {
-	var output string
+	output := make([]string, 0, len(details))
 	for k, v := range details {
-		output += fmt.Sprintf("%s: %s, ", k, v)
+		output = append(output, fmt.Sprintf("%s: %s, ", k, v))
 	}
-	return output
+	return strings.Join(output, ", ")
 }
 
 func (c *NodeStatusCommand) formatAttributes(node *api.Node) {

@@ -236,8 +236,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
-	case structs.AddNodeEventsType:
-		return n.applyAddNodeEventType(buf[1:], log.Index)
+	case structs.UpsertNodeEventsType:
+		return n.applyUpsertNodeEventType(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -630,17 +630,17 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 	return n.reconcileQueuedAllocations(index)
 }
 
-// applyAddNodeEventType applies a node event to the set of currently-available
-// events.
-func (n *nomadFSM) applyAddNodeEventType(buf []byte, index uint64) interface{} {
+// applyUpsertNodeEventType tracks the given node events.
+func (n *nomadFSM) applyUpsertNodeEventType(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventRequest: %v", err)
+		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventsRequest: %v", err)
 		return err
 	}
 
-	if err := n.state.AddNodeEvent(index, req.NodeEvents); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: EmitNodeEventRequest failed to add node event: %v", err)
+	if err := n.state.UpsertNodeEvents(index, req.NodeEvents); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: failed to add node events: %v", err)
 		return err
 	}
 
