@@ -1072,21 +1072,17 @@ type EmitNodeEventsResponse struct {
 	WriteMeta
 }
 
-// TODO needs to be a more specific name
-// Subsystem denotes the subsystem where a node event took place.
-type Subsystem string
-
 const (
-	Drain     Subsystem = "Drain"
-	Driver    Subsystem = "Driver"
-	Heartbeat Subsystem = "Heartbeat"
-	Cluster   Subsystem = "Cluster"
+	NodeEventSubsystemDrain     = "Drain"
+	NodeEventSubsystemDriver    = "Driver"
+	NodeEventSubsystemHeartbeat = "Heartbeat"
+	NodeEventSubsystemCluster   = "Cluster"
 )
 
 // NodeEvent is a single unit representing a node’s state change
 type NodeEvent struct {
 	Message     string
-	Subsystem   Subsystem
+	Subsystem   string
 	Details     map[string]string
 	Timestamp   int64
 	CreateIndex uint64
@@ -1099,7 +1095,7 @@ func (ne *NodeEvent) String() string {
 		details = append(details, fmt.Sprintf("%s: %s", k, v))
 	}
 
-	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, string(ne.Subsystem), strings.Join(details, ","), ne.Timestamp)
+	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, ne.Subsystem, strings.Join(details, ","), ne.Timestamp)
 }
 
 func (ne *NodeEvent) Copy() *NodeEvent {
@@ -1212,9 +1208,9 @@ type Node struct {
 	// updated
 	StatusUpdatedAt int64
 
-	// NodeEvents is the most recent set of events generated for the node,
+	// Events is the most recent set of events generated for the node,
 	// retaining only MaxRetainedNodeEvents number at a time
-	NodeEvents []*NodeEvent
+	Events []*NodeEvent
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -1237,7 +1233,7 @@ func (n *Node) Copy() *Node {
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
-	nn.NodeEvents = copyNodeEvents(n.NodeEvents)
+	nn.Events = copyNodeEvents(n.Events)
 	return nn
 }
 

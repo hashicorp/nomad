@@ -396,10 +396,10 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		if n.ID != node.ID {
 			t.Fatalf("bad: %#v", n)
 		}
-		if len(n.NodeEvents) < 1 {
+		if len(n.Events) < 1 {
 			t.Fatalf("Expected node registration event to be populated: %#v", n)
 		}
-		if n.NodeEvents[0].Message != "Node Registered" {
+		if n.Events[0].Message != "Node Registered" {
 			t.Fatalf("Expected node registration event to be first node event: %#v", n)
 		}
 	})

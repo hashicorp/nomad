@@ -114,7 +114,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.False(len(out.NodeEvents) < 2)
+	require.False(len(out.Events) < 2)
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
@@ -986,16 +986,16 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	// Update the status updated at value
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
 	node.SecretID = ""
-	node.NodeEvents = resp2.Node.NodeEvents
+	node.Events = resp2.Node.Events
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
 	}
 
 	// assert that the node register event was set correctly
-	if len(resp2.Node.NodeEvents) != 1 {
+	if len(resp2.Node.Events) != 1 {
 		t.Fatalf("Did not set node events: %#v", resp2.Node)
 	}
-	if resp2.Node.NodeEvents[0].Message != "Node Registered" {
+	if resp2.Node.Events[0].Message != "Node Registered" {
 		t.Fatalf("Did not set node register event correctly: %#v", resp2.Node)
 	}
 

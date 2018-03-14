@@ -113,25 +113,22 @@ type Node struct {
 	Status            string
 	StatusDescription string
 	StatusUpdatedAt   int64
-	NodeEvents        []*NodeEvent
+	Events            []*NodeEvent
 	CreateIndex       uint64
 	ModifyIndex       uint64
 }
 
-// Subsystem denotes the subsystem where a node event took place.
-type Subsystem string
-
 const (
-	Drain     Subsystem = "Drain"
-	Driver    Subsystem = "Driver"
-	Heartbeat Subsystem = "Heartbeat"
-	Cluster   Subsystem = "Cluster"
+	NodeEventSubsystemDrain     = "Drain"
+	NodeEventSubsystemDriver    = "Driver"
+	NodeEventSubsystemHeartbeat = "Heartbeat"
+	NodeEventSubsystemCluster   = "Cluster"
 )
 
 // NodeEvent is a single unit representing a node’s state change
 type NodeEvent struct {
 	Message   string
-	Subsystem Subsystem
+	Subsystem string
 	Details   map[string]string
 	Timestamp int64
 

@@ -758,9 +758,9 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 	err := state.UpsertNode(1000, node)
 	require.Nil(err)
 
-	require.Equal(1, len(node.NodeEvents))
-	require.Equal(structs.Subsystem("Cluster"), node.NodeEvents[0].Subsystem)
-	require.Equal("Node Registered", node.NodeEvents[0].Message)
+	require.Equal(1, len(node.Events))
+	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
+	require.Equal("Node Registered", node.Events[0].Message)
 
 	// Create a watchset so we can test that AddNodeEvent fires the watch
 	ws := memdb.NewWatchSet()
@@ -784,8 +784,8 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 
-	require.Equal(2, len(out.NodeEvents))
-	require.Equal(nodeEvent, out.NodeEvents[1])
+	require.Equal(2, len(out.Events))
+	require.Equal(nodeEvent, out.Events[1])
 }
 
 // To prevent stale node events from accumulating, we limit the number of
@@ -800,9 +800,9 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	require.Equal(1, len(node.NodeEvents))
-	require.Equal(structs.Subsystem("Cluster"), node.NodeEvents[0].Subsystem)
-	require.Equal("Node Registered", node.NodeEvents[0].Message)
+	require.Equal(1, len(node.Events))
+	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
+	require.Equal("Node Registered", node.Events[0].Message)
 
 	var out *structs.Node
 	for i := 1; i <= 20; i++ {
@@ -832,9 +832,9 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 	out, err = state.NodeByID(ws, node.ID)
 	require.Nil(err)
 
-	require.Equal(10, len(out.NodeEvents))
-	require.Equal(uint64(11), out.NodeEvents[0].CreateIndex)
-	require.Equal(uint64(20), out.NodeEvents[len(out.NodeEvents)-1].CreateIndex)
+	require.Equal(10, len(out.Events))
+	require.Equal(uint64(11), out.Events[0].CreateIndex)
+	require.Equal(uint64(20), out.Events[len(out.Events)-1].CreateIndex)
 }
 
 func TestStateStore_Nodes(t *testing.T) {

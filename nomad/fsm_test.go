@@ -111,9 +111,9 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 
-	require.Equal(2, len(out.NodeEvents))
+	require.Equal(2, len(out.Events))
 
-	first := out.NodeEvents[1]
+	first := out.Events[1]
 	require.Equal(uint64(1), first.CreateIndex)
 	require.Equal("Heartbeating failed", first.Message)
 }

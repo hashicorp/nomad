@@ -528,7 +528,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		node.Drain = exist.Drain // Retain the drain mode
 
 		// retain node events that have already been set on the node
-		node.NodeEvents = exist.NodeEvents
+		node.Events = exist.Events
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
@@ -537,7 +537,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 			Subsystem: "Cluster",
 			Timestamp: node.StatusUpdatedAt,
 		}
-		node.NodeEvents = []*structs.NodeEvent{nodeEvent}
+		node.Events = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index
 		node.ModifyIndex = index
 	}
@@ -686,13 +686,13 @@ func (s *StateStore) upsertNodeEvents(index uint64, nodeID string, events []*str
 	for _, e := range events {
 		e.CreateIndex = index
 		e.ModifyIndex = index
-		copyNode.NodeEvents = append(copyNode.NodeEvents, e)
+		copyNode.Events = append(copyNode.Events, e)
 	}
 
 	// Keep node events pruned to not exceed the max allowed
-	if l := len(copyNode.NodeEvents); l > structs.MaxRetainedNodeEvents {
+	if l := len(copyNode.Events); l > structs.MaxRetainedNodeEvents {
 		delta := l - structs.MaxRetainedNodeEvents
-		copyNode.NodeEvents = copyNode.NodeEvents[delta:]
+		copyNode.Events = copyNode.Events[delta:]
 	}
 
 	// Insert the node

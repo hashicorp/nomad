@@ -390,7 +390,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events "))
-	c.outputNodeEvent(node.NodeEvents)
+	c.outputNodeEvent(node.Events)
 }
 
 func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {

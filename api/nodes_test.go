@@ -135,7 +135,7 @@ func TestNodes_Info(t *testing.T) {
 		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
 	}
 
-	if len(result.NodeEvents) < 1 {
+	if len(result.Events) < 1 {
 		t.Fatalf("Expected at minimum the node register event to be populated: %+v", result)
 	}
 }
