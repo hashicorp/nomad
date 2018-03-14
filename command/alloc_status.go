@@ -283,6 +283,13 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		basic = append(basic,
 			fmt.Sprintf("Replacement Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
 	}
+	if alloc.FollowupEvalID != "" {
+		nextEvalTime := futureEvalTimePretty(alloc.FollowupEvalID, client)
+		if nextEvalTime != "" {
+			basic = append(basic,
+				fmt.Sprintf("Reschedule Eligibility|%s", nextEvalTime))
+		}
+	}
 
 	if verbose {
 		basic = append(basic,
@@ -294,6 +301,18 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	return formatKV(basic), nil
+}
+
+// futureEvalTimePretty returns when the eval is eligible to reschedule
+// relative to current time, based on the WaitUntil field
+func futureEvalTimePretty(evalID string, client *api.Client) string {
+	evaluation, _, err := client.Evaluations().Info(evalID, nil)
+	// Eval time is not a critical output,
+	// don't return it on errors, if its not set or already in the past
+	if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+		return ""
+	}
+	return prettyTimeDiff(evaluation.WaitUntil, time.Now())
 }
 
 // outputTaskDetails prints task details for each task in the allocation,

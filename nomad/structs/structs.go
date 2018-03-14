@@ -35,6 +35,8 @@ import (
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
 
+	"math"
+
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 )
 
@@ -2656,12 +2658,16 @@ var (
 
 var (
 	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
-		Attempts: 2,
-		Interval: 1 * time.Hour,
+		Delay:         30 * time.Second,
+		DelayFunction: "exponential",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     true,
 	}
 	DefaultBatchJobReschedulePolicy = ReschedulePolicy{
-		Attempts: 1,
-		Interval: 24 * time.Hour,
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "linear",
 	}
 )
 
@@ -2744,6 +2750,9 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 }
 
 const ReschedulePolicyMinInterval = 15 * time.Second
+const ReschedulePolicyMinDelay = 5 * time.Second
+
+var RescheduleDelayFunctions = [...]string{"linear", "exponential", "fibonacci"}
 
 // ReschedulePolicy configures how Tasks are rescheduled  when they crash or fail.
 type ReschedulePolicy struct {
@@ -2753,7 +2762,20 @@ type ReschedulePolicy struct {
 	// Interval is a duration in which we can limit the number of reschedule attempts.
 	Interval time.Duration
 
-	//TODO delay
+	// Delay is a minimum duration to wait between reschedule attempts.
+	// The delay function determines how much subsequent reschedule attempts are delayed by.
+	Delay time.Duration
+
+	// DelayFunction determines how the delay progressively changes on subsequent reschedule
+	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	DelayFunction string
+
+	// MaxDelay is an upper bound on the delay.
+	MaxDelay time.Duration
+
+	// Unlimited allows infinite rescheduling attempts. Only allowed when delay is set
+	// between reschedule attempts.
+	Unlimited bool
 }
 
 func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
@@ -2765,17 +2787,151 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 	return nrp
 }
 
+// Validate uses different criteria to validate the reschedule policy
+// Delay must be a minimum of 5 seconds
+// Delay Ceiling is ignored if Delay Function is "linear"
+// Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
-	if r != nil && r.Attempts > 0 {
-		var mErr multierror.Error
-		// Check for ambiguous/confusing settings
-		if r.Interval.Nanoseconds() < ReschedulePolicyMinInterval.Nanoseconds() {
-			multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", RestartPolicyMinInterval, r.Interval))
+	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
+	if !enabled {
+		return nil
+	}
+	var mErr multierror.Error
+	// Check for ambiguous/confusing settings
+
+	delayPreCheck := true
+	// Delay should be bigger than the default
+	if r.Delay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
+		multierror.Append(&mErr, fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
+		delayPreCheck = false
+	}
+
+	// Must use a valid delay function
+	if !isValidDelayFunction(r.DelayFunction) {
+		multierror.Append(&mErr, fmt.Errorf("Invalid delay function %q, must be one of %q", r.DelayFunction, RescheduleDelayFunctions))
+		delayPreCheck = false
+	}
+
+	// Validate MaxDelay if not using linear delay progression
+	if r.DelayFunction != "linear" {
+		if r.MaxDelay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
+			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
+			delayPreCheck = false
+		}
+		if r.MaxDelay < r.Delay {
+			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
+			delayPreCheck = false
 		}
 
-		return mErr.ErrorOrNil()
 	}
-	return nil
+
+	// Validate Interval and other delay parameters if attempts are limited
+	if !r.Unlimited {
+		if r.Interval.Nanoseconds() < ReschedulePolicyMinInterval.Nanoseconds() {
+			multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, r.Interval))
+		}
+		if !delayPreCheck {
+			// We can't cross validate the rest of the delay params if delayPreCheck fails, so return early
+			return mErr.ErrorOrNil()
+		}
+		crossValidationErr := r.validateDelayParams()
+		if crossValidationErr != nil {
+			multierror.Append(&mErr, crossValidationErr)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func isValidDelayFunction(delayFunc string) bool {
+	for _, value := range RescheduleDelayFunctions {
+		if value == delayFunc {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *ReschedulePolicy) validateDelayParams() error {
+	ok, possibleAttempts, recommendedInterval := r.viableAttempts()
+	if ok {
+		return nil
+	}
+	var mErr multierror.Error
+	if r.DelayFunction == "linear" {
+		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and "+
+			"delay function %q", possibleAttempts, r.Interval, r.Delay, r.DelayFunction))
+	} else {
+		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
+			"delay function %q, and delay ceiling %v", possibleAttempts, r.Interval, r.Delay, r.DelayFunction, r.MaxDelay))
+	}
+	multierror.Append(&mErr, fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", recommendedInterval.Round(time.Minute), r.Attempts))
+	return mErr.ErrorOrNil()
+}
+
+func (r *ReschedulePolicy) viableAttempts() (bool, int, time.Duration) {
+	var possibleAttempts int
+	var recommendedInterval time.Duration
+	valid := true
+	switch r.DelayFunction {
+	case "linear":
+		recommendedInterval = time.Duration(r.Attempts) * r.Delay
+		if r.Interval < recommendedInterval {
+			possibleAttempts = int(r.Interval / r.Delay)
+			valid = false
+		}
+	case "exponential":
+		for i := 0; i < r.Attempts; i++ {
+			nextDelay := time.Duration(math.Pow(2, float64(i))) * r.Delay
+			if nextDelay > r.MaxDelay {
+				nextDelay = r.MaxDelay
+				recommendedInterval += nextDelay
+			} else {
+				recommendedInterval = nextDelay
+			}
+			if recommendedInterval < r.Interval {
+				possibleAttempts++
+			}
+		}
+		if possibleAttempts < r.Attempts {
+			valid = false
+		}
+	case "fibonacci":
+		var slots []time.Duration
+		slots = append(slots, r.Delay)
+		slots = append(slots, r.Delay)
+		reachedCeiling := false
+		for i := 2; i < r.Attempts; i++ {
+			var nextDelay time.Duration
+			if reachedCeiling {
+				//switch to linear
+				nextDelay = slots[i-1] + r.MaxDelay
+			} else {
+				nextDelay = slots[i-1] + slots[i-2]
+				if nextDelay > r.MaxDelay {
+					nextDelay = r.MaxDelay
+					reachedCeiling = true
+				}
+			}
+			slots = append(slots, nextDelay)
+		}
+		recommendedInterval = slots[len(slots)-1]
+		if r.Interval < recommendedInterval {
+			valid = false
+			// calculate possible attempts
+			for i := 0; i < len(slots); i++ {
+				if slots[i] > r.Interval {
+					possibleAttempts = i
+					break
+				}
+			}
+		}
+	default:
+		return false, 0, 0
+	}
+	if possibleAttempts < 0 { // can happen if delay is bigger than interval
+		possibleAttempts = 0
+	}
+	return valid, possibleAttempts, recommendedInterval
 }
 
 func NewReschedulePolicy(jobType string) *ReschedulePolicy {
@@ -2920,12 +3076,14 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
-	if tg.ReschedulePolicy != nil {
-		if err := tg.ReschedulePolicy.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
+	if j.Type != JobTypeSystem {
+		if tg.ReschedulePolicy != nil {
+			if err := tg.ReschedulePolicy.Validate(); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+		} else {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a reschedule policy", tg.Name))
 		}
-	} else {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a reschedule policy", tg.Name))
 	}
 
 	if tg.EphemeralDisk != nil {
@@ -5080,12 +5238,16 @@ type RescheduleEvent struct {
 
 	// PrevNodeID is the node ID of the previous allocation
 	PrevNodeID string
+
+	// Delay is the reschedule delay associated with the attempt
+	Delay time.Duration
 }
 
-func NewRescheduleEvent(rescheduleTime int64, prevAllocID string, prevNodeID string) *RescheduleEvent {
+func NewRescheduleEvent(rescheduleTime int64, prevAllocID string, prevNodeID string, delay time.Duration) *RescheduleEvent {
 	return &RescheduleEvent{RescheduleTime: rescheduleTime,
 		PrevAllocID: prevAllocID,
-		PrevNodeID:  prevNodeID}
+		PrevNodeID:  prevNodeID,
+		Delay:       delay}
 }
 
 func (re *RescheduleEvent) Copy() *RescheduleEvent {
@@ -5181,6 +5343,13 @@ type Allocation struct {
 	// given deployment
 	DeploymentStatus *AllocDeploymentStatus
 
+	// RescheduleTrackers captures details of previous reschedule attempts of the allocation
+	RescheduleTracker *RescheduleTracker
+
+	// FollowupEvalID captures a follow up evaluation created to handle a failed allocation
+	// that can be rescheduled in the future
+	FollowupEvalID string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -5195,9 +5364,6 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
-
-	// RescheduleTrackers captures details of previous reschedule attempts of the allocation
-	RescheduleTracker *RescheduleTracker
 }
 
 // Index returns the index of the allocation. If the allocation is from a task
@@ -5304,11 +5470,11 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 	}
 	attempts := reschedulePolicy.Attempts
 	interval := reschedulePolicy.Interval
-
-	if attempts == 0 {
+	enabled := attempts > 0 || reschedulePolicy.Unlimited
+	if !enabled {
 		return false
 	}
-	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
+	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 || reschedulePolicy.Unlimited {
 		return true
 	}
 	attempted := 0
@@ -5320,6 +5486,98 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 		}
 	}
 	return attempted < attempts
+}
+
+// LastEventTime is the time of the last task event in the allocation.
+// It is used to determine allocation failure time.
+func (a *Allocation) LastEventTime() time.Time {
+	var lastEventTime time.Time
+	if a.TaskStates != nil {
+		for _, e := range a.TaskStates {
+			if lastEventTime.IsZero() || e.FinishedAt.After(lastEventTime) {
+				lastEventTime = e.FinishedAt
+			}
+		}
+	}
+	return lastEventTime
+}
+
+// ReschedulePolicy returns the reschedule policy based on the task group
+func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+	return tg.ReschedulePolicy
+}
+
+// NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
+// and whether the next reschedule time is within policy's interval if the policy doesn't allow unlimited reschedules
+func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
+	failTime := a.LastEventTime()
+	reschedulePolicy := a.ReschedulePolicy()
+	if a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
+		return time.Time{}, false
+	}
+
+	nextDelay := a.NextDelay()
+	nextRescheduleTime := failTime.Add(nextDelay)
+	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
+	if reschedulePolicy.Attempts > 0 && a.RescheduleTracker != nil && a.RescheduleTracker.Events != nil {
+		// Check for eligibility based on the interval if max attempts is set
+		attempted := 0
+		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+			timeDiff := failTime.UTC().UnixNano() - lastAttempt
+			if timeDiff < reschedulePolicy.Interval.Nanoseconds() {
+				attempted += 1
+			}
+		}
+		rescheduleEligible = attempted < reschedulePolicy.Attempts && nextDelay < reschedulePolicy.Interval
+	}
+	return nextRescheduleTime, rescheduleEligible
+}
+
+// NextDelay returns a duration after which the allocation can be rescheduled.
+// It is calculated according to the delay function and previous reschedule attempts.
+func (a *Allocation) NextDelay() time.Duration {
+	policy := a.ReschedulePolicy()
+	delayDur := policy.Delay
+	if a.RescheduleTracker == nil || a.RescheduleTracker.Events == nil || len(a.RescheduleTracker.Events) == 0 {
+		return delayDur
+	}
+	events := a.RescheduleTracker.Events
+	switch policy.DelayFunction {
+	case "exponential":
+		delayDur = a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1].Delay * 2
+	case "fibonacci":
+		if len(events) >= 2 {
+			fibN1Delay := events[len(events)-1].Delay
+			fibN2Delay := events[len(events)-2].Delay
+			// Handle reset of delay ceiling which should cause
+			// a new series to start
+			if fibN2Delay == policy.MaxDelay && fibN1Delay == policy.Delay {
+				delayDur = fibN1Delay
+			} else {
+				delayDur = fibN1Delay + fibN2Delay
+			}
+		}
+	default:
+		return delayDur
+	}
+	if policy.MaxDelay > 0 && delayDur > policy.MaxDelay {
+		delayDur = policy.MaxDelay
+		// check if delay needs to be reset
+
+		lastRescheduleEvent := a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1]
+		timeDiff := a.LastEventTime().UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
+		if timeDiff > delayDur.Nanoseconds() {
+			delayDur = policy.Delay
+		}
+
+	}
+
+	return delayDur
 }
 
 // Terminated returns if the allocation is in a terminal state on a client.
@@ -5426,6 +5684,7 @@ type AllocListStub struct {
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
+	FollowupEvalID     string
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
@@ -5711,8 +5970,13 @@ type Evaluation struct {
 	StatusDescription string
 
 	// Wait is a minimum wait time for running the eval. This is used to
-	// support a rolling upgrade.
+	// support a rolling upgrade in versions prior to 0.7.0
+	// Deprecated
 	Wait time.Duration
+
+	// WaitUntil is the time when this eval should be run. This is used to
+	// supported delayed rescheduling of failed allocations
+	WaitUntil time.Time
 
 	// NextEval is the evaluation ID for the eval created to do a followup.
 	// This is used to support rolling upgrades, where we need a chain of evaluations.

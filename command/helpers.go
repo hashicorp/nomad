@@ -103,7 +103,15 @@ func prettyTimeDiff(first, second time.Time) string {
 	second = second.Round(time.Second)
 
 	// calculate time difference in seconds
-	d := second.Sub(first)
+	var d time.Duration
+	messageSuffix := "ago"
+	if second.Equal(first) || second.After(first) {
+		d = second.Sub(first)
+	} else {
+		d = first.Sub(second)
+		messageSuffix = "from now"
+	}
+
 	u := uint64(d.Seconds())
 
 	var buf [32]byte
@@ -183,9 +191,9 @@ func prettyTimeDiff(first, second time.Time) string {
 		end = indexes[num_periods-3]
 	}
 	if start == end { //edge case when time difference is less than a second
-		return "0s ago"
+		return "0s " + messageSuffix
 	} else {
-		return string(buf[start:end]) + " ago"
+		return string(buf[start:end]) + " " + messageSuffix
 	}
 
 }
