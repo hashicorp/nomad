@@ -149,7 +149,20 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 		conf.NumSchedulers = agentConfig.Server.NumSchedulers
 	}
 	if len(agentConfig.Server.EnabledSchedulers) != 0 {
-		conf.EnabledSchedulers = agentConfig.Server.EnabledSchedulers
+		// Convert to a set and require the core scheduler
+		set := make(map[string]struct{}, 4)
+		set[structs.JobTypeCore] = struct{}{}
+		for _, sched := range agentConfig.Server.EnabledSchedulers {
+			set[sched] = struct{}{}
+		}
+
+		schedulers := make([]string, 0, len(set))
+		for k := range set {
+			schedulers = append(schedulers, k)
+		}
+
+		conf.EnabledSchedulers = schedulers
+
 	}
 	if agentConfig.ACL.Enabled {
 		conf.ACLEnabled = true

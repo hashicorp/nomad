@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -10,12 +11,15 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func tmpDir(t *testing.T) string {
@@ -411,4 +415,27 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	assert.Nil(err)
 
 	testutil.WaitForLeader(t, s2.RPC)
+}
+
+func TestServer_InvalidSchedulers(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	config := DefaultConfig()
+	config.DevMode = true
+	config.LogOutput = testlog.NewWriter(t)
+	logger := log.New(config.LogOutput, "", log.LstdFlags)
+	catalog := consul.NewMockCatalog(logger)
+
+	// Set the config to not have the core scheduler
+	config.EnabledSchedulers = []string{"batch"}
+	_, err := NewServer(config, catalog, logger)
+	require.NotNil(err)
+	require.Contains(err.Error(), "scheduler not enabled")
+
+	// Set the config to have an unknown scheduler
+	config.EnabledSchedulers = []string{"batch", structs.JobTypeCore, "foo"}
+	_, err = NewServer(config, catalog, logger)
+	require.NotNil(err)
+	require.Contains(err.Error(), "foo")
 }

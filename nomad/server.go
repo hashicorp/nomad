@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
@@ -1194,15 +1195,19 @@ func (s *Server) setupWorkers() error {
 	}
 
 	// Check if the core scheduler is not enabled
-	found := false
-	for _, scheduler := range s.config.EnabledSchedulers {
-		if scheduler == structs.JobTypeCore {
-			found = true
-			break
+	foundCore := false
+	for _, sched := range s.config.EnabledSchedulers {
+		if sched == structs.JobTypeCore {
+			foundCore = true
+			continue
+		}
+
+		if _, ok := scheduler.BuiltinSchedulers[sched]; !ok {
+			return fmt.Errorf("invalid configuration: unknown scheduler %q in enabled schedulers", sched)
 		}
 	}
-	if !found {
-		panic(fmt.Sprintf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore))
+	if !foundCore {
+		return fmt.Errorf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore)
 	}
 
 	// Start the workers
