@@ -146,9 +146,9 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 		// Ensure the mock driver is registered on the client
 		testutil.WaitForResult(func() (bool, error) {
 			c1.configLock.Lock()
+			defer c1.configLock.Unlock()
 			mockDriverStatus := node.Attributes[mockDriverName]
 			mockDriverInfo := node.Drivers["mock_driver"]
-			c1.configLock.Unlock()
 			if mockDriverStatus == "" {
 				return false, fmt.Errorf("mock driver attribute should be set on the client")
 			}
@@ -175,9 +175,9 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	{
 		testutil.WaitForResult(func() (bool, error) {
 			c1.configLock.Lock()
+			defer c1.configLock.Unlock()
 			mockDriverStatus := node.Attributes[mockDriverName]
 			mockDriverInfo := node.Drivers["mock_driver"]
-			c1.configLock.Unlock()
 			if mockDriverStatus != "" {
 				return false, fmt.Errorf("mock driver attribute should not be set on the client")
 			}
@@ -185,7 +185,7 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 			if mockDriverInfo == nil {
 				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
 			}
-			if !mockDriverInfo.Detected {
+			if mockDriverInfo.Detected {
 				return false, fmt.Errorf("mock driver should be set as detected")
 			}
 			if mockDriverInfo.Healthy {

@@ -1057,6 +1057,17 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 			if !health.HealthCheckEquals(oldVal) {
 				hasChanged = true
 				c.config.Node.Drivers[name].MergeHealthCheck(health)
+
+				events := []*structs.NodeEvent{
+					{
+						Subsystem: "Driver",
+						Message:   fmt.Sprintf("Driver status changed: %s", health.HealthDescription),
+						Timestamp: time.Now().Unix(),
+					},
+				}
+				if err := c.submitNodeEvents(events); err != nil {
+					c.logger.Printf("[ERR] nomad.client Error when submitting node event: %v", err)
+				}
 			} else {
 				// make sure we accurately reflect the last time a health check has been
 				// performed for the driver.

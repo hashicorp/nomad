@@ -41,7 +41,7 @@ func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 		return false
 	}
 
-	if di.HealthDescription == other.HealthDescription {
+	if di.HealthDescription != other.HealthDescription {
 		return false
 	}
 
