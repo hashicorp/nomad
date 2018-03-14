@@ -612,6 +612,84 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	}
 }
 
+func TestFSM_BatchDeregisterJob(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	job := mock.PeriodicJob()
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	require.Nil(err)
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	job2 := mock.Job()
+	req2 := structs.JobRegisterRequest{
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job2.Namespace,
+		},
+	}
+
+	buf, err = structs.Encode(structs.JobRegisterRequestType, req2)
+	require.Nil(err)
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	req3 := structs.JobBatchDeregisterRequest{
+		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
+			structs.NamespacedID{
+				ID:        job.ID,
+				Namespace: job.Namespace,
+			}: &structs.JobDeregisterOptions{},
+			structs.NamespacedID{
+				ID:        job2.ID,
+				Namespace: job2.Namespace,
+			}: &structs.JobDeregisterOptions{
+				Purge: true,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err = structs.Encode(structs.JobBatchDeregisterRequestType, req3)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	require.Nil(err)
+	require.NotNil(jobOut)
+	require.True(jobOut.Stop)
+
+	// Verify it was removed from the periodic runner.
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	require.NotContains(fsm.periodicDispatcher.tracked, tuple)
+
+	// Verify it was not removed from the periodic launch table.
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
+	require.Nil(err)
+	require.NotNil(launchOut)
+
+	// Verify the other jbo was purged
+	jobOut2, err := fsm.State().JobByID(ws, job2.Namespace, job2.ID)
+	require.Nil(err)
+	require.Nil(jobOut2)
+}
+
 func TestFSM_UpdateEval(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
