@@ -1363,3 +1363,30 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	n.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
+
+func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
+	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
+
+	if len(args.NodeEvents) == 0 {
+		return fmt.Errorf("no node events given")
+	}
+	for nodeID, events := range args.NodeEvents {
+		if len(events) == 0 {
+			return fmt.Errorf("no node events given for node %q", nodeID)
+		}
+	}
+
+	// TODO ACLs
+
+	_, index, err := n.srv.raftApply(structs.UpsertNodeEventsType, args)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.node upserting node events failed: %v", err)
+		return err
+	}
+
+	reply.Index = index
+	return nil
+}

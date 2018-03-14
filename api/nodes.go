@@ -113,8 +113,25 @@ type Node struct {
 	Status            string
 	StatusDescription string
 	StatusUpdatedAt   int64
+	Events            []*NodeEvent
 	CreateIndex       uint64
 	ModifyIndex       uint64
+}
+
+const (
+	NodeEventSubsystemDrain     = "Drain"
+	NodeEventSubsystemDriver    = "Driver"
+	NodeEventSubsystemHeartbeat = "Heartbeat"
+	NodeEventSubsystemCluster   = "Cluster"
+)
+
+// NodeEvent is a single unit representing a node’s state change
+type NodeEvent struct {
+	Message     string
+	Subsystem   string
+	Details     map[string]string
+	Timestamp   int64
+	CreateIndex uint64
 }
 
 // HostStats represents resource usage stats of the host running a Nomad client

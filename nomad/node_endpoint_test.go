@@ -78,6 +78,45 @@ func TestClientEndpoint_Register(t *testing.T) {
 	})
 }
 
+func TestClientEndpoint_EmitEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1 := TestServer(t, nil)
+	state := s1.fsm.State()
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a node that we can register our event to
+	node := mock.Node()
+	err := state.UpsertNode(2, node)
+	require.Nil(err)
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "Registration failed",
+		Subsystem: "Server",
+		Timestamp: time.Now().Unix(),
+	}
+
+	nodeEvents := map[string][]*structs.NodeEvent{node.ID: {nodeEvent}}
+	req := structs.EmitNodeEventsRequest{
+		NodeEvents:   nodeEvents,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
+	require.Nil(err)
+	require.NotEqual(0, resp.Index)
+
+	// Check for the node in the FSM
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.False(len(out.Events) < 2)
+}
+
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)
@@ -947,8 +986,17 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	// Update the status updated at value
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
 	node.SecretID = ""
+	node.Events = resp2.Node.Events
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)
+	}
+
+	// assert that the node register event was set correctly
+	if len(resp2.Node.Events) != 1 {
+		t.Fatalf("Did not set node events: %#v", resp2.Node)
+	}
+	if resp2.Node.Events[0].Message != "Node Registered" {
+		t.Fatalf("Did not set node register event correctly: %#v", resp2.Node)
 	}
 
 	// Lookup non-existing node

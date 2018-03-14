@@ -748,6 +748,95 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	}
 }
 
+func TestStateStore_AddSingleNodeEvent(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	node := mock.Node()
+
+	// We create a new node event every time we register a node
+	err := state.UpsertNode(1000, node)
+	require.Nil(err)
+
+	require.Equal(1, len(node.Events))
+	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
+	require.Equal("Node Registered", node.Events[0].Message)
+
+	// Create a watchset so we can test that AddNodeEvent fires the watch
+	ws := memdb.NewWatchSet()
+	_, err = state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "failed",
+		Subsystem: "Driver",
+		Timestamp: time.Now().Unix(),
+	}
+	nodeEvents := map[string][]*structs.NodeEvent{
+		node.ID: {nodeEvent},
+	}
+	err = state.UpsertNodeEvents(uint64(1001), nodeEvents)
+	require.Nil(err)
+
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	require.Equal(2, len(out.Events))
+	require.Equal(nodeEvent, out.Events[1])
+}
+
+// To prevent stale node events from accumulating, we limit the number of
+// stored node events to 10.
+func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	node := mock.Node()
+
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	require.Equal(1, len(node.Events))
+	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
+	require.Equal("Node Registered", node.Events[0].Message)
+
+	var out *structs.Node
+	for i := 1; i <= 20; i++ {
+		ws := memdb.NewWatchSet()
+		out, err = state.NodeByID(ws, node.ID)
+		require.Nil(err)
+
+		nodeEvent := &structs.NodeEvent{
+			Message:   fmt.Sprintf("%dith failed", i),
+			Subsystem: "Driver",
+			Timestamp: time.Now().Unix(),
+		}
+
+		nodeEvents := map[string][]*structs.NodeEvent{
+			out.ID: {nodeEvent},
+		}
+		err := state.UpsertNodeEvents(uint64(i), nodeEvents)
+		require.Nil(err)
+
+		require.True(watchFired(ws))
+		ws = memdb.NewWatchSet()
+		out, err = state.NodeByID(ws, node.ID)
+		require.Nil(err)
+	}
+
+	ws := memdb.NewWatchSet()
+	out, err = state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	require.Equal(10, len(out.Events))
+	require.Equal(uint64(11), out.Events[0].CreateIndex)
+	require.Equal(uint64(20), out.Events[len(out.Events)-1].CreateIndex)
+}
+
 func TestStateStore_Nodes(t *testing.T) {
 	state := testStateStore(t)
 	var nodes []*structs.Node

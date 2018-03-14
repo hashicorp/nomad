@@ -133,6 +133,10 @@ type Client struct {
 	// update it.
 	triggerNodeUpdate chan struct{}
 
+	// triggerEmitNodeEvent sends an event and triggers the client to update the
+	// server for the node event
+	triggerEmitNodeEvent chan *structs.NodeEvent
+
 	// discovered will be ticked whenever Consul discovery completes
 	// successfully
 	serversDiscoveredCh chan struct{}
@@ -200,20 +204,21 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Create the client
 	c := &Client{
-		config:              cfg,
-		consulCatalog:       consulCatalog,
-		consulService:       consulService,
-		start:               time.Now(),
-		connPool:            pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
-		tlsWrap:             tlsWrap,
-		streamingRpcs:       structs.NewStreamingRpcRegistry(),
-		logger:              logger,
-		allocs:              make(map[string]*AllocRunner),
-		allocUpdates:        make(chan *structs.Allocation, 64),
-		shutdownCh:          make(chan struct{}),
-		triggerDiscoveryCh:  make(chan struct{}),
-		triggerNodeUpdate:   make(chan struct{}, 8),
-		serversDiscoveredCh: make(chan struct{}),
+		config:               cfg,
+		consulCatalog:        consulCatalog,
+		consulService:        consulService,
+		start:                time.Now(),
+		connPool:             pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		tlsWrap:              tlsWrap,
+		streamingRpcs:        structs.NewStreamingRpcRegistry(),
+		logger:               logger,
+		allocs:               make(map[string]*AllocRunner),
+		allocUpdates:         make(chan *structs.Allocation, 64),
+		shutdownCh:           make(chan struct{}),
+		triggerDiscoveryCh:   make(chan struct{}),
+		triggerNodeUpdate:    make(chan struct{}, 8),
+		serversDiscoveredCh:  make(chan struct{}),
+		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 	}
 
 	// Initialize the server manager
@@ -1052,6 +1057,9 @@ func (c *Client) registerAndHeartbeat() {
 	// Start watching changes for node changes
 	go c.watchNodeUpdates()
 
+	// Start watching for emitting node events
+	go c.watchNodeEvents()
+
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
 	// in development mode.
@@ -1128,6 +1136,72 @@ func (c *Client) run() {
 		case <-c.shutdownCh:
 			return
 		}
+	}
+}
+
+// submitNodeEvents is used to submit a client-side node event. Examples of
+// these kinds of events include when a driver moves from healthy to unhealthy
+// (and vice versa)
+func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
+	nodeID := c.NodeID()
+	nodeEvents := map[string][]*structs.NodeEvent{
+		nodeID: events,
+	}
+	req := structs.EmitNodeEventsRequest{
+		NodeEvents:   nodeEvents,
+		WriteRequest: structs.WriteRequest{Region: c.Region()},
+	}
+	var resp structs.EmitNodeEventsResponse
+	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
+		return fmt.Errorf("Emitting node events failed: %v", err)
+	}
+	return nil
+}
+
+// watchNodeEvents is a handler which receives node events and on a interval
+// and submits them in batch format to the server
+func (c *Client) watchNodeEvents() {
+	// batchEvents stores events that have yet to be published
+	var batchEvents []*structs.NodeEvent
+
+	// Create and drain the timer
+	timer := time.NewTimer(0)
+	timer.Stop()
+	select {
+	case <-timer.C:
+	default:
+	}
+	defer timer.Stop()
+
+	for {
+		select {
+		case event := <-c.triggerEmitNodeEvent:
+			if l := len(batchEvents); l <= structs.MaxRetainedNodeEvents {
+				batchEvents = append(batchEvents, event)
+			} else {
+				// Drop the oldest event
+				c.logger.Printf("[WARN] client: dropping node event: %v", batchEvents[0])
+				batchEvents = append(batchEvents[1:], event)
+			}
+			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
+		case <-timer.C:
+			if err := c.submitNodeEvents(batchEvents); err != nil {
+				c.logger.Printf("[ERR] client: submitting node events failed: %v", err)
+				timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
+			}
+		case <-c.shutdownCh:
+			return
+		}
+	}
+}
+
+// triggerNodeEvent triggers a emit node event
+func (c *Client) triggerNodeEvent(nodeEvent *structs.NodeEvent) {
+	select {
+	case c.triggerEmitNodeEvent <- nodeEvent:
+		// emit node event goroutine was released to execute
+	default:
+		// emit node event goroutine was already running
 	}
 }
 

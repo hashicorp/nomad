@@ -74,6 +74,7 @@ const (
 	ACLTokenDeleteRequestType
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
+	UpsertNodeEventsType
 )
 
 const (
@@ -122,6 +123,10 @@ const (
 	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
 	// applied to RPCHoldTimeout.
 	JitterFraction = 16
+
+	// MaxRetainedNodeEvents is the maximum number of node events that will be
+	// retained for a single node
+	MaxRetainedNodeEvents = 10
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -1050,6 +1055,55 @@ type NodeConnQueryResponse struct {
 	QueryMeta
 }
 
+// EmitNodeEventsRequest is a request to update the node events source
+// with a new client-side event
+type EmitNodeEventsRequest struct {
+	// NodeEvents are a map where the key is a node id, and value is a list of
+	// events for that node
+	NodeEvents map[string][]*NodeEvent
+
+	WriteRequest
+}
+
+// EmitNodeEventsResponse is a response to the client about the status of
+// the node event source update.
+type EmitNodeEventsResponse struct {
+	Index uint64
+	WriteMeta
+}
+
+const (
+	NodeEventSubsystemDrain     = "Drain"
+	NodeEventSubsystemDriver    = "Driver"
+	NodeEventSubsystemHeartbeat = "Heartbeat"
+	NodeEventSubsystemCluster   = "Cluster"
+)
+
+// NodeEvent is a single unit representing a node’s state change
+type NodeEvent struct {
+	Message     string
+	Subsystem   string
+	Details     map[string]string
+	Timestamp   int64
+	CreateIndex uint64
+}
+
+func (ne *NodeEvent) String() string {
+	var details []string
+	for k, v := range ne.Details {
+		details = append(details, fmt.Sprintf("%s: %s", k, v))
+	}
+
+	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, ne.Subsystem, strings.Join(details, ","), ne.Timestamp)
+}
+
+func (ne *NodeEvent) Copy() *NodeEvent {
+	c := new(NodeEvent)
+	*c = *ne
+	c.Details = helper.CopyMapStringString(ne.Details)
+	return c
+}
+
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"
@@ -1153,6 +1207,10 @@ type Node struct {
 	// updated
 	StatusUpdatedAt int64
 
+	// Events is the most recent set of events generated for the node,
+	// retaining only MaxRetainedNodeEvents number at a time
+	Events []*NodeEvent
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1174,7 +1232,22 @@ func (n *Node) Copy() *Node {
 	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
+	nn.Events = copyNodeEvents(n.Events)
 	return nn
+}
+
+// copyNodeEvents is a helper to copy a list of NodeEvent's
+func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
+	l := len(events)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*NodeEvent, l)
+	for i, event := range events {
+		c[i] = event.Copy()
+	}
+	return c
 }
 
 // TerminalStatus returns if the current status is terminal and

@@ -332,6 +332,8 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		}
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
+		c.outputNodeStatusEvents(node)
+
 		// Get list of running allocations on the node
 		runningAllocs, err := getRunningAllocs(client, node.ID)
 		if err != nil {
@@ -384,6 +386,42 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	}
 	return 0
 
+}
+
+func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events "))
+	c.outputNodeEvent(node.Events)
+}
+
+func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
+	size := len(events)
+	nodeEvents := make([]string, size+1)
+	if c.verbose {
+		nodeEvents[0] = "Time|Subsystem|Message|Details"
+	} else {
+		nodeEvents[0] = "Time|Subsystem|Message"
+	}
+
+	for i, event := range events {
+		timestamp := formatUnixNanoTime(event.Timestamp)
+		subsystem := event.Subsystem
+		msg := event.Message
+		if c.verbose {
+			details := formatEventDetails(event.Details)
+			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s|%s", timestamp, subsystem, msg, details)
+		} else {
+			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s", timestamp, subsystem, msg)
+		}
+	}
+	c.Ui.Output(formatList(nodeEvents))
+}
+
+func formatEventDetails(details map[string]string) string {
+	output := make([]string, 0, len(details))
+	for k, v := range details {
+		output = append(output, fmt.Sprintf("%s: %s, ", k, v))
+	}
+	return strings.Join(output, ", ")
 }
 
 func (c *NodeStatusCommand) formatAttributes(node *api.Node) {

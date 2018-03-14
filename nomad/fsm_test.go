@@ -74,6 +74,50 @@ func makeLog(buf []byte) *raft.Log {
 	}
 }
 
+func TestFSM_UpsertNodeEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	node := mock.Node()
+
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "Heartbeating failed",
+		Subsystem: "Heartbeat",
+		Timestamp: time.Now().Unix(),
+	}
+
+	nodeEvents := []*structs.NodeEvent{nodeEvent}
+	allEvents := map[string][]*structs.NodeEvent{node.ID: nodeEvents}
+
+	req := structs.EmitNodeEventsRequest{
+		NodeEvents:   allEvents,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	buf, err := structs.Encode(structs.UpsertNodeEventsType, req)
+	require.Nil(err)
+
+	// the response in this case will be an error
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	require.Equal(2, len(out.Events))
+
+	first := out.Events[1]
+	require.Equal(uint64(1), first.CreateIndex)
+	require.Equal("Heartbeating failed", first.Message)
+}
+
 func TestFSM_UpsertNode(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
