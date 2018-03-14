@@ -48,7 +48,9 @@ BUG FIXES:
  * client: Improve auto-detection of network interface when interface name has a
    space in it on Windows [[GH-3855](https://github.com/hashicorp/nomad/issues/3855)]
  * client/vault: Recognize renewing non-renewable Vault lease as fatal [[GH-3727](https://github.com/hashicorp/nomad/issues/3727)]
- * config: Revert minimum CPU limit back to 20 from 100.
+ * config: Revert minimum CPU limit back to 20 from 100 [[GH-3706](https://github.com/hashicorp/nomad/issues/3706)]
+ * config: Always add core scheduler to enabled schedulers and add invalid
+   EnabledScheduler detection [[GH-3978](https://github.com/hashicorp/nomad/issues/3978)]
  * driver/exec: Properly disable swapping [[GH-3958](https://github.com/hashicorp/nomad/issues/3958)]
  * driver/lxc: Cleanup LXC containers after errors on container startup. [[GH-3773](https://github.com/hashicorp/nomad/issues/3773)]
  * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
