@@ -234,6 +234,47 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	})
 }
 
+func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+	req2 := structs.BatchNodeUpdateDrainRequest{
+		Updates: map[string]*structs.DrainUpdate{
+			node.ID: &structs.DrainUpdate{
+				DrainStrategy: strategy,
+			},
+		},
+	}
+	buf, err = structs.Encode(structs.BatchNodeUpdateDrainRequestType, req2)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify drain is set
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.Node.ID)
+	require.Nil(err)
+	require.True(node.Drain)
+	require.Equal(node.DrainStrategy, strategy)
+}
+
 func TestFSM_UpdateNodeDrain(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
