@@ -17,6 +17,7 @@ IMPROVEMENTS:
    network access to the Nomad client nodes [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
  * cli: Use ISO_8601 time format for cli output
    [[GH-3814](https://github.com/hashicorp/nomad/pull/3814)]
+ * cli: Improved task event descriptions in `nomad alloc-status` during server side failures authenticating to Vault [[GH-3968](https://github.com/hashicorp/nomad/issues/3968)]
  * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
  * client: Refactor client fingerprint methods to a request/response format
    [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
