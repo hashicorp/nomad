@@ -1153,7 +1153,7 @@ func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
 	}
 	var resp structs.EmitNodeEventsResponse
 	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
-		return fmt.Errorf("Emitting node event failed: %v", err)
+		return fmt.Errorf("Emitting node events failed: %v", err)
 	}
 	return nil
 }

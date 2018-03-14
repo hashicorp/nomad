@@ -237,7 +237,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
-		return n.applyUpsertNodeEventType(buf[1:], log.Index)
+		return n.applyUpsertNodeEvent(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -630,8 +630,8 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 	return n.reconcileQueuedAllocations(index)
 }
 
-// applyUpsertNodeEventType tracks the given node events.
-func (n *nomadFSM) applyUpsertNodeEventType(buf []byte, index uint64) interface{} {
+// applyUpsertNodeEvent tracks the given node events.
+func (n *nomadFSM) applyUpsertNodeEvent(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {

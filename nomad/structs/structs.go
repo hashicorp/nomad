@@ -1086,7 +1086,6 @@ type NodeEvent struct {
 	Details     map[string]string
 	Timestamp   int64
 	CreateIndex uint64
-	ModifyIndex uint64
 }
 
 func (ne *NodeEvent) String() string {
