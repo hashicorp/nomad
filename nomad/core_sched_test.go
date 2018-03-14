@@ -1767,6 +1767,33 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	}
 }
 
+func TestCoreScheduler_PartitionJobReap(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a core scheduler
+	snap, err := s1.fsm.State().Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Set the max ids per reap to something lower.
+	maxIdsPerReap = 2
+
+	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
+	requests := core.(*CoreScheduler).partitionJobReap(jobs, "")
+	require.Len(requests, 2)
+
+	first := requests[0]
+	second := requests[1]
+	require.Len(first.Jobs, 2)
+	require.Len(second.Jobs, 1)
+}
+
 // Tests various scenarios when allocations are eligible to be GCed
 func TestAllocation_GCEligible(t *testing.T) {
 	type testCase struct {
