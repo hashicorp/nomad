@@ -35,7 +35,6 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testLogger(),
 	)
@@ -71,7 +70,6 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -108,7 +106,6 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -150,7 +147,6 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -222,7 +218,6 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -324,7 +319,6 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -429,7 +423,6 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -468,7 +461,6 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -508,7 +500,6 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -550,7 +541,6 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -587,7 +577,6 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -629,7 +618,6 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)
@@ -673,7 +661,6 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 		testClient.config.Node,
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
-		testClient.updateNodeFromHealthCheck,
 		testClient.updateNodeFromDriver,
 		testClient.logger,
 	)

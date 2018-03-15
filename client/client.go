@@ -259,8 +259,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
-		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromHealthCheck,
-		c.updateNodeFromDriver, c.logger)
+		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
+		c.logger)
 
 	// Fingerprint the node and scan for drivers
 	if err := fingerprintManager.Run(); err != nil {
@@ -1080,71 +1080,6 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 
 	if hasChanged {
 		c.config.Node.Drivers[name].UpdateTime = time.Now()
-		c.updateNode()
-	}
-
-	return c.config.Node
-}
-
-/* Model for converging the periodic fingerprinting and health checking:
-
-func watcher(driver Driver) {
-   p := driver.Periodic()
-   healthChecker driver.HealthChecker()
-   hDur := healthChecker.Periodic()
-
-   var t1, t2 time.Timer
-
-   if healthChecker {
-      t2 = time.NewTimer(hDur)
-   }
-
-   for {
-     select {
-     case shutdown:
-     case periodicFingerprint <- t1.C:
-		 // Do stuff
-		 t1.Reset(its duration)
-     case healthCheck <- t2.C: // Nil: never fire
-		 // Do stuff
-		 newHealth := driver.HealthCheck()
-		 updateNodeFromDriver(nil, newHealth)
-		 t2.Reset(its duration)
-     }
-   }
-}
-*/
-
-// updateNodeFromHealthCheck receives a health check response and updates the
-// node accordingly
-// TODO is this even needed?
-func (c *Client) updateNodeFromHealthCheck(response *cstructs.HealthCheckResponse) *structs.Node {
-	c.configLock.Lock()
-	defer c.configLock.Unlock()
-
-	nodeHasChanged := false
-
-	// update the node with the latest driver health information
-	for name, newVal := range response.Drivers {
-		if newVal == nil {
-			continue
-		}
-		oldVal := c.config.Node.Drivers[name]
-		if newVal.HealthCheckEquals(oldVal) {
-
-			// make sure we accurately reflect the last time a health check has been
-			// performed for the driver.
-			oldVal.UpdateTime = newVal.UpdateTime
-			continue
-		}
-		nodeHasChanged = true
-		if oldVal == nil {
-			c.config.Node.Drivers[name] = newVal
-		} else {
-		}
-	}
-
-	if nodeHasChanged {
 		c.updateNode()
 	}
 

@@ -25,10 +25,6 @@ type FingerprintManager struct {
 	// associated node
 	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node
 
-	// updateHealthCheck is a callback to the client to update the state of the
-	// node for resources that require a health check
-	updateHealthCheck func(*cstructs.HealthCheckResponse) *structs.Node
-
 	updateNodeFromDriver func(string, *structs.DriverInfo, *structs.DriverInfo) *structs.Node
 	logger               *log.Logger
 }
@@ -39,13 +35,11 @@ func NewFingerprintManager(getConfig func() *config.Config,
 	node *structs.Node,
 	shutdownCh chan struct{},
 	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node,
-	updateHealthCheck func(*cstructs.HealthCheckResponse) *structs.Node,
 	updateNodeFromDriver func(string, *structs.DriverInfo, *structs.DriverInfo) *structs.Node,
 	logger *log.Logger) *FingerprintManager {
 	return &FingerprintManager{
 		getConfig:            getConfig,
 		updateNodeAttributes: updateNodeAttributes,
-		updateHealthCheck:    updateHealthCheck,
 		updateNodeFromDriver: updateNodeFromDriver,
 		node:                 node,
 		shutdownCh:           shutdownCh,
