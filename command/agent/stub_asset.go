@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	uiEnabled = false
+	uiBuilt = false
 	stubHTML = `<!DOCTYPE html>
 <html>
 <p>Nomad UI is not available in this binary. To get Nomad UI do one of the following:</p>

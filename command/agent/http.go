@@ -33,7 +33,7 @@ const (
 
 var (
 	// Set to false by stub_asset if the ui build tag isn't enabled
-	uiEnabled = true
+	uiBuilt = true
 
 	// Overridden if the ui build tag isn't enabled
 	stubHTML = ""
@@ -98,7 +98,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		logger:     agent.logger,
 		Addr:       ln.Addr().String(),
 	}
-	srv.registerHandlers(config.EnableDebug)
+	srv.registerHandlers(config.EnableDebug, config.UiEnabled)
 
 	// Handle requests with gzip compression
 	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
@@ -141,7 +141,7 @@ func (s *HTTPServer) Shutdown() {
 }
 
 // registerHandlers is used to attach our handlers to the mux
-func (s *HTTPServer) registerHandlers(enableDebug bool) {
+func (s *HTTPServer) registerHandlers(enableDebug bool, uiEnabled bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
 
@@ -196,15 +196,23 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
+	// If the ui is enabled, register the ui handler.  This is
+	// intentionally not handled in the same condition as uiBuilt because
+	// if the ui is disabled we don't want any response from the /ui/ path.
 	if uiEnabled {
-		s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.logger.Printf("[INFO] http: built-in UI is enabled")
+		if uiBuilt {
+			s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		} else {
+			// Write the stubHTML
+			s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(stubHTML))
+			})
+		}
+		s.mux.Handle("/", handleRootRedirect())
 	} else {
-		// Write the stubHTML
-		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(stubHTML))
-		})
+		s.logger.Printf("[INFO] http: built-in UI is disabled")
 	}
-	s.mux.Handle("/", handleRootRedirect())
 
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)

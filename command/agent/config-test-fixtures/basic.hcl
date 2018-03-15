@@ -5,6 +5,7 @@ data_dir = "/tmp/nomad"
 log_level = "ERR"
 bind_addr = "192.168.0.1"
 enable_debug = true
+ui = true
 ports {
 	http = 1234
 	rpc = 2345

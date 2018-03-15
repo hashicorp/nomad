@@ -27,6 +27,7 @@ func TestConfig_Parse(t *testing.T) {
 				LogLevel:    "ERR",
 				BindAddr:    "192.168.0.1",
 				EnableDebug: true,
+				UiEnabled: true,
 				Ports: &Ports{
 					HTTP: 1234,
 					RPC:  2345,
