@@ -264,7 +264,7 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 		f, err := fingerprint.NewFingerprint(name, fm.logger)
 
 		if err != nil {
-			fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting for %v failed: %+v", name, err)
+			fm.logger.Printf("[ERR] client.fingerprint_manager: fingerprinting for %v failed: %+v", name, err)
 			return err
 		}
 

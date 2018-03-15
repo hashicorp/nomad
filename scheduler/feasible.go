@@ -158,9 +158,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 				return false
 			}
 
-			if !enabled {
-				return false
-			}
+			return enabled
 		}
 	}
 	return true

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStaticIterator_Reset(t *testing.T) {
@@ -127,7 +128,9 @@ func TestDriverChecker(t *testing.T) {
 }
 
 func TestDriverChecker_HealthChecks(t *testing.T) {
+	require := require.New(t)
 	_, ctx := testContext(t)
+
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
@@ -182,9 +185,8 @@ func TestDriverChecker_HealthChecks(t *testing.T) {
 			testDrivers[i]: {},
 		}
 		checker := NewDriverChecker(ctx, drivers)
-		if act := checker.Feasible(c.Node); act != c.Result {
-			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
-		}
+		act := checker.Feasible(c.Node)
+		require.Equal(act, c.Result)
 	}
 }
 
