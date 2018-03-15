@@ -15,8 +15,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -113,7 +115,7 @@ func (t *testFakeCtx) syncOnce() error {
 func setupFake() *testFakeCtx {
 	fc := NewMockAgent()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, true, testLogger()),
+		ServiceClient: NewServiceClient(fc, testLogger()),
 		FakeConsul:    fc,
 		Task:          testTask(),
 		Restarter:     &restartRecorder{},
@@ -775,6 +777,7 @@ func TestConsul_RegServices(t *testing.T) {
 // TestConsul_ShutdownOK tests the ok path for the shutdown logic in
 // ServiceClient.
 func TestConsul_ShutdownOK(t *testing.T) {
+	require := require.New(t)
 	ctx := setupFake()
 
 	// Add a script check to make sure its TTL gets updated
@@ -808,19 +811,24 @@ func TestConsul_ShutdownOK(t *testing.T) {
 		t.Fatalf("unexpected error registering agent: %v", err)
 	}
 
+	testutil.WaitForResult(func() (bool, error) {
+		return ctx.ServiceClient.hasSeen(), fmt.Errorf("error contacting Consul")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 	// Shutdown should block until scripts finish
 	if err := ctx.ServiceClient.Shutdown(); err != nil {
 		t.Errorf("unexpected error shutting down client: %v", err)
 	}
 
-	// UpdateTTL should have been called once for the script check
+	// UpdateTTL should have been called once for the script check and once
+	// for shutdown
 	if n := len(ctx.FakeConsul.checkTTLs); n != 1 {
 		t.Fatalf("expected 1 checkTTL entry but found: %d", n)
 	}
 	for _, v := range ctx.FakeConsul.checkTTLs {
-		if v != 1 {
-			t.Fatalf("expected script check to be updated once but found %d", v)
-		}
+		require.Equalf(2, v, "expected 2 updates but foud %d", v)
 	}
 	for _, v := range ctx.FakeConsul.checks {
 		if v.Status != "passing" {
@@ -966,51 +974,6 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	for _, v := range ctx.FakeConsul.checks {
 		if expected := "warning"; v.Status != expected {
 			t.Fatalf("expected check to be %q but found %q", expected, v.Status)
-		}
-	}
-}
-
-// TestConsul_NoTLSSkipVerifySupport asserts that checks with
-// TLSSkipVerify=true are skipped when Consul doesn't support TLSSkipVerify.
-func TestConsul_NoTLSSkipVerifySupport(t *testing.T) {
-	ctx := setupFake()
-	ctx.ServiceClient = NewServiceClient(ctx.FakeConsul, false, testLogger())
-	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
-		// This check sets TLSSkipVerify so it should get dropped
-		{
-			Name:          "tls-check-skip",
-			Type:          "http",
-			Protocol:      "https",
-			Path:          "/",
-			TLSSkipVerify: true,
-		},
-		// This check doesn't set TLSSkipVerify so it should work fine
-		{
-			Name:          "tls-check-noskip",
-			Type:          "http",
-			Protocol:      "https",
-			Path:          "/",
-			TLSSkipVerify: false,
-		},
-	}
-
-	if err := ctx.ServiceClient.RegisterTask("allocid", ctx.Task, ctx.Restarter, nil, nil); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-
-	if err := ctx.syncOnce(); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if len(ctx.FakeConsul.checks) != 1 {
-		t.Errorf("expected 1 check but found %d", len(ctx.FakeConsul.checks))
-	}
-	for _, v := range ctx.FakeConsul.checks {
-		if expected := "tls-check-noskip"; v.Name != expected {
-			t.Errorf("only expected %q but found: %q", expected, v.Name)
-		}
-		if v.TLSSkipVerify {
-			t.Errorf("TLSSkipVerify=true when TLSSkipVerify not supported!")
 		}
 	}
 }
