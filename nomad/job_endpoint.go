@@ -797,12 +797,16 @@ func (j *Job) List(args *structs.JobListRequest,
 			}
 			reply.Jobs = jobs
 
-			// Use the last index that affected the jobs table
-			index, err := state.Index("jobs")
+			// Use the last index that affected the jobs table or summary
+			jindex, err := state.Index("jobs")
 			if err != nil {
 				return err
 			}
-			reply.Index = index
+			sindex, err := state.Index("job_summary")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Uint64Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)
