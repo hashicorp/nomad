@@ -9,6 +9,8 @@ __BACKWARDS INCOMPATIBILITIES:__
    [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
 
 IMPROVEMENTS:
+ * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
+ * core: More efficient garbage collection of large batches of jobs [[GH-3982](https://github.com/hashicorp/nomad/issues/3982)]
  * core: Allow upgrading/downgrading TLS via SIGHUP on both servers and clients [[GH-3492](https://github.com/hashicorp/nomad/issues/3492)]
  * core: Node events are emitted for events such as node registration and
    heartbeating [[GH-3945](https://github.com/hashicorp/nomad/issues/3945)]

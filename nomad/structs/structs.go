@@ -77,6 +77,7 @@ const (
 	ACLTokenBootstrapRequestType
 	AutopilotRequestType
 	UpsertNodeEventsType
+	JobBatchDeregisterRequestType
 )
 
 const (
@@ -377,6 +378,26 @@ type JobDeregisterRequest struct {
 	Purge bool
 
 	WriteRequest
+}
+
+// JobBatchDeregisterRequest is used to batch deregister jobs and upsert
+// evaluations.
+type JobBatchDeregisterRequest struct {
+	// Jobs is the set of jobs to deregister
+	Jobs map[NamespacedID]*JobDeregisterOptions
+
+	// Evals is the set of evaluations to create.
+	Evals []*Evaluation
+
+	WriteRequest
+}
+
+// JobDeregisterOptions configures how a job is deregistered.
+type JobDeregisterOptions struct {
+	// Purge controls whether the deregister purges the job from the system or
+	// whether the job is just marked as stopped and will be removed by the
+	// garbage collector
+	Purge bool
 }
 
 // JobEvaluateRequest is used when we just need to re-evaluate a target job
@@ -784,6 +805,13 @@ type JobDeregisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+	QueryMeta
+}
+
+// JobBatchDeregisterResponse is used to respond to a batch job deregistration
+type JobBatchDeregisterResponse struct {
+	// JobEvals maps the job to its created evaluation
+	JobEvals map[NamespacedID]string
 	QueryMeta
 }
 

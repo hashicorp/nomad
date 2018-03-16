@@ -238,6 +238,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
 		return n.applyUpsertNodeEvent(buf[1:], log.Index)
+	case structs.JobBatchDeregisterRequestType:
+		return n.applyBatchDeregisterJob(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -431,14 +433,41 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: deregistering job failed: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_job"}, time.Now())
+	var req structs.JobBatchDeregisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	for jobNS, options := range req.Jobs {
+		if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: deregistering %v failed: %v", jobNS, err)
+			return err
+		}
+	}
+
+	return n.upsertEvals(index, req.Evals)
+}
+
+// handleJobDeregister is used to deregister a job.
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool) error {
 	// If it is periodic remove it from the dispatcher
-	if err := n.periodicDispatcher.Remove(req.Namespace, req.JobID); err != nil {
+	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
 		return err
 	}
 
-	if req.Purge {
-		if err := n.state.DeleteJob(index, req.Namespace, req.JobID); err != nil {
+	if purge {
+		if err := n.state.DeleteJob(index, namespace, jobID); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 			return err
 		}
@@ -446,18 +475,18 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		// We always delete from the periodic launch table because it is possible that
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		n.state.DeletePeriodicLaunch(index, req.Namespace, req.JobID)
+		n.state.DeletePeriodicLaunch(index, namespace, jobID)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByID(ws, req.Namespace, req.JobID)
+		current, err := n.state.JobByID(ws, namespace, jobID)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
 			return err
 		}
 
 		if current == nil {
-			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", req.JobID, req.Namespace)
+			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
 		}
 
 		stopped := current.Copy()
