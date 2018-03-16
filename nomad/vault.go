@@ -625,10 +625,9 @@ func (v *vaultClient) parseSelfToken() error {
 	//   a) Must have read capability for "auth/token/roles/<role_name" (Can just attempt a read)
 	//   b) Must have update capability for path "auth/token/create/<role_name>"
 	//   c) Role must:
-	//     1) Not allow orphans
-	//     2) Must allow tokens to be renewed
-	//     3) Must not have an explicit max TTL
-	//     4) Must have non-zero period
+	//     1) Must allow tokens to be renewed
+	//     2) Must not have an explicit max TTL
+	//     3) Must have non-zero period
 	// 5) If not configured against a role, the token must be root
 
 	var mErr multierror.Error
@@ -793,10 +792,6 @@ func (v *vaultClient) validateRole(role string) error {
 
 	// Validate the role is acceptable
 	var mErr multierror.Error
-	if data.Orphan {
-		multierror.Append(&mErr, fmt.Errorf("Role must not allow orphans"))
-	}
-
 	if !data.Renewable {
 		multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
 	}

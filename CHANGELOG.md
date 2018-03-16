@@ -36,6 +36,7 @@ IMPROVEMENTS:
  * driver/docker: Support mounting root filesystem as read-only [[GH-3802](https://github.com/hashicorp/nomad/issues/3802)]
  * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
  * telemetry: Support DataDog tags [[GH-3839](https://github.com/hashicorp/nomad/issues/3839)]
+ * vault: Allow Nomad to create orphaned tokens for allocations [[GH-3922](https://github.com/hashicorp/nomad/issues/3922)]
 
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]

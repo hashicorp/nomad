@@ -274,9 +274,6 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	})
 
 	errStr := connErr.Error()
-	if !strings.Contains(errStr, "not allow orphans") {
-		t.Fatalf("Expect orphan error")
-	}
 	if !strings.Contains(errStr, "explicit max ttl") {
 		t.Fatalf("Expect explicit max ttl error")
 	}
@@ -318,7 +315,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 
 	errStr := connErr.Error()
 	if !strings.Contains(errStr, "does not exist") {
-		t.Fatalf("Expect orphan error")
+		t.Fatalf("Expect does not exist error")
 	}
 }
 
@@ -366,7 +363,7 @@ func TestVaultClient_ValidateToken(t *testing.T) {
 
 	errStr := connErr.Error()
 	if !strings.Contains(errStr, vaultTokenRevokePath) {
-		t.Fatalf("Expect orphan error")
+		t.Fatalf("Expect revoke error")
 	}
 	if !strings.Contains(errStr, fmt.Sprintf(vaultRoleLookupPath, "test")) {
 		t.Fatalf("Expect explicit max ttl error")
