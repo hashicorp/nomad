@@ -424,6 +424,7 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 	config := DefaultConfig()
 	config.DevMode = true
 	config.LogOutput = testlog.NewWriter(t)
+	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
 	logger := log.New(config.LogOutput, "", log.LstdFlags)
 	catalog := consul.NewMockCatalog(logger)
 

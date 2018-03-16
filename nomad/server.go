@@ -283,25 +283,24 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Create the server
 	s := &Server{
-		config:             config,
-		consulCatalog:      consulCatalog,
-		connPool:           pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:             logger,
-		tlsWrap:            tlsWrap,
-		rpcServer:          rpc.NewServer(),
-		streamingRpcs:      structs.NewStreamingRpcRegistry(),
-		nodeConns:          make(map[string]*nodeConnState),
-		serverRpcAdvertise: config.ServerRPCAdvertise,
-		peers:              make(map[string][]*serverParts),
-		localPeers:         make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:        make(chan serf.Member, 32),
-		eventCh:            make(chan serf.Event, 256),
-		evalBroker:         evalBroker,
-		blockedEvals:       blockedEvals,
-		planQueue:          planQueue,
-		rpcTLS:             incomingTLS,
-		aclCache:           aclCache,
-		shutdownCh:         make(chan struct{}),
+		config:        config,
+		consulCatalog: consulCatalog,
+		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:        logger,
+		tlsWrap:       tlsWrap,
+		rpcServer:     rpc.NewServer(),
+		streamingRpcs: structs.NewStreamingRpcRegistry(),
+		nodeConns:     make(map[string]*nodeConnState),
+		peers:         make(map[string][]*serverParts),
+		localPeers:    make(map[raft.ServerAddress]*serverParts),
+		reconcileCh:   make(chan serf.Member, 32),
+		eventCh:       make(chan serf.Event, 256),
+		evalBroker:    evalBroker,
+		blockedEvals:  blockedEvals,
+		planQueue:     planQueue,
+		rpcTLS:        incomingTLS,
+		aclCache:      aclCache,
+		shutdownCh:    make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
@@ -909,14 +908,42 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	}
 
 	// Verify that we have a usable advertise address
-	addr, ok := s.clientRpcAdvertise.(*net.TCPAddr)
+	clientAddr, ok := s.clientRpcAdvertise.(*net.TCPAddr)
 	if !ok {
 		listener.Close()
-		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
+		return fmt.Errorf("Client RPC advertise address is not a TCP Address: %v", clientAddr)
 	}
-	if addr.IP.IsUnspecified() {
+	if clientAddr.IP.IsUnspecified() {
 		listener.Close()
-		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
+		return fmt.Errorf("Client RPC advertise address is not advertisable: %v", clientAddr)
+	}
+
+	if s.config.ServerRPCAdvertise != nil {
+		s.serverRpcAdvertise = s.config.ServerRPCAdvertise
+	} else {
+		// Default to the Serf Advertise + RPC Port
+		serfIP := s.config.SerfConfig.MemberlistConfig.AdvertiseAddr
+		if serfIP == "" {
+			serfIP = s.config.SerfConfig.MemberlistConfig.BindAddr
+		}
+
+		addr := net.JoinHostPort(serfIP, fmt.Sprintf("%d", clientAddr.Port))
+		resolved, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("Failed to resolve Server RPC advertise address: %v", err)
+		}
+
+		s.serverRpcAdvertise = resolved
+	}
+
+	// Verify that we have a usable advertise address
+	serverAddr, ok := s.serverRpcAdvertise.(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("Server RPC advertise address is not a TCP Address: %v", serverAddr)
+	}
+	if serverAddr.IP.IsUnspecified() {
+		listener.Close()
+		return fmt.Errorf("Server RPC advertise address is not advertisable: %v", serverAddr)
 	}
 
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
