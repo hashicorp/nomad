@@ -34,6 +34,8 @@ IMPROVEMENTS:
  * driver/docker; Support overriding image entrypoint [[GH-3788](https://github.com/hashicorp/nomad/issues/3788)]
  * driver/docker: Support adding or dropping capabilities [[GH-3754](https://github.com/hashicorp/nomad/issues/3754)]
  * driver/docker: Support mounting root filesystem as read-only [[GH-3802](https://github.com/hashicorp/nomad/issues/3802)]
+ * driver/docker: Retry on Portworx "volume is attached on another node" errors.
+   [[GH-3993](https://github.com/hashicorp/nomad/issues/3993)]
  * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
  * telemetry: Support DataDog tags [[GH-3839](https://github.com/hashicorp/nomad/issues/3839)]
  * vault: Allow Nomad to create orphaned tokens for allocations [[GH-3922](https://github.com/hashicorp/nomad/issues/3922)]
