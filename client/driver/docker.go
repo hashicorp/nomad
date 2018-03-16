@@ -804,7 +804,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		return nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", d.driverConfig.ImageName, d.imageID, err)
 	}
 
-	container, err := d.createContainer(config)
+	container, err := d.createContainer(client, config)
 	if err != nil {
 		wrapped := fmt.Sprintf("Failed to create container: %v", err)
 		d.logger.Printf("[ERR] driver.docker: %s", wrapped)
@@ -1510,7 +1510,7 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 
 // createContainer creates the container given the passed configuration. It
 // attempts to handle any transient Docker errors.
-func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, error) {
+func (d *DockerDriver) createContainer(client createContainerClient, config docker.CreateContainerOptions) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
 CREATE:
@@ -1521,6 +1521,16 @@ CREATE:
 
 	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q from image %q (ID: %q) (attempt %d): %v",
 		config.Name, d.driverConfig.ImageName, d.imageID, attempted+1, createErr)
+
+	// Volume management tools like Portworx may not have detached a volume
+	// from a previous node before Nomad started a task replacement task.
+	// Treat these errors as recoverable so we retry.
+	if strings.Contains(strings.ToLower(createErr.Error()), "volume is attached on another node") {
+		return nil, structs.NewRecoverableError(createErr, true)
+	}
+
+	// If the container already exists determine whether it's already
+	// running or if it's dead and needs to be recreated.
 	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
 		containers, err := client.ListContainers(docker.ListContainersOptions{
 			All: true,
@@ -2081,4 +2091,13 @@ func authIsEmpty(auth *docker.AuthConfiguration) bool {
 		auth.Password == "" &&
 		auth.Email == "" &&
 		auth.ServerAddress == ""
+}
+
+// createContainerClient is the subset of Docker Client methods used by the
+// createContainer method to ease testing subtle error conditions.
+type createContainerClient interface {
+	CreateContainer(docker.CreateContainerOptions) (*docker.Container, error)
+	InspectContainer(id string) (*docker.Container, error)
+	ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error)
+	RemoveContainer(opts docker.RemoveContainerOptions) error
 }
