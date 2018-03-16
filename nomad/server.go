@@ -121,8 +121,13 @@ type Server struct {
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
 
-	// rpcAdvertise is the advertised address for the RPC listener.
-	rpcAdvertise net.Addr
+	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
+	// to this server
+	clientRpcAdvertise net.Addr
+
+	// serverRpcAdvertise is the advertised RPC address for Nomad servers to connect
+	// to this server
+	serverRpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
 	rpcTLS    *tls.Config
@@ -278,24 +283,25 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Create the server
 	s := &Server{
-		config:        config,
-		consulCatalog: consulCatalog,
-		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:        logger,
-		tlsWrap:       tlsWrap,
-		rpcServer:     rpc.NewServer(),
-		streamingRpcs: structs.NewStreamingRpcRegistry(),
-		nodeConns:     make(map[string]*nodeConnState),
-		peers:         make(map[string][]*serverParts),
-		localPeers:    make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:   make(chan serf.Member, 32),
-		eventCh:       make(chan serf.Event, 256),
-		evalBroker:    evalBroker,
-		blockedEvals:  blockedEvals,
-		planQueue:     planQueue,
-		rpcTLS:        incomingTLS,
-		aclCache:      aclCache,
-		shutdownCh:    make(chan struct{}),
+		config:             config,
+		consulCatalog:      consulCatalog,
+		connPool:           pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:             logger,
+		tlsWrap:            tlsWrap,
+		rpcServer:          rpc.NewServer(),
+		streamingRpcs:      structs.NewStreamingRpcRegistry(),
+		nodeConns:          make(map[string]*nodeConnState),
+		serverRpcAdvertise: config.ServerRPCAdvertise,
+		peers:              make(map[string][]*serverParts),
+		localPeers:         make(map[raft.ServerAddress]*serverParts),
+		reconcileCh:        make(chan serf.Member, 32),
+		eventCh:            make(chan serf.Event, 256),
+		evalBroker:         evalBroker,
+		blockedEvals:       blockedEvals,
+		planQueue:          planQueue,
+		rpcTLS:             incomingTLS,
+		aclCache:           aclCache,
+		shutdownCh:         make(chan struct{}),
 	}
 
 	// Create the periodic dispatcher for launching periodic jobs.
@@ -896,14 +902,14 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 		return err
 	}
 
-	if s.config.RPCAdvertise != nil {
-		s.rpcAdvertise = s.config.RPCAdvertise
+	if s.config.ClientRPCAdvertise != nil {
+		s.clientRpcAdvertise = s.config.ClientRPCAdvertise
 	} else {
-		s.rpcAdvertise = s.rpcListener.Addr()
+		s.clientRpcAdvertise = s.rpcListener.Addr()
 	}
 
 	// Verify that we have a usable advertise address
-	addr, ok := s.rpcAdvertise.(*net.TCPAddr)
+	addr, ok := s.clientRpcAdvertise.(*net.TCPAddr)
 	if !ok {
 		listener.Close()
 		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
@@ -914,7 +920,7 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	}
 
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
+	s.raftLayer = NewRaftLayer(s.serverRpcAdvertise, wrapper)
 	return nil
 }
 
@@ -1148,8 +1154,8 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["build"] = s.config.Build
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
-	conf.Tags["rpc_addr"] = s.rpcAdvertise.(*net.TCPAddr).IP.String()
-	conf.Tags["port"] = fmt.Sprintf("%d", s.rpcAdvertise.(*net.TCPAddr).Port)
+	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers
+	conf.Tags["port"] = fmt.Sprintf("%d", s.serverRpcAdvertise.(*net.TCPAddr).Port) // Port servers use to RPC to one and another
 	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		conf.Tags["bootstrap"] = "1"
 	}

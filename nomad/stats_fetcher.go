@@ -42,7 +42,7 @@ func NewStatsFetcher(logger *log.Logger, pool *pool.ConnPool, region string) *St
 func (f *StatsFetcher) fetch(server *serverParts, replyCh chan *autopilot.ServerStats) {
 	var args struct{}
 	var reply autopilot.ServerStats
-	err := f.pool.RPC(f.region, server.RPCAddr, server.MajorVersion, "Status.RaftStats", &args, &reply)
+	err := f.pool.RPC(f.region, server.Addr, server.MajorVersion, "Status.RaftStats", &args, &reply)
 	if err != nil {
 		f.logger.Printf("[WARN] nomad: error getting server health from %q: %v",
 			server.Name, err)
