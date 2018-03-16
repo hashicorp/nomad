@@ -674,17 +674,18 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 	}
 
+	// Grab a snapshot
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
 	// Loop through to create evals
 	for jobNS, options := range args.Jobs {
 		if options == nil {
 			return fmt.Errorf("no deregister options provided for %v", jobNS)
 		}
 
-		// Lookup the job
-		snap, err := j.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
 		job, err := snap.JobByID(nil, jobNS.Namespace, jobNS.ID)
 		if err != nil {
 			return err
