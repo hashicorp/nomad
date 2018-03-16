@@ -426,7 +426,7 @@ func (s *Server) forwardLeader(server *serverParts, method string, args interfac
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return s.connPool.RPC(s.config.Region, server.RPCAddr, server.MajorVersion, method, args, reply)
 }
 
 // forwardServer is used to forward an RPC call to a particular server
@@ -457,7 +457,7 @@ func (s *Server) forwardRegion(region, method string, args interface{}, reply in
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return s.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
+	return s.connPool.RPC(region, server.RPCAddr, server.MajorVersion, method, args, reply)
 }
 
 // streamingRpc creates a connection to the given server and conducts the

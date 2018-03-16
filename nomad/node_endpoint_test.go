@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -703,6 +704,45 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
+}
+
+func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	advAddr := "127.0.1.1:1234"
+	adv, err := net.ResolveTCPAddr("tcp", advAddr)
+	require.Nil(err)
+
+	s1 := testServer(t, func(c *Config) {
+		c.RPCAdvertise = adv
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for heartbeat interval
+	ttl := resp.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for heartbeat servers
+	require.Len(resp.Servers, 1)
+	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
