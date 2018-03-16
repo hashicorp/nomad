@@ -2301,6 +2301,41 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	assert.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
 }
 
+// fakeDockerClient can be used in places that accept an interface for the
+// docker client such as createContainer.
+type fakeDockerClient struct{}
+
+func (fakeDockerClient) CreateContainer(docker.CreateContainerOptions) (*docker.Container, error) {
+	return nil, fmt.Errorf("volume is attached on another node")
+}
+func (fakeDockerClient) InspectContainer(id string) (*docker.Container, error) {
+	panic("not implemented")
+}
+func (fakeDockerClient) ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error) {
+	panic("not implemented")
+}
+func (fakeDockerClient) RemoveContainer(opts docker.RemoveContainerOptions) error {
+	panic("not implemented")
+}
+
+// TestDockerDriver_VolumeError asserts volume related errors when creating a
+// container are recoverable.
+func TestDockerDriver_VolumeError(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+
+	// setup
+	task, _, _ := dockerTask(t)
+	tctx := testDockerDriverContexts(t, task)
+	driver := NewDockerDriver(tctx.DriverCtx).(*DockerDriver)
+	driver.driverConfig = &DockerDriverConfig{ImageName: "test"}
+
+	// assert volume error is recoverable
+	_, err := driver.createContainer(fakeDockerClient{}, docker.CreateContainerOptions{})
+	require.True(t, structs.IsRecoverable(err))
+}
+
 func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
