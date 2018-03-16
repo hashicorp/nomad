@@ -213,3 +213,8 @@ type DesiredTransition struct {
 	// migrated to another node.
 	Migrate *bool
 }
+
+// ShouldMigrate returns whether the transition object dictates a migration.
+func (d DesiredTransition) ShouldMigrate() bool {
+	return d.Migrate != nil && *d.Migrate
+}
