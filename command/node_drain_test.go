@@ -183,6 +183,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 
 	require.Contains(out, "drain complete")
 	for _, a := range allocs {
+		require.Contains(out, fmt.Sprintf("Alloc %q marked for migration", a.ID))
 		require.Contains(out, fmt.Sprintf("Alloc %q draining", a.ID))
 	}
 }

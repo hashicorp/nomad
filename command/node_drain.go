@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -359,6 +360,8 @@ func monitorDrain(output func(string), nodeClient *api.Nodes, nodeID string, ind
 				// Update local alloc state
 				initial[a.ID] = a
 
+				migrating := a.DesiredTransition.ShouldMigrate()
+
 				msg := ""
 				switch {
 				case !ok:
@@ -370,9 +373,15 @@ func monitorDrain(output func(string), nodeClient *api.Nodes, nodeID string, ind
 					// Alloc status has changed; output
 					msg = fmt.Sprintf("status %s -> %s", orig.ClientStatus, a.ClientStatus)
 
-				case !orig.DesiredTransition.ShouldMigrate() && a.DesiredTransition.ShouldMigrate():
-					// Alloc marked for migration
+				case migrating && !orig.DesiredTransition.ShouldMigrate():
+					// Alloc was marked for migration
+					msg = "marked for migration"
+				case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
+					// Alloc has already been marked for migration and is now being stopped
 					msg = "draining"
+				case a.NextAllocation != "" && orig.NextAllocation == "":
+					// Alloc has been replaced by another allocation
+					msg = fmt.Sprintf("replaced by allocation %q", a.NextAllocation)
 				}
 
 				if msg != "" {
@@ -386,14 +395,36 @@ func monitorDrain(output func(string), nodeClient *api.Nodes, nodeID string, ind
 		}
 	}()
 
-	for {
+	done := false
+	for !done {
 		select {
 		case err := <-errCh:
 			return err
 		case <-nodeCh:
-			return nil
+			done = true
 		case msg := <-allocCh:
 			output(msg)
+		}
+	}
+
+	// Loop on alloc messages for a bit longer as we may have gotten the
+	// "node done" first (since the watchers run concurrently the events
+	// may be received out of order)
+	deadline := 250 * time.Millisecond
+	timer := time.NewTimer(deadline)
+	for {
+		select {
+		case err := <-errCh:
+			return err
+		case msg := <-allocCh:
+			output(msg)
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(deadline)
+		case <-timer.C:
+			// No events within deadline, exit
+			return nil
 		}
 	}
 }
