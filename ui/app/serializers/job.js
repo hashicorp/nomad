@@ -33,6 +33,14 @@ export default ApplicationSerializer.extend({
       hash.ParameterizedJob = true;
     }
 
+    // If the hash contains summary information, push it into the store
+    // as a job-summary model.
+    if (hash.JobSummary) {
+      this.store.pushPayload('job-summary', {
+        'job-summary': [hash.JobSummary],
+      });
+    }
+
     return this._super(typeHash, hash);
   },
 

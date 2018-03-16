@@ -84,6 +84,16 @@ export default Model.extend({
   taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
   summary: belongsTo('job-summary'),
 
+  // A job model created from the jobs list response will be lacking
+  // task groups. This is an indicator that it needs to be reloaded
+  // if task group information is important.
+  isPartial: equal('taskGroups.length', 0),
+
+  // If a job has only been loaded through the list request, the task groups
+  // are still unknown. However, the count of task groups is available through
+  // the job-summary model which is embedded in the jobs list response.
+  taskGroupCount: or('taskGroups.length', 'taskGroupSummaries.length'),
+
   // Alias through to the summary, as if there was no relationship
   taskGroupSummaries: alias('summary.taskGroupSummaries'),
   queuedAllocs: alias('summary.queuedAllocs'),
