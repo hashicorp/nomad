@@ -15,7 +15,6 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
-	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -56,10 +55,6 @@ type Agent struct {
 
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
-
-	// consulSupportsTLSSkipVerify flags whether or not Nomad can register
-	// checks with TLSSkipVerify
-	consulSupportsTLSSkipVerify bool
 
 	client *client.Client
 
@@ -605,10 +600,6 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		// No HTTPS, return a plain http check
 		return &check
 	}
-	if !a.consulSupportsTLSSkipVerify {
-		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
-		return nil
-	}
 	if a.config.TLSConfig.VerifyHTTPSClient {
 		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because verify_https_client enabled")
 		return nil
@@ -850,55 +841,14 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 
 	// Determine version for TLSSkipVerify
-	if self, err := client.Agent().Self(); err == nil {
-		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
-	}
 
 	// Create Consul Catalog client for service discovery.
 	a.consulCatalog = client.Catalog()
 
 	// Create Consul Service client for service advertisement and checks.
-	a.consulService = consul.NewServiceClient(client.Agent(), a.consulSupportsTLSSkipVerify, a.logger)
+	a.consulService = consul.NewServiceClient(client.Agent(), a.logger)
 
 	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()
 	return nil
-}
-
-var consulTLSSkipVerifyMinVersion = version.Must(version.NewVersion("0.7.2"))
-
-// consulSupportsTLSSkipVerify returns true if Consul supports TLSSkipVerify.
-func consulSupportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
-	member, ok := self["Member"]
-	if !ok {
-		return false
-	}
-	tagsI, ok := member["Tags"]
-	if !ok {
-		return false
-	}
-	tags, ok := tagsI.(map[string]interface{})
-	if !ok {
-		return false
-	}
-	buildI, ok := tags["build"]
-	if !ok {
-		return false
-	}
-	build, ok := buildI.(string)
-	if !ok {
-		return false
-	}
-	parts := strings.SplitN(build, ":", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	v, err := version.NewVersion(parts[0])
-	if err != nil {
-		return false
-	}
-	if v.LessThan(consulTLSSkipVerifyMinVersion) {
-		return false
-	}
-	return true
 }
