@@ -36,6 +36,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	t.Parallel()
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
+	conf.Server.Enabled = true
 	a := &Agent{config: conf}
 
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
