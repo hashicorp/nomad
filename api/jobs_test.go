@@ -25,9 +25,6 @@ func TestJobs_Register(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
@@ -653,9 +650,6 @@ func TestJobs_EnforceRegister(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
@@ -835,12 +829,9 @@ func TestJobs_PrefixList(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
-	results, qm, err := jobs.PrefixList("dummy")
+	results, _, err := jobs.PrefixList("dummy")
 	if err != nil {
 		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(results); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -856,7 +847,7 @@ func TestJobs_PrefixList(t *testing.T) {
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
-	results, qm, err = jobs.PrefixList((*job.ID)[:1])
+	results, _, err = jobs.PrefixList((*job.ID)[:1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -874,12 +865,9 @@ func TestJobs_List(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
-	results, qm, err := jobs.List(nil)
+	results, _, err := jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(results); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -895,7 +883,7 @@ func TestJobs_List(t *testing.T) {
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
-	results, qm, err = jobs.List(nil)
+	results, _, err = jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
