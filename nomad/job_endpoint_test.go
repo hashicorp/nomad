@@ -1841,14 +1841,14 @@ func TestJobEndpoint_BatchDeregister(t *testing.T) {
 	// Deregister
 	dereg := &structs.JobBatchDeregisterRequest{
 		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
-			structs.NamespacedID{
+			{
 				ID:        job.ID,
 				Namespace: job.Namespace,
-			}: &structs.JobDeregisterOptions{},
-			structs.NamespacedID{
+			}: {},
+			{
 				ID:        job2.ID,
 				Namespace: job2.Namespace,
-			}: &structs.JobDeregisterOptions{
+			}: {
 				Purge: true,
 			},
 		},
@@ -1911,14 +1911,14 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 	// Deregister
 	req := &structs.JobBatchDeregisterRequest{
 		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
-			structs.NamespacedID{
+			{
 				ID:        job.ID,
 				Namespace: job.Namespace,
-			}: &structs.JobDeregisterOptions{},
-			structs.NamespacedID{
+			}: {},
+			{
 				ID:        job2.ID,
 				Namespace: job2.Namespace,
-			}: &structs.JobDeregisterOptions{},
+			}: {},
 		},
 		WriteRequest: structs.WriteRequest{
 			Region: "global",

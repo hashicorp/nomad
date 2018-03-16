@@ -644,14 +644,14 @@ func TestFSM_BatchDeregisterJob(t *testing.T) {
 
 	req3 := structs.JobBatchDeregisterRequest{
 		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
-			structs.NamespacedID{
+			{
 				ID:        job.ID,
 				Namespace: job.Namespace,
-			}: &structs.JobDeregisterOptions{},
-			structs.NamespacedID{
+			}: {},
+			{
 				ID:        job2.ID,
 				Namespace: job2.Namespace,
-			}: &structs.JobDeregisterOptions{
+			}: {
 				Purge: true,
 			},
 		},
