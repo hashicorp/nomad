@@ -88,8 +88,9 @@ type RktDriverConfig struct {
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
-	NoOverlay bool `mapstructure:"no_overlay"` // disable overlayfs for rkt run
-	Debug     bool `mapstructure:"debug"`      // Enable debug option for rkt command
+	NoOverlay bool   `mapstructure:"no_overlay"` // disable overlayfs for rkt run
+	Debug     bool   `mapstructure:"debug"`      // Enable debug option for rkt command
+	Group     string `mapstructure:"group"`      // Group override for the container
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -293,6 +294,9 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			},
 			"insecure_options": {
 				Type: fields.TypeArray,
+			},
+			"group": {
+				Type: fields.TypeString,
 			},
 		},
 	}
@@ -575,6 +579,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	// If a user has been specified for the task, pass it through to the user
 	if task.User != "" {
 		prepareArgs = append(prepareArgs, fmt.Sprintf("--user=%s", task.User))
+	}
+
+	// There's no task-level parameter for groups so check the driver
+	// config for a custom group
+	if driverConfig.Group != "" {
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--group=%s", driverConfig.Group))
 	}
 
 	// Add user passed arguments.
