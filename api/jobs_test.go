@@ -25,6 +25,7 @@ func TestJobs_Register(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	assertQueryMeta(t, qm)
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
@@ -650,6 +651,8 @@ func TestJobs_EnforceRegister(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+	assertQueryMeta(t, qm)
+
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
