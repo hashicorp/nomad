@@ -48,7 +48,6 @@ var _ = Describe("Server Side Restart Tests", func() {
 
 	BeforeSuite(func() {
 		conf := api.DefaultConfig()
-		conf.Address = "http://localhost:4646"
 
 		// Create client
 		client, err := api.NewClient(conf)
@@ -95,7 +94,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 				expected = append(expected, "failed")
 			}
 			It("Should have all failed", func() {
-				Eventually(allocStatuses, 5*time.Second, time.Second).ShouldNot(
+				Eventually(allocStatuses, 6*time.Second, time.Second).ShouldNot(
 					SatisfyAll(ContainElement("pending"),
 						ContainElement("running")))
 			})
@@ -106,7 +105,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 				specFile = "input/reschedule_success.hcl"
 			})
 			It("Should have some running allocs", func() {
-				Eventually(allocStatuses, 5*time.Second, time.Second).Should(
+				Eventually(allocStatuses, 6*time.Second, time.Second).Should(
 					ContainElement("running"))
 			})
 		})
