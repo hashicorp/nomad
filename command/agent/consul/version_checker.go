@@ -32,7 +32,7 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger *log.Logger, client Ag
 			return
 		}
 
-		backoff := (1 << (2 * uint64(i))) * baseline
+		backoff := (1 << (2 * i)) * baseline
 		if backoff > limit {
 			backoff = limit
 		} else {
@@ -42,7 +42,7 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger *log.Logger, client Ag
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(backoff)):
+		case <-time.After(backoff):
 		}
 	}
 }

@@ -63,7 +63,7 @@ func (c *MockAgent) SetStatus(s string) string {
 
 func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 	s := map[string]map[string]interface{}{
-		"Member": map[string]interface{}{
+		"Member": {
 			"Addr":        "127.0.0.1",
 			"DelegateCur": 4,
 			"DelegateMax": 5,
