@@ -29,7 +29,7 @@ func NewDrainRequest(allocs []*structs.Allocation) *DrainRequest {
 // DrainingJobWatcher is the interface for watching a job drain
 type DrainingJobWatcher interface {
 	// RegisterJob is used to start watching a draining job
-	RegisterJob(job structs.JobNs)
+	RegisterJobs(job []structs.NamespacedID)
 
 	// Drain is used to emit allocations that should be drained.
 	Drain() <-chan *DrainRequest
@@ -52,7 +52,7 @@ type drainingJobWatcher struct {
 	limiter *rate.Limiter
 
 	// jobs is the set of tracked jobs.
-	jobs map[structs.JobNs]struct{}
+	jobs map[structs.NamespacedID]struct{}
 
 	// queryCtx is used to cancel a blocking query.
 	queryCtx    context.Context
@@ -80,7 +80,7 @@ func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *st
 		limiter:     limiter,
 		logger:      logger,
 		state:       state,
-		jobs:        make(map[structs.JobNs]struct{}, 64),
+		jobs:        make(map[structs.NamespacedID]struct{}, 64),
 		drainCh:     make(chan *DrainRequest),
 		migratedCh:  make(chan []*structs.Allocation),
 	}
@@ -90,21 +90,28 @@ func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *st
 }
 
 // RegisterJob marks the given job as draining and adds it to being watched.
-func (w *drainingJobWatcher) RegisterJob(job structs.JobNs) {
+func (w *drainingJobWatcher) RegisterJobs(jobs []structs.NamespacedID) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
-	if _, ok := w.jobs[job]; ok {
-		return
+	updated := false
+	for _, jns := range jobs {
+		if _, ok := w.jobs[jns]; ok {
+			continue
+		}
+
+		// Add the job and cancel the context
+		w.logger.Printf("[TRACE] nomad.drain.job_watcher: registering job %v", jns)
+		w.jobs[jns] = struct{}{}
+		updated = true
 	}
 
-	// Add the job and cancel the context
-	w.logger.Printf("[TRACE] nomad.drain.job_watcher: registering job %v", job)
-	w.jobs[job] = struct{}{}
-	w.queryCancel()
+	if updated {
+		w.queryCancel()
 
-	// Create a new query context
-	w.queryCtx, w.queryCancel = context.WithCancel(w.ctx)
+		// Create a new query context
+		w.queryCtx, w.queryCancel = context.WithCancel(w.ctx)
+	}
 }
 
 // Drain returns the channel that emits allocations to drain.
@@ -122,7 +129,7 @@ func (w *drainingJobWatcher) Migrated() <-chan []*structs.Allocation {
 func (w *drainingJobWatcher) deregisterJob(jobID, namespace string) {
 	w.l.Lock()
 	defer w.l.Unlock()
-	jns := structs.JobNs{
+	jns := structs.NamespacedID{
 		ID:        jobID,
 		Namespace: namespace,
 	}
@@ -160,7 +167,6 @@ func (w *drainingJobWatcher) watch() {
 			}
 		}
 
-		// update index for next run
 		lastHandled := waitIndex
 		waitIndex = index
 
@@ -183,9 +189,16 @@ func (w *drainingJobWatcher) watch() {
 			w.logger.Printf("[TRACE] nomad.drain.job_watcher: handling job %v", jns)
 
 			// Lookup the job
-			job, err := w.state.JobByID(nil, jns.Namespace, jns.ID)
+			job, err := snap.JobByID(nil, jns.Namespace, jns.ID)
 			if err != nil {
 				w.logger.Printf("[WARN] nomad.drain.job_watcher: failed to lookup job %v: %v", jns, err)
+				continue
+			}
+
+			// Ignore purged jobs
+			if job == nil {
+				w.logger.Printf("[TRACE] nomad.drain.job_watcher: ignoring garbage collected job %q", jns)
+				w.deregisterJob(jns.ID, jns.Namespace)
 				continue
 			}
 
@@ -268,7 +281,8 @@ type jobResult struct {
 	done bool
 }
 
-// newJobResult returns an initialized jobResult
+// newJobResult returns a jobResult with done=true. It is the responsibility of
+// callers to set done=false when a remaining drainable alloc is found.
 func newJobResult() *jobResult {
 	return &jobResult{
 		done: true,
@@ -322,9 +336,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	var drainable []*structs.Allocation
 
 	for _, alloc := range allocs {
-		// TODO Remove at the end/when no more bugs
-		fmt.Printf("--- Looking at alloc %q\n", alloc.ID)
-
 		// Check if the alloc is on a draining node.
 		onDrainingNode, ok := drainingNodes[alloc.NodeID]
 		if !ok {
@@ -346,7 +357,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 			onDrainingNode &&
 			alloc.ModifyIndex > lastHandledIndex {
 			result.migrated = append(result.migrated, alloc)
-			fmt.Printf("------- Alloc %q marked as migrated\n", alloc.ID)
 			continue
 		}
 
@@ -355,7 +365,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		if !alloc.TerminalStatus() &&
 			alloc.DeploymentStatus != nil &&
 			alloc.DeploymentStatus.Healthy != nil {
-			fmt.Printf("------- Alloc %q considered as healthy\n", alloc.ID)
 			healthy++
 		}
 
@@ -363,7 +372,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		// - It isn't on a draining node
 		// - It is already terminal
 		if !onDrainingNode || alloc.TerminalStatus() {
-			fmt.Printf("------- Alloc %q not drainable\n", alloc.ID)
 			continue
 		}
 
@@ -375,13 +383,11 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		// it as eligible for draining.
 		if !alloc.DesiredTransition.ShouldMigrate() {
 			drainable = append(drainable, alloc)
-			fmt.Printf("------- Alloc %q drainable\n", alloc.ID)
 		}
 	}
 
 	// Update the done status
 	if remainingDrainingAlloc {
-		fmt.Printf("------- Job has remaining allocs to drain\n")
 		result.done = false
 	}
 
@@ -390,7 +396,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	numToDrain := healthy - thresholdCount
 	numToDrain = helper.IntMin(len(drainable), numToDrain)
 	if numToDrain <= 0 {
-		fmt.Printf("------- Not draining any allocs\n")
 		return nil
 	}
 
@@ -399,7 +404,7 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 }
 
 // getJobAllocs returns all allocations for draining jobs
-func (w *drainingJobWatcher) getJobAllocs(ctx context.Context, minIndex uint64) (map[structs.JobNs][]*structs.Allocation, uint64, error) {
+func (w *drainingJobWatcher) getJobAllocs(ctx context.Context, minIndex uint64) (map[structs.NamespacedID][]*structs.Allocation, uint64, error) {
 	if err := w.limiter.Wait(ctx); err != nil {
 		return nil, 0, err
 	}
@@ -412,7 +417,7 @@ func (w *drainingJobWatcher) getJobAllocs(ctx context.Context, minIndex uint64) 
 		return nil, index, nil
 	}
 
-	return resp.(map[structs.JobNs][]*structs.Allocation), index, nil
+	return resp.(map[structs.NamespacedID][]*structs.Allocation), index, nil
 }
 
 // getJobAllocsImpl returns a map of draining jobs to their allocations.
@@ -430,7 +435,7 @@ func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.St
 	}
 
 	// Capture the allocs for each draining job.
-	resp := make(map[structs.JobNs][]*structs.Allocation, l)
+	resp := make(map[structs.NamespacedID][]*structs.Allocation, l)
 	for jns := range draining {
 		allocs, err := state.AllocsByJob(ws, jns.Namespace, jns.ID, false)
 		if err != nil {
@@ -444,7 +449,7 @@ func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.St
 }
 
 // drainingJobs captures the set of draining jobs.
-func (w *drainingJobWatcher) drainingJobs() map[structs.JobNs]struct{} {
+func (w *drainingJobWatcher) drainingJobs() map[structs.NamespacedID]struct{} {
 	w.l.RLock()
 	defer w.l.RUnlock()
 
@@ -453,7 +458,7 @@ func (w *drainingJobWatcher) drainingJobs() map[structs.JobNs]struct{} {
 		return nil
 	}
 
-	draining := make(map[structs.JobNs]struct{}, l)
+	draining := make(map[structs.NamespacedID]struct{}, l)
 	for k := range w.jobs {
 		draining[k] = struct{}{}
 	}
