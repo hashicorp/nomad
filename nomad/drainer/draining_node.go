@@ -125,7 +125,7 @@ func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {
 }
 
 // RunningServices returns the set of jobs on the node
-func (n *drainingNode) RunningServices() ([]structs.JobNs, error) {
+func (n *drainingNode) RunningServices() ([]structs.NamespacedID, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
 
@@ -135,14 +135,14 @@ func (n *drainingNode) RunningServices() ([]structs.JobNs, error) {
 		return nil, err
 	}
 
-	jobIDs := make(map[structs.JobNs]struct{})
-	var jobs []structs.JobNs
+	jobIDs := make(map[structs.NamespacedID]struct{})
+	var jobs []structs.NamespacedID
 	for _, alloc := range allocs {
 		if alloc.TerminalStatus() || alloc.Job.Type != structs.JobTypeService {
 			continue
 		}
 
-		jns := structs.NewJobNs(alloc.Namespace, alloc.JobID)
+		jns := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
 		if _, ok := jobIDs[jns]; ok {
 			continue
 		}

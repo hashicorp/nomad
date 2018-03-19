@@ -148,6 +148,10 @@ type NamespacedID struct {
 	Namespace string
 }
 
+func (n NamespacedID) String() string {
+	return fmt.Sprintf("<ns: %q, id: %q>", n.Namespace, n.ID)
+}
+
 // RPCInfo is used to describe common information about query
 type RPCInfo interface {
 	RequestRegion() string
@@ -1640,22 +1644,6 @@ func (n *NetworkResource) PortLabels() map[string]int {
 		labelValues[port.Label] = port.Value
 	}
 	return labelValues
-}
-
-// JobNs is a Job.ID and Namespace tuple
-type JobNs struct {
-	Namespace, ID string
-}
-
-func NewJobNs(namespace, id string) JobNs {
-	return JobNs{
-		Namespace: namespace,
-		ID:        id,
-	}
-}
-
-func (j JobNs) String() string {
-	return fmt.Sprintf("<ns: %q, id: %q>", j.Namespace, j.ID)
 }
 
 const (

@@ -75,12 +75,12 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	}
 
 	// 2 jobs with count 10, max parallel 3
-	jnss := make([]structs.JobNs, 2)
+	jnss := make([]structs.NamespacedID, 2)
 	jobs := make([]*structs.Job, 2)
 	for i := 0; i < 2; i++ {
 		job := mock.Job()
 		jobs[i] = job
-		jnss[i] = structs.NewJobNs(job.Namespace, job.ID)
+		jnss[i] = structs.NamespacedID{Namespace: job.Namespace, ID: job.ID}
 		job.TaskGroups[0].Migrate.MaxParallel = 3
 		job.TaskGroups[0].Count = count
 		require.Nil(state.UpsertJob(index, job))
