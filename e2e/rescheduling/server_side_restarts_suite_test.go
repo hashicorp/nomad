@@ -9,6 +9,7 @@ import (
 )
 
 var integration = flag.Bool("integration", false, "run integration tests")
+var slow = flag.Bool("slow", false, "runs slower integration tests")
 
 func TestServerSideRestarts(t *testing.T) {
 	if !*integration {
