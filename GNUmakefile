@@ -277,7 +277,7 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
