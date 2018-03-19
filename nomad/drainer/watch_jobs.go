@@ -336,9 +336,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	var drainable []*structs.Allocation
 
 	for _, alloc := range allocs {
-		// TODO Remove at the end/when no more bugs
-		fmt.Printf("--- Looking at alloc %q\n", alloc.ID)
-
 		// Check if the alloc is on a draining node.
 		onDrainingNode, ok := drainingNodes[alloc.NodeID]
 		if !ok {
@@ -360,7 +357,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 			onDrainingNode &&
 			alloc.ModifyIndex > lastHandledIndex {
 			result.migrated = append(result.migrated, alloc)
-			fmt.Printf("------- Alloc %q marked as migrated\n", alloc.ID)
 			continue
 		}
 
@@ -369,7 +365,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		if !alloc.TerminalStatus() &&
 			alloc.DeploymentStatus != nil &&
 			alloc.DeploymentStatus.Healthy != nil {
-			fmt.Printf("------- Alloc %q considered as healthy\n", alloc.ID)
 			healthy++
 		}
 
@@ -377,7 +372,6 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		// - It isn't on a draining node
 		// - It is already terminal
 		if !onDrainingNode || alloc.TerminalStatus() {
-			fmt.Printf("------- Alloc %q not drainable\n", alloc.ID)
 			continue
 		}
 
@@ -389,13 +383,11 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 		// it as eligible for draining.
 		if !alloc.DesiredTransition.ShouldMigrate() {
 			drainable = append(drainable, alloc)
-			fmt.Printf("------- Alloc %q drainable\n", alloc.ID)
 		}
 	}
 
 	// Update the done status
 	if remainingDrainingAlloc {
-		fmt.Printf("------- Job has remaining allocs to drain\n")
 		result.done = false
 	}
 
@@ -404,13 +396,9 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	numToDrain := healthy - thresholdCount
 	numToDrain = helper.IntMin(len(drainable), numToDrain)
 	if numToDrain <= 0 {
-		fmt.Printf("------- Not draining any allocs: drainable:%d  healthy:%d thresholdCount:%d\n",
-			len(drainable), healthy, thresholdCount)
 		return nil
 	}
 
-	fmt.Printf("------- DRAINing allocs: n: %d drainable:%d  healthy:%d thresholdCount:%d\n",
-		numToDrain, len(drainable), healthy, thresholdCount)
 	result.drain = append(result.drain, drainable[0:numToDrain]...)
 	return nil
 }
