@@ -130,7 +130,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 	for driver := range c.drivers {
 		driverStr := fmt.Sprintf("driver.%s", driver)
 
-		// COMPAT: Remove in 0.X: As of Nomad 0.8, nodes have a DriverInfo that
+		// COMPAT: Remove in 0.10: As of Nomad 0.8, nodes have a DriverInfo that
 		// corresponds with every driver. As a Nomad server might be on a later
 		// version than a Nomad client, we need to check for compatibility here
 		// to verify the client supports this.

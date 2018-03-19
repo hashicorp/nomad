@@ -569,7 +569,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 
 	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
-		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a docker health check: %v", err)
+		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a Docker health check: %v", err)
 		resp.AddDriverInfo("docker", unhealthy)
 		return err
 	}

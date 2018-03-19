@@ -1024,11 +1024,11 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 
 	if fingerprint != nil {
 		if c.config.Node.Drivers[name] == nil {
-			// if the driver info has not yet been set, do that here
+			// If the driver info has not yet been set, do that here
 			hasChanged = true
 			c.config.Node.Drivers[name] = fingerprint
 		} else {
-			// the driver info has already been set, fix it up
+			// The driver info has already been set, fix it up
 			if c.config.Node.Drivers[name].Detected != fingerprint.Detected {
 				hasChanged = true
 				c.config.Node.Drivers[name].Detected = fingerprint.Detected
@@ -1057,7 +1057,7 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 		} else {
 			oldVal := c.config.Node.Drivers[name]
 			if health.HealthCheckEquals(oldVal) {
-				// make sure we accurately reflect the last time a health check has been
+				// Make sure we accurately reflect the last time a health check has been
 				// performed for the driver.
 				oldVal.UpdateTime = health.UpdateTime
 			} else {
@@ -1067,7 +1067,7 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 				events := []*structs.NodeEvent{
 					{
 						Subsystem: "Driver",
-						Message:   fmt.Sprintf("Driver status changed: %s", health.HealthDescription),
+						Message:   health.HealthDescription,
 						Timestamp: time.Now().Unix(),
 					},
 				}
