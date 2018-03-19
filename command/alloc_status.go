@@ -276,8 +276,11 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 
 	if alloc.RescheduleTracker != nil && len(alloc.RescheduleTracker.Events) > 0 {
 		attempts, total := alloc.RescheduleInfo(time.Unix(0, alloc.ModifyTime))
-		reschedInfo := fmt.Sprintf("Reschedule Attempts|%d/%d", attempts, total)
-		basic = append(basic, reschedInfo)
+		// Show this section only if the reschedule policy limits the number of attempts
+		if total > 0 {
+			reschedInfo := fmt.Sprintf("Reschedule Attempts|%d/%d", attempts, total)
+			basic = append(basic, reschedInfo)
+		}
 	}
 	if alloc.NextAllocation != "" {
 		basic = append(basic,
