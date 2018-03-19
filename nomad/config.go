@@ -81,11 +81,17 @@ type Config struct {
 	// by the other servers and clients
 	RPCAddr *net.TCPAddr
 
-	// RPCAdvertise is the address that is advertised to other nodes for
+	// ClientRPCAdvertise is the address that is advertised to client nodes for
 	// the RPC endpoint. This can differ from the RPC address, if for example
 	// the RPCAddr is unspecified "0.0.0.0:4646", but this address must be
 	// reachable
-	RPCAdvertise *net.TCPAddr
+	ClientRPCAdvertise *net.TCPAddr
+
+	// ServerRPCAdvertise is the address that is advertised to other servers for
+	// the RPC endpoint. This can differ from the RPC address, if for example
+	// the RPCAddr is unspecified "0.0.0.0:4646", but this address must be
+	// reachable
+	ServerRPCAdvertise *net.TCPAddr
 
 	// RaftConfig is the configuration used for Raft in the local DC
 	RaftConfig *raft.Config

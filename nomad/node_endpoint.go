@@ -178,10 +178,10 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 
 	// Reply with config information required for future RPC requests
 	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
-	for k, v := range n.srv.localPeers {
+	for _, v := range n.srv.localPeers {
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
-				RPCAdvertiseAddr: string(k),
+				RPCAdvertiseAddr: v.RPCAddr.String(),
 				RPCMajorVersion:  int32(v.MajorVersion),
 				RPCMinorVersion:  int32(v.MinorVersion),
 				Datacenter:       v.Datacenter,

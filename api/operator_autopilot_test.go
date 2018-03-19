@@ -82,16 +82,20 @@ func TestAPI_OperatorAutopilotServerHealth(t *testing.T) {
 	defer s.Stop()
 
 	operator := c.Operator()
-	retry.Run(t, func(r *retry.R) {
+	testutil.WaitForResult(func() (bool, error) {
 		out, _, err := operator.AutopilotServerHealth(nil)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			return false, err
 		}
 
 		if len(out.Servers) != 1 ||
 			!out.Servers[0].Healthy ||
 			out.Servers[0].Name != fmt.Sprintf("%s.global", s.Config.NodeName) {
-			r.Fatalf("bad: %v", out)
+			return false, fmt.Errorf("%v", out)
 		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
 	})
 }

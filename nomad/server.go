@@ -121,8 +121,13 @@ type Server struct {
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
 
-	// rpcAdvertise is the advertised address for the RPC listener.
-	rpcAdvertise net.Addr
+	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
+	// to this server
+	clientRpcAdvertise net.Addr
+
+	// serverRpcAdvertise is the advertised RPC address for Nomad servers to connect
+	// to this server
+	serverRpcAdvertise net.Addr
 
 	// rpcTLS is the TLS config for incoming TLS requests
 	rpcTLS    *tls.Config
@@ -896,25 +901,53 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 		return err
 	}
 
-	if s.config.RPCAdvertise != nil {
-		s.rpcAdvertise = s.config.RPCAdvertise
+	if s.config.ClientRPCAdvertise != nil {
+		s.clientRpcAdvertise = s.config.ClientRPCAdvertise
 	} else {
-		s.rpcAdvertise = s.rpcListener.Addr()
+		s.clientRpcAdvertise = s.rpcListener.Addr()
 	}
 
 	// Verify that we have a usable advertise address
-	addr, ok := s.rpcAdvertise.(*net.TCPAddr)
+	clientAddr, ok := s.clientRpcAdvertise.(*net.TCPAddr)
 	if !ok {
 		listener.Close()
-		return fmt.Errorf("RPC advertise address is not a TCP Address: %v", addr)
+		return fmt.Errorf("Client RPC advertise address is not a TCP Address: %v", clientAddr)
 	}
-	if addr.IP.IsUnspecified() {
+	if clientAddr.IP.IsUnspecified() {
 		listener.Close()
-		return fmt.Errorf("RPC advertise address is not advertisable: %v", addr)
+		return fmt.Errorf("Client RPC advertise address is not advertisable: %v", clientAddr)
+	}
+
+	if s.config.ServerRPCAdvertise != nil {
+		s.serverRpcAdvertise = s.config.ServerRPCAdvertise
+	} else {
+		// Default to the Serf Advertise + RPC Port
+		serfIP := s.config.SerfConfig.MemberlistConfig.AdvertiseAddr
+		if serfIP == "" {
+			serfIP = s.config.SerfConfig.MemberlistConfig.BindAddr
+		}
+
+		addr := net.JoinHostPort(serfIP, fmt.Sprintf("%d", clientAddr.Port))
+		resolved, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("Failed to resolve Server RPC advertise address: %v", err)
+		}
+
+		s.serverRpcAdvertise = resolved
+	}
+
+	// Verify that we have a usable advertise address
+	serverAddr, ok := s.serverRpcAdvertise.(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("Server RPC advertise address is not a TCP Address: %v", serverAddr)
+	}
+	if serverAddr.IP.IsUnspecified() {
+		listener.Close()
+		return fmt.Errorf("Server RPC advertise address is not advertisable: %v", serverAddr)
 	}
 
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
-	s.raftLayer = NewRaftLayer(s.rpcAdvertise, wrapper)
+	s.raftLayer = NewRaftLayer(s.serverRpcAdvertise, wrapper)
 	return nil
 }
 
@@ -1148,8 +1181,8 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["build"] = s.config.Build
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["id"] = s.config.NodeID
-	conf.Tags["rpc_addr"] = s.rpcAdvertise.(*net.TCPAddr).IP.String()
-	conf.Tags["port"] = fmt.Sprintf("%d", s.rpcAdvertise.(*net.TCPAddr).Port)
+	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers
+	conf.Tags["port"] = fmt.Sprintf("%d", s.serverRpcAdvertise.(*net.TCPAddr).Port) // Port servers use to RPC to one and another
 	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		conf.Tags["bootstrap"] = "1"
 	}

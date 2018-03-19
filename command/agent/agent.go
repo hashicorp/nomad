@@ -224,9 +224,18 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", agentConfig.AdvertiseAddrs.Serf, err)
 	}
-	conf.RPCAdvertise = rpcAddr
+
+	// Server address is the serf advertise address and rpc port. This is the
+	// address that all servers should be able to communicate over RPC with.
+	serverAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(serfAddr.IP.String(), fmt.Sprintf("%d", rpcAddr.Port)))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to resolve Serf advertise address %q: %v", agentConfig.AdvertiseAddrs.Serf, err)
+	}
+
 	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
 	conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
+	conf.ClientRPCAdvertise = rpcAddr
+	conf.ServerRPCAdvertise = serverAddr
 
 	// Set up gc threshold and heartbeat grace period
 	if gcThreshold := agentConfig.Server.NodeGCThreshold; gcThreshold != "" {
