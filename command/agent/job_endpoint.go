@@ -638,13 +638,15 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Mode:     *taskGroup.RestartPolicy.Mode,
 	}
 
-	tg.ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts:      *taskGroup.ReschedulePolicy.Attempts,
-		Interval:      *taskGroup.ReschedulePolicy.Interval,
-		Delay:         *taskGroup.ReschedulePolicy.Delay,
-		DelayFunction: *taskGroup.ReschedulePolicy.DelayFunction,
-		MaxDelay:      *taskGroup.ReschedulePolicy.MaxDelay,
-		Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
+	if taskGroup.ReschedulePolicy != nil {
+		tg.ReschedulePolicy = &structs.ReschedulePolicy{
+			Attempts:      *taskGroup.ReschedulePolicy.Attempts,
+			Interval:      *taskGroup.ReschedulePolicy.Interval,
+			Delay:         *taskGroup.ReschedulePolicy.Delay,
+			DelayFunction: *taskGroup.ReschedulePolicy.DelayFunction,
+			MaxDelay:      *taskGroup.ReschedulePolicy.MaxDelay,
+			Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
+		}
 	}
 
 	if taskGroup.Migrate != nil {

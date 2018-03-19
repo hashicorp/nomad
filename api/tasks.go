@@ -421,12 +421,10 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 		}
 	default:
-		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts: helper.IntToPtr(0),
-			Interval: helper.TimeToPtr(0 * time.Second),
-		}
+		defaultReschedulePolicy = nil
 	}
-	if g.ReschedulePolicy != nil {
+
+	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
 	}
 	g.ReschedulePolicy = defaultReschedulePolicy
