@@ -189,9 +189,16 @@ func (w *drainingJobWatcher) watch() {
 			w.logger.Printf("[TRACE] nomad.drain.job_watcher: handling job %v", jns)
 
 			// Lookup the job
-			job, err := w.state.JobByID(nil, jns.Namespace, jns.ID)
-			if err != nil || job == nil {
+			job, err := snap.JobByID(nil, jns.Namespace, jns.ID)
+			if err != nil {
 				w.logger.Printf("[WARN] nomad.drain.job_watcher: failed to lookup job %v: %v", jns, err)
+				continue
+			}
+
+			// Ignore purged jobs
+			if job == nil {
+				w.logger.Printf("[TRACE] nomad.drain.job_watcher: ignoring garbage collected job %q", jns)
+				w.deregisterJob(jns.ID, jns.Namespace)
 				continue
 			}
 
