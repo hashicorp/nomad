@@ -60,7 +60,13 @@ func allocPromoter(t *testing.T, ctx context.Context,
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.NodeAllocsResponse
-		require.Nil(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, &resp))
+		if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, &resp); err != nil {
+			if ctx.Err() == context.Canceled {
+				return
+			} else {
+				require.Nil(t, err)
+			}
+		}
 	}
 }
 
