@@ -1793,22 +1793,6 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
-// JobNs is a Job.ID and Namespace tuple
-type JobNs struct {
-	ID, Namespace string
-}
-
-func NewJobNs(namespace, id string) JobNs {
-	return JobNs{
-		ID:        id,
-		Namespace: namespace,
-	}
-}
-
-func (j JobNs) String() string {
-	return fmt.Sprintf("<ns: %q, id: %q>", j.Namespace, j.ID)
-}
-
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.

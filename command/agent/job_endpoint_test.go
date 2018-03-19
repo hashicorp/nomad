@@ -1185,12 +1185,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					MinHealthyTime:  helper.TimeToPtr(12 * time.Hour),
 					HealthyDeadline: helper.TimeToPtr(12 * time.Hour),
 				},
-				Migrate: &api.MigrateStrategy{
-					MaxParallel:     helper.IntToPtr(12),
-					HealthCheck:     helper.StringToPtr("task_events"),
-					MinHealthyTime:  helper.TimeToPtr(12 * time.Hour),
-					HealthyDeadline: helper.TimeToPtr(12 * time.Hour),
-				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
 					Sticky:  helper.BoolToPtr(true),
@@ -1406,12 +1400,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Delay:         30 * time.Second,
 					Unlimited:     true,
 					MaxDelay:      20 * time.Minute,
-				},
-				Migrate: &structs.MigrateStrategy{
-					MaxParallel:     12,
-					HealthCheck:     "task_events",
-					MinHealthyTime:  12 * time.Hour,
-					HealthyDeadline: 12 * time.Hour,
 				},
 				Migrate: &structs.MigrateStrategy{
 					MaxParallel:     12,
