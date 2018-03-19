@@ -1,6 +1,7 @@
 package rescheduling
 
 import (
+	"sort"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -8,6 +9,9 @@ import (
 	_ "github.com/hashicorp/nomad/jobspec"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 var _ = Describe("Server Side Restart Tests", func() {
@@ -28,6 +32,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 			for _, a := range allocs {
 				ret = append(ret, a.ClientStatus)
 			}
+			sort.Strings(ret)
 			return ret
 		}
 
@@ -59,7 +64,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 	JustBeforeEach(func() {
 		job, err = jobspec.ParseFile(specFile)
 		Expect(err).ShouldNot(HaveOccurred())
-
+		job.ID = helper.StringToPtr(uuid.Generate())
 		resp, _, err := jobs.Register(job, nil)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(resp.EvalID).ShouldNot(BeEmpty())
@@ -84,19 +89,48 @@ var _ = Describe("Server Side Restart Tests", func() {
 			})
 		})
 
+		Context("System jobs should never be rescheduled", func() {
+			BeforeEach(func() {
+				specFile = "input/rescheduling_system.hcl"
+			})
+
+			It("Should have exactly one failed alloc", func() {
+				Eventually(allocStatuses, 10*time.Second, time.Second).Should(ConsistOf([]string{"failed"}))
+			})
+		})
+
+		Context("Default Rescheduling", func() {
+			BeforeEach(func() {
+				specFile = "input/rescheduling_default.hcl"
+			})
+			It("Should have exactly three allocs and all failed after 5 secs", func() {
+				Eventually(allocStatuses, 5*time.Second, time.Second).Should(ConsistOf([]string{"failed", "failed", "failed"}))
+			})
+			// wait until first exponential delay kicks in and rescheduling is attempted
+			It("Should have exactly six allocs and all failed after 35 secs", func() {
+				if !*slow {
+					Skip("Skipping slow test")
+				}
+				Eventually(allocStatuses, 35*time.Second, time.Second).Should(ConsistOf([]string{"failed", "failed", "failed", "failed", "failed", "failed"}))
+			})
+		})
+
 		Context("Reschedule attempts maxed out", func() {
 			BeforeEach(func() {
 				specFile = "input/rescheduling_fail.hcl"
 			})
-			// Expect 3 original plus 6 rescheduled allocs from 2 attempts
-			var expected []string
-			for i := 0; i < 9; i++ {
-				expected = append(expected, "failed")
-			}
 			It("Should have all failed", func() {
 				Eventually(allocStatuses, 6*time.Second, time.Second).ShouldNot(
 					SatisfyAll(ContainElement("pending"),
 						ContainElement("running")))
+			})
+			Context("Updating job to change its version", func() {
+				It("Should have running allocs now", func() {
+					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "sleep 15000"}
+					_, _, err := jobs.Register(job, nil)
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(allocStatuses, 5*time.Second, time.Second).Should(ContainElement("running"))
+				})
 			})
 		})
 
