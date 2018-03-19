@@ -1548,4 +1548,240 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
 		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
 	}
+
+	systemAPIJob := &api.Job{
+		Stop:        helper.BoolToPtr(true),
+		Region:      helper.StringToPtr("global"),
+		Namespace:   helper.StringToPtr("foo"),
+		ID:          helper.StringToPtr("foo"),
+		ParentID:    helper.StringToPtr("lol"),
+		Name:        helper.StringToPtr("name"),
+		Type:        helper.StringToPtr("system"),
+		Priority:    helper.IntToPtr(50),
+		AllAtOnce:   helper.BoolToPtr(true),
+		Datacenters: []string{"dc1", "dc2"},
+		Constraints: []*api.Constraint{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+			},
+		},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("group1"),
+				Count: helper.IntToPtr(5),
+				Constraints: []*api.Constraint{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+					},
+				},
+				RestartPolicy: &api.RestartPolicy{
+					Interval: helper.TimeToPtr(1 * time.Second),
+					Attempts: helper.IntToPtr(5),
+					Delay:    helper.TimeToPtr(10 * time.Second),
+					Mode:     helper.StringToPtr("delay"),
+				},
+				EphemeralDisk: &api.EphemeralDisk{
+					SizeMB:  helper.IntToPtr(100),
+					Sticky:  helper.BoolToPtr(true),
+					Migrate: helper.BoolToPtr(true),
+				},
+				Meta: map[string]string{
+					"key": "value",
+				},
+				Tasks: []*api.Task{
+					{
+						Name:   "task1",
+						Leader: true,
+						Driver: "docker",
+						User:   "mary",
+						Config: map[string]interface{}{
+							"lol": "code",
+						},
+						Env: map[string]string{
+							"hello": "world",
+						},
+						Constraints: []*api.Constraint{
+							{
+								LTarget: "x",
+								RTarget: "y",
+								Operand: "z",
+							},
+						},
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(100),
+							MemoryMB: helper.IntToPtr(10),
+							Networks: []*api.NetworkResource{
+								{
+									IP:    "10.10.11.1",
+									MBits: helper.IntToPtr(10),
+									ReservedPorts: []api.Port{
+										{
+											Label: "http",
+											Value: 80,
+										},
+									},
+									DynamicPorts: []api.Port{
+										{
+											Label: "ssh",
+											Value: 2000,
+										},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"lol": "code",
+						},
+						KillTimeout: helper.TimeToPtr(10 * time.Second),
+						KillSignal:  "SIGQUIT",
+						LogConfig: &api.LogConfig{
+							MaxFiles:      helper.IntToPtr(10),
+							MaxFileSizeMB: helper.IntToPtr(100),
+						},
+						Artifacts: []*api.TaskArtifact{
+							{
+								GetterSource: helper.StringToPtr("source"),
+								GetterOptions: map[string]string{
+									"a": "b",
+								},
+								GetterMode:   helper.StringToPtr("dir"),
+								RelativeDest: helper.StringToPtr("dest"),
+							},
+						},
+						DispatchPayload: &api.DispatchPayloadConfig{
+							File: "fileA",
+						},
+					},
+				},
+			},
+		},
+		Status:            helper.StringToPtr("status"),
+		StatusDescription: helper.StringToPtr("status_desc"),
+		Version:           helper.Uint64ToPtr(10),
+		CreateIndex:       helper.Uint64ToPtr(1),
+		ModifyIndex:       helper.Uint64ToPtr(3),
+		JobModifyIndex:    helper.Uint64ToPtr(5),
+	}
+
+	expectedSystemJob := &structs.Job{
+		Stop:        true,
+		Region:      "global",
+		Namespace:   "foo",
+		ID:          "foo",
+		ParentID:    "lol",
+		Name:        "name",
+		Type:        "system",
+		Priority:    50,
+		AllAtOnce:   true,
+		Datacenters: []string{"dc1", "dc2"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "group1",
+				Count: 5,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+					},
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Interval: 1 * time.Second,
+					Attempts: 5,
+					Delay:    10 * time.Second,
+					Mode:     "delay",
+				},
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB:  100,
+					Sticky:  true,
+					Migrate: true,
+				},
+				Meta: map[string]string{
+					"key": "value",
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "task1",
+						Driver: "docker",
+						Leader: true,
+						User:   "mary",
+						Config: map[string]interface{}{
+							"lol": "code",
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "x",
+								RTarget: "y",
+								Operand: "z",
+							},
+						},
+						Env: map[string]string{
+							"hello": "world",
+						},
+						Resources: &structs.Resources{
+							CPU:      100,
+							MemoryMB: 10,
+							Networks: []*structs.NetworkResource{
+								{
+									IP:    "10.10.11.1",
+									MBits: 10,
+									ReservedPorts: []structs.Port{
+										{
+											Label: "http",
+											Value: 80,
+										},
+									},
+									DynamicPorts: []structs.Port{
+										{
+											Label: "ssh",
+											Value: 2000,
+										},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"lol": "code",
+						},
+						KillTimeout: 10 * time.Second,
+						KillSignal:  "SIGQUIT",
+						LogConfig: &structs.LogConfig{
+							MaxFiles:      10,
+							MaxFileSizeMB: 100,
+						},
+						Artifacts: []*structs.TaskArtifact{
+							{
+								GetterSource: "source",
+								GetterOptions: map[string]string{
+									"a": "b",
+								},
+								GetterMode:   "dir",
+								RelativeDest: "dest",
+							},
+						},
+						DispatchPayload: &structs.DispatchPayloadConfig{
+							File: "fileA",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	systemStructsJob := ApiJobToStructJob(systemAPIJob)
+
+	if diff := pretty.Diff(expectedSystemJob, systemStructsJob); len(diff) > 0 {
+		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
+	}
 }
