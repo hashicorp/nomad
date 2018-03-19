@@ -1,8 +1,8 @@
 package rescheduling
 
 import (
-	"time"
 	"sort"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
@@ -10,8 +10,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 var _ = Describe("Server Side Restart Tests", func() {
