@@ -76,7 +76,6 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 func TestAPI_OperatorAutopilotServerHealth(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		c.AdvertiseAddrs.RPC = "127.0.0.1"
 		c.Server.RaftProtocol = 3
 	})
 	defer s.Stop()
