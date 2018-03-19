@@ -120,8 +120,12 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ClientHTTPHealthCheckName, "consul-client-http-health-check-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerHTTPHealthCheckName, "consul-server-http-health-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerSerfHealthCheckName, "consul-server-serf-health-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerRPCHealthCheckName, "consul-server-rpc-health-check-name", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.ServerAutoJoin = &b
 		return nil
@@ -1027,12 +1031,24 @@ Consul Options:
   -consul-client-service-name=<name>
     Specifies the name of the service in Consul for the Nomad clients.
 
+  -consul-client-http-health-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad clients.
+
   -consul-key-file=<path>
     Specifies the path to the private key used for Consul communication. If this
     is set then you need to also set cert_file.
 
   -consul-server-service-name=<name>
     Specifies the name of the service in Consul for the Nomad servers.
+
+  -consul-server-http-health-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad servers.
+
+  -consul-server-serf-health-check-name=<name>
+    Specifies the Serf health check name in Consul for the Nomad servers.
+
+  -consul-server-rpc-health-check-name=<name>
+    Specifies the RPC health check name in Consul for the Nomad servers.
 
   -consul-server-auto-join
     Specifies if the Nomad servers should automatically discover and join other

@@ -23,9 +23,25 @@ type ConsulConfig struct {
 	// servers with Consul
 	ServerServiceName string `mapstructure:"server_service_name"`
 
+	// ServerHTTPHealthCheckName is the name of the health check that Nomad uses
+	// to register the server HTTP health check with Consul
+	ServerHTTPHealthCheckName string `mapstructure:"server_http_health_check_name"`
+
+	// ServerSerfHealthCheckName is the name of the health check that Nomad uses
+	// to register the server Serf health check with Consul
+	ServerSerfHealthCheckName string `mapstructure:"server_serf_health_check_name"`
+
+	// ServerSerfHealthCheckName is the name of the health check that Nomad uses
+	// to register the server RPC health check with Consul
+	ServerRPCHealthCheckName string `mapstructure:"server_rpc_health_check_name"`
+
 	// ClientServiceName is the name of the service that Nomad uses to register
 	// clients with Consul
 	ClientServiceName string `mapstructure:"client_service_name"`
+
+	// ClientHTTPHealthCheckName is the name of the health check that Nomad uses
+	// to register the client HTTP health check with Consul
+	ClientHTTPHealthCheckName string `mapstructure:"client_http_health_check_name"`
 
 	// AutoAdvertise determines if this Nomad Agent will advertise its
 	// services via Consul.  When true, Nomad Agent will register
@@ -78,15 +94,19 @@ type ConsulConfig struct {
 // `consul` configuration.
 func DefaultConsulConfig() *ConsulConfig {
 	return &ConsulConfig{
-		ServerServiceName:  "nomad",
-		ClientServiceName:  "nomad-client",
-		AutoAdvertise:      helper.BoolToPtr(true),
-		ChecksUseAdvertise: helper.BoolToPtr(false),
-		EnableSSL:          helper.BoolToPtr(false),
-		VerifySSL:          helper.BoolToPtr(true),
-		ServerAutoJoin:     helper.BoolToPtr(true),
-		ClientAutoJoin:     helper.BoolToPtr(true),
-		Timeout:            5 * time.Second,
+		ServerServiceName:         "nomad",
+		ServerHTTPHealthCheckName: "Nomad Server HTTP Check",
+		ServerSerfHealthCheckName: "Nomad Server Serf Check",
+		ServerRPCHealthCheckName:  "Nomad Server RPC Check",
+		ClientServiceName:         "nomad-client",
+		ClientHTTPHealthCheckName: "Nomad Client HTTP Check",
+		AutoAdvertise:             helper.BoolToPtr(true),
+		ChecksUseAdvertise:        helper.BoolToPtr(false),
+		EnableSSL:                 helper.BoolToPtr(false),
+		VerifySSL:                 helper.BoolToPtr(true),
+		ServerAutoJoin:            helper.BoolToPtr(true),
+		ClientAutoJoin:            helper.BoolToPtr(true),
+		Timeout:                   5 * time.Second,
 	}
 }
 
@@ -97,8 +117,20 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName
 	}
+	if b.ServerHTTPHealthCheckName != "" {
+		result.ServerHTTPHealthCheckName = b.ServerHTTPHealthCheckName
+	}
+	if b.ServerSerfHealthCheckName != "" {
+		result.ServerSerfHealthCheckName = b.ServerSerfHealthCheckName
+	}
+	if b.ServerRPCHealthCheckName != "" {
+		result.ServerRPCHealthCheckName = b.ServerRPCHealthCheckName
+	}
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
+	}
+	if b.ClientHTTPHealthCheckName != "" {
+		result.ClientHTTPHealthCheckName = b.ClientHTTPHealthCheckName
 	}
 	if b.AutoAdvertise != nil {
 		result.AutoAdvertise = helper.BoolToPtr(*b.AutoAdvertise)
