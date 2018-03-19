@@ -362,7 +362,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		defaultReschedulePolicy = nil
 	}
 
-	if defaultReschedulePolicy!=nil && g.ReschedulePolicy != nil {
+	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
 	}
 	g.ReschedulePolicy = defaultReschedulePolicy
