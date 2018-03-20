@@ -566,7 +566,7 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, allocList
 	var delayedEvalInfos []string
 
 	taskGroups := make([]string, 0, len(followUpEvalIds))
-	for taskGroup, _ := range followUpEvalIds {
+	for taskGroup := range followUpEvalIds {
 		taskGroups = append(taskGroups, taskGroup)
 	}
 	sort.Strings(taskGroups)
