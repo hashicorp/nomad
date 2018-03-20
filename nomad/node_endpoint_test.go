@@ -753,6 +753,9 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	// Disable drainer to prevent drain from completing during test
+	s1.nodeDrainer.SetEnabled(false, nil)
+
 	// Create the register request
 	node := mock.Node()
 	reg := &structs.NodeRegisterRequest{
@@ -764,6 +767,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	var resp structs.NodeUpdateResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 
+	beforeUpdate := time.Now()
 	strategy := &structs.DrainStrategy{
 		DrainSpec: structs.DrainSpec{
 			Deadline: 10 * time.Second,
@@ -786,7 +790,11 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 	require.True(out.Drain)
-	require.Equal(strategy, out.DrainStrategy)
+	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
+	// before+deadline should be before the forced deadline
+	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
+	// now+deadline should be after the forced deadline
+	require.True(time.Now().Add(strategy.Deadline).After(out.DrainStrategy.ForceDeadline))
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
