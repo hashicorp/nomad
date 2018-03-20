@@ -18,6 +18,7 @@ IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ pri
 DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
 CLOUD=$1
 RETRY_JOIN=$2
+NOMAD_BINARY=$3
 
 # Consul
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul_client.json
@@ -29,6 +30,15 @@ sudo systemctl start consul.service
 sleep 10
 
 # Nomad
+
+## Replace existing Nomad binary if remote file exists
+if [[ `wget -S --spider $NOMAD_BINARY  2>&1 | grep 'HTTP/1.1 200 OK'` ]]; then
+  curl -L $NOMAD_BINARY > nomad.zip
+  sudo unzip -o nomad.zip -d /usr/local/bin
+  sudo chmod 0755 /usr/local/bin/nomad
+  sudo chown root:root /usr/local/bin/nomad
+fi
+
 sudo cp $CONFIGDIR/nomad_client.hcl $NOMADCONFIGDIR/nomad.hcl
 sudo cp $CONFIGDIR/nomad.service /etc/systemd/system/nomad.service
 
