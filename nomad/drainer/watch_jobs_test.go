@@ -289,7 +289,6 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		}
 	}
 	require.Nil(state.UpsertAllocs(index, replacements))
-	index++
 
 	// No jobs should be left!
 	require.Empty(jobWatcher.drainingJobs())

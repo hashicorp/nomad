@@ -36,16 +36,16 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 	require := require.New(t)
 
 	nodes := map[string]*structs.Node{
-		"draining": &structs.Node{
+		"draining": {
 			ID:    "draining",
 			Drain: true,
 		},
-		"lost": &structs.Node{
+		"lost": {
 			ID:     "lost",
 			Status: structs.NodeStatusDown,
 		},
 		"nil": nil,
-		"normal": &structs.Node{
+		"normal": {
 			ID:     "normal",
 			Status: structs.NodeStatusReady,
 		},

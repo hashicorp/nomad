@@ -718,10 +718,10 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 	}
 
 	update := map[string]*structs.DrainUpdate{
-		n1.ID: &structs.DrainUpdate{
+		n1.ID: {
 			DrainStrategy: expectedDrain,
 		},
-		n2.ID: &structs.DrainUpdate{
+		n2.ID: {
 			DrainStrategy: expectedDrain,
 		},
 	}

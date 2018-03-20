@@ -300,7 +300,7 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	}
 	req2 := structs.BatchNodeUpdateDrainRequest{
 		Updates: map[string]*structs.DrainUpdate{
-			node.ID: &structs.DrainUpdate{
+			node.ID: {
 				DrainStrategy: strategy,
 			},
 		},

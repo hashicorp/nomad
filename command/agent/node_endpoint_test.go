@@ -292,7 +292,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		respW = httptest.NewRecorder()
 
 		// Make the request
-		obj, err = s.Server.NodeSpecificRequest(respW, req)
+		_, err = s.Server.NodeSpecificRequest(respW, req)
 		require.Nil(err)
 
 		out, err = state.NodeByID(nil, node.ID)
