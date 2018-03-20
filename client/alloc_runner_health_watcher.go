@@ -31,17 +31,24 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 
 	// See if we should watch the allocs health
 	alloc := r.Alloc()
-	if alloc.Job.Type != structs.JobTypeService {
-		// No need to watch non-service jos
-		return
-	}
-
 	if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
 		// No need to watch health as it's already set
 		return
 	}
 
+	// Neither deployments nor migrations care about system jobs so never
+	// watch their health
+	if alloc.Job.Type == structs.JobTypeSystem {
+		return
+	}
+
 	isDeploy := alloc.DeploymentID != ""
+
+	// Migrations don't consider the health of batch jobs so only watch
+	// batch health during deployments
+	if !isDeploy && alloc.Job.Type == structs.JobTypeBatch {
+		return
+	}
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
