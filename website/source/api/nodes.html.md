@@ -153,6 +153,7 @@ $ curl \
   "NodeClass": "",
   "ComputedClass": "v1:10952212473894849978",
   "Drain": false,
+  "Events":[{"CreateIndex":0,"Details":null,"Message":"Node Registered","Subsystem":"Cluster","Timestamp":1521570432}],
   "Status": "ready",
   "StatusDescription": "",
   "StatusUpdatedAt": 1495748907,
