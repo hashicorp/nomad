@@ -5690,6 +5690,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		ClientDescription:  a.ClientDescription,
 		TaskStates:         a.TaskStates,
 		DeploymentStatus:   a.DeploymentStatus,
+		FollowupEvalID:     a.FollowupEvalID,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
