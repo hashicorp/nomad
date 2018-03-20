@@ -555,32 +555,30 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 // performs a health check on the docker driver, asserting whether the docker
 // driver is responsive to a `docker ps` command.
 func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
-	unhealthy := &structs.DriverInfo{
-		HealthDescription: "Docker driver is available but unresponsive",
-		UpdateTime:        time.Now(),
+	dinfo := &structs.DriverInfo{
+		UpdateTime: time.Now(),
 	}
 
 	client, _, err := d.dockerClients()
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: failed to retrieve Docker client in the process of a docker health check: %v", err)
-		resp.AddDriverInfo("docker", unhealthy)
-		return err
+		dinfo.HealthDescription = fmt.Sprintf("Failed retrieving Docker client: %v", err)
+		resp.AddDriverInfo("docker", dinfo)
+		return nil
 	}
 
 	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a Docker health check: %v", err)
-		resp.AddDriverInfo("docker", unhealthy)
-		return err
+		dinfo.HealthDescription = fmt.Sprintf("Failed to list Docker containers: %v", err)
+		resp.AddDriverInfo("docker", dinfo)
+		return nil
 	}
 
 	d.logger.Printf("[TRACE] driver.docker: docker driver is available and is responsive to `docker ps`")
-	healthy := &structs.DriverInfo{
-		Healthy:           true,
-		HealthDescription: "Docker driver is available and responsive",
-		UpdateTime:        time.Now(),
-	}
-	resp.AddDriverInfo("docker", healthy)
+	dinfo.Healthy = true
+	dinfo.HealthDescription = "Docker driver is available and responsive"
+	resp.AddDriverInfo("docker", dinfo)
 	return nil
 }
 
