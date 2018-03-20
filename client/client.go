@@ -1062,18 +1062,20 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 				oldVal.UpdateTime = health.UpdateTime
 			} else {
 				hasChanged = true
-				c.config.Node.Drivers[name].MergeHealthCheck(health)
 
-				events := []*structs.NodeEvent{
-					{
+				// Only emit an event if the health status has changed, not if we are
+				// simply updating a node on startup
+				if health.Healthy != oldVal.Healthy && oldVal.HealthDescription != "" {
+					event := &structs.NodeEvent{
 						Subsystem: "Driver",
 						Message:   health.HealthDescription,
 						Timestamp: time.Now().Unix(),
-					},
+					}
+					c.triggerNodeEvent(event)
 				}
-				if err := c.submitNodeEvents(events); err != nil {
-					c.logger.Printf("[ERR] nomad.client Error when submitting node event: %v", err)
-				}
+
+				// Update the node with the latest information
+				c.config.Node.Drivers[name].MergeHealthCheck(health)
 			}
 		}
 	}
@@ -1267,7 +1269,7 @@ func (c *Client) watchNodeEvents() {
 				timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 			} else {
 				// Reset the events since we successfully sent them.
-				batchEvents = nil
+				batchEvents = []*structs.NodeEvent{}
 			}
 		case <-c.shutdownCh:
 			return

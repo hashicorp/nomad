@@ -40,16 +40,18 @@ func TestDriverInfoEquals(t *testing.T) {
 		{
 			[]*DriverInfo{
 				{
+					Detected:          false,
 					Healthy:           true,
-					HealthDescription: "running",
+					HealthDescription: "This driver is ok",
 				},
 				{
+					Detected:          true,
 					Healthy:           true,
-					HealthDescription: "running",
+					HealthDescription: "This driver is ok",
 				},
 			},
 			true,
-			"Different health description values should not be equal.",
+			"Same health check should be equal",
 		},
 	}
 	for _, testCase := range driverInfoTest {

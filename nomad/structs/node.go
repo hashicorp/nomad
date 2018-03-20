@@ -33,8 +33,8 @@ func (di *DriverInfo) MergeFingerprintInfo(other *DriverInfo) {
 // in the process of health checking, we only check the fields that are
 // computed by the health checker. In the future, this will be merged.
 func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
-	if di == nil && other != nil || di != nil && other == nil {
-		return false
+	if di == nil && other == nil {
+		return true
 	}
 
 	if di.Healthy != other.Healthy {

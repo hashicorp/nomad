@@ -173,17 +173,25 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			return err
 		}
 
-		// For all drivers upon initialization, create a driver info which matches
-		// its fingerprint status. Later, for drivers that have the health check
-		// interface implemented, a periodic health check will be run
-		healthInfo := &structs.DriverInfo{
-			Healthy:    detected,
-			UpdateTime: time.Now(),
-		}
-		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-			fm.nodeLock.Lock()
-			fm.node = node
-			fm.nodeLock.Unlock()
+		hc, isHealthCheck := d.(fingerprint.HealthCheck)
+		if isHealthCheck {
+			err := fm.runDriverHealthCheck(name, hc)
+			if err != nil {
+				fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %v", name, err)
+			}
+		} else {
+			// For all drivers without health checking enabled , create a driver info which matches
+			// its fingerprint status. Later, for drivers that have the health check
+			// interface implemented, a periodic health check will be run
+			healthInfo := &structs.DriverInfo{
+				Healthy:    detected,
+				UpdateTime: time.Now(),
+			}
+			if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
+				fm.nodeLock.Lock()
+				fm.node = node
+				fm.nodeLock.Unlock()
+			}
 		}
 
 		go fm.watchDriver(d, name)
@@ -360,15 +368,15 @@ func (fm *FingerprintManager) runDriverHealthCheck(name string, hc fingerprint.H
 	request := &cstructs.HealthCheckRequest{}
 	var response cstructs.HealthCheckResponse
 	err := hc.HealthCheck(request, &response)
-	if err != nil {
-		return err
-	}
 
+	// Update the status of the node irregardless if there was an error- in the
+	// case of periodic health checks, an error will occur if a health check
+	// fails
 	if node := fm.updateNodeFromDriver(name, nil, response.Drivers[name]); node != nil {
 		fm.nodeLock.Lock()
 		fm.node = node
 		fm.nodeLock.Unlock()
 	}
 
-	return nil
+	return err
 }
