@@ -169,6 +169,72 @@ func Job() *structs.Job {
 	return job
 }
 
+func BatchJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          uuid.Generate(),
+		Name:        "batch-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeBatch,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "worker",
+				Count: 10,
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB: 150,
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
+				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "linear",
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "worker",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "500ms",
+						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      100,
+							MemoryMB: 100,
+							Networks: []*structs.NetworkResource{
+								{
+									MBits: 50,
+								},
+							},
+						},
+						Meta: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    43,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+
 func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
