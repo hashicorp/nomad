@@ -331,7 +331,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 	}
 	out := ui.OutputWriter.String()
 	require.Contains(out, "Upcoming Evaluations")
-	require.Contains(out, e.ID)
+	require.Contains(out, e.ID[:8])
 }
 
 func waitForSuccess(ui cli.Ui, client *api.Client, length int, t *testing.T, evalId string) int {

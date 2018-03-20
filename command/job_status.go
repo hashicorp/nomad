@@ -371,7 +371,7 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
-	c.outputReschedulingEvals(client, jobAllocs)
+	c.outputReschedulingEvals(client, job, jobAllocs, c.length)
 
 	if latestDeployment != nil {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
@@ -540,7 +540,7 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 
 // outputReschedulingEvals displays eval IDs and time for any
 // delayed evaluations by task group
-func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, allocListStubs []*api.AllocationListStub) error {
+func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.Job, allocListStubs []*api.AllocationListStub, uuidLength int) error {
 	// Get the most recent alloc ID by task group
 
 	mostRecentAllocs := make(map[string]*api.AllocationListStub)
@@ -579,11 +579,12 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, allocList
 		if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
 			continue
 		}
+		rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
 		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
-		evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s", taskGroup, evalID, evalTime))
+		evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
 	}
 	if len(evalDetails) > 0 { // Only show this section if there is pending evals
-		delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+		delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
 		delayedEvalInfos = append(delayedEvalInfos, evalDetails...)
 		c.Ui.Output(c.Colorize().Color("\n[bold]Upcoming Evaluations[reset]"))
 		c.Ui.Output(formatList(delayedEvalInfos))
