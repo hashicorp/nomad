@@ -29,6 +29,8 @@ IMPROVEMENTS:
    [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
  * discovery: Allow `check_restart` to be specified in the `service` stanza.
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
+ * discovery: Allow configuring names of Nomad client and server health checks.
+   [[GH-4003](https://github.com/hashicorp/nomad/issues/4003)]
  * discovery: Only log if Consul does not support TLSSkipVerify instead of
    dropping checks which relied on it. Consul has had this feature since 0.7.2. [[GH-3983](https://github.com/hashicorp/nomad/issues/3983)]
  * driver/docker: Support hard CPU limits [[GH-3825](https://github.com/hashicorp/nomad/issues/3825)]
