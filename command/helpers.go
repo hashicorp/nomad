@@ -455,9 +455,9 @@ func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
 	return merged
 }
 
-// sanitizeUUIDPrefix is used to sanitize a UUID prefix. The returned result
+// sanitizeUUIDPrefix is used to sanatize a UUID prefix. The returned result
 // will be a truncated version of the prefix if the prefix would not be
-// queryable.
+// queriable.
 func sanitizeUUIDPrefix(prefix string) string {
 	hyphens := strings.Count(prefix, "-")
 	length := len(prefix) - hyphens

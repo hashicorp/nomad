@@ -54,8 +54,9 @@ func Node() *structs.Node {
 			"database": "mysql",
 			"version":  "5.6",
 		},
-		NodeClass: "linux-medium-pci",
-		Status:    structs.NodeStatusReady,
+		NodeClass:             "linux-medium-pci",
+		Status:                structs.NodeStatusReady,
+		SchedulingEligibility: structs.NodeSchedulingEligible,
 	}
 	node.ComputeClass()
 	return node
@@ -97,6 +98,7 @@ func Job() *structs.Job {
 					Delay:         5 * time.Second,
 					DelayFunction: "linear",
 				},
+				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
@@ -194,6 +196,10 @@ func SystemJob() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts: 2,
+					Interval: 10 * time.Minute,
+				},
 				EphemeralDisk: structs.DefaultEphemeralDisk(),
 				Tasks: []*structs.Task{
 					{
@@ -238,6 +244,7 @@ func PeriodicJob() *structs.Job {
 		Spec:     "*/30 * * * *",
 	}
 	job.Status = structs.JobStatusRunning
+	job.TaskGroups[0].Migrate = nil
 	return job
 }
 

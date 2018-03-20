@@ -37,7 +37,7 @@ type NodeStatusCommand struct {
 
 func (c *NodeStatusCommand) Help() string {
 	helpText := `
-Usage: nomad node-status [options] <node>
+Usage: nomad node status [options] <node>
 
   Display status information about a given node. The list of nodes
   returned includes only nodes which jobs may be scheduled to, and
@@ -183,7 +183,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] += "Address|Version|"
 		}
 
-		out[0] += "Drain|Status"
+		out[0] += "Drain|Eligibility|Status"
 
 		if c.list_allocs {
 			out[0] += "|Running Allocs"
@@ -199,9 +199,11 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				out[i+1] += fmt.Sprintf("|%s|%s",
 					node.Address, node.Version)
 			}
-			out[i+1] += fmt.Sprintf("|%v|%s",
+			out[i+1] += fmt.Sprintf("|%v|%s|%s",
 				node.Drain,
+				node.SchedulingEligibility,
 				node.Status)
+
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
@@ -246,23 +248,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(nodes) > 1 {
-		// Format the nodes list that matches the prefix so that the user
-		// can create a more specific request
-		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Drain|Status"
-		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				limit(node.ID, c.length),
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.Status)
-		}
 		// Dump the output
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, c.verbose)))
 		return 1
 	}
+
 	// Prefix lookup matched a single node
 	node, _, err := client.Nodes().Info(nodes[0].ID, nil)
 	if err != nil {
@@ -313,6 +304,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", node.Drain),
+		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
 		fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")),
 	}
@@ -636,4 +628,34 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		)
 	}
 	return resources, nil
+}
+
+// formatNodeStubList is used to return a table format of a list of node stubs.
+func formatNodeStubList(nodes []*api.NodeListStub, verbose bool) string {
+	// Return error if no nodes are found
+	if len(nodes) == 0 {
+		return ""
+	}
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
+	// Format the nodes list that matches the prefix so that the user
+	// can create a more specific request
+	out := make([]string, len(nodes)+1)
+	out[0] = "ID|DC|Name|Class|Drain|Eligibility|Status"
+	for i, node := range nodes {
+		out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s",
+			limit(node.ID, length),
+			node.Datacenter,
+			node.Name,
+			node.NodeClass,
+			node.Drain,
+			node.SchedulingEligibility,
+			node.Status)
+	}
+
+	return formatList(out)
 }

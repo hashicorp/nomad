@@ -274,6 +274,67 @@ func (e *EphemeralDisk) Canonicalize() {
 	}
 }
 
+// MigrateStrategy describes how allocations for a task group should be
+// migrated between nodes (eg when draining).
+type MigrateStrategy struct {
+	MaxParallel     *int           `mapstructure:"max_parallel"`
+	HealthCheck     *string        `mapstructure:"health_check"`
+	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
+}
+
+func DefaultMigrateStrategy() *MigrateStrategy {
+	return &MigrateStrategy{
+		MaxParallel:     helper.IntToPtr(1),
+		HealthCheck:     helper.StringToPtr("checks"),
+		MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+		HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+	}
+}
+
+func (m *MigrateStrategy) Canonicalize() {
+	if m == nil {
+		return
+	}
+	defaults := DefaultMigrateStrategy()
+	if m.MaxParallel == nil {
+		m.MaxParallel = defaults.MaxParallel
+	}
+	if m.HealthCheck == nil {
+		m.HealthCheck = defaults.HealthCheck
+	}
+	if m.MinHealthyTime == nil {
+		m.MinHealthyTime = defaults.MinHealthyTime
+	}
+	if m.HealthyDeadline == nil {
+		m.HealthyDeadline = defaults.HealthyDeadline
+	}
+}
+
+func (m *MigrateStrategy) Merge(o *MigrateStrategy) {
+	if o.MaxParallel != nil {
+		m.MaxParallel = o.MaxParallel
+	}
+	if o.HealthCheck != nil {
+		m.HealthCheck = o.HealthCheck
+	}
+	if o.MinHealthyTime != nil {
+		m.MinHealthyTime = o.MinHealthyTime
+	}
+	if o.HealthyDeadline != nil {
+		m.HealthyDeadline = o.HealthyDeadline
+	}
+}
+
+func (m *MigrateStrategy) Copy() *MigrateStrategy {
+	if m == nil {
+		return nil
+	}
+	nm := new(MigrateStrategy)
+	*nm = *m
+	return nm
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string
@@ -284,6 +345,7 @@ type TaskGroup struct {
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk
 	Update           *UpdateStrategy
+	Migrate          *MigrateStrategy
 	Meta             map[string]string
 }
 
@@ -366,6 +428,26 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
 	}
 	g.ReschedulePolicy = defaultReschedulePolicy
+
+	// Merge the migrate strategy from the job
+	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
+		jobMigrate := job.Migrate.Copy()
+		jobMigrate.Merge(g.Migrate)
+		g.Migrate = jobMigrate
+	} else if jm {
+		jobMigrate := job.Migrate.Copy()
+		g.Migrate = jobMigrate
+	}
+
+	// Merge with default reschedule policy
+	if *job.Type == "service" {
+		defaultMigrateStrategy := &MigrateStrategy{}
+		defaultMigrateStrategy.Canonicalize()
+		if g.Migrate != nil {
+			defaultMigrateStrategy.Merge(g.Migrate)
+		}
+		g.Migrate = defaultMigrateStrategy
+	}
 
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {

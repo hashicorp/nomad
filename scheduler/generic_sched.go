@@ -76,9 +76,6 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
-	// Deprecated, was used in pre Nomad 0.7 rolling update stanza and in node draining prior to Nomad 0.8
-	followupEvalWait time.Duration
-	nextEval         *structs.Evaluation
 	followUpEvals    []*structs.Evaluation
 
 	deployment *structs.Deployment
@@ -117,14 +114,15 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
-	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+	case structs.EvalTriggerJobRegister, structs.EvalTriggerJobDeregister,
+		structs.EvalTriggerNodeDrain, structs.EvalTriggerNodeUpdate,
+		structs.EvalTriggerRollingUpdate,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+		return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs,
 			s.deployment.GetID())
 	}
@@ -143,7 +141,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+			if err := setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
@@ -165,7 +163,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+	return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs,
 		s.deployment.GetID())
 }
@@ -258,16 +256,6 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// If we need a followup eval and we haven't created one, do so.
-	if s.followupEvalWait != 0 && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.followupEvalWait)
-		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling migration: %v", s.eval, err)
-			return false, err
-		}
-		s.logger.Printf("[DEBUG] sched: %#v: rolling migration limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
-	}
-
 	// Create follow up evals for any delayed reschedule eligible allocations
 	if len(s.followUpEvals) > 0 {
 		for _, eval := range s.followUpEvals {
@@ -351,10 +339,6 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// Add the deployment changes to the plan
 	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
-
-	// Store the the follow up eval wait duration. If set this will trigger a
-	// follow up eval to handle node draining.
-	s.followupEvalWait = results.followupEvalWait
 
 	// Store all the follow up evaluations from rescheduled allocations
 	if len(results.desiredFollowupEvals) > 0 {

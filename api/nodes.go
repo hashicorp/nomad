@@ -3,7 +3,9 @@ package api
 import (
 	"fmt"
 	"sort"
-	"strconv"
+	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -41,10 +43,56 @@ func (n *Nodes) Info(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error) 
 	return &resp, qm, nil
 }
 
-// ToggleDrain is used to toggle drain mode on/off for a given node.
-func (n *Nodes) ToggleDrain(nodeID string, drain bool, q *WriteOptions) (*WriteMeta, error) {
-	drainArg := strconv.FormatBool(drain)
-	wm, err := n.client.write("/v1/node/"+nodeID+"/drain?enable="+drainArg, nil, nil, q)
+// NodeUpdateDrainRequest is used to update the drain specification for a node.
+type NodeUpdateDrainRequest struct {
+	// NodeID is the node to update the drain specification for.
+	NodeID string
+
+	// DrainSpec is the drain specification to set for the node. A nil DrainSpec
+	// will disable draining.
+	DrainSpec *DrainSpec
+
+	// MarkEligible marks the node as eligible if removing the drain strategy.
+	MarkEligible bool
+}
+
+// UpdateDrain is used to update the drain strategy for a given node. If
+// markEligible is true and the drain is being removed, the node will be marked
+// as having its scheduling being elibile
+func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*WriteMeta, error) {
+	req := &NodeUpdateDrainRequest{
+		NodeID:       nodeID,
+		DrainSpec:    spec,
+		MarkEligible: markEligible,
+	}
+
+	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, nil, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// NodeUpdateEligibilityRequest is used to update the drain specification for a node.
+type NodeUpdateEligibilityRequest struct {
+	// NodeID is the node to update the drain specification for.
+	NodeID      string
+	Eligibility string
+}
+
+// ToggleEligibility is used to update the scheduling eligibility of the node
+func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*WriteMeta, error) {
+	e := structs.NodeSchedulingEligible
+	if !eligible {
+		e = structs.NodeSchedulingIneligible
+	}
+
+	req := &NodeUpdateEligibilityRequest{
+		NodeID:      nodeID,
+		Eligibility: e,
+	}
+
+	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -98,24 +146,47 @@ func (n *Nodes) GcAlloc(allocID string, q *QueryOptions) error {
 
 // Node is used to deserialize a node entry.
 type Node struct {
-	ID                string
-	Datacenter        string
-	Name              string
-	HTTPAddr          string
-	TLSEnabled        bool
-	Attributes        map[string]string
-	Resources         *Resources
-	Reserved          *Resources
-	Links             map[string]string
-	Meta              map[string]string
-	NodeClass         string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	StatusUpdatedAt   int64
-	Events            []*NodeEvent
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	ID                    string
+	Datacenter            string
+	Name                  string
+	HTTPAddr              string
+	TLSEnabled            bool
+	Attributes            map[string]string
+	Resources             *Resources
+	Reserved              *Resources
+	Links                 map[string]string
+	Meta                  map[string]string
+	NodeClass             string
+	Drain                 bool
+	DrainStrategy         *DrainStrategy
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	StatusUpdatedAt       int64
+	Events                []*NodeEvent
+	CreateIndex           uint64
+	ModifyIndex           uint64
+}
+
+// DrainStrategy describes a Node's drain behavior.
+type DrainStrategy struct {
+	// DrainSpec is the user declared drain specification
+	DrainSpec
+
+	// ForceDeadline is the deadline time for the drain after which drains will
+	// be forced
+	ForceDeadline time.Time
+}
+
+// DrainSpec describes a Node's drain behavior.
+type DrainSpec struct {
+	// Deadline is the duration after StartTime when the remaining
+	// allocations on a draining Node should be told to stop.
+	Deadline time.Duration
+
+	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
+	// has been marked for draining.
+	IgnoreSystemJobs bool
 }
 
 const (
@@ -170,17 +241,18 @@ type HostDiskStats struct {
 // NodeListStub is a subset of information returned during
 // node list operations.
 type NodeListStub struct {
-	Address           string
-	ID                string
-	Datacenter        string
-	Name              string
-	NodeClass         string
-	Version           string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	Address               string
+	ID                    string
+	Datacenter            string
+	Name                  string
+	NodeClass             string
+	Version               string
+	Drain                 bool
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	CreateIndex           uint64
+	ModifyIndex           uint64
 }
 
 // NodeIndexSort reverse sorts nodes by CreateIndex

@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -277,8 +278,9 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	})
 }
 
-func TestFSM_UpdateNodeDrain(t *testing.T) {
+func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	fsm := testFSM(t)
 
 	node := mock.Node()
@@ -286,38 +288,188 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 		Node: node,
 	}
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
-	req2 := structs.NodeUpdateDrainRequest{
-		NodeID: node.ID,
-		Drain:  true,
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
 	}
-	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	req2 := structs.BatchNodeUpdateDrainRequest{
+		Updates: map[string]*structs.DrainUpdate{
+			node.ID: &structs.DrainUpdate{
+				DrainStrategy: strategy,
+			},
+		},
 	}
+	buf, err = structs.Encode(structs.BatchNodeUpdateDrainRequestType, req2)
+	require.Nil(err)
 
 	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
+	require.Nil(resp)
+
+	// Verify drain is set
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.Node.ID)
+	require.Nil(err)
+	require.True(node.Drain)
+	require.Equal(node.DrainStrategy, strategy)
+}
+
+func TestFSM_UpdateNodeDrain(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
 	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+	req2 := structs.NodeUpdateDrainRequest{
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	require.Nil(err)
+	require.True(node.Drain)
+	require.Equal(node.DrainStrategy, strategy)
+}
+
+func TestFSM_UpdateNodeEligibility(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
 	}
-	if !node.Drain {
-		t.Fatalf("bad node: %#v", node)
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Set the eligibility
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingIneligible,
 	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req2)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Lookup the node and check
+	node, err = fsm.State().NodeByID(nil, req.Node.ID)
+	require.Nil(err)
+	require.Equal(node.SchedulingEligibility, structs.NodeSchedulingIneligible)
+
+	// Update the drain
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+	req3 := structs.NodeUpdateDrainRequest{
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req3)
+	require.Nil(err)
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Try forcing eligibility
+	req4 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingEligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req4)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.NotNil(resp)
+	err, ok := resp.(error)
+	require.True(ok)
+	require.Contains(err.Error(), "draining")
+}
+
+func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Set the eligibility
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingIneligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req2)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Mark an eval as blocked.
+	eval := mock.Eval()
+	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
+	fsm.blockedEvals.Block(eval)
+
+	// Set eligible
+	req4 := structs.NodeUpdateEligibilityRequest{
+		NodeID:      node.ID,
+		Eligibility: structs.NodeSchedulingEligible,
+	}
+	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req4)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify the eval was unblocked.
+	testutil.WaitForResult(func() (bool, error) {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return false, fmt.Errorf("bad: %#v", bStats)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
@@ -1239,6 +1391,63 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	eval.CreateIndex = res.CreateIndex
 	eval.ModifyIndex = res.ModifyIndex
 	require.Equal(eval, res)
+}
+
+func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+	state := fsm.State()
+	require := require.New(t)
+
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.Job = alloc.Job
+	alloc2.JobID = alloc.JobID
+	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
+	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+
+	t1 := &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(true),
+	}
+
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      alloc.Namespace,
+		Priority:       alloc.Job.Priority,
+		Type:           alloc.Job.Type,
+		TriggeredBy:    structs.EvalTriggerNodeDrain,
+		JobID:          alloc.Job.ID,
+		JobModifyIndex: alloc.Job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	req := structs.AllocUpdateDesiredTransitionRequest{
+		Allocs: map[string]*structs.DesiredTransition{
+			alloc.ID:  t1,
+			alloc2.ID: t1,
+		},
+		Evals: []*structs.Evaluation{eval},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateDesiredTransitionRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out1, err := fsm.State().AllocByID(ws, alloc.ID)
+	require.Nil(err)
+	out2, err := fsm.State().AllocByID(ws, alloc2.ID)
+	require.Nil(err)
+	evalOut, err := fsm.State().EvalByID(ws, eval.ID)
+	require.Nil(err)
+	require.NotNil(evalOut)
+	require.Equal(eval.ID, evalOut.ID)
+
+	require.NotNil(out1.DesiredTransition.Migrate)
+	require.NotNil(out2.DesiredTransition.Migrate)
+	require.True(*out1.DesiredTransition.Migrate)
+	require.True(*out2.DesiredTransition.Migrate)
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {

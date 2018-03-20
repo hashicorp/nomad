@@ -344,7 +344,7 @@ func (h *mockDriverHandle) Signal(s os.Signal) error {
 
 // Kill kills a mock task
 func (h *mockDriverHandle) Kill() error {
-	h.logger.Printf("[DEBUG] driver.mock: killing task %q after kill timeout: %v", h.taskName, h.killTimeout)
+	h.logger.Printf("[DEBUG] driver.mock: killing task %q after %s or kill timeout: %v", h.taskName, h.killAfter, h.killTimeout)
 	select {
 	case <-h.doneCh:
 	case <-time.After(h.killAfter):

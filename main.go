@@ -37,6 +37,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 		case "quota list", "quota delete", "quota apply", "quota status", "quota inspect", "quota init":
 		case "operator raft", "operator raft list-peers", "operator raft remove-peer":
 		case "acl policy", "acl policy apply", "acl token", "acl token create":
+		case "node-drain", "node-status":
 		default:
 			commandsInclude = append(commandsInclude, k)
 		}
@@ -46,7 +47,7 @@ func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
 	// users should not be running should be placed here, versus hiding
 	// subcommands from the main help, which should be filtered out of the
 	// commands above.
-	hidden := []string{"check", "executor", "syslog"}
+	hidden := []string{"check", "executor", "syslog", "node-drain", "node-status"}
 
 	cli := &cli.CLI{
 		Name:           "nomad",

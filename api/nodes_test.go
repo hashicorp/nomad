@@ -174,7 +174,10 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 
 	// Toggle it on
-	wm, err := nodes.ToggleDrain(nodeID, true, nil)
+	spec := &DrainSpec{
+		Deadline: 10 * time.Second,
+	}
+	wm, err := nodes.UpdateDrain(nodeID, spec, false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -185,12 +188,12 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if !out.Drain {
-		t.Fatalf("drain mode should be on")
+	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
 	}
 
 	// Toggle off again
-	wm, err = nodes.ToggleDrain(nodeID, false, nil)
+	wm, err = nodes.UpdateDrain(nodeID, nil, true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -203,6 +206,78 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 	if out.Drain {
 		t.Fatalf("drain mode should be off")
+	}
+	if out.DrainStrategy != nil {
+		t.Fatalf("drain strategy should be unset")
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+		t.Fatalf("should be eligible")
+	}
+}
+
+func TestNodes_ToggleEligibility(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	// Wait for node registration and get the ID
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Check for eligibility
+	out, _, err := nodes.Info(nodeID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+		t.Fatalf("node should be eligible")
+	}
+
+	// Toggle it off
+	wm, err := nodes.ToggleEligibility(nodeID, false, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Check again
+	out, _, err = nodes.Info(nodeID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	}
+
+	// Toggle on
+	wm, err = nodes.ToggleEligibility(nodeID, true, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Check again
+	out, _, err = nodes.Info(nodeID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingEligible)
 	}
 }
 

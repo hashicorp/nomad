@@ -78,6 +78,9 @@ const (
 	AutopilotRequestType
 	UpsertNodeEventsType
 	JobBatchDeregisterRequestType
+	AllocUpdateDesiredTransitionRequestType
+	NodeUpdateEligibilityRequestType
+	BatchNodeUpdateDrainRequestType
 )
 
 const (
@@ -151,6 +154,10 @@ const (
 type NamespacedID struct {
 	ID        string
 	Namespace string
+}
+
+func (n NamespacedID) String() string {
+	return fmt.Sprintf("<ns: %q, id: %q>", n.Namespace, n.ID)
 }
 
 // RPCInfo is used to describe common information about query
@@ -301,10 +308,38 @@ type NodeUpdateStatusRequest struct {
 	WriteRequest
 }
 
-// NodeUpdateDrainRequest is used for updating the drain status
+// NodeUpdateDrainRequest is used for updating the drain strategy
 type NodeUpdateDrainRequest struct {
-	NodeID string
-	Drain  bool
+	NodeID        string
+	Drain         bool // TODO Deprecate
+	DrainStrategy *DrainStrategy
+
+	// MarkEligible marks the node as eligible if removing the drain strategy.
+	MarkEligible bool
+	WriteRequest
+}
+
+// BatchNodeUpdateDrainRequest is used for updating the drain strategy for a
+// batch of nodes
+type BatchNodeUpdateDrainRequest struct {
+	// Updates is a mapping of nodes to their updated drain strategy
+	Updates map[string]*DrainUpdate
+	WriteRequest
+}
+
+// DrainUpdate is used to update the drain of a node
+type DrainUpdate struct {
+	// DrainStrategy is the new strategy for the node
+	DrainStrategy *DrainStrategy
+
+	// MarkEligible marks the node as eligible if removing the drain strategy.
+	MarkEligible bool
+}
+
+// NodeUpdateEligibilityRequest is used for updating the scheduling	eligibility
+type NodeUpdateEligibilityRequest struct {
+	NodeID      string
+	Eligibility string
 	WriteRequest
 }
 
@@ -569,6 +604,19 @@ type AllocUpdateRequest struct {
 	// Job is the shared parent job of the allocations.
 	// It is pulled out since it is common to reduce payload size.
 	Job *Job
+
+	WriteRequest
+}
+
+// AllocUpdateDesiredTransitionRequest is used to submit changes to allocations
+// desired transition state.
+type AllocUpdateDesiredTransitionRequest struct {
+	// Allocs is the mapping of allocation ids to their desired state
+	// transition
+	Allocs map[string]*DesiredTransition
+
+	// Evals is the set of evaluations to create
+	Evals []*Evaluation
 
 	WriteRequest
 }
@@ -857,10 +905,13 @@ type NodeUpdateResponse struct {
 
 // NodeDrainUpdateResponse is used to respond to a node drain update
 type NodeDrainUpdateResponse struct {
-	EvalIDs         []string
-	EvalCreateIndex uint64
 	NodeModifyIndex uint64
 	QueryMeta
+
+	// Deprecated in Nomad 0.8 as an evaluation is not immediately created but
+	// is instead handled by the drainer.
+	EvalIDs         []string
+	EvalCreateIndex uint64
 }
 
 // NodeAllocsResponse is used to return allocs for a single node
@@ -1142,6 +1193,7 @@ const (
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
+//TODO(schmichael) Update for drainv2?!
 func ShouldDrainNode(status string) bool {
 	switch status {
 	case NodeStatusInit, NodeStatusReady:
@@ -1161,6 +1213,88 @@ func ValidNodeStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+const (
+	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
+	// respectively, for receiving allocations. This is orthoginal to the node
+	// status being ready.
+	NodeSchedulingEligible   = "eligbile"
+	NodeSchedulingIneligible = "ineligible"
+)
+
+// DrainSpec describes a Node's desired drain behavior.
+type DrainSpec struct {
+	// Deadline is the duration after StartTime when the remaining
+	// allocations on a draining Node should be told to stop.
+	Deadline time.Duration
+
+	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
+	// has been marked for draining.
+	IgnoreSystemJobs bool
+}
+
+// DrainStrategy describes a Node's drain behavior.
+type DrainStrategy struct {
+	// DrainSpec is the user declared drain specification
+	DrainSpec
+
+	// ForceDeadline is the deadline time for the drain after which drains will
+	// be forced
+	ForceDeadline time.Time
+}
+
+func (d *DrainStrategy) Copy() *DrainStrategy {
+	if d == nil {
+		return nil
+	}
+
+	nd := new(DrainStrategy)
+	*nd = *d
+	return nd
+}
+
+// DeadlineTime returns a boolean whether the drain strategy allows an infinite
+// duration or otherwise the deadline time. The force drain is captured by the
+// deadline time being in the past.
+func (d *DrainStrategy) DeadlineTime() (infinite bool, deadline time.Time) {
+	// Treat the nil case as a force drain so during an upgrade where a node may
+	// not have a drain strategy but has Drain set to true, it is treated as a
+	// force to mimick old behavior.
+	if d == nil {
+		return false, time.Time{}
+	}
+
+	ns := d.Deadline.Nanoseconds()
+	switch {
+	case ns < 0: // Force
+		return false, time.Time{}
+	case ns == 0: // Infinite
+		return true, time.Time{}
+	default:
+		return false, d.ForceDeadline
+	}
+}
+
+func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
+	if d == nil && o == nil {
+		return true
+	} else if o != nil && d == nil {
+		return false
+	} else if d != nil && o == nil {
+		return false
+	}
+
+	// Compare values
+	if d.ForceDeadline != o.ForceDeadline {
+		return false
+	} else if d.Deadline != o.Deadline {
+		return false
+	} else if d.IgnoreSystemJobs != o.IgnoreSystemJobs {
+		return false
+	}
+
+	return true
 }
 
 // Node is a representation of a schedulable client node
@@ -1222,10 +1356,20 @@ type Node struct {
 	// attributes and capabilities.
 	ComputedClass string
 
+	// COMPAT: Remove in Nomad 0.9
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained.
+	// allocations will be drained. Superceded by DrainStrategy in Nomad
+	// 0.8 but kept for backward compat.
 	Drain bool
+
+	// DrainStrategy determines the node's draining behavior. Will be nil
+	// when Drain=false.
+	DrainStrategy *DrainStrategy
+
+	// SchedulingEligibility determines whether this node will receive new
+	// placements.
+	SchedulingEligibility string
 
 	// Status of this node
 	Status string
@@ -1246,9 +1390,10 @@ type Node struct {
 	ModifyIndex uint64
 }
 
-// Ready returns if the node is ready for running allocations
+// Ready returns true if the node is ready for running allocations
 func (n *Node) Ready() bool {
-	return n.Status == NodeStatusReady && !n.Drain
+	// Drain is checked directly to support pre-0.8 Node data
+	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
 func (n *Node) Copy() *Node {
@@ -1263,6 +1408,7 @@ func (n *Node) Copy() *Node {
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
+	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	return nn
 }
 
@@ -1297,34 +1443,36 @@ func (n *Node) Stub() *NodeListStub {
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	return &NodeListStub{
-		Address:           addr,
-		ID:                n.ID,
-		Datacenter:        n.Datacenter,
-		Name:              n.Name,
-		NodeClass:         n.NodeClass,
-		Version:           n.Attributes["nomad.version"],
-		Drain:             n.Drain,
-		Status:            n.Status,
-		StatusDescription: n.StatusDescription,
-		CreateIndex:       n.CreateIndex,
-		ModifyIndex:       n.ModifyIndex,
+		Address:    addr,
+		ID:         n.ID,
+		Datacenter: n.Datacenter,
+		Name:       n.Name,
+		NodeClass:  n.NodeClass,
+		Version:    n.Attributes["nomad.version"],
+		Drain:      n.Drain,
+		SchedulingEligibility: n.SchedulingEligibility,
+		Status:                n.Status,
+		StatusDescription:     n.StatusDescription,
+		CreateIndex:           n.CreateIndex,
+		ModifyIndex:           n.ModifyIndex,
 	}
 }
 
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
-	Address           string
-	ID                string
-	Datacenter        string
-	Name              string
-	NodeClass         string
-	Version           string
-	Drain             bool
-	Status            string
-	StatusDescription string
-	CreateIndex       uint64
-	ModifyIndex       uint64
+	Address               string
+	ID                    string
+	Datacenter            string
+	Name                  string
+	NodeClass             string
+	Version               string
+	Drain                 bool
+	SchedulingEligibility string
+	Status                string
+	StatusDescription     string
+	CreateIndex           uint64
+	ModifyIndex           uint64
 }
 
 // Networks defined for a task on the Resources struct.
@@ -2974,6 +3122,64 @@ func NewReschedulePolicy(jobType string) *ReschedulePolicy {
 	return nil
 }
 
+const (
+	MigrateStrategyHealthChecks = "checks"
+	MigrateStrategyHealthStates = "task_states"
+)
+
+type MigrateStrategy struct {
+	MaxParallel     int
+	HealthCheck     string
+	MinHealthyTime  time.Duration
+	HealthyDeadline time.Duration
+}
+
+// DefaultMigrateStrategy is used for backwards compat with pre-0.8 Allocations
+// that lack an update strategy.
+//
+// This function should match its counterpart in api/tasks.go
+func DefaultMigrateStrategy() *MigrateStrategy {
+	return &MigrateStrategy{
+		MaxParallel:     1,
+		HealthCheck:     MigrateStrategyHealthChecks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 5 * time.Minute,
+	}
+}
+
+func (m *MigrateStrategy) Validate() error {
+	var mErr multierror.Error
+
+	if m.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("MaxParallel must be >= 0 but found %d", m.MaxParallel))
+	}
+
+	switch m.HealthCheck {
+	case MigrateStrategyHealthChecks, MigrateStrategyHealthStates:
+		// ok
+	case "":
+		if m.MaxParallel > 0 {
+			multierror.Append(&mErr, fmt.Errorf("Missing HealthCheck"))
+		}
+	default:
+		multierror.Append(&mErr, fmt.Errorf("Invalid HealthCheck: %q", m.HealthCheck))
+	}
+
+	if m.MinHealthyTime < 0 {
+		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime is %s and must be >= 0", m.MinHealthyTime))
+	}
+
+	if m.HealthyDeadline < 0 {
+		multierror.Append(&mErr, fmt.Errorf("HealthyDeadline is %s and must be >= 0", m.HealthyDeadline))
+	}
+
+	if m.MinHealthyTime > m.HealthyDeadline {
+		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime must be less than HealthyDeadline"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -2987,6 +3193,9 @@ type TaskGroup struct {
 
 	// Update is used to control the update strategy for this task group
 	Update *UpdateStrategy
+
+	// Migrate is used to control the migration strategy for this task group
+	Migrate *MigrateStrategy
 
 	// Constraints can be specified at a task group level and apply to
 	// all the tasks contained.
@@ -3132,6 +3341,20 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	// Validate the migration strategy
+	switch j.Type {
+	case JobTypeService:
+		if tg.Migrate != nil {
+			if err := tg.Migrate.Validate(); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+		}
+	default:
+		if tg.Migrate != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow migrate block", j.Type))
 		}
 	}
 
@@ -5287,6 +5510,28 @@ func (re *RescheduleEvent) Copy() *RescheduleEvent {
 	return copy
 }
 
+// DesiredTransition is used to mark an allocation as having a desired state
+// transition. This information can be used by the scheduler to make the
+// correct decision.
+type DesiredTransition struct {
+	// Migrate is used to indicate that this allocation should be stopped and
+	// migrated to another node.
+	Migrate *bool
+}
+
+// Merge merges the two desired transitions, preferring the values from the
+// passed in object.
+func (d *DesiredTransition) Merge(o *DesiredTransition) {
+	if o.Migrate != nil {
+		d.Migrate = o.Migrate
+	}
+}
+
+// ShouldMigrate returns whether the transition object dictates a migration.
+func (d *DesiredTransition) ShouldMigrate() bool {
+	return d.Migrate != nil && *d.Migrate
+}
+
 const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
@@ -5347,6 +5592,10 @@ type Allocation struct {
 
 	// DesiredStatusDescription is meant to provide more human useful information
 	DesiredDescription string
+
+	// DesiredTransition is used to indicate that a state transition
+	// is desired for a given reason.
+	DesiredTransition DesiredTransition
 
 	// Status of the allocation on the client
 	ClientStatus string
@@ -5912,6 +6161,7 @@ const (
 	EvalTriggerJobRegister       = "job-register"
 	EvalTriggerJobDeregister     = "job-deregister"
 	EvalTriggerPeriodicJob       = "periodic-job"
+	EvalTriggerNodeDrain         = "node-drain"
 	EvalTriggerNodeUpdate        = "node-update"
 	EvalTriggerScheduled         = "scheduled"
 	EvalTriggerRollingUpdate     = "rolling-update"
@@ -6844,4 +7094,46 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// BatchFuture is used to wait on a batch update to complete
+type BatchFuture struct {
+	doneCh chan struct{}
+	err    error
+	index  uint64
+}
+
+// NewBatchFuture creates a new batch future
+func NewBatchFuture() *BatchFuture {
+	return &BatchFuture{
+		doneCh: make(chan struct{}),
+	}
+}
+
+// Wait is used to block for the future to complete and returns the error
+func (b *BatchFuture) Wait() error {
+	<-b.doneCh
+	return b.err
+}
+
+// WaitCh is used to block for the future to complete
+func (b *BatchFuture) WaitCh() <-chan struct{} {
+	return b.doneCh
+}
+
+// Error is used to return the error of the batch, only after Wait()
+func (b *BatchFuture) Error() error {
+	return b.err
+}
+
+// Index is used to return the index of the batch, only after Wait()
+func (b *BatchFuture) Index() uint64 {
+	return b.index
+}
+
+// Respond is used to unblock the future
+func (b *BatchFuture) Respond(index uint64, err error) {
+	b.index = index
+	b.err = err
+	close(b.doneCh)
 }

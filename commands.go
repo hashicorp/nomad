@@ -258,8 +258,23 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"node": func() (cli.Command, error) {
+			return &command.NodeCommand{
+				Meta: meta,
+			}, nil
+		},
 		"node-drain": func() (cli.Command, error) {
 			return &command.NodeDrainCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node drain": func() (cli.Command, error) {
+			return &command.NodeDrainCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node eligibility": func() (cli.Command, error) {
+			return &command.NodeEligibilityCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -268,7 +283,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
+		"node status": func() (cli.Command, error) {
+			return &command.NodeStatusCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator": func() (cli.Command, error) {
 			return &command.OperatorCommand{
 				Meta: meta,
