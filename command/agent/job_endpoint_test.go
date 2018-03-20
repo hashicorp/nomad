@@ -942,8 +942,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the parameterized job
-		job := mock.Job()
-		job.Type = "batch"
+		job := mock.BatchJob()
 		job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 		args := structs.JobRegisterRequest{
