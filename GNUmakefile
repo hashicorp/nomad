@@ -292,7 +292,7 @@ test-ui: ## Run Nomad UI test suite
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install
+	@cd ui && yarn install --silent
 	@cd ui && npm rebuild node-sass
 	@echo "--> Building Ember application"
 	@cd ui && npm run build
