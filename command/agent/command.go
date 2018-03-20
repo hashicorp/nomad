@@ -120,12 +120,12 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ClientHTTPHealthCheckName, "consul-client-http-health-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerHTTPHealthCheckName, "consul-server-http-health-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerSerfHealthCheckName, "consul-server-serf-health-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerRPCHealthCheckName, "consul-server-rpc-health-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.ServerAutoJoin = &b
 		return nil
@@ -1031,7 +1031,7 @@ Consul Options:
   -consul-client-service-name=<name>
     Specifies the name of the service in Consul for the Nomad clients.
 
-  -consul-client-http-health-check-name=<name>
+  -consul-client-http-check-name=<name>
     Specifies the HTTP health check name in Consul for the Nomad clients.
 
   -consul-key-file=<path>
@@ -1041,13 +1041,13 @@ Consul Options:
   -consul-server-service-name=<name>
     Specifies the name of the service in Consul for the Nomad servers.
 
-  -consul-server-http-health-check-name=<name>
+  -consul-server-http-check-name=<name>
     Specifies the HTTP health check name in Consul for the Nomad servers.
 
-  -consul-server-serf-health-check-name=<name>
+  -consul-server-serf-check-name=<name>
     Specifies the Serf health check name in Consul for the Nomad servers.
 
-  -consul-server-rpc-health-check-name=<name>
+  -consul-server-rpc-check-name=<name>
     Specifies the RPC health check name in Consul for the Nomad servers.
 
   -consul-server-auto-join
