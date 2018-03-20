@@ -142,6 +142,7 @@ func TestNodes_Info(t *testing.T) {
 
 func TestNodes_ToggleDrain(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -166,9 +167,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 
 	// Check for drain mode
 	out, _, err := nodes.Info(nodeID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.Nil(err)
 	if out.Drain {
 		t.Fatalf("drain mode should be off")
 	}
@@ -178,32 +177,24 @@ func TestNodes_ToggleDrain(t *testing.T) {
 		Deadline: 10 * time.Second,
 	}
 	wm, err := nodes.UpdateDrain(nodeID, spec, false, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.Nil(err)
 	assertWriteMeta(t, wm)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.Nil(err)
 	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
 		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
 	}
 
 	// Toggle off again
 	wm, err = nodes.UpdateDrain(nodeID, nil, true, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.Nil(err)
 	assertWriteMeta(t, wm)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.Nil(err)
 	if out.Drain {
 		t.Fatalf("drain mode should be off")
 	}

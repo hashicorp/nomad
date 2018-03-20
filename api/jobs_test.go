@@ -141,6 +141,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
@@ -211,6 +212,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -363,6 +365,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(false),
 							Canary:          helper.IntToPtr(0),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:   "redis",
@@ -576,6 +579,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(true),
 							Canary:          helper.IntToPtr(1),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -616,6 +620,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(false),
 							Canary:          helper.IntToPtr(0),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
