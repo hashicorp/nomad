@@ -14,7 +14,11 @@
 <td data-test-job-allocations>
   <div class="inline-chart">
     {{#if job.hasChildren}}
-      {{children-status-bar job=job isNarrow=true}}
+      {{#if (gt job.totalChildren 0)}}
+        {{children-status-bar job=job isNarrow=true}}
+      {{else}}
+        <em class="is-faded">No Children</em>
+      {{/if}}
     {{else}}
       {{allocation-status-bar allocationContainer=job isNarrow=true}}
     {{/if}}
