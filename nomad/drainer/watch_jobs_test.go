@@ -604,13 +604,13 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 	require.Nil(err)
 
 	// Handle before and after indexes
-	res := &jobResult{}
+	res := newJobResult()
 	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 101, res))
 	require.Empty(res.drain)
 	require.Len(res.migrated, 10)
 	require.True(res.done)
 
-	res = &jobResult{}
+	res = newJobResult()
 	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 103, res))
 	require.Empty(res.drain)
 	require.Empty(res.migrated)
