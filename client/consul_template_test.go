@@ -1193,7 +1193,7 @@ OUTER:
 }
 
 // TestTaskTemplateManager_Config_ServerName asserts the tls_server_name
-// setting is propogated to consul-template's configuration. See #2776
+// setting is propagated to consul-template's configuration. See #2776
 func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	t.Parallel()
 	c := config.DefaultConfig()
@@ -1217,7 +1217,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 }
 
 // TestTaskTemplateManager_Config_VaultGrace asserts the vault_grace setting is
-// propogated to consul-template's configuration.
+// propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)

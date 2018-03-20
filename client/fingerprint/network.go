@@ -6,7 +6,7 @@ import (
 	"net"
 
 	sockaddr "github.com/hashicorp/go-sockaddr"
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -61,19 +61,17 @@ func NewNetworkFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
+func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
 
 	// Find the named interface
 	intf, err := f.findInterface(cfg.NetworkInterface)
 	switch {
 	case err != nil:
-		return false, fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
+		return fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
 	case intf == nil:
 		// No interface could be found
-		return false, nil
+		return nil
 	}
 
 	// Record the throughput of the interface
@@ -94,22 +92,23 @@ func (f *NetworkFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 	disallowLinkLocal := cfg.ReadBoolDefault(networkDisallowLinkLocalOption, networkDisallowLinkLocalDefault)
 	nwResources, err := f.createNetworkResources(mbits, intf, disallowLinkLocal)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	// Add the network resources to the node
-	node.Resources.Networks = nwResources
+	resp.Resources = &structs.Resources{
+		Networks: nwResources,
+	}
 	for _, nwResource := range nwResources {
 		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
 	}
 
 	// Deprecated, setting the first IP as unique IP for the node
 	if len(nwResources) > 0 {
-		node.Attributes["unique.network.ip-address"] = nwResources[0].IP
+		resp.AddAttribute("unique.network.ip-address", nwResources[0].IP)
 	}
+	resp.Detected = true
 
-	// return true, because we have a network connection
-	return true, nil
+	return nil
 }
 
 // createNetworkResources creates network resources for every IP

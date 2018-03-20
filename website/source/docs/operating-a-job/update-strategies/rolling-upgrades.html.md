@@ -5,7 +5,7 @@ sidebar_current: "docs-operating-a-job-updating-rolling-upgrades"
 description: |-
   In order to update a service while reducing downtime, Nomad provides a
   built-in mechanism for rolling upgrades. Rolling upgrades incrementally
-  transistions jobs between versions and using health check information to
+  transitions jobs between versions and using health check information to
   reduce downtime.
 ---
 
@@ -92,11 +92,6 @@ this output to confirm it is correct:
 
 ```text
 $ nomad plan geo-api-server.nomad
-```
-
-Here is some sample output:
-
-```text
 +/- Job: "geo-api-server"
 +/- Task Group: "api-server" (2 create/destroy update, 4 ignore)
   +/- Task: "server" (forces create/destroy update)

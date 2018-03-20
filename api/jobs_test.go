@@ -25,9 +25,7 @@ func TestJobs_Register(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
+	assertQueryMeta(t, qm)
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
@@ -132,8 +130,16 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Tasks: []*Task{
 							{
@@ -194,8 +200,16 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Tasks: []*Task{
 							{
@@ -325,6 +339,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Attempts: helper.IntToPtr(10),
 							Delay:    helper.TimeToPtr(25 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  helper.BoolToPtr(false),
@@ -534,8 +556,16 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
 							Stagger:         helper.TimeToPtr(2 * time.Second),
@@ -566,8 +596,16 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
 							Stagger:         helper.TimeToPtr(1 * time.Second),
@@ -613,9 +651,8 @@ func TestJobs_EnforceRegister(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
+	assertQueryMeta(t, qm)
+
 	if n := len(resp); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
 	}
@@ -795,12 +832,9 @@ func TestJobs_PrefixList(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
-	results, qm, err := jobs.PrefixList("dummy")
+	results, _, err := jobs.PrefixList("dummy")
 	if err != nil {
 		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(results); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -816,7 +850,7 @@ func TestJobs_PrefixList(t *testing.T) {
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
-	results, qm, err = jobs.PrefixList((*job.ID)[:1])
+	results, _, err = jobs.PrefixList((*job.ID)[:1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -834,12 +868,9 @@ func TestJobs_List(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
-	results, qm, err := jobs.List(nil)
+	results, _, err := jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(results); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -855,7 +886,7 @@ func TestJobs_List(t *testing.T) {
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
-	results, qm, err = jobs.List(nil)
+	results, _, err = jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -872,7 +903,7 @@ func TestJobs_Allocations(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Looking up by a non-existent job returns nothing
+	// Looking up by a nonexistent job returns nothing
 	allocs, qm, err := jobs.Allocations("job1", true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -894,7 +925,7 @@ func TestJobs_Evaluations(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Looking up by a non-existent job ID returns nothing
+	// Looking up by a nonexistent job ID returns nothing
 	evals, qm, err := jobs.Evaluations("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -1036,7 +1067,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Force-eval on a non-existent job fails
+	// Force-eval on a nonexistent job fails
 	_, _, err := jobs.PeriodicForce("job1", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)

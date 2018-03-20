@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // MemoryStats holds memory usage related stats
@@ -76,6 +77,59 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	if rp.Mode != nil {
 		r.Mode = rp.Mode
 	}
+}
+
+// Reschedule configures how Tasks are rescheduled  when they crash or fail.
+type ReschedulePolicy struct {
+	// Attempts limits the number of rescheduling attempts that can occur in an interval.
+	Attempts *int `mapstructure:"attempts"`
+
+	// Interval is a duration in which we can limit the number of reschedule attempts.
+	Interval *time.Duration `mapstructure:"interval"`
+
+	// Delay is a minimum duration to wait between reschedule attempts.
+	// The delay function determines how much subsequent reschedule attempts are delayed by.
+	Delay *time.Duration `mapstructure:"delay"`
+
+	// DelayFunction determines how the delay progressively changes on subsequent reschedule
+	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	DelayFunction *string `mapstructure:"delay_function"`
+
+	// MaxDelay is an upper bound on the delay.
+	MaxDelay *time.Duration `mapstructure:"max_delay"`
+
+	// Unlimited allows rescheduling attempts until they succeed
+	Unlimited *bool `mapstructure:"unlimited"`
+}
+
+func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
+	if rp.Interval != nil {
+		r.Interval = rp.Interval
+	}
+	if rp.Attempts != nil {
+		r.Attempts = rp.Attempts
+	}
+	if rp.Delay != nil {
+		r.Delay = rp.Delay
+	}
+	if rp.DelayFunction != nil {
+		r.DelayFunction = rp.DelayFunction
+	}
+	if rp.MaxDelay != nil {
+		r.MaxDelay = rp.MaxDelay
+	}
+	if rp.Unlimited != nil {
+		r.Unlimited = rp.Unlimited
+	}
+}
+
+func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
+	if r == nil {
+		return nil
+	}
+	nrp := new(ReschedulePolicy)
+	*nrp = *r
+	return nrp
 }
 
 // CheckRestart describes if and when a task should be restarted based on
@@ -185,7 +239,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
-	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
+	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
@@ -222,14 +276,15 @@ func (e *EphemeralDisk) Canonicalize() {
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name          *string
-	Count         *int
-	Constraints   []*Constraint
-	Tasks         []*Task
-	RestartPolicy *RestartPolicy
-	EphemeralDisk *EphemeralDisk
-	Update        *UpdateStrategy
-	Meta          map[string]string
+	Name             *string
+	Count            *int
+	Constraints      []*Constraint
+	Tasks            []*Task
+	RestartPolicy    *RestartPolicy
+	ReschedulePolicy *ReschedulePolicy
+	EphemeralDisk    *EphemeralDisk
+	Update           *UpdateStrategy
+	Meta             map[string]string
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -272,21 +327,61 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		g.Update.Canonicalize()
 	}
 
+	// Merge the reschedule policy from the job
+	if jr, tr := job.Reschedule != nil, g.ReschedulePolicy != nil; jr && tr {
+		jobReschedule := job.Reschedule.Copy()
+		jobReschedule.Merge(g.ReschedulePolicy)
+		g.ReschedulePolicy = jobReschedule
+	} else if jr {
+		jobReschedule := job.Reschedule.Copy()
+		g.ReschedulePolicy = jobReschedule
+	}
+
+	// Merge with default reschedule policy
+	var defaultReschedulePolicy *ReschedulePolicy
+	switch *job.Type {
+	case "service":
+		defaultReschedulePolicy = &ReschedulePolicy{
+			Attempts:      helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.MaxDelay),
+			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
+		}
+	case "batch":
+		defaultReschedulePolicy = &ReschedulePolicy{
+			Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
+		}
+	default:
+		defaultReschedulePolicy = nil
+	}
+
+	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
+		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
+	}
+	g.ReschedulePolicy = defaultReschedulePolicy
+
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {
 	case "service", "system":
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(15 * time.Second),
-			Attempts: helper.IntToPtr(2),
-			Interval: helper.TimeToPtr(1 * time.Minute),
-			Mode:     helper.StringToPtr("delay"),
+			Delay:    helper.TimeToPtr(structs.DefaultServiceJobRestartPolicy.Delay),
+			Attempts: helper.IntToPtr(structs.DefaultServiceJobRestartPolicy.Attempts),
+			Interval: helper.TimeToPtr(structs.DefaultServiceJobRestartPolicy.Interval),
+			Mode:     helper.StringToPtr(structs.DefaultServiceJobRestartPolicy.Mode),
 		}
 	default:
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(15 * time.Second),
-			Attempts: helper.IntToPtr(15),
-			Interval: helper.TimeToPtr(7 * 24 * time.Hour),
-			Mode:     helper.StringToPtr("delay"),
+			Delay:    helper.TimeToPtr(structs.DefaultBatchJobRestartPolicy.Delay),
+			Attempts: helper.IntToPtr(structs.DefaultBatchJobRestartPolicy.Attempts),
+			Interval: helper.TimeToPtr(structs.DefaultBatchJobRestartPolicy.Interval),
+			Mode:     helper.StringToPtr(structs.DefaultBatchJobRestartPolicy.Mode),
 		}
 	}
 

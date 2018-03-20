@@ -615,8 +615,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// Create a new evaluation
 	// XXX: The job priority / type is strange for this, since it's not a high
-	// priority even if the job was. The scheduler itself also doesn't matter,
-	// since all should be able to handle deregistration in the same way.
+	// priority even if the job was.
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -643,6 +642,88 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
+	return nil
+}
+
+// BatchDeregister is used to remove a set of jobs from the cluster.
+func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *structs.JobBatchDeregisterResponse) error {
+	if done, err := j.srv.forward("Job.BatchDeregister", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "batch_deregister"}, time.Now())
+
+	// Resolve the ACL token
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+
+	// Validate the arguments
+	if len(args.Jobs) == 0 {
+		return fmt.Errorf("given no jobs to deregister")
+	}
+	if len(args.Evals) != 0 {
+		return fmt.Errorf("evaluations should not be populated")
+	}
+
+	// Loop through checking for permissions
+	for jobNS := range args.Jobs {
+		// Check for submit-job permissions
+		if aclObj != nil && !aclObj.AllowNsOp(jobNS.Namespace, acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Grab a snapshot
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Loop through to create evals
+	for jobNS, options := range args.Jobs {
+		if options == nil {
+			return fmt.Errorf("no deregister options provided for %v", jobNS)
+		}
+
+		job, err := snap.JobByID(nil, jobNS.Namespace, jobNS.ID)
+		if err != nil {
+			return err
+		}
+
+		// If the job is periodic or parameterized, we don't create an eval.
+		if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
+			continue
+		}
+
+		priority := structs.JobDefaultPriority
+		jtype := structs.JobTypeService
+		if job != nil {
+			priority = job.Priority
+			jtype = job.Type
+		}
+
+		// Create a new evaluation
+		eval := &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   jobNS.Namespace,
+			Priority:    priority,
+			Type:        jtype,
+			TriggeredBy: structs.EvalTriggerJobDeregister,
+			JobID:       jobNS.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		args.Evals = append(args.Evals, eval)
+	}
+
+	// Commit this update via Raft
+	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
+	if err != nil {
+		j.srv.logger.Printf("[ERR] nomad.job: batch deregister failed: %v", err)
+		return err
+	}
+
+	reply.Index = index
 	return nil
 }
 
@@ -797,12 +878,16 @@ func (j *Job) List(args *structs.JobListRequest,
 			}
 			reply.Jobs = jobs
 
-			// Use the last index that affected the jobs table
-			index, err := state.Index("jobs")
+			// Use the last index that affected the jobs table or summary
+			jindex, err := state.Index("jobs")
 			if err != nil {
 				return err
 			}
-			reply.Index = index
+			sindex, err := state.Index("job_summary")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Uint64Max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)

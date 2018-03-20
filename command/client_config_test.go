@@ -33,23 +33,16 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	// Set the servers list
+	// Set the servers list with bad addresses
 	code = cmd.Run([]string{"-address=" + url, "-update-servers", "127.0.0.42", "198.18.5.5"})
-	if code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
+	if code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
 	}
 
-	// Query the servers list
-	code = cmd.Run([]string{"-address=" + url, "-servers"})
+	// Set the servers list with good addresses
+	code = cmd.Run([]string{"-address=" + url, "-update-servers", srv.Config.AdvertiseAddrs.RPC})
 	if code != 0 {
-		t.Fatalf("expect exit 0, got: %d", code)
-	}
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "127.0.0.42") {
-		t.Fatalf("missing 127.0.0.42")
-	}
-	if !strings.Contains(out, "198.18.5.5") {
-		t.Fatalf("missing 198.18.5.5")
+		t.Fatalf("expected exit 0, got: %d", code)
 	}
 }
 

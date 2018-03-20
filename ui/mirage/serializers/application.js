@@ -19,7 +19,9 @@ export default RestSerializer.extend({
     }
   },
 
+  keyForCollection: keyCase,
   keyForAttribute: keyCase,
   keyForRelationship: keyCase,
+  keyForRelationshipIds: keyCase,
   keyForEmbeddedRelationship: keyCase,
 });

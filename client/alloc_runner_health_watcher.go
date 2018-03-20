@@ -433,7 +433,7 @@ OUTER:
 		}
 
 		if !passed {
-			// Reset the timer since we have transistioned back to unhealthy
+			// Reset the timer since we have transitioned back to unhealthy
 			if primed {
 				if !healthyTimer.Stop() {
 					select {

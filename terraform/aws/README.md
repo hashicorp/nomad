@@ -20,7 +20,7 @@ $ export AWS_SECRET_ACCESS_KEY=[AWS_SECRET_ACCESS_KEY]
 [Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool 
 for creating identical machine images for multiple platforms from a single 
 source configuration. The Terraform templates included in this repo reference a 
-publicly avaialble Amazon machine image (AMI) by default. The AMI can be customized 
+publicly available Amazon machine image (AMI) by default. The AMI can be customized 
 through modifications to the [build configuration script](../shared/scripts/setup.sh) 
 and [packer.json](packer.json).
 

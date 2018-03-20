@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 
 	version "github.com/hashicorp/go-version"
@@ -19,18 +18,6 @@ func ensurePath(path string, dir bool) error {
 		path = filepath.Dir(path)
 	}
 	return os.MkdirAll(path, 0755)
-}
-
-// RuntimeStats is used to return various runtime information
-func RuntimeStats() map[string]string {
-	return map[string]string{
-		"kernel.name": runtime.GOOS,
-		"arch":        runtime.GOARCH,
-		"version":     runtime.Version(),
-		"max_procs":   strconv.FormatInt(int64(runtime.GOMAXPROCS(0)), 10),
-		"goroutines":  strconv.FormatInt(int64(runtime.NumGoroutine()), 10),
-		"cpu_count":   strconv.FormatInt(int64(runtime.NumCPU()), 10),
-	}
 }
 
 // serverParts is used to return the parts of a server role
@@ -54,6 +41,12 @@ type serverParts struct {
 func (s *serverParts) String() string {
 	return fmt.Sprintf("%s (Addr: %s) (DC: %s)",
 		s.Name, s.Addr, s.Datacenter)
+}
+
+func (s *serverParts) Copy() *serverParts {
+	ns := new(serverParts)
+	*ns = *s
+	return ns
 }
 
 // Returns if a member is a Nomad server. Returns a boolean,

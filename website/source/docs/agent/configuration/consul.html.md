@@ -142,7 +142,7 @@ similarly, but that is not discussed here:
 consul {
   ssl       = true
   ca_file   = "/var/ssl/bundle/ca.bundle"
-  cert_file = "/etc/ssl/consul.crrt"
+  cert_file = "/etc/ssl/consul.crt"
   key_file  = "/etc/ssl/consul.key"
 }
 ```

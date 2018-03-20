@@ -36,12 +36,6 @@ To see the detailed usage statistics, we can issue the command:
 
 ```shell
 $ nomad alloc-status -stats 04d9627d
-```
-
-And here is some sample output:
-
-```text
-$ nomad alloc-status c3e0
 ID            = 04d9627d
 Eval ID       = 42d788a3
 Name          = docs.example[2]

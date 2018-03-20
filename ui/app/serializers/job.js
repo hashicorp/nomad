@@ -1,4 +1,3 @@
-import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'npm:query-string';
@@ -15,25 +14,31 @@ export default ApplicationSerializer.extend({
     hash.PlainId = hash.ID;
     hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
 
-    // Transform the map-based JobSummary object into an array-based
-    // JobSummary fragment list
-    hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary') || {}).map(key => {
-      const allocStats = get(hash, `JobSummary.Summary.${key}`) || {};
-      const summary = { Name: key };
+    // ParentID comes in as "" instead of null
+    if (!hash.ParentID) {
+      hash.ParentID = null;
+    } else {
+      hash.ParentID = JSON.stringify([hash.ParentID, hash.NamespaceID || 'default']);
+    }
 
-      Object.keys(allocStats).forEach(
-        allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
-      );
+    // Periodic is a boolean on list and an object on single
+    if (hash.Periodic instanceof Object) {
+      hash.PeriodicDetails = hash.Periodic;
+      hash.Periodic = true;
+    }
 
-      return summary;
-    });
+    // Parameterized behaves like Periodic
+    if (hash.ParameterizedJob instanceof Object) {
+      hash.ParameterizedDetails = hash.ParameterizedJob;
+      hash.ParameterizedJob = true;
+    }
 
-    // Lift the children stats out of the JobSummary object
-    const childrenStats = get(hash, 'JobSummary.Children');
-    if (childrenStats) {
-      Object.keys(childrenStats).forEach(
-        childrenKey => (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
-      );
+    // If the hash contains summary information, push it into the store
+    // as a job-summary model.
+    if (hash.JobSummary) {
+      this.store.pushPayload('job-summary', {
+        'job-summary': [hash.JobSummary],
+      });
     }
 
     return this._super(typeHash, hash);
@@ -44,11 +49,17 @@ export default ApplicationSerializer.extend({
       !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
 
-    const jobURL = this.store
+    const [jobURL] = this.store
       .adapterFor(modelName)
-      .buildURL(modelName, hash.PlainId, hash, 'findRecord');
+      .buildURL(modelName, hash.ID, hash, 'findRecord')
+      .split('?');
 
     return assign(this._super(...arguments), {
+      summary: {
+        links: {
+          related: buildURL(`${jobURL}/summary`, { namespace: namespace }),
+        },
+      },
       allocations: {
         links: {
           related: buildURL(`${jobURL}/allocations`, { namespace: namespace }),

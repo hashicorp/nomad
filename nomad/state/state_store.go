@@ -532,7 +532,18 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
 		node.Drain = exist.Drain // Retain the drain mode
+
+		// Retain node events that have already been set on the node
+		node.Events = exist.Events
 	} else {
+		// Because this is the first time the node is being registered, we should
+		// also create a node registration event
+		nodeEvent := &structs.NodeEvent{
+			Message:   "Node Registered",
+			Subsystem: "Cluster",
+			Timestamp: node.StatusUpdatedAt,
+		}
+		node.Events = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index
 		node.ModifyIndex = index
 	}
@@ -626,8 +637,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
 
 	// Update the drain in the copy
 	copyNode.Drain = drain
@@ -642,6 +652,62 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 	}
 
 	txn.Commit()
+	return nil
+}
+
+// UpsertNodeEvents adds the node events to the nodes, rotating events as
+// necessary.
+func (s *StateStore) UpsertNodeEvents(index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for nodeID, events := range nodeEvents {
+		if err := s.upsertNodeEvents(index, nodeID, events, txn); err != nil {
+			return err
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// upsertNodeEvent upserts a node event for a respective node. It also maintains
+// that a fixed number of node events are ever stored simultaneously, deleting
+// older events once this bound has been reached.
+func (s *StateStore) upsertNodeEvents(index uint64, nodeID string, events []*structs.NodeEvent, txn *memdb.Txn) error {
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Add the events, updating the indexes
+	for _, e := range events {
+		e.CreateIndex = index
+		copyNode.Events = append(copyNode.Events, e)
+	}
+
+	// Keep node events pruned to not exceed the max allowed
+	if l := len(copyNode.Events); l > structs.MaxRetainedNodeEvents {
+		delta := l - structs.MaxRetainedNodeEvents
+		copyNode.Events = copyNode.Events[delta:]
+	}
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	return nil
 }
 
@@ -725,7 +791,7 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("job %q is in non-existent namespace %q", job.ID, job.Namespace)
+		return fmt.Errorf("job %q is in nonexistent namespace %q", job.ID, job.Namespace)
 	}
 
 	// Check if the job already exists

@@ -19,7 +19,7 @@ test('should render the placement failure (basic render)', function(assert) {
     'taskGroup',
     createFixture(
       {
-        coalescedFailures: failures - 1
+        coalescedFailures: failures - 1,
       },
       name
     )
@@ -77,22 +77,16 @@ test('should render the placement failure (basic render)', function(assert) {
     1,
     'Quota exhausted message shown'
   );
-  assert.equal(
-    findAll('[data-test-placement-failure-scores]').length,
-    1,
-    'Scores message shown'
-  );
+  assert.equal(findAll('[data-test-placement-failure-scores]').length, 1, 'Scores message shown');
 });
 
 test('should render correctly when a node is not evaluated', function(assert) {
   this.set(
     'taskGroup',
-    createFixture(
-      {
-        nodesEvaluated: 1,
-        nodesExhausted: 0
-      }
-    )
+    createFixture({
+      nodesEvaluated: 1,
+      nodesExhausted: 0,
+    })
   );
 
   this.render(commonTemplate);
@@ -105,40 +99,41 @@ test('should render correctly when a node is not evaluated', function(assert) {
   assert.equal(
     findAll('[data-test-placement-failure-nodes-exhausted]').length,
     0,
-    'Nodes exhausted message NOT shown when there are no nodes exausted'
+    'Nodes exhausted message NOT shown when there are no nodes exhausted'
   );
 });
 
 function createFixture(obj = {}, name = 'Placement Failure') {
   return {
     name: name,
-    placementFailures: assign({
-      coalescedFailures: 10,
-      nodesEvaluated: 0,
-      nodesAvailable: {
-        datacenter: 0,
+    placementFailures: assign(
+      {
+        coalescedFailures: 10,
+        nodesEvaluated: 0,
+        nodesAvailable: {
+          datacenter: 0,
+        },
+        classFiltered: {
+          filtered: 1,
+        },
+        constraintFiltered: {
+          'prop = val': 1,
+        },
+        nodesExhausted: 3,
+        classExhausted: {
+          class: 3,
+        },
+        dimensionExhausted: {
+          iops: 3,
+        },
+        quotaExhausted: {
+          quota: 'dimension',
+        },
+        scores: {
+          name: 3,
+        },
       },
-      classFiltered: {
-        filtered: 1,
-      },
-      constraintFiltered: {
-        'prop = val': 1,
-      },
-      nodesExhausted: 3,
-      classExhausted: {
-        class: 3,
-      },
-      dimensionExhausted: {
-        iops: 3,
-      },
-      quotaExhausted: {
-        quota: 'dimension',
-      },
-      scores: {
-        name: 3,
-      },
-    },
-    obj
-    )
+      obj
+    ),
   };
 }

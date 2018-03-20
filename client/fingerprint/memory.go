@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -23,21 +23,20 @@ func NewMemoryFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *MemoryFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	memInfo, err := mem.VirtualMemory()
 	if err != nil {
 		f.logger.Printf("[WARN] Error reading memory information: %s", err)
-		return false, err
+		return err
 	}
 
 	if memInfo.Total > 0 {
-		node.Attributes["memory.totalbytes"] = fmt.Sprintf("%d", memInfo.Total)
+		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", memInfo.Total))
 
-		if node.Resources == nil {
-			node.Resources = &structs.Resources{}
+		resp.Resources = &structs.Resources{
+			MemoryMB: int(memInfo.Total / 1024 / 1024),
 		}
-		node.Resources.MemoryMB = int(memInfo.Total / 1024 / 1024)
 	}
 
-	return true, nil
+	return nil
 }

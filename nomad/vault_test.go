@@ -260,8 +260,8 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	var connErr error
 	testutil.WaitForResult(func() (bool, error) {
 		conn, connErr = client.ConnectionEstablished()
-		if conn {
-			return false, fmt.Errorf("Should not connect")
+		if !conn {
+			return false, fmt.Errorf("Should connect")
 		}
 
 		if connErr == nil {
@@ -274,9 +274,6 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	})
 
 	errStr := connErr.Error()
-	if !strings.Contains(errStr, "not allow orphans") {
-		t.Fatalf("Expect orphan error")
-	}
 	if !strings.Contains(errStr, "explicit max ttl") {
 		t.Fatalf("Expect explicit max ttl error")
 	}
@@ -291,7 +288,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 	v.Config.Token = v.RootToken
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	v.Config.Role = "test-nonexistant"
+	v.Config.Role = "test-nonexistent"
 	client, err := NewVaultClient(v.Config, logger, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
@@ -303,8 +300,8 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 	var connErr error
 	testutil.WaitForResult(func() (bool, error) {
 		conn, connErr = client.ConnectionEstablished()
-		if conn {
-			return false, fmt.Errorf("Should not connect")
+		if !conn {
+			return false, fmt.Errorf("Should connect")
 		}
 
 		if connErr == nil {
@@ -318,7 +315,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 
 	errStr := connErr.Error()
 	if !strings.Contains(errStr, "does not exist") {
-		t.Fatalf("Expect orphan error")
+		t.Fatalf("Expect does not exist error")
 	}
 }
 
@@ -351,8 +348,8 @@ func TestVaultClient_ValidateToken(t *testing.T) {
 	var connErr error
 	testutil.WaitForResult(func() (bool, error) {
 		conn, connErr = client.ConnectionEstablished()
-		if conn {
-			return false, fmt.Errorf("Should not connect")
+		if !conn {
+			return false, fmt.Errorf("Should connect")
 		}
 
 		if connErr == nil {
@@ -366,7 +363,7 @@ func TestVaultClient_ValidateToken(t *testing.T) {
 
 	errStr := connErr.Error()
 	if !strings.Contains(errStr, vaultTokenRevokePath) {
-		t.Fatalf("Expect orphan error")
+		t.Fatalf("Expect revoke error")
 	}
 	if !strings.Contains(errStr, fmt.Sprintf(vaultRoleLookupPath, "test")) {
 		t.Fatalf("Expect explicit max ttl error")
@@ -967,10 +964,9 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		established, err := client.ConnectionEstablished()
-		if established {
-			return false, fmt.Errorf("Shouldn't establish")
+		if !established {
+			return false, fmt.Errorf("Should establish")
 		}
-
 		return err != nil, nil
 	}, func(err error) {
 		t.Fatalf("Connection not established")
@@ -982,7 +978,7 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
 	_, err = client.CreateToken(context.Background(), a, task.Name)
-	if err == nil || !strings.Contains(err.Error(), "Connection to Vault failed") {
+	if err == nil || !strings.Contains(err.Error(), "Nomad Server failed to establish connections to Vault") {
 		t.Fatalf("CreateToken should have failed: %v", err)
 	}
 }

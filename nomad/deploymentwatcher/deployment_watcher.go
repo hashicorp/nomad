@@ -43,7 +43,7 @@ type deploymentTriggers interface {
 }
 
 // deploymentWatcher is used to watch a single deployment and trigger the
-// scheduler when allocation health transistions.
+// scheduler when allocation health transitions.
 type deploymentWatcher struct {
 	// queryLimiter is used to limit the rate of blocking queries
 	queryLimiter *rate.Limiter
@@ -443,6 +443,14 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 	w.outstandingBatch = true
 
 	time.AfterFunc(perJobEvalBatchPeriod, func() {
+		// If the timer has been created and then we shutdown, we need to no-op
+		// the evaluation creation.
+		select {
+		case <-w.ctx.Done():
+			return
+		default:
+		}
+
 		// Create the eval
 		evalCreateIndex, err := w.createEvaluation(w.getEval())
 		if err != nil {

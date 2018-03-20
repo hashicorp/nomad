@@ -168,7 +168,8 @@ scripts.
   checks.
 
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
-  check.
+  check. If the name is not specified Nomad generates one based on the service name.
+  If you have more than one check you must specify the name.
 
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   Consul will query to query the health of a service. Nomad will automatically
@@ -320,6 +321,7 @@ checks must be passing in order for the service to register as healthy.
 ```hcl
 service {
   check {
+    name     = "HTTP Check"
     type     = "http"
     port     = "lb"
     path     = "/_healthz"
@@ -328,6 +330,7 @@ service {
   }
 
   check {
+    name     = "HTTPS Check"
     type     = "http"
     protocol = "https"
     port     = "lb"
@@ -338,6 +341,7 @@ service {
   }
 
   check {
+    name     = "Postgres Check"
     type     = "script"
     command  = "/usr/local/bin/pg-tools"
     args     = ["verify", "database" "prod", "up"]
@@ -462,6 +466,109 @@ job "example" {
 In this case Nomad doesn't need to assign Redis any host ports. The `service`
 and `check` stanzas can both specify the port number to advertise and check
 directly since Nomad isn't managing any port assignments.
+
+### IPv6 Docker containers
+
+The [Docker](/docs/drivers/docker.html#advertise_ipv6_address) driver supports the
+`advertise_ipv6_address` parameter in it's configuration.
+
+Services will automatically advertise the IPv6 address when `advertise_ipv6_address` 
+is used.
+
+Unlike services, checks do not have an `auto` address mode as there's no way
+for Nomad to know which is the best address to use for checks. Consul needs
+access to the address for any HTTP or TCP checks.
+
+So you have to set `address_mode` parameter in the `check` stanza to `driver`. 
+
+For example using `auto` address mode:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        advertise_ipv6_address = true
+        port_map {
+          db = 6379
+        }
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
+
+      service {
+        name = "ipv6-redis"
+        port = db
+        check {
+          name     = "ipv6-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = db
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+Or using `address_mode=driver` for `service` and `check` with numeric ports:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        advertise_ipv6_address = true
+        # No port map required!
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+        }
+      }
+
+      service {
+        name = "ipv6-redis"
+        port = 6379
+        address_mode = "driver"
+        check {
+          name     = "ipv6-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = 6379
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+The `service` and `check` stanzas can both specify the port number to 
+advertise and check directly since Nomad isn't managing any port assignments.
 
 
 - - -

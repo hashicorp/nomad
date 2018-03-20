@@ -281,7 +281,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Printf("[DEBUG] http: Request %v (%v)", reqURL, time.Now().Sub(start))
+			s.logger.Printf("[DEBUG] http: Request %v %v (%v)", req.Method, reqURL, time.Now().Sub(start))
 		}()
 		obj, err := handler(resp, req)
 
@@ -456,7 +456,7 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	return parseWait(resp, req, b)
 }
 
-// parseWriteRequest is a convience method for endpoints that need to parse a
+// parseWriteRequest is a convenience method for endpoints that need to parse a
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
 	parseNamespace(req, &w.Namespace)

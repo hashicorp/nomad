@@ -234,6 +234,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
+	// Reschedule policy diff
+	reschedDiff := primitiveObjectDiff(tg.ReschedulePolicy, other.ReschedulePolicy, nil, "ReschedulePolicy", contextual)
+	if reschedDiff != nil {
+		diff.Objects = append(diff.Objects, reschedDiff)
+	}
+
 	// EphemeralDisk diff
 	diskDiff := primitiveObjectDiff(tg.EphemeralDisk, other.EphemeralDisk, nil, "EphemeralDisk", contextual)
 	if diskDiff != nil {
@@ -1211,7 +1217,7 @@ func primitiveObjectDiff(old, new interface{}, filter []string, name string, con
 // primitiveObjectSetDiff does a set difference of the old and new sets. The
 // filter parameter can be used to filter a set of primitive fields in the
 // passed structs. The name corresponds to the name of the passed objects. If
-// contextual diff is enabled, objects' primtive fields will be returned even if
+// contextual diff is enabled, objects' primitive fields will be returned even if
 // no diff exists.
 func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string, contextual bool) []*ObjectDiff {
 	makeSet := func(objects []interface{}) map[string]interface{} {

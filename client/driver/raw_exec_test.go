@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -34,27 +35,29 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	// Disable raw exec.
 	cfg := &config.Config{Options: map[string]string{rawExecConfigOption: "false"}}
 
-	apply, err := d.Fingerprint(cfg, node)
+	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply {
-		t.Fatalf("should not apply")
-	}
-	if node.Attributes["driver.raw_exec"] != "" {
+
+	if response.Attributes["driver.raw_exec"] != "" {
 		t.Fatalf("driver incorrectly enabled")
 	}
 
 	// Enable raw exec.
-	cfg.Options[rawExecConfigOption] = "true"
-	apply, err = d.Fingerprint(cfg, node)
+	request.Config.Options[rawExecConfigOption] = "true"
+	err = d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
-	if node.Attributes["driver.raw_exec"] != "1" {
+
+	if response.Attributes["driver.raw_exec"] != "1" {
 		t.Fatalf("driver not enabled")
 	}
 }

@@ -265,7 +265,7 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the output (includes boostrap token)
+		// Check the output (includes bootstrap token)
 		n := obj.([]*structs.ACLTokenListStub)
 		if len(n) != 4 {
 			t.Fatalf("bad: %#v", n)

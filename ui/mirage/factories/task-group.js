@@ -32,6 +32,7 @@ export default Factory.extend({
         .forEach((_, i) => {
           server.create('allocation', {
             jobId: group.job.id,
+            namespace: group.job.namespace,
             taskGroup: group.name,
             name: `${group.name}.[${i}]`,
           });

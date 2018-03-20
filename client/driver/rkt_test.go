@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -57,20 +58,29 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
-	if node.Attributes["driver.rkt"] != "1" {
+
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("expected attributes to not equal nil")
+	}
+	if attributes["driver.rkt"] != "1" {
 		t.Fatalf("Missing Rkt driver")
 	}
-	if node.Attributes["driver.rkt.version"] == "" {
+	if attributes["driver.rkt.version"] == "" {
 		t.Fatalf("Missing Rkt driver version")
 	}
-	if node.Attributes["driver.rkt.appc.version"] == "" {
+	if attributes["driver.rkt.appc.version"] == "" {
 		t.Fatalf("Missing appc version for the Rkt driver")
 	}
 }
@@ -334,25 +344,25 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 }
 
-func TestRktDriverUser(t *testing.T) {
-	assert := assert.New(t)
+// TestRktDriver_UserGroup asserts tasks may override the user and group of the
+// rkt image.
+func TestRktDriver_UserGroup(t *testing.T) {
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
-
 	ctestutils.RktCompatible(t)
+	require := assert.New(t)
+
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
-		User:   "alice",
+		User:   "nobody",
 		Config: map[string]interface{}{
-			"trust_prefix": "coreos.com/etcd",
-			"image":        "coreos.com/etcd:v2.0.4",
-			"command":      "/etcd",
-			"args":         []string{"--version"},
+			"image": "docker://redis:3.2",
+			"group": "nogroup",
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -364,23 +374,37 @@ func TestRktDriverUser(t *testing.T) {
 		},
 	}
 
-	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
-	d := NewRktDriver(ctx.DriverCtx)
+	tctx := testDriverContexts(t, task)
+	defer tctx.AllocDir.Destroy()
+	d := NewRktDriver(tctx.DriverCtx)
 
-	_, err := d.Prestart(ctx.ExecCtx, task)
-	assert.Nil(err)
-	resp, err := d.Start(ctx.ExecCtx, task)
-	assert.Nil(err)
+	_, err := d.Prestart(tctx.ExecCtx, task)
+	require.Nil(err)
+	resp, err := d.Start(tctx.ExecCtx, task)
+	require.Nil(err)
 	defer resp.Handle.Kill()
 
-	select {
-	case res := <-resp.Handle.WaitCh():
-		assert.False(res.Successful())
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		t.Fatalf("timeout")
-	}
+	timeout := time.Duration(testutil.TestMultiplier()*15) * time.Second
 
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// WaitUntil we can determine the user/group redis is running as
+	expected := []byte("redis-server *:6379         nobody   nogroup\n")
+	testutil.WaitForResult(func() (bool, error) {
+		raw, code, err := resp.Handle.Exec(ctx, "/bin/bash", []string{"-c", "ps -eo args,user,group | grep ^redis"})
+		if err != nil {
+			return false, err
+		}
+		if code != 0 {
+			return false, fmt.Errorf("unexpected exit code: %d", code)
+		}
+		return bytes.Equal(expected, raw), fmt.Errorf("expected %q but found %q", expected, raw)
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.Nil(resp.Handle.Kill())
 }
 
 func TestRktTrustPrefix(t *testing.T) {
@@ -466,7 +490,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 		Name:   "etcd",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:latest",
+			"image": "docker://redis:3.2",
 			"port_map": []map[string]string{
 				{
 					"main": "6379-tcp",
@@ -669,7 +693,7 @@ func TestRktDriver_Remove_Error(t *testing.T) {
 
 	ctestutils.RktCompatible(t)
 
-	// Removing a non-existent pod should return an error
+	// Removing a nonexistent pod should return an error
 	if err := rktRemove("00000000-0000-0000-0000-000000000000"); err == nil {
 		t.Fatalf("expected an error")
 	}

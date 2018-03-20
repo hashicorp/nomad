@@ -104,11 +104,11 @@ type Config struct {
 	Vault *config.VaultConfig `mapstructure:"vault"`
 
 	// NomadConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
 
 	// ClientConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	ClientConfig *client.Config `mapstructure:"-" json:"-"`
 
 	// DevMode is set by the -dev CLI flag.
@@ -125,7 +125,7 @@ type Config struct {
 	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
-	// set arbritrary headers on API responses
+	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 
 	// Sentinel holds sentinel related settings
@@ -355,6 +355,7 @@ type Telemetry struct {
 	StatsiteAddr             string        `mapstructure:"statsite_address"`
 	StatsdAddr               string        `mapstructure:"statsd_address"`
 	DataDogAddr              string        `mapstructure:"datadog_address"`
+	DataDogTags              []string      `mapstructure:"datadog_tags"`
 	PrometheusMetrics        bool          `mapstructure:"prometheus_metrics"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
 	UseNodeName              bool          `mapstructure:"use_node_name"`
@@ -407,7 +408,7 @@ type Telemetry struct {
 	CirconusCheckID string `mapstructure:"circonus_check_id"`
 	// CirconusCheckForceMetricActivation will force enabling metrics, as they are encountered,
 	// if the metric already exists and is NOT active. If check management is enabled, the default
-	// behavior is to add new metrics as they are encoutered. If the metric already exists in the
+	// behavior is to add new metrics as they are encountered. If the metric already exists in the
 	// check, it will *NOT* be activated. This setting overrides that behavior.
 	// Default: "false"
 	CirconusCheckForceMetricActivation string `mapstructure:"circonus_check_force_metric_activation"`
@@ -1169,6 +1170,9 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DataDogAddr != "" {
 		result.DataDogAddr = b.DataDogAddr
+	}
+	if b.DataDogTags != nil {
+		result.DataDogTags = b.DataDogTags
 	}
 	if b.PrometheusMetrics {
 		result.PrometheusMetrics = b.PrometheusMetrics

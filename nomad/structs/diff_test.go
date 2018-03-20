@@ -1495,6 +1495,254 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			// ReschedulePolicy added
+			Old: &TaskGroup{},
+			New: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      1,
+					Interval:      15 * time.Second,
+					Delay:         5 * time.Second,
+					MaxDelay:      20 * time.Second,
+					DelayFunction: "exponential",
+					Unlimited:     false,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Attempts",
+								Old:  "",
+								New:  "1",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Delay",
+								Old:  "",
+								New:  "5000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DelayFunction",
+								Old:  "",
+								New:  "exponential",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Interval",
+								Old:  "",
+								New:  "15000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "MaxDelay",
+								Old:  "",
+								New:  "20000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Unlimited",
+								Old:  "",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// ReschedulePolicy deleted
+			Old: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      1,
+					Interval:      15 * time.Second,
+					Delay:         5 * time.Second,
+					MaxDelay:      20 * time.Second,
+					DelayFunction: "exponential",
+					Unlimited:     false,
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Delay",
+								Old:  "5000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "DelayFunction",
+								Old:  "exponential",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Interval",
+								Old:  "15000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "MaxDelay",
+								Old:  "20000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// ReschedulePolicy edited
+			Old: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      1,
+					Interval:      1 * time.Second,
+					DelayFunction: "exponential",
+					Delay:         20 * time.Second,
+					MaxDelay:      1 * time.Minute,
+					Unlimited:     false,
+				},
+			},
+			New: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      2,
+					Interval:      2 * time.Second,
+					DelayFunction: "linear",
+					Delay:         30 * time.Second,
+					MaxDelay:      1 * time.Minute,
+					Unlimited:     true,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "2",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Delay",
+								Old:  "20000000000",
+								New:  "30000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "DelayFunction",
+								Old:  "exponential",
+								New:  "linear",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Interval",
+								Old:  "1000000000",
+								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "true",
+							},
+						},
+					},
+				},
+			},
+		}, {
+			// ReschedulePolicy edited with context
+			Contextual: true,
+			Old: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts: 1,
+					Interval: 1 * time.Second,
+				},
+			},
+			New: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts: 1,
+					Interval: 2 * time.Second,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Delay",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DelayFunction",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Interval",
+								Old:  "1000000000",
+								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MaxDelay",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Update strategy deleted
 			Old: &TaskGroup{
 				Update: &UpdateStrategy{

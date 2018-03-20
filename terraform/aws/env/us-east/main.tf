@@ -57,7 +57,7 @@ To connect, add your private key and SSH into any client or server with
   $ nomad node-status
 
 If you see an error message like the following when running any of the above
-commands, it usuallly indicates that the configuration script has not finished
+commands, it usually indicates that the configuration script has not finished
 executing:
 
 "Error querying servers: Get http://127.0.0.1:4646/v1/agent/members: dial tcp

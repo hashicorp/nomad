@@ -5,6 +5,7 @@ import notifyError from 'nomad-ui/utils/notify-error';
 
 export default Route.extend({
   store: service(),
+  token: service(),
 
   serialize(model) {
     return { job_name: model.get('plainId') };

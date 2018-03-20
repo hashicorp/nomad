@@ -1,8 +1,13 @@
 {{#global-header class="page-header"}}
-  <li><a href="#">Allocations</a></li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation" model}}{{model.shortId}}{{/link-to}}
-  </li>
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to
+        data-test-breadcrumb=breadcrumb.label
+        params=breadcrumb.args}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    </li>
+  {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
@@ -45,13 +50,13 @@
             <tr data-test-task-row={{row.model.task.name}}>
               <td data-test-name>
                 {{#link-to "allocations.allocation.task" row.model.allocation row.model}}
-                  {{row.model.task.name}}
+                  {{row.model.name}}
                 {{/link-to}}
               </td>
               <td data-test-state>{{row.model.state}}</td>
               <td data-test-message>
-                {{#if row.model.events.lastObject.displayMessage}}
-                  {{row.model.events.lastObject.displayMessage}}
+                {{#if row.model.events.lastObject.message}}
+                  {{row.model.events.lastObject.message}}
                 {{else}}
                   <em>No message</em>
                 {{/if}}

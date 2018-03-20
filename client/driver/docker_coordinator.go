@@ -16,7 +16,7 @@ var (
 	// createCoordinator allows us to only create a single coordinator
 	createCoordinator sync.Once
 
-	// globalCoordinator is the shared coordinator and should only be retreived
+	// globalCoordinator is the shared coordinator and should only be retrieved
 	// using the GetDockerCoordinator() method.
 	globalCoordinator *dockerCoordinator
 
@@ -101,7 +101,7 @@ type dockerCoordinator struct {
 	// imageRefCount is the reference count of image IDs
 	imageRefCount map[string]map[string]struct{}
 
-	// deleteFuture is indexed by image ID and has a cancable delete future
+	// deleteFuture is indexed by image ID and has a cancelable delete future
 	deleteFuture map[string]context.CancelFunc
 }
 
@@ -258,7 +258,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 		return
 	}
 
-	// This should never be the case but we safefty guard so we don't leak a
+	// This should never be the case but we safety guard so we don't leak a
 	// cancel.
 	if cancel, ok := d.deleteFuture[imageID]; ok {
 		d.logger.Printf("[ERR] driver.docker: image id %q has lingering delete future", imageID)
@@ -275,7 +275,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 }
 
 // removeImageImpl is used to remove an image. It wil wait the specified remove
-// delay to remove the image. If the context is cancalled before that the image
+// delay to remove the image. If the context is cancelled before that the image
 // removal will be cancelled.
 func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	// Wait for the delay or a cancellation event

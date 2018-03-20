@@ -77,26 +77,26 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(raftVersion)
 	}
-	s1 := testServer(t, conf)
+	s1 := TestServer(t, conf)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, conf)
+	s2 := TestServer(t, conf)
 	defer s2.Shutdown()
 
-	s3 := testServer(t, conf)
+	s3 := TestServer(t, conf)
 	defer s3.Shutdown()
 
 	servers := []*Server{s1, s2, s3}
 
 	// Try to join
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
 	}
 
 	// Bring up a new server
-	s4 := testServer(t, conf)
+	s4 := TestServer(t, conf)
 	defer s4.Shutdown()
 
 	// Kill a non-leader server
@@ -114,7 +114,7 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	})
 
 	// Join the new server
-	testJoin(t, s1, s4)
+	TestJoin(t, s1, s4)
 	servers[2] = s4
 
 	// Make sure the dead server is removed and we're back to 3 total peers
@@ -125,30 +125,30 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
 	conf := func(c *Config) {
 		c.DevDisableBootstrap = true
 	}
 
-	s2 := testServer(t, conf)
+	s2 := TestServer(t, conf)
 	defer s2.Shutdown()
 
-	s3 := testServer(t, conf)
+	s3 := TestServer(t, conf)
 	defer s3.Shutdown()
 
-	s4 := testServer(t, conf)
+	s4 := TestServer(t, conf)
 	defer s4.Shutdown()
 
-	s5 := testServer(t, conf)
+	s5 := TestServer(t, conf)
 	defer s5.Shutdown()
 
 	servers := []*Server{s1, s2, s3, s4, s5}
 
 	// Join the servers to s1, and wait until they are all promoted to
 	// voters.
-	testJoin(t, s1, servers[1:]...)
+	TestJoin(t, s1, servers[1:]...)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
 		for _, s := range servers {
@@ -171,7 +171,7 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 
 func TestAutopilot_RollingUpdate(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s1.Shutdown()
@@ -181,16 +181,16 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 		c.RaftConfig.ProtocolVersion = 3
 	}
 
-	s2 := testServer(t, conf)
+	s2 := TestServer(t, conf)
 	defer s2.Shutdown()
 
-	s3 := testServer(t, conf)
+	s3 := TestServer(t, conf)
 	defer s3.Shutdown()
 
 	// Join the servers to s1, and wait until they are all promoted to
 	// voters.
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
 		for _, s := range servers {
@@ -199,9 +199,9 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	})
 
 	// Add one more server like we are doing a rolling update.
-	s4 := testServer(t, conf)
+	s4 := TestServer(t, conf)
 	defer s4.Shutdown()
-	testJoin(t, s1, s4)
+	TestJoin(t, s1, s4)
 	servers = append(servers, s4)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
@@ -243,25 +243,25 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 
 func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
 	conf := func(c *Config) {
 		c.DevDisableBootstrap = true
 	}
-	s2 := testServer(t, conf)
+	s2 := TestServer(t, conf)
 	defer s2.Shutdown()
 
-	s3 := testServer(t, conf)
+	s3 := TestServer(t, conf)
 	defer s3.Shutdown()
 
-	s4 := testServer(t, conf)
+	s4 := TestServer(t, conf)
 	defer s4.Shutdown()
 
 	servers := []*Server{s1, s2, s3}
 
 	// Join the servers to s1
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
@@ -293,7 +293,7 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 
 func TestAutopilot_PromoteNonVoter(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s1.Shutdown()
@@ -301,12 +301,12 @@ func TestAutopilot_PromoteNonVoter(t *testing.T) {
 	defer codec.Close()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 
 	// Make sure we see it as a nonvoter initially. We wait until half
 	// the stabilization period has passed.

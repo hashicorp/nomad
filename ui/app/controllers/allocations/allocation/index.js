@@ -1,8 +1,10 @@
 import { alias } from '@ember/object/computed';
-import Controller from '@ember/controller';
+import Controller, { inject as controller } from '@ember/controller';
 import Sortable from 'nomad-ui/mixins/sortable';
 
 export default Controller.extend(Sortable, {
+  allocationController: controller('allocations.allocation'),
+
   queryParams: {
     sortProperty: 'sort',
     sortDescending: 'desc',
@@ -10,6 +12,8 @@ export default Controller.extend(Sortable, {
 
   sortProperty: 'name',
   sortDescending: false,
+
+  breadcrumbs: alias('allocationController.breadcrumbs'),
 
   listToSort: alias('model.states'),
   sortedStates: alias('listSorted'),

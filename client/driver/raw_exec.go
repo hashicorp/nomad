@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -92,18 +91,19 @@ func (d *RawExecDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationNone
 }
 
-func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *RawExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	// Check that the user has explicitly enabled this executor.
-	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
+	enabled := req.Config.ReadBoolDefault(rawExecConfigOption, false)
 
-	if enabled || cfg.DevMode {
+	if enabled || req.Config.DevMode {
 		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
-		node.Attributes[rawExecDriverAttr] = "1"
-		return true, nil
+		resp.AddAttribute(rawExecDriverAttr, "1")
+		resp.Detected = true
+		return nil
 	}
 
-	delete(node.Attributes, rawExecDriverAttr)
-	return false, nil
+	resp.RemoveAttribute(rawExecDriverAttr)
+	return nil
 }
 
 func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {

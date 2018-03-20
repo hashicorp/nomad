@@ -152,7 +152,7 @@ job "docs" {
 ### Batch Job
 
 This example job executes the `uptime` command on 10 Nomad clients in the fleet,
-restricting the eligble nodes to Linux machines.
+restricting the eligible nodes to Linux machines.
 
 ```hcl
 job "docs" {

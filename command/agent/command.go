@@ -479,7 +479,7 @@ func (c *Command) Run(args []string) int {
 	}
 	defer c.agent.Shutdown()
 
-	// Shudown the HTTP server at the end
+	// Shutdown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
@@ -748,6 +748,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		if err != nil {
 			return inm, err
 		}
+		sink.SetTags(telConfig.DataDogTags)
 		fanout = append(fanout, sink)
 	}
 
@@ -915,7 +916,7 @@ Server Options:
 
   -bootstrap-expect=<num>
     Configures the expected number of servers nodes to wait for before
-    bootstrapping the cluster. Once <num> servers have joined eachother,
+    bootstrapping the cluster. Once <num> servers have joined each other,
     Nomad initiates the bootstrap process.
 
   -encrypt=<key>
@@ -955,7 +956,7 @@ Client Options:
     specified a subdirectory under the "-data-dir" will be used.
 
   -alloc-dir
-    The directory used to store allocation data such as downloaded artificats as
+    The directory used to store allocation data such as downloaded artifacts as
     well as data produced by tasks. If not specified, a subdirectory under the
     "-data-dir" will be used.
 
@@ -986,8 +987,8 @@ ACL Options:
 
   -acl-replication-token
     The replication token for servers to use when replicating from the
-    authoratative region. The token must be a valid management token from the
-    authoratative region.
+    authoritative region. The token must be a valid management token from the
+    authoritative region.
 
 Consul Options:
 
@@ -1068,7 +1069,7 @@ Vault Options:
     The role name to create tokens for tasks from.
 
   -vault-allow-unauthenticated
-    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    Whether to allow jobs to be submitted that request Vault Tokens but do not
     authentication. The flag only applies to Servers.
 
   -vault-ca-file=<path>

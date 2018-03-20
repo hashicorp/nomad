@@ -89,7 +89,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
 
-	// Check if the resource contraints were applied
+	// Check if the resource constraints were applied
 	memLimits := filepath.Join(ps.IsolationConfig.CgroupPaths["memory"], "memory.limit_in_bytes")
 	data, err := ioutil.ReadFile(memLimits)
 	if err != nil {

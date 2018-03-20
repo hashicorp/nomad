@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNodes_List(t *testing.T) {
@@ -90,7 +93,7 @@ func TestNodes_Info(t *testing.T) {
 	defer s.Stop()
 	nodes := c.Nodes()
 
-	// Retrieving a non-existent node returns error
+	// Retrieving a nonexistent node returns error
 	_, _, err := nodes.Info("12345678-abcd-efab-cdef-123456789abc", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -130,6 +133,10 @@ func TestNodes_Info(t *testing.T) {
 	// Check that the StatusUpdatedAt field is being populated correctly
 	if result.StatusUpdatedAt < startTime {
 		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
+	}
+
+	if len(result.Events) < 1 {
+		t.Fatalf("Expected at minimum the node register event to be populated: %+v", result)
 	}
 }
 
@@ -205,7 +212,7 @@ func TestNodes_Allocations(t *testing.T) {
 	defer s.Stop()
 	nodes := c.Nodes()
 
-	// Looking up by a non-existent node returns nothing. We
+	// Looking up by a nonexistent node returns nothing. We
 	// don't check the index here because it's possible the node
 	// has already registered, in which case we will get a non-
 	// zero result anyways.
@@ -226,7 +233,7 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 	defer s.Stop()
 	nodes := c.Nodes()
 
-	// Force-eval on a non-existent node fails
+	// Force-eval on a nonexistent node fails
 	_, _, err := nodes.ForceEvaluate("12345678-abcd-efab-cdef-123456789abc", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -274,4 +281,28 @@ func TestNodes_Sort(t *testing.T) {
 	if !reflect.DeepEqual(nodes, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", nodes, expect)
 	}
+}
+
+func TestNodes_GC(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	err := nodes.GC(uuid.Generate(), nil)
+	require.NotNil(err)
+	require.True(structs.IsErrUnknownNode(err))
+}
+
+func TestNodes_GcAlloc(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	err := nodes.GcAlloc(uuid.Generate(), nil)
+	require.NotNil(err)
+	require.True(structs.IsErrUnknownAllocation(err))
 }

@@ -25,13 +25,8 @@ and command largely apply to all jobs in Nomad.
 After a job is submitted, you can query the status of that job using the job
 status command:
 
-```shell
-$ nomad job status
-```
-
-Here is some sample output:
-
 ```text
+$ nomad job status
 ID    Type     Priority  Status
 docs  service  50        running
 ```
@@ -40,13 +35,8 @@ At a high level, we can see that our job is currently running, but what does
 "running" actually mean. By supplying the name of a job to the job status
 command, we can ask Nomad for more detailed job information:
 
-```shell
-$ nomad job status docs
-```
-
-Here is some sample output
-
 ```text
+$ nomad job status docs
 ID          = docs
 Name        = docs
 Type        = service
@@ -192,7 +182,7 @@ Unfortunately not all failures are as easily debuggable. If the `alloc-status`
 command shows many restarts, there is likely an application-level issue during
 start up. For example:
 
-```
+```text
 $ nomad alloc-status 04d9627d
 # ...
 

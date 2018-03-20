@@ -200,7 +200,7 @@ When specifying resource limits the following enforcement behaviors are defined:
 ## Federation
 
 Nomad makes working with quotas in a federated cluster simple by replicating
-quota specifications from the [authoratative Nomad
+quota specifications from the [authoritative Nomad
 region](/docs/agent/configuration/server.html#authoritative_region). This allows
 operators to interact with a single cluster but create quota specifications that
 apply to all Nomad clusters.

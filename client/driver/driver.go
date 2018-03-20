@@ -126,7 +126,7 @@ func (r *CreatedResources) Remove(k, needle string) bool {
 	return false
 }
 
-// Copy returns a new deep copy of CreatedResrouces.
+// Copy returns a new deep copy of CreatedResources.
 func (r *CreatedResources) Copy() *CreatedResources {
 	if r == nil {
 		return nil
@@ -209,7 +209,7 @@ type Driver interface {
 	fingerprint.Fingerprint
 
 	// Prestart prepares the task environment and performs expensive
-	// intialization steps like downloading images.
+	// initialization steps like downloading images.
 	//
 	// CreatedResources may be non-nil even when an error occurs.
 	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
@@ -257,7 +257,7 @@ type LogEventFn func(message string, args ...interface{})
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and
 // node attributes into a Driver without having to change the Driver interface
-// each time we do it. Used in conjection with Factory, above.
+// each time we do it. Used in conjunction with Factory, above.
 type DriverContext struct {
 	taskName string
 	allocID  string

@@ -19,7 +19,7 @@ moduleForAcceptance('Acceptance | client detail', {
   },
 });
 
-test('/clients/:id should have a breadrcumb trail linking back to clients', function(assert) {
+test('/clients/:id should have a breadcrumb trail linking back to clients', function(assert) {
   visit(`/clients/${node.id}`);
 
   andThen(() => {
@@ -70,7 +70,7 @@ test('/clients/:id should list additional detail for the node below the title', 
     assert.equal(
       find('[data-test-address-definition]').textContent,
       `Address ${node.httpAddr}`,
-      'Address is in additional detals'
+      'Address is in additional details'
     );
     assert.equal(
       find('[data-test-datacenter-definition]').textContent,
@@ -197,9 +197,7 @@ test('each allocation should have high-level details for the allocation', functi
   });
 });
 
-test('each allocation should show job information even if the job is incomplete and already in the store', function(
-  assert
-) {
+test('each allocation should show job information even if the job is incomplete and already in the store', function(assert) {
   // First, visit clients to load the allocations for each visible node.
   // Don't load the job belongsTo of the allocation! Leave it unfulfilled.
 
@@ -288,16 +286,46 @@ test('/clients/:id should list all attributes for the node', function(assert) {
   });
 });
 
-test('when the node is not found, an error message is shown, but the URL persists', function(
-  assert
-) {
+test('/clients/:id lists all meta attributes', function(assert) {
+  node = server.create('node', 'forceIPv4', 'withMeta');
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(find('[data-test-meta]'), 'Meta attributes table is on the page');
+    assert.notOk(find('[data-test-empty-meta-message]'), 'Meta attributes is not empty');
+
+    const firstMetaKey = Object.keys(node.meta)[0];
+    assert.equal(
+      find('[data-test-meta] [data-test-key]').textContent.trim(),
+      firstMetaKey,
+      'Meta attributes for the node are bound to the attributes table'
+    );
+    assert.equal(
+      find('[data-test-meta] [data-test-value]').textContent.trim(),
+      node.meta[firstMetaKey],
+      'Meta attributes for the node are bound to the attributes table'
+    );
+  });
+});
+
+test('/clients/:id shows an empty message when there is no meta data', function(assert) {
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.notOk(find('[data-test-meta]'), 'Meta attributes table is not on the page');
+    assert.ok(find('[data-test-empty-meta-message]'), 'Meta attributes is empty');
+  });
+});
+
+test('when the node is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/clients/not-a-real-node');
 
   andThen(() => {
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/node/not-a-real-node',
-      'A request to the non-existent node is made'
+      'A request to the nonexistent node is made'
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');
