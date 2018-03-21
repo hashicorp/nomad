@@ -13,7 +13,7 @@ import (
 
 func TestLogsCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &LogsCommand{}
+	var _ cli.Command = &AllocLogsCommand{}
 }
 
 func TestLogsCommand_Fails(t *testing.T) {
@@ -22,7 +22,7 @@ func TestLogsCommand_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &LogsCommand{Meta: Meta{Ui: ui}}
+	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -77,7 +77,7 @@ func TestLogsCommand_AutocompleteArgs(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &LogsCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()

@@ -7,20 +7,20 @@ import (
 	"github.com/posener/complete"
 )
 
-type ClientConfigCommand struct {
+type NodeConfigCommand struct {
 	Meta
 }
 
-func (c *ClientConfigCommand) Help() string {
+func (c *NodeConfigCommand) Help() string {
 	helpText := `
-Usage: nomad client-config [options]
+Usage: nomad node config [options]
 
-  View or modify client configuration details. This command only
-  works on client nodes, and can be used to update the running
-  client configurations it supports.
+  View or modify a client node's configuration details. This command only works
+  on client nodes, and can be used to update the running client configurations
+  it supports.
 
-  The arguments behave differently depending on the flags given.
-  See each flag's description for its specific requirements.
+  The arguments behave differently depending on the flags given. See each
+  flag's description for its specific requirements.
 
 General Options:
 
@@ -41,19 +41,19 @@ Client Config Options:
     to configure. The set is updated atomically.
 
     Example:
-      $ nomad client-config -update-servers foo:4647 bar:4647
+      $ nomad node config -update-servers foo:4647 bar:4647
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (c *ClientConfigCommand) Synopsis() string {
+func (c *NodeConfigCommand) Synopsis() string {
 	return "View or modify client configuration details"
 }
 
-func (c *ClientConfigCommand) Run(args []string) int {
+func (c *NodeConfigCommand) Run(args []string) int {
 	var listServers, updateServers bool
 
-	flags := c.Meta.FlagSet("client-servers", FlagSetClient)
+	flags := c.Meta.FlagSet("node config", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&listServers, "servers", false, "")
 	flags.BoolVar(&updateServers, "update-servers", false, "")
@@ -111,7 +111,7 @@ func (c *ClientConfigCommand) Run(args []string) int {
 	return 1
 }
 
-func (c *ClientConfigCommand) AutocompleteFlags() complete.Flags {
+func (c *NodeConfigCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-servers":        complete.PredictNothing,
@@ -119,6 +119,6 @@ func (c *ClientConfigCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *ClientConfigCommand) AutocompleteArgs() complete.Predictor {
+func (c *NodeConfigCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }

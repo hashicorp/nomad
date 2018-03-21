@@ -27,13 +27,13 @@ const (
 	defaultTailLines int64 = 10
 )
 
-type FSCommand struct {
+type AllocFSCommand struct {
 	Meta
 }
 
-func (f *FSCommand) Help() string {
+func (f *AllocFSCommand) Help() string {
 	helpText := `
-Usage: nomad fs [options] <allocation> <path>
+Usage: nomad alloc fs [options] <allocation> <path>
 
   fs displays either the contents of an allocation directory for the passed allocation,
   or displays the file at the given path. The path is relative to the root of the alloc
@@ -75,11 +75,11 @@ FS Specific Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (f *FSCommand) Synopsis() string {
+func (f *AllocFSCommand) Synopsis() string {
 	return "Inspect the contents of an allocation directory"
 }
 
-func (c *FSCommand) AutocompleteFlags() complete.Flags {
+func (c *AllocFSCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-H":       complete.PredictNothing,
@@ -93,7 +93,7 @@ func (c *FSCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (f *FSCommand) AutocompleteArgs() complete.Predictor {
+func (f *AllocFSCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := f.Meta.Client()
 		if err != nil {
@@ -108,11 +108,11 @@ func (f *FSCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (f *FSCommand) Run(args []string) int {
+func (f *AllocFSCommand) Run(args []string) int {
 	var verbose, machine, job, stat, tail, follow bool
 	var numLines, numBytes int64
 
-	flags := f.Meta.FlagSet("fs", FlagSetClient)
+	flags := f.Meta.FlagSet("alloc fs", FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
@@ -333,7 +333,7 @@ func (f *FSCommand) Run(args []string) int {
 
 // followFile outputs the contents of the file to stdout relative to the end of
 // the file. If numLines does not equal -1, then tail -n behavior is used.
-func (f *FSCommand) followFile(client *api.Client, alloc *api.Allocation,
+func (f *AllocFSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	path, origin string, offset, numLines int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})

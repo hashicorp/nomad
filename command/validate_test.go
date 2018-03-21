@@ -13,13 +13,13 @@ import (
 
 func TestValidateCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &ValidateCommand{}
+	var _ cli.Command = &JobValidateCommand{}
 }
 
 func TestValidateCommand(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &ValidateCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
@@ -60,7 +60,7 @@ job "job1" {
 func TestValidateCommand_Fails(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &ValidateCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -123,7 +123,7 @@ func TestValidateCommand_From_STDIN(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
-	cmd := &ValidateCommand{
+	cmd := &JobValidateCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
 	}
@@ -164,7 +164,7 @@ job "job1" {
 func TestValidateCommand_From_URL(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &RunCommand{
+	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
 	}
 

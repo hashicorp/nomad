@@ -11,14 +11,14 @@ import (
 	"github.com/posener/complete"
 )
 
-type ValidateCommand struct {
+type JobValidateCommand struct {
 	Meta
 	JobGetter
 }
 
-func (c *ValidateCommand) Help() string {
+func (c *JobValidateCommand) Help() string {
 	helpText := `
-Usage: nomad validate [options] <path>
+Usage: nomad job validate [options] <path>
 
   Checks if a given HCL job file has a valid specification. This can be used to
   check for any syntax errors or validation problems with a job.
@@ -30,20 +30,20 @@ Usage: nomad validate [options] <path>
 	return strings.TrimSpace(helpText)
 }
 
-func (c *ValidateCommand) Synopsis() string {
+func (c *JobValidateCommand) Synopsis() string {
 	return "Checks if a given job specification is valid"
 }
 
-func (c *ValidateCommand) AutocompleteFlags() complete.Flags {
+func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 	return nil
 }
 
-func (c *ValidateCommand) AutocompleteArgs() complete.Predictor {
+func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
-func (c *ValidateCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("validate", FlagSetNone)
+func (c *JobValidateCommand) Run(args []string) int {
+	flags := c.Meta.FlagSet("job validate", FlagSetNone)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -110,7 +110,7 @@ func (c *ValidateCommand) Run(args []string) int {
 }
 
 // validateLocal validates without talking to a Nomad agent
-func (c *ValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, error) {
+func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, error) {
 	var out api.JobValidateResponse
 
 	job := agent.ApiJobToStructJob(aj)

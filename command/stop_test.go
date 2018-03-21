@@ -12,7 +12,7 @@ import (
 
 func TestStopCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &StopCommand{}
+	var _ cli.Command = &JobStopCommand{}
 }
 
 func TestStopCommand_Fails(t *testing.T) {
@@ -21,7 +21,7 @@ func TestStopCommand_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &StopCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -58,7 +58,7 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &StopCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &JobStopCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
 	state := srv.Agent.Server().State()

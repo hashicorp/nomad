@@ -19,14 +19,14 @@ var (
 	enforceIndexRegex = regexp.MustCompile(`\((Enforcing job modify index.*)\)`)
 )
 
-type RunCommand struct {
+type JobRunCommand struct {
 	Meta
 	JobGetter
 }
 
-func (c *RunCommand) Help() string {
+func (c *JobRunCommand) Help() string {
 	helpText := `
-Usage: nomad run [options] <path>
+Usage: nomad job run [options] <path>
 
   Starts running a new job or updates an existing job using
   the specification located at <path>. This is the main command
@@ -93,11 +93,11 @@ Run Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *RunCommand) Synopsis() string {
+func (c *JobRunCommand) Synopsis() string {
 	return "Run a new job or update an existing job"
 }
 
-func (c *RunCommand) AutocompleteFlags() complete.Flags {
+func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-check-index":     complete.PredictNothing,
@@ -109,15 +109,15 @@ func (c *RunCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *RunCommand) AutocompleteArgs() complete.Predictor {
+func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
-func (c *RunCommand) Run(args []string) int {
+func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override bool
 	var checkIndexStr, vaultToken string
 
-	flags := c.Meta.FlagSet("run", FlagSetClient)
+	flags := c.Meta.FlagSet("job run", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")

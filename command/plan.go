@@ -22,14 +22,14 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.`
 )
 
-type PlanCommand struct {
+type JobPlanCommand struct {
 	Meta
 	JobGetter
 }
 
-func (c *PlanCommand) Help() string {
+func (c *JobPlanCommand) Help() string {
 	helpText := `
-Usage: nomad plan [options] <path>
+Usage: nomad job plan [options] <path>
 
   Plan invokes a dry-run of the scheduler to determine the effects of submitting
   either a new or updated version of a job. The plan will not result in any
@@ -75,11 +75,11 @@ Plan Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *PlanCommand) Synopsis() string {
+func (c *JobPlanCommand) Synopsis() string {
 	return "Dry-run a job update to determine its effects"
 }
 
-func (c *PlanCommand) AutocompleteFlags() complete.Flags {
+func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-diff":            complete.PredictNothing,
@@ -88,14 +88,14 @@ func (c *PlanCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *PlanCommand) AutocompleteArgs() complete.Predictor {
+func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
-func (c *PlanCommand) Run(args []string) int {
+func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
 
-	flags := c.Meta.FlagSet("plan", FlagSetClient)
+	flags := c.Meta.FlagSet("job plan", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "diff", true, "")
 	flags.BoolVar(&policyOverride, "policy-override", false, "")

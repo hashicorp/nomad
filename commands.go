@@ -91,6 +91,26 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"alloc": func() (cli.Command, error) {
+			return &command.AllocCommand{
+				Meta: meta,
+			}, nil
+		},
+		"alloc fs": func() (cli.Command, error) {
+			return &command.AllocFSCommand{
+				Meta: meta,
+			}, nil
+		},
+		"alloc logs": func() (cli.Command, error) {
+			return &command.AllocLogsCommand{
+				Meta: meta,
+			}, nil
+		},
+		"alloc status": func() (cli.Command, error) {
+			return &command.AllocStatusCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc-status": func() (cli.Command, error) {
 			return &command.AllocStatusCommand{
 				Meta: meta,
@@ -114,7 +134,7 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 		"client-config": func() (cli.Command, error) {
-			return &command.ClientConfigCommand{
+			return &command.NodeConfigCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -153,6 +173,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"eval": func() (cli.Command, error) {
+			return &command.EvalCommand{
+				Meta: meta,
+			}, nil
+		},
+		"eval status": func() (cli.Command, error) {
+			return &command.EvalStatusCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval-status": func() (cli.Command, error) {
 			return &command.EvalStatusCommand{
 				Meta: meta,
@@ -164,27 +194,27 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 		"fs": func() (cli.Command, error) {
-			return &command.FSCommand{
+			return &command.AllocFSCommand{
 				Meta: meta,
 			}, nil
 		},
 		"init": func() (cli.Command, error) {
-			return &command.InitCommand{
+			return &command.JobInitCommand{
 				Meta: meta,
 			}, nil
 		},
 		"inspect": func() (cli.Command, error) {
-			return &command.InspectCommand{
+			return &command.JobInspectCommand{
 				Meta: meta,
 			}, nil
 		},
 		"keygen": func() (cli.Command, error) {
-			return &command.KeygenCommand{
+			return &command.OperatorKeygenCommand{
 				Meta: meta,
 			}, nil
 		},
 		"keyring": func() (cli.Command, error) {
-			return &command.KeyringCommand{
+			return &command.OperatorKeyringCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -208,6 +238,21 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job init": func() (cli.Command, error) {
+			return &command.JobInitCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job inspect": func() (cli.Command, error) {
+			return &command.JobInspectCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job plan": func() (cli.Command, error) {
+			return &command.JobPlanCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job promote": func() (cli.Command, error) {
 			return &command.JobPromoteCommand{
 				Meta: meta,
@@ -218,13 +263,28 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job run": func() (cli.Command, error) {
+			return &command.JobRunCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job status": func() (cli.Command, error) {
 			return &command.JobStatusCommand{
 				Meta: meta,
 			}, nil
 		},
+		"job stop": func() (cli.Command, error) {
+			return &command.JobStopCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job validate": func() (cli.Command, error) {
+			return &command.JobValidateCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
-			return &command.LogsCommand{
+			return &command.AllocLogsCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -260,6 +320,11 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 		"node": func() (cli.Command, error) {
 			return &command.NodeCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node config": func() (cli.Command, error) {
+			return &command.NodeConfigCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -311,7 +376,16 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
+		"operator keygen": func() (cli.Command, error) {
+			return &command.OperatorKeygenCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator keyring": func() (cli.Command, error) {
+			return &command.OperatorKeyringCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator raft": func() (cli.Command, error) {
 			return &command.OperatorRaftCommand{
 				Meta: meta,
@@ -331,7 +405,7 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 
 		"plan": func() (cli.Command, error) {
-			return &command.PlanCommand{
+			return &command.JobPlanCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -379,7 +453,7 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 		},
 
 		"run": func() (cli.Command, error) {
-			return &command.RunCommand{
+			return &command.JobRunCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -408,6 +482,26 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"server": func() (cli.Command, error) {
+			return &command.ServerCommand{
+				Meta: meta,
+			}, nil
+		},
+		"server force-leave": func() (cli.Command, error) {
+			return &command.ServerForceLeaveCommand{
+				Meta: meta,
+			}, nil
+		},
+		"server join": func() (cli.Command, error) {
+			return &command.ServerJoinCommand{
+				Meta: meta,
+			}, nil
+		},
+		"server members": func() (cli.Command, error) {
+			return &command.ServerMembersCommand{
+				Meta: meta,
+			}, nil
+		},
 		"server-force-leave": func() (cli.Command, error) {
 			return &command.ServerForceLeaveCommand{
 				Meta: meta,
@@ -429,7 +523,7 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 		"stop": func() (cli.Command, error) {
-			return &command.StopCommand{
+			return &command.JobStopCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -439,7 +533,7 @@ func Commands(metaPtr *command.Meta) map[string]cli.CommandFactory {
 			}, nil
 		},
 		"validate": func() (cli.Command, error) {
-			return &command.ValidateCommand{
+			return &command.JobValidateCommand{
 				Meta: meta,
 			}, nil
 		},

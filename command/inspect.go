@@ -9,13 +9,13 @@ import (
 	"github.com/posener/complete"
 )
 
-type InspectCommand struct {
+type JobInspectCommand struct {
 	Meta
 }
 
-func (c *InspectCommand) Help() string {
+func (c *JobInspectCommand) Help() string {
 	helpText := `
-Usage: nomad inspect [options] <job>
+Usage: nomad job inspect [options] <job>
 
   Inspect is used to see the specification of a submitted job.
 
@@ -37,11 +37,11 @@ Inspect Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *InspectCommand) Synopsis() string {
+func (c *JobInspectCommand) Synopsis() string {
 	return "Inspect a submitted job"
 }
 
-func (c *InspectCommand) AutocompleteFlags() complete.Flags {
+func (c *JobInspectCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-version": complete.PredictAnything,
@@ -50,7 +50,7 @@ func (c *InspectCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *InspectCommand) AutocompleteArgs() complete.Predictor {
+func (c *JobInspectCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := c.Meta.Client()
 		if err != nil {
@@ -65,11 +65,11 @@ func (c *InspectCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *InspectCommand) Run(args []string) int {
+func (c *JobInspectCommand) Run(args []string) int {
 	var json bool
 	var tmpl, versionStr string
 
-	flags := c.Meta.FlagSet("inspect", FlagSetClient)
+	flags := c.Meta.FlagSet("job inspect", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")

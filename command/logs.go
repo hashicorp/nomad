@@ -14,13 +14,13 @@ import (
 	"github.com/posener/complete"
 )
 
-type LogsCommand struct {
+type AllocLogsCommand struct {
 	Meta
 }
 
-func (l *LogsCommand) Help() string {
+func (l *AllocLogsCommand) Help() string {
 	helpText := `
-Usage: nomad logs [options] <allocation> <task>
+Usage: nomad alloc logs [options] <allocation> <task>
 
   Streams the stdout/stderr of the given allocation and task.
 
@@ -57,11 +57,11 @@ Logs Specific Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (l *LogsCommand) Synopsis() string {
+func (l *AllocLogsCommand) Synopsis() string {
 	return "Streams the logs of a task."
 }
 
-func (c *LogsCommand) AutocompleteFlags() complete.Flags {
+func (c *AllocLogsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-stderr":  complete.PredictNothing,
@@ -74,7 +74,7 @@ func (c *LogsCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
+func (l *AllocLogsCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := l.Meta.Client()
 		if err != nil {
@@ -89,11 +89,11 @@ func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (l *LogsCommand) Run(args []string) int {
+func (l *AllocLogsCommand) Run(args []string) int {
 	var verbose, job, tail, stderr, follow bool
 	var numLines, numBytes int64
 
-	flags := l.Meta.FlagSet("logs", FlagSetClient)
+	flags := l.Meta.FlagSet("alloc logs", FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&job, "job", false, "")
@@ -262,7 +262,7 @@ func (l *LogsCommand) Run(args []string) int {
 
 // followFile outputs the contents of the file to stdout relative to the end of
 // the file.
-func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
+func (l *AllocLogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	follow bool, task, logType, origin string, offset int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})

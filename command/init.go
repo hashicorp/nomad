@@ -13,15 +13,15 @@ const (
 	DefaultInitName = "example.nomad"
 )
 
-// InitCommand generates a new job template that you can customize to your
+// JobInitCommand generates a new job template that you can customize to your
 // liking, like vagrant init
-type InitCommand struct {
+type JobInitCommand struct {
 	Meta
 }
 
-func (c *InitCommand) Help() string {
+func (c *JobInitCommand) Help() string {
 	helpText := `
-Usage: nomad init
+Usage: nomad job init
 
   Creates an example job file that can be used as a starting
   point to customize further.
@@ -29,11 +29,11 @@ Usage: nomad init
 	return strings.TrimSpace(helpText)
 }
 
-func (c *InitCommand) Synopsis() string {
+func (c *JobInitCommand) Synopsis() string {
 	return "Create an example job file"
 }
 
-func (c *InitCommand) Run(args []string) int {
+func (c *JobInitCommand) Run(args []string) int {
 	// Check for misuse
 	if len(args) != 0 {
 		c.Ui.Error(c.Help())

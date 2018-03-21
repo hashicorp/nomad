@@ -12,7 +12,7 @@ import (
 
 func TestInspectCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &InspectCommand{}
+	var _ cli.Command = &JobInspectCommand{}
 }
 
 func TestInspectCommand_Fails(t *testing.T) {
@@ -21,7 +21,7 @@ func TestInspectCommand_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &InspectCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
@@ -67,7 +67,7 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &InspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &JobInspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	state := srv.Agent.Server().State()
 	j := mock.Job()

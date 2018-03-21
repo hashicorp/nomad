@@ -13,13 +13,13 @@ import (
 
 func TestPlanCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &RunCommand{}
+	var _ cli.Command = &JobRunCommand{}
 }
 
 func TestPlanCommand_Fails(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &PlanCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
@@ -118,7 +118,7 @@ func TestPlanCommand_From_STDIN(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
-	cmd := &PlanCommand{
+	cmd := &JobPlanCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
 	}
@@ -156,7 +156,7 @@ job "job1" {
 func TestPlanCommand_From_URL(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &PlanCommand{
+	cmd := &JobPlanCommand{
 		Meta: Meta{Ui: ui},
 	}
 

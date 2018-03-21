@@ -8,13 +8,13 @@ import (
 	"github.com/posener/complete"
 )
 
-type StopCommand struct {
+type JobStopCommand struct {
 	Meta
 }
 
-func (c *StopCommand) Help() string {
+func (c *JobStopCommand) Help() string {
 	helpText := `
-Usage: nomad stop [options] <job>
+Usage: nomad job stop [options] <job>
 
   Stop an existing job. This command is used to signal allocations
   to shut down for the given job ID. Upon successful deregistration,
@@ -47,11 +47,11 @@ Stop Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *StopCommand) Synopsis() string {
+func (c *JobStopCommand) Synopsis() string {
 	return "Stop a running job"
 }
 
-func (c *StopCommand) AutocompleteFlags() complete.Flags {
+func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-detach":  complete.PredictNothing,
@@ -61,7 +61,7 @@ func (c *StopCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *StopCommand) AutocompleteArgs() complete.Predictor {
+func (c *JobStopCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := c.Meta.Client()
 		if err != nil {
@@ -76,10 +76,10 @@ func (c *StopCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *StopCommand) Run(args []string) int {
+func (c *JobStopCommand) Run(args []string) int {
 	var detach, purge, verbose, autoYes bool
 
-	flags := c.Meta.FlagSet("stop", FlagSetClient)
+	flags := c.Meta.FlagSet("job stop", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")

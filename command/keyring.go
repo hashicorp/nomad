@@ -9,15 +9,15 @@ import (
 	"github.com/posener/complete"
 )
 
-// KeyringCommand is a Command implementation that handles querying, installing,
+// OperatorKeyringCommand is a Command implementation that handles querying, installing,
 // and removing gossip encryption keys from a keyring.
-type KeyringCommand struct {
+type OperatorKeyringCommand struct {
 	Meta
 }
 
-func (c *KeyringCommand) Help() string {
+func (c *OperatorKeyringCommand) Help() string {
 	helpText := `
-Usage: nomad keyring [options]
+Usage: nomad operator keyring [options]
 
   Manages encryption keys used for gossip messages between Nomad servers. Gossip
   encryption is optional. When enabled, this command may be used to examine
@@ -50,11 +50,11 @@ Keyring Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *KeyringCommand) Synopsis() string {
+func (c *OperatorKeyringCommand) Synopsis() string {
 	return "Manages gossip layer encryption keys"
 }
 
-func (c *KeyringCommand) AutocompleteFlags() complete.Flags {
+func (c *OperatorKeyringCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-install": complete.PredictAnything,
@@ -63,15 +63,15 @@ func (c *KeyringCommand) AutocompleteFlags() complete.Flags {
 			"-use":     complete.PredictAnything,
 		})
 }
-func (c *KeyringCommand) AutocompleteArgs() complete.Predictor {
+func (c *OperatorKeyringCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
-func (c *KeyringCommand) Run(args []string) int {
+func (c *OperatorKeyringCommand) Run(args []string) int {
 	var installKey, useKey, removeKey string
 	var listKeys bool
 
-	flags := c.Meta.FlagSet("keys", FlagSetClient)
+	flags := c.Meta.FlagSet("operator-keyring", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	flags.StringVar(&installKey, "install", "", "install key")
@@ -158,7 +158,7 @@ func (c *KeyringCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *KeyringCommand) handleKeyResponse(resp *api.KeyringResponse) {
+func (c *OperatorKeyringCommand) handleKeyResponse(resp *api.KeyringResponse) {
 	out := make([]string, len(resp.Keys)+1)
 	out[0] = "Key"
 	i := 1

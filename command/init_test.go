@@ -11,13 +11,13 @@ import (
 
 func TestInitCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &InitCommand{}
+	var _ cli.Command = &JobInitCommand{}
 }
 
 func TestInitCommand_Run(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &InitCommand{Meta: Meta{Ui: ui}}
+	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {

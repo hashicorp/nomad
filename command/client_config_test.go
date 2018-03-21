@@ -10,7 +10,7 @@ import (
 
 func TestClientConfigCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &ClientConfigCommand{}
+	var _ cli.Command = &NodeConfigCommand{}
 }
 
 func TestClientConfigCommand_UpdateServers(t *testing.T) {
@@ -21,7 +21,7 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &ClientConfigCommand{Meta: Meta{Ui: ui}}
+	cmd := &NodeConfigCommand{Meta: Meta{Ui: ui}}
 
 	// Fails if trying to update with no servers
 	code := cmd.Run([]string{"-update-servers"})
@@ -49,7 +49,7 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 func TestClientConfigCommand_Fails(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &ClientConfigCommand{Meta: Meta{Ui: ui}}
+	cmd := &NodeConfigCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {

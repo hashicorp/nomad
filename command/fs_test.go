@@ -13,7 +13,7 @@ import (
 
 func TestFSCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &FSCommand{}
+	var _ cli.Command = &AllocFSCommand{}
 }
 
 func TestFSCommand_Fails(t *testing.T) {
@@ -22,7 +22,7 @@ func TestFSCommand_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &FSCommand{Meta: Meta{Ui: ui}}
+	cmd := &AllocFSCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on lack of job ID
 	if code := cmd.Run([]string{"-job"}); code != 1 {
@@ -95,7 +95,7 @@ func TestFSCommand_AutocompleteArgs(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &FSCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &AllocFSCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
