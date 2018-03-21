@@ -1218,7 +1218,7 @@ const (
 	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
 	// respectively, for receiving allocations. This is orthoginal to the node
 	// status being ready.
-	NodeSchedulingEligible   = "eligbile"
+	NodeSchedulingEligible   = "eligible"
 	NodeSchedulingIneligible = "ineligible"
 )
 
