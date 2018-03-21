@@ -7,6 +7,7 @@ __BACKWARDS INCOMPATIBILITIES:__
  * jobspec: The default values for restart policy have changed. Restart policy mode defaults to "fail" and the
    attempts/time interval values have been changed to enable faster server side rescheduling. See
    [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
+ * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update stanza syntax. All job spec files should be using update stanza fields introduced in 0.7.0 [[GH-3979](https://github.com/hashicorp/nomad/pull/3979/files)]
 
 IMPROVEMENTS:
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
@@ -29,6 +30,8 @@ IMPROVEMENTS:
    [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
  * discovery: Allow `check_restart` to be specified in the `service` stanza.
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
+ * discovery: Allow configuring names of Nomad client and server health checks.
+   [[GH-4003](https://github.com/hashicorp/nomad/issues/4003)]
  * discovery: Only log if Consul does not support TLSSkipVerify instead of
    dropping checks which relied on it. Consul has had this feature since 0.7.2. [[GH-3983](https://github.com/hashicorp/nomad/issues/3983)]
  * driver/docker: Support hard CPU limits [[GH-3825](https://github.com/hashicorp/nomad/issues/3825)]

@@ -76,11 +76,23 @@ configuration, Nomad will automatically connect and configure with Consul.
 - `client_service_name` `(string: "nomad-client")` - Specifies the name of the
   service in Consul for the Nomad clients.
 
+- `client_http_check_name` `(string: "Nomad Client HTTP Check")` - Specifies the
+  HTTP health check name in Consul for the Nomad clients.
+
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
 - `server_service_name` `(string: "nomad")` - Specifies the name of the service
   in Consul for the Nomad servers.
+
+- `server_http_check_name` `(string: "Nomad Server HTTP Check")` - Specifies the
+  HTTP health check name in Consul for the Nomad servers.
+
+-  `server_serf_check_name` `(string: "Nomad Server Serf Check")` - Specifies
+  the Serf health check name in Consul for the Nomad servers.
+
+-  `server_rpc_check_name` `(string: "Nomad Server RPC Check")` - Specifies
+  the RPC health check name in Consul for the Nomad servers.
 
 - `server_auto_join` `(bool: true)` - Specifies if the Nomad servers should
   automatically discover and join other Nomad servers by searching for the
