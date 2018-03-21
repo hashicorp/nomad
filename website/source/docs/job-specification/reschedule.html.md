@@ -4,9 +4,9 @@ page_title: "reschedule Stanza - Job Specification"
 sidebar_current: "docs-job-specification-reschedule"
 description: |-
   The "reschedule" stanza specifies the group's rescheduling strategy upon
-  allocation failures. The reschedule strategy can be configured with number
-  of attempts and a time interval. Nomad will only attempt to reschedule
-  failed allocations on to another node only after any local [restarts](docs/job-specification/restart.html)
+  allocation failures. The reschedule strategy can be configured with options
+  described below. Nomad will only attempt to reschedule failed allocations on
+  to another node only after any local [restarts](docs/job-specification/restart.html)
   have been exceeded.
 ---
 
@@ -24,8 +24,7 @@ description: |-
   </tr>
 </table>
 
-The `reschedule` stanza specifies the group's rescheduling strategy. It can be
-configured with number of attempts and a time interval. If specified at the job
+The `reschedule` stanza specifies the group's rescheduling strategy. If specified at the job
 level, the configuration will apply to all groups within the job. If the
 reschedule stanza is present on both the job and the group, they are merged with
 the group stanza taking the highest precedence and then the job.
@@ -38,8 +37,12 @@ that hasn't previously been used.
 job "docs" {
   group "example" {
     reschedule {
-      attempts = 3
-      interval = "15m"
+      attempts = 15
+      interval = "1hr"
+      delay = "30s"
+      delay_function = "exponential",
+      max_delay = "120s"
+      unlimited = false
     }
   }
 }
@@ -59,6 +62,25 @@ job "docs" {
    number of reschedule happen within it. If more than `attempts` number of
    failures happen with this interval, Nomad will not reschedule any more.
 
+- `delay` `(string: "5s")` - Specifies the duration to wait before attempting
+  to reschedule a failed task. This is specified using a label suffix like "30s" or "1h".
+
+- `delay_function` `(string: <varies>)` - Specifies the function according to which
+  the initial delay specified in `delay` changes. `delay_function` has three possible
+  values which are described below.
+    - `linear` - The delay between reschedule attempts stays constant at the `delay` value defined above.
+    - `exponential` - The delay between reschedule attempts doubles until it reaches a specified
+      `max_delay` value.
+    - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
+      delays applied. For example if `delay` is set to 5 seconds, the next five reschedule attempts  will be
+      delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
+
+- `max_delay` `(string: <varies>)` - is an upper bound on the delay beyond which it will not increase. This parameter
+  is used when `delay_function` is `exponential` or `fibonacci`, and is ignored when `linear` delay is used.
+
+- `unlimited` `(boolean:<varies>)` - `unlimited` enables unlimited reschedule attempts. If this is set to true
+  the `attempts` and `interval` fields are not used.
+
 Information about reschedule attempts are displayed in the CLI and API for
 allocations. Rescheduling is enabled by default for service and batch jobs
 with the options shown below.
@@ -74,6 +96,9 @@ defaults by job type:
     reschedule {
       attempts = 1
       interval = "24h"
+      unlimited = false
+      delay = "5s"
+      delay_function = "linear"
     }
     ```
 
@@ -81,8 +106,10 @@ defaults by job type:
 
     ```hcl
     reschedule {
-      interval = "1h"
-      attempts = 2
+      delay = "30s"
+      delay_function = "exponential"
+      max_delay = "1hr"
+      unlimited = true
     }
     ```
 
@@ -94,13 +121,14 @@ is rolled out and the deployment failed due to a failing allocation, Nomad will 
 
 ### Disabling rescheduling ###
 
-To disable rescheduling, set the `attempts` parameter to zero.
+To disable rescheduling, set the `attempts` parameter to zero and `unlimited` to false.
 
 ```hcl
 job "docs" {
   group "example" {
     reschedule {
       attempts = 0
+      unlimited = false
     }
   }
 }

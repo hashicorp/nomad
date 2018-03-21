@@ -97,8 +97,12 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 "Mode": "fail"
             },
             "ReschedulePolicy": {
-                "Interval": 300000000000,
                 "Attempts": 10,
+                "Delay": 30000000000,
+                "DelayFunction": "exponential",
+                "Interval": 0,
+                "MaxDelay": 3600000000000,
+                "Unlimited": true
             },
             "EphemeralDisk": {
                 "SizeMB": 300
@@ -522,6 +526,26 @@ The `ReschedulePolicy` object supports the following keys:
 - `Interval` - `Interval` is a time duration that is specified in nanoseconds.
   The `Interval` is a sliding window within which at most `Attempts` number
   of reschedule attempts are permitted.
+
+- `Delay` - A duration to wait before attempting rescheduling. It is specified in
+  nanoseconds.
+
+- `DelayFunction` - Defines how the delay between subsequent reschedule attempts
+  changes. This is to allow a progressively increasing backoff period. Allowed values
+  for `DelayFunction` are listed below:
+    - `linear` - The delay between reschedule attempts stays at the `Delay` value defined above.
+    - `exponential` - The delay between reschedule attempts doubles until it reaches a specified
+      `MaxDelay` value.
+    - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
+      delays applied. For example if `Delay` is set to 5 seconds, the next five reschedule attempts  will be
+      delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
+
+- `MaxDelay`  - `MaxDelay` is an upper bound on the delay beyond which it will not increase. This parameter is used when
+   `DelayFunction` is `exponential` or `fibonacci`, and is ignored when `linear` delay is used.
+
+- `Unlimited` - `Unlimited` enables unlimited reschedule attempts. If this is set to true
+  the `Attempts` and `Interval` fields are not used.
+
 
 <a id="restart_policy"></a>
 
