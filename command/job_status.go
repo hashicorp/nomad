@@ -562,7 +562,6 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 		return nil
 	}
 	// Print the reschedule info section
-
 	var delayedEvalInfos []string
 
 	taskGroups := make([]string, 0, len(followUpEvalIds))
@@ -579,16 +578,23 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 		if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
 			continue
 		}
-		rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
 		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
-		evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
+		if c.verbose {
+			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
+			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
+		} else {
+			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s", taskGroup, limit(evalID, uuidLength), evalTime))
+		}
 	}
-	if len(evalDetails) > 0 { // Only show this section if there is pending evals
-		delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
-		delayedEvalInfos = append(delayedEvalInfos, evalDetails...)
-		c.Ui.Output(c.Colorize().Color("\n[bold]Upcoming Evaluations[reset]"))
-		c.Ui.Output(formatList(delayedEvalInfos))
+	if len(evalDetails) == 0 {
+		return nil
 	}
+	// Only show this section if there is pending evals
+	delayedEvalInfos = append(delayedEvalInfos, evalDetails...)
+	c.Ui.Output(c.Colorize().Color("\n[bold]Future Rescheduling Evaluations[reset]"))
+	c.Ui.Output(formatList(delayedEvalInfos))
 	return nil
 }
 

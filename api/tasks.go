@@ -138,9 +138,8 @@ func (p *ReschedulePolicy) String() string {
 	}
 	if *p.Unlimited {
 		return fmt.Sprintf("unlimited with %v delay, max_delay = %v", *p.DelayFunction, *p.MaxDelay)
-	} else {
-		return fmt.Sprintf("%v in %v with %v delay, max_delay = %v", *p.Attempts, *p.Interval, *p.DelayFunction, *p.MaxDelay)
 	}
+	return fmt.Sprintf("%v in %v with %v delay, max_delay = %v", *p.Attempts, *p.Interval, *p.DelayFunction, *p.MaxDelay)
 }
 
 // CheckRestart describes if and when a task should be restarted based on
