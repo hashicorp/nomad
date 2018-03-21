@@ -3,10 +3,9 @@
 package nomad
 
 import (
-	"log"
-	"os"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -135,7 +134,7 @@ func TestPlanApply_EvalPlan_AboveQuota(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	assert.Nil(err)
 	assert.NotNil(result)
 	assert.Empty(result.NodeAllocation)
@@ -174,8 +173,4 @@ func TestPlanApply_EvalPlanQuota_NilJob(t *testing.T) {
 	over, err := evaluatePlanQuota(snap, plan)
 	assert.Nil(err)
 	assert.False(over)
-}
-
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
 }
