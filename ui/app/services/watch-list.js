@@ -14,7 +14,7 @@ export default Service.extend({
   },
 
   getIndexFor(url) {
-    return list[url] || 0;
+    return list[url] || 1;
   },
 
   setIndexFor(url, value) {

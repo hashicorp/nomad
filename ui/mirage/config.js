@@ -26,7 +26,7 @@ export default function() {
       const response = fn.apply(this, arguments);
 
       // Get and increment the appropriate index
-      nomadIndices[url] || (nomadIndices[url] = 1);
+      nomadIndices[url] || (nomadIndices[url] = 2);
       const index = nomadIndices[url];
       nomadIndices[url]++;
 
