@@ -777,14 +777,34 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // ShouldReload determines if we should reload the configuration and agent
 // connections. If the TLS Configuration has not changed, we shouldn't reload.
-func (a *Agent) ShouldReload(newConfig *Config) (bool, bool) {
+func (a *Agent) ShouldReload(newConfig *Config) (bool, bool, bool) {
+	var shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC bool
+
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
-	if a.config.TLSConfig.Equals(newConfig.TLSConfig) {
-		return false, false
+
+	var tlsInfoChanged bool
+	if !a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig) {
+		tlsInfoChanged = true
 	}
 
-	return true, true // requires a reload of both agent and http server
+	// Allow the ability to only reload HTTP connections
+	if a.config.TLSConfig.EnableHTTP != newConfig.TLSConfig.EnableHTTP || tlsInfoChanged {
+		shouldReloadHTTP = true
+	}
+
+	// Allow the ability to only reload HTTP connections
+	if a.config.TLSConfig.EnableRPC != newConfig.TLSConfig.EnableRPC || tlsInfoChanged {
+		shouldReloadRPC = true
+	}
+
+	// Always reload the agent if either HTTP or RPC connections need to reload,
+	// or if the TLS configuration itself has changed
+	if shouldReloadHTTP || shouldReloadRPC || tlsInfoChanged {
+		shouldReloadAgent = true
+	}
+
+	return shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC
 }
 
 // Reload handles configuration changes for the agent. Provides a method that
