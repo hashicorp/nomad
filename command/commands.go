@@ -9,6 +9,11 @@ import (
 	"github.com/mitchellh/cli"
 )
 
+const (
+	// EnvNomadCLINoColor is an env var that toggles colored UI output.
+	EnvNomadCLINoColor = `NOMAD_CLI_NO_COLOR`
+)
+
 // DeprecatedCommand is a command that wraps an existing command and prints a
 // deprecation notice and points the user to the new command. Deprecated
 // commands are always hidden from help output.
