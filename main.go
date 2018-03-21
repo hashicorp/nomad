@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/sean-/seed"
@@ -62,16 +63,10 @@ func main() {
 }
 
 func Run(args []string) int {
-	return RunCustom(args, Commands(nil))
+	return RunCustom(args, command.Commands(nil))
 }
 
 func RunCustom(args []string, commands map[string]cli.CommandFactory) int {
-	// Build the commands to include in the help now.
-	commandsInclude := make([]string, 0, len(commands))
-	for k := range commands {
-		commandsInclude = append(commandsInclude, k)
-	}
-
 	cli := &cli.CLI{
 		Name:                       "nomad",
 		Version:                    version.GetVersion().FullVersionNumber(true),
