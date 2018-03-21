@@ -1,13 +1,34 @@
 package command
 
-import "github.com/mitchellh/cli"
+import (
+	"strings"
+
+	"github.com/mitchellh/cli"
+)
 
 type AllocCommand struct {
 	Meta
 }
 
 func (f *AllocCommand) Help() string {
-	return "This command is accessed by using one of the subcommands below."
+	helpText := `
+Usage: nomad alloc <subcommand> [options] [args]
+
+  This command groups subcommands for interacting with allocations. Users can
+  inspect the status, examine the filesystem or logs of an allocation.
+
+  Examine an allocations status:
+
+      $ nomad alloc status <alloc-id>
+
+  Stream a task's logs:
+
+      $ nomad alloc logs -f <alloc-id> <task>
+
+  Please see the individual subcommand help for detailed usage information.
+`
+
+	return strings.TrimSpace(helpText)
 }
 
 func (f *AllocCommand) Synopsis() string {
