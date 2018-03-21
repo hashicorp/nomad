@@ -593,7 +593,7 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 	}
 	// Only show this section if there is pending evals
 	delayedEvalInfos = append(delayedEvalInfos, evalDetails...)
-	c.Ui.Output(c.Colorize().Color("\n[bold]Future Rescheduling Evaluations[reset]"))
+	c.Ui.Output(c.Colorize().Color("\n[bold]Future Rescheduling Attempts[reset]"))
 	c.Ui.Output(formatList(delayedEvalInfos))
 	return nil
 }
