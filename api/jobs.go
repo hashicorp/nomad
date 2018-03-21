@@ -648,6 +648,16 @@ func (j *Job) Canonicalize() {
 	}
 }
 
+// LookupTaskGroup finds a task group by name
+func (j *Job) LookupTaskGroup(name string) *TaskGroup {
+	for _, tg := range j.TaskGroups {
+		if *tg.Name == name {
+			return tg
+		}
+	}
+	return nil
+}
+
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
 	JobID     string

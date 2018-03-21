@@ -478,7 +478,7 @@ func (a *Agent) setupServer() error {
 			Tags:      []string{consul.ServiceTagRPC},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      "Nomad Server RPC Check",
+					Name:      a.config.Consul.ServerRPCCheckName,
 					Type:      "tcp",
 					Interval:  serverRpcCheckInterval,
 					Timeout:   serverRpcCheckTimeout,
@@ -492,7 +492,7 @@ func (a *Agent) setupServer() error {
 			Tags:      []string{consul.ServiceTagSerf},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      "Nomad Server Serf Check",
+					Name:      a.config.Consul.ServerSerfCheckName,
 					Type:      "tcp",
 					Interval:  serverSerfCheckInterval,
 					Timeout:   serverSerfCheckTimeout,
@@ -592,7 +592,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 	check := structs.ServiceCheck{
-		Name:      "Nomad Client HTTP Check",
+		Name:      a.config.Consul.ClientHTTPCheckName,
 		Type:      "http",
 		Path:      "/v1/agent/health?type=client",
 		Protocol:  "http",
@@ -602,7 +602,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	}
 	// Switch to endpoint that doesn't require a leader for servers
 	if server {
-		check.Name = "Nomad Server HTTP Check"
+		check.Name = a.config.Consul.ServerHTTPCheckName
 		check.Path = "/v1/agent/health?type=server"
 	}
 	if !a.config.TLSConfig.EnableHTTP {

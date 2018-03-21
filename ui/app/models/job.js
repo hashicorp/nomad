@@ -106,7 +106,7 @@ export default Model.extend({
   pendingChildren: alias('summary.pendingChildren'),
   runningChildren: alias('summary.runningChildren'),
   deadChildren: alias('summary.deadChildren'),
-  totalChildren: alias('summary.childrenList'),
+  totalChildren: alias('summary.totalChildren'),
 
   version: attr('number'),
 
