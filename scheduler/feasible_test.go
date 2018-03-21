@@ -127,7 +127,7 @@ func TestDriverChecker(t *testing.T) {
 	}
 }
 
-func TestDriverChecker_HealthChecks(t *testing.T) {
+func Test_HealthChecks(t *testing.T) {
 	require := require.New(t)
 	_, ctx := testContext(t)
 
