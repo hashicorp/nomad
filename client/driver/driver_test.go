@@ -414,7 +414,7 @@ func TestCreatedResources_CopyRemove(t *testing.T) {
 	}
 
 	if expected := []string{"v2", "v3"}; !reflect.DeepEqual(expected, res2.Resources["k1"]) {
-		t.Fatalf("unpexpected list for k1: %#v", res2.Resources["k1"])
+		t.Fatalf("unexpected list for k1: %#v", res2.Resources["k1"])
 	}
 
 	// Assert removing the only value from a key removes the key

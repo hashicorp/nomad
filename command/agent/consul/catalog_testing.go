@@ -61,6 +61,27 @@ func (c *MockAgent) SetStatus(s string) string {
 	return old
 }
 
+func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
+	s := map[string]map[string]interface{}{
+		"Member": {
+			"Addr":        "127.0.0.1",
+			"DelegateCur": 4,
+			"DelegateMax": 5,
+			"DelegateMin": 2,
+			"Name":        "rusty",
+			"Port":        8301,
+			"ProtocolCur": 2,
+			"ProtocolMax": 5,
+			"ProtocolMin": 1,
+			"Status":      1,
+			"Tags": map[string]interface{}{
+				"build": "0.8.1:'e9ca44d",
+			},
+		},
+	}
+	return s, nil
+}
+
 func (c *MockAgent) Services() (map[string]*api.AgentService, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

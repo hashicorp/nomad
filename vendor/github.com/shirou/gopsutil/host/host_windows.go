@@ -3,6 +3,7 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -31,6 +32,10 @@ type Win32_OperatingSystem struct {
 }
 
 func Info() (*InfoStat, error) {
+	return InfoWithContext(context.Background())
+}
+
+func InfoWithContext(ctx context.Context) (*InfoStat, error) {
 	ret := &InfoStat{
 		OS: runtime.GOOS,
 	}
@@ -43,7 +48,7 @@ func Info() (*InfoStat, error) {
 	}
 
 	{
-		platform, family, version, err := PlatformInformation()
+		platform, family, version, err := PlatformInformationWithContext(ctx)
 		if err == nil {
 			ret.Platform = platform
 			ret.PlatformFamily = family
@@ -107,9 +112,13 @@ func getMachineGuid() (string, error) {
 }
 
 func GetOSInfo() (Win32_OperatingSystem, error) {
+	return GetOSInfoWithContext(context.Background())
+}
+
+func GetOSInfoWithContext(ctx context.Context) (Win32_OperatingSystem, error) {
 	var dst []Win32_OperatingSystem
 	q := wmi.CreateQuery(&dst, "")
-	err := wmi.Query(q, &dst)
+	err := common.WMIQueryWithContext(ctx, q, &dst)
 	if err != nil {
 		return Win32_OperatingSystem{}, err
 	}
@@ -120,8 +129,12 @@ func GetOSInfo() (Win32_OperatingSystem, error) {
 }
 
 func Uptime() (uint64, error) {
+	return UptimeWithContext(context.Background())
+}
+
+func UptimeWithContext(ctx context.Context) (uint64, error) {
 	if osInfo == nil {
-		_, err := GetOSInfo()
+		_, err := GetOSInfoWithContext(ctx)
 		if err != nil {
 			return 0, err
 		}
@@ -139,6 +152,10 @@ func bootTime(up uint64) uint64 {
 var cachedBootTime uint64
 
 func BootTime() (uint64, error) {
+	return BootTimeWithContext(context.Background())
+}
+
+func BootTimeWithContext(ctx context.Context) (uint64, error) {
 	t := atomic.LoadUint64(&cachedBootTime)
 	if t != 0 {
 		return t, nil
@@ -153,8 +170,12 @@ func BootTime() (uint64, error) {
 }
 
 func PlatformInformation() (platform string, family string, version string, err error) {
+	return PlatformInformationWithContext(context.Background())
+}
+
+func PlatformInformationWithContext(ctx context.Context) (platform string, family string, version string, err error) {
 	if osInfo == nil {
-		_, err = GetOSInfo()
+		_, err = GetOSInfoWithContext(ctx)
 		if err != nil {
 			return
 		}
@@ -180,20 +201,36 @@ func PlatformInformation() (platform string, family string, version string, err 
 }
 
 func Users() ([]UserStat, error) {
+	return UsersWithContext(context.Background())
+}
+
+func UsersWithContext(ctx context.Context) ([]UserStat, error) {
 	var ret []UserStat
 
 	return ret, nil
 }
 
 func SensorsTemperatures() ([]TemperatureStat, error) {
+	return SensorsTemperaturesWithContext(context.Background())
+}
+
+func SensorsTemperaturesWithContext(ctx context.Context) ([]TemperatureStat, error) {
 	return []TemperatureStat{}, common.ErrNotImplementedError
 }
 
 func Virtualization() (string, string, error) {
+	return VirtualizationWithContext(context.Background())
+}
+
+func VirtualizationWithContext(ctx context.Context) (string, string, error) {
 	return "", "", common.ErrNotImplementedError
 }
 
 func KernelVersion() (string, error) {
+	return KernelVersionWithContext(context.Background())
+}
+
+func KernelVersionWithContext(ctx context.Context) (string, error) {
 	_, _, version, err := PlatformInformation()
 	return version, err
 }

@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
   jobController: controller('jobs.job'),
@@ -33,7 +34,14 @@ export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
 
   breadcrumbs: computed('jobController.breadcrumbs.[]', 'model.{name}', function() {
     return this.get('jobController.breadcrumbs').concat([
-      { label: this.get('model.name'), args: ['jobs.job.task-group', this.get('model.name')] },
+      {
+        label: this.get('model.name'),
+        args: [
+          'jobs.job.task-group',
+          this.get('model.name'),
+          qpBuilder({ jobNamespace: this.get('model.job.namespace.name') || 'default' }),
+        ],
+      },
     ]);
   }),
 

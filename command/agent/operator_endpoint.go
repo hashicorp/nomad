@@ -51,8 +51,7 @@ func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *ht
 // removing peers by address.
 func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "DELETE" {
-		resp.WriteHeader(http.StatusMethodNotAllowed)
-		return nil, nil
+		return nil, CodedError(404, ErrInvalidMethod)
 	}
 
 	params := req.URL.Query()
@@ -60,14 +59,10 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 	_, hasAddress := params["address"]
 
 	if !hasID && !hasAddress {
-		resp.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(resp, "Must specify either ?id with the server's ID or ?address with IP:port of peer to remove")
-		return nil, nil
+		return nil, CodedError(http.StatusBadRequest, "Must specify either ?id with the server's ID or ?address with IP:port of peer to remove")
 	}
 	if hasID && hasAddress {
-		resp.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(resp, "Must specify only one of ?id or ?address")
-		return nil, nil
+		return nil, CodedError(http.StatusBadRequest, "Must specify only one of ?id or ?address")
 	}
 
 	if hasID {
@@ -125,14 +120,11 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 
 	case "PUT":
 		var args structs.AutopilotSetConfigRequest
-		s.parseRegion(req, &args.Region)
-		s.parseToken(req, &args.AuthToken)
+		s.parseWriteRequest(req, &args.WriteRequest)
 
 		var conf api.AutopilotConfiguration
 		if err := decodeBody(req, &conf); err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(resp, "Error parsing autopilot config: %v", err)
-			return nil, nil
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing autopilot config: %v", err))
 		}
 
 		args.Config = structs.AutopilotConfig{
@@ -150,9 +142,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 		if _, ok := params["cas"]; ok {
 			casVal, err := strconv.ParseUint(params.Get("cas"), 10, 64)
 			if err != nil {
-				resp.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(resp, "Error parsing cas value: %v", err)
-				return nil, nil
+				return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing cas value: %v", err))
 			}
 			args.Config.ModifyIndex = casVal
 			args.CAS = true
@@ -170,16 +160,14 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 		return reply, nil
 
 	default:
-		resp.WriteHeader(http.StatusMethodNotAllowed)
-		return nil, nil
+		return nil, CodedError(404, ErrInvalidMethod)
 	}
 }
 
 // OperatorServerHealth is used to get the health of the servers in the given Region.
 func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
-		resp.WriteHeader(http.StatusMethodNotAllowed)
-		return nil, nil
+		return nil, CodedError(404, ErrInvalidMethod)
 	}
 
 	var args structs.GenericRequest

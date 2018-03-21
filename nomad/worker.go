@@ -66,7 +66,7 @@ type Worker struct {
 	evalToken string
 
 	// snapshotIndex is the index of the snapshot in which the scheduler was
-	// first envoked. It is used to mark the SnapshotIndex of evaluations
+	// first invoked. It is used to mark the SnapshotIndex of evaluations
 	// Created, Updated or Reblocked.
 	snapshotIndex uint64
 }
@@ -516,7 +516,7 @@ func (w *Worker) shouldResubmit(err error) bool {
 
 // backoffErr is used to do an exponential back off on error. This is
 // maintained statefully for the worker. Returns if attempts should be
-// abandoneded due to shutdown.
+// abandoned due to shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {

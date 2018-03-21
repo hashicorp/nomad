@@ -69,13 +69,8 @@ Once the job file is authored, we need to plan out the changes. The `nomad plan`
 command invokes a dry-run of the scheduler and inform us of which scheduling
 decisions would take place.
 
-```shell
-$ nomad plan docs.nomad
-```
-
-The resulting output will look like:
-
 ```text
+$ nomad plan docs.nomad
 + Job: "docs"
 + Task Group: "example" (1 create)
   + Task: "server" (forces create)
@@ -104,13 +99,8 @@ this job. This is done via the `nomad run` command. We can optionally supply
 the modify index provided to us by the plan command to ensure no changes to this
 job have taken place between our plan and now.
 
-```shell
-$ nomad run docs.nomad
-```
-
-The resulting output will look like:
-
 ```text
+$ nomad run docs.nomad
 ==> Monitoring evaluation "0d159869"
     Evaluation triggered by job "docs"
     Allocation "5cbf23a1" created: node "1e1aa1e0", group "example"

@@ -36,7 +36,7 @@ func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	}
 
 	// Fetch the current configuration.
-	config, err := client.Operator().AutopilotGetConfiguration(nil)
+	config, _, err := client.Operator().AutopilotGetConfiguration(nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying Autopilot configuration: %s", err))
 		return 1

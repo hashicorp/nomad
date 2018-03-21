@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -120,6 +119,13 @@ const (
 	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
 	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
 		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
+
+	// This is cpu.cfs_period_us: the length of a period.
+	// The default values is 100 milliseconds (ms) represented in microseconds (us).
+	// Below is the documentation:
+	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
+	// https://docs.docker.com/engine/api/v1.35/#
+	defaultCFSPeriodUS = 100000
 )
 
 type DockerDriver struct {
@@ -173,50 +179,52 @@ type DockerVolumeDriverConfig struct {
 
 // DockerDriverConfig defines the user specified config block in a jobspec
 type DockerDriverConfig struct {
-	ImageName        string              `mapstructure:"image"`              // Container's Image Name
-	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
-	Command          string              `mapstructure:"command"`            // The Command to run when the container starts up
-	Args             []string            `mapstructure:"args"`               // The arguments to the Command
-	Entrypoint       []string            `mapstructure:"entrypoint"`         // Override the containers entrypoint
-	IpcMode          string              `mapstructure:"ipc_mode"`           // The IPC mode of the container - host and none
-	NetworkMode      string              `mapstructure:"network_mode"`       // The network mode of the container - host, nat and none
-	NetworkAliases   []string            `mapstructure:"network_aliases"`    // The network-scoped alias for the container
-	IPv4Address      string              `mapstructure:"ipv4_address"`       // The container ipv4 address
-	IPv6Address      string              `mapstructure:"ipv6_address"`       // the container ipv6 address
-	PidMode          string              `mapstructure:"pid_mode"`           // The PID mode of the container - host and none
-	UTSMode          string              `mapstructure:"uts_mode"`           // The UTS mode of the container - host and none
-	UsernsMode       string              `mapstructure:"userns_mode"`        // The User namespace mode of the container - host and none
-	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
-	PortMap          map[string]int      `mapstructure:"-"`                  // A map of host port labels and the ports exposed on the container
-	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
-	SysctlRaw        []map[string]string `mapstructure:"sysctl"`             //
-	Sysctl           map[string]string   `mapstructure:"-"`                  // The sysctl custom configurations
-	UlimitRaw        []map[string]string `mapstructure:"ulimit"`             //
-	Ulimit           []docker.ULimit     `mapstructure:"-"`                  // The ulimit custom configurations
-	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
-	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
-	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
-	ExtraHosts       []string            `mapstructure:"extra_hosts"`        // Add host to /etc/hosts (host:IP)
-	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
-	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
-	Labels           map[string]string   `mapstructure:"-"`                  // Labels to set when the container starts up
-	Auth             []DockerDriverAuth  `mapstructure:"auth"`               // Authentication credentials for a private Docker registry
-	AuthSoftFail     bool                `mapstructure:"auth_soft_fail"`     // Soft-fail if auth creds are provided but fail
-	TTY              bool                `mapstructure:"tty"`                // Allocate a Pseudo-TTY
-	Interactive      bool                `mapstructure:"interactive"`        // Keep STDIN open even if not attached
-	ShmSize          int64               `mapstructure:"shm_size"`           // Size of /dev/shm of the container in bytes
-	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
-	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
-	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
-	Mounts           []DockerMount       `mapstructure:"mounts"`             // Docker volumes to mount
-	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
-	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
-	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
-	SecurityOpt      []string            `mapstructure:"security_opt"`       // Flags to pass directly to security-opt
-	Devices          []DockerDevice      `mapstructure:"devices"`            // To allow mounting USB or other serial control devices
-	CapAdd           []string            `mapstructure:"cap_add"`            // Flags to pass directly to cap-add
-	CapDrop          []string            `mapstructure:"cap_drop"`           // Flags to pass directly to cap-drop
-	ReadonlyRootfs   bool                `mapstructure:"readonly_rootfs"`    // Mount the container’s root filesystem as read only
+	ImageName            string              `mapstructure:"image"`                  // Container's Image Name
+	LoadImage            string              `mapstructure:"load"`                   // LoadImage is a path to an image archive file
+	Command              string              `mapstructure:"command"`                // The Command to run when the container starts up
+	Args                 []string            `mapstructure:"args"`                   // The arguments to the Command
+	Entrypoint           []string            `mapstructure:"entrypoint"`             // Override the containers entrypoint
+	IpcMode              string              `mapstructure:"ipc_mode"`               // The IPC mode of the container - host and none
+	NetworkMode          string              `mapstructure:"network_mode"`           // The network mode of the container - host, nat and none
+	NetworkAliases       []string            `mapstructure:"network_aliases"`        // The network-scoped alias for the container
+	IPv4Address          string              `mapstructure:"ipv4_address"`           // The container ipv4 address
+	IPv6Address          string              `mapstructure:"ipv6_address"`           // the container ipv6 address
+	PidMode              string              `mapstructure:"pid_mode"`               // The PID mode of the container - host and none
+	UTSMode              string              `mapstructure:"uts_mode"`               // The UTS mode of the container - host and none
+	UsernsMode           string              `mapstructure:"userns_mode"`            // The User namespace mode of the container - host and none
+	PortMapRaw           []map[string]string `mapstructure:"port_map"`               //
+	PortMap              map[string]int      `mapstructure:"-"`                      // A map of host port labels and the ports exposed on the container
+	Privileged           bool                `mapstructure:"privileged"`             // Flag to run the container in privileged mode
+	SysctlRaw            []map[string]string `mapstructure:"sysctl"`                 //
+	Sysctl               map[string]string   `mapstructure:"-"`                      // The sysctl custom configurations
+	UlimitRaw            []map[string]string `mapstructure:"ulimit"`                 //
+	Ulimit               []docker.ULimit     `mapstructure:"-"`                      // The ulimit custom configurations
+	DNSServers           []string            `mapstructure:"dns_servers"`            // DNS Server for containers
+	DNSSearchDomains     []string            `mapstructure:"dns_search_domains"`     // DNS Search domains for containers
+	DNSOptions           []string            `mapstructure:"dns_options"`            // DNS Options
+	ExtraHosts           []string            `mapstructure:"extra_hosts"`            // Add host to /etc/hosts (host:IP)
+	Hostname             string              `mapstructure:"hostname"`               // Hostname for containers
+	LabelsRaw            []map[string]string `mapstructure:"labels"`                 //
+	Labels               map[string]string   `mapstructure:"-"`                      // Labels to set when the container starts up
+	Auth                 []DockerDriverAuth  `mapstructure:"auth"`                   // Authentication credentials for a private Docker registry
+	AuthSoftFail         bool                `mapstructure:"auth_soft_fail"`         // Soft-fail if auth creds are provided but fail
+	TTY                  bool                `mapstructure:"tty"`                    // Allocate a Pseudo-TTY
+	Interactive          bool                `mapstructure:"interactive"`            // Keep STDIN open even if not attached
+	ShmSize              int64               `mapstructure:"shm_size"`               // Size of /dev/shm of the container in bytes
+	WorkDir              string              `mapstructure:"work_dir"`               // Working directory inside the container
+	Logging              []DockerLoggingOpts `mapstructure:"logging"`                // Logging options for syslog server
+	Volumes              []string            `mapstructure:"volumes"`                // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	Mounts               []DockerMount       `mapstructure:"mounts"`                 // Docker volumes to mount
+	VolumeDriver         string              `mapstructure:"volume_driver"`          // Docker volume driver used for the container's volumes
+	ForcePull            bool                `mapstructure:"force_pull"`             // Always force pull before running image, useful if your tags are mutable
+	MacAddress           string              `mapstructure:"mac_address"`            // Pin mac address to container
+	SecurityOpt          []string            `mapstructure:"security_opt"`           // Flags to pass directly to security-opt
+	Devices              []DockerDevice      `mapstructure:"devices"`                // To allow mounting USB or other serial control devices
+	CapAdd               []string            `mapstructure:"cap_add"`                // Flags to pass directly to cap-add
+	CapDrop              []string            `mapstructure:"cap_drop"`               // Flags to pass directly to cap-drop
+	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
+	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
+	CPUHardLimit         bool                `mapstructure:"cpu_hard_limit"`         // Enforce CPU hard limit.
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -477,16 +485,15 @@ func NewDockerDriver(ctx *DriverContext) Driver {
 	return &DockerDriver{DriverContext: *ctx}
 }
 
-func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	// Initialize docker API clients
+func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	client, _, err := d.dockerClients()
 	if err != nil {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
 		}
-		delete(node.Attributes, dockerDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		resp.RemoveAttribute(dockerDriverAttr)
+		return nil
 	}
 
 	// This is the first operation taken on the client so we'll try to
@@ -494,25 +501,26 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	// Docker isn't available so we'll simply disable the docker driver.
 	env, err := client.Version()
 	if err != nil {
-		delete(node.Attributes, dockerDriverAttr)
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.docker: could not connect to docker daemon at %s: %s", client.Endpoint(), err)
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		resp.RemoveAttribute(dockerDriverAttr)
+		return nil
 	}
 
-	node.Attributes[dockerDriverAttr] = "1"
-	node.Attributes["driver.docker.version"] = env.Get("Version")
+	resp.AddAttribute(dockerDriverAttr, "1")
+	resp.AddAttribute("driver.docker.version", env.Get("Version"))
+	resp.Detected = true
 
 	privileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
 	if privileged {
-		node.Attributes[dockerPrivilegedConfigOption] = "1"
+		resp.AddAttribute(dockerPrivilegedConfigOption, "1")
 	}
 
 	// Advertise if this node supports Docker volumes
 	if d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault) {
-		node.Attributes["driver."+dockerVolumesConfigOption] = "1"
+		resp.AddAttribute("driver."+dockerVolumesConfigOption, "1")
 	}
 
 	// Detect bridge IP address - #2785
@@ -530,7 +538,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 			}
 
 			if n.IPAM.Config[0].Gateway != "" {
-				node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+				resp.AddAttribute("driver.docker.bridge_ip", n.IPAM.Config[0].Gateway)
 			} else if d.fingerprintSuccess == nil {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
@@ -541,7 +549,7 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 	}
 
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	return true, nil
+	return nil
 }
 
 // Validate is used to validate the driver configuration
@@ -674,6 +682,12 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"readonly_rootfs": {
 				Type: fields.TypeBool,
 			},
+			"advertise_ipv6_address": {
+				Type: fields.TypeBool,
+			},
+			"cpu_hard_limit": {
+				Type: fields.TypeBool,
+			},
 		},
 	}
 
@@ -790,7 +804,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		return nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", d.driverConfig.ImageName, d.imageID, err)
 	}
 
-	container, err := d.createContainer(config)
+	container, err := d.createContainer(client, config)
 	if err != nil {
 		wrapped := fmt.Sprintf("Failed to create container: %v", err)
 		d.logger.Printf("[ERR] driver.docker: %s", wrapped)
@@ -869,7 +883,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	if c.NetworkSettings == nil {
 		// This should only happen if there's been a coding error (such
-		// as not calling InspetContainer after CreateContainer). Code
+		// as not calling InspectContainer after CreateContainer). Code
 		// defensively in case the Docker API changes subtly.
 		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
 		return "", false
@@ -884,6 +898,10 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		}
 
 		ip = net.IPAddress
+		if d.driverConfig.AdvertiseIPv6Address {
+			ip = net.GlobalIPv6Address
+			auto = true
+		}
 		ipName = name
 
 		// Don't auto-advertise IPs for default networks (bridge on
@@ -1006,12 +1024,12 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 	return client, waitClient, merr.ErrorOrNil()
 }
 
-func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir *allocdir.TaskDir,
+func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, ctx *ExecContext,
 	task *structs.Task) ([]string, error) {
 
-	allocDirBind := fmt.Sprintf("%s:%s", taskDir.SharedAllocDir, allocdir.SharedAllocContainerPath)
-	taskLocalBind := fmt.Sprintf("%s:%s", taskDir.LocalDir, allocdir.TaskLocalContainerPath)
-	secretDirBind := fmt.Sprintf("%s:%s", taskDir.SecretsDir, allocdir.TaskSecretsContainerPath)
+	allocDirBind := fmt.Sprintf("%s:%s", ctx.TaskDir.SharedAllocDir, ctx.TaskEnv.EnvMap[env.AllocDir])
+	taskLocalBind := fmt.Sprintf("%s:%s", ctx.TaskDir.LocalDir, ctx.TaskEnv.EnvMap[env.TaskLocalDir])
+	secretDirBind := fmt.Sprintf("%s:%s", ctx.TaskDir.SecretsDir, ctx.TaskEnv.EnvMap[env.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
@@ -1044,7 +1062,7 @@ func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, taskDir 
 		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
 		if driverConfig.VolumeDriver == "" {
 			// Expand path relative to alloc dir
-			parts[0] = filepath.Join(taskDir.Dir, parts[0])
+			parts[0] = filepath.Join(ctx.TaskDir.Dir, parts[0])
 		}
 
 		binds = append(binds, strings.Join(parts, ":"))
@@ -1071,7 +1089,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		return c, fmt.Errorf("task.Resources is empty")
 	}
 
-	binds, err := d.containerBinds(driverConfig, ctx.TaskDir, task)
+	binds, err := d.containerBinds(driverConfig, ctx, task)
 	if err != nil {
 		return c, err
 	}
@@ -1119,6 +1137,16 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		VolumeDriver: driverConfig.VolumeDriver,
 	}
 
+	// Calculate CPU Quota
+	// cfs_quota_us is the time per core, so we must
+	// multiply the time by the number of cores available
+	// See https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu
+	if driverConfig.CPUHardLimit {
+		numCores := runtime.NumCPU()
+		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
+		hostConfig.CPUQuota = int64(percentTicks*defaultCFSPeriodUS) * int64(numCores)
+	}
+
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
@@ -1137,6 +1165,9 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 
 	d.logger.Printf("[DEBUG] driver.docker: using %d bytes memory for %s", hostConfig.Memory, task.Name)
 	d.logger.Printf("[DEBUG] driver.docker: using %d cpu shares for %s", hostConfig.CPUShares, task.Name)
+	if driverConfig.CPUHardLimit {
+		d.logger.Printf("[DEBUG] driver.docker: using %dms cpu quota and %dms cpu period for %s", hostConfig.CPUQuota, defaultCFSPeriodUS, task.Name)
+	}
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
 
 	//  set privileged mode
@@ -1479,7 +1510,7 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 
 // createContainer creates the container given the passed configuration. It
 // attempts to handle any transient Docker errors.
-func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, error) {
+func (d *DockerDriver) createContainer(client createContainerClient, config docker.CreateContainerOptions) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
 CREATE:
@@ -1490,6 +1521,16 @@ CREATE:
 
 	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q from image %q (ID: %q) (attempt %d): %v",
 		config.Name, d.driverConfig.ImageName, d.imageID, attempted+1, createErr)
+
+	// Volume management tools like Portworx may not have detached a volume
+	// from a previous node before Nomad started a task replacement task.
+	// Treat these errors as recoverable so we retry.
+	if strings.Contains(strings.ToLower(createErr.Error()), "volume is attached on another node") {
+		return nil, structs.NewRecoverableError(createErr, true)
+	}
+
+	// If the container already exists determine whether it's already
+	// running or if it's dead and needs to be recreated.
 	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
 		containers, err := client.ListContainers(docker.ListContainersOptions{
 			All: true,
@@ -1766,7 +1807,7 @@ func (h *DockerHandle) Kill() error {
 
 		// Container has already been removed.
 		if strings.Contains(err.Error(), NoSuchContainerError) {
-			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
+			h.logger.Printf("[DEBUG] driver.docker: attempted to stop nonexistent container %s", h.containerID)
 			return nil
 		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
@@ -2050,4 +2091,13 @@ func authIsEmpty(auth *docker.AuthConfiguration) bool {
 		auth.Password == "" &&
 		auth.Email == "" &&
 		auth.ServerAddress == ""
+}
+
+// createContainerClient is the subset of Docker Client methods used by the
+// createContainer method to ease testing subtle error conditions.
+type createContainerClient interface {
+	CreateContainer(docker.CreateContainerOptions) (*docker.Container, error)
+	InspectContainer(id string) (*docker.Container, error)
+	ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error)
+	RemoveContainer(opts docker.RemoveContainerOptions) error
 }

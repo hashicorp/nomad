@@ -558,6 +558,7 @@ type Job struct {
 	Periodic          *PeriodicConfig
 	ParameterizedJob  *ParameterizedJobConfig
 	Payload           []byte
+	Reschedule        *ReschedulePolicy
 	Meta              map[string]string
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string

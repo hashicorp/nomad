@@ -42,5 +42,5 @@ func WithPrefix(t LogPrinter, prefix string) *log.Logger {
 
 // NewLog logger with "TEST" prefix and the Lmicroseconds flag.
 func Logger(t LogPrinter) *log.Logger {
-	return WithPrefix(t, "TEST ")
+	return WithPrefix(t, "")
 }

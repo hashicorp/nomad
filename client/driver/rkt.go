@@ -88,8 +88,9 @@ type RktDriverConfig struct {
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
-	NoOverlay bool `mapstructure:"no_overlay"` // disable overlayfs for rkt run
-	Debug     bool `mapstructure:"debug"`      // Enable debug option for rkt command
+	NoOverlay bool   `mapstructure:"no_overlay"` // disable overlayfs for rkt run
+	Debug     bool   `mapstructure:"debug"`      // Enable debug option for rkt command
+	Group     string `mapstructure:"group"`      // Group override for the container
 }
 
 // rktHandle is returned from Start/Open as a handle to the PID
@@ -294,6 +295,9 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			"insecure_options": {
 				Type: fields.TypeArray,
 			},
+			"group": {
+				Type: fields.TypeString,
+			},
 		},
 	}
 
@@ -311,31 +315,30 @@ func (d *RktDriver) Abilities() DriverAbilities {
 	}
 }
 
-func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	// Only enable if we are root when running on non-windows systems.
 	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.rkt: must run as root user, disabling")
 		}
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		resp.RemoveAttribute(rktDriverAttr)
+		return nil
 	}
 
 	outBytes, err := exec.Command(rktCmd, "version").Output()
 	if err != nil {
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		return nil
 	}
 	out := strings.TrimSpace(string(outBytes))
 
 	rktMatches := reRktVersion.FindStringSubmatch(out)
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
+		resp.RemoveAttribute(rktDriverAttr)
+		return fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
 	minVersion, _ := version.NewVersion(minRktVersion)
@@ -347,21 +350,22 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 			d.logger.Printf("[WARN] driver.rkt: unsupported rkt version %s; please upgrade to >= %s",
 				currentVersion, minVersion)
 		}
-		delete(node.Attributes, rktDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		resp.RemoveAttribute(rktDriverAttr)
+		return nil
 	}
 
-	node.Attributes[rktDriverAttr] = "1"
-	node.Attributes["driver.rkt.version"] = rktMatches[1]
-	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
+	resp.AddAttribute(rktDriverAttr, "1")
+	resp.AddAttribute("driver.rkt.version", rktMatches[1])
+	resp.AddAttribute("driver.rkt.appc.version", appcMatches[1])
+	resp.Detected = true
 
 	// Advertise if this node supports rkt volumes
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
-		node.Attributes["driver."+rktVolumesConfigOption] = "1"
+		resp.AddAttribute("driver."+rktVolumesConfigOption, "1")
 	}
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	return true, nil
+	return nil
 }
 
 func (d *RktDriver) Periodic() (bool, time.Duration) {
@@ -404,7 +408,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		}
 		d.logger.Printf("[DEBUG] driver.rkt: added trust prefix: %q", trustPrefix)
 	} else {
-		// Disble signature verification if the trust command was not run.
+		// Disable signature verification if the trust command was not run.
 		insecure = true
 	}
 
@@ -438,17 +442,17 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	// Mount /alloc
 	allocVolName := fmt.Sprintf("%s-%s-alloc", d.DriverContext.allocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.TaskDir.SharedAllocDir))
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, allocdir.SharedAllocContainerPath))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, ctx.TaskEnv.EnvMap[env.AllocDir]))
 
 	// Mount /local
 	localVolName := fmt.Sprintf("%s-%s-local", d.DriverContext.allocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, ctx.TaskDir.LocalDir))
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, allocdir.TaskLocalContainerPath))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, ctx.TaskEnv.EnvMap[env.TaskLocalDir]))
 
 	// Mount /secrets
 	secretsVolName := fmt.Sprintf("%s-%s-secrets", d.DriverContext.allocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, ctx.TaskDir.SecretsDir))
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, allocdir.TaskSecretsContainerPath))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, ctx.TaskEnv.EnvMap[env.SecretsDir]))
 
 	// Mount arbitrary volumes if enabled
 	if len(driverConfig.Volumes) > 0 {
@@ -575,6 +579,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	// If a user has been specified for the task, pass it through to the user
 	if task.User != "" {
 		prepareArgs = append(prepareArgs, fmt.Sprintf("--user=%s", task.User))
+	}
+
+	// There's no task-level parameter for groups so check the driver
+	// config for a custom group
+	if driverConfig.Group != "" {
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--group=%s", driverConfig.Group))
 	}
 
 	// Add user passed arguments.

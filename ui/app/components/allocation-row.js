@@ -58,6 +58,9 @@ function qualifyJob() {
         job,
         originalJobId: null,
       });
+      if (job.get('isPartial')) {
+        job.reload();
+      }
     } else {
       this.get('store')
         .findRecord('job', allocation.get('originalJobId'))

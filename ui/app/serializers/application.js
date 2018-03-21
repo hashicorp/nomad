@@ -1,3 +1,5 @@
+import { copy } from '@ember/object/internals';
+import { get } from '@ember/object';
 import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
 
@@ -35,9 +37,33 @@ export default JSONSerializer.extend({
           documentHash.included.push(...included);
         }
       });
-
-      store.push(documentHash);
     });
+
+    store.push(documentHash);
+  },
+
+  normalizeFindAllResponse(store, modelClass) {
+    const result = this._super(...arguments);
+    this.cullStore(store, modelClass.modelName, result.data);
+    return result;
+  },
+
+  // When records are removed server-side, and therefore don't show up in requests,
+  // the local copies of those records need to be unloaded from the store.
+  cullStore(store, type, records, storeFilter = () => true) {
+    const newRecords = copy(records).filter(record => get(record, 'id'));
+    const oldRecords = store.peekAll(type);
+    oldRecords
+      .filter(record => get(record, 'id'))
+      .filter(storeFilter)
+      .forEach(old => {
+        const newRecord = newRecords.find(record => get(record, 'id') === get(old, 'id'));
+        if (!newRecord) {
+          store.unloadRecord(old);
+        } else {
+          newRecords.removeObject(newRecord);
+        }
+      });
   },
 
   modelNameFromPayloadKey(key) {

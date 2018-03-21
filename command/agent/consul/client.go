@@ -70,6 +70,7 @@ type AgentAPI interface {
 	Checks() (map[string]*api.AgentCheck, error)
 	CheckRegister(check *api.AgentCheckRegistration) error
 	CheckDeregister(checkID string) error
+	Self() (map[string]map[string]interface{}, error)
 	ServiceRegister(service *api.AgentServiceRegistration) error
 	ServiceDeregister(serviceID string) error
 	UpdateTTL(id, output, status string) error
@@ -190,9 +191,6 @@ type ServiceClient struct {
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 
-	// skipVerifySupport is true if the local Consul agent suppots TLSSkipVerify
-	skipVerifySupport bool
-
 	// exitCh is closed when the main Run loop exits
 	exitCh chan struct{}
 
@@ -221,7 +219,7 @@ type ServiceClient struct {
 	agentChecks   map[string]struct{}
 	agentLock     sync.Mutex
 
-	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
+	// seen is 1 if Consul has ever been seen; otherwise 0. Accessed with
 	// atomics.
 	seen int32
 
@@ -231,10 +229,9 @@ type ServiceClient struct {
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
 // Client and logger.
-func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log.Logger) *ServiceClient {
+func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient {
 	return &ServiceClient{
 		client:             consulClient,
-		skipVerifySupport:  skipVerifySupport,
 		logger:             logger,
 		retryInterval:      defaultRetryInterval,
 		maxRetryInterval:   defaultMaxRetryInterval,
@@ -273,19 +270,48 @@ func (c *ServiceClient) hasSeen() bool {
 func (c *ServiceClient) Run() {
 	defer close(c.exitCh)
 
-	// start checkWatcher
-	ctx, cancelWatcher := context.WithCancel(context.Background())
-	defer cancelWatcher()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// init will be closed when Consul has been contacted
+	init := make(chan struct{})
+	go checkConsulTLSSkipVerify(ctx, c.logger, c.client, init)
+
+	// Process operations while waiting for initial contact with Consul but
+	// do not sync until contact has been made.
+	hasOps := false
+INIT:
+	for {
+		select {
+		case <-init:
+			c.markSeen()
+			break INIT
+		case <-c.shutdownCh:
+			return
+		case ops := <-c.opCh:
+			hasOps = true
+			c.merge(ops)
+		}
+	}
+	c.logger.Printf("[TRACE] consul.sync: able to contact Consul")
+
+	// Block until contact with Consul has been established
+	// Start checkWatcher
 	go c.checkWatcher.Run(ctx)
 
 	retryTimer := time.NewTimer(0)
-	<-retryTimer.C // disabled by default
+	if !hasOps {
+		// No pending operations so don't immediately sync
+		<-retryTimer.C
+	}
+
 	failures := 0
 	for {
 		select {
 		case <-retryTimer.C:
 		case <-c.shutdownCh:
-			cancelWatcher()
+			// Cancel check watcher but sync one last time
+			cancel()
 		case ops := <-c.opCh:
 			c.merge(ops)
 		}
@@ -475,9 +501,6 @@ func (c *ServiceClient) sync() error {
 		}
 	}
 
-	// A Consul operation has succeeded, mark Consul as having been seen
-	c.markSeen()
-
 	c.logger.Printf("[DEBUG] consul.sync: registered %d services, %d checks; deregistered %d services, %d checks",
 		sreg, creg, sdereg, cdereg)
 	return nil
@@ -625,11 +648,6 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 
 	checkIDs := make([]string, 0, numChecks)
 	for _, check := range service.Checks {
-		if check.TLSSkipVerify && !c.skipVerifySupport {
-			c.logger.Printf("[WARN] consul.sync: skipping check %q for task %q alloc %q because Consul doesn't support tls_skip_verify. Please upgrade to Consul >= 0.7.2.",
-				check.Name, task.Name, allocID)
-			continue
-		}
 		checkID := makeCheckID(serviceID, check)
 		checkIDs = append(checkIDs, checkID)
 		if check.Type == structs.ServiceCheckScript {
@@ -681,7 +699,7 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 // If the service IP is set it used as the address in the service registration.
 // Checks will always use the IP from the Task struct (host's IP).
 //
-// Actual communication with Consul is done asynchrously (see Run).
+// Actual communication with Consul is done asynchronously (see Run).
 func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	// Fast path
 	numServices := len(task.Services)
@@ -842,7 +860,7 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 
 // RemoveTask from Consul. Removes all service entries and checks.
 //
-// Actual communication with Consul is done asynchrously (see Run).
+// Actual communication with Consul is done asynchronously (see Run).
 func (c *ServiceClient) RemoveTask(allocID string, task *structs.Task) {
 	ops := operations{}
 
@@ -908,7 +926,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	return reg, nil
 }
 
-// Shutdown the Consul client. Update running task registations and deregister
+// Shutdown the Consul client. Update running task registrations and deregister
 // agent from Consul. On first call blocks up to shutdownWait before giving up
 // on syncing operations.
 func (c *ServiceClient) Shutdown() error {

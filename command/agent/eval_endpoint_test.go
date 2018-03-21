@@ -147,7 +147,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		// Check the ouptput
+		// Check the output
 		allocs := obj.([]*structs.AllocListStub)
 		if len(allocs) != 2 {
 			t.Fatalf("bad: %#v", allocs)

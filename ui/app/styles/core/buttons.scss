@@ -24,6 +24,10 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     background: transparent;
   }
 
+  &.is-inline {
+    vertical-align: middle;
+  }
+
   &.is-compact {
     padding: 0.25em 0.75em;
     margin: -0.25em -0.25em -0.25em 0;

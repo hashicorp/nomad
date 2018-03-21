@@ -4,6 +4,7 @@ package cpu
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os/exec"
@@ -49,6 +50,10 @@ func init() {
 }
 
 func Times(percpu bool) ([]TimesStat, error) {
+	return TimesWithContext(context.Background(), percpu)
+}
+
+func TimesWithContext(ctx context.Context, percpu bool) ([]TimesStat, error) {
 	var ret []TimesStat
 
 	var ncpu int
@@ -96,6 +101,10 @@ func Times(percpu bool) ([]TimesStat, error) {
 
 // Returns only one (minimal) CPUInfoStat on OpenBSD
 func Info() ([]InfoStat, error) {
+	return InfoWithContext(context.Background())
+}
+
+func InfoWithContext(ctx context.Context) ([]InfoStat, error) {
 	var ret []InfoStat
 
 	c := InfoStat{}

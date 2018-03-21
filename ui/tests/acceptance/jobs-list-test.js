@@ -59,7 +59,7 @@ test('each job row should contain information about the job', function(assert) {
       job.status,
       'Status'
     );
-    assert.equal(jobRow.querySelector('[data-test-job-type]').textContent, job.type, 'Type');
+    assert.equal(jobRow.querySelector('[data-test-job-type]').textContent, typeForJob(job), 'Type');
     assert.equal(
       jobRow.querySelector('[data-test-job-priority]').textContent,
       job.priority,
@@ -99,9 +99,7 @@ test('when there are no jobs, there is an empty message', function(assert) {
   });
 });
 
-test('when there are jobs, but no matches for a search result, there is an empty message', function(
-  assert
-) {
+test('when there are jobs, but no matches for a search result, there is an empty message', function(assert) {
   server.create('job', { name: 'cat 1' });
   server.create('job', { name: 'cat 2' });
 
@@ -117,9 +115,7 @@ test('when there are jobs, but no matches for a search result, there is an empty
   });
 });
 
-test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', function(
-  assert
-) {
+test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', function(assert) {
   server.createList('namespace', 2);
   const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
   const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
@@ -144,9 +140,7 @@ test('when the namespace query param is set, only matching jobs are shown and th
   });
 });
 
-test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(
-  assert
-) {
+test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(assert) {
   server.pretender.get('/v1/jobs', () => [403, {}, null]);
 
   visit('/jobs');
@@ -163,3 +157,7 @@ test('when accessing jobs is forbidden, show a message with a link to the tokens
     assert.equal(currentURL(), '/settings/tokens');
   });
 });
+
+function typeForJob(job) {
+  return job.periodic ? 'periodic' : job.parameterized ? 'parameterized' : job.type;
+}

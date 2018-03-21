@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,24 +25,27 @@ func TestConsulFingerprint(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	config := config.DefaultConfig()
-	config.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
+	conf := config.DefaultConfig()
+	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
-	ok, err := fp.Fingerprint(config, node)
+	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
 	}
-	if !ok {
-		t.Fatalf("Failed to apply node attributes")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
 
-	assertNodeAttributeContains(t, node, "consul.server")
-	assertNodeAttributeContains(t, node, "consul.version")
-	assertNodeAttributeContains(t, node, "consul.revision")
-	assertNodeAttributeContains(t, node, "unique.consul.name")
-	assertNodeAttributeContains(t, node, "consul.datacenter")
+	assertNodeAttributeContains(t, response.Attributes, "consul.server")
+	assertNodeAttributeContains(t, response.Attributes, "consul.version")
+	assertNodeAttributeContains(t, response.Attributes, "consul.revision")
+	assertNodeAttributeContains(t, response.Attributes, "unique.consul.name")
+	assertNodeAttributeContains(t, response.Attributes, "consul.datacenter")
 
-	if _, ok := node.Links["consul"]; !ok {
+	if _, ok := response.Links["consul"]; !ok {
 		t.Errorf("Expected a link to consul, none found")
 	}
 }
@@ -177,12 +181,17 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	config := config.DefaultConfig()
-	config.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
+	conf := config.DefaultConfig()
+	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
-	ok, err := fp.Fingerprint(config, node)
+	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
+	var response cstructs.FingerprintResponse
+	err := fp.Fingerprint(request, &response)
 	assert.Nil(err)
-	assert.True(ok)
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
+	}
 
 	attrs := []string{
 		"consul.server",
@@ -191,13 +200,14 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 		"unique.consul.name",
 		"consul.datacenter",
 	}
+
 	for _, attr := range attrs {
-		if v, ok := node.Attributes[attr]; ok {
+		if v, ok := response.Attributes[attr]; ok {
 			t.Errorf("unexpected node attribute %q with vlaue %q", attr, v)
 		}
 	}
 
-	if v, ok := node.Links["consul"]; ok {
+	if v, ok := response.Links["consul"]; ok {
 		t.Errorf("Unexpected link to consul: %v", v)
 	}
 }

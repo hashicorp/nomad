@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -1140,6 +1141,52 @@ func TestEvalBroker_Wait(t *testing.T) {
 	}
 }
 
+// Ensure that delayed evaluations work as expected
+func TestEvalBroker_WaitUntil(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	now := time.Now()
+	// Create a few of evals with WaitUntil set
+	eval1 := mock.Eval()
+	eval1.WaitUntil = now.Add(1 * time.Second)
+	eval1.CreateIndex = 1
+	b.Enqueue(eval1)
+
+	eval2 := mock.Eval()
+	eval2.WaitUntil = now.Add(100 * time.Millisecond)
+	// set CreateIndex to use as a tie breaker when eval2
+	// and eval3 are both in the pending evals heap
+	eval2.CreateIndex = 2
+	b.Enqueue(eval2)
+
+	eval3 := mock.Eval()
+	eval3.WaitUntil = now.Add(20 * time.Millisecond)
+	eval3.CreateIndex = 1
+	b.Enqueue(eval3)
+	require.Equal(3, b.stats.TotalWaiting)
+	// sleep enough for two evals to be ready
+	time.Sleep(200 * time.Millisecond)
+
+	// first dequeue should return eval3
+	out, _, err := b.Dequeue(defaultSched, time.Second)
+	require.Nil(err)
+	require.Equal(eval3, out)
+
+	// second dequeue should return eval2
+	out, _, err = b.Dequeue(defaultSched, time.Second)
+	require.Nil(err)
+	require.Equal(eval2, out)
+
+	// third dequeue should return eval1
+	out, _, err = b.Dequeue(defaultSched, 2*time.Second)
+	require.Nil(err)
+	require.Equal(eval1, out)
+	require.Equal(0, b.stats.TotalWaiting)
+}
+
 // Ensure that priority is taken into account when enqueueing many evaluations.
 func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	t.Parallel()
@@ -1294,4 +1341,46 @@ func TestEvalBroker_EnqueueAll_Requeue_Nack(t *testing.T) {
 	}, func(e error) {
 		t.Fatal(e)
 	})
+}
+
+func TestEvalBroker_NamespacedJobs(t *testing.T) {
+	t.Parallel()
+	b := testBroker(t, 0)
+	b.SetEnabled(true)
+
+	// Create evals with the same jobid and different namespace
+	jobId := "test-jobID"
+
+	eval1 := mock.Eval()
+	eval1.JobID = jobId
+	eval1.Namespace = "n1"
+	b.Enqueue(eval1)
+
+	// This eval should not block
+	eval2 := mock.Eval()
+	eval2.JobID = jobId
+	eval2.Namespace = "default"
+	b.Enqueue(eval2)
+
+	// This eval should block
+	eval3 := mock.Eval()
+	eval3.JobID = jobId
+	eval3.Namespace = "default"
+	b.Enqueue(eval3)
+
+	require := require.New(t)
+	out1, _, err := b.Dequeue(defaultSched, 5*time.Millisecond)
+	require.Nil(err)
+	require.Equal(eval1.ID, out1.ID)
+
+	out2, _, err := b.Dequeue(defaultSched, 5*time.Millisecond)
+	require.Nil(err)
+	require.Equal(eval2.ID, out2.ID)
+
+	out3, _, err := b.Dequeue(defaultSched, 5*time.Millisecond)
+	require.Nil(err)
+	require.Nil(out3)
+
+	require.Equal(1, len(b.blocked))
+
 }

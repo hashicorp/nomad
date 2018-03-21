@@ -25,7 +25,7 @@ var (
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
 
-	// DefaulUserBlacklist is the default set of users that tasks are not
+	// DefaultUserBlacklist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
 	DefaultUserBlacklist = strings.Join([]string{
 		"root",
@@ -193,8 +193,15 @@ type Config struct {
 	DisableTaggedMetrics bool
 
 	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older verions, or to only show the new format
+	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
+
+	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
+	// This is used to paper over a loss of leadership by instead holding RPCs,
+	// so that the caller experiences a slow response rather than an error.
+	// This period is meant to be long enough for a leader election to take
+	// place, and a small jitter is applied to avoid a thundering herd.
+	RPCHoldTimeout time.Duration
 }
 
 func (c *Config) Copy() *Config {
@@ -228,6 +235,7 @@ func DefaultConfig() *Config {
 		NoHostUUID:                 true,
 		DisableTaggedMetrics:       false,
 		BackwardsCompatibleMetrics: false,
+		RPCHoldTimeout:             5 * time.Second,
 	}
 }
 

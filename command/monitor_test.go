@@ -27,7 +27,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
-	// Evals trigerred by nodes log
+	// Evals triggered by nodes log
 	state = &evalState{
 		status: structs.EvalStatusPending,
 		node:   "12345678-abcd-efab-cdef-123456789abc",

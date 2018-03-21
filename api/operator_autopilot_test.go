@@ -7,12 +7,12 @@ import (
 
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -20,31 +20,35 @@ func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 	var config *AutopilotConfiguration
 	retry.Run(t, func(r *retry.R) {
 		var err error
-		config, err = operator.AutopilotGetConfiguration(nil)
+		config, _, err = operator.AutopilotGetConfiguration(nil)
 		r.Check(err)
 	})
-	assert.True(config.CleanupDeadServers)
+	require.True(config.CleanupDeadServers)
 
 	// Change a config setting
 	newConf := &AutopilotConfiguration{CleanupDeadServers: false}
-	err := operator.AutopilotSetConfiguration(newConf, nil)
-	assert.Nil(err)
+	_, err := operator.AutopilotSetConfiguration(newConf, nil)
+	require.Nil(err)
 
-	config, err = operator.AutopilotGetConfiguration(nil)
-	assert.Nil(err)
-	assert.False(config.CleanupDeadServers)
+	config, _, err = operator.AutopilotGetConfiguration(nil)
+	require.Nil(err)
+	require.False(config.CleanupDeadServers)
 }
 
 func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	operator := c.Operator()
-	config, err := operator.AutopilotGetConfiguration(nil)
-	assert.Nil(err)
-	assert.True(config.CleanupDeadServers)
+	var config *AutopilotConfiguration
+	retry.Run(t, func(r *retry.R) {
+		var err error
+		config, _, err = operator.AutopilotGetConfiguration(nil)
+		r.Check(err)
+	})
+	require.True(config.CleanupDeadServers)
 
 	// Pass an invalid ModifyIndex
 	{
@@ -52,9 +56,9 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 			CleanupDeadServers: false,
 			ModifyIndex:        config.ModifyIndex - 1,
 		}
-		resp, err := operator.AutopilotCASConfiguration(newConf, nil)
-		assert.Nil(err)
-		assert.False(resp)
+		resp, _, err := operator.AutopilotCASConfiguration(newConf, nil)
+		require.Nil(err)
+		require.False(resp)
 	}
 
 	// Pass a valid ModifyIndex
@@ -63,31 +67,34 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 			CleanupDeadServers: false,
 			ModifyIndex:        config.ModifyIndex,
 		}
-		resp, err := operator.AutopilotCASConfiguration(newConf, nil)
-		assert.Nil(err)
-		assert.True(resp)
+		resp, _, err := operator.AutopilotCASConfiguration(newConf, nil)
+		require.Nil(err)
+		require.True(resp)
 	}
 }
 
 func TestAPI_OperatorAutopilotServerHealth(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
-		c.AdvertiseAddrs.RPC = "127.0.0.1"
 		c.Server.RaftProtocol = 3
 	})
 	defer s.Stop()
 
 	operator := c.Operator()
-	retry.Run(t, func(r *retry.R) {
-		out, err := operator.AutopilotServerHealth(nil)
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := operator.AutopilotServerHealth(nil)
 		if err != nil {
-			r.Fatalf("err: %v", err)
+			return false, err
 		}
 
 		if len(out.Servers) != 1 ||
 			!out.Servers[0].Healthy ||
 			out.Servers[0].Name != fmt.Sprintf("%s.global", s.Config.NodeName) {
-			r.Fatalf("bad: %v", out)
+			return false, fmt.Errorf("%v", out)
 		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
 	})
 }

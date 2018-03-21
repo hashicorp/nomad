@@ -14,7 +14,7 @@ import (
 
 const (
 	// maxFailedTGs is the maximum number of task groups we show failure reasons
-	// for before defering to eval-status
+	// for before deferring to eval-status
 	maxFailedTGs = 5
 )
 

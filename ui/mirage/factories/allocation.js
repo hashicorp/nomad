@@ -15,11 +15,10 @@ export default Factory.extend({
 
   modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
 
+  namespace: null,
+
   clientStatus: faker.list.random(...CLIENT_STATUSES),
   desiredStatus: faker.list.random(...DESIRED_STATUSES),
-
-  // Meta property for hinting at task events
-  useMessagePassthru: false,
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
@@ -79,7 +78,6 @@ export default Factory.extend({
       server.create('task-state', {
         allocation,
         name: server.db.tasks.find(id).name,
-        useMessagePassthru: allocation.useMessagePassthru,
       })
     );
 

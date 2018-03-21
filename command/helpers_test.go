@@ -310,6 +310,7 @@ func TestPrettyTimeDiff(t *testing.T) {
 		{now, now.Add(-60 * time.Minute), "1h ago"},
 		{now, now.Add(-80 * time.Minute), "1h20m ago"},
 		{now, now.Add(-6 * time.Hour), "6h ago"},
+		{now.Add(-6 * time.Hour), now, "6h from now"},
 		{now, now.Add(-22165 * time.Second), "6h9m ago"},
 		{now, now.Add(-100 * time.Hour), "4d4h ago"},
 		{now, now.Add(-438000 * time.Minute), "10mo4d ago"},

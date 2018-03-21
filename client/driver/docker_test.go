@@ -171,17 +171,31 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply != testutil.DockerIsConnected(t) {
+
+	attributes := response.Attributes
+	if testutil.DockerIsConnected(t) && attributes["driver.docker"] == "" {
 		t.Fatalf("Fingerprinter should detect when docker is available")
 	}
-	if node.Attributes["driver.docker"] != "1" {
+
+	if attributes["driver.docker"] != "1" {
 		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
+	} else {
+
+		// if docker is available, make sure that the response is tagged as
+		// applicable
+		if !response.Detected {
+			t.Fatalf("expected response to be applicable")
+		}
 	}
-	t.Logf("Found docker version %s", node.Attributes["driver.docker.version"])
+
+	t.Logf("Found docker version %s", attributes["driver.docker.version"])
 }
 
 // TestDockerDriver_Fingerprint_Bridge asserts that if Docker is running we set
@@ -210,18 +224,31 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 	conf := testConfig(t)
 	conf.Node = mock.Node()
 	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
-	ok, err := dd.Fingerprint(conf, conf.Node)
+
+	request := &cstructs.FingerprintRequest{Config: conf, Node: conf.Node}
+	var response cstructs.FingerprintResponse
+	err = dd.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("error fingerprinting docker: %v", err)
 	}
-	if !ok {
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
+	}
+
+	attributes := response.Attributes
+	if attributes == nil {
+		t.Fatalf("expected attributes to be set")
+	}
+
+	if attributes["driver.docker"] == "" {
 		t.Fatalf("expected Docker to be enabled but false was returned")
 	}
 
-	if found := conf.Node.Attributes["driver.docker.bridge_ip"]; found != expectedAddr {
+	if found := attributes["driver.docker.bridge_ip"]; found != expectedAddr {
 		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
 	}
-	t.Logf("docker bridge ip: %q", conf.Node.Attributes["driver.docker.bridge_ip"])
+	t.Logf("docker bridge ip: %q", attributes["driver.docker.bridge_ip"])
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
@@ -1591,25 +1618,29 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		allocDir.Destroy()
 		t.Fatalf("failed to build task dir: %v", err)
 	}
+	copyImage(t, taskDir, "busybox.tar")
 
+	// Setup driver
 	alloc := mock.Alloc()
-	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
-	execCtx := NewExecContext(taskDir, envBuilder.Build())
-	cleanup := func() {
-		allocDir.Destroy()
-		if filepath.IsAbs(hostpath) {
-			os.RemoveAll(hostpath)
-		}
-	}
-
 	logger := testLogger()
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
 	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, testLogger(), emitter)
 	driver := NewDockerDriver(driverCtx)
-	copyImage(t, taskDir, "busybox.tar")
 
+	// Setup execCtx
+	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
+	SetEnvvars(envBuilder, driver.FSIsolation(), taskDir, cfg)
+	execCtx := NewExecContext(taskDir, envBuilder.Build())
+
+	// Setup cleanup function
+	cleanup := func() {
+		allocDir.Destroy()
+		if filepath.IsAbs(hostpath) {
+			os.RemoveAll(hostpath)
+		}
+	}
 	return task, driver, execCtx, hostfile, cleanup
 }
 
@@ -2268,4 +2299,121 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	assert.Nil(t, err, "Error inspecting container: %v", err)
 
 	assert.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
+}
+
+// fakeDockerClient can be used in places that accept an interface for the
+// docker client such as createContainer.
+type fakeDockerClient struct{}
+
+func (fakeDockerClient) CreateContainer(docker.CreateContainerOptions) (*docker.Container, error) {
+	return nil, fmt.Errorf("volume is attached on another node")
+}
+func (fakeDockerClient) InspectContainer(id string) (*docker.Container, error) {
+	panic("not implemented")
+}
+func (fakeDockerClient) ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error) {
+	panic("not implemented")
+}
+func (fakeDockerClient) RemoveContainer(opts docker.RemoveContainerOptions) error {
+	panic("not implemented")
+}
+
+// TestDockerDriver_VolumeError asserts volume related errors when creating a
+// container are recoverable.
+func TestDockerDriver_VolumeError(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+
+	// setup
+	task, _, _ := dockerTask(t)
+	tctx := testDockerDriverContexts(t, task)
+	driver := NewDockerDriver(tctx.DriverCtx).(*DockerDriver)
+	driver.driverConfig = &DockerDriverConfig{ImageName: "test"}
+
+	// assert volume error is recoverable
+	_, err := driver.createContainer(fakeDockerClient{}, docker.CreateContainerOptions{})
+	require.True(t, structs.IsRecoverable(err))
+}
+
+func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	expectedPrefix := "2001:db8:1::242:ac11"
+	expectedAdvertise := true
+	task := &structs.Task{
+		Name:   "nc-demo",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "/bin/nc",
+			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
+			"advertise_ipv6_address": expectedAdvertise,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	client := newTestDockerClient(t)
+
+	// Make sure IPv6 is enabled
+	net, err := client.NetworkInfo("bridge")
+	if err != nil {
+		t.Skip("error retrieving bridge network information, skipping")
+	}
+	if net == nil || !net.EnableIPv6 {
+		t.Skip("IPv6 not enabled on bridge network, skipping")
+	}
+
+	tctx := testDockerDriverContexts(t, task)
+	driver := NewDockerDriver(tctx.DriverCtx)
+	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
+	defer tctx.AllocDir.Destroy()
+
+	presp, err := driver.Prestart(tctx.ExecCtx, task)
+	defer driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+	if err != nil {
+		t.Fatalf("Error in prestart: %v", err)
+	}
+
+	sresp, err := driver.Start(tctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("Error in start: %v", err)
+	}
+
+	if sresp.Handle == nil {
+		t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
+	}
+
+	assert.Equal(t, expectedAdvertise, sresp.Network.AutoAdvertise, "Wrong autoadvertise. Expect: %s, got: %s", expectedAdvertise, sresp.Network.AutoAdvertise)
+
+	if !strings.HasPrefix(sresp.Network.IP, expectedPrefix) {
+		t.Fatalf("Got IP address %q want ip address with prefix %q", sresp.Network.IP, expectedPrefix)
+	}
+
+	defer sresp.Handle.Kill()
+	handle := sresp.Handle.(*DockerHandle)
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+		t.Fatalf("Error inspecting container: %v", err)
+	}
+
+	if !strings.HasPrefix(container.NetworkSettings.GlobalIPv6Address, expectedPrefix) {
+		t.Fatalf("Got GlobalIPv6address %s want GlobalIPv6address with prefix %s", expectedPrefix, container.NetworkSettings.GlobalIPv6Address)
+	}
 }

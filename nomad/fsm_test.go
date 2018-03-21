@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockSink struct {
@@ -70,6 +71,50 @@ func makeLog(buf []byte) *raft.Log {
 		Type:  raft.LogCommand,
 		Data:  buf,
 	}
+}
+
+func TestFSM_UpsertNodeEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	node := mock.Node()
+
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "Heartbeating failed",
+		Subsystem: "Heartbeat",
+		Timestamp: time.Now().Unix(),
+	}
+
+	nodeEvents := []*structs.NodeEvent{nodeEvent}
+	allEvents := map[string][]*structs.NodeEvent{node.ID: nodeEvents}
+
+	req := structs.EmitNodeEventsRequest{
+		NodeEvents:   allEvents,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	buf, err := structs.Encode(structs.UpsertNodeEventsType, req)
+	require.Nil(err)
+
+	// the response in this case will be an error
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	require.Equal(2, len(out.Events))
+
+	first := out.Events[1]
+	require.Equal(uint64(1), first.CreateIndex)
+	require.Equal("Heartbeating failed", first.Message)
 }
 
 func TestFSM_UpsertNode(t *testing.T) {
@@ -414,7 +459,7 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("resp not of error type: %T %v", resp, resp)
 	}
-	if !strings.Contains(err.Error(), "non-existent namespace") {
+	if !strings.Contains(err.Error(), "nonexistent namespace") {
 		t.Fatalf("bad error: %v", err)
 	}
 
@@ -564,6 +609,84 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	if launchOut == nil {
 		t.Fatalf("launch not found!")
 	}
+}
+
+func TestFSM_BatchDeregisterJob(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	job := mock.PeriodicJob()
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	require.Nil(err)
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	job2 := mock.Job()
+	req2 := structs.JobRegisterRequest{
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job2.Namespace,
+		},
+	}
+
+	buf, err = structs.Encode(structs.JobRegisterRequestType, req2)
+	require.Nil(err)
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	req3 := structs.JobBatchDeregisterRequest{
+		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
+			{
+				ID:        job.ID,
+				Namespace: job.Namespace,
+			}: {},
+			{
+				ID:        job2.ID,
+				Namespace: job2.Namespace,
+			}: {
+				Purge: true,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err = structs.Encode(structs.JobBatchDeregisterRequestType, req3)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	require.Nil(err)
+	require.NotNil(jobOut)
+	require.True(jobOut.Stop)
+
+	// Verify it was removed from the periodic runner.
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	require.NotContains(fsm.periodicDispatcher.tracked, tuple)
+
+	// Verify it was not removed from the periodic launch table.
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
+	require.Nil(err)
+	require.NotNil(launchOut)
+
+	// Verify the other jbo was purged
+	jobOut2, err := fsm.State().JobByID(ws, job2.Namespace, job2.ID)
+	require.Nil(err)
+	require.Nil(jobOut2)
 }
 
 func TestFSM_UpdateEval(t *testing.T) {
@@ -1073,6 +1196,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
+	require := require.New(t)
 
 	alloc := mock.Alloc()
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
@@ -1082,30 +1206,38 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	*clientAlloc = *alloc
 	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
 
+	eval := mock.Eval()
+	eval.JobID = alloc.JobID
+	eval.TriggeredBy = structs.EvalTriggerRetryFailedAlloc
+	eval.Type = alloc.Job.Type
+
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{clientAlloc},
+		Evals: []*structs.Evaluation{eval},
 	}
 	buf, err := structs.Encode(structs.AllocClientUpdateRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Verify we are registered
 	ws := memdb.NewWatchSet()
 	out, err := fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 	clientAlloc.CreateIndex = out.CreateIndex
 	clientAlloc.ModifyIndex = out.ModifyIndex
-	if !reflect.DeepEqual(clientAlloc, out) {
-		t.Fatalf("err: %#v,%#v", clientAlloc, out)
-	}
+	require.Equal(clientAlloc, out)
+
+	// Verify eval was inserted
+	ws = memdb.NewWatchSet()
+	evals, err := fsm.State().EvalsByJob(ws, eval.Namespace, eval.JobID)
+	require.Nil(err)
+	require.Equal(1, len(evals))
+	res := evals[0]
+	eval.CreateIndex = res.CreateIndex
+	eval.ModifyIndex = res.ModifyIndex
+	require.Equal(eval, res)
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {
@@ -1175,7 +1307,7 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 	req := structs.VaultAccessorsRequest{
 		Accessors: accessors,
 	}
-	buf, err := structs.Encode(structs.VaultAccessorDegisterRequestType, req)
+	buf, err := structs.Encode(structs.VaultAccessorDeregisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

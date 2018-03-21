@@ -19,7 +19,7 @@ import (
 
 func TestACLEndpoint_GetPolicy(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -74,7 +74,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -153,7 +153,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -192,7 +192,7 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, nil)
+	s1, _ := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -232,7 +232,7 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -312,7 +312,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 func TestACLEndpoint_ListPolicies(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -378,7 +378,7 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -438,7 +438,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 
 func TestACLEndpoint_DeletePolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -464,7 +464,7 @@ func TestACLEndpoint_DeletePolicies(t *testing.T) {
 
 func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -494,7 +494,7 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 
 func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -521,7 +521,7 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 
 func TestACLEndpoint_GetToken(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -566,7 +566,7 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 
 func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -645,7 +645,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 func TestACLEndpoint_GetTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -683,7 +683,7 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 
 func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -762,7 +762,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 func TestACLEndpoint_ListTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -823,7 +823,7 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 
 func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -883,7 +883,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -907,20 +907,20 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	assert.NotEqual(t, uint64(0), resp.Index)
 }
 
-func TestACLEndpoint_DeleteTokens_WithNonexistantToken(t *testing.T) {
+func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	nonExistentToken := mock.ACLToken()
+	nonexistentToken := mock.ACLToken()
 
 	// Lookup the policies
 	req := &structs.ACLTokenDeleteRequest{
-		AccessorIDs: []string{nonExistentToken.AccessorID},
+		AccessorIDs: []string{nonexistentToken.AccessorID},
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			AuthToken: root.SecretID,
@@ -930,13 +930,13 @@ func TestACLEndpoint_DeleteTokens_WithNonexistantToken(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "ACL.DeleteTokens", req, &resp)
 
 	assert.NotNil(err)
-	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonExistentToken.AccessorID)
+	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonexistentToken.AccessorID)
 	assert.Contains(expectedError, err.Error())
 }
 
 func TestACLEndpoint_Bootstrap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
@@ -973,7 +973,7 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 	t.Parallel()
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		c.DataDir = dir
 		c.DevMode = false
@@ -1035,7 +1035,7 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 
 func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1091,7 +1091,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 
 func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1118,7 +1118,7 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 
 func TestACLEndpoint_ResolveToken(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, nil)
+	s1, _ := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)

@@ -899,7 +899,7 @@ func (r *AllocRunner) Run() {
 	}
 	r.taskLock.Unlock()
 
-	// taskDestroyEvent contains an event that caused the destroyment of a task
+	// taskDestroyEvent contains an event that caused the destruction of a task
 	// in the allocation.
 	var taskDestroyEvent *structs.TaskEvent
 

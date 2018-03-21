@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,13 +21,12 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	setResources := func(totalCompute int) {
-		if node.Resources == nil {
-			node.Resources = &structs.Resources{}
+func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
+	setResourcesCPU := func(totalCompute int) {
+		resp.Resources = &structs.Resources{
+			CPU: totalCompute,
 		}
-
-		node.Resources.CPU = totalCompute
 	}
 
 	if err := stats.Init(); err != nil {
@@ -35,21 +34,21 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	}
 
 	if cfg.CpuCompute != 0 {
-		setResources(cfg.CpuCompute)
-		return true, nil
+		setResourcesCPU(cfg.CpuCompute)
+		return nil
 	}
 
 	if modelName := stats.CPUModelName(); modelName != "" {
-		node.Attributes["cpu.modelname"] = modelName
+		resp.AddAttribute("cpu.modelname", modelName)
 	}
 
 	if mhz := stats.CPUMHzPerCore(); mhz > 0 {
-		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.0f", mhz)
+		resp.AddAttribute("cpu.frequency", fmt.Sprintf("%.0f", mhz))
 		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
 	}
 
 	if numCores := stats.CPUNumCores(); numCores > 0 {
-		node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
+		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
 		f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
 	}
 
@@ -62,17 +61,14 @@ func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bo
 	// Return an error if no cpu was detected or explicitly set as this
 	// node would be unable to receive any allocations.
 	if tt == 0 {
-		return false, fmt.Errorf("cannot detect cpu total compute. "+
+		return fmt.Errorf("cannot detect cpu total compute. "+
 			"CPU compute must be set manually using the client config option %q",
 			"cpu_total_compute")
 	}
 
-	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%d", tt)
+	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
+	setResourcesCPU(tt)
+	resp.Detected = true
 
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
-
-	node.Resources.CPU = tt
-	return true, nil
+	return nil
 }

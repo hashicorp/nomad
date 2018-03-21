@@ -12,7 +12,7 @@ description: |-
   <tr>
     <th width="120">Placement</th>
     <td>
-      <code>**acl**</code>
+      <code>**autopilot**</code>
     </td>
   </tr>
 </table>

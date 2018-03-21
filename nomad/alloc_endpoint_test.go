@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -15,7 +16,7 @@ import (
 
 func TestAllocEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -81,7 +82,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -137,7 +138,7 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -212,13 +213,19 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
+	prevAllocID := uuid.Generate()
 	alloc := mock.Alloc()
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{RescheduleTime: time.Now().UTC().UnixNano(), PrevNodeID: "boom", PrevAllocID: prevAllocID},
+		},
+	}
 	state := s1.fsm.State()
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
@@ -246,7 +253,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -320,7 +327,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -375,7 +382,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -410,7 +417,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp.Allocs)
 	}
 
-	// Lookup non-existent allocs.
+	// Lookup nonexistent allocs.
 	get = &structs.AllocsGetRequest{
 		AllocIDs:     []string{"foo"},
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -422,7 +429,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
