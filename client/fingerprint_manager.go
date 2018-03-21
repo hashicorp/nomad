@@ -174,20 +174,17 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			return err
 		}
 
-		// For all drivers without health checking enabled , create a driver
-		// info which matches its fingerprint status. Later, for drivers that
-		// have the health check interface implemented, a periodic health check
-		// will be run
-		if _, isHealthCheck := d.(fingerprint.HealthCheck); !isHealthCheck {
-			healthInfo := &structs.DriverInfo{
-				Healthy:    detected,
-				UpdateTime: time.Now(),
-			}
-			if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-				fm.nodeLock.Lock()
-				fm.node = node
-				fm.nodeLock.Unlock()
-			}
+		// Set the initial health check status to be the driver detected status.
+		// Later, the periodic health checker will update this value for drivers
+		// where health checks are enabled.
+		healthInfo := &structs.DriverInfo{
+			Healthy:    detected,
+			UpdateTime: time.Now(),
+		}
+		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
+			fm.nodeLock.Lock()
+			fm.node = node
+			fm.nodeLock.Unlock()
 		}
 
 		// Start a periodic watcher to detect changes to a drivers health and
