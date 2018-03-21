@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -96,6 +97,15 @@ func (n *Nodes) GcAlloc(allocID string, q *QueryOptions) error {
 	return err
 }
 
+// DriverInfo is used to deserialize a DriverInfo entry
+type DriverInfo struct {
+	Attributes        map[string]string
+	Detected          bool
+	Healthy           bool
+	HealthDescription string
+	UpdateTime        time.Time
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                string
@@ -114,6 +124,7 @@ type Node struct {
 	StatusDescription string
 	StatusUpdatedAt   int64
 	Events            []*NodeEvent
+	Drivers           map[string]*DriverInfo
 	CreateIndex       uint64
 	ModifyIndex       uint64
 }

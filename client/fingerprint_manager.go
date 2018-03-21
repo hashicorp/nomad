@@ -1,7 +1,9 @@
 package client
 
 import (
+	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,10 +22,14 @@ type FingerprintManager struct {
 	nodeLock   sync.Mutex
 	shutdownCh chan struct{}
 
-	// updateNode is a callback to the client to update the state of its
+	// updateNodeAttributes is a callback to the client to update the state of its
 	// associated node
-	updateNode func(*cstructs.FingerprintResponse) *structs.Node
-	logger     *log.Logger
+	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node
+
+	// updateNodeFromDriver is a callback to the client to update the state of a
+	// specific driver for the node
+	updateNodeFromDriver func(string, *structs.DriverInfo, *structs.DriverInfo) *structs.Node
+	logger               *log.Logger
 }
 
 // NewFingerprintManager is a constructor that creates and returns an instance
@@ -31,124 +37,17 @@ type FingerprintManager struct {
 func NewFingerprintManager(getConfig func() *config.Config,
 	node *structs.Node,
 	shutdownCh chan struct{},
-	updateNode func(*cstructs.FingerprintResponse) *structs.Node,
+	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node,
+	updateNodeFromDriver func(string, *structs.DriverInfo, *structs.DriverInfo) *structs.Node,
 	logger *log.Logger) *FingerprintManager {
 	return &FingerprintManager{
-		getConfig:  getConfig,
-		updateNode: updateNode,
-		node:       node,
-		shutdownCh: shutdownCh,
-		logger:     logger,
+		getConfig:            getConfig,
+		updateNodeAttributes: updateNodeAttributes,
+		updateNodeFromDriver: updateNodeFromDriver,
+		node:                 node,
+		shutdownCh:           shutdownCh,
+		logger:               logger,
 	}
-}
-
-// run runs each fingerprinter individually on an ongoing basis
-func (fm *FingerprintManager) run(f fingerprint.Fingerprint, period time.Duration, name string) {
-	fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting %s every %v", name, period)
-
-	for {
-		select {
-		case <-time.After(period):
-			_, err := fm.fingerprint(name, f)
-			if err != nil {
-				fm.logger.Printf("[DEBUG] client.fingerprint_manager: periodic fingerprinting for %v failed: %+v", name, err)
-				continue
-			}
-
-		case <-fm.shutdownCh:
-			return
-		}
-	}
-}
-
-// setupDrivers is used to fingerprint the node to see if these drivers are
-// supported
-func (fm *FingerprintManager) setupDrivers(drivers []string) error {
-	var availDrivers []string
-	driverCtx := driver.NewDriverContext("", "", fm.getConfig(), fm.node, fm.logger, nil)
-	for _, name := range drivers {
-
-		d, err := driver.NewDriver(name, driverCtx)
-		if err != nil {
-			return err
-		}
-
-		detected, err := fm.fingerprint(name, d)
-		if err != nil {
-			fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting for %v failed: %+v", name, err)
-			return err
-		}
-
-		// log the fingerprinters which have been applied
-		if detected {
-			availDrivers = append(availDrivers, name)
-		}
-
-		p, period := d.Periodic()
-		if p {
-			go fm.run(d, period, name)
-		}
-	}
-
-	fm.logger.Printf("[DEBUG] client.fingerprint_manager: detected drivers %v", availDrivers)
-	return nil
-}
-
-// fingerprint does an initial fingerprint of the client. If the fingerprinter
-// is meant to be run continuously, a process is launched to perform this
-// fingerprint on an ongoing basis in the background.
-func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint) (bool, error) {
-	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
-	var response cstructs.FingerprintResponse
-
-	fm.nodeLock.Lock()
-	err := f.Fingerprint(request, &response)
-	fm.nodeLock.Unlock()
-
-	if err != nil {
-		return false, err
-	}
-
-	if node := fm.updateNode(&response); node != nil {
-		fm.nodeLock.Lock()
-		fm.node = node
-		fm.nodeLock.Unlock()
-	}
-
-	return response.Detected, nil
-}
-
-// setupFingerprints is used to fingerprint the node to see if these attributes are
-// supported
-func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
-	var appliedFingerprints []string
-
-	for _, name := range fingerprints {
-		f, err := fingerprint.NewFingerprint(name, fm.logger)
-
-		if err != nil {
-			fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting for %v failed: %+v", name, err)
-			return err
-		}
-
-		detected, err := fm.fingerprint(name, f)
-		if err != nil {
-			return err
-		}
-
-		// log the fingerprinters which have been applied
-		if detected {
-			appliedFingerprints = append(appliedFingerprints, name)
-		}
-
-		p, period := f.Periodic()
-		if p {
-			go fm.run(f, period, name)
-		}
-	}
-
-	fm.logger.Printf("[DEBUG] client.fingerprint_manager: detected fingerprints %v", appliedFingerprints)
-	return nil
 }
 
 // Run starts the process of fingerprinting the node. It does an initial pass,
@@ -156,7 +55,7 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 // those which require periotic checking, it starts a periodic process for
 // each.
 func (fp *FingerprintManager) Run() error {
-	// first, set up all fingerprints
+	// First, set up all fingerprints
 	cfg := fp.getConfig()
 	whitelistFingerprints := cfg.ReadStringListToMap("fingerprint.whitelist")
 	whitelistFingerprintsEnabled := len(whitelistFingerprints) > 0
@@ -189,7 +88,7 @@ func (fp *FingerprintManager) Run() error {
 		fp.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprint modules skipped due to white/blacklist: %v", skippedFingerprints)
 	}
 
-	// next, set up drivers
+	// Next, set up drivers
 	// Build the white/blacklists of drivers.
 	whitelistDrivers := cfg.ReadStringListToMap("driver.whitelist")
 	whitelistDriversEnabled := len(whitelistDrivers) > 0
@@ -221,5 +120,274 @@ func (fp *FingerprintManager) Run() error {
 	if len(skippedDrivers) > 0 {
 		fp.logger.Printf("[DEBUG] client.fingerprint_manager: drivers skipped due to white/blacklist: %v", skippedDrivers)
 	}
+	return nil
+}
+
+// setupFingerprints is used to fingerprint the node to see if these attributes are
+// supported
+func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
+	var appliedFingerprints []string
+
+	for _, name := range fingerprints {
+		f, err := fingerprint.NewFingerprint(name, fm.logger)
+
+		if err != nil {
+			fm.logger.Printf("[ERR] client.fingerprint_manager: fingerprinting for %v failed: %+v", name, err)
+			return err
+		}
+
+		detected, err := fm.fingerprint(name, f)
+		if err != nil {
+			return err
+		}
+
+		// log the fingerprinters which have been applied
+		if detected {
+			appliedFingerprints = append(appliedFingerprints, name)
+		}
+
+		p, period := f.Periodic()
+		if p {
+			go fm.runFingerprint(f, period, name)
+		}
+	}
+
+	fm.logger.Printf("[DEBUG] client.fingerprint_manager: detected fingerprints %v", appliedFingerprints)
+	return nil
+}
+
+// setupDrivers is used to fingerprint the node to see if these drivers are
+// supported
+func (fm *FingerprintManager) setupDrivers(drivers []string) error {
+	var availDrivers []string
+	driverCtx := driver.NewDriverContext("", "", fm.getConfig(), fm.node, fm.logger, nil)
+	for _, name := range drivers {
+
+		d, err := driver.NewDriver(name, driverCtx)
+		if err != nil {
+			return err
+		}
+
+		detected, err := fm.fingerprintDriver(name, d)
+		if err != nil {
+			fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting driver %v failed: %+v", name, err)
+			return err
+		}
+
+		// Set the initial health check status to be the driver detected status.
+		// Later, the periodic health checker will update this value for drivers
+		// where health checks are enabled.
+		healthInfo := &structs.DriverInfo{
+			Healthy:    detected,
+			UpdateTime: time.Now(),
+		}
+		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
+			fm.nodeLock.Lock()
+			fm.node = node
+			fm.nodeLock.Unlock()
+		}
+
+		// Start a periodic watcher to detect changes to a drivers health and
+		// attributes.
+		go fm.watchDriver(d, name)
+
+		// Log the fingerprinters which have been applied
+		if detected {
+			availDrivers = append(availDrivers, name)
+		}
+	}
+
+	fm.logger.Printf("[DEBUG] client.fingerprint_manager: detected drivers %v", availDrivers)
+	return nil
+}
+
+// runFingerprint runs each fingerprinter individually on an ongoing basis
+func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period time.Duration, name string) {
+	fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting %s every %v", name, period)
+
+	timer := time.NewTimer(period)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			timer.Reset(period)
+
+			_, err := fm.fingerprint(name, f)
+			if err != nil {
+				fm.logger.Printf("[DEBUG] client.fingerprint_manager: periodic fingerprinting for %v failed: %+v", name, err)
+				continue
+			}
+
+		case <-fm.shutdownCh:
+			return
+		}
+	}
+}
+
+// fingerprint does an initial fingerprint of the client. If the fingerprinter
+// is meant to be run continuously, a process is launched to perform this
+// fingerprint on an ongoing basis in the background.
+func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint) (bool, error) {
+	var response cstructs.FingerprintResponse
+
+	fm.nodeLock.Lock()
+	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
+	err := f.Fingerprint(request, &response)
+	fm.nodeLock.Unlock()
+
+	if err != nil {
+		return false, err
+	}
+
+	if node := fm.updateNodeAttributes(&response); node != nil {
+		fm.nodeLock.Lock()
+		fm.node = node
+		fm.nodeLock.Unlock()
+	}
+
+	return response.Detected, nil
+}
+
+// watchDrivers facilitates the different periods between fingerprint and
+// health checking a driver
+func (fm *FingerprintManager) watchDriver(d driver.Driver, name string) {
+	var fingerprintTicker, healthTicker <-chan time.Time
+
+	// Determine whether the fingerprinter is periodic and health checking
+	isPeriodic, fingerprintPeriod := d.Periodic()
+	hc, isHealthCheck := d.(fingerprint.HealthCheck)
+
+	// Nothing to do since the state of this driver will never change
+	if !isPeriodic && !isHealthCheck {
+		return
+	}
+
+	// Setup the required tickers
+	if isPeriodic {
+		ticker := time.NewTicker(fingerprintPeriod)
+		fingerprintTicker = ticker.C
+		defer ticker.Stop()
+		fm.logger.Printf("[DEBUG] client.fingerprint_manager: fingerprinting driver %s every %v", name, fingerprintPeriod)
+	}
+	if isHealthCheck {
+		// Determine the interval at which to health check
+		req := &cstructs.HealthCheckIntervalRequest{}
+		var resp cstructs.HealthCheckIntervalResponse
+
+		if err := hc.GetHealthCheckInterval(req, &resp); err != nil {
+			fm.logger.Printf("[ERR] client.fingerprint_manager: error getting health check interval for driver %s: %v", name, err)
+		} else if resp.Eligible {
+			ticker := time.NewTicker(resp.Period)
+			healthTicker = ticker.C
+			defer ticker.Stop()
+			fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking driver %s every %v", name, resp.Period)
+		}
+	}
+
+	for {
+		select {
+		case <-fm.shutdownCh:
+			return
+		case <-fingerprintTicker:
+			if _, err := fm.fingerprintDriver(name, d); err != nil {
+				fm.logger.Printf("[DEBUG] client.fingerprint_manager: periodic fingerprinting for driver %v failed: %+v", name, err)
+			}
+		case <-healthTicker:
+			// Determine if we should run the health check
+			fm.nodeLock.Lock()
+			driver, detected := fm.node.Drivers[name]
+			if detected && driver != nil {
+				detected = driver.Detected
+			}
+			fm.nodeLock.Unlock()
+
+			if detected {
+				if err := fm.runDriverHealthCheck(name, hc); err != nil {
+					fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %v", name, err)
+				}
+			} else {
+				// If the driver is undetected, change the health status to unhealthy
+				// only once.
+				healthInfo := &structs.DriverInfo{
+					Healthy:           false,
+					HealthDescription: fmt.Sprintf("Driver %s is not detected", name),
+					UpdateTime:        time.Now(),
+				}
+				if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
+					fm.nodeLock.Lock()
+					fm.node = node
+					fm.nodeLock.Unlock()
+				}
+			}
+		}
+	}
+}
+
+// fingerprintDriver is a temporary solution to move towards DriverInfo and
+// away from annotating a node's attributes to demonstrate support for a
+// particular driver. Takes the FingerprintResponse and converts it to the
+// proper DriverInfo update and then sets the prefix attributes as well
+func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Fingerprint) (bool, error) {
+	var response cstructs.FingerprintResponse
+
+	fm.nodeLock.Lock()
+	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
+	err := f.Fingerprint(request, &response)
+	fm.nodeLock.Unlock()
+
+	if err != nil {
+		return false, err
+	}
+
+	if node := fm.updateNodeAttributes(&response); node != nil {
+		fm.nodeLock.Lock()
+		fm.node = node
+		fm.nodeLock.Unlock()
+	}
+
+	// COMPAT: Remove in 0.9: As of Nomad 0.8 there is a temporary measure to
+	// update all driver attributes to its corresponding driver info object,
+	// as eventually all drivers will need to
+	// support this. Doing this so that we can enable this iteratively and also
+	// in a backwards compatible way, where node attributes for drivers will
+	// eventually be phased out.
+	strippedAttributes := make(map[string]string, 0)
+	for k, v := range response.Attributes {
+		copy := k
+		strings.Replace(copy, "driver.", "", 1)
+		strippedAttributes[k] = v
+	}
+
+	di := &structs.DriverInfo{
+		Attributes: strippedAttributes,
+		Detected:   response.Detected,
+	}
+	if node := fm.updateNodeFromDriver(name, di, nil); node != nil {
+		fm.nodeLock.Lock()
+		fm.node = node
+		fm.nodeLock.Unlock()
+	}
+
+	return response.Detected, nil
+}
+
+// runDriverHealthCheck checks the health of the specified resource.
+func (fm *FingerprintManager) runDriverHealthCheck(name string, hc fingerprint.HealthCheck) error {
+	request := &cstructs.HealthCheckRequest{}
+	var response cstructs.HealthCheckResponse
+	if err := hc.HealthCheck(request, &response); err != nil {
+		return err
+	}
+
+	// Update the status of the node irregardless if there was an error- in the
+	// case of periodic health checks, an error will occur if a health check
+	// fails
+	if node := fm.updateNodeFromDriver(name, nil, response.Drivers[name]); node != nil {
+		fm.nodeLock.Lock()
+		fm.node = node
+		fm.nodeLock.Unlock()
+	}
+
 	return nil
 }

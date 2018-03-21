@@ -129,6 +129,22 @@ func (c *DriverChecker) Feasible(option *structs.Node) bool {
 func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 	for driver := range c.drivers {
 		driverStr := fmt.Sprintf("driver.%s", driver)
+
+		// COMPAT: Remove in 0.10: As of Nomad 0.8, nodes have a DriverInfo that
+		// corresponds with every driver. As a Nomad server might be on a later
+		// version than a Nomad client, we need to check for compatibility here
+		// to verify the client supports this.
+		if driverInfo, ok := option.Drivers[driver]; ok {
+			if driverInfo == nil {
+				c.ctx.Logger().
+					Printf("[WARN] scheduler.DriverChecker: node %v has no driver info set for %v",
+						option.ID, driver)
+				return false
+			}
+
+			return driverInfo.Detected && driverInfo.Healthy
+		}
+
 		value, ok := option.Attributes[driverStr]
 		if !ok {
 			return false

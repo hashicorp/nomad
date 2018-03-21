@@ -1241,6 +1241,9 @@ type Node struct {
 	// retaining only MaxRetainedNodeEvents number at a time
 	Events []*NodeEvent
 
+	// Drivers is a map of driver names to current driver information
+	Drivers map[string]*DriverInfo
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
