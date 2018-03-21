@@ -116,6 +116,9 @@ export default ApplicationAdapter.extend({
   },
 
   cancelFindRecord(modelName, id) {
+    if (!modelName || id == null) {
+      return;
+    }
     const url = this.urlForFindRecord(id, modelName);
     const xhr = this.get('xhrs')[url];
     if (xhr) {
@@ -124,6 +127,9 @@ export default ApplicationAdapter.extend({
   },
 
   cancelFindAll(modelName) {
+    if (!modelName) {
+      return;
+    }
     const xhr = this.get('xhrs')[this.urlForFindAll(modelName)];
     if (xhr) {
       xhr.abort();
@@ -131,6 +137,9 @@ export default ApplicationAdapter.extend({
   },
 
   cancelReloadRelationship(model, relationshipName) {
+    if (!model || !relationshipName) {
+      return;
+    }
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
       throw new Error(

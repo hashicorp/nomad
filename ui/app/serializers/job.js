@@ -21,6 +21,10 @@ export default ApplicationSerializer.extend({
       hash.ParentID = JSON.stringify([hash.ParentID, hash.NamespaceID || 'default']);
     }
 
+    // Job Summary is always at /:job-id/summary, but since it can also come from
+    // the job list, it's better for Ember Data to be linked by ID association.
+    hash.SummaryID = hash.ID;
+
     // Periodic is a boolean on list and an object on single
     if (hash.Periodic instanceof Object) {
       hash.PeriodicDetails = hash.Periodic;
@@ -55,11 +59,6 @@ export default ApplicationSerializer.extend({
       .split('?');
 
     return assign(this._super(...arguments), {
-      summary: {
-        links: {
-          related: buildURL(`${jobURL}/summary`, { namespace: namespace }),
-        },
-      },
       allocations: {
         links: {
           related: buildURL(`${jobURL}/allocations`, { namespace: namespace }),
