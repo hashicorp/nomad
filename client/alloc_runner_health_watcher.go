@@ -196,12 +196,11 @@ func newAllocHealthTracker(parentCtx context.Context, logger *log.Logger, alloc 
 	minHealthyTime time.Duration, useChecks bool) *allocHealthTracker {
 
 	a := &allocHealthTracker{
-		logger:       logger,
-		healthy:      make(chan bool, 1),
-		allocStopped: make(chan struct{}),
-		alloc:        alloc,
-		tg:           alloc.Job.LookupTaskGroup(alloc.TaskGroup),
-		//FIXME should i wrap all these parameters up in a struct?
+		logger:         logger,
+		healthy:        make(chan bool, 1),
+		allocStopped:   make(chan struct{}),
+		alloc:          alloc,
+		tg:             alloc.Job.LookupTaskGroup(alloc.TaskGroup),
 		minHealthyTime: minHealthyTime,
 		useChecks:      useChecks,
 		allocUpdates:   allocUpdates,
@@ -260,7 +259,6 @@ func (a *allocHealthTracker) TaskEvents() map[string]string {
 
 	// Go through are task information and build the event map
 	for task, state := range a.taskHealth {
-		//FIXME skip this for migrations?
 		useChecks := a.tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Checks
 		if e, ok := state.event(deadline, a.tg.Update.MinHealthyTime, useChecks); ok {
 			events[task] = e
@@ -542,7 +540,6 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 		}
 
 		// We are running so check if we have been running long enough
-		//FIXME need minHealthyTime here
 		if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
 			return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
 		}

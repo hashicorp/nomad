@@ -1193,7 +1193,6 @@ const (
 
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
-//TODO(schmichael) Update for drainv2?!
 func ShouldDrainNode(status string) bool {
 	switch status {
 	case NodeStatusInit, NodeStatusReady:

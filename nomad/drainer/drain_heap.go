@@ -20,9 +20,6 @@ type DrainDeadlineNotifier interface {
 	Watch(nodeID string, deadline time.Time)
 }
 
-// TODO Make any of what I just wrote true :) Initially it is just a simple
-// implementation.
-
 // deadlineHeap implements the DrainDeadlineNotifier and is backed by a min-heap
 // to efficiently determine the next deadlining node. It also supports
 // coalescing several deadlines into a single emission.
