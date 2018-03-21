@@ -27,6 +27,7 @@ type JobRunCommand struct {
 func (c *JobRunCommand) Help() string {
 	helpText := `
 Usage: nomad job run [options] <path>
+Alias: nomad run
 
   Starts running a new job or updates an existing job using
   the specification located at <path>. This is the main command

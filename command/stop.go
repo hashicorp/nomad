@@ -15,6 +15,7 @@ type JobStopCommand struct {
 func (c *JobStopCommand) Help() string {
 	helpText := `
 Usage: nomad job stop [options] <job>
+Alias: nomad stop
 
   Stop an existing job. This command is used to signal allocations
   to shut down for the given job ID. Upon successful deregistration,
