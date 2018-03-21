@@ -3,6 +3,8 @@
 package nomad
 
 import (
+	"log"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -172,4 +174,8 @@ func TestPlanApply_EvalPlanQuota_NilJob(t *testing.T) {
 	over, err := evaluatePlanQuota(snap, plan)
 	assert.Nil(err)
 	assert.False(over)
+}
+
+func testLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
 }
