@@ -330,7 +330,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 	out := ui.OutputWriter.String()
-	require.Contains(out, "Upcoming Evaluations")
+	require.Contains(out, "Future Rescheduling Evaluations")
 	require.Contains(out, e.ID[:8])
 }
 
