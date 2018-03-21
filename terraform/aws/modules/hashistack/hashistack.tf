@@ -5,6 +5,7 @@ variable "key_name" {}
 variable "server_count" {}
 variable "client_count" {}
 variable "retry_join" {}
+variable "nomad_binary" {}
 
 data "aws_vpc" "default" {
   default = true
@@ -83,6 +84,7 @@ data "template_file" "user_data_server" {
     server_count = "${var.server_count}"
     region       = "${var.region}"
     retry_join   = "${var.retry_join}"
+    nomad_binary = "${var.nomad_binary}"
   }
 }
 
@@ -92,6 +94,7 @@ data "template_file" "user_data_client" {
   vars {
     region     = "${var.region}"
     retry_join = "${var.retry_join}"
+    nomad_binary = "${var.nomad_binary}"
   }
 }
 
@@ -124,6 +127,13 @@ resource "aws_instance" "client" {
   tags {
     Name           = "hashistack-client-${count.index}"
     ConsulAutoJoin = "auto-join"
+  }
+
+  ebs_block_device =  {
+    device_name                 = "/dev/xvdd"
+    volume_type                 = "gp2"
+    volume_size                 = "50"
+    delete_on_termination       = "true"
   }
 
   user_data            = "${data.template_file.user_data_client.rendered}"
