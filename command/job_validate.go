@@ -19,6 +19,7 @@ type JobValidateCommand struct {
 func (c *JobValidateCommand) Help() string {
 	helpText := `
 Usage: nomad job validate [options] <path>
+Alias: nomad validate
 
   Checks if a given HCL job file has a valid specification. This can be used to
   check for any syntax errors or validation problems with a job.

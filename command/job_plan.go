@@ -30,6 +30,7 @@ type JobPlanCommand struct {
 func (c *JobPlanCommand) Help() string {
 	helpText := `
 Usage: nomad job plan [options] <path>
+Alias: nomad plan
 
   Plan invokes a dry-run of the scheduler to determine the effects of submitting
   either a new or updated version of a job. The plan will not result in any

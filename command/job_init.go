@@ -22,6 +22,7 @@ type JobInitCommand struct {
 func (c *JobInitCommand) Help() string {
 	helpText := `
 Usage: nomad job init
+Alias: nomad init
 
   Creates an example job file that can be used as a starting
   point to customize further.
