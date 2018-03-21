@@ -52,7 +52,8 @@ type NodeUpdateDrainRequest struct {
 	// will disable draining.
 	DrainSpec *DrainSpec
 
-	// MarkEligible marks the node as eligible if removing the drain strategy.
+	// MarkEligible marks the node as eligible for scheduling if removing
+	// the drain strategy.
 	MarkEligible bool
 }
 
