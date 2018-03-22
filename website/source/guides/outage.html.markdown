@@ -48,10 +48,10 @@ to a fully healthy state.
 Both of these strategies involve a potentially lengthy time to reboot or rebuild
 a failed server. If this is impractical or if building a new server with the same
 IP isn't an option, you need to remove the failed server. Usually, you can issue
-a [`nomad server-force-leave`](/docs/commands/server-force-leave.html) command
+a [`nomad server force-leave`](/docs/commands/server/force-leave.html) command
 to remove the failed server if it's still a member of the cluster.
 
-If [`nomad server-force-leave`](/docs/commands/server-force-leave.html) isn't
+If [`nomad server force-leave`](/docs/commands/server/force-leave.html) isn't
 able to remove the server, you have two methods available to remove it,
 depending on your version of Nomad:
 
@@ -92,7 +92,7 @@ once the remaining servers are all restarted with an identical `raft/peers.json`
 configuration.
 
 Any new servers you introduce later can be fresh with totally clean data directories
-and joined using Nomad's `server-join` command.
+and joined using Nomad's `server join` command.
 
 In extreme cases, it should be possible to recover with just a single remaining
 server by starting that single server with itself as the only peer in the
@@ -158,10 +158,10 @@ later you will see them ingest recovery file:
 ```
 
 If any servers managed to perform a graceful leave, you may need to have them
-rejoin the cluster using the [`server-join`](/docs/commands/server-join.html) command:
+rejoin the cluster using the [`server join`](/docs/commands/server/join.html) command:
 
 ```text
-$ nomad server-join <Node Address>
+$ nomad server join <Node Address>
 Successfully joined cluster by contacting 1 nodes.
 ```
 

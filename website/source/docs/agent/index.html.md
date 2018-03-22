@@ -93,7 +93,7 @@ leave the [consensus](/docs/internals/consensus.html) peer set.
 It is especially important that a server node be allowed to leave gracefully
 so that there will be a minimal impact on availability as the server leaves
 the consensus peer set. If a server does not gracefully leave, and will not
-return into service, the [`server-force-leave` command](/docs/commands/server-force-leave.html)
+return into service, the [`server force-leave` command](/docs/commands/server/force-leave.html)
 should be used to eject it from the consensus peer set.
 
 ## Lifecycle
@@ -125,7 +125,7 @@ participate in a [gossip protocol](/docs/internals/gossip.html) both to cluster
 within a region and to support multi-region configurations. When a server is
 first started, it does not know the address of other servers in the cluster.
 To discover its peers, it must _join_ the cluster. This is done with the
-[`server-join` command](/docs/commands/server-join.html) or by providing the
+[`server join` command](/docs/commands/server/join.html) or by providing the
 proper configuration on start. Once a node joins, this information is gossiped
 to the entire cluster, meaning all nodes will eventually be aware of each other.
 

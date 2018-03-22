@@ -74,14 +74,14 @@ certain task drivers will not be available.
 
 ## Cluster Nodes
 
-If you run [`nomad node-status`](/docs/commands/node-status.html) in another terminal, you
-can see the registered nodes of the Nomad cluster:
+If you run [`nomad node status`](/docs/commands/node/status.html) in another
+terminal, you can see the registered nodes of the Nomad cluster:
 
 ```text
 $ vagrant ssh
 ...
 
-$ nomad node-status
+$ nomad node status
 ID        Datacenter  Name   Class   Drain  Status
 171a583b  dc1         nomad  <none>  false  ready
 ```
@@ -94,10 +94,10 @@ currently off.
 The agent is also running in server mode, which means it is part of
 the [gossip protocol](/docs/internals/gossip.html) used to connect all
 the server instances together. We can view the members of the gossip
-ring using the [`server-members`](/docs/commands/server-members.html) command:
+ring using the [`server members`](/docs/commands/server/members.html) command:
 
 ```text
-$ nomad server-members
+$ nomad server members
 Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
 nomad.global  127.0.0.1  4648  alive   true    2         0.7.0  dc1         global
 ```
@@ -138,7 +138,7 @@ If an agent is operating as a server, a graceful leave is important to avoid
 causing a potential availability outage affecting the
 [consensus protocol](/docs/internals/consensus.html). If a server does
 forcefully exit and will not be returning into service, the
-[`server-force-leave` command](/docs/commands/server-force-leave.html) should
+[`server force-leave` command](/docs/commands/server/force-leave.html) should
 be used to force the server from a _failed_ to a _left_ state.
 
 ## Next Steps

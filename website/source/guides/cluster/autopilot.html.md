@@ -203,7 +203,7 @@ To check the Nomad version of the servers, either the [autopilot health]
 command can be used:
 
 ```
-$ nomad server-members
+$ nomad server members
 Name   Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
 node1  127.0.0.1  4648  alive   true    3         0.7.1  dc1         global
 node2  127.0.0.1  4748  alive   false   3         0.7.1  dc1         global

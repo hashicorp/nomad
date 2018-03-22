@@ -13,10 +13,14 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/kr/text"
 	"github.com/posener/complete"
 
 	"github.com/ryanuber/columnize"
 )
+
+// maxLineLength is the maximum width of any line.
+const maxLineLength int = 78
 
 // formatKV takes a set of strings and formats them into properly
 // aligned k = v pairs using the columnize library.
@@ -51,6 +55,22 @@ func limit(s string, length int) string {
 	}
 
 	return s[:length]
+}
+
+// wrapAtLengthWithPadding wraps the given text at the maxLineLength, taking
+// into account any provided left padding.
+func wrapAtLengthWithPadding(s string, pad int) string {
+	wrapped := text.Wrap(s, maxLineLength-pad)
+	lines := strings.Split(wrapped, "\n")
+	for i, line := range lines {
+		lines[i] = strings.Repeat(" ", pad) + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+// wrapAtLength wraps the given text to maxLineLength.
+func wrapAtLength(s string) string {
+	return wrapAtLengthWithPadding(s, 0)
 }
 
 // formatTime formats the time to string based on RFC822

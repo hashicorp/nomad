@@ -17,7 +17,7 @@ type ServerMembersCommand struct {
 
 func (c *ServerMembersCommand) Help() string {
 	helpText := `
-Usage: nomad server-members [options]
+Usage: nomad server members [options]
 
   Display a list of the known servers and their status. Only Nomad servers are
   able to service this command.
