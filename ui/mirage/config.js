@@ -11,41 +11,72 @@ export function findLeader(schema) {
 }
 
 export default function() {
-  const server = this;
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
 
-  this.get('/jobs', function({ jobs }, { queryParams }) {
-    const json = this.serialize(jobs.all());
-    const namespace = queryParams.namespace || 'default';
-    return json
-      .filter(
-        job =>
-          namespace === 'default'
-            ? !job.NamespaceID || job.NamespaceID === namespace
-            : job.NamespaceID === namespace
-      )
-      .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
-  });
+  const nomadIndices = {}; // used for tracking blocking queries
+  const server = this;
+  const withBlockingSupport = function(fn) {
+    return function(schema, request) {
+      // Get the original response
+      let { url } = request;
+      url = url.replace(/index=\d+[&;]?/, '');
+      const response = fn.apply(this, arguments);
 
-  this.get('/job/:id', function({ jobs }, { params, queryParams }) {
-    const job = jobs.all().models.find(job => {
-      const jobIsDefault = !job.namespaceId || job.namespaceId === 'default';
-      const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
-      return (
-        job.id === params.id &&
-        (job.namespaceId === queryParams.namespace || (jobIsDefault && qpIsDefault))
-      );
-    });
+      // Get and increment the appropriate index
+      nomadIndices[url] || (nomadIndices[url] = 2);
+      const index = nomadIndices[url];
+      nomadIndices[url]++;
 
-    return job ? this.serialize(job) : new Response(404, {}, null);
-  });
+      // Annotate the response with the index
+      if (response instanceof Response) {
+        response.headers['X-Nomad-Index'] = index;
+        return response;
+      }
+      return new Response(200, { 'x-nomad-index': index }, response);
+    };
+  };
 
-  this.get('/job/:id/summary', function({ jobSummaries }, { params }) {
-    return this.serialize(jobSummaries.findBy({ jobId: params.id }));
-  });
+  this.get(
+    '/jobs',
+    withBlockingSupport(function({ jobs }, { queryParams }) {
+      const json = this.serialize(jobs.all());
+      const namespace = queryParams.namespace || 'default';
+      return json
+        .filter(
+          job =>
+            namespace === 'default'
+              ? !job.NamespaceID || job.NamespaceID === namespace
+              : job.NamespaceID === namespace
+        )
+        .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+    })
+  );
+
+  this.get(
+    '/job/:id',
+    withBlockingSupport(function({ jobs }, { params, queryParams }) {
+      const job = jobs.all().models.find(job => {
+        const jobIsDefault = !job.namespaceId || job.namespaceId === 'default';
+        const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
+        return (
+          job.id === params.id &&
+          (job.namespaceId === queryParams.namespace || (jobIsDefault && qpIsDefault))
+        );
+      });
+
+      return job ? this.serialize(job) : new Response(404, {}, null);
+    })
+  );
+
+  this.get(
+    '/job/:id/summary',
+    withBlockingSupport(function({ jobSummaries }, { params }) {
+      return this.serialize(jobSummaries.findBy({ jobId: params.id }));
+    })
+  );
 
   this.get('/job/:id/allocations', function({ allocations }, { params }) {
     return this.serialize(allocations.where({ jobId: params.id }));
@@ -178,36 +209,41 @@ export default function() {
     return new Response(403, {}, null);
   });
 
+  const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
+    return this.serialize(clientAllocationStats.find(params.id));
+  };
+
+  const clientAllocationLog = function(server, { params, queryParams }) {
+    const allocation = server.allocations.find(params.allocation_id);
+    const tasks = allocation.taskStateIds.map(id => server.taskStates.find(id));
+
+    if (!tasks.mapBy('name').includes(queryParams.task)) {
+      return new Response(400, {}, 'must include task name');
+    }
+
+    if (queryParams.plain) {
+      return logFrames.join('');
+    }
+
+    return logEncode(logFrames, logFrames.length - 1);
+  };
+
+  // Client requests are available on the server and the client
+  this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
+  this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
+
+  this.get('/client/v1/client/stats', function({ clientStats }, { queryParams }) {
+    return this.serialize(clientStats.find(queryParams.node_id));
+  });
+
   // TODO: in the future, this hack may be replaceable with dynamic host name
   // support in pretender: https://github.com/pretenderjs/pretender/issues/210
   HOSTS.forEach(host => {
-    this.get(`http://${host}/v1/client/allocation/:id/stats`, function(
-      { clientAllocationStats },
-      { params }
-    ) {
-      return this.serialize(clientAllocationStats.find(params.id));
-    });
+    this.get(`http://${host}/v1/client/allocation/:id/stats`, clientAllocationStatsHandler);
+    this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, clientAllocationLog);
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
-    });
-
-    this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, function(
-      server,
-      { params, queryParams }
-    ) {
-      const allocation = server.allocations.find(params.allocation_id);
-      const tasks = allocation.taskStateIds.map(id => server.taskStates.find(id));
-
-      if (!tasks.mapBy('name').includes(queryParams.task)) {
-        return new Response(400, {}, 'must include task name');
-      }
-
-      if (queryParams.plain) {
-        return logFrames.join('');
-      }
-
-      return logEncode(logFrames, logFrames.length - 1);
     });
   });
 }

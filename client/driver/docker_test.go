@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -164,6 +165,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
+
 	ctx := testDockerDriverContexts(t, &structs.Task{Name: "foo", Driver: "docker", Resources: basicResources})
 	//ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
 	defer ctx.AllocDir.Destroy()
@@ -227,6 +229,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: conf.Node}
 	var response cstructs.FingerprintResponse
+
 	err = dd.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("error fingerprinting docker: %v", err)
@@ -249,6 +252,44 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
 	}
 	t.Logf("docker bridge ip: %q", attributes["driver.docker.bridge_ip"])
+}
+
+func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("requires Docker")
+	}
+	if runtime.GOOS != "linux" {
+		t.Skip("expect only on linux")
+	}
+
+	require := require.New(t)
+
+	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
+	if err != nil {
+		t.Fatalf("unable to get ip for docker0: %v", err)
+	}
+	if expectedAddr == "" {
+		t.Fatalf("unable to get ip for docker bridge")
+	}
+
+	conf := testConfig(t)
+	conf.Node = mock.Node()
+	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
+
+	request := &cstructs.HealthCheckRequest{}
+	var response cstructs.HealthCheckResponse
+
+	dc, ok := dd.(fingerprint.HealthCheck)
+	require.True(ok)
+	err = dc.HealthCheck(request, &response)
+	require.Nil(err)
+
+	driverInfo := response.Drivers["docker"]
+	require.NotNil(driverInfo)
+	require.True(driverInfo.Healthy)
 }
 
 func TestDockerDriver_StartOpen_Wait(t *testing.T) {
@@ -2299,6 +2340,41 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	assert.Nil(t, err, "Error inspecting container: %v", err)
 
 	assert.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
+}
+
+// fakeDockerClient can be used in places that accept an interface for the
+// docker client such as createContainer.
+type fakeDockerClient struct{}
+
+func (fakeDockerClient) CreateContainer(docker.CreateContainerOptions) (*docker.Container, error) {
+	return nil, fmt.Errorf("volume is attached on another node")
+}
+func (fakeDockerClient) InspectContainer(id string) (*docker.Container, error) {
+	panic("not implemented")
+}
+func (fakeDockerClient) ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error) {
+	panic("not implemented")
+}
+func (fakeDockerClient) RemoveContainer(opts docker.RemoveContainerOptions) error {
+	panic("not implemented")
+}
+
+// TestDockerDriver_VolumeError asserts volume related errors when creating a
+// container are recoverable.
+func TestDockerDriver_VolumeError(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+
+	// setup
+	task, _, _ := dockerTask(t)
+	tctx := testDockerDriverContexts(t, task)
+	driver := NewDockerDriver(tctx.DriverCtx).(*DockerDriver)
+	driver.driverConfig = &DockerDriverConfig{ImageName: "test"}
+
+	// assert volume error is recoverable
+	_, err := driver.createContainer(fakeDockerClient{}, docker.CreateContainerOptions{})
+	require.True(t, structs.IsRecoverable(err))
 }
 
 func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {

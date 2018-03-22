@@ -48,13 +48,9 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 }
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
-	if err != nil {
-		return nil, err
-	}
-
 	var resp AllocResourceUsage
-	_, err = nodeClient.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
+	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
+	_, err := a.client.query(path, &resp, q)
 	return &resp, err
 }
 
@@ -85,11 +81,13 @@ type Allocation struct {
 	Metrics            *AllocationMetric
 	DesiredStatus      string
 	DesiredDescription string
+	DesiredTransition  DesiredTransition
 	ClientStatus       string
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentID       string
 	DeploymentStatus   *AllocDeploymentStatus
+	FollowupEvalID     string
 	PreviousAllocation string
 	NextAllocation     string
 	RescheduleTracker  *RescheduleTracker
@@ -133,6 +131,7 @@ type AllocationListStub struct {
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
 	RescheduleTracker  *RescheduleTracker
+	FollowupEvalID     string
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
@@ -206,4 +205,18 @@ type RescheduleEvent struct {
 
 	// PrevNodeID is the node ID of the previous allocation
 	PrevNodeID string
+}
+
+// DesiredTransition is used to mark an allocation as having a desired state
+// transition. This information can be used by the scheduler to make the
+// correct decision.
+type DesiredTransition struct {
+	// Migrate is used to indicate that this allocation should be stopped and
+	// migrated to another node.
+	Migrate *bool
+}
+
+// ShouldMigrate returns whether the transition object dictates a migration.
+func (d DesiredTransition) ShouldMigrate() bool {
+	return d.Migrate != nil && *d.Migrate
 }

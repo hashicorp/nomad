@@ -16,7 +16,7 @@ import (
 
 func TestCoreScheduler_EvalGC(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -107,9 +107,9 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 }
 
 // Tests GC behavior on allocations being rescheduled
-func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
+func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -210,7 +210,7 @@ func TestCoreScheduler_EvalGC_ReshedulingAllocs(t *testing.T) {
 // Tests GC behavior on stopped job with reschedulable allocs
 func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -285,7 +285,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 // An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -386,7 +386,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 // An EvalGC should  reap a batch job that has been stopped
 func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -482,7 +482,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
@@ -603,9 +603,9 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			require := require.New(t)
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -685,9 +685,9 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -737,7 +737,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -792,7 +792,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -849,7 +849,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -892,7 +892,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 
 func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1015,7 +1015,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 
 func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1160,7 +1160,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 // allocs/evals and job or nothing
 func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1272,7 +1272,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 // This test ensures that stopped jobs are GCd
 func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1376,9 +1376,9 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -1443,7 +1443,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 // This test ensures parameterized jobs only get gc'd when stopped
 func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1523,7 +1523,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	t.Parallel()
 
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1596,7 +1596,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 
 func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -1604,7 +1604,7 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
 	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
-	// Insert an active, terminal, and terminal with allocations edeployment
+	// Insert an active, terminal, and terminal with allocations deployment
 	state := s1.fsm.State()
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
@@ -1650,9 +1650,9 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
 			if withAcl {
-				server, _ = testACLServer(t, nil)
+				server, _ = TestACLServer(t, nil)
 			} else {
-				server = testServer(t, nil)
+				server = TestServer(t, nil)
 			}
 			defer server.Shutdown()
 			testutil.WaitForLeader(t, server.RPC)
@@ -1691,7 +1691,7 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 
 func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1733,7 +1733,7 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 
 func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1765,6 +1765,33 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	if len(second.Deployments) != 1 {
 		t.Fatalf("Unexpected second request: %v", second)
 	}
+}
+
+func TestCoreScheduler_PartitionJobReap(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a core scheduler
+	snap, err := s1.fsm.State().Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Set the max ids per reap to something lower.
+	maxIdsPerReap = 2
+
+	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
+	requests := core.(*CoreScheduler).partitionJobReap(jobs, "")
+	require.Len(requests, 2)
+
+	first := requests[0]
+	second := requests[1]
+	require.Len(first.Jobs, 2)
+	require.Len(second.Jobs, 1)
 }
 
 // Tests various scenarios when allocations are eligible to be GCed
@@ -1841,7 +1868,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
 			GCTime:           fail,
-			ReschedulePolicy: &structs.ReschedulePolicy{0, 0 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 0, Interval: 0 * time.Minute},
 			ModifyIndex:      90,
 			ThresholdIndex:   90,
 			ShouldGC:         true,
@@ -1853,14 +1880,14 @@ func TestAllocation_GCEligible(t *testing.T) {
 			GCTime:           fail,
 			ModifyIndex:      90,
 			ThresholdIndex:   90,
-			ReschedulePolicy: &structs.ReschedulePolicy{1, 1 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
 			ShouldGC:         false,
 		},
 		{
 			Desc:             "GC with prev reschedule attempt within interval",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			ReschedulePolicy: &structs.ReschedulePolicy{2, 30 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 2, Interval: 30 * time.Minute},
 			GCTime:           fail,
 			ModifyIndex:      90,
 			ThresholdIndex:   90,
@@ -1876,7 +1903,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
 			GCTime:           fail,
-			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
 					RescheduleTime: fail.Add(-45 * time.Minute).UTC().UnixNano(),
@@ -1892,7 +1919,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
 			GCTime:           fail,
-			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
 					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
@@ -1906,7 +1933,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
 			GCTime:           fail,
-			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
 					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
@@ -1920,7 +1947,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
 			GCTime:           fail,
-			ReschedulePolicy: &structs.ReschedulePolicy{5, 30 * time.Minute},
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
 					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
@@ -1936,7 +1963,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.ModifyIndex = tc.ModifyIndex
 		alloc.DesiredStatus = tc.DesiredStatus
 		alloc.ClientStatus = tc.ClientStatus
-		alloc.RescheduleTracker = &structs.RescheduleTracker{tc.RescheduleTrackers}
+		alloc.RescheduleTracker = &structs.RescheduleTracker{Events: tc.RescheduleTrackers}
 		alloc.NextAllocation = tc.NextAllocID
 		job := mock.Job()
 		alloc.TaskGroup = job.TaskGroups[0].Name

@@ -1,10 +1,9 @@
-import { collect, sum, bool, equal, or } from '@ember/object/computed';
+import { alias, equal, or, and } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
-import sumAggregation from '../utils/properties/sum-aggregation';
 
 const JOB_TYPES = ['service', 'batch', 'system'];
 
@@ -83,34 +82,31 @@ export default Model.extend({
 
   datacenters: attr(),
   taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
-  taskGroupSummaries: fragmentArray('task-group-summary'),
+  summary: belongsTo('job-summary'),
 
-  // Aggregate allocation counts across all summaries
-  queuedAllocs: sumAggregation('taskGroupSummaries', 'queuedAllocs'),
-  startingAllocs: sumAggregation('taskGroupSummaries', 'startingAllocs'),
-  runningAllocs: sumAggregation('taskGroupSummaries', 'runningAllocs'),
-  completeAllocs: sumAggregation('taskGroupSummaries', 'completeAllocs'),
-  failedAllocs: sumAggregation('taskGroupSummaries', 'failedAllocs'),
-  lostAllocs: sumAggregation('taskGroupSummaries', 'lostAllocs'),
+  // A job model created from the jobs list response will be lacking
+  // task groups. This is an indicator that it needs to be reloaded
+  // if task group information is important.
+  isPartial: equal('taskGroups.length', 0),
 
-  allocsList: collect(
-    'queuedAllocs',
-    'startingAllocs',
-    'runningAllocs',
-    'completeAllocs',
-    'failedAllocs',
-    'lostAllocs'
-  ),
+  // If a job has only been loaded through the list request, the task groups
+  // are still unknown. However, the count of task groups is available through
+  // the job-summary model which is embedded in the jobs list response.
+  taskGroupCount: or('taskGroups.length', 'taskGroupSummaries.length'),
 
-  totalAllocs: sum('allocsList'),
-
-  pendingChildren: attr('number'),
-  runningChildren: attr('number'),
-  deadChildren: attr('number'),
-
-  childrenList: collect('pendingChildren', 'runningChildren', 'deadChildren'),
-
-  totalChildren: sum('childrenList'),
+  // Alias through to the summary, as if there was no relationship
+  taskGroupSummaries: alias('summary.taskGroupSummaries'),
+  queuedAllocs: alias('summary.queuedAllocs'),
+  startingAllocs: alias('summary.startingAllocs'),
+  runningAllocs: alias('summary.runningAllocs'),
+  completeAllocs: alias('summary.completeAllocs'),
+  failedAllocs: alias('summary.failedAllocs'),
+  lostAllocs: alias('summary.lostAllocs'),
+  totalAllocs: alias('summary.totalAllocs'),
+  pendingChildren: alias('summary.pendingChildren'),
+  runningChildren: alias('summary.runningChildren'),
+  deadChildren: alias('summary.deadChildren'),
+  totalChildren: alias('summary.totalChildren'),
 
   version: attr('number'),
 
@@ -120,7 +116,13 @@ export default Model.extend({
   evaluations: hasMany('evaluations'),
   namespace: belongsTo('namespace'),
 
-  hasPlacementFailures: bool('latestFailureEvaluation'),
+  hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
+    return this.get('evaluations')
+      .toArray()
+      .some(evaluation => evaluation.get('isBlocked'));
+  }),
+
+  hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
 
   latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
     const evaluations = this.get('evaluations');

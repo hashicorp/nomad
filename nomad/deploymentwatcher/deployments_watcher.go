@@ -53,7 +53,7 @@ type DeploymentRaftEndpoints interface {
 
 // Watcher is used to watch deployments and their allocations created
 // by the scheduler and trigger the scheduler when allocation health
-// transistions.
+// transitions.
 type Watcher struct {
 	enabled bool
 	logger  *log.Logger
@@ -101,8 +101,8 @@ func NewDeploymentsWatcher(logger *log.Logger,
 
 // SetEnabled is used to control if the watcher is enabled. The watcher
 // should only be enabled on the active leader. When being enabled the state is
-// passsed in as it is no longer valid once a leader election has taken place.
-func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
+// passed in as it is no longer valid once a leader election has taken place.
+func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -120,8 +120,6 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
 	if enabled && !wasEnabled {
 		go w.watchDeployments(w.ctx)
 	}
-
-	return nil
 }
 
 // flush is used to clear the state of the watcher
@@ -153,7 +151,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				return
 			}
 
-			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deploylements: %v", err)
+			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deployments: %v", err)
 		}
 
 		// Update the latest index

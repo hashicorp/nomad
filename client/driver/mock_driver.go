@@ -1,5 +1,3 @@
-//+build nomad_test
-
 package driver
 
 import (
@@ -7,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,12 +30,9 @@ const (
 	// to "stop" a previously functioning driver after the specified duration
 	// (specified in seconds) for testing of periodic drivers and fingerprinters.
 	ShutdownPeriodicDuration = "test.shutdown_periodic_duration"
-)
 
-// Add the mock driver to the list of builtin drivers
-func init() {
-	BuiltinDrivers["mock_driver"] = NewMockDriver
-}
+	mockDriverName = "driver.mock_driver"
+)
 
 // MockDriverConfig is the driver configuration for the MockDriver
 type MockDriverConfig struct {
@@ -83,6 +80,15 @@ type MockDriverConfig struct {
 	// DriverPortMap will parse a label:number pair and return it in
 	// DriverNetwork.PortMap from Start().
 	DriverPortMap string `mapstructure:"driver_port_map"`
+
+	// StdoutString is the string that should be sent to stdout
+	StdoutString string `mapstructure:"stdout_string"`
+
+	// StdoutRepeat is the number of times the output should be sent.
+	StdoutRepeat int `mapstructure:"stdout_repeat"`
+
+	// StdoutRepeatDur is the duration between repeated outputs.
+	StdoutRepeatDur time.Duration `mapstructure:"stdout_repeat_duration"`
 }
 
 // MockDriver is a driver which is used for testing purposes
@@ -104,7 +110,7 @@ func NewMockDriver(ctx *DriverContext) Driver {
 	if ctx.config != nil && ctx.config.ReadBoolDefault(ShutdownPeriodicAfter, false) {
 		duration, err := ctx.config.ReadInt(ShutdownPeriodicDuration)
 		if err != nil {
-			errMsg := fmt.Sprintf("unable to read config option for shutdown_periodic_duration %s, got err %s", duration, err.Error())
+			errMsg := fmt.Sprintf("unable to read config option for shutdown_periodic_duration %v, got err %s", duration, err.Error())
 			panic(errMsg)
 		}
 		md.shutdownFingerprintTime = time.Now().Add(time.Second * time.Duration(duration))
@@ -169,15 +175,20 @@ func (m *MockDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	}
 
 	h := mockDriverHandle{
-		taskName:    task.Name,
-		runFor:      driverConfig.RunFor,
-		killAfter:   driverConfig.KillAfter,
-		killTimeout: task.KillTimeout,
-		exitCode:    driverConfig.ExitCode,
-		exitSignal:  driverConfig.ExitSignal,
-		logger:      m.logger,
-		doneCh:      make(chan struct{}),
-		waitCh:      make(chan *dstructs.WaitResult, 1),
+		ctx:             ctx,
+		task:            task,
+		taskName:        task.Name,
+		runFor:          driverConfig.RunFor,
+		killAfter:       driverConfig.KillAfter,
+		killTimeout:     task.KillTimeout,
+		exitCode:        driverConfig.ExitCode,
+		exitSignal:      driverConfig.ExitSignal,
+		stdoutString:    driverConfig.StdoutString,
+		stdoutRepeat:    driverConfig.StdoutRepeat,
+		stdoutRepeatDur: driverConfig.StdoutRepeatDur,
+		logger:          m.logger,
+		doneCh:          make(chan struct{}),
+		waitCh:          make(chan *dstructs.WaitResult, 1),
 	}
 	if driverConfig.ExitErrMsg != "" {
 		h.exitErr = errors.New(driverConfig.ExitErrMsg)
@@ -225,27 +236,70 @@ func (m *MockDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstruct
 	// current time is after the time which the node should shut down, simulate
 	// driver failure
 	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
-		resp.RemoveAttribute("driver.mock_driver")
+		resp.RemoveAttribute(mockDriverName)
 	default:
-		resp.AddAttribute("driver.mock_driver", "1")
+		resp.AddAttribute(mockDriverName, "1")
 		resp.Detected = true
 	}
 	return nil
 }
 
+// When testing, poll for updates
+func (m *MockDriver) Periodic() (bool, time.Duration) {
+	return true, 500 * time.Millisecond
+}
+
+// HealthCheck implements the interface for HealthCheck, and indicates the current
+// health status of the mock driver.
+func (m *MockDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+	switch {
+	case !m.shutdownFingerprintTime.IsZero() && time.Now().After(m.shutdownFingerprintTime):
+		notHealthy := &structs.DriverInfo{
+			Healthy:           false,
+			HealthDescription: "not running",
+			UpdateTime:        time.Now(),
+		}
+		resp.AddDriverInfo("mock_driver", notHealthy)
+		return nil
+	default:
+		healthy := &structs.DriverInfo{
+			Healthy:           true,
+			HealthDescription: "running",
+			UpdateTime:        time.Now(),
+		}
+		resp.AddDriverInfo("mock_driver", healthy)
+		return nil
+	}
+}
+
+// GetHealthCheckInterval implements the interface for HealthCheck and indicates
+// that mock driver should be checked periodically. Returns a boolean
+// indicating if it should be checked, and the duration at which to do this
+// check.
+func (m *MockDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
+	resp.Eligible = true
+	resp.Period = 1 * time.Second
+	return nil
+}
+
 // MockDriverHandle is a driver handler which supervises a mock task
 type mockDriverHandle struct {
-	taskName    string
-	runFor      time.Duration
-	killAfter   time.Duration
-	killTimeout time.Duration
-	exitCode    int
-	exitSignal  int
-	exitErr     error
-	signalErr   error
-	logger      *log.Logger
-	waitCh      chan *dstructs.WaitResult
-	doneCh      chan struct{}
+	ctx             *ExecContext
+	task            *structs.Task
+	taskName        string
+	runFor          time.Duration
+	killAfter       time.Duration
+	killTimeout     time.Duration
+	exitCode        int
+	exitSignal      int
+	exitErr         error
+	signalErr       error
+	logger          *log.Logger
+	stdoutString    string
+	stdoutRepeat    int
+	stdoutRepeatDur time.Duration
+	waitCh          chan *dstructs.WaitResult
+	doneCh          chan struct{}
 }
 
 type mockDriverID struct {
@@ -325,7 +379,7 @@ func (h *mockDriverHandle) Signal(s os.Signal) error {
 
 // Kill kills a mock task
 func (h *mockDriverHandle) Kill() error {
-	h.logger.Printf("[DEBUG] driver.mock: killing task %q after kill timeout: %v", h.taskName, h.killTimeout)
+	h.logger.Printf("[DEBUG] driver.mock: killing task %q after %s or kill timeout: %v", h.taskName, h.killAfter, h.killTimeout)
 	select {
 	case <-h.doneCh:
 	case <-time.After(h.killAfter):
@@ -355,6 +409,11 @@ func (h *mockDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 // run waits for the configured amount of time and then indicates the task has
 // terminated
 func (h *mockDriverHandle) run() {
+	// Setup logging output
+	if h.stdoutString != "" {
+		go h.handleLogging()
+	}
+
 	timer := time.NewTimer(h.runFor)
 	defer timer.Stop()
 	for {
@@ -374,7 +433,43 @@ func (h *mockDriverHandle) run() {
 	}
 }
 
-// When testing, poll for updates
-func (m *MockDriver) Periodic() (bool, time.Duration) {
-	return true, 500 * time.Millisecond
+// handleLogging handles logging stdout messages
+func (h *mockDriverHandle) handleLogging() {
+	if h.stdoutString == "" {
+		return
+	}
+
+	// Setup a log rotator
+	logFileSize := int64(h.task.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	lro, err := logging.NewFileRotator(h.ctx.TaskDir.LogDir, fmt.Sprintf("%v.stdout", h.taskName),
+		h.task.LogConfig.MaxFiles, logFileSize, h.logger)
+	if err != nil {
+		h.exitErr = err
+		close(h.doneCh)
+		h.logger.Printf("[ERR] mock_driver: failed to setup file rotator: %v", err)
+		return
+	}
+	defer lro.Close()
+
+	// Do initial write to stdout.
+	if _, err := io.WriteString(lro, h.stdoutString); err != nil {
+		h.exitErr = err
+		close(h.doneCh)
+		h.logger.Printf("[ERR] mock_driver: failed to write to stdout: %v", err)
+		return
+	}
+
+	for i := 0; i < h.stdoutRepeat; i++ {
+		select {
+		case <-h.doneCh:
+			return
+		case <-time.After(h.stdoutRepeatDur):
+			if _, err := io.WriteString(lro, h.stdoutString); err != nil {
+				h.exitErr = err
+				close(h.doneCh)
+				h.logger.Printf("[ERR] mock_driver: failed to write to stdout: %v", err)
+				return
+			}
+		}
+	}
 }

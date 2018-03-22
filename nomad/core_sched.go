@@ -151,25 +151,60 @@ OUTER:
 		return err
 	}
 
-	// Call to the leader to deregister the jobs.
-	for _, job := range gcJob {
-		req := structs.JobDeregisterRequest{
-			JobID: job.ID,
-			Purge: true,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				Namespace: job.Namespace,
-				AuthToken: eval.LeaderACL,
-			},
-		}
-		var resp structs.JobDeregisterResponse
-		if err := c.srv.RPC("Job.Deregister", &req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: job deregister failed: %v", err)
+	// Reap the jobs
+	return c.jobReap(gcJob, eval.LeaderACL)
+}
+
+// jobReap contacts the leader and issues a reap on the passed jobs
+func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
+	// Call to the leader to issue the reap
+	for _, req := range c.partitionJobReap(jobs, leaderACL) {
+		var resp structs.JobBatchDeregisterResponse
+		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: batch job reap failed: %v", err)
 			return err
 		}
 	}
 
 	return nil
+}
+
+// partitionJobReap returns a list of JobBatchDeregisterRequests to make,
+// ensuring a single request does not contain too many jobs. This is necessary
+// to ensure that the Raft transaction does not become too large.
+func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) []*structs.JobBatchDeregisterRequest {
+	option := &structs.JobDeregisterOptions{Purge: true}
+	var requests []*structs.JobBatchDeregisterRequest
+	submittedJobs := 0
+	for submittedJobs != len(jobs) {
+		req := &structs.JobBatchDeregisterRequest{
+			Jobs: make(map[structs.NamespacedID]*structs.JobDeregisterOptions),
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: leaderACL,
+			},
+		}
+		requests = append(requests, req)
+		available := maxIdsPerReap
+
+		if remaining := len(jobs) - submittedJobs; remaining > 0 {
+			if remaining <= available {
+				for _, job := range jobs[submittedJobs:] {
+					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
+					req.Jobs[jns] = option
+				}
+				submittedJobs += remaining
+			} else {
+				for _, job := range jobs[submittedJobs : submittedJobs+available] {
+					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
+					req.Jobs[jns] = option
+				}
+				submittedJobs += available
+			}
+		}
+	}
+
+	return requests
 }
 
 // evalGC is used to garbage collect old evaluations

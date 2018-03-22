@@ -104,20 +104,26 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 				goto IGNORE
 			}
 
-			if node == nil || node.TerminalStatus() {
-				result.lost = append(result.lost, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
+			if !exist.TerminalStatus() {
+				if node == nil || node.TerminalStatus() {
+					result.lost = append(result.lost, allocTuple{
+						Name:      name,
+						TaskGroup: tg,
+						Alloc:     exist,
+					})
+				} else if exist.DesiredTransition.ShouldMigrate() {
+					result.migrate = append(result.migrate, allocTuple{
+						Name:      name,
+						TaskGroup: tg,
+						Alloc:     exist,
+					})
+				} else {
+					goto IGNORE
+				}
 			} else {
-				// This is the drain case
-				result.migrate = append(result.migrate, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
+				goto IGNORE
 			}
+
 			continue
 		}
 
@@ -247,6 +253,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 			continue
 		}
 		if node.Drain {
+			continue
+		}
+		if node.SchedulingEligibility != structs.NodeSchedulingEligible {
 			continue
 		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
@@ -504,7 +513,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		stack.SetNodes([]*structs.Node{node})
 
 		// Stage an eviction of the current allocation. This is done so that
-		// the current allocation is discounted when checking for feasability.
+		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
 		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
@@ -761,7 +770,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		stack.SetNodes([]*structs.Node{node})
 
 		// Stage an eviction of the current allocation. This is done so that
-		// the current allocation is discounted when checking for feasability.
+		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
 		ctx.Plan().AppendUpdate(existing, structs.AllocDesiredStatusStop, allocInPlace, "")

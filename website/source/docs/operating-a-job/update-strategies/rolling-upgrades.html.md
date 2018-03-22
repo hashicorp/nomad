@@ -5,7 +5,7 @@ sidebar_current: "docs-operating-a-job-updating-rolling-upgrades"
 description: |-
   In order to update a service while reducing downtime, Nomad provides a
   built-in mechanism for rolling upgrades. Rolling upgrades incrementally
-  transistions jobs between versions and using health check information to
+  transitions jobs between versions and using health check information to
   reduce downtime.
 ---
 
@@ -86,17 +86,12 @@ that is configured with the same rolling update strategy from above.
 +        image = "geo-api-server:0.2"
 ```
 
-The [`nomad plan` command](/docs/commands/plan.html) allows
+The [`nomad job plan` command](/docs/commands/job/plan.html) allows
 us to visualize the series of steps the scheduler would perform. We can analyze
 this output to confirm it is correct:
 
 ```text
-$ nomad plan geo-api-server.nomad
-```
-
-Here is some sample output:
-
-```text
+$ nomad job plan geo-api-server.nomad
 +/- Job: "geo-api-server"
 +/- Task Group: "api-server" (2 create/destroy update, 4 ignore)
   +/- Task: "server" (forces create/destroy update)
@@ -110,7 +105,7 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad run -check-index 7 my-web.nomad
+nomad job run -check-index 7 my-web.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has

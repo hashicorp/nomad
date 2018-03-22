@@ -23,9 +23,25 @@ type ConsulConfig struct {
 	// servers with Consul
 	ServerServiceName string `mapstructure:"server_service_name"`
 
+	// ServerHTTPCheckName is the name of the health check that Nomad uses
+	// to register the server HTTP health check with Consul
+	ServerHTTPCheckName string `mapstructure:"server_http_check_name"`
+
+	// ServerSerfCheckName is the name of the health check that Nomad uses
+	// to register the server Serf health check with Consul
+	ServerSerfCheckName string `mapstructure:"server_serf_check_name"`
+
+	// ServerRPCCheckName is the name of the health check that Nomad uses
+	// to register the server RPC health check with Consul
+	ServerRPCCheckName string `mapstructure:"server_rpc_check_name"`
+
 	// ClientServiceName is the name of the service that Nomad uses to register
 	// clients with Consul
 	ClientServiceName string `mapstructure:"client_service_name"`
+
+	// ClientHTTPCheckName is the name of the health check that Nomad uses
+	// to register the client HTTP health check with Consul
+	ClientHTTPCheckName string `mapstructure:"client_http_check_name"`
 
 	// AutoAdvertise determines if this Nomad Agent will advertise its
 	// services via Consul.  When true, Nomad Agent will register
@@ -78,15 +94,19 @@ type ConsulConfig struct {
 // `consul` configuration.
 func DefaultConsulConfig() *ConsulConfig {
 	return &ConsulConfig{
-		ServerServiceName:  "nomad",
-		ClientServiceName:  "nomad-client",
-		AutoAdvertise:      helper.BoolToPtr(true),
-		ChecksUseAdvertise: helper.BoolToPtr(false),
-		EnableSSL:          helper.BoolToPtr(false),
-		VerifySSL:          helper.BoolToPtr(true),
-		ServerAutoJoin:     helper.BoolToPtr(true),
-		ClientAutoJoin:     helper.BoolToPtr(true),
-		Timeout:            5 * time.Second,
+		ServerServiceName:   "nomad",
+		ServerHTTPCheckName: "Nomad Server HTTP Check",
+		ServerSerfCheckName: "Nomad Server Serf Check",
+		ServerRPCCheckName:  "Nomad Server RPC Check",
+		ClientServiceName:   "nomad-client",
+		ClientHTTPCheckName: "Nomad Client HTTP Check",
+		AutoAdvertise:       helper.BoolToPtr(true),
+		ChecksUseAdvertise:  helper.BoolToPtr(false),
+		EnableSSL:           helper.BoolToPtr(false),
+		VerifySSL:           helper.BoolToPtr(true),
+		ServerAutoJoin:      helper.BoolToPtr(true),
+		ClientAutoJoin:      helper.BoolToPtr(true),
+		Timeout:             5 * time.Second,
 	}
 }
 
@@ -97,8 +117,20 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName
 	}
+	if b.ServerHTTPCheckName != "" {
+		result.ServerHTTPCheckName = b.ServerHTTPCheckName
+	}
+	if b.ServerSerfCheckName != "" {
+		result.ServerSerfCheckName = b.ServerSerfCheckName
+	}
+	if b.ServerRPCCheckName != "" {
+		result.ServerRPCCheckName = b.ServerRPCCheckName
+	}
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
+	}
+	if b.ClientHTTPCheckName != "" {
+		result.ClientHTTPCheckName = b.ClientHTTPCheckName
 	}
 	if b.AutoAdvertise != nil {
 		result.AutoAdvertise = helper.BoolToPtr(*b.AutoAdvertise)

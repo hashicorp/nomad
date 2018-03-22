@@ -42,6 +42,10 @@ const (
 	// blockedEvalFailedPlacements is the description used for blocked evals
 	// that are a result of failing to place all allocations.
 	blockedEvalFailedPlacements = "created to place remaining allocations"
+
+	// maxPastRescheduleEvents is the maximum number of past reschedule event
+	// that we track when unlimited rescheduling is enabled
+	maxPastRescheduleEvents = 5
 )
 
 // SetStatusError is used to set the status of the evaluation to the given error
@@ -72,8 +76,7 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
-	followupEvalWait time.Duration
-	nextEval         *structs.Evaluation
+	followUpEvals []*structs.Evaluation
 
 	deployment *structs.Deployment
 
@@ -111,14 +114,15 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
-	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+	case structs.EvalTriggerJobRegister, structs.EvalTriggerJobDeregister,
+		structs.EvalTriggerNodeDrain, structs.EvalTriggerNodeUpdate,
+		structs.EvalTriggerRollingUpdate,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+		return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs,
 			s.deployment.GetID())
 	}
@@ -137,7 +141,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+			if err := setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
@@ -159,7 +163,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+	return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs,
 		s.deployment.GetID())
 }
@@ -204,6 +208,7 @@ func (s *GenericScheduler) process() (bool, error) {
 		numTaskGroups = len(s.job.TaskGroups)
 	}
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
+	s.followUpEvals = nil
 
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
@@ -251,14 +256,17 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// If we need a followup eval and we haven't created one, do so.
-	if s.followupEvalWait != 0 && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.followupEvalWait)
-		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make next eval for rolling migration: %v", s.eval, err)
-			return false, err
+	// Create follow up evals for any delayed reschedule eligible allocations
+	if len(s.followUpEvals) > 0 {
+		for _, eval := range s.followUpEvals {
+			eval.PreviousEval = s.eval.ID
+			// TODO(preetha) this should be batching evals before inserting them
+			if err := s.planner.CreateEval(eval); err != nil {
+				s.logger.Printf("[ERR] sched: %#v failed to make next eval for rescheduling: %v", s.eval, err)
+				return false, err
+			}
+			s.logger.Printf("[DEBUG] sched: %#v: found reschedulable allocs, next eval '%s' created", s.eval, eval.ID)
 		}
-		s.logger.Printf("[DEBUG] sched: %#v: rolling migration limit reached, next eval '%s' created", s.eval, s.nextEval.ID)
 	}
 
 	// Submit the plan and store the results.
@@ -332,9 +340,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	s.plan.Deployment = results.deployment
 	s.plan.DeploymentUpdates = results.deploymentUpdates
 
-	// Store the the follow up eval wait duration. If set this will trigger a
-	// follow up eval to handle node draining.
-	s.followupEvalWait = results.followupEvalWait
+	// Store all the follow up evaluations from rescheduled allocations
+	if len(results.desiredFollowupEvals) > 0 {
+		for _, evals := range results.desiredFollowupEvals {
+			s.followUpEvals = append(s.followUpEvals, evals...)
+		}
+	}
 
 	// Update the stored deployment
 	if results.deployment != nil {
@@ -403,6 +414,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	// Update the set of placement nodes
 	s.stack.SetNodes(nodes)
 
+	// Capture current time to use as the start time for any rescheduled allocations
+	now := time.Now()
+
 	// Have to handle destructive changes first as we need to discount their
 	// resources. To understand this imagine the resources were reduced and the
 	// count was scaled up.
@@ -467,7 +481,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
-						updateRescheduleTracker(alloc, prevAllocation)
+						updateRescheduleTracker(alloc, prevAllocation, now)
 					}
 				}
 
@@ -524,14 +538,38 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 }
 
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
-func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation) {
+func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, now time.Time) {
+	reschedPolicy := prev.ReschedulePolicy()
 	var rescheduleEvents []*structs.RescheduleEvent
 	if prev.RescheduleTracker != nil {
-		for _, reschedEvent := range prev.RescheduleTracker.Events {
-			rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+		var interval time.Duration
+		if reschedPolicy != nil {
+			interval = reschedPolicy.Interval
+		}
+		// If attempts is set copy all events in the interval range
+		if reschedPolicy.Attempts > 0 {
+			for _, reschedEvent := range prev.RescheduleTracker.Events {
+				timeDiff := now.UnixNano() - reschedEvent.RescheduleTime
+				// Only copy over events that are within restart interval
+				// This keeps the list of events small in cases where there's a long chain of old restart events
+				if interval > 0 && timeDiff <= interval.Nanoseconds() {
+					rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+				}
+			}
+		} else {
+			// Only copy the last n if unlimited is set
+			start := 0
+			if len(prev.RescheduleTracker.Events) > maxPastRescheduleEvents {
+				start = len(prev.RescheduleTracker.Events) - maxPastRescheduleEvents
+			}
+			for i := start; i < len(prev.RescheduleTracker.Events); i++ {
+				reschedEvent := prev.RescheduleTracker.Events[i]
+				rescheduleEvents = append(rescheduleEvents, reschedEvent.Copy())
+			}
 		}
 	}
-	rescheduleEvent := structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), prev.ID, prev.NodeID)
+	nextDelay := prev.NextDelay()
+	rescheduleEvent := structs.NewRescheduleEvent(now.UnixNano(), prev.ID, prev.NodeID, nextDelay)
 	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
 	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
 }

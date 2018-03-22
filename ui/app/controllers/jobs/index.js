@@ -37,7 +37,7 @@ export default Controller.extend(Sortable, Searchable, {
     'system.namespaces.length',
     function() {
       const hasNamespaces = this.get('system.namespaces.length');
-      const activeNamespace = this.get('system.activeNamespace.id');
+      const activeNamespace = this.get('system.activeNamespace.id') || 'default';
 
       return this.get('model')
         .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
@@ -53,7 +53,7 @@ export default Controller.extend(Sortable, Searchable, {
 
   actions: {
     gotoJob(job) {
-      this.transitionToRoute('jobs.job', job);
+      this.transitionToRoute('jobs.job', job.get('plainId'));
     },
 
     refresh() {

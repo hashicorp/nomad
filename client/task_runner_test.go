@@ -143,7 +143,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := consul.NewMockAgent()
-	serviceClient := consul.NewServiceClient(cclient, true, logger)
+	serviceClient := consul.NewServiceClient(cclient, logger)
 	go serviceClient.Run()
 	tr := NewTaskRunner(logger, conf, db, upd.Update, taskDir, alloc, task, vclient, serviceClient)
 	if !restarts {
@@ -642,7 +642,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 
 	// Use mockConsulServiceClient
-	consul := newMockConsulServiceClient()
+	consul := newMockConsulServiceClient(t)
 	ctx.tr.consul = consul
 
 	ctx.tr.MarkReceived()
@@ -1854,7 +1854,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	// backed by a mock consul whose checks are always unhealthy.
 	consulAgent := consul.NewMockAgent()
 	consulAgent.SetStatus("critical")
-	consulClient := consul.NewServiceClient(consulAgent, true, ctx.tr.logger)
+	consulClient := consul.NewServiceClient(consulAgent, ctx.tr.logger)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 
@@ -2023,7 +2023,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	}, func(err error) {
 		services, _ := ctx.consul.Services()
 		for _, s := range services {
-			t.Logf(pretty.Sprint("Serivce: ", s))
+			t.Logf(pretty.Sprint("Service: ", s))
 		}
 		for _, c := range ctx.consul.CheckRegs() {
 			t.Logf(pretty.Sprint("Check:   ", c))

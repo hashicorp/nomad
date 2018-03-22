@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default Component.extend({
   system: service(),
@@ -22,7 +23,13 @@ export default Component.extend({
       { label: 'Jobs', args: ['jobs'] },
       {
         label: job.get('name'),
-        args: ['jobs.job', job],
+        args: [
+          'jobs.job',
+          job,
+          qpBuilder({
+            jobNamespace: job.get('namespace.name') || 'default',
+          }),
+        ],
       },
     ];
   }),

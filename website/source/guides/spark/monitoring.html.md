@@ -95,7 +95,7 @@ $ hdfs dfs -fs hdfs://hdfs.service.consul:8020 -mkdir /spark-events
 You can then deploy the history server with:
 
 ```shell
-$ nomad run spark-history-server-hdfs.nomad
+$ nomad job run spark-history-server-hdfs.nomad
 ```
 
 You can get the private IP for the history server with a Consul DNS lookup:

@@ -122,7 +122,7 @@ const (
 
 	// This is cpu.cfs_period_us: the length of a period.
 	// The default values is 100 milliseconds (ms) represented in microseconds (us).
-	// Below is the documnentation:
+	// Below is the documentation:
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	// https://docs.docker.com/engine/api/v1.35/#
 	defaultCFSPeriodUS = 100000
@@ -492,7 +492,6 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		resp.RemoveAttribute(dockerDriverAttr)
 		return nil
 	}
 
@@ -549,6 +548,46 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 	}
 
 	d.fingerprintSuccess = helper.BoolToPtr(true)
+	return nil
+}
+
+// HealthCheck implements the interface for the HealthCheck interface. This
+// performs a health check on the docker driver, asserting whether the docker
+// driver is responsive to a `docker ps` command.
+func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+	dinfo := &structs.DriverInfo{
+		UpdateTime: time.Now(),
+	}
+
+	client, _, err := d.dockerClients()
+	if err != nil {
+		d.logger.Printf("[WARN] driver.docker: failed to retrieve Docker client in the process of a docker health check: %v", err)
+		dinfo.HealthDescription = fmt.Sprintf("Failed retrieving Docker client: %v", err)
+		resp.AddDriverInfo("docker", dinfo)
+		return nil
+	}
+
+	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
+	if err != nil {
+		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a Docker health check: %v", err)
+		dinfo.HealthDescription = fmt.Sprintf("Failed to list Docker containers: %v", err)
+		resp.AddDriverInfo("docker", dinfo)
+		return nil
+	}
+
+	d.logger.Printf("[TRACE] driver.docker: docker driver is available and is responsive to `docker ps`")
+	dinfo.Healthy = true
+	dinfo.HealthDescription = "Docker driver is available and responsive"
+	resp.AddDriverInfo("docker", dinfo)
+	return nil
+}
+
+// GetHealthChecks implements the interface for the HealthCheck interface. This
+// sets whether the driver is eligible for periodic health checks and the
+// interval at which to do them.
+func (d *DockerDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
+	resp.Eligible = true
+	resp.Period = 1 * time.Minute
 	return nil
 }
 
@@ -804,7 +843,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		return nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", d.driverConfig.ImageName, d.imageID, err)
 	}
 
-	container, err := d.createContainer(config)
+	container, err := d.createContainer(client, config)
 	if err != nil {
 		wrapped := fmt.Sprintf("Failed to create container: %v", err)
 		d.logger.Printf("[ERR] driver.docker: %s", wrapped)
@@ -883,7 +922,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 	if c.NetworkSettings == nil {
 		// This should only happen if there's been a coding error (such
-		// as not calling InspetContainer after CreateContainer). Code
+		// as not calling InspectContainer after CreateContainer). Code
 		// defensively in case the Docker API changes subtly.
 		d.logger.Printf("[ERROR] driver.docker: no network settings for container %s", c.ID)
 		return "", false
@@ -1138,9 +1177,13 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	// Calculate CPU Quota
+	// cfs_quota_us is the time per core, so we must
+	// multiply the time by the number of cores available
+	// See https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu
 	if driverConfig.CPUHardLimit {
+		numCores := runtime.NumCPU()
 		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
-		hostConfig.CPUQuota = int64(percentTicks * defaultCFSPeriodUS)
+		hostConfig.CPUQuota = int64(percentTicks*defaultCFSPeriodUS) * int64(numCores)
 	}
 
 	// Windows does not support MemorySwap/MemorySwappiness #2193
@@ -1506,7 +1549,7 @@ func (d *DockerDriver) loadImage(driverConfig *DockerDriverConfig, client *docke
 
 // createContainer creates the container given the passed configuration. It
 // attempts to handle any transient Docker errors.
-func (d *DockerDriver) createContainer(config docker.CreateContainerOptions) (*docker.Container, error) {
+func (d *DockerDriver) createContainer(client createContainerClient, config docker.CreateContainerOptions) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
 CREATE:
@@ -1517,6 +1560,16 @@ CREATE:
 
 	d.logger.Printf("[DEBUG] driver.docker: failed to create container %q from image %q (ID: %q) (attempt %d): %v",
 		config.Name, d.driverConfig.ImageName, d.imageID, attempted+1, createErr)
+
+	// Volume management tools like Portworx may not have detached a volume
+	// from a previous node before Nomad started a task replacement task.
+	// Treat these errors as recoverable so we retry.
+	if strings.Contains(strings.ToLower(createErr.Error()), "volume is attached on another node") {
+		return nil, structs.NewRecoverableError(createErr, true)
+	}
+
+	// If the container already exists determine whether it's already
+	// running or if it's dead and needs to be recreated.
 	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
 		containers, err := client.ListContainers(docker.ListContainersOptions{
 			All: true,
@@ -1793,7 +1846,7 @@ func (h *DockerHandle) Kill() error {
 
 		// Container has already been removed.
 		if strings.Contains(err.Error(), NoSuchContainerError) {
-			h.logger.Printf("[DEBUG] driver.docker: attempted to stop non-existent container %s", h.containerID)
+			h.logger.Printf("[DEBUG] driver.docker: attempted to stop nonexistent container %s", h.containerID)
 			return nil
 		}
 		h.logger.Printf("[ERR] driver.docker: failed to stop container %s: %v", h.containerID, err)
@@ -2077,4 +2130,13 @@ func authIsEmpty(auth *docker.AuthConfiguration) bool {
 		auth.Password == "" &&
 		auth.Email == "" &&
 		auth.ServerAddress == ""
+}
+
+// createContainerClient is the subset of Docker Client methods used by the
+// createContainer method to ease testing subtle error conditions.
+type createContainerClient interface {
+	CreateContainer(docker.CreateContainerOptions) (*docker.Container, error)
+	InspectContainer(id string) (*docker.Container, error)
+	ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error)
+	RemoveContainer(opts docker.RemoveContainerOptions) error
 }

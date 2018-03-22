@@ -3,10 +3,7 @@
     <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
       {{#link-to
         data-test-breadcrumb=breadcrumb.label
-        params=(append
-          breadcrumb.args
-          (query-params jobNamespace=(or model.namespace.id "default"))
-        )}}
+        params=breadcrumb.args}}
         {{breadcrumb.label}}
       {{/link-to}}
     </li>

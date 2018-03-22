@@ -14,7 +14,7 @@ import (
 
 const (
 	// maxFailedTGs is the maximum number of task groups we show failure reasons
-	// for before defering to eval-status
+	// for before deferring to eval-status
 	maxFailedTGs = 5
 )
 
@@ -371,6 +371,8 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
+	c.outputReschedulingEvals(client, job, jobAllocs, c.length)
+
 	if latestDeployment != nil {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
 		c.Ui.Output(c.Colorize().Color(c.formatDeployment(latestDeployment)))
@@ -533,6 +535,66 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 		c.Ui.Output(formatList(summaries))
 	}
 
+	return nil
+}
+
+// outputReschedulingEvals displays eval IDs and time for any
+// delayed evaluations by task group
+func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.Job, allocListStubs []*api.AllocationListStub, uuidLength int) error {
+	// Get the most recent alloc ID by task group
+
+	mostRecentAllocs := make(map[string]*api.AllocationListStub)
+	for _, alloc := range allocListStubs {
+		a, ok := mostRecentAllocs[alloc.TaskGroup]
+		if !ok || alloc.ModifyTime > a.ModifyTime {
+			mostRecentAllocs[alloc.TaskGroup] = alloc
+		}
+	}
+
+	followUpEvalIds := make(map[string]string)
+	for tg, alloc := range mostRecentAllocs {
+		if alloc.FollowupEvalID != "" {
+			followUpEvalIds[tg] = alloc.FollowupEvalID
+		}
+	}
+
+	if len(followUpEvalIds) == 0 {
+		return nil
+	}
+	// Print the reschedule info section
+	var delayedEvalInfos []string
+
+	taskGroups := make([]string, 0, len(followUpEvalIds))
+	for taskGroup := range followUpEvalIds {
+		taskGroups = append(taskGroups, taskGroup)
+	}
+	sort.Strings(taskGroups)
+	var evalDetails []string
+	for _, taskGroup := range taskGroups {
+		evalID := followUpEvalIds[taskGroup]
+		evaluation, _, err := client.Evaluations().Info(evalID, nil)
+		// Eval time is not critical output,
+		// so don't return it on errors, if its not set, or its already in the past
+		if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+			continue
+		}
+		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
+		if c.verbose {
+			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
+			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
+		} else {
+			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s", taskGroup, limit(evalID, uuidLength), evalTime))
+		}
+	}
+	if len(evalDetails) == 0 {
+		return nil
+	}
+	// Only show this section if there is pending evals
+	delayedEvalInfos = append(delayedEvalInfos, evalDetails...)
+	c.Ui.Output(c.Colorize().Color("\n[bold]Future Rescheduling Attempts[reset]"))
+	c.Ui.Output(formatList(delayedEvalInfos))
 	return nil
 }
 

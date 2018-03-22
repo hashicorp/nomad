@@ -12,7 +12,7 @@ description: |-
 
 Understanding the resource utilization of an application is important, and Nomad
 supports reporting detailed statistics in many of its drivers. The main
-interface for seeing resource utilization is the `alloc-status` command with the
+interface for seeing resource utilization is the `alloc status` command with the
 `-stats` flag.
 
 This section will utilize the job named "docs" from the [previous
@@ -22,7 +22,7 @@ and command largely apply to all jobs in Nomad.
 As a reminder, here is the output of the run command from the previous example:
 
 ```text
-$ nomad run docs.nomad
+$ nomad job run docs.nomad
 ==> Monitoring evaluation "42d788a3"
     Evaluation triggered by job "docs"
     Allocation "04d9627d" created: node "a1f934c9", group "example"
@@ -35,13 +35,7 @@ $ nomad run docs.nomad
 To see the detailed usage statistics, we can issue the command:
 
 ```shell
-$ nomad alloc-status -stats 04d9627d
-```
-
-And here is some sample output:
-
-```text
-$ nomad alloc-status c3e0
+$ nomad alloc status -stats 04d9627d
 ID            = 04d9627d
 Eval ID       = 42d788a3
 Name          = docs.example[2]

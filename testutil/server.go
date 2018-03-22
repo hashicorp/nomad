@@ -92,12 +92,6 @@ func defaultServerConfig(t testing.T) *TestServerConfig {
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
 		LogLevel:          "DEBUG",
-		// Advertise can't be localhost
-		AdvertiseAddrs: &Advertise{
-			HTTP: "169.254.42.42",
-			RPC:  "169.254.42.42",
-			Serf: "169.254.42.42",
-		},
 		Ports: &PortsConfig{
 			HTTP: ports[0],
 			RPC:  ports[1],

@@ -13,7 +13,7 @@ This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is:
 
 ```shell
-$ nomad run -output my-job.nomad
+$ nomad job run -output my-job.nomad
 ```
 
 ## Syntax
@@ -160,7 +160,7 @@ The `Job` object supports the following keys:
   Values other than default are not allowed in non-Enterprise versions of Nomad.
 
 - `ParameterizedJob` - Specifies the job as a parameterized job such that it can
-  be dispatched against. The `ParamaterizedJob` object supports the following
+  be dispatched against. The `ParameterizedJob` object supports the following
   attributes:
 
   - `MetaOptional` - Specifies the set of metadata keys that may be provided

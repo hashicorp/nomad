@@ -426,7 +426,7 @@ func TestClient_NodeClient(t *testing.T) {
 		name := fmt.Sprintf("%s__%s__%s", c.ExpectedAddr, c.ExpectedRegion, c.ExpectedTLSServerName)
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
-			nodeClient, err := c.Client.getNodeClientImpl("testID", c.QueryOptions, c.Node)
+			nodeClient, err := c.Client.getNodeClientImpl("testID", -1, c.QueryOptions, c.Node)
 			assert.Nil(err)
 			assert.Equal(c.ExpectedRegion, nodeClient.config.Region)
 			assert.Equal(c.ExpectedAddr, nodeClient.config.Address)

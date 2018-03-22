@@ -86,6 +86,20 @@ type ReschedulePolicy struct {
 
 	// Interval is a duration in which we can limit the number of reschedule attempts.
 	Interval *time.Duration `mapstructure:"interval"`
+
+	// Delay is a minimum duration to wait between reschedule attempts.
+	// The delay function determines how much subsequent reschedule attempts are delayed by.
+	Delay *time.Duration `mapstructure:"delay"`
+
+	// DelayFunction determines how the delay progressively changes on subsequent reschedule
+	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	DelayFunction *string `mapstructure:"delay_function"`
+
+	// MaxDelay is an upper bound on the delay.
+	MaxDelay *time.Duration `mapstructure:"max_delay"`
+
+	// Unlimited allows rescheduling attempts until they succeed
+	Unlimited *bool `mapstructure:"unlimited"`
 }
 
 func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
@@ -94,6 +108,18 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 	}
 	if rp.Attempts != nil {
 		r.Attempts = rp.Attempts
+	}
+	if rp.Delay != nil {
+		r.Delay = rp.Delay
+	}
+	if rp.DelayFunction != nil {
+		r.DelayFunction = rp.DelayFunction
+	}
+	if rp.MaxDelay != nil {
+		r.MaxDelay = rp.MaxDelay
+	}
+	if rp.Unlimited != nil {
+		r.Unlimited = rp.Unlimited
 	}
 }
 
@@ -104,6 +130,16 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 	nrp := new(ReschedulePolicy)
 	*nrp = *r
 	return nrp
+}
+
+func (p *ReschedulePolicy) String() string {
+	if p == nil {
+		return ""
+	}
+	if *p.Unlimited {
+		return fmt.Sprintf("unlimited with %v delay, max_delay = %v", *p.DelayFunction, *p.MaxDelay)
+	}
+	return fmt.Sprintf("%v in %v with %v delay, max_delay = %v", *p.Attempts, *p.Interval, *p.DelayFunction, *p.MaxDelay)
 }
 
 // CheckRestart describes if and when a task should be restarted based on
@@ -213,7 +249,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
-	// Canonicallize CheckRestart on Checks and merge Service.CheckRestart
+	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
@@ -248,6 +284,67 @@ func (e *EphemeralDisk) Canonicalize() {
 	}
 }
 
+// MigrateStrategy describes how allocations for a task group should be
+// migrated between nodes (eg when draining).
+type MigrateStrategy struct {
+	MaxParallel     *int           `mapstructure:"max_parallel"`
+	HealthCheck     *string        `mapstructure:"health_check"`
+	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
+}
+
+func DefaultMigrateStrategy() *MigrateStrategy {
+	return &MigrateStrategy{
+		MaxParallel:     helper.IntToPtr(1),
+		HealthCheck:     helper.StringToPtr("checks"),
+		MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+		HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+	}
+}
+
+func (m *MigrateStrategy) Canonicalize() {
+	if m == nil {
+		return
+	}
+	defaults := DefaultMigrateStrategy()
+	if m.MaxParallel == nil {
+		m.MaxParallel = defaults.MaxParallel
+	}
+	if m.HealthCheck == nil {
+		m.HealthCheck = defaults.HealthCheck
+	}
+	if m.MinHealthyTime == nil {
+		m.MinHealthyTime = defaults.MinHealthyTime
+	}
+	if m.HealthyDeadline == nil {
+		m.HealthyDeadline = defaults.HealthyDeadline
+	}
+}
+
+func (m *MigrateStrategy) Merge(o *MigrateStrategy) {
+	if o.MaxParallel != nil {
+		m.MaxParallel = o.MaxParallel
+	}
+	if o.HealthCheck != nil {
+		m.HealthCheck = o.HealthCheck
+	}
+	if o.MinHealthyTime != nil {
+		m.MinHealthyTime = o.MinHealthyTime
+	}
+	if o.HealthyDeadline != nil {
+		m.HealthyDeadline = o.HealthyDeadline
+	}
+}
+
+func (m *MigrateStrategy) Copy() *MigrateStrategy {
+	if m == nil {
+		return nil
+	}
+	nm := new(MigrateStrategy)
+	*nm = *m
+	return nm
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string
@@ -258,6 +355,7 @@ type TaskGroup struct {
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk
 	Update           *UpdateStrategy
+	Migrate          *MigrateStrategy
 	Meta             map[string]string
 }
 
@@ -316,25 +414,50 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	switch *job.Type {
 	case "service":
 		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts: helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
-			Interval: helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+			Attempts:      helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.MaxDelay),
+			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
 		}
 	case "batch":
 		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-			Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 		}
 	default:
-		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts: helper.IntToPtr(0),
-			Interval: helper.TimeToPtr(0 * time.Second),
-		}
+		defaultReschedulePolicy = nil
 	}
 
-	if g.ReschedulePolicy != nil {
+	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
 	}
 	g.ReschedulePolicy = defaultReschedulePolicy
+
+	// Merge the migrate strategy from the job
+	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
+		jobMigrate := job.Migrate.Copy()
+		jobMigrate.Merge(g.Migrate)
+		g.Migrate = jobMigrate
+	} else if jm {
+		jobMigrate := job.Migrate.Copy()
+		g.Migrate = jobMigrate
+	}
+
+	// Merge with default reschedule policy
+	if *job.Type == "service" {
+		defaultMigrateStrategy := &MigrateStrategy{}
+		defaultMigrateStrategy.Canonicalize()
+		if g.Migrate != nil {
+			defaultMigrateStrategy.Merge(g.Migrate)
+		}
+		g.Migrate = defaultMigrateStrategy
+	}
 
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {

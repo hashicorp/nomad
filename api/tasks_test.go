@@ -284,70 +284,115 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			jobReschedulePolicy:  nil,
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+				DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+				MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+				Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 			},
 		},
 		{
 			desc: "Empty job reschedule policy",
 			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(0),
-				Interval: helper.TimeToPtr(0),
+				Attempts:      helper.IntToPtr(0),
+				Interval:      helper.TimeToPtr(0),
+				Delay:         helper.TimeToPtr(0),
+				MaxDelay:      helper.TimeToPtr(0),
+				DelayFunction: helper.StringToPtr(""),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(0),
-				Interval: helper.TimeToPtr(0),
+				Attempts:      helper.IntToPtr(0),
+				Interval:      helper.TimeToPtr(0),
+				Delay:         helper.TimeToPtr(0),
+				MaxDelay:      helper.TimeToPtr(0),
+				DelayFunction: helper.StringToPtr(""),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 		},
 		{
 			desc: "Inherit from job",
 			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-				Interval: helper.TimeToPtr(20 * time.Second),
+				Attempts:      helper.IntToPtr(1),
+				Interval:      helper.TimeToPtr(20 * time.Second),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-				Interval: helper.TimeToPtr(20 * time.Second),
+				Attempts:      helper.IntToPtr(1),
+				Interval:      helper.TimeToPtr(20 * time.Second),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 		},
 		{
 			desc:                "Set in task",
 			jobReschedulePolicy: nil,
 			taskReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(5),
-				Interval: helper.TimeToPtr(2 * time.Minute),
+				Attempts:      helper.IntToPtr(5),
+				Interval:      helper.TimeToPtr(2 * time.Minute),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(5),
-				Interval: helper.TimeToPtr(2 * time.Minute),
+				Attempts:      helper.IntToPtr(5),
+				Interval:      helper.TimeToPtr(2 * time.Minute),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 		},
 		{
 			desc: "Merge from job",
 			jobReschedulePolicy: &ReschedulePolicy{
 				Attempts: helper.IntToPtr(1),
+				Delay:    helper.TimeToPtr(20 * time.Second),
+				MaxDelay: helper.TimeToPtr(10 * time.Minute),
 			},
 			taskReschedulePolicy: &ReschedulePolicy{
-				Interval: helper.TimeToPtr(5 * time.Minute),
+				Interval:      helper.TimeToPtr(5 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-				Interval: helper.TimeToPtr(5 * time.Minute),
+				Attempts:      helper.IntToPtr(1),
+				Interval:      helper.TimeToPtr(5 * time.Minute),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 		},
 		{
 			desc: "Override from group",
 			jobReschedulePolicy: &ReschedulePolicy{
 				Attempts: helper.IntToPtr(1),
+				MaxDelay: helper.TimeToPtr(10 * time.Second),
 			},
 			taskReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(5),
+				Attempts:      helper.IntToPtr(5),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(20 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(5),
-				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Attempts:      helper.IntToPtr(5),
+				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Delay:         helper.TimeToPtr(20 * time.Second),
+				MaxDelay:      helper.TimeToPtr(20 * time.Minute),
+				DelayFunction: helper.StringToPtr("linear"),
+				Unlimited:     helper.BoolToPtr(false),
 			},
 		},
 		{
@@ -357,8 +402,12 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			},
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-				Interval: helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Attempts:      helper.IntToPtr(1),
+				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+				DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+				MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+				Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 			},
 		},
 	}
@@ -377,6 +426,158 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			}
 			tg.Canonicalize(job)
 			assert.Equal(t, tc.expected, tg.ReschedulePolicy)
+		})
+	}
+}
+
+// Verifies that migrate strategy is merged correctly
+func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
+	type testCase struct {
+		desc        string
+		jobType     string
+		jobMigrate  *MigrateStrategy
+		taskMigrate *MigrateStrategy
+		expected    *MigrateStrategy
+	}
+
+	testCases := []testCase{
+		{
+			desc:        "Default batch",
+			jobType:     "batch",
+			jobMigrate:  nil,
+			taskMigrate: nil,
+			expected:    nil,
+		},
+		{
+			desc:        "Default service",
+			jobType:     "service",
+			jobMigrate:  nil,
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(1),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+				HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+			},
+		},
+		{
+			desc:    "Empty job migrate strategy",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(0),
+				HealthCheck:     helper.StringToPtr(""),
+				MinHealthyTime:  helper.TimeToPtr(0),
+				HealthyDeadline: helper.TimeToPtr(0),
+			},
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(0),
+				HealthCheck:     helper.StringToPtr(""),
+				MinHealthyTime:  helper.TimeToPtr(0),
+				HealthyDeadline: helper.TimeToPtr(0),
+			},
+		},
+		{
+			desc:    "Inherit from job",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:       "Set in task",
+			jobType:    "service",
+			jobMigrate: nil,
+			taskMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(3),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:    "Merge from job",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel: helper.IntToPtr(11),
+			},
+			taskMigrate: &MigrateStrategy{
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(11),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:    "Override from group",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel: helper.IntToPtr(11),
+			},
+			taskMigrate: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(5),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(5),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(2),
+				HealthyDeadline: helper.TimeToPtr(2),
+			},
+		},
+		{
+			desc:    "Parallel from job, defaulting",
+			jobType: "service",
+			jobMigrate: &MigrateStrategy{
+				MaxParallel: helper.IntToPtr(5),
+			},
+			taskMigrate: nil,
+			expected: &MigrateStrategy{
+				MaxParallel:     helper.IntToPtr(5),
+				HealthCheck:     helper.StringToPtr("checks"),
+				MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+				HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			job := &Job{
+				ID:      helper.StringToPtr("test"),
+				Migrate: tc.jobMigrate,
+				Type:    helper.StringToPtr(tc.jobType),
+			}
+			job.Canonicalize()
+			tg := &TaskGroup{
+				Name:    helper.StringToPtr("foo"),
+				Migrate: tc.taskMigrate,
+			}
+			tg.Canonicalize(job)
+			assert.Equal(t, tc.expected, tg.Migrate)
 		})
 	}
 }

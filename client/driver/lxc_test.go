@@ -156,7 +156,7 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 		t.Fatalf("contents of temp bind mounted file did not match, was '%s'", mountedContents)
 	}
 
-	// Desroy the container
+	// Destroy the container
 	if err := sresp.Handle.Kill(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestLxcDriver_Open_Wait(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Desroy the container
+	// Destroy the container
 	if err := handle2.Kill(); err != nil {
 		t.Fatalf("err: %v", err)
 	}

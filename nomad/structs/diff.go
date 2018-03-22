@@ -1217,7 +1217,7 @@ func primitiveObjectDiff(old, new interface{}, filter []string, name string, con
 // primitiveObjectSetDiff does a set difference of the old and new sets. The
 // filter parameter can be used to filter a set of primitive fields in the
 // passed structs. The name corresponds to the name of the passed objects. If
-// contextual diff is enabled, objects' primtive fields will be returned even if
+// contextual diff is enabled, objects' primitive fields will be returned even if
 // no diff exists.
 func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string, contextual bool) []*ObjectDiff {
 	makeSet := func(objects []interface{}) map[string]interface{} {

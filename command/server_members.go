@@ -17,7 +17,7 @@ type ServerMembersCommand struct {
 
 func (c *ServerMembersCommand) Help() string {
 	helpText := `
-Usage: nomad server-members [options]
+Usage: nomad server members [options]
 
   Display a list of the known servers and their status. Only Nomad servers are
   able to service this command.
@@ -168,6 +168,12 @@ func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]strin
 	leaders := make(map[string]string)
 	regions := make(map[string]struct{})
 	for _, m := range mem {
+		// Ignore left members
+		// This prevents querying for leader status on regions where all members have left
+		if m.Status == "left" {
+			continue
+		}
+
 		regions[m.Tags["region"]] = struct{}{}
 	}
 

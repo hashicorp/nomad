@@ -39,7 +39,7 @@ test('when the job is not found, an error message is shown, but the URL persists
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/job/not-a-real-job',
-      'A request to the non-existent job is made'
+      'A request to the nonexistent job is made'
     );
     assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');

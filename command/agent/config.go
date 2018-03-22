@@ -87,7 +87,7 @@ type Config struct {
 
 	// DisableUpdateCheck is used to disable the periodic update
 	// and security bulletin checking.
-	DisableUpdateCheck bool `mapstructure:"disable_update_check"`
+	DisableUpdateCheck *bool `mapstructure:"disable_update_check"`
 
 	// DisableAnonymousSignature is used to disable setting the
 	// anonymous signature when doing the update check and looking
@@ -104,11 +104,11 @@ type Config struct {
 	Vault *config.VaultConfig `mapstructure:"vault"`
 
 	// NomadConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
 
 	// ClientConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	ClientConfig *client.Config `mapstructure:"-" json:"-"`
 
 	// DevMode is set by the -dev CLI flag.
@@ -125,7 +125,7 @@ type Config struct {
 	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
-	// set arbritrary headers on API responses
+	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 
 	// Sentinel holds sentinel related settings
@@ -408,7 +408,7 @@ type Telemetry struct {
 	CirconusCheckID string `mapstructure:"circonus_check_id"`
 	// CirconusCheckForceMetricActivation will force enabling metrics, as they are encountered,
 	// if the metric already exists and is NOT active. If check management is enabled, the default
-	// behavior is to add new metrics as they are encoutered. If the metric already exists in the
+	// behavior is to add new metrics as they are encountered. If the metric already exists in the
 	// check, it will *NOT* be activated. This setting overrides that behavior.
 	// Default: "false"
 	CirconusCheckForceMetricActivation string `mapstructure:"circonus_check_force_metric_activation"`
@@ -616,10 +616,11 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
-		TLSConfig: &config.TLSConfig{},
-		Sentinel:  &config.SentinelConfig{},
-		Version:   version.GetVersion(),
-		Autopilot: config.DefaultAutopilotConfig(),
+		TLSConfig:          &config.TLSConfig{},
+		Sentinel:           &config.SentinelConfig{},
+		Version:            version.GetVersion(),
+		Autopilot:          config.DefaultAutopilotConfig(),
+		DisableUpdateCheck: helper.BoolToPtr(false),
 	}
 }
 
@@ -685,8 +686,8 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.SyslogFacility != "" {
 		result.SyslogFacility = b.SyslogFacility
 	}
-	if b.DisableUpdateCheck {
-		result.DisableUpdateCheck = true
+	if b.DisableUpdateCheck != nil {
+		result.DisableUpdateCheck = helper.BoolToPtr(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true

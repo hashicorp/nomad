@@ -13,23 +13,24 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLeader_LeftServer(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -76,20 +77,20 @@ func TestLeader_LeftServer(t *testing.T) {
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -128,13 +129,13 @@ func TestLeader_LeftLeader(t *testing.T) {
 }
 
 func TestLeader_MultiBootstrap(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, nil)
+	s2 := TestServer(t, nil)
 	defer s2.Shutdown()
 	servers := []*Server{s1, s2}
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -155,20 +156,20 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 }
 
 func TestLeader_PlanQueue_Reset(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -227,24 +228,24 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 }
 
 func TestLeader_EvalBroker_Reset(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	for _, s := range servers {
@@ -304,24 +305,24 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	for _, s := range servers {
@@ -411,7 +412,7 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -467,7 +468,7 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -524,7 +525,7 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatch(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalGCInterval = 5 * time.Millisecond
 	})
@@ -544,7 +545,7 @@ func TestLeader_PeriodicDispatch(t *testing.T) {
 }
 
 func TestLeader_ReapFailedEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalDeliveryLimit = 1
 	})
@@ -615,7 +616,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 }
 
 func TestLeader_ReapDuplicateEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -643,7 +644,7 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 }
 
 func TestLeader_RestoreVaultAccessors(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -672,13 +673,13 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, func(c *Config) {
+	s1, root := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
-	s2, _ := testACLServer(t, func(c *Config) {
+	s2, _ := TestACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
@@ -686,7 +687,7 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 		c.ReplicationToken = root.SecretID
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
@@ -740,13 +741,13 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 
 func TestLeader_ReplicateACLTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, func(c *Config) {
+	s1, root := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
-	s2, _ := testACLServer(t, func(c *Config) {
+	s2, _ := TestACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
@@ -754,7 +755,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 		c.ReplicationToken = root.SecretID
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
@@ -815,18 +816,19 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
+		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 1
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 2
 	})
@@ -835,7 +837,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	servers := []*Server{s1, s2, s3}
 
 	// Try to join
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -862,13 +864,13 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 
 	// Replace the dead server with one running raft protocol v3
-	s4 := testServer(t, func(c *Config) {
+	s4 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s4.Shutdown()
-	testJoin(t, s1, s4)
+	TestJoin(t, s1, s4)
 	servers[1] = s4
 
 	// Make sure we're back to 3 total peers with the new one added via ID
@@ -903,18 +905,18 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 
 func TestLeader_RollRaftServer(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 1
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 2
 	})
@@ -923,7 +925,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	servers := []*Server{s1, s2, s3}
 
 	// Try to join
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
@@ -945,12 +947,12 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	}
 
 	// Replace the dead server with one running raft protocol v3
-	s4 := testServer(t, func(c *Config) {
+	s4 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s4.Shutdown()
-	testJoin(t, s4, s1)
+	TestJoin(t, s4, s1)
 	servers[1] = s4
 
 	// Make sure the dead server is removed and we're back to 3 total peers
@@ -977,4 +979,20 @@ func TestLeader_RollRaftServer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should have finished establish leader loop")
+	})
+
+	require.Nil(t, s1.revokeLeadership())
+	require.Nil(t, s1.revokeLeadership())
+	require.Nil(t, s1.revokeLeadership())
 }

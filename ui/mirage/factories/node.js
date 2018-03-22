@@ -58,6 +58,14 @@ export default Factory.extend({
     };
   },
 
+  withMeta: trait({
+    meta: {
+      just: 'some',
+      prop: 'erties',
+      'over.here': 100,
+    },
+  }),
+
   afterCreate(node, server) {
     // Each node has a corresponding client stats resource that's queried via node IP.
     // Create that record, even though it's not a relationship.

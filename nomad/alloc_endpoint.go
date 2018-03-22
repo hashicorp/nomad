@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -199,4 +200,36 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 		},
 	}
 	return a.srv.blockingRPC(&opts)
+}
+
+// UpdateDesiredTransition is used to update the desired transitions of an
+// allocation.
+func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransitionRequest, reply *structs.GenericResponse) error {
+	if done, err := a.srv.forward("Alloc.UpdateDesiredTransition", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "update_desired_transition"}, time.Now())
+
+	// Check that it is a management token.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Ensure at least a single alloc
+	if len(args.Allocs) == 0 {
+		return fmt.Errorf("must update at least one allocation")
+	}
+
+	// Commit this update via Raft
+	_, index, err := a.srv.raftApply(structs.AllocUpdateDesiredTransitionRequestType, args)
+	if err != nil {
+		a.srv.logger.Printf("[ERR] nomad.allocs: AllocUpdateDesiredTransitionRequest failed: %v", err)
+		return err
+	}
+
+	// Setup the response
+	reply.Index = index
+	return nil
 }

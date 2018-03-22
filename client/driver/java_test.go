@@ -181,7 +181,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	// Get the stdout of the process and assrt that it's not empty
+	// Get the stdout of the process and assert that it's not empty
 	stdout := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "demo-app.stdout.0")
 	fInfo, err := os.Stat(stdout)
 	if err != nil {
@@ -424,7 +424,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	// Get the stdout of the process and assrt that it's not empty
+	// Get the stdout of the process and assert that it's not empty
 	stdout := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "demo-app.stdout.0")
 	fInfo, err := os.Stat(stdout)
 	if err != nil {

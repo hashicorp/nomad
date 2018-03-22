@@ -22,8 +22,11 @@ ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
 endif
 
+ifeq ($(TRAVIS),true)
+$(info Running in Travis, verbose mode is disabled)
+else
 VERBOSE="true"
-
+endif
 
 
 ALL_TARGETS += linux_386 \
@@ -274,7 +277,7 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
@@ -289,7 +292,7 @@ test-ui: ## Run Nomad UI test suite
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install
+	@cd ui && yarn install --silent
 	@cd ui && npm rebuild node-sass
 	@echo "--> Building Ember application"
 	@cd ui && npm run build

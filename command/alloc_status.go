@@ -22,7 +22,7 @@ type AllocStatusCommand struct {
 
 func (c *AllocStatusCommand) Help() string {
 	helpText := `
-Usage: nomad alloc-status [options] <allocation>
+Usage: nomad alloc status [options] <allocation>
 
   Display information about existing allocations and its tasks. This command can
   be used to inspect the current status of an allocation, including its running
@@ -87,7 +87,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
+	flags := c.Meta.FlagSet("alloc status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -145,7 +145,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	allocID = sanatizeUUIDPrefix(allocID)
+	allocID = sanitizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
@@ -276,12 +276,22 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 
 	if alloc.RescheduleTracker != nil && len(alloc.RescheduleTracker.Events) > 0 {
 		attempts, total := alloc.RescheduleInfo(time.Unix(0, alloc.ModifyTime))
-		reschedInfo := fmt.Sprintf("Reschedule Attempts|%d/%d", attempts, total)
-		basic = append(basic, reschedInfo)
+		// Show this section only if the reschedule policy limits the number of attempts
+		if total > 0 {
+			reschedInfo := fmt.Sprintf("Reschedule Attempts|%d/%d", attempts, total)
+			basic = append(basic, reschedInfo)
+		}
 	}
 	if alloc.NextAllocation != "" {
 		basic = append(basic,
 			fmt.Sprintf("Replacement Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
+	}
+	if alloc.FollowupEvalID != "" {
+		nextEvalTime := futureEvalTimePretty(alloc.FollowupEvalID, client)
+		if nextEvalTime != "" {
+			basic = append(basic,
+				fmt.Sprintf("Reschedule Eligibility|%s", nextEvalTime))
+		}
 	}
 
 	if verbose {
@@ -294,6 +304,18 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	return formatKV(basic), nil
+}
+
+// futureEvalTimePretty returns when the eval is eligible to reschedule
+// relative to current time, based on the WaitUntil field
+func futureEvalTimePretty(evalID string, client *api.Client) string {
+	evaluation, _, err := client.Evaluations().Info(evalID, nil)
+	// Eval time is not a critical output,
+	// don't return it on errors, if its not set or already in the past
+	if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+		return ""
+	}
+	return prettyTimeDiff(evaluation.WaitUntil, time.Now())
 }
 
 // outputTaskDetails prints task details for each task in the allocation,

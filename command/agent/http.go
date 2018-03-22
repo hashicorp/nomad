@@ -456,7 +456,7 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	return parseWait(resp, req, b)
 }
 
-// parseWriteRequest is a convience method for endpoints that need to parse a
+// parseWriteRequest is a convenience method for endpoints that need to parse a
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
 	parseNamespace(req, &w.Namespace)

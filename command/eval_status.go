@@ -16,7 +16,7 @@ type EvalStatusCommand struct {
 
 func (c *EvalStatusCommand) Help() string {
 	helpText := `
-Usage: nomad eval-status [options] <evaluation>
+Usage: nomad eval status [options] <evaluation>
 
   Display information about evaluations. This command can be used to inspect the
   current status of an evaluation as well as determine the reason an evaluation
@@ -81,7 +81,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	var monitor, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("eval-status", FlagSetClient)
+	flags := c.Meta.FlagSet("eval status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -139,7 +139,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	evalID = sanatizeUUIDPrefix(evalID)
+	evalID = sanitizeUUIDPrefix(evalID)
 	evals, _, err := client.Evaluations().PrefixList(evalID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %v", err))

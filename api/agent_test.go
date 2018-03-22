@@ -77,7 +77,7 @@ func TestAgent_Join(t *testing.T) {
 	})
 	defer s2.Stop()
 
-	// Attempting to join a non-existent host returns error
+	// Attempting to join a nonexistent host returns error
 	n, err := a1.Join("nope")
 	if err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -123,7 +123,7 @@ func TestAgent_ForceLeave(t *testing.T) {
 	defer s.Stop()
 	a := c.Agent()
 
-	// Force-leave on a non-existent node does not error
+	// Force-leave on a nonexistent node does not error
 	if err := a.ForceLeave("nope"); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -241,7 +241,7 @@ func TestAgents_Sort(t *testing.T) {
 	for _, tt := range sortTests {
 		sort.Sort(AgentMembersNameSort(tt.in))
 		if !reflect.DeepEqual(tt.in, tt.out) {
-			t.Errorf("\necpected: %s\nget     : %s", tt.in, tt.out)
+			t.Errorf("\nexpected: %s\nget     : %s", tt.in, tt.out)
 		}
 	}
 }

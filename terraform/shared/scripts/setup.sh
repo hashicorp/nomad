@@ -21,7 +21,7 @@ NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMAD
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-HADOOP_VERSION=2.7.4
+HADOOP_VERSION=2.7.5
 
 # Dependencies
 sudo apt-get install -y software-properties-common
@@ -87,6 +87,40 @@ echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print
 sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 sudo apt-get update
 sudo apt-get install -y docker-engine
+
+# rkt
+VERSION=1.27.0
+DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
+
+function install_rkt() {
+	wget -q -O /tmp/rkt.tar.gz "${DOWNLOAD}"
+	tar -C /tmp -xvf /tmp/rkt.tar.gz
+	sudo mv /tmp/rkt-v${VERSION}/rkt /usr/local/bin
+	sudo mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
+}
+
+function configure_rkt_networking() {
+	sudo mkdir -p /etc/rkt/net.d
+    sudo bash -c 'cat << EOT > /etc/rkt/net.d/99-network.conf
+{
+  "name": "default",
+  "type": "ptp",
+  "ipMasq": false,
+  "ipam": {
+    "type": "host-local",
+    "subnet": "172.16.28.0/24",
+    "routes": [
+      {
+        "dst": "0.0.0.0/0"
+      }
+    ]
+  }
+}
+EOT'
+}
+
+install_rkt
+configure_rkt_networking
 
 # Java
 sudo add-apt-repository -y ppa:openjdk-r/ppa

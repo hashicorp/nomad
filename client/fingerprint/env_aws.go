@@ -75,7 +75,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 		return nil
 	}
 
-	// newNetwork is populated and addded to the Nodes resources
+	// newNetwork is populated and added to the Nodes resources
 	newNetwork := &structs.NetworkResource{
 		Device: "eth0",
 	}
@@ -191,7 +191,7 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	// Query the metadata url for the ami-id, to veryify we're on AWS
+	// Query the metadata url for the ami-id, to verify we're on AWS
 	resp, err := client.Get(metadataURL + "ami-id")
 	if err != nil {
 		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")

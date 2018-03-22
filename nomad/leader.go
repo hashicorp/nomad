@@ -84,7 +84,7 @@ func (s *Server) monitorLeadership() {
 }
 
 // leaderLoop runs as long as we are the leader to run various
-// maintence activities
+// maintenance activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
 	establishedLeader := false
@@ -107,8 +107,16 @@ RECONCILE:
 	if !establishedLeader {
 		if err := s.establishLeadership(stopCh); err != nil {
 			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v", err)
+
+			// Immediately revoke leadership since we didn't successfully
+			// establish leadership.
+			if err := s.revokeLeadership(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to revoke leadership: %v", err)
+			}
+
 			goto WAIT
 		}
+
 		establishedLeader = true
 		defer func() {
 			if err := s.revokeLeadership(); err != nil {
@@ -157,6 +165,8 @@ WAIT:
 // previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	defer metrics.MeasureSince([]string{"nomad", "leader", "establish_leadership"}, time.Now())
+
 	// Generate a leader ACL token. This will allow the leader to issue work
 	// that requires a valid ACL token.
 	s.setLeaderAcl(uuid.Generate())
@@ -189,9 +199,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.blockedEvals.SetTimetable(s.fsm.TimeTable())
 
 	// Enable the deployment watcher, since we are now the leader
-	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {
-		return err
-	}
+	s.deploymentWatcher.SetEnabled(true, s.State())
+
+	// Enable the NodeDrainer
+	s.nodeDrainer.SetEnabled(true, s.State())
 
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
@@ -639,6 +650,8 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	defer metrics.MeasureSince([]string{"nomad", "leader", "revoke_leadership"}, time.Now())
+
 	// Clear the leader token since we are no longer the leader.
 	s.setLeaderAcl("")
 
@@ -661,9 +674,10 @@ func (s *Server) revokeLeadership() error {
 	s.vault.SetActive(false)
 
 	// Disable the deployment watcher as it is only useful as a leader.
-	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
-		return err
-	}
+	s.deploymentWatcher.SetEnabled(false, nil)
+
+	// Disable the node drainer
+	s.nodeDrainer.SetEnabled(false, nil)
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {

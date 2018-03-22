@@ -120,8 +120,12 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.ServerAutoJoin = &b
 		return nil
@@ -194,6 +198,10 @@ func (c *Command) readConfig() *Config {
 	} else {
 		config = DefaultConfig()
 	}
+
+	// Merge in the enterprise overlay
+	config.Merge(DefaultEntConfig())
+
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
 		if err != nil {
@@ -379,7 +387,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 	c.httpServer = http
 
 	// Setup update checking
-	if !config.DisableUpdateCheck {
+	if config.DisableUpdateCheck != nil && *config.DisableUpdateCheck {
 		version := config.Version.Version
 		if config.Version.VersionPrerelease != "" {
 			version += fmt.Sprintf("-%s", config.Version.VersionPrerelease)
@@ -401,6 +409,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 			c.checkpointResults(checkpoint.Check(updateParams))
 		}()
 	}
+
 	return nil
 }
 
@@ -479,7 +488,7 @@ func (c *Command) Run(args []string) int {
 	}
 	defer c.agent.Shutdown()
 
-	// Shudown the HTTP server at the end
+	// Shutdown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
@@ -916,7 +925,7 @@ Server Options:
 
   -bootstrap-expect=<num>
     Configures the expected number of servers nodes to wait for before
-    bootstrapping the cluster. Once <num> servers have joined eachother,
+    bootstrapping the cluster. Once <num> servers have joined each other,
     Nomad initiates the bootstrap process.
 
   -encrypt=<key>
@@ -956,7 +965,7 @@ Client Options:
     specified a subdirectory under the "-data-dir" will be used.
 
   -alloc-dir
-    The directory used to store allocation data such as downloaded artificats as
+    The directory used to store allocation data such as downloaded artifacts as
     well as data produced by tasks. If not specified, a subdirectory under the
     "-data-dir" will be used.
 
@@ -987,8 +996,8 @@ ACL Options:
 
   -acl-replication-token
     The replication token for servers to use when replicating from the
-    authoratative region. The token must be a valid management token from the
-    authoratative region.
+    authoritative region. The token must be a valid management token from the
+    authoritative region.
 
 Consul Options:
 
@@ -1027,12 +1036,24 @@ Consul Options:
   -consul-client-service-name=<name>
     Specifies the name of the service in Consul for the Nomad clients.
 
+  -consul-client-http-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad clients.
+
   -consul-key-file=<path>
     Specifies the path to the private key used for Consul communication. If this
     is set then you need to also set cert_file.
 
   -consul-server-service-name=<name>
     Specifies the name of the service in Consul for the Nomad servers.
+
+  -consul-server-http-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad servers.
+
+  -consul-server-serf-check-name=<name>
+    Specifies the Serf health check name in Consul for the Nomad servers.
+
+  -consul-server-rpc-check-name=<name>
+    Specifies the RPC health check name in Consul for the Nomad servers.
 
   -consul-server-auto-join
     Specifies if the Nomad servers should automatically discover and join other
@@ -1069,7 +1090,7 @@ Vault Options:
     The role name to create tokens for tasks from.
 
   -vault-allow-unauthenticated
-    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    Whether to allow jobs to be submitted that request Vault Tokens but do not
     authentication. The flag only applies to Servers.
 
   -vault-ca-file=<path>

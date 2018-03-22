@@ -4,6 +4,8 @@ job "foo" {
   reschedule {
       attempts = 15
       interval = "30m"
+      delay = "10s",
+      delay_function = "linear"
   }
   group "bar" {
     count = 3

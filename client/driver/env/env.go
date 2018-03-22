@@ -204,7 +204,7 @@ type Builder struct {
 	// localDir from task's perspective; eg /local
 	localDir string
 
-	// secrestsDir from task's perspective; eg /secrets
+	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
 	cpuLimit         int

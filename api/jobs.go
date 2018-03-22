@@ -559,6 +559,7 @@ type Job struct {
 	ParameterizedJob  *ParameterizedJobConfig
 	Payload           []byte
 	Reschedule        *ReschedulePolicy
+	Migrate           *MigrateStrategy
 	Meta              map[string]string
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
@@ -646,6 +647,16 @@ func (j *Job) Canonicalize() {
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
+}
+
+// LookupTaskGroup finds a task group by name
+func (j *Job) LookupTaskGroup(name string) *TaskGroup {
+	for _, tg := range j.TaskGroups {
+		if *tg.Name == name {
+			return tg
+		}
+	}
+	return nil
 }
 
 // JobSummary summarizes the state of the allocations of a job

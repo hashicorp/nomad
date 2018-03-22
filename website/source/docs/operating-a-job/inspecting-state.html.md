@@ -25,13 +25,8 @@ and command largely apply to all jobs in Nomad.
 After a job is submitted, you can query the status of that job using the job
 status command:
 
-```shell
-$ nomad job status
-```
-
-Here is some sample output:
-
 ```text
+$ nomad job status
 ID    Type     Priority  Status
 docs  service  50        running
 ```
@@ -40,13 +35,8 @@ At a high level, we can see that our job is currently running, but what does
 "running" actually mean. By supplying the name of a job to the job status
 command, we can ask Nomad for more detailed job information:
 
-```shell
-$ nomad job status docs
-```
-
-Here is some sample output
-
 ```text
+$ nomad job status docs
 ID          = docs
 Name        = docs
 Type        = service
@@ -115,14 +105,14 @@ In the above example we see that the job has a "blocked" evaluation that is in
 progress. When Nomad can not place all the desired allocations, it creates a
 blocked evaluation that waits for more resources to become available.
 
-The `eval-status` command enables us to examine any evaluation in more detail.
+The `eval status` command enables us to examine any evaluation in more detail.
 For the most part this should never be necessary but can be useful to see why
 all of a job's allocations were not placed. For example if we run it on the job
 named docs, which had a placement failure according to the above output, we
 might see:
 
 ```text
-$ nomad eval-status 8e38e6cf
+$ nomad eval status 8e38e6cf
 ID                 = 8e38e6cf
 Status             = complete
 Status Description = complete
@@ -140,17 +130,17 @@ Task Group "example" (failed to place 3 allocations):
 Evaluation "5744eb15" waiting for additional capacity to place remainder
 ```
 
-For more information on the `eval-status` command, please see the [CLI documentation for <tt>eval-status</tt>](/docs/commands/eval-status.html).
+For more information on the `eval status` command, please see the [CLI documentation for <tt>eval status</tt>](/docs/commands/eval-status.html).
 
 ## Allocation Status
 
 You can think of an allocation as an instruction to schedule. Just like an
-application or service, an allocation has logs and state. The `alloc-status`
+application or service, an allocation has logs and state. The `alloc status`
 command gives us the most recent events that occurred for a task, its resource
 usage, port allocations and more:
 
 ```text
-$ nomad alloc-status 04d9627d
+$ nomad alloc status 04d9627d
 ID            = 04d9627d
 Eval ID       = 42d788a3
 Name          = docs.example[2]
@@ -169,16 +159,16 @@ Time                   Type      Description
 10/09/16 00:36:05 UTC  Received  Task received by client
 ```
 
-The `alloc-status` command is a good starting to point for debugging an
+The `alloc status` command is a good starting to point for debugging an
 application that did not start. Hypothetically assume a user meant to start a
 Docker container named "redis:2.8", but accidentally put a comma instead of a
 period, typing "redis:2,8".
 
-When the job is executed, it produces a failed allocation. The `alloc-status`
+When the job is executed, it produces a failed allocation. The `alloc status`
 command will give us the reason why:
 
 ```text
-$ nomad alloc-status 04d9627d
+$ nomad alloc status 04d9627d
 # ...
 
 Recent Events:
@@ -188,12 +178,12 @@ Time                   Type            Description
 06/28/16 15:50:22 UTC  Received        Task received by client
 ```
 
-Unfortunately not all failures are as easily debuggable. If the `alloc-status`
+Unfortunately not all failures are as easily debuggable. If the `alloc status`
 command shows many restarts, there is likely an application-level issue during
 start up. For example:
 
-```
-$ nomad alloc-status 04d9627d
+```text
+$ nomad alloc status 04d9627d
 # ...
 
 Recent Events:
@@ -211,5 +201,5 @@ To debug these failures, we will need to utilize the "logs" command, which is
 discussed in the [accessing logs](/docs/operating-a-job/accessing-logs.html)
 section of this documentation.
 
-For more information on the `alloc-status` command, please see the [CLI
-documentation for <tt>alloc-status</tt>](/docs/commands/alloc-status.html).
+For more information on the `alloc status` command, please see the [CLI
+documentation for <tt>alloc status</tt>](/docs/commands/alloc/status.html).

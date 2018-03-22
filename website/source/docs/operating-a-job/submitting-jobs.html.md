@@ -65,17 +65,12 @@ especially if you are working in a team.
 
 ## Planning the Job
 
-Once the job file is authored, we need to plan out the changes. The `nomad plan`
+Once the job file is authored, we need to plan out the changes. The `nomad job plan`
 command invokes a dry-run of the scheduler and inform us of which scheduling
 decisions would take place.
 
-```shell
-$ nomad plan docs.nomad
-```
-
-The resulting output will look like:
-
 ```text
+$ nomad job plan docs.nomad
 + Job: "docs"
 + Task Group: "example" (1 create)
   + Task: "server" (forces create)
@@ -86,7 +81,7 @@ Scheduler dry-run:
 Job Modify Index: 0
 To submit the job with version verification run:
 
-nomad run -check-index 0 docs.nomad
+nomad job run -check-index 0 docs.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
@@ -100,17 +95,12 @@ dry-run and no allocations have taken place.
 ## Submitting the Job
 
 Assuming the output of the plan looks acceptable, we can ask Nomad to execute
-this job. This is done via the `nomad run` command. We can optionally supply
+this job. This is done via the `nomad job run` command. We can optionally supply
 the modify index provided to us by the plan command to ensure no changes to this
 job have taken place between our plan and now.
 
-```shell
-$ nomad run docs.nomad
-```
-
-The resulting output will look like:
-
 ```text
+$ nomad job run docs.nomad
 ==> Monitoring evaluation "0d159869"
     Evaluation triggered by job "docs"
     Allocation "5cbf23a1" created: node "1e1aa1e0", group "example"
@@ -142,7 +132,7 @@ then the run command. For example:
 After we save these changes to disk, run the plan command:
 
 ```text
-$ nomad plan docs.nomad
+$ nomad job plan docs.nomad
 +/- Job: "docs"
 +/- Task Group: "example" (2 create, 1 in-place update)
   +/- Count: "1" => "3" (forces create)
@@ -154,7 +144,7 @@ Scheduler dry-run:
 Job Modify Index: 131
 To submit the job with version verification run:
 
-nomad run -check-index 131 docs.nomad
+nomad job run -check-index 131 docs.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
@@ -167,7 +157,7 @@ including the "check-index" parameter. This will ensure that no remote changes
 have taken place to the job between our plan and run phases.
 
 ```text
-nomad run -check-index 131 docs.nomad
+nomad job run -check-index 131 docs.nomad
 ==> Monitoring evaluation "42d788a3"
     Evaluation triggered by job "docs"
     Allocation "04d9627d" created: node "a1f934c9", group "example"

@@ -66,7 +66,7 @@ type AllocGarbageCollector struct {
 func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStatsCollector, ac AllocCounter, config *GCConfig) *AllocGarbageCollector {
 	// Require at least 1 to make progress
 	if config.ParallelDestroys <= 0 {
-		logger.Printf("[WARN] client.gc: garbage collector defaulting parallism to 1 due to invalid input value of %d", config.ParallelDestroys)
+		logger.Printf("[WARN] client.gc: garbage collector defaulting parallelism to 1 due to invalid input value of %d", config.ParallelDestroys)
 		config.ParallelDestroys = 1
 	}
 
@@ -212,7 +212,7 @@ func (a *AllocGarbageCollector) Collect(allocID string) bool {
 	return false
 }
 
-// CollectAll garbage collects all termianated allocations on a node
+// CollectAll garbage collects all terminated allocations on a node
 func (a *AllocGarbageCollector) CollectAll() {
 	for {
 		select {
