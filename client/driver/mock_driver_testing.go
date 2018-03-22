@@ -1,4 +1,4 @@
-//+build nomad_test
+// +build nomad_test
 
 package driver
 

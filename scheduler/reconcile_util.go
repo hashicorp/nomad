@@ -199,30 +199,33 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
 	for _, alloc := range a {
-		n, ok := nodes[alloc.NodeID]
-		if !ok {
+		// Terminal allocs are always untainted as they should never be migrated
+		if alloc.TerminalStatus() {
 			untainted[alloc.ID] = alloc
 			continue
 		}
 
-		// If the job is batch and finished successfully, the fact that the
-		// node is tainted does not mean it should be migrated or marked as
-		// lost as the work was already successfully finished. However for
-		// service/system jobs, tasks should never complete. The check of
-		// batch type, defends against client bugs.
-		if alloc.Job.Type == structs.JobTypeBatch && alloc.RanSuccessfully() {
+		// Non-terminal allocs that should migrate should always migrate
+		if alloc.DesiredTransition.ShouldMigrate() {
+			migrate[alloc.ID] = alloc
+			continue
+		}
+
+		n, ok := nodes[alloc.NodeID]
+		if !ok {
+			// Node is untainted so alloc is untainted
 			untainted[alloc.ID] = alloc
 			continue
 		}
-		if !alloc.TerminalStatus() {
-			if n == nil || n.TerminalStatus() {
-				lost[alloc.ID] = alloc
-			} else {
-				migrate[alloc.ID] = alloc
-			}
-		} else {
-			untainted[alloc.ID] = alloc
+
+		// Allocs on GC'd (nil) or lost nodes are Lost
+		if n == nil || n.TerminalStatus() {
+			lost[alloc.ID] = alloc
+			continue
 		}
+
+		// All other allocs are untainted
+		untainted[alloc.ID] = alloc
 	}
 	return
 }

@@ -942,8 +942,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the parameterized job
-		job := mock.Job()
-		job.Type = "batch"
+		job := mock.BatchJob()
 		job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 		args := structs.JobRegisterRequest{
@@ -1179,6 +1178,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Unlimited:     helper.BoolToPtr(true),
 					MaxDelay:      helper.TimeToPtr(20 * time.Minute),
 				},
+				Migrate: &api.MigrateStrategy{
+					MaxParallel:     helper.IntToPtr(12),
+					HealthCheck:     helper.StringToPtr("task_events"),
+					MinHealthyTime:  helper.TimeToPtr(12 * time.Hour),
+					HealthyDeadline: helper.TimeToPtr(12 * time.Hour),
+				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
 					Sticky:  helper.BoolToPtr(true),
@@ -1394,6 +1399,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Delay:         30 * time.Second,
 					Unlimited:     true,
 					MaxDelay:      20 * time.Minute,
+				},
+				Migrate: &structs.MigrateStrategy{
+					MaxParallel:     12,
+					HealthCheck:     "task_events",
+					MinHealthyTime:  12 * time.Hour,
+					HealthyDeadline: 12 * time.Hour,
 				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB:  100,

@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
+	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -171,6 +172,9 @@ type Server struct {
 	// deploymentWatcher is used to watch deployments and their allocations and
 	// make the required calls to continue to transition the deployment.
 	deploymentWatcher *deploymentwatcher.Watcher
+
+	// nodeDrainer is used to drain allocations from nodes.
+	nodeDrainer *drainer.NodeDrainer
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
@@ -354,6 +358,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	if err := s.setupDeploymentWatcher(); err != nil {
 		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
 	}
+
+	// Setup the node drainer.
+	s.setupNodeDrainer()
 
 	// Setup the enterprise state
 	if err := s.setupEnterprise(config); err != nil {
@@ -878,6 +885,23 @@ func (s *Server) setupDeploymentWatcher() error {
 		deploymentwatcher.CrossDeploymentEvalBatchDuration)
 
 	return nil
+}
+
+// setupNodeDrainer creates a node drainer which will be enabled when a server
+// becomes a leader.
+func (s *Server) setupNodeDrainer() {
+	// Create a shim around Raft requests
+	shim := drainerShim{s}
+	c := &drainer.NodeDrainerConfig{
+		Logger:                s.logger,
+		Raft:                  shim,
+		JobFactory:            drainer.GetDrainingJobWatcher,
+		NodeFactory:           drainer.GetNodeWatcherFactory(),
+		DrainDeadlineFactory:  drainer.GetDeadlineNotifier,
+		StateQueriesPerSecond: drainer.LimitStateQueriesPerSecond,
+		BatchUpdateInterval:   drainer.BatchUpdateInterval,
+	}
+	s.nodeDrainer = drainer.NewNodeDrainer(c)
 }
 
 // setupVaultClient is used to set up the Vault API client.

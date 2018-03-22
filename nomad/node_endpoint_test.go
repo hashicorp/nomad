@@ -747,10 +747,14 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+
+	// Disable drainer to prevent drain from completing during test
+	s1.nodeDrainer.SetEnabled(false, nil)
 
 	// Create the register request
 	node := mock.Node()
@@ -761,34 +765,36 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	beforeUpdate := time.Now()
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
 	}
 
 	// Update the status
 	dereg := &structs.NodeUpdateDrainRequest{
-		NodeID:       node.ID,
-		Drain:        true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+		WriteRequest:  structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index == 0 {
-		t.Fatalf("bad index: %d", resp2.Index)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !out.Drain {
-		t.Fatalf("bad: %#v", out)
-	}
+	require.Nil(err)
+	require.True(out.Drain)
+	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
+	// before+deadline should be before the forced deadline
+	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
+	// now+deadline should be after the forced deadline
+	require.True(time.Now().Add(strategy.Deadline).After(out.DrainStrategy.ForceDeadline))
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
@@ -797,13 +803,13 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
+	require := require.New(t)
 
 	// Create the node
 	node := mock.Node()
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	require.Nil(state.UpsertNode(1, node), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -811,22 +817,26 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 
 	// Update the status without a token and expect failure
 	dereg := &structs.NodeUpdateDrainRequest{
-		NodeID:       node.ID,
-		Drain:        true,
+		NodeID: node.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
+		},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	{
 		var resp structs.NodeDrainUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
-		assert.NotNil(err, "RPC")
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		require.NotNil(err, "RPC")
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a valid token
 	dereg.AuthToken = validToken.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
 	}
 
 	// Try with a invalid token
@@ -834,15 +844,15 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	{
 		var resp structs.NodeDrainUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp)
-		assert.NotNil(err, "RPC")
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		require.NotNil(err, "RPC")
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a root token
 	dereg.AuthToken = root.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
 	}
 }
 
@@ -854,6 +864,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	require := require.New(t)
 
 	// Register a node
 	node := mock.Node()
@@ -863,9 +874,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 	}
 	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 
 	// Register a service job
 	var jobResp structs.JobRegisterResponse
@@ -878,15 +887,12 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			Namespace: job.Namespace,
 		},
 	}
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp))
 
 	// Register a system job
 	var jobResp1 structs.JobRegisterResponse
-	job1 := mock.Job()
+	job1 := mock.SystemJob()
 	job1.TaskGroups[0].Count = 1
-	job1.Type = structs.JobTypeSystem
 	jobReq1 := &structs.JobRegisterRequest{
 		Job: job1,
 		WriteRequest: structs.WriteRequest{
@@ -894,9 +900,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			Namespace: job1.Namespace,
 		},
 	}
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq1, &jobResp1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq1, &jobResp1))
 
 	// Wait for the scheduler to create an allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -916,14 +920,16 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 
 	// Drain the node
 	dereg := &structs.NodeUpdateDrainRequest{
-		NodeID:       node.ID,
-		Drain:        true,
+		NodeID: node.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second,
+			},
+		},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
 
 	// Mark the node as down
 	node.Status = structs.NodeStatusDown
@@ -931,9 +937,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 
 	// Ensure that the allocation has transitioned to lost
 	testutil.WaitForResult(func() (bool, error) {
@@ -956,7 +960,7 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			ModifyIndex: summary.ModifyIndex,
 		}
 		if !reflect.DeepEqual(summary, expectedSummary) {
-			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary, summary)
+			return false, fmt.Errorf("Service: expected: %#v, actual: %#v", expectedSummary, summary)
 		}
 
 		summary1, err := s1.fsm.state.JobSummaryByID(ws, job1.Namespace, job1.ID)
@@ -976,12 +980,103 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			ModifyIndex: summary1.ModifyIndex,
 		}
 		if !reflect.DeepEqual(summary1, expectedSummary1) {
-			return false, fmt.Errorf("expected: %#v, actual: %#v", expectedSummary1, summary1)
+			return false, fmt.Errorf("System: expected: %#v, actual: %#v", expectedSummary1, summary1)
 		}
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestClientEndpoint_UpdateEligibility(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the eligibility
+	dereg := &structs.NodeUpdateEligibilityRequest{
+		NodeID:       node.ID,
+		Eligibility:  structs.NodeSchedulingIneligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.GenericResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+}
+
+func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	require := require.New(t)
+
+	// Create the node
+	node := mock.Node()
+	state := s1.fsm.State()
+
+	require.Nil(state.UpsertNode(1, node), "UpsertNode")
+
+	// Create the policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
+
+	// Update the status without a token and expect failure
+	dereg := &structs.NodeUpdateEligibilityRequest{
+		NodeID:       node.ID,
+		Eligibility:  structs.NodeSchedulingIneligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp)
+		require.NotNil(err, "RPC")
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a valid token
+	dereg.AuthToken = validToken.SecretID
+	{
+		var resp structs.GenericResponse
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp), "RPC")
+	}
+
+	// Try with a invalid token
+	dereg.AuthToken = invalidToken.SecretID
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp)
+		require.NotNil(err, "RPC")
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	dereg.AuthToken = root.SecretID
+	{
+		var resp structs.GenericResponse
+		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp), "RPC")
+	}
 }
 
 func TestClientEndpoint_GetNode(t *testing.T) {
@@ -1888,7 +1983,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
 
 	// Call to do the batch update
-	bf := NewBatchFuture()
+	bf := structs.NewBatchFuture()
 	endpoint := s1.staticEndpoints.Node
 	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc}, nil)
 	if err := bf.Wait(); err != nil {
@@ -2344,15 +2439,18 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	// Disable drainer to prevent drain from completing during test
+	s1.nodeDrainer.SetEnabled(false, nil)
+
 	// Create the node
 	node := mock.Node()
 
 	// Node upsert triggers watches
-	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertNode(2, node); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+	errCh := make(chan error, 1)
+	timer := time.AfterFunc(100*time.Millisecond, func() {
+		errCh <- state.UpsertNode(2, node)
 	})
+	defer timer.Stop()
 
 	req := &structs.NodeListRequest{
 		QueryOptions: structs.QueryOptions{
@@ -2364,6 +2462,10 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	var resp structs.NodeListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("error from timer: %v", err)
 	}
 
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
@@ -2378,9 +2480,12 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node drain updates trigger watches.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpdateNodeDrain(3, node.ID, true); err != nil {
-			t.Fatalf("err: %v", err)
+		s := &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
 		}
+		errCh <- state.UpdateNodeDrain(3, node.ID, s, false)
 	})
 
 	req.MinQueryIndex = 2
@@ -2388,6 +2493,10 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	start = time.Now()
 	if err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("error from timer: %v", err)
 	}
 
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
@@ -2402,23 +2511,25 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node status update triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpdateNodeStatus(4, node.ID, structs.NodeStatusDown); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown)
 	})
 
-	req.MinQueryIndex = 3
+	req.MinQueryIndex = 38
 	var resp3 structs.NodeListResponse
 	start = time.Now()
 	if err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp3); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
+	if err := <-errCh; err != nil {
+		t.Fatalf("error from timer: %v", err)
+	}
+
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp3)
 	}
-	if resp3.Index != 4 {
-		t.Fatalf("Bad index: %d %d", resp3.Index, 4)
+	if resp3.Index != 40 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 40)
 	}
 	if len(resp3.Nodes) != 1 || resp3.Nodes[0].Status != structs.NodeStatusDown {
 		t.Fatalf("bad: %#v", resp3.Nodes)
@@ -2426,54 +2537,28 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node delete triggers watches.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteNode(5, node.ID); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		errCh <- state.DeleteNode(50, node.ID)
 	})
 
-	req.MinQueryIndex = 4
+	req.MinQueryIndex = 45
 	var resp4 structs.NodeListResponse
 	start = time.Now()
 	if err := msgpackrpc.CallWithCodec(codec, "Node.List", req, &resp4); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
+	if err := <-errCh; err != nil {
+		t.Fatalf("error from timer: %v", err)
+	}
+
 	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
 		t.Fatalf("should block (returned in %s) %#v", elapsed, resp4)
 	}
-	if resp4.Index != 5 {
-		t.Fatalf("Bad index: %d %d", resp4.Index, 5)
+	if resp4.Index != 50 {
+		t.Fatalf("Bad index: %d %d", resp4.Index, 50)
 	}
 	if len(resp4.Nodes) != 0 {
 		t.Fatalf("bad: %#v", resp4.Nodes)
-	}
-}
-
-func TestBatchFuture(t *testing.T) {
-	t.Parallel()
-	bf := NewBatchFuture()
-
-	// Async respond to the future
-	expect := fmt.Errorf("testing")
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		bf.Respond(1000, expect)
-	}()
-
-	// Block for the result
-	start := time.Now()
-	err := bf.Wait()
-	diff := time.Since(start)
-	if diff < 5*time.Millisecond {
-		t.Fatalf("too fast")
-	}
-
-	// Check the results
-	if err != expect {
-		t.Fatalf("bad: %s", err)
-	}
-	if bf.Index() != 1000 {
-		t.Fatalf("bad: %d", bf.Index())
 	}
 }
 
