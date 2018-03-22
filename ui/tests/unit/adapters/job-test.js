@@ -103,7 +103,7 @@ test('findAll can be watched', function(assert) {
   );
   assert.equal(
     pretender.handledRequests[1].url,
-    '/v1/jobs?index=0',
+    '/v1/jobs?index=1',
     'Second request is a blocking request for jobs'
   );
 
@@ -111,7 +111,7 @@ test('findAll can be watched', function(assert) {
     request();
     assert.equal(
       pretender.handledRequests[2].url,
-      '/v1/jobs?index=1',
+      '/v1/jobs?index=2',
       'Third request is a blocking request with an incremented index param'
     );
 
@@ -137,7 +137,7 @@ test('findRecord can be watched', function(assert) {
   );
   assert.equal(
     pretender.handledRequests[1].url,
-    '/v1/job/job-1?index=0',
+    '/v1/job/job-1?index=1',
     'Second request is a blocking request for job-1'
   );
 
@@ -145,7 +145,7 @@ test('findRecord can be watched', function(assert) {
     request();
     assert.equal(
       pretender.handledRequests[2].url,
-      '/v1/job/job-1?index=1',
+      '/v1/job/job-1?index=2',
       'Third request is a blocking request with an incremented index param'
     );
 
@@ -174,7 +174,7 @@ test('relationship reloads can be watched', function(assert) {
   this.subject().reloadRelationship(mockModel, 'summary', true);
   assert.equal(
     pretender.handledRequests[0].url,
-    '/v1/job/job-1/summary?index=0',
+    '/v1/job/job-1/summary?index=1',
     'First request is a blocking request for job-1 summary relationship'
   );
 
@@ -182,7 +182,7 @@ test('relationship reloads can be watched', function(assert) {
     this.subject().reloadRelationship(mockModel, 'summary', true);
     assert.equal(
       pretender.handledRequests[1].url,
-      '/v1/job/job-1/summary?index=1',
+      '/v1/job/job-1/summary?index=2',
       'Second request is a blocking request with an incremented index param'
     );
   });
