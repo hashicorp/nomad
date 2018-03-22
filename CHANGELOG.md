@@ -22,8 +22,10 @@ IMPROVEMENTS:
  * core: Updated yamux library to pick up memory and CPU performance improvements [[GH-3980](https://github.com/hashicorp/nomad/issues/3980)]
  * cli: Node status and filesystem related commands do not require direct
    network access to the Nomad client nodes [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
- * cli: Use ISO_8601 time format for cli output
-   [[GH-3814](https://github.com/hashicorp/nomad/pull/3814)]
+ * cli: Common commands highlighed [[GH-4027](https://github.com/hashicorp/nomad/issues/4027)]
+ * cli: Colored error and warning outputs [[GH-4027](https://github.com/hashicorp/nomad/issues/4027)]
+ * cli: All commands are grouped by subsystem [[GH-4027](https://github.com/hashicorp/nomad/issues/4027)]
+ * cli: Use ISO_8601 time format for cli output [[GH-3814](https://github.com/hashicorp/nomad/pull/3814)]
  * cli: Clearer task event descriptions in `nomad alloc-status` when there are server side failures authenticating to Vault [[GH-3968](https://github.com/hashicorp/nomad/issues/3968)]
  * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
  * client: Refactor client fingerprint methods to a request/response format
