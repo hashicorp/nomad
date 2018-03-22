@@ -20,6 +20,7 @@ IMPROVEMENTS:
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
  * core: Servers can now retry connecting to Vault to verify tokens without requiring a SIGHUP to do so [[GH-3957](https://github.com/hashicorp/nomad/issues/3957)]
  * core: Updated yamux library to pick up memory and CPU performance improvements [[GH-3980](https://github.com/hashicorp/nomad/issues/3980)]
+ * acl: Increase token name limit from 64 characters to 256 [[GH-3888](https://github.com/hashicorp/nomad/issues/3888)]
  * cli: Node status and filesystem related commands do not require direct
    network access to the Nomad client nodes [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
  * cli: Common commands highlighed [[GH-4027](https://github.com/hashicorp/nomad/issues/4027)]
