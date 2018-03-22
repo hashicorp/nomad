@@ -207,7 +207,7 @@ func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
 // LaunchCmd launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
+	e.logger.Printf("[INFO] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
 	// Ensure the context has been set first
 	if e.ctx == nil {
@@ -425,7 +425,7 @@ func (e *UniversalExecutor) wait() {
 			}
 		}
 	} else {
-		e.logger.Printf("[DEBUG] executor: unexpected Wait() error type: %v", err)
+		e.logger.Printf("[WARN] executor: unexpected Cmd.Wait() error type: %v", err)
 	}
 
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
