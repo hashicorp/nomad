@@ -421,8 +421,7 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request for a parameterized job.
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
 		Job: job,
@@ -1423,8 +1422,7 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
 		Job: job,
@@ -1751,8 +1749,7 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	reg := &structs.JobRegisterRequest{
 		Job: job,
@@ -3958,8 +3955,7 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	// Create a parameterized job
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	err := state.UpsertJob(400, job)
 	require.Nil(err)
@@ -4027,34 +4023,29 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	t.Parallel()
 
 	// No requirements
-	d1 := mock.Job()
-	d1.Type = structs.JobTypeBatch
+	d1 := mock.BatchJob()
 	d1.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 	// Require input data
-	d2 := mock.Job()
-	d2.Type = structs.JobTypeBatch
+	d2 := mock.BatchJob()
 	d2.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadRequired,
 	}
 
 	// Disallow input data
-	d3 := mock.Job()
-	d3.Type = structs.JobTypeBatch
+	d3 := mock.BatchJob()
 	d3.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadForbidden,
 	}
 
 	// Require meta
-	d4 := mock.Job()
-	d4.Type = structs.JobTypeBatch
+	d4 := mock.BatchJob()
 	d4.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaRequired: []string{"foo", "bar"},
 	}
 
 	// Optional meta
-	d5 := mock.Job()
-	d5.Type = structs.JobTypeBatch
+	d5 := mock.BatchJob()
 	d5.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaOptional: []string{"foo", "bar"},
 	}
@@ -4063,8 +4054,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	d6 := mock.PeriodicJob()
 	d6.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
-	d7 := mock.Job()
-	d7.Type = structs.JobTypeBatch
+	d7 := mock.BatchJob()
 	d7.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	d7.Stop = true
 

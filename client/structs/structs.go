@@ -405,3 +405,31 @@ func (f *FingerprintResponse) RemoveLink(name string) {
 
 	f.Links[name] = ""
 }
+
+// HealthCheckRequest is the request type for a type that fulfils the Health
+// Check interface
+type HealthCheckRequest struct{}
+
+// HealthCheckResponse is the response type for a type that fulfills the Health
+// Check interface
+type HealthCheckResponse struct {
+	// Drivers is a map of driver names to current driver information
+	Drivers map[string]*structs.DriverInfo
+}
+
+type HealthCheckIntervalRequest struct{}
+type HealthCheckIntervalResponse struct {
+	Eligible bool
+	Period   time.Duration
+}
+
+// AddDriverInfo adds information about a driver to the fingerprint response.
+// If the Drivers field has not yet been initialized, it does so here.
+func (h *HealthCheckResponse) AddDriverInfo(name string, driverInfo *structs.DriverInfo) {
+	// initialize Drivers if it has not been already
+	if h.Drivers == nil {
+		h.Drivers = make(map[string]*structs.DriverInfo, 0)
+	}
+
+	h.Drivers[name] = driverInfo
+}

@@ -67,6 +67,24 @@
 /docs/commands/operator-raft-list-peers.html  /docs/commands/operator/raft-list-peers.html
 /docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer.html
 /docs/commands/job-dispatch.html              /docs/commands/job/dispatch.html
+/docs/commands/alloc-status.html              /docs/commands/alloc/status.html
+/docs/commands/fs.html                        /docs/commands/alloc/fs.html
+/docs/commands/logs.html                      /docs/commands/alloc/logs.html
+/docs/commands/init.html                      /docs/commands/job/init.html
+/docs/commands/inspect.html                   /docs/commands/job/inspect.html
+/docs/commands/run.html                       /docs/commands/job/run.html
+/docs/commands/stop.html                      /docs/commands/job/stop.html
+/docs/commands/plan.html                      /docs/commands/job/plan.html
+/docs/commands/validate.html                  /docs/commands/job/validate.html
+/docs/commands/client-config.html             /docs/commands/node/config.html
+/docs/commands/node-drain.html                /docs/commands/node/drain.html
+/docs/commands/node-status.html               /docs/commands/node/status.html
+/docs/commands/keygen.html                    /docs/commands/operator/keygen.html
+/docs/commands/keyring.html                   /docs/commands/operator/keyring.html
+/docs/commands/server-force-leave.html        /docs/commands/server/force-leave.html
+/docs/commands/server-join.html               /docs/commands/server/join.html
+/docs/commands/server-members.html            /docs/commands/server/members.html
+
 
 # API
 /docs/http/index.html                   /api/index.html

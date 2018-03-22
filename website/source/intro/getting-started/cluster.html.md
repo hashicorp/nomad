@@ -135,11 +135,11 @@ In the output we can see the agent is running in client mode only.
 This agent will be available to run tasks but will not participate
 in managing the cluster or making scheduling decisions.
 
-Using the [`node-status` command](/docs/commands/node-status.html)
+Using the [`node status` command](/docs/commands/node/status.html)
 we should see both nodes in the `ready` state:
 
 ```text 
-$ nomad node-status
+$ nomad node status
 ID        Datacenter  Name   Class   Drain  Status
 fca62612  dc1         nomad  <none>  false  ready
 c887deef  dc1         nomad  <none>  false  ready
@@ -155,10 +155,10 @@ Now that we have a simple cluster, we can use it to schedule a job.
 We should still have the `example.nomad` job file from before, but
 verify that the `count` is still set to 3.
 
-Then, use the [`run` command](/docs/commands/run.html) to submit the job:
+Then, use the [`job run` command](/docs/commands/job/run.html) to submit the job:
 
 ```text
-$ nomad run example.nomad
+$ nomad job run example.nomad
 ==> Monitoring evaluation "8e0a7cf9"
     Evaluation triggered by job "example"
     Evaluation within deployment: "0917b771"
@@ -209,7 +209,7 @@ ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
 
 We can see that all our tasks have been allocated and are running.
 Once we are satisfied that our job is happily running, we can tear
-it down with `nomad stop`.
+it down with `nomad job stop`.
 
 ## Next Steps
 

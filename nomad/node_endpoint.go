@@ -41,7 +41,7 @@ type Node struct {
 
 	// updateFuture is used to wait for the pending batch update
 	// to complete. This may be nil if no batch is pending.
-	updateFuture *batchFuture
+	updateFuture *structs.BatchFuture
 
 	// updateTimer is the timer that will trigger the next batch
 	// update, and may be nil if there is no batch pending.
@@ -85,6 +85,11 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 	if !structs.ValidNodeStatus(args.Node.Status) {
 		return fmt.Errorf("invalid status for node")
+	}
+
+	// Default to eligible for scheduling if unset
+	if args.Node.SchedulingEligibility == "" {
+		args.Node.SchedulingEligibility = structs.NodeSchedulingEligible
 	}
 
 	// Set the timestamp when the node is registered
@@ -428,29 +433,90 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node not found")
 	}
 
-	// Update the timestamp to
-	node.StatusUpdatedAt = time.Now().Unix()
+	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
+	// format.
+	if args.Drain && args.DrainStrategy == nil {
+		args.DrainStrategy = &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second, // Force drain
+			},
+		}
+	}
+
+	// Mark the deadline time
+	if args.DrainStrategy != nil && args.DrainStrategy.Deadline.Nanoseconds() > 0 {
+		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline)
+	}
 
 	// Commit this update via Raft
-	var index uint64
-	if node.Drain != args.Drain {
-		_, index, err = n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
-		if err != nil {
-			n.srv.logger.Printf("[ERR] nomad.client: drain update failed: %v", err)
-			return err
-		}
-		reply.NodeModifyIndex = index
-	}
-
-	// Always attempt to create Node evaluations because there may be a System
-	// job registered that should be evaluated.
-	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+	_, index, err := n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 	if err != nil {
-		n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+		n.srv.logger.Printf("[ERR] nomad.client: drain update failed: %v", err)
 		return err
 	}
-	reply.EvalIDs = evalIDs
-	reply.EvalCreateIndex = evalIndex
+	reply.NodeModifyIndex = index
+
+	// Set the reply index
+	reply.Index = index
+	return nil
+}
+
+// UpdateEligibility is used to update the scheduling eligibility of a node
+func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
+	reply *structs.GenericResponse) error {
+	if done, err := n.srv.forward("Node.UpdateEligibility", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_eligibility"}, time.Now())
+
+	// Check node write permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for setting scheduling eligibility")
+	}
+
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	if node.DrainStrategy != nil && args.Eligibility == structs.NodeSchedulingEligible {
+		return fmt.Errorf("can not set node's scheduling eligibility to eligible while it is draining")
+	}
+
+	switch args.Eligibility {
+	case structs.NodeSchedulingEligible, structs.NodeSchedulingIneligible:
+	default:
+		return fmt.Errorf("invalid scheduling eligibility %q", args.Eligibility)
+	}
+
+	// Commit this update via Raft
+	outErr, index, err := n.srv.raftApply(structs.NodeUpdateEligibilityRequestType, args)
+	if err != nil {
+		n.srv.logger.Printf("[ERR] nomad.client: eligibility update failed: %v", err)
+		return err
+	}
+	if outErr != nil {
+		if err, ok := outErr.(error); ok && err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: eligibility update failed: %v", err)
+			return err
+		}
+	}
 
 	// Set the reply index
 	reply.Index = index
@@ -817,7 +883,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Ensure that evals aren't set from client RPCs
 	// We create them here before the raft update
 	if len(args.Evals) != 0 {
-		return fmt.Errorf("evals field must not be set ")
+		return fmt.Errorf("evals field must not be set")
 	}
 
 	// Update modified timestamp for client initiated allocation updates
@@ -867,7 +933,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	// Start a new batch if none
 	future := n.updateFuture
 	if future == nil {
-		future = NewBatchFuture()
+		future = structs.NewBatchFuture()
 		n.updateFuture = future
 		n.updateTimer = time.AfterFunc(batchUpdateInterval, func() {
 			// Get the pending updates
@@ -896,7 +962,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 }
 
 // batchUpdate is used to update all the allocations
-func (n *Node) batchUpdate(future *batchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
+func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
 	// Prepare the batch update
 	batch := &structs.AllocUpdateRequest{
 		Alloc:        updates,
@@ -1098,38 +1164,6 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 		return nil, 0, err
 	}
 	return evalIDs, evalIndex, nil
-}
-
-// batchFuture is used to wait on a batch update to complete
-type batchFuture struct {
-	doneCh chan struct{}
-	err    error
-	index  uint64
-}
-
-// NewBatchFuture creates a new batch future
-func NewBatchFuture() *batchFuture {
-	return &batchFuture{
-		doneCh: make(chan struct{}),
-	}
-}
-
-// Wait is used to block for the future to complete and returns the error
-func (b *batchFuture) Wait() error {
-	<-b.doneCh
-	return b.err
-}
-
-// Index is used to return the index of the batch, only after Wait()
-func (b *batchFuture) Index() uint64 {
-	return b.index
-}
-
-// Respond is used to unblock the future
-func (b *batchFuture) Respond(index uint64, err error) {
-	b.index = index
-	b.err = err
-	close(b.doneCh)
 }
 
 // DeriveVaultToken is used by the clients to request wrapped Vault tokens for

@@ -7,6 +7,7 @@ import (
 )
 
 func assertQueryMeta(t *testing.T, qm *QueryMeta) {
+	t.Helper()
 	if qm.LastIndex == 0 {
 		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
@@ -16,6 +17,7 @@ func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 }
 
 func assertWriteMeta(t *testing.T, wm *WriteMeta) {
+	t.Helper()
 	if wm.LastIndex == 0 {
 		t.Fatalf("bad index: %d", wm.LastIndex)
 	}

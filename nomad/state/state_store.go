@@ -515,7 +515,7 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
-// of drain which is set by the scheduler.
+// of drain/eligibility which is set by the scheduler.
 func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -531,10 +531,13 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		exist := existing.(*structs.Node)
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
-		node.Drain = exist.Drain // Retain the drain mode
 
 		// Retain node events that have already been set on the node
 		node.Events = exist.Events
+
+		node.Drain = exist.Drain                                 // Retain the drain mode
+		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
+		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
@@ -602,8 +605,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
 
 	// Update the status in the copy
 	copyNode.Status = status
@@ -621,8 +623,73 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 	return nil
 }
 
+// BatchUpdateNodeDrain is used to update the drain of a node set of nodes
+func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	for node, update := range updates {
+		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible); err != nil {
+			return err
+		}
+	}
+	txn.Commit()
+	return nil
+}
+
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) error {
+func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool) error {
+
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool) error {
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Update the drain in the copy
+	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.9
+	copyNode.DrainStrategy = drain
+	if drain != nil {
+		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
+	} else if markEligible {
+		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
+
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
+// UpdateNodeEligibility is used to update the scheduling eligibility of a node
+func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string) error {
+
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -639,8 +706,13 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
 
-	// Update the drain in the copy
-	copyNode.Drain = drain
+	// Check if this is a valid action
+	if copyNode.DrainStrategy != nil && eligibility == structs.NodeSchedulingEligible {
+		return fmt.Errorf("can not set node's scheduling eligibility to eligible while it is draining")
+	}
+
+	// Update the eligibility in the copy
+	copyNode.SchedulingEligibility = eligibility
 	copyNode.ModifyIndex = index
 
 	// Insert the node
@@ -1997,6 +2069,65 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 	// Set the job's status
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
+	}
+
+	return nil
+}
+
+// UpdateAllocsDesiredTransitions is used to update a set of allocations
+// desired transitions.
+func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[string]*structs.DesiredTransition,
+	evals []*structs.Evaluation) error {
+
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Handle each of the updated allocations
+	for id, transition := range allocs {
+		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transition); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// nestedUpdateAllocDesiredTransition is used to nest an update of an
+// allocations desired transition
+func (s *StateStore) nestedUpdateAllocDesiredTransition(
+	txn *memdb.Txn, index uint64, allocID string,
+	transition *structs.DesiredTransition) error {
+
+	// Look for existing alloc
+	existing, err := txn.First("allocs", "id", allocID)
+	if err != nil {
+		return fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	// Nothing to do if this does not exist
+	if existing == nil {
+		return nil
+	}
+	exist := existing.(*structs.Allocation)
+
+	// Copy everything from the existing allocation
+	copyAlloc := exist.Copy()
+
+	// Merge the desired transitions
+	copyAlloc.DesiredTransition.Merge(transition)
+
+	// Update the modify index
+	copyAlloc.ModifyIndex = index
+
+	// Update the allocation
+	if err := txn.Insert("allocs", copyAlloc); err != nil {
+		return fmt.Errorf("alloc insert failed: %v", err)
 	}
 
 	return nil

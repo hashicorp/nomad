@@ -22,7 +22,7 @@ type AllocStatusCommand struct {
 
 func (c *AllocStatusCommand) Help() string {
 	helpText := `
-Usage: nomad alloc-status [options] <allocation>
+Usage: nomad alloc status [options] <allocation>
 
   Display information about existing allocations and its tasks. This command can
   be used to inspect the current status of an allocation, including its running
@@ -87,7 +87,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
+	flags := c.Meta.FlagSet("alloc status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")

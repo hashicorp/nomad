@@ -81,6 +81,7 @@ type Allocation struct {
 	Metrics            *AllocationMetric
 	DesiredStatus      string
 	DesiredDescription string
+	DesiredTransition  DesiredTransition
 	ClientStatus       string
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
@@ -204,4 +205,18 @@ type RescheduleEvent struct {
 
 	// PrevNodeID is the node ID of the previous allocation
 	PrevNodeID string
+}
+
+// DesiredTransition is used to mark an allocation as having a desired state
+// transition. This information can be used by the scheduler to make the
+// correct decision.
+type DesiredTransition struct {
+	// Migrate is used to indicate that this allocation should be stopped and
+	// migrated to another node.
+	Migrate *bool
+}
+
+// ShouldMigrate returns whether the transition object dictates a migration.
+func (d DesiredTransition) ShouldMigrate() bool {
+	return d.Migrate != nil && *d.Migrate
 }

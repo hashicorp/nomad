@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStaticIterator_Reset(t *testing.T) {
@@ -122,6 +124,69 @@ func TestDriverChecker(t *testing.T) {
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
+	}
+}
+
+func Test_HealthChecks(t *testing.T) {
+	require := require.New(t)
+	_, ctx := testContext(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	for _, e := range nodes {
+		e.Drivers = make(map[string]*structs.DriverInfo)
+	}
+	nodes[0].Attributes["driver.foo"] = "1"
+	nodes[0].Drivers["foo"] = &structs.DriverInfo{
+		Detected:          true,
+		Healthy:           true,
+		HealthDescription: "running",
+		UpdateTime:        time.Now(),
+	}
+	nodes[1].Attributes["driver.bar"] = "1"
+	nodes[1].Drivers["bar"] = &structs.DriverInfo{
+		Detected:          true,
+		Healthy:           false,
+		HealthDescription: "not running",
+		UpdateTime:        time.Now(),
+	}
+	nodes[2].Attributes["driver.baz"] = "0"
+	nodes[2].Drivers["baz"] = &structs.DriverInfo{
+		Detected:          false,
+		Healthy:           false,
+		HealthDescription: "not running",
+		UpdateTime:        time.Now(),
+	}
+
+	testDrivers := []string{"foo", "bar", "baz"}
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: true,
+		},
+		{
+			Node:   nodes[1],
+			Result: false,
+		},
+		{
+			Node:   nodes[2],
+			Result: false,
+		},
+	}
+
+	for i, c := range cases {
+		drivers := map[string]struct{}{
+			testDrivers[i]: {},
+		}
+		checker := NewDriverChecker(ctx, drivers)
+		act := checker.Feasible(c.Node)
+		require.Equal(act, c.Result)
 	}
 }
 
