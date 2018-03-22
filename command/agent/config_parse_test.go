@@ -131,7 +131,7 @@ func TestConfig_Parse(t *testing.T) {
 				LeaveOnTerm:               true,
 				EnableSyslog:              true,
 				SyslogFacility:            "LOCAL1",
-				DisableUpdateCheck:        true,
+				DisableUpdateCheck:        helper.BoolToPtr(true),
 				DisableAnonymousSignature: true,
 				Consul: &config.ConsulConfig{
 					ServerServiceName:   "nomad",

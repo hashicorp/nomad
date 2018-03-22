@@ -87,7 +87,7 @@ type Config struct {
 
 	// DisableUpdateCheck is used to disable the periodic update
 	// and security bulletin checking.
-	DisableUpdateCheck bool `mapstructure:"disable_update_check"`
+	DisableUpdateCheck *bool `mapstructure:"disable_update_check"`
 
 	// DisableAnonymousSignature is used to disable setting the
 	// anonymous signature when doing the update check and looking
@@ -616,10 +616,11 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
-		TLSConfig: &config.TLSConfig{},
-		Sentinel:  &config.SentinelConfig{},
-		Version:   version.GetVersion(),
-		Autopilot: config.DefaultAutopilotConfig(),
+		TLSConfig:          &config.TLSConfig{},
+		Sentinel:           &config.SentinelConfig{},
+		Version:            version.GetVersion(),
+		Autopilot:          config.DefaultAutopilotConfig(),
+		DisableUpdateCheck: helper.BoolToPtr(false),
 	}
 }
 
@@ -685,8 +686,8 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.SyslogFacility != "" {
 		result.SyslogFacility = b.SyslogFacility
 	}
-	if b.DisableUpdateCheck {
-		result.DisableUpdateCheck = true
+	if b.DisableUpdateCheck != nil {
+		result.DisableUpdateCheck = helper.BoolToPtr(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true

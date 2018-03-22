@@ -198,6 +198,10 @@ func (c *Command) readConfig() *Config {
 	} else {
 		config = DefaultConfig()
 	}
+
+	// Merge in the enterprise overlay
+	config.Merge(DefaultEntConfig())
+
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
 		if err != nil {
@@ -383,7 +387,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 	c.httpServer = http
 
 	// Setup update checking
-	if !config.DisableUpdateCheck {
+	if config.DisableUpdateCheck != nil && *config.DisableUpdateCheck {
 		version := config.Version.Version
 		if config.Version.VersionPrerelease != "" {
 			version += fmt.Sprintf("-%s", config.Version.VersionPrerelease)
@@ -405,6 +409,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 			c.checkpointResults(checkpoint.Check(updateParams))
 		}()
 	}
+
 	return nil
 }
 
