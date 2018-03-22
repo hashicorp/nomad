@@ -13,7 +13,7 @@ This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is:
 
 ```shell
-$ nomad run -output my-job.nomad
+$ nomad job run -output my-job.nomad
 ```
 
 ## Syntax

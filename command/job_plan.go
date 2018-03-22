@@ -14,7 +14,7 @@ import (
 const (
 	jobModifyIndexHelp = `To submit the job with version verification run:
 
-nomad run -check-index %d %s
+nomad job run -check-index %d %s
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has

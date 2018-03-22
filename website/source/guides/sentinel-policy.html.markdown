@@ -88,13 +88,13 @@ $ nomad sentinel apply -level=advisory test-policy test.sentinel
 Successfully wrote "test-policy" Sentinel policy!
 ```
 
-Use `nomad init` to create a job file and attempt to submit it:
+Use `nomad job init` to create a job file and attempt to submit it:
 
 ```
-$ nomad init
+$ nomad job init
 Example job file written to example.nomad
 
-$ nomad run example.nomad
+$ nomad job run example.nomad
 Job Warnings:
 1 warning(s):
 
@@ -161,7 +161,7 @@ Because our policy is failing, the job was rejected. Since this is a `soft-manda
 submit with the `-policy-override` flag set:
 
 ```
-$ nomad run -policy-override example.nomad
+$ nomad job run -policy-override example.nomad
 Job Warnings:
 1 warning(s):
 

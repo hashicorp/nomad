@@ -288,7 +288,7 @@ $ # ...and in another
 $ nomad agent -config client1.hcl
 ```
 
-If you run `nomad node-status` now, you'll get an error, like:
+If you run `nomad node status` now, you'll get an error, like:
 
 ```text
 Error querying node status: Get http://127.0.0.1:4646/v1/nodes: malformed HTTP response "\x15\x03\x01\x00\x02\x02"
@@ -299,7 +299,7 @@ HTTPS. We can configure the local Nomad client to connect using TLS and specify
 our custom keys and certificates using the command line:
 
 ```shell
-$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -address=https://127.0.0.1:4646
+$ nomad node status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -address=https://127.0.0.1:4646
 ```
 
 This process can be cumbersome to type each time, so the Nomad CLI also
@@ -325,13 +325,13 @@ After these environment variables are correctly configured, the CLI will
 respond as expected:
 
 ```text
-$ nomad node-status
+$ nomad node status
 ID        DC   Name   Class   Drain  Status
 237cd4c5  dc1  nomad  <none>  false  ready
 
-$ nomad init
+$ nomad job init
 Example job file written to example.nomad
-vagrant@nomad:~$ nomad run example.nomad
+vagrant@nomad:~$ nomad job run example.nomad
 ==> Monitoring evaluation "e9970e1d"
     Evaluation triggered by job "example"
     Allocation "a1f6c3e7" created: node "237cd4c5", group "cache"
@@ -355,11 +355,11 @@ This encryption key must be added to every server's configuration using the
 [`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter or with
 the [`-encrypt` command line option](/docs/commands/agent.html).
 
-The Nomad CLI includes a `keygen` command for generating a new secure gossip
+The Nomad CLI includes a `operator keygen` command for generating a new secure gossip
 encryption key:
 
 ```text
-$ nomad keygen
+$ nomad operator keygen
 cg8StVXbQJ0gPvMd9o7yrg==
 ```
 

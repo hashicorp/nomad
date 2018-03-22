@@ -35,8 +35,8 @@ changes to the cluster but gives insight into whether the job could be run
 successfully and how it would affect existing allocations.
 
 A job modify index is returned with the plan. This value can be used when
-submitting the job using [`nomad run
--check-index`](/docs/commands/run.html#check-index), which will check that the
+submitting the job using [`nomad job run
+-check-index`](/docs/commands/job/run.html#check-index), which will check that the
 job was not modified between the plan and run command before invoking the
 scheduler. This ensures the job has not been modified since the plan.
 
@@ -82,7 +82,7 @@ Scheduler dry-run:
 Job Modify Index: 0
 To submit the job with version verification run:
 
-nomad run -check-index 0 example.nomad
+nomad job run -check-index 0 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
@@ -109,7 +109,7 @@ Scheduler dry-run:
 Job Modify Index: 15
 To submit the job with version verification run:
 
-nomad run -check-index 15 example.nomad
+nomad job run -check-index 15 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
@@ -136,7 +136,7 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad run -check-index 7 example.nomad
+nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
@@ -195,7 +195,7 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad run -check-index 7 example.nomad
+nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
