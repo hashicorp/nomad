@@ -114,7 +114,7 @@ const (
 	maxPolicyDescriptionLength = 256
 
 	// maxTokenNameLength limits a ACL token name length
-	maxTokenNameLength = 64
+	maxTokenNameLength = 256
 
 	// ACLClientToken and ACLManagementToken are the only types of tokens
 	ACLClientToken     = "client"

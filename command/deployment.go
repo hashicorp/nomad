@@ -15,7 +15,7 @@ func (f *DeploymentCommand) Help() string {
 Usage: nomad deployment <subcommand> [options] [args]
 
   This command groups subcommands for interacting with deployments. Deployments
-  are used to manage a transistion between two versions of a Nomad job. Users
+  are used to manage a transition between two versions of a Nomad job. Users
   can inspect an ongoing deployment, promote canary allocations, force fail
   deployments, and more.
 
