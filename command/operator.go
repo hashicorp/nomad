@@ -18,7 +18,7 @@ Usage: nomad operator <subcommand> [options]
   the Raft subsystem. NOTE: Use this command with extreme caution, as improper
   use could lead to a Nomad outage and even loss of data.
 
-  Run nomad operator <subcommand> with no arguments for help on that subcommand.
+  Please see the individual subcommand help for detailed usage information.
 `
 	return strings.TrimSpace(helpText)
 }

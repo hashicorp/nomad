@@ -698,54 +698,86 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
+func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
-	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	n1, n2 := mock.Node(), mock.Node()
+	require.Nil(state.UpsertNode(1000, n1))
+	require.Nil(state.UpsertNode(1001, n2))
 
 	// Create a watchset so we can test that update node drain fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
+	_, err := state.NodeByID(ws, n1.ID)
+	require.Nil(err)
+
+	expectedDrain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
 	}
 
-	err = state.UpdateNodeDrain(1001, node.ID, true)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	update := map[string]*structs.DrainUpdate{
+		n1.ID: {
+			DrainStrategy: expectedDrain,
+		},
+		n2.ID: {
+			DrainStrategy: expectedDrain,
+		},
 	}
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.Nil(state.BatchUpdateNodeDrain(1002, update))
+	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !out.Drain {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.ModifyIndex != 1001 {
-		t.Fatalf("bad: %#v", out)
+	for _, id := range []string{n1.ID, n2.ID} {
+		out, err := state.NodeByID(ws, id)
+		require.Nil(err)
+		require.True(out.Drain)
+		require.NotNil(out.DrainStrategy)
+		require.Equal(out.DrainStrategy, expectedDrain)
+		require.EqualValues(1002, out.ModifyIndex)
 	}
 
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1001 {
-		t.Fatalf("bad: %d", index)
+	require.Nil(err)
+	require.EqualValues(1002, index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+	node := mock.Node()
+
+	require.Nil(state.UpsertNode(1000, node))
+
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	expectedDrain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
 	}
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false))
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.True(out.Drain)
+	require.NotNil(out.DrainStrategy)
+	require.Equal(out.DrainStrategy, expectedDrain)
+	require.EqualValues(1001, out.ModifyIndex)
+
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1001, index)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_AddSingleNodeEvent(t *testing.T) {
@@ -835,6 +867,89 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 	require.Equal(10, len(out.Events))
 	require.Equal(uint64(11), out.Events[0].CreateIndex)
 	require.Equal(uint64(20), out.Events[len(out.Events)-1].CreateIndex)
+}
+
+func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+	node := mock.Node()
+	require.Nil(state.UpsertNode(1000, node))
+
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	_, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+
+	drain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
+	}
+
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false))
+	require.True(watchFired(ws))
+
+	// Remove the drain
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.False(out.Drain)
+	require.Nil(out.DrainStrategy)
+	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	require.EqualValues(1002, out.ModifyIndex)
+
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1002, index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpdateNodeEligibility(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+	node := mock.Node()
+
+	err := state.UpsertNode(1000, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expectedEligibility := structs.NodeSchedulingIneligible
+
+	// Create a watchset so we can test that update node drain fires the watch
+	ws := memdb.NewWatchSet()
+	if _, err := state.NodeByID(ws, node.ID); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility))
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.Equal(out.SchedulingEligibility, expectedEligibility)
+	require.EqualValues(1001, out.ModifyIndex)
+
+	index, err := state.Index("nodes")
+	require.Nil(err)
+	require.EqualValues(1001, index)
+	require.False(watchFired(ws))
+
+	// Set a drain strategy
+	expectedDrain := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
+	}
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false))
+
+	// Try to set the node to eligible
+	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible)
+	require.NotNil(err)
+	require.Contains(err.Error(), "while it is draining")
 }
 
 func TestStateStore_Nodes(t *testing.T) {
@@ -3821,6 +3936,69 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 	if !reflect.DeepEqual(out, allocCopy1) {
 		t.Fatalf("expected: %#v \n actual: %#v", allocCopy1, out)
 	}
+}
+
+func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
+
+	t1 := &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(true),
+	}
+	t2 := &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(false),
+	}
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      alloc.Namespace,
+		Priority:       alloc.Job.Priority,
+		Type:           alloc.Job.Type,
+		TriggeredBy:    structs.EvalTriggerNodeDrain,
+		JobID:          alloc.Job.ID,
+		JobModifyIndex: alloc.Job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+	}
+	evals := []*structs.Evaluation{eval}
+
+	m := map[string]*structs.DesiredTransition{alloc.ID: t1}
+	require.Nil(state.UpdateAllocsDesiredTransitions(1001, m, evals))
+
+	ws := memdb.NewWatchSet()
+	out, err := state.AllocByID(ws, alloc.ID)
+	require.Nil(err)
+	require.NotNil(out.DesiredTransition.Migrate)
+	require.True(*out.DesiredTransition.Migrate)
+	require.EqualValues(1000, out.CreateIndex)
+	require.EqualValues(1001, out.ModifyIndex)
+
+	index, err := state.Index("allocs")
+	require.Nil(err)
+	require.EqualValues(1001, index)
+
+	m = map[string]*structs.DesiredTransition{alloc.ID: t2}
+	require.Nil(state.UpdateAllocsDesiredTransitions(1002, m, evals))
+
+	ws = memdb.NewWatchSet()
+	out, err = state.AllocByID(ws, alloc.ID)
+	require.Nil(err)
+	require.NotNil(out.DesiredTransition.Migrate)
+	require.False(*out.DesiredTransition.Migrate)
+	require.EqualValues(1000, out.CreateIndex)
+	require.EqualValues(1002, out.ModifyIndex)
+
+	index, err = state.Index("allocs")
+	require.Nil(err)
+	require.EqualValues(1002, index)
+
+	// Try with a bogus alloc id
+	m = map[string]*structs.DesiredTransition{uuid.Generate(): t2}
+	require.Nil(state.UpdateAllocsDesiredTransitions(1003, m, evals))
 }
 
 func TestStateStore_JobSummary(t *testing.T) {

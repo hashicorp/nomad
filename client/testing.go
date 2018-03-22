@@ -21,6 +21,10 @@ func TestClient(t testing.T, cb func(c *config.Config)) *Client {
 		},
 	}
 
+	// Loosen GC threshold
+	conf.GCDiskUsageThreshold = 98.0
+	conf.GCInodeUsageThreshold = 98.0
+
 	// Tighten the fingerprinter timeouts
 	if conf.Options == nil {
 		conf.Options = make(map[string]string)

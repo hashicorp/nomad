@@ -437,11 +437,10 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		req, err := http.NewRequest("GET", path, p)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
-		doneCh := make(chan struct{})
+		errCh := make(chan error)
 		go func() {
-			_, err = s.Server.Logs(respW, req)
-			require.Nil(err)
-			close(doneCh)
+			_, err := s.Server.Logs(respW, req)
+			errCh <- err
 		}()
 
 		out := ""
@@ -458,8 +457,8 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		})
 
 		select {
-		case <-doneCh:
-			t.Fatal("shouldn't close")
+		case err := <-errCh:
+			t.Fatalf("shouldn't exit: %v", err)
 		case <-time.After(1 * time.Second):
 		}
 

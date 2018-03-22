@@ -27,6 +27,11 @@ variable "retry_join" {
   default     = "provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"
 }
 
+variable "nomad_binary" {
+  description = "Used to replace the machine image installed Nomad binary."
+  default     = "none"
+}
+
 provider "aws" {
   region = "${var.region}"
 }
@@ -41,6 +46,7 @@ module "hashistack" {
   server_count  = "${var.server_count}"
   client_count  = "${var.client_count}"
   retry_join    = "${var.retry_join}"
+  nomad_binary  = "${var.nomad_binary}"
 }
 
 output "IP_Addresses" {

@@ -76,7 +76,7 @@ can see how this works by changing the image to run the new version:
 Next we plan and run these changes:
 
 ```text
-$ nomad plan docs.nomad
+$ nomad job plan docs.nomad
 +/- Job: "docs"
 +/- Task Group: "api" (5 canary, 5 ignore)
   +/- Task: "api-server" (forces create/destroy update)
@@ -90,14 +90,14 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad run -check-index 7 example.nomad
+nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 
-$ nomad run docs.nomad
+$ nomad job run docs.nomad
 # ...
 ```
 
@@ -334,7 +334,7 @@ changing the image to run the new version:
 Next we plan and run these changes:
 
 ```text
-$ nomad plan docs.nomad
+$ nomad job plan docs.nomad
 +/- Job: "docs"
 +/- Task Group: "api" (1 canary, 5 ignore)
   +/- Task: "api-server" (forces create/destroy update)
@@ -348,14 +348,14 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad run -check-index 7 example.nomad
+nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 
-$ nomad run docs.nomad
+$ nomad job run docs.nomad
 # ...
 ```
 

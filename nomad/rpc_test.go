@@ -30,7 +30,7 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	// Write the Consul RPC byte to set the mode
+	// Write the Nomad RPC byte to set the mode
 	conn.Write([]byte{byte(pool.RpcNomad)})
 	return pool.NewClientCodec(conn)
 }

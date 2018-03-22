@@ -99,11 +99,6 @@ type reconcileResults struct {
 	// task group.
 	desiredTGUpdates map[string]*structs.DesiredUpdates
 
-	// followupEvalWait is set if there should be a followup eval run after the
-	// given duration
-	// Deprecated, the delay strategy that sets this is not available after nomad 0.7.0
-	followupEvalWait time.Duration
-
 	// desiredFollowupEvals is the map of follow up evaluations to create per task group
 	// This is used to create a delayed evaluation for rescheduling failed allocations.
 	desiredFollowupEvals map[string][]*structs.Evaluation
@@ -130,9 +125,6 @@ func (r *reconcileResults) GoString() string {
 	for _, u := range r.deploymentUpdates {
 		base += fmt.Sprintf("\nDeployment Update for ID %q: Status %q; Description %q",
 			u.DeploymentID, u.Status, u.StatusDescription)
-	}
-	if r.followupEvalWait != 0 {
-		base += fmt.Sprintf("\nFollowup Eval in %v", r.followupEvalWait)
 	}
 	for tg, u := range r.desiredTGUpdates {
 		base += fmt.Sprintf("\nDesired Changes for %q: %#v", tg, u)
@@ -444,7 +436,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	if deploymentPlaceReady {
 		// Do all destructive updates
 		min := helper.IntMin(len(destructive), limit)
-		limit -= min
 		desiredChanges.DestructiveUpdate += uint64(min)
 		desiredChanges.Ignore += uint64(len(destructive) - min)
 		for _, alloc := range destructive.nameOrder()[:min] {
@@ -461,16 +452,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Calculate the allowed number of changes and set the desired changes
 	// accordingly.
-	min := helper.IntMin(len(migrate), limit)
 	if !a.deploymentFailed && !a.deploymentPaused {
-		desiredChanges.Migrate += uint64(min)
-		desiredChanges.Ignore += uint64(len(migrate) - min)
+		desiredChanges.Migrate += uint64(len(migrate))
 	} else {
 		desiredChanges.Stop += uint64(len(migrate))
 	}
 
-	followup := false
-	migrated := 0
 	for _, alloc := range migrate.nameOrder() {
 		// If the deployment is failed or paused, don't replace it, just mark as stop.
 		if a.deploymentFailed || a.deploymentPaused {
@@ -481,12 +468,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 			continue
 		}
 
-		if migrated >= limit {
-			followup = true
-			break
-		}
-
-		migrated++
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			statusDescription: allocMigrating,
@@ -497,11 +478,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 			taskGroup:     tg,
 			previousAlloc: alloc,
 		})
-	}
-
-	// We need to create a followup evaluation.
-	if followup && strategy != nil && a.result.followupEvalWait < strategy.Stagger {
-		a.result.followupEvalWait = strategy.Stagger
 	}
 
 	// Create a new deployment if necessary

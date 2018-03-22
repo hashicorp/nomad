@@ -3,7 +3,7 @@ layout: "guides"
 page_title: "Manually Bootstrapping a Nomad Cluster"
 sidebar_current: "guides-cluster-manual"
 description: |-
-  Learn how to manually bootstrap a Nomad cluster using the server-join
+  Learn how to manually bootstrap a Nomad cluster using the server join
   command. This section also discusses Nomad federation across multiple
   datacenters and regions.
 ---
@@ -36,12 +36,12 @@ server {
 ```
 
 Alternatively, the address can be supplied after the servers have all been
-started by running the [`server-join` command](/docs/commands/server-join.html)
+started by running the [`server join` command](/docs/commands/server/join.html)
 on the servers individually to cluster the servers. All servers can join just
 one other server, and then rely on the gossip protocol to discover the rest.
 
 ```
-$ nomad server-join <known-address>
+$ nomad server join <known-address>
 ```
 
 For Nomad clients, the configuration may look something like:
@@ -53,8 +53,12 @@ client {
 }
 ```
 
-At this time, there is no equivalent of the <tt>server-join</tt> command for
-Nomad clients.
+The client node's server list can be updated at run time using the [`node
+config` command](/docs/commands/node/config.html).
+
+```
+$ nomad node config -update-servers <IP>:4647
+```
 
 The port corresponds to the RPC port. If no port is specified with the IP
 address, the default RPC port of `4647` is assumed.

@@ -259,7 +259,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
-		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
+		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
+		c.logger)
 
 	// Fingerprint the node and scan for drivers
 	if err := fingerprintManager.Run(); err != nil {
@@ -894,6 +895,9 @@ func (c *Client) setupNode() error {
 	if node.Links == nil {
 		node.Links = make(map[string]string)
 	}
+	if node.Drivers == nil {
+		node.Drivers = make(map[string]*structs.DriverInfo)
+	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
 	}
@@ -1006,6 +1010,81 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	if nodeHasChanged {
 		c.updateNode()
 	}
+
+	return c.config.Node
+}
+
+// updateNodeFromDriver receives either a fingerprint of the driver or its
+// health and merges this into a single DriverInfo object
+func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.DriverInfo) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	var hasChanged bool
+
+	if fingerprint != nil {
+		if c.config.Node.Drivers[name] == nil {
+			// If the driver info has not yet been set, do that here
+			hasChanged = true
+			c.config.Node.Drivers[name] = fingerprint
+		} else {
+			// The driver info has already been set, fix it up
+			if c.config.Node.Drivers[name].Detected != fingerprint.Detected {
+				hasChanged = true
+				c.config.Node.Drivers[name].Detected = fingerprint.Detected
+			}
+
+			for attrName, newVal := range fingerprint.Attributes {
+				oldVal := c.config.Node.Drivers[name].Attributes[attrName]
+				if oldVal == newVal {
+					continue
+				}
+
+				hasChanged = true
+				if newVal == "" {
+					delete(c.config.Node.Attributes, attrName)
+				} else {
+					c.config.Node.Attributes[attrName] = newVal
+				}
+			}
+		}
+	}
+
+	if health != nil {
+		if c.config.Node.Drivers[name] == nil {
+			hasChanged = true
+			c.config.Node.Drivers[name] = health
+		} else {
+			oldVal := c.config.Node.Drivers[name]
+			if health.HealthCheckEquals(oldVal) {
+				// Make sure we accurately reflect the last time a health check has been
+				// performed for the driver.
+				oldVal.UpdateTime = health.UpdateTime
+			} else {
+				hasChanged = true
+
+				// Only emit an event if the health status has changed, not if we are
+				// simply updating a node on startup
+				if health.Healthy != oldVal.Healthy && oldVal.HealthDescription != "" {
+					event := &structs.NodeEvent{
+						Subsystem: "Driver",
+						Message:   health.HealthDescription,
+						Timestamp: time.Now().Unix(),
+					}
+					c.triggerNodeEvent(event)
+				}
+
+				// Update the node with the latest information
+				c.config.Node.Drivers[name].MergeHealthCheck(health)
+			}
+		}
+	}
+
+	if hasChanged {
+		c.config.Node.Drivers[name].UpdateTime = time.Now()
+		c.updateNode()
+	}
+
 	return c.config.Node
 }
 
@@ -1190,7 +1269,7 @@ func (c *Client) watchNodeEvents() {
 				timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 			} else {
 				// Reset the events since we successfully sent them.
-				batchEvents = nil
+				batchEvents = []*structs.NodeEvent{}
 			}
 		case <-c.shutdownCh:
 			return

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -49,7 +50,7 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               false,
 		EnableSyslog:              false,
 		SyslogFacility:            "local0.info",
-		DisableUpdateCheck:        false,
+		DisableUpdateCheck:        helper.BoolToPtr(false),
 		DisableAnonymousSignature: false,
 		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
@@ -185,7 +186,7 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               true,
 		EnableSyslog:              true,
 		SyslogFacility:            "local0.debug",
-		DisableUpdateCheck:        true,
+		DisableUpdateCheck:        helper.BoolToPtr(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
 		Telemetry: &Telemetry{

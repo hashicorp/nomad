@@ -12,41 +12,34 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJobs_Register(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
 	resp, qm, err := jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.Nil(err)
 	assertQueryMeta(t, qm)
-	if n := len(resp); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
 
 	// Create a job and attempt to register it
 	job := testJob()
 	resp2, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp2 == nil || resp2.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotEmpty(resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
-	resp, qm, err = jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	assertQueryMeta(t, qm)
+	resp, _, err = jobs.List(nil)
+	require.Nil(err)
 
 	// Check that we got the expected response
 	if len(resp) != 1 || resp[0].ID != *job.ID {
@@ -141,6 +134,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
@@ -211,6 +205,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
 							Unlimited:     helper.BoolToPtr(true),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -363,6 +358,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(false),
 							Canary:          helper.IntToPtr(0),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:   "redis",
@@ -576,6 +572,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(true),
 							Canary:          helper.IntToPtr(1),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -616,6 +613,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoRevert:      helper.BoolToPtr(false),
 							Canary:          helper.IntToPtr(0),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",

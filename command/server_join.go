@@ -11,7 +11,7 @@ type ServerJoinCommand struct {
 
 func (c *ServerJoinCommand) Help() string {
 	helpText := `
-Usage: nomad server-join [options] <addr> [<addr>...]
+Usage: nomad server join [options] <addr> [<addr>...]
 
   Joins the local server to one or more Nomad servers. Joining is
   only required for server nodes, and only needs to succeed

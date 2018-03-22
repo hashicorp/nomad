@@ -212,7 +212,7 @@ job "docs" {
 When submitting this job, you would run:
 
 ```
-$ VAULT_TOKEN="..." nomad run example.nomad
+$ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"

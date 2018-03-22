@@ -168,7 +168,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	// Make the task block
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["start_block_for"] = "2s"
+	task.Config["start_block_for"] = "4s"
 	task.Config["run_for"] = "10s"
 
 	// Make the alloc be part of a deployment

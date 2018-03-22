@@ -492,7 +492,6 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 			d.logger.Printf("[INFO] driver.docker: failed to initialize client: %s", err)
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		resp.RemoveAttribute(dockerDriverAttr)
 		return nil
 	}
 
@@ -549,6 +548,46 @@ func (d *DockerDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstru
 	}
 
 	d.fingerprintSuccess = helper.BoolToPtr(true)
+	return nil
+}
+
+// HealthCheck implements the interface for the HealthCheck interface. This
+// performs a health check on the docker driver, asserting whether the docker
+// driver is responsive to a `docker ps` command.
+func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstructs.HealthCheckResponse) error {
+	dinfo := &structs.DriverInfo{
+		UpdateTime: time.Now(),
+	}
+
+	client, _, err := d.dockerClients()
+	if err != nil {
+		d.logger.Printf("[WARN] driver.docker: failed to retrieve Docker client in the process of a docker health check: %v", err)
+		dinfo.HealthDescription = fmt.Sprintf("Failed retrieving Docker client: %v", err)
+		resp.AddDriverInfo("docker", dinfo)
+		return nil
+	}
+
+	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
+	if err != nil {
+		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a Docker health check: %v", err)
+		dinfo.HealthDescription = fmt.Sprintf("Failed to list Docker containers: %v", err)
+		resp.AddDriverInfo("docker", dinfo)
+		return nil
+	}
+
+	d.logger.Printf("[TRACE] driver.docker: docker driver is available and is responsive to `docker ps`")
+	dinfo.Healthy = true
+	dinfo.HealthDescription = "Docker driver is available and responsive"
+	resp.AddDriverInfo("docker", dinfo)
+	return nil
+}
+
+// GetHealthChecks implements the interface for the HealthCheck interface. This
+// sets whether the driver is eligible for periodic health checks and the
+// interval at which to do them.
+func (d *DockerDriver) GetHealthCheckInterval(req *cstructs.HealthCheckIntervalRequest, resp *cstructs.HealthCheckIntervalResponse) error {
+	resp.Eligible = true
+	resp.Period = 1 * time.Minute
 	return nil
 }
 

@@ -156,6 +156,6 @@ be resubmitted with the updated job syntax using a Nomad 0.3.0 binary.
 
 After updating the Servers and job files, Nomad Clients can be upgraded by first
 draining the node so no tasks are running on it. This can be verified by running
-`nomad node-status <node-id>` and verify there are no tasks in the `running`
+`nomad node status <node-id>` and verify there are no tasks in the `running`
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.

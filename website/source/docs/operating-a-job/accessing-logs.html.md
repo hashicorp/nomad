@@ -4,8 +4,8 @@ page_title: "Accessing Logs - Operating a Job"
 sidebar_current: "docs-operating-a-job-accessing-logs"
 description: |-
   Nomad provides a top-level mechanism for viewing application logs and data
-  files via the command line interface. This section discusses the nomad logs
-  command and API interface.
+  files via the command line interface. This section discusses the nomad alloc
+  logs command and API interface.
 ---
 
 # Accessing Logs
@@ -15,7 +15,7 @@ problems, or even just verifying the application started correctly. To make this
 as simple as possible, Nomad provides:
 
 - Job specification for [log rotation](/docs/job-specification/logs.html)
-- CLI command for [log viewing](/docs/commands/logs.html)
+- CLI command for [log viewing](/docs/commands/alloc/logs.html)
 - API for programatic [log access](/api/client.html#stream-logs)
 
 This section will utilize the job named "docs" from the [previous
@@ -25,7 +25,7 @@ and command largely apply to all jobs in Nomad.
 As a reminder, here is the output of the run command from the previous example:
 
 ```text
-$ nomad run docs.nomad
+$ nomad job run docs.nomad
 ==> Monitoring evaluation "42d788a3"
     Evaluation triggered by job "docs"
     Allocation "04d9627d" created: node "a1f934c9", group "example"
@@ -40,7 +40,7 @@ command) is required to access the application's logs. To access the logs of our
 application, we issue the following command:
 
 ```shell
-$ nomad logs 04d9627d
+$ nomad alloc logs 04d9627d
 ```
 
 The output will look something like this:
@@ -55,7 +55,7 @@ By default, this will return the logs of the task. If more than one task is
 defined in the job file, the name of the task is a required argument:
 
 ```shell
-$ nomad logs 04d9627d server
+$ nomad alloc logs 04d9627d server
 ```
 
 The logs command supports both displaying the logs as well as following logs,
@@ -63,7 +63,7 @@ blocking for more output, similar to `tail -f`. To follow the logs, use the
 appropriately named `-f` flag:
 
 ```shell
-$ nomad logs -f 04d9627d
+$ nomad alloc logs -f 04d9627d
 ```
 
 This will stream logs to our console.
@@ -71,7 +71,7 @@ This will stream logs to our console.
 If you wish to see only the tail of a log, use the `-tail` and `-n` flags:
 
 ```shell
-$ nomad logs -tail -n 25 04d9627d
+$ nomad alloc logs -tail -n 25 04d9627d
 ```
 This will show the last 25 lines. If you omit the `-n` flag, `-tail` will
 default to 10 lines.
@@ -80,7 +80,7 @@ By default, only the logs on stdout are displayed. To show the log output from
 stderr, use the `-stderr` flag:
 
 ```shell
-$ nomad logs -stderr 04d9627d
+$ nomad alloc logs -stderr 04d9627d
 ```
 
 ## Log Shipper Pattern
