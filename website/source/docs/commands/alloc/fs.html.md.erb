@@ -1,14 +1,14 @@
 ---
 layout: "docs"
-page_title: "Commands: fs"
-sidebar_current: "docs-commands-fs"
+page_title: "Commands: alloc fs"
+sidebar_current: "docs-commands-alloc-fs"
 description: >
   Introspect an allocation directory on a Nomad client
 ---
 
-# Command: fs
+# Command: alloc fs
 
-The `fs` command allows a user to navigate an allocation directory on a Nomad
+The `alloc fs` command allows a user to navigate an allocation directory on a Nomad
 client. The following functionalities are available - `cat`, `tail`, `ls` and
 `stat`.
 
@@ -23,7 +23,7 @@ client. The following functionalities are available - `cat`, `tail`, `ls` and
 ## Usage
 
 ```
-nomad fs [options] <allocation> <path>
+nomad alloc fs [options] <allocation> <path>
 ```
 
 This command accepts a single allocation ID (unless the `-job` flag is specified,
@@ -61,29 +61,29 @@ end of the file.
 ## Examples
 
 ```
-$ nomad fs eb17e557
+$ nomad alloc fs eb17e557
 Mode        Size  Modified Time        Name
 drwxrwxr-x  4096  28 Jan 16 05:39 UTC  alloc/
 drwxrwxr-x  4096  28 Jan 16 05:39 UTC  redis/
 -rw-rw-r--  0     28 Jan 16 05:39 UTC  redis_exit_status
 
 
-$ nomad fs eb17e557 redis/local
+$ nomad alloc fs eb17e557 redis/local
 Mode        Size  Modified Time        Name
 -rw-rw-rw-  0     28 Jan 16 05:39 UTC  redis.stderr
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs -stat eb17e557 redis/local/redis.stdout
+$ nomad alloc fs -stat eb17e557 redis/local/redis.stdout
 Mode        Size  Modified Time        Name
 -rw-rw-rw-  17    28 Jan 16 05:39 UTC  redis.stdout
 
 
-$ nomad fs eb17e557 redis/local/redis.stdout
+$ nomad alloc fs eb17e557 redis/local/redis.stdout
 foobar
 baz
 
-$ nomad fs -tail -f -n 3 eb17e557 redis/local/redis.stdout
+$ nomad alloc fs -tail -f -n 3 eb17e557 redis/local/redis.stdout
 foobar
 baz
 bam
@@ -98,7 +98,7 @@ if no running allocations for the job are found, Nomad will use a dead
 allocation.
 
 ```
-nomad fs -job <job-id> <path>
+nomad alloc fs -job <job-id> <path>
 ```
 
 

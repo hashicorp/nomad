@@ -1,23 +1,23 @@
 ---
 layout: "docs"
-page_title: "Commands: stop"
-sidebar_current: "docs-commands-stop"
+page_title: "Commands: job stop"
+sidebar_current: "docs-commands-job-stop"
 description: >
-  The stop command is used to stop a running job.
+  The job stop command is used to stop a running job.
 ---
 
-# Command: stop
+# Command: job stop
 
-The `stop` command is used to stop a running job and signals the scheduler
+The `job stop` command is used to stop a running job and signals the scheduler
 to cancel all of the running allocations.
 
 ## Usage
 
 ```
-nomad stop [options] <job>
+nomad job stop [options] <job>
 ```
 
-The stop command requires a single argument, specifying the job ID or prefix to
+The `job stop` command requires a single argument, specifying the job ID or prefix to
 cancel. If there is an exact match based on the provided job ID or prefix, then
 the job will be cancelled. Otherwise, a list of matching jobs and information
 will be displayed.
@@ -51,7 +51,7 @@ collector.
 Stop the job with ID "job1":
 
 ```
-$ nomad stop job1
+$ nomad job stop job1
 ==> Monitoring evaluation "43bfe672"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "43bfe672" finished with status "complete"
@@ -60,6 +60,6 @@ $ nomad stop job1
 Stop the job with ID "job1" and return immediately:
 
 ```
-$ nomad stop -detach job1
+$ nomad job stop -detach job1
 507d26cb
 ```

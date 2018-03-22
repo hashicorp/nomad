@@ -1,14 +1,14 @@
 ---
 layout: "docs"
-page_title: "Commands: plan"
-sidebar_current: "docs-commands-plan"
+page_title: "Commands: job plan"
+sidebar_current: "docs-commands-job-plan"
 description: >
-  The plan command is used to dry-run a job update to determine its effects.
+  The job plan command is used to dry-run a job update to determine its effects.
 ---
 
-# Command: plan
+# Command: job plan
 
-The `plan` command can be used to invoke the scheduler in a dry-run mode with
+The `job plan` command can be used to invoke the scheduler in a dry-run mode with
 new jobs or when updating existing jobs to determine what would happen if the
 job is submitted. Job files must conform to the [job
 specification](/docs/job-specification/index.html) format.
@@ -16,10 +16,10 @@ specification](/docs/job-specification/index.html) format.
 ## Usage
 
 ```
-nomad plan [options] <path>
+nomad job plan [options] <path>
 ```
 
-The plan command requires a single argument, specifying the path to a file
+The `job plan` command requires a single argument, specifying the path to a file
 containing a [HCL job specification](/docs/job-specification/index.html). This
 file will be read and the resulting parsed job will be validated. If the
 supplied path is "-", the job file is read from STDIN. Otherwise it is read
@@ -69,8 +69,8 @@ Plan will return one of the following exit codes:
 Plan a new job that has not been previously submitted:
 
 ```
-$ nomad run job1.nomad
-nomad plan example.nomad
+$ nomad job plan job1.nomad
+nomad job plan example.nomad
 + Job: "example"
 + Task Group: "cache" (1 create)
   + Task: "redis" (forces create)
@@ -93,7 +93,7 @@ potentially invalid.
 Increase the count of an existing without sufficient cluster capacity:
 
 ```
-$ nomad plan example.nomad
+$ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (7 create, 1 in-place update)
   +/- Count: "1" => "8" (forces create)
@@ -119,7 +119,7 @@ potentially invalid.
 Update an existing job such that it would cause a rolling update:
 
 ```
-$ nomad plan example.nomad
+$ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
   +/- Task: "redis" (forces create/destroy update)
@@ -146,7 +146,7 @@ potentially invalid.
 Add a task to the task group using verbose mode:
 
 ```
-$ nomad plan -verbose example.nomad
+$ nomad job plan -verbose example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
   + Task: "my-website" (forces create/destroy update)

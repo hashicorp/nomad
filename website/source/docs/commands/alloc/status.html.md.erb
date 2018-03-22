@@ -1,14 +1,14 @@
 ---
 layout: "docs"
-page_title: "Commands: alloc-status"
+page_title: "Commands: alloc status"
 sidebar_current: "docs-commands-alloc-status"
 description: >
   Display status and metadata about existing allocations and their tasks.
 ---
 
-# Command: alloc-status
+# Command: alloc status
 
-The `alloc-status` command displays status information and metadata about an
+The `alloc status` command displays status information and metadata about an
 existing allocation and its tasks. It can be useful while debugging to reveal
 the underlying reasons for scheduling decisions or failures, as well as the
 current state of its tasks. As of Nomad 0.7.1, alloc status also shows allocation
@@ -18,7 +18,7 @@ information about reschedule attempts.
 ## Usage
 
 ```
-nomad alloc-status [options] <allocation>
+nomad alloc status [options] <allocation>
 ```
 
 An allocation ID or prefix must be provided. If there is an exact match, the
@@ -41,7 +41,7 @@ allocations and information will be displayed.
 Short status of an alloc:
 
 ```
-$ nomad alloc-status --short 0af996ed
+$ nomad alloc status --short 0af996ed
 ID                  = 0af996ed
 Eval ID             = be9bde98
 Name                = example.cache[0]
@@ -65,7 +65,7 @@ web    running  Started     07/25/17 16:12:49 UTC
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
 ```
-$ nomad alloc-status 0af996ed
+$ nomad alloc status 0af996ed
 ID                   = 0af996ed
 Eval ID              = be9bde98
 Name                 = example.cache[0]
@@ -107,7 +107,6 @@ CPU        Memory           Disk     IOPS  Addresses
 
 Task Events:
 Started At     = 07/25/17 16:12:49 UTC
->>>>>>> alloc-status
 Finished At    = N/A
 Total Restarts = 0
 Last Restart   = N/A
@@ -121,7 +120,7 @@ Recent Events:
 Verbose status can also be accessed:
 
 ```
-$ nomad alloc-status -verbose 0af996ed
+$ nomad alloc status -verbose 0af996ed
 ID                   = 0af996ed-aff4-8ddb-a566-e55ebf8969c9
 Eval ID              = be9bde98-0490-1beb-ced0-012d10ddf22e
 Name                 = example.cache[0]

@@ -1,24 +1,24 @@
 ---
 layout: "docs"
-page_title: "Commands: run"
-sidebar_current: "docs-commands-run"
+page_title: "Commands: job run"
+sidebar_current: "docs-commands-job-run"
 description: >
-  The run command is used to run a new job.
+  The job run command is used to run a new job.
 ---
 
-# Command: run
+# Command: job run
 
-The `run` command is used to submit new jobs to Nomad or to update existing
+The `job run` command is used to submit new jobs to Nomad or to update existing
 jobs. Job files must conform to the [job specification](/docs/job-specification/index.html)
 format.
 
 ## Usage
 
 ```
-nomad run [options] <job file>
+nomad job run [options] <job file>
 ```
 
-The run command requires a single argument, specifying the path to a file
+The `job run` command requires a single argument, specifying the path to a file
 containing a valid [job specification](/docs/job-specification/index.html). This file
 will be read and the job will be submitted to Nomad for scheduling. If the
 supplied path is "-", the job file is read from STDIN. Otherwise it is read
@@ -77,7 +77,7 @@ precedence, going from highest to lowest: the `-vault-token` flag, the
 Schedule the job contained in the file `job1.nomad`, monitoring placement:
 
 ```
-$ nomad run job1.nomad
+$ nomad job run job1.nomad
 ==> Monitoring evaluation "52dee78a"
     Evaluation triggered by job "example"
     Evaluation within deployment: "62eb607c"
@@ -90,11 +90,11 @@ $ nomad run job1.nomad
 <a id="check-index"></a> Update the job using `check-index`:
 
 ```
-$ nomad run -check-index 5 example.nomad
+$ nomad job run -check-index 5 example.nomad
 Enforcing job modify index 5: job exists with conflicting job modify index: 6
 Job not updated
 
-$ nomad run -check-index 6 example.nomad
+$ nomad job run -check-index 6 example.nomad
 ==> Monitoring evaluation "5ef16dff"
     Evaluation triggered by job "example"
     Evaluation within deployment: "62eb607c"
@@ -106,7 +106,7 @@ $ nomad run -check-index 6 example.nomad
 Schedule the job contained in `job1.nomad` and return immediately:
 
 ```
-$ nomad run -detach job1.nomad
+$ nomad job run -detach job1.nomad
 4947e728
 ```
 
@@ -114,7 +114,7 @@ Schedule a job which cannot be successfully placed. This results in a scheduling
 failure and the specifics of the placement are printed:
 
 ```
-$ nomad run failing.nomad
+$ nomad job run failing.nomad
 ==> Monitoring evaluation "2ae0e6a5"
     Evaluation triggered by job "example"
     Evaluation status changed: "pending" -> "complete"

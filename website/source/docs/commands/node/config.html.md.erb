@@ -1,21 +1,21 @@
 ---
 layout: "docs"
-page_title: "Commands: client-config"
-sidebar_current: "docs-commands-client-config"
+page_title: "Commands: node config"
+sidebar_current: "docs-commands-node-config"
 description: >
-  The client-config command is used to view or modify client configuration.
+  The node config command is used to view or modify client configuration.
 ---
 
-# Command: client-config
+# Command: node config
 
-The `client-config` command is used to view or modify client configuration
+The `node config` command is used to view or modify client configuration
 details. This command only works on client nodes, and can be used to update
 the running client configurations it supports.
 
 ## Usage
 
 ```
-nomad client-config [options]
+nomad node config [options]
 ```
 
 The arguments behave differently depending on the flags given. See each flag's
@@ -25,7 +25,7 @@ description below for specific usage information and requirements.
 
 <%= partial "docs/commands/_general_options" %>
 
-## Client Config Options
+## Node Config Options
 
 * `-servers`: List the client's known servers. Client nodes do not participate
   in the gossip pool, and instead register with these servers periodically over
@@ -45,7 +45,7 @@ description below for specific usage information and requirements.
 Query the currently known servers:
 
 ```
-$ nomad client-config -servers
+$ nomad node config -servers
 server1:4647
 server2:4647
 ```
@@ -53,5 +53,5 @@ server2:4647
 Update the list of servers:
 
 ```
-$ nomad client-config -update-servers server1:4647 server2:4647 server3:4647 server4
+$ nomad node config -update-servers server1:4647 server2:4647 server3:4647 server4
 ```

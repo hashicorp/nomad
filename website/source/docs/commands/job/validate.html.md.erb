@@ -1,23 +1,23 @@
 ---
 layout: "docs"
-page_title: "Commands: validate"
-sidebar_current: "docs-commands-validate"
+page_title: "Commands: job validate"
+sidebar_current: "docs-commands-job-validate"
 description: >
-  The validate command is used to check a job specification for syntax errors and validation problems.
+  The job validate command is used to check a job specification for syntax errors and validation problems.
 ---
 
-# Command: validate
+# Command: job validate
 
-The `validate` command is used to check a [HCL job specification](/docs/job-specification/index.html)
+The `job validate` command is used to check a [HCL job specification](/docs/job-specification/index.html)
 for any syntax errors or validation problems.
 
 ## Usage
 
 ```
-nomad validate <file>
+nomad job validate <file>
 ```
 
-The validate command requires a single argument, specifying the path to a file
+The `job validate` command requires a single argument, specifying the path to a file
 containing a [HCL job specification](/docs/job-specification/index.html). This file
 will be read and the job checked for any problems. If the
 supplied path is "-", the job file is read from STDIN. Otherwise it is read
@@ -33,7 +33,7 @@ of 1 indicates an error.
 Validate a job with invalid syntax:
 
 ```
-$ nomad validate example.nomad
+$ nomad job validate example.nomad
 Job validation errors:
 1 error(s) occurred:
 
@@ -45,7 +45,7 @@ Job validation errors:
 Validate a job that has a configuration that causes warnings:
 
 ```
-$ nomad validate example.nomad
+$ nomad job validate example.nomad
 Job Warnings:
 1 warning(s):
 

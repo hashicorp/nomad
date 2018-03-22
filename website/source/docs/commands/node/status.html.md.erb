@@ -3,19 +3,19 @@ layout: "docs"
 page_title: "Commands: node-status"
 sidebar_current: "docs-commands-node-status"
 description: >
-  Display information about nodes.
+  The node status command is used to display information about nodes.
 ---
 
-# Command: node-status
+# Command: node status
 
-The `node-status` command is used to display information about client nodes. A
+The `node status` command is used to display information about client nodes. A
 node must first be registered with the servers before it will be visible in this
 output.
 
 ## Usage
 
 ```
-nomad node-status [options] [node]
+nomad node status [options] [node]
 ```
 
 If no node ID is passed, then the command will enter "list mode" and dump a
@@ -32,7 +32,7 @@ information will be displayed. If running the command on a Nomad Client, the
 
 <%= partial "docs/commands/_general_options" %>
 
-## Node Status Options
+## Status Options
 
 * `-self`: Query the status of the local node.
 
@@ -55,7 +55,7 @@ information will be displayed. If running the command on a Nomad Client, the
 List view:
 
 ```
-$ nomad node-status
+$ nomad node status
 ID        DC   Name   Drain  Status
 a72dfba2  dc1  node1  false  ready
 1f3f03ea  dc1  node2  false  ready
@@ -64,7 +64,7 @@ a72dfba2  dc1  node1  false  ready
 List view, with running allocations:
 
 ```
-$ nomad node-status -allocs
+$ nomad node status -allocs
 ID        DC   Name   Class   Drain  Status  Running Allocs
 4d2ba53b  dc1  node1  <none>  false  ready   1
 34dfba32  dc1  node2  <none>  false  ready   3
@@ -73,7 +73,7 @@ ID        DC   Name   Class   Drain  Status  Running Allocs
 Single-node view in short mode:
 
 ```
-$ nomad node-status -short 1f3f03ea
+$ nomad node status -short 1f3f03ea
 ID     = c754da1f
 Name   = nomad
 Class  = <none>
@@ -90,7 +90,7 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 Full output for a single node:
 
 ```
-$ nomad node-status 1f3f03ea
+$ nomad node status 1f3f03ea
 ID     = c754da1f
 Name    = nomad-server01
 Class   = <none>
@@ -119,7 +119,7 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 Using `-self` when on a Nomad Client:
 
 ```
-$ nomad node-status -self
+$ nomad node status -self
 ID     = c754da1f
 Name   = nomad-client01
 Class  = <none>
@@ -170,7 +170,7 @@ the following:
 Using `-stats` to see detailed to resource usage information on the node:
 
 ```
-$ nomad node-status -stats c754da1f
+$ nomad node status -stats c754da1f
 ID     = c754da1f
 Name   = nomad-client01
 Class  = <none>
@@ -237,7 +237,7 @@ ed3665f5  8bf94335  example  cache       run             running
 To view verbose information about the node:
 
 ```
-$ nomad node-status -verbose c754da1f
+$ nomad node status -verbose c754da1f
 ID     = c754da1f-6337-b86d-47dc-2ef4c71aca14
 Name   = nomad
 Class  = <none>
