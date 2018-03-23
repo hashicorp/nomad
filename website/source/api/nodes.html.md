@@ -661,3 +661,30 @@ $ curl \
   "KnownLeader": false
 }
 ```
+
+#### Field Reference
+
+- Events - A list of the last 10 node events for this node. A node event is a
+  high level concept of noteworthy events for a node.
+
+  Each node event has the following fields:
+
+  - `Message` - The specific message for the event, detailing what occurred.
+
+  - `Subsystem` - The subsystem where the node event took place. Subsysystems
+    include:
+
+    - `Drain` - Nomad server draining subsystem
+
+    - `Driver` - Nomad client driver subsystem
+
+    - `Heartbeat` - Either Nomad client or server heartbeating subsystem
+
+    - `Cluster` - Nomad server cluster management subsystem
+
+  - `Details` - Any further details about the event, formatted as a key/value
+    pair.
+
+  - `Timestamp` - Each node event has a Unix timestamp.
+
+  - `CreateIndex` - The Raft index at which the event was committed.
