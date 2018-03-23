@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func tmpDir(t testing.TB) string {
@@ -779,7 +780,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 
 func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 
 	const (
 		cafile  = "../../helper/tlsutil/testdata/ca.pem"
@@ -819,9 +820,9 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	}
 
 	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
-	assert.True(shouldReloadAgent)
-	assert.True(shouldReloadHTTP)
-	assert.False(shouldReloadRPC)
+	require.True(shouldReloadAgent)
+	require.True(shouldReloadHTTP)
+	require.False(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
