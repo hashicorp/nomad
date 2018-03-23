@@ -1322,6 +1322,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"health_check",
 		"min_healthy_time",
 		"healthy_deadline",
+		"progress_deadline",
 		"auto_revert",
 		"canary",
 	}

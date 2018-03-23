@@ -22,6 +22,7 @@ job "binstore-storagelocker" {
     health_check = "manual"
     min_healthy_time = "10s"
     healthy_deadline = "10m"
+    progress_deadline = "10m"
     auto_revert = true
     canary = 1
   }
@@ -63,6 +64,7 @@ job "binstore-storagelocker" {
         health_check = "checks"
         min_healthy_time = "1s"
         healthy_deadline = "1m"
+        progress_deadline = "1m"
         auto_revert = false
         canary = 2
     }
