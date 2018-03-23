@@ -1276,8 +1276,8 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:         0,
-				InPlaceUpdate: 1,
-				Ignore:        3,
+				InPlaceUpdate: 0,
+				Ignore:        4,
 			},
 		},
 	})
@@ -1348,8 +1348,8 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:         0,
-				InPlaceUpdate: 7,
-				Ignore:        3,
+				InPlaceUpdate: 0,
+				Ignore:        10,
 			},
 		},
 	})
@@ -1503,8 +1503,8 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:         1,
-				InPlaceUpdate: 1,
-				Ignore:        3,
+				InPlaceUpdate: 0,
+				Ignore:        4,
 			},
 		},
 	})

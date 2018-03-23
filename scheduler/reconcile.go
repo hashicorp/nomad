@@ -338,11 +338,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch)
 
-	// Create batched follow up evaluations for allocations that are reschedulable later
-	var rescheduleLaterAllocs map[string]*structs.Allocation
-	if len(rescheduleLater) > 0 {
-		rescheduleLaterAllocs = a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
-	}
+	// Create batched follow up evaluations for allocations that are
+	// reschedulable later and mark the allocations for in place updating
+	a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
@@ -365,7 +363,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	ignore, inplace, destructive := a.computeUpdates(tg, untainted, rescheduleLaterAllocs)
+	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
@@ -782,7 +780,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 // 2. Those that can be upgraded in-place. These are added to the results
 // automatically since the function contains the correct state to do so,
 // 3. Those that require destructive updates
-func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted, rescheduleLaterAllocs allocSet) (ignore, inplace, destructive allocSet) {
+func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted allocSet) (ignore, inplace, destructive allocSet) {
 	// Determine the set of allocations that need to be updated
 	ignore = make(map[string]*structs.Allocation)
 	inplace = make(map[string]*structs.Allocation)
@@ -790,13 +788,7 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted, re
 
 	for _, alloc := range untainted {
 		ignoreChange, destructiveChange, inplaceAlloc := a.allocUpdateFn(alloc, a.job, group)
-		// Also check if the alloc is marked for later rescheduling.
-		// If so it should be in the inplace list
-		reschedLaterAlloc, isRescheduleLater := rescheduleLaterAllocs[alloc.ID]
-		if isRescheduleLater {
-			inplace[alloc.ID] = alloc
-			a.result.inplaceUpdate = append(a.result.inplaceUpdate, reschedLaterAlloc)
-		} else if ignoreChange {
+		if ignoreChange {
 			ignore[alloc.ID] = alloc
 		} else if destructiveChange {
 			destructive[alloc.ID] = alloc
@@ -813,7 +805,11 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted, re
 
 // handleDelayedReschedules creates batched followup evaluations with the WaitUntil field set
 // for allocations that are eligible to be rescheduled later
-func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) allocSet {
+func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+	if len(rescheduleLater) == 0 {
+		return
+	}
+
 	// Sort by time
 	sort.Slice(rescheduleLater, func(i, j int) bool {
 		return rescheduleLater[i].rescheduleTime.Before(rescheduleLater[j].rescheduleTime)
@@ -822,6 +818,7 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	var evals []*structs.Evaluation
 	nextReschedTime := rescheduleLater[0].rescheduleTime
 	allocIDToFollowupEvalID := make(map[string]string, len(rescheduleLater))
+
 	// Create a new eval for the first batch
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
@@ -835,6 +832,7 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 		WaitUntil:      nextReschedTime,
 	}
 	evals = append(evals, eval)
+
 	for _, allocReschedInfo := range rescheduleLater {
 		if allocReschedInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
 			allocIDToFollowupEvalID[allocReschedInfo.allocID] = eval.ID
@@ -862,12 +860,10 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	a.result.desiredFollowupEvals[tgName] = evals
 
 	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
-	rescheduleLaterAllocs := make(map[string]*structs.Allocation)
 	for allocID, evalID := range allocIDToFollowupEvalID {
 		existingAlloc := all[allocID]
 		updatedAlloc := existingAlloc.Copy()
 		updatedAlloc.FollowupEvalID = evalID
-		rescheduleLaterAllocs[allocID] = updatedAlloc
+		a.result.inplaceUpdate = append(a.result.inplaceUpdate, updatedAlloc)
 	}
-	return rescheduleLaterAllocs
 }
