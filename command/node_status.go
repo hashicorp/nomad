@@ -396,7 +396,14 @@ func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
 		nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy")
 	}
 
-	for driver, info := range node.Drivers {
+	drivers := make([]string, 0, len(node.Drivers))
+	for driver := range node.Drivers {
+		drivers = append(drivers, driver)
+	}
+	sort.Strings(drivers)
+
+	for _, driver := range drivers {
+		info := node.Drivers[driver]
 		if c.verbose {
 			timestamp := formatTime(info.UpdateTime)
 			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
