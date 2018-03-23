@@ -290,6 +290,14 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Ensure that we don't duplicate health check information on the driver
+	// health information
+	fm.nodeLock.Lock()
+	node := fm.node
+	fm.nodeLock.Unlock()
+	mockDriverAttributes := node.Drivers["mock_driver"].Attributes
+	require.Equal(mockDriverAttributes["driver.mock_driver"], "")
 }
 
 func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
