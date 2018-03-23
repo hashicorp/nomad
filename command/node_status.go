@@ -306,10 +306,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Drain|%v", node.Drain),
 		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
-		fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")),
 	}
 
 	if c.short {
+		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 	} else {
 		// Get the host stats
@@ -324,6 +324,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		}
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
+		// Emit the driver info
+		c.outputNodeDriverInfo(node)
+
+		// Emit node events
 		c.outputNodeStatusEvents(node)
 
 		// Get list of running allocations on the node
@@ -380,8 +384,31 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 }
 
+func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Drivers"))
+
+	size := len(node.Drivers)
+	nodeDrivers := make([]string, 0, size+1)
+
+	if c.verbose {
+		nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy|Message|Time")
+	} else {
+		nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy")
+	}
+
+	for driver, info := range node.Drivers {
+		if c.verbose {
+			timestamp := formatTime(info.UpdateTime)
+			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
+		} else {
+			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v", driver, info.Detected, info.Healthy))
+		}
+	}
+	c.Ui.Output(formatList(nodeDrivers))
+}
+
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
-	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events "))
+	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events"))
 	c.outputNodeEvent(node.Events)
 }
 
