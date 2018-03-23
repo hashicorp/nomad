@@ -13,21 +13,26 @@ export default ApplicationAdapter.extend({
     return {};
   }),
 
-  ajaxOptions(url) {
+  ajaxOptions() {
     const ajaxOptions = this._super(...arguments);
+    const key = this.xhrKey(...arguments);
 
     const previousBeforeSend = ajaxOptions.beforeSend;
     ajaxOptions.beforeSend = function(jqXHR) {
       if (previousBeforeSend) {
         previousBeforeSend(...arguments);
       }
-      this.get('xhrs')[url] = jqXHR;
+      this.get('xhrs')[key] = jqXHR;
       jqXHR.always(() => {
-        delete this.get('xhrs')[url];
+        delete this.get('xhrs')[key];
       });
     };
 
     return ajaxOptions;
+  },
+
+  xhrKey(url /* method, options */) {
+    return url;
   },
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
@@ -36,7 +41,6 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
-      this.cancelFindAll(type.modelName);
     }
 
     return this.ajax(url, 'GET', {
