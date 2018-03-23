@@ -95,6 +95,10 @@ type reconcileResults struct {
 	// stop is the set of allocations to stop
 	stop []allocStopResult
 
+	// annotationUpdates are updates to the allocation that are not from a
+	// jobspec change.
+	annotationUpdates map[string]*structs.Allocation
+
 	// desiredTGUpdates captures the desired set of changes to make for each
 	// task group.
 	desiredTGUpdates map[string]*structs.DesiredUpdates
@@ -326,8 +330,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		}
 	}
 
-	// Filter batch allocations that do not need to be considered.
-	all, ignore := a.batchFiltration(all)
+	// Filter allocations that do not need to be considered because they are
+	// from an older job version and are terminal.
+	all, ignore := a.filterOldTerminalAllocs(all)
 	desiredChanges.Ignore += uint64(len(ignore))
 
 	canaries, all := a.handleGroupCanaries(all, desiredChanges)
@@ -478,8 +483,20 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		})
 	}
 
+	// Create new deployment if:
+	// 1. Updating a job specification
+	// 2. No running allocations (first time running a job)
+	updatingSpec := len(destructive) != 0 || len(a.result.inplaceUpdate) != 0
+	hadRunning := false
+	for _, alloc := range all {
+		if alloc.Job.Version == a.job.Version {
+			hadRunning = true
+			break
+		}
+	}
+
 	// Create a new deployment if necessary
-	if !existingDeployment && strategy != nil && dstate.DesiredTotal != 0 {
+	if !existingDeployment && strategy != nil && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
 			a.deployment = structs.NewDeployment(a.job)
@@ -509,9 +526,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	return deploymentComplete
 }
 
-// batchFiltration filters batch allocations that should be ignored. These are
-// allocations that are terminal from a previous job version.
-func (a *allocReconciler) batchFiltration(all allocSet) (filtered, ignore allocSet) {
+// filterOldTerminalAllocs filters allocations that should be ignored since they
+// are allocations that are terminal from a previous job version.
+func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
 	if !a.batch {
 		return all, nil
 	}
@@ -793,8 +810,6 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 		} else if destructiveChange {
 			destructive[alloc.ID] = alloc
 		} else {
-			// Attach the deployment ID and and clear the health if the
-			// deployment has changed
 			inplace[alloc.ID] = alloc
 			a.result.inplaceUpdate = append(a.result.inplaceUpdate, inplaceAlloc)
 		}
@@ -859,11 +874,16 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 
 	a.result.desiredFollowupEvals[tgName] = evals
 
+	// Initialize the annotations
+	if len(allocIDToFollowupEvalID) != 0 && a.result.annotationUpdates == nil {
+		a.result.annotationUpdates = make(map[string]*structs.Allocation)
+	}
+
 	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
 	for allocID, evalID := range allocIDToFollowupEvalID {
 		existingAlloc := all[allocID]
 		updatedAlloc := existingAlloc.Copy()
 		updatedAlloc.FollowupEvalID = evalID
-		a.result.inplaceUpdate = append(a.result.inplaceUpdate, updatedAlloc)
+		a.result.annotationUpdates[updatedAlloc.ID] = updatedAlloc
 	}
 }
