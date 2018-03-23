@@ -194,18 +194,24 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Detect if the deployment is paused
 	if a.deployment != nil {
+		// XXX Fix
+		// XXX An idea for not replacing failed allocs that are part of
+		// deployment that will fail immediately is to only replace them if
+		// their desired transistion has a replace bool set by the deployment
+		// watcher.
+
 		// Detect if any allocs associated with this deploy have failed
 		// Failed allocations could edge trigger an evaluation before the deployment watcher
 		// runs and marks the deploy as failed. This block makes sure that is still
 		// considered a failed deploy
 		failedAllocsInDeploy := false
-		for _, as := range m {
-			for _, alloc := range as {
-				if alloc.DeploymentID == a.deployment.ID && alloc.ClientStatus == structs.AllocClientStatusFailed {
-					failedAllocsInDeploy = true
-				}
-			}
-		}
+		//for _, as := range m {
+		//for _, alloc := range as {
+		//if alloc.DeploymentID == a.deployment.ID && alloc.ClientStatus == structs.AllocClientStatusFailed {
+		//failedAllocsInDeploy = true
+		//}
+		//}
+		//}
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed || failedAllocsInDeploy
 	}
@@ -527,12 +533,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Final check to see if the deployment is complete is to ensure everything
 	// is healthy
 	if deploymentComplete && a.deployment != nil {
-		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
-		for _, alloc := range partOf {
-			if !alloc.DeploymentStatus.IsHealthy() {
-				deploymentComplete = false
-				break
-			}
+		dstate := a.deployment.TaskGroups[group]
+		if dstate.DesiredTotal != dstate.HealthyAllocs {
+			deploymentComplete = false
 		}
 	}
 

@@ -2455,13 +2455,14 @@ var (
 	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
-		Stagger:         30 * time.Second,
-		MaxParallel:     1,
-		HealthCheck:     UpdateStrategyHealthCheck_Checks,
-		MinHealthyTime:  10 * time.Second,
-		HealthyDeadline: 5 * time.Minute,
-		AutoRevert:      false,
-		Canary:          0,
+		Stagger:          30 * time.Second,
+		MaxParallel:      1,
+		HealthCheck:      UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:   10 * time.Second,
+		HealthyDeadline:  5 * time.Minute,
+		ProgressDeadline: 15 * time.Minute,
+		AutoRevert:       false,
+		Canary:           0,
 	}
 )
 
@@ -2487,6 +2488,12 @@ type UpdateStrategy struct {
 	// healthy before it is automatically transitioned to unhealthy. This time
 	// period doesn't count against the MinHealthyTime.
 	HealthyDeadline time.Duration
+
+	// ProgressDeadline is the time in which an allocation as part of the
+	// deployment must transistion to healthy. If no allocation becomes healthy
+	// after the deadline, the deployment is marked as failed. If the deadline
+	// is zero, the first failure causes the deployment to fail.
+	ProgressDeadline time.Duration
 
 	// AutoRevert declares that if a deployment fails because of unhealthy
 	// allocations, there should be an attempt to auto-revert the job to a
@@ -2532,8 +2539,14 @@ func (u *UpdateStrategy) Validate() error {
 	if u.HealthyDeadline <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
 	}
+	if u.ProgressDeadline < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Progress deadline must be zero or greater: %v", u.ProgressDeadline))
+	}
 	if u.MinHealthyTime >= u.HealthyDeadline {
 		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
+	}
+	if u.HealthyDeadline >= u.ProgressDeadline {
+		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be less than progress deadline: %v > %v", u.HealthyDeadline, u.ProgressDeadline))
 	}
 	if u.Stagger <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
@@ -5247,6 +5260,7 @@ const (
 	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
 	DeploymentStatusDescriptionNewerJob              = "Cancelled due to newer version of job"
 	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
+	DeploymentStatusDescriptionProgressDeadline      = "Failed due to progress deadline"
 	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
 )
 
@@ -6116,6 +6130,9 @@ type AllocDeploymentStatus struct {
 	// as part of a deployment. It can be unset if it has neither been marked
 	// healthy or unhealthy.
 	Healthy *bool
+
+	// Timestamp is the time at which the health status was set.
+	Timestamp time.Time
 
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
