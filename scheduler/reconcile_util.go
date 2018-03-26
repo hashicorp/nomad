@@ -279,18 +279,18 @@ func (a allocSet) filterByRescheduleable(isBatch bool) (untainted, rescheduleNow
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, batch bool) (untainted, rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
-	shouldAllow := true
+	shouldFilter := false
 	if !batch {
-		// For service type jobs we ignore allocs whose desired state is stop/evict
-		// everything else is either rescheduleable or untainted
-		shouldAllow = alloc.DesiredStatus != structs.AllocDesiredStatusStop && alloc.DesiredStatus != structs.AllocDesiredStatusEvict
+		// For service type jobs we filter terminal allocs
+		// except for those with ClientStatusFailed - those are checked for reschedulability
+		shouldFilter = alloc.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusFailed
 	}
 	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	// We consider a time difference of less than 5 seconds to be eligible
 	// because we collapse allocations that failed within 5 seconds into a single evaluation
 	if eligible && now.After(rescheduleTime) {
 		rescheduleNow = true
-	} else if shouldAllow {
+	} else if !shouldFilter {
 		untainted = true
 		if eligible && alloc.FollowupEvalID == "" {
 			rescheduleLater = true
