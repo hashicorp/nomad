@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTLSConfig_Merge(t *testing.T) {
@@ -34,22 +35,106 @@ func TestTLS_CertificateInfoIsEqual_TrueWhenEmpty(t *testing.T) {
 }
 
 func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
-	assert := assert.New(t)
-	a := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
-	b := &TLSConfig{CAFile: "jkl", CertFile: "def", KeyFile: "ghi"}
-	assert.False(a.CertificateInfoIsEqual(b))
+	require := require.New(t)
+	const (
+		cafile   = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "../../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../../helper/tlsutil/testdata/nomad-bad-key.pem"
+	)
+
+	// Assert that both mismatching certificate and key files are considered
+	// unequal
+	{
+		a := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert,
+			KeyFile:  fookey,
+		}
+		a.SetChecksum()
+
+		b := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert2,
+			KeyFile:  fookey2,
+		}
+		require.False(a.CertificateInfoIsEqual(b))
+	}
+
+	// Assert that mismatching certificate are considered unequal
+	{
+		a := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert,
+			KeyFile:  fookey,
+		}
+		a.SetChecksum()
+
+		b := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert2,
+			KeyFile:  fookey,
+		}
+		require.False(a.CertificateInfoIsEqual(b))
+	}
+
+	// Assert that mismatching keys are considered unequal
+	{
+		a := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert,
+			KeyFile:  fookey,
+		}
+		a.SetChecksum()
+
+		b := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert,
+			KeyFile:  fookey2,
+		}
+		require.False(a.CertificateInfoIsEqual(b))
+	}
 }
 
+// Certificate info should be equal when the CA file, certificate file, and key
+// file all are equal
 func TestTLS_CertificateInfoIsEqual_TrueWhenEqual(t *testing.T) {
-	assert := assert.New(t)
-	a := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
-	b := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
-	assert.True(a.CertificateInfoIsEqual(b))
+	require := require.New(t)
+	const (
+		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	a := &TLSConfig{
+		CAFile:   cafile,
+		CertFile: foocert,
+		KeyFile:  fookey,
+	}
+	a.SetChecksum()
+
+	b := &TLSConfig{
+		CAFile:   cafile,
+		CertFile: foocert,
+		KeyFile:  fookey,
+	}
+	require.True(a.CertificateInfoIsEqual(b))
 }
 
 func TestTLS_Copy(t *testing.T) {
 	assert := assert.New(t)
-	a := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
+	const (
+		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	a := &TLSConfig{
+		CAFile:   cafile,
+		CertFile: foocert,
+		KeyFile:  fookey,
+	}
+	a.SetChecksum()
+
 	aCopy := a.Copy()
 	assert.True(a.CertificateInfoIsEqual(aCopy))
 }
@@ -60,4 +145,30 @@ func TestTLS_GetKeyloader(t *testing.T) {
 	assert := assert.New(t)
 	a := &TLSConfig{}
 	assert.NotNil(a.GetKeyLoader())
+}
+
+func TestTLS_SetChecksum(t *testing.T) {
+	require := require.New(t)
+	const (
+		cafile   = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "../../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../../helper/tlsutil/testdata/nomad-bad-key.pem"
+	)
+
+	a := &TLSConfig{
+		CAFile:   cafile,
+		CertFile: foocert,
+		KeyFile:  fookey,
+	}
+	a.SetChecksum()
+	oldChecksum := a.Checksum
+
+	a.CertFile = foocert2
+	a.KeyFile = fookey2
+
+	a.SetChecksum()
+
+	require.NotEqual(oldChecksum, a.Checksum)
 }
