@@ -366,6 +366,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.ctx.Plan().AppendAlloc(update)
 	}
 
+	// Handle the annotation updates
+	for _, update := range results.attributeUpdates {
+		s.ctx.Plan().AppendAlloc(update)
+	}
+
 	// Nothing remaining to do if placement is not required
 	if len(results.place)+len(results.destructiveUpdate) == 0 {
 		if !s.job.Stopped() {
