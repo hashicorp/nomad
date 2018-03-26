@@ -367,7 +367,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Handle the annotation updates
-	for _, update := range results.annotationUpdates {
+	for _, update := range results.attributeUpdates {
 		s.ctx.Plan().AppendAlloc(update)
 	}
 

@@ -95,9 +95,9 @@ type reconcileResults struct {
 	// stop is the set of allocations to stop
 	stop []allocStopResult
 
-	// annotationUpdates are updates to the allocation that are not from a
+	// attributeUpdates are updates to the allocation that are not from a
 	// jobspec change.
-	annotationUpdates map[string]*structs.Allocation
+	attributeUpdates map[string]*structs.Allocation
 
 	// desiredTGUpdates captures the desired set of changes to make for each
 	// task group.
@@ -875,8 +875,8 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	a.result.desiredFollowupEvals[tgName] = evals
 
 	// Initialize the annotations
-	if len(allocIDToFollowupEvalID) != 0 && a.result.annotationUpdates == nil {
-		a.result.annotationUpdates = make(map[string]*structs.Allocation)
+	if len(allocIDToFollowupEvalID) != 0 && a.result.attributeUpdates == nil {
+		a.result.attributeUpdates = make(map[string]*structs.Allocation)
 	}
 
 	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
@@ -884,6 +884,6 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 		existingAlloc := all[allocID]
 		updatedAlloc := existingAlloc.Copy()
 		updatedAlloc.FollowupEvalID = evalID
-		a.result.annotationUpdates[updatedAlloc.ID] = updatedAlloc
+		a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
 	}
 }

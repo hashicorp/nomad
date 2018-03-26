@@ -288,9 +288,9 @@ func stopResultsToNames(stop []allocStopResult) []string {
 	return names
 }
 
-func annotationsToNames(annotations map[string]*structs.Allocation) []string {
-	names := make([]string, 0, len(annotations))
-	for _, a := range annotations {
+func attributeUpdatesToNames(attributeUpdates map[string]*structs.Allocation) []string {
+	names := make([]string, 0, len(attributeUpdates))
+	for _, a := range attributeUpdates {
 		names = append(names, a.Name)
 	}
 	return names
@@ -310,7 +310,7 @@ type resultExpectation struct {
 	place             int
 	destructive       int
 	inplace           int
-	annotations       int
+	attributeUpdates  int
 	stop              int
 	desiredTGUpdates  map[string]*structs.DesiredUpdates
 }
@@ -342,8 +342,8 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	if l := len(r.inplaceUpdate); l != exp.inplace {
 		t.Fatalf("Expected %d inplaceUpdate; got %d", exp.inplace, l)
 	}
-	if l := len(r.annotationUpdates); l != exp.annotations {
-		t.Fatalf("Expected %d annotations; got %d", exp.annotations, l)
+	if l := len(r.attributeUpdates); l != exp.attributeUpdates {
+		t.Fatalf("Expected %d attribute updates; got %d", exp.attributeUpdates, l)
 	}
 	if l := len(r.stop); l != exp.stop {
 		t.Fatalf("Expected %d stops; got %d", exp.stop, l)
@@ -1287,7 +1287,7 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 		deploymentUpdates: nil,
 		place:             0,
 		inplace:           0,
-		annotations:       1,
+		attributeUpdates:  1,
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
@@ -1297,11 +1297,11 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 			},
 		},
 	})
-	assertNamesHaveIndexes(t, intRange(2, 2), annotationsToNames(r.annotationUpdates))
+	assertNamesHaveIndexes(t, intRange(2, 2), attributeUpdatesToNames(r.attributeUpdates))
 
 	// Verify that the followup evalID field is set correctly
 	var annotated *structs.Allocation
-	for _, a := range r.annotationUpdates {
+	for _, a := range r.attributeUpdates {
 		annotated = a
 	}
 	require.Equal(evals[0].ID, annotated.FollowupEvalID)
@@ -1369,7 +1369,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 		deploymentUpdates: nil,
 		place:             0,
 		inplace:           0,
-		annotations:       7,
+		attributeUpdates:  7,
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
@@ -1379,10 +1379,10 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 			},
 		},
 	})
-	assertNamesHaveIndexes(t, intRange(0, 6), annotationsToNames(r.annotationUpdates))
+	assertNamesHaveIndexes(t, intRange(0, 6), attributeUpdatesToNames(r.attributeUpdates))
 
 	// Verify that the followup evalID field is set correctly
-	for _, alloc := range r.annotationUpdates {
+	for _, alloc := range r.attributeUpdates {
 		if allocNameToIndex(alloc.Name) < 5 {
 			require.Equal(evals[0].ID, alloc.FollowupEvalID)
 		} else if allocNameToIndex(alloc.Name) < 7 {
@@ -1530,7 +1530,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 		deploymentUpdates: nil,
 		place:             1,
 		inplace:           0,
-		annotations:       1,
+		attributeUpdates:  1,
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
@@ -1542,11 +1542,11 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	})
 
 	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(1, 1), annotationsToNames(r.annotationUpdates))
+	assertNamesHaveIndexes(t, intRange(1, 1), attributeUpdatesToNames(r.attributeUpdates))
 
 	// Verify that the followup evalID field is set correctly
 	var annotated *structs.Allocation
-	for _, a := range r.annotationUpdates {
+	for _, a := range r.attributeUpdates {
 		annotated = a
 	}
 	require.Equal(evals[0].ID, annotated.FollowupEvalID)
@@ -1555,13 +1555,23 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 // Tests rescheduling failed service allocations with desired state stop
 func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	require := require.New(t)
+
 	// Set desired 5
 	job := mock.Job()
 	job.TaskGroups[0].Count = 5
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
-	// Set up reschedule policy
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: 5 * time.Second, MaxDelay: 1 * time.Hour}
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = noCanaryUpdate
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
@@ -1574,8 +1584,10 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 		allocs = append(allocs, alloc)
 		alloc.ClientStatus = structs.AllocClientStatusRunning
 	}
+
 	// Mark two as failed
 	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
 	// Mark one of them as already rescheduled once
 	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
 		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
@@ -1613,8 +1625,8 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(1, 1, 4, 4), placeResultsToNames(r.place))
 	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(1, 1, 4, 4), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
 	assertPlacementsAreRescheduled(t, 1, r.place)
 }
