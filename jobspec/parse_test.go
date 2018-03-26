@@ -687,7 +687,7 @@ func TestParse(t *testing.T) {
 				Reschedule: &api.ReschedulePolicy{
 					Attempts:      helper.IntToPtr(15),
 					Interval:      helper.TimeToPtr(30 * time.Minute),
-					DelayFunction: helper.StringToPtr("linear"),
+					DelayFunction: helper.StringToPtr("constant"),
 					Delay:         helper.TimeToPtr(10 * time.Second),
 				},
 				TaskGroups: []*api.TaskGroup{

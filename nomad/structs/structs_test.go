@@ -233,7 +233,7 @@ func testJob() *Job {
 					Interval:      5 * time.Minute,
 					Attempts:      10,
 					Delay:         5 * time.Second,
-					DelayFunction: "linear",
+					DelayFunction: "constant",
 				},
 				Tasks: []*Task{
 					{
@@ -678,7 +678,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Interval:      5 * time.Minute,
 			Attempts:      10,
 			Delay:         5 * time.Second,
-			DelayFunction: "linear",
+			DelayFunction: "constant",
 		},
 	}
 
@@ -2116,7 +2116,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      1,
 				Interval:      5 * time.Minute,
 				Delay:         10 * time.Second,
-				DelayFunction: "linear"},
+				DelayFunction: "constant"},
 		},
 		{
 			desc: "Valid Exponential Delay",
@@ -2166,7 +2166,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts:      1,
 				Interval:      1 * time.Second,
-				DelayFunction: "linear"},
+				DelayFunction: "constant"},
 			errors: []error{
 				fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, time.Second),
 				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
@@ -2178,11 +2178,11 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      10,
 				Interval:      1 * time.Hour,
 				Delay:         20 * time.Minute,
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 			},
 			errors: []error{
 				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and"+
-					" delay function %q", 3, time.Hour, 20*time.Minute, "linear"),
+					" delay function %q", 3, time.Hour, 20*time.Minute, "constant"),
 				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
 					200*time.Minute, 10),
 			},
@@ -2708,7 +2708,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "Allocation hasn't failed yet",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 			},
 			alloc: &Allocation{},
@@ -2718,7 +2718,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "Allocation lacks task state",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 			},
 			alloc: &Allocation{ClientStatus: AllocClientStatusFailed},
@@ -2728,7 +2728,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "linear delay, unlimited restarts, no reschedule tracker",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 				Unlimited:     true,
 			},
@@ -2744,7 +2744,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "linear delay with reschedule tracker",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 				Interval:      10 * time.Minute,
 				Attempts:      2,
@@ -2766,7 +2766,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "linear delay with reschedule tracker, attempts exhausted",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 				Interval:      10 * time.Minute,
 				Attempts:      2,

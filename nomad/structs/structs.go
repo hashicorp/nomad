@@ -2766,7 +2766,7 @@ var (
 		Attempts:      1,
 		Interval:      24 * time.Hour,
 		Delay:         5 * time.Second,
-		DelayFunction: "linear",
+		DelayFunction: "constant",
 	}
 )
 
@@ -2851,7 +2851,7 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 const ReschedulePolicyMinInterval = 15 * time.Second
 const ReschedulePolicyMinDelay = 5 * time.Second
 
-var RescheduleDelayFunctions = [...]string{"linear", "exponential", "fibonacci"}
+var RescheduleDelayFunctions = [...]string{"constant", "exponential", "fibonacci"}
 
 // ReschedulePolicy configures how Tasks are rescheduled  when they crash or fail.
 type ReschedulePolicy struct {
@@ -2866,7 +2866,7 @@ type ReschedulePolicy struct {
 	Delay time.Duration
 
 	// DelayFunction determines how the delay progressively changes on subsequent reschedule
-	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	// attempts. Valid values are "exponential", "constant", and "fibonacci".
 	DelayFunction string
 
 	// MaxDelay is an upper bound on the delay.
@@ -2888,7 +2888,7 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 
 // Validate uses different criteria to validate the reschedule policy
 // Delay must be a minimum of 5 seconds
-// Delay Ceiling is ignored if Delay Function is "linear"
+// Delay Ceiling is ignored if Delay Function is "constant"
 // Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
 	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
@@ -2922,7 +2922,7 @@ func (r *ReschedulePolicy) Validate() error {
 	}
 
 	// Validate MaxDelay if not using linear delay progression
-	if r.DelayFunction != "linear" {
+	if r.DelayFunction != "constant" {
 		if r.MaxDelay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
 			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
 			delayPreCheck = false
@@ -2966,7 +2966,7 @@ func (r *ReschedulePolicy) validateDelayParams() error {
 		return nil
 	}
 	var mErr multierror.Error
-	if r.DelayFunction == "linear" {
+	if r.DelayFunction == "constant" {
 		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and "+
 			"delay function %q", possibleAttempts, r.Interval, r.Delay, r.DelayFunction))
 	} else {
@@ -2982,7 +2982,7 @@ func (r *ReschedulePolicy) viableAttempts() (bool, int, time.Duration) {
 	var recommendedInterval time.Duration
 	valid := true
 	switch r.DelayFunction {
-	case "linear":
+	case "constant":
 		recommendedInterval = time.Duration(r.Attempts) * r.Delay
 		if r.Interval < recommendedInterval {
 			possibleAttempts = int(r.Interval / r.Delay)

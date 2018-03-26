@@ -5,7 +5,7 @@ job "foo" {
       attempts = 15
       interval = "30m"
       delay = "10s",
-      delay_function = "linear"
+      delay_function = "constant"
   }
   group "bar" {
     count = 3

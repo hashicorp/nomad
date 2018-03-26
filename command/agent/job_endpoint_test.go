@@ -1173,7 +1173,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				ReschedulePolicy: &api.ReschedulePolicy{
 					Interval:      helper.TimeToPtr(12 * time.Hour),
 					Attempts:      helper.IntToPtr(5),
-					DelayFunction: helper.StringToPtr("linear"),
+					DelayFunction: helper.StringToPtr("constant"),
 					Delay:         helper.TimeToPtr(30 * time.Second),
 					Unlimited:     helper.BoolToPtr(true),
 					MaxDelay:      helper.TimeToPtr(20 * time.Minute),
@@ -1395,7 +1395,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				ReschedulePolicy: &structs.ReschedulePolicy{
 					Interval:      12 * time.Hour,
 					Attempts:      5,
-					DelayFunction: "linear",
+					DelayFunction: "constant",
 					Delay:         30 * time.Second,
 					Unlimited:     true,
 					MaxDelay:      20 * time.Minute,
