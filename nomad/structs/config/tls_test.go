@@ -26,32 +26,32 @@ func TestTLSConfig_Merge(t *testing.T) {
 	assert.Equal(b, new)
 }
 
-func TestTLS_Equals_TrueWhenEmpty(t *testing.T) {
+func TestTLS_CertificateInfoIsEqual_TrueWhenEmpty(t *testing.T) {
 	assert := assert.New(t)
 	a := &TLSConfig{}
 	b := &TLSConfig{}
-	assert.True(a.Equals(b))
+	assert.True(a.CertificateInfoIsEqual(b))
 }
 
-func TestTLS_Equals_FalseWhenUnequal(t *testing.T) {
+func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 	assert := assert.New(t)
 	a := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
 	b := &TLSConfig{CAFile: "jkl", CertFile: "def", KeyFile: "ghi"}
-	assert.False(a.Equals(b))
+	assert.False(a.CertificateInfoIsEqual(b))
 }
 
-func TestTLS_Equals_TrueWhenEqual(t *testing.T) {
+func TestTLS_CertificateInfoIsEqual_TrueWhenEqual(t *testing.T) {
 	assert := assert.New(t)
 	a := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
 	b := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
-	assert.True(a.Equals(b))
+	assert.True(a.CertificateInfoIsEqual(b))
 }
 
 func TestTLS_Copy(t *testing.T) {
 	assert := assert.New(t)
 	a := &TLSConfig{CAFile: "abc", CertFile: "def", KeyFile: "ghi"}
 	aCopy := a.Copy()
-	assert.True(a.Equals(aCopy))
+	assert.True(a.CertificateInfoIsEqual(aCopy))
 }
 
 // GetKeyLoader should always return an initialized KeyLoader for a TLSConfig

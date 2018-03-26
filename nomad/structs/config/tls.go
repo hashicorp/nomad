@@ -186,20 +186,17 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	return result
 }
 
-// Equals compares the fields of two TLS configuration objects, returning a
-// boolean indicating if they are the same.
+// CertificateInfoIsEqual compares the fields of two TLS configuration objects
+// for the fields that are specific to configuring a TLS connection
 // It is possible for either the calling TLSConfig to be nil, or the TLSConfig
 // that it is being compared against, so we need to handle both places. See
 // server.go Reload for example.
-func (t *TLSConfig) Equals(newConfig *TLSConfig) bool {
+func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) bool {
 	if t == nil || newConfig == nil {
 		return t == newConfig
 	}
 
-	return t.EnableRPC == newConfig.EnableRPC &&
-		t.CAFile == newConfig.CAFile &&
+	return t.CAFile == newConfig.CAFile &&
 		t.CertFile == newConfig.CertFile &&
-		t.KeyFile == newConfig.KeyFile &&
-		t.RPCUpgradeMode == newConfig.RPCUpgradeMode &&
-		t.VerifyHTTPSClient == newConfig.VerifyHTTPSClient
+		t.KeyFile == newConfig.KeyFile
 }

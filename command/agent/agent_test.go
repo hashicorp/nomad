@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func tmpDir(t testing.TB) string {
@@ -771,9 +772,104 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 		config: agentConfig,
 	}
 
-	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(sameAgentConfig)
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
 	assert.False(shouldReloadAgent)
-	assert.False(shouldReloadHTTPServer)
+	assert.False(shouldReloadHTTP)
+	assert.False(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           false,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	sameAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	require.True(shouldReloadAgent)
+	require.True(shouldReloadHTTP)
+	require.False(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            false,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	sameAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := &Agent{
+		logger: logger,
+		config: agentConfig,
+	}
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	assert.True(shouldReloadAgent)
+	assert.False(shouldReloadHTTP)
+	assert.True(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
@@ -819,7 +915,8 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		config: agentConfig,
 	}
 
-	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(newConfig)
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
 	assert.True(shouldReloadAgent)
-	assert.True(shouldReloadHTTPServer)
+	assert.True(shouldReloadHTTP)
+	assert.True(shouldReloadRPC)
 }
