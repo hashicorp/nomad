@@ -2904,6 +2904,7 @@ func (r *ReschedulePolicy) Validate() error {
 		if r.Unlimited {
 			multierror.Append(&mErr, fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, "+
 				"and Unlimited = %v is ambiguous", r.Attempts, r.Interval, r.Unlimited))
+			multierror.Append(&mErr, errors.New("If Attempts >0, Unlimited cannot also be set to true"))
 		}
 	}
 
@@ -5686,6 +5687,7 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 	if reschedulePolicy.Unlimited {
 		return true
 	}
+	// Early return true if there are no attempts yet and the number of allowed attempts is > 0
 	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
 		return true
 	}

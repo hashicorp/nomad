@@ -2226,7 +2226,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 		},
 		{
-			desc: "Ambiguous Unlimited config",
+			desc: "Ambiguous Unlimited config, has both attempts and unlimited set",
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts:      1,
 				Unlimited:     true,
@@ -2250,6 +2250,15 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			errors: []error{
 				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
 				fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
+		},
+		{
+			desc: "Valid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Unlimited:     true,
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      1 * time.Hour,
 			},
 		},
 	}
