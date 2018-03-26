@@ -4,8 +4,7 @@ page_title: "reschedule Stanza - Job Specification"
 sidebar_current: "docs-job-specification-reschedule"
 description: |-
   The "reschedule" stanza specifies the group's rescheduling strategy upon
-  allocation failures. The reschedule strategy can be configured with options
-  described below. Nomad will only attempt to reschedule failed allocations on
+  allocation failures. Nomad will only attempt to reschedule failed allocations on
   to another node only after any local [restarts](docs/job-specification/restart.html)
   have been exceeded.
 ---
@@ -37,12 +36,12 @@ that hasn't previously been used.
 job "docs" {
   group "example" {
     reschedule {
-      attempts = 15
-      interval = "1hr"
-      delay = "30s"
-      delay_function = "exponential",
-      max_delay = "120s"
-      unlimited = false
+      attempts       = 15
+      interval       = "1hr"
+      delay          = "30s"
+      delay_function = "exponential"
+      max_delay      = "120s"
+      unlimited      = false
     }
   }
 }
@@ -62,13 +61,13 @@ job "docs" {
    number of reschedule happen within it. If more than `attempts` number of
    failures happen with this interval, Nomad will not reschedule any more.
 
-- `delay` `(string: "5s")` - Specifies the duration to wait before attempting
+- `delay` `(string: <varies>)` - Specifies the duration to wait before attempting
   to reschedule a failed task. This is specified using a label suffix like "30s" or "1h".
 
 - `delay_function` `(string: <varies>)` - Specifies the function according to which
   the initial delay specified in `delay` changes. `delay_function` has three possible
   values which are described below.
-    - `linear` - The delay between reschedule attempts stays constant at the `delay` value defined above.
+    - `constant` - The delay between reschedule attempts stays constant at the `delay` value.
     - `exponential` - The delay between reschedule attempts doubles until it reaches a specified
       `max_delay` value.
     - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
@@ -76,7 +75,7 @@ job "docs" {
       delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
 
 - `max_delay` `(string: <varies>)` - is an upper bound on the delay beyond which it will not increase. This parameter
-  is used when `delay_function` is `exponential` or `fibonacci`, and is ignored when `linear` delay is used.
+  is used when `delay_function` is `exponential` or `fibonacci`, and is ignored when `constant` delay is used.
 
 - `unlimited` `(boolean:<varies>)` - `unlimited` enables unlimited reschedule attempts. If this is set to true
   the `attempts` and `interval` fields are not used.
@@ -94,23 +93,23 @@ defaults by job type:
 
     ```hcl
     reschedule {
-      attempts = 1
-      interval = "24h"
-      unlimited = false
-      delay = "5s"
-      delay_function = "linear"
+      attempts       = 1
+      interval       = "24h"
+      unlimited      = false
+      delay          = "5s"
+      delay_function = "constant"
     }
     ```
 
 - The Default Service Reschedule Policy is:
 
     ```hcl
-    reschedule {
-      delay = "30s"
-      delay_function = "exponential"
-      max_delay = "1hr"
-      unlimited = true
-    }
+   reschedule {
+     delay          = "30s"
+     delay_function = "exponential"
+     max_delay      = "1hr"
+     unlimited      = true
+   }
     ```
 
 ### Rescheduling during deployments
@@ -127,7 +126,7 @@ To disable rescheduling, set the `attempts` parameter to zero and `unlimited` to
 job "docs" {
   group "example" {
     reschedule {
-      attempts = 0
+      attempts  = 0
       unlimited = false
     }
   }
