@@ -2897,6 +2897,16 @@ func (r *ReschedulePolicy) Validate() error {
 	}
 	var mErr multierror.Error
 	// Check for ambiguous/confusing settings
+	if r.Attempts > 0 {
+		if r.Interval <= 0 {
+			multierror.Append(&mErr, fmt.Errorf("Interval must be a non zero value if Attempts > 0"))
+		}
+		if r.Unlimited {
+			multierror.Append(&mErr, fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, "+
+				"and Unlimited = %v is ambiguous", r.Attempts, r.Interval, r.Unlimited))
+			multierror.Append(&mErr, errors.New("If Attempts >0, Unlimited cannot also be set to true"))
+		}
+	}
 
 	delayPreCheck := true
 	// Delay should be bigger than the default
@@ -2914,11 +2924,11 @@ func (r *ReschedulePolicy) Validate() error {
 	// Validate MaxDelay if not using linear delay progression
 	if r.DelayFunction != "linear" {
 		if r.MaxDelay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
-			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
+			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
 			delayPreCheck = false
 		}
 		if r.MaxDelay < r.Delay {
-			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
+			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
 			delayPreCheck = false
 		}
 
@@ -5674,7 +5684,11 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 	if !enabled {
 		return false
 	}
-	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 || reschedulePolicy.Unlimited {
+	if reschedulePolicy.Unlimited {
+		return true
+	}
+	// Early return true if there are no attempts yet and the number of allowed attempts is > 0
+	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
 		return true
 	}
 	attempted := 0

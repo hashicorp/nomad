@@ -2157,7 +2157,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Delay:         15 * time.Second,
 				MaxDelay:      5 * time.Second},
 			errors: []error{
-				fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)",
+				fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)",
 					15*time.Second, 5*time.Second),
 			},
 		},
@@ -2226,13 +2226,17 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 		},
 		{
-			desc: "Valid Unlimited config",
+			desc: "Ambiguous Unlimited config, has both attempts and unlimited set",
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts:      1,
 				Unlimited:     true,
 				DelayFunction: "exponential",
 				Delay:         5 * time.Minute,
 				MaxDelay:      1 * time.Hour,
+			},
+			errors: []error{
+				fmt.Errorf("Interval must be a non zero value if Attempts > 0"),
+				fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, and Unlimited = %v is ambiguous", 1, time.Duration(0), true),
 			},
 		},
 		{
@@ -2245,7 +2249,16 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 			errors: []error{
 				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
-				fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+				fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
+		},
+		{
+			desc: "Valid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Unlimited:     true,
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      1 * time.Hour,
 			},
 		},
 	}
@@ -2537,6 +2550,14 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			FailTime:         fail,
 			ReschedulePolicy: nil,
 			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with unlimited and attempts >0",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Unlimited: true},
+			ShouldReschedule: true,
 		},
 		{
 			Desc:             "Reschedule when client status is complete",
