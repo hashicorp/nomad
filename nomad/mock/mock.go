@@ -96,7 +96,7 @@ func Job() *structs.Job {
 					Attempts:      2,
 					Interval:      10 * time.Minute,
 					Delay:         5 * time.Second,
-					DelayFunction: "linear",
+					DelayFunction: "constant",
 				},
 				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
@@ -196,7 +196,7 @@ func BatchJob() *structs.Job {
 					Attempts:      2,
 					Interval:      10 * time.Minute,
 					Delay:         5 * time.Second,
-					DelayFunction: "linear",
+					DelayFunction: "constant",
 				},
 				Tasks: []*structs.Task{
 					{

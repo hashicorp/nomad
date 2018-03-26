@@ -1632,7 +1632,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				ReschedulePolicy: &ReschedulePolicy{
 					Attempts:      2,
 					Interval:      2 * time.Second,
-					DelayFunction: "linear",
+					DelayFunction: "constant",
 					Delay:         30 * time.Second,
 					MaxDelay:      1 * time.Minute,
 					Unlimited:     true,
@@ -1661,7 +1661,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeEdited,
 								Name: "DelayFunction",
 								Old:  "exponential",
-								New:  "linear",
+								New:  "constant",
 							},
 							{
 								Type: DiffTypeEdited,

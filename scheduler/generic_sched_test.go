@@ -2657,7 +2657,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 		Interval:      15 * time.Minute,
 		Delay:         5 * time.Second,
 		MaxDelay:      1 * time.Minute,
-		DelayFunction: "linear",
+		DelayFunction: "constant",
 	}
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
@@ -2770,7 +2770,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 		Interval:      15 * time.Minute,
 		Delay:         delayDuration,
 		MaxDelay:      1 * time.Minute,
-		DelayFunction: "linear",
+		DelayFunction: "constant",
 	}
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
@@ -2857,7 +2857,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		Attempts:      maxRestartAttempts,
 		Interval:      30 * time.Minute,
 		Delay:         5 * time.Second,
-		DelayFunction: "linear",
+		DelayFunction: "constant",
 	}
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()

@@ -1227,7 +1227,7 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 
 	// Set up reschedule policy
 	delayDur := 15 * time.Second
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: delayDur, DelayFunction: "linear"}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: delayDur, DelayFunction: "constant"}
 	tgName := job.TaskGroups[0].Name
 
 	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
@@ -1319,7 +1319,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 
 	// Set up reschedule policy
 	delayDur := 15 * time.Second
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: delayDur, DelayFunction: "linear"}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: delayDur, DelayFunction: "constant"}
 	tgName := job.TaskGroups[0].Name
 
 	// Create 10 existing allocations
@@ -1401,7 +1401,7 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 	job.TaskGroups[0].Count = 4
 	now := time.Now()
 	// Set up reschedule policy
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: 5 * time.Second, DelayFunction: "linear"}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: 5 * time.Second, DelayFunction: "constant"}
 	tgName := job.TaskGroups[0].Name
 	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
 	var allocs []*structs.Allocation
