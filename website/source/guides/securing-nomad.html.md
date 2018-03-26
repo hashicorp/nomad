@@ -467,11 +467,6 @@ tls {
   verify_https_client    = true
 }
 ```
-
-NOTE: Dynamically reloading certificates will _not_ close existing connections.
-If you need to rotate certificates due to a security incident, you will still
-need to completely shutdown and restart the Nomad agent.
-
 ## Migrating a cluster to TLS
 
 Nomad supports dynamically reloading it's TLS configuration. To reload Nomad's
