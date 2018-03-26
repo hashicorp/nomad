@@ -1523,7 +1523,12 @@ func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
 
 	// Set up reschedule policy
 	delayDur := 15 * time.Second
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: delayDur, MaxDelay: 1 * time.Hour}
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 1,
+		Interval: 24 * time.Hour,
+		Delay:    delayDur,
+		MaxDelay: 1 * time.Hour,
+	}
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
