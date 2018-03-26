@@ -3330,7 +3330,10 @@ func TestACLTokenValidate(t *testing.T) {
 	}
 
 	// Name too long policies
-	tk.Name = uuid.Generate() + uuid.Generate()
+	tk.Name = ""
+	for i := 0; i < 8; i++ {
+		tk.Name += uuid.Generate()
+	}
 	tk.Policies = nil
 	err = tk.Validate()
 	assert.NotNil(t, err)
