@@ -1070,6 +1070,7 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 						Subsystem: "Driver",
 						Message:   health.HealthDescription,
 						Timestamp: time.Now(),
+						Details:   map[string]string{"driver": name},
 					}
 					c.triggerNodeEvent(event)
 				}
