@@ -518,7 +518,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 				// Found it!
 				markerFound = true
 				buf := make([]byte, int(header.Size))
-				if _, err := r.Read(buf); err != nil {
+				if _, err := r.Read(buf); err != nil && err != io.EOF {
 					t.Errorf("Unexpected error reading error marker %s: %v", errorFilename, err)
 				} else {
 					markerContents = string(buf)
