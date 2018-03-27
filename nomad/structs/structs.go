@@ -165,6 +165,25 @@ type RPCInfo interface {
 	RequestRegion() string
 	IsRead() bool
 	AllowStaleRead() bool
+	IsForwarded() bool
+	SetForwarded()
+}
+
+// InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
+// should NOT be replicated in the API package as it is internal only.
+type InternalRpcInfo struct {
+	// Forwarded marks whether the RPC has been forwarded.
+	Forwarded bool
+}
+
+// IsForwarded returns whether the RPC is forwarded from another server.
+func (i *InternalRpcInfo) IsForwarded() bool {
+	return i.Forwarded
+}
+
+// SetForwarded marks that the RPC is being forwarded from another server.
+func (i *InternalRpcInfo) SetForwarded() {
+	i.Forwarded = true
 }
 
 // QueryOptions is used to specify various flags for read queries
@@ -191,6 +210,8 @@ type QueryOptions struct {
 
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
+
+	InternalRpcInfo
 }
 
 func (q QueryOptions) RequestRegion() string {
@@ -222,6 +243,8 @@ type WriteRequest struct {
 
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
+
+	InternalRpcInfo
 }
 
 func (w WriteRequest) RequestRegion() string {
