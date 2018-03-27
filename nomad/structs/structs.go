@@ -1188,7 +1188,7 @@ type NodeEvent struct {
 	Message     string
 	Subsystem   string
 	Details     map[string]string
-	Timestamp   int64
+	Timestamp   time.Time
 	CreateIndex uint64
 }
 
@@ -1198,7 +1198,7 @@ func (ne *NodeEvent) String() string {
 		details = append(details, fmt.Sprintf("%s: %s", k, v))
 	}
 
-	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, ne.Subsystem, strings.Join(details, ","), ne.Timestamp)
+	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %s", ne.Message, ne.Subsystem, strings.Join(details, ","), ne.Timestamp.String())
 }
 
 func (ne *NodeEvent) Copy() *NodeEvent {

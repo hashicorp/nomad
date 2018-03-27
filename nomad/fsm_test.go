@@ -91,7 +91,7 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 	nodeEvent := &structs.NodeEvent{
 		Message:   "Heartbeating failed",
 		Subsystem: "Heartbeat",
-		Timestamp: time.Now().Unix(),
+		Timestamp: time.Now(),
 	}
 
 	nodeEvents := []*structs.NodeEvent{nodeEvent}
