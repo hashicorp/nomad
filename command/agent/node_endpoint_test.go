@@ -327,11 +327,15 @@ func TestHTTP_NodeEligible(t *testing.T) {
 		respW := httptest.NewRecorder()
 
 		// Make the request
-		_, err = s.Server.NodeSpecificRequest(respW, req)
+		obj, err := s.Server.NodeSpecificRequest(respW, req)
 		require.Nil(err)
 
 		// Check for the index
 		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+
+		// Check the response
+		_, ok := obj.(structs.NodeEligibilityUpdateResponse)
+		require.True(ok)
 
 		// Check that the node has been updated
 		state := s.Agent.server.State()

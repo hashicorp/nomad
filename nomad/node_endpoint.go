@@ -442,8 +442,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if err != nil {
 		return err
 	}
-	ws := memdb.NewWatchSet()
-	node, err := snap.NodeByID(ws, args.NodeID)
+	node, err := snap.NodeByID(nil, args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -474,6 +473,18 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	}
 	reply.NodeModifyIndex = index
 
+	// If the node is transistioning to be eligible, create Node evaluations
+	// because there may be a System job registered that should be evaluated.
+	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.MarkEligible && args.DrainStrategy == nil {
+		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+		if err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+			return err
+		}
+		reply.EvalIDs = evalIDs
+		reply.EvalCreateIndex = evalIndex
+	}
+
 	// Set the reply index
 	reply.Index = index
 	return nil
@@ -481,7 +492,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 
 // UpdateEligibility is used to update the scheduling eligibility of a node
 func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
-	reply *structs.GenericResponse) error {
+	reply *structs.NodeEligibilityUpdateResponse) error {
 	if done, err := n.srv.forward("Node.UpdateEligibility", args, args, reply); done {
 		return err
 	}
@@ -499,13 +510,19 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		return fmt.Errorf("missing node ID for setting scheduling eligibility")
 	}
 
+	// Check that only allowed types are set
+	switch args.Eligibility {
+	case structs.NodeSchedulingEligible, structs.NodeSchedulingIneligible:
+	default:
+		return fmt.Errorf("invalid scheduling eligibility %q", args.Eligibility)
+	}
+
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
-	ws := memdb.NewWatchSet()
-	node, err := snap.NodeByID(ws, args.NodeID)
+	node, err := snap.NodeByID(nil, args.NodeID)
 	if err != nil {
 		return err
 	}
@@ -534,6 +551,18 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 			n.srv.logger.Printf("[ERR] nomad.client: eligibility update failed: %v", err)
 			return err
 		}
+	}
+
+	// If the node is transistioning to be eligible, create Node evaluations
+	// because there may be a System job registered that should be evaluated.
+	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.Eligibility == structs.NodeSchedulingEligible {
+		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
+		if err != nil {
+			n.srv.logger.Printf("[ERR] nomad.client: eval creation failed: %v", err)
+			return err
+		}
+		reply.EvalIDs = evalIDs
+		reply.EvalCreateIndex = evalIndex
 	}
 
 	// Set the reply index

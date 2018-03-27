@@ -929,12 +929,17 @@ type NodeUpdateResponse struct {
 // NodeDrainUpdateResponse is used to respond to a node drain update
 type NodeDrainUpdateResponse struct {
 	NodeModifyIndex uint64
-	QueryMeta
-
-	// Deprecated in Nomad 0.8 as an evaluation is not immediately created but
-	// is instead handled by the drainer.
 	EvalIDs         []string
 	EvalCreateIndex uint64
+	WriteMeta
+}
+
+// NodeEligibilityUpdateResponse is used to respond to a node eligibility update
+type NodeEligibilityUpdateResponse struct {
+	NodeModifyIndex uint64
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	WriteMeta
 }
 
 // NodeAllocsResponse is used to return allocs for a single node

@@ -845,10 +845,25 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(out.Drain)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
+
 	// before+deadline should be before the forced deadline
 	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
+
 	// now+deadline should be after the forced deadline
 	require.True(time.Now().Add(strategy.Deadline).After(out.DrainStrategy.ForceDeadline))
+
+	// Register a system job
+	job := mock.SystemJob()
+	require.Nil(s1.State().UpsertJob(10, job))
+
+	// Update the eligibility and expect evals
+	dereg.DrainStrategy = nil
+	dereg.MarkEligible = true
+	var resp3 structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp3))
+	require.NotZero(resp3.Index)
+	require.NotZero(resp3.EvalCreateIndex)
+	require.Len(resp3.EvalIDs, 1)
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
@@ -1062,20 +1077,34 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 
 	// Update the eligibility
-	dereg := &structs.NodeUpdateEligibilityRequest{
+	elig := &structs.NodeUpdateEligibilityRequest{
 		NodeID:       node.ID,
 		Eligibility:  structs.NodeSchedulingIneligible,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	var resp2 structs.GenericResponse
-	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp2))
+	var resp2 structs.NodeEligibilityUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", elig, &resp2))
 	require.NotZero(resp2.Index)
+	require.Zero(resp2.EvalCreateIndex)
+	require.Empty(resp2.EvalIDs)
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	out, err := state.NodeByID(nil, node.ID)
 	require.Nil(err)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+
+	// Register a system job
+	job := mock.SystemJob()
+	require.Nil(s1.State().UpsertJob(10, job))
+
+	// Update the eligibility and expect evals
+	elig.Eligibility = structs.NodeSchedulingEligible
+	var resp3 structs.NodeEligibilityUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", elig, &resp3))
+	require.NotZero(resp3.Index)
+	require.NotZero(resp3.EvalCreateIndex)
+	require.Len(resp3.EvalIDs, 1)
 }
 
 func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
@@ -1103,7 +1132,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	{
-		var resp structs.GenericResponse
+		var resp structs.NodeEligibilityUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp)
 		require.NotNil(err, "RPC")
 		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
@@ -1112,14 +1141,14 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 	// Try with a valid token
 	dereg.AuthToken = validToken.SecretID
 	{
-		var resp structs.GenericResponse
+		var resp structs.NodeEligibilityUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp), "RPC")
 	}
 
 	// Try with a invalid token
 	dereg.AuthToken = invalidToken.SecretID
 	{
-		var resp structs.GenericResponse
+		var resp structs.NodeEligibilityUpdateResponse
 		err := msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp)
 		require.NotNil(err, "RPC")
 		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
@@ -1128,7 +1157,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 	// Try with a root token
 	dereg.AuthToken = root.SecretID
 	{
-		var resp structs.GenericResponse
+		var resp structs.NodeEligibilityUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateEligibility", dereg, &resp), "RPC")
 	}
 }
