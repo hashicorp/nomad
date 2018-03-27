@@ -1188,7 +1188,7 @@ type NodeEvent struct {
 	Message     string
 	Subsystem   string
 	Details     map[string]string
-	Timestamp   int64
+	Timestamp   time.Time
 	CreateIndex uint64
 }
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sort"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -538,7 +539,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		nodeEvent := &structs.NodeEvent{
 			Message:   "Node Registered",
 			Subsystem: "Cluster",
-			Timestamp: node.StatusUpdatedAt,
+			Timestamp: time.Unix(node.StatusUpdatedAt, 0),
 		}
 		node.Events = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index

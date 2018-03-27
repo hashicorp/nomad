@@ -429,7 +429,7 @@ func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
 	}
 
 	for i, event := range events {
-		timestamp := formatTime(time.Unix(event.Timestamp, 0))
+		timestamp := formatTime(event.Timestamp)
 		subsystem := event.Subsystem
 		msg := event.Message
 		if c.verbose {
