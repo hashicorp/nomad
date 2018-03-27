@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -32,9 +31,6 @@ func testLogger() *log.Logger {
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
 func TestConsul_Integration(t *testing.T) {
-	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
-		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
-	}
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
