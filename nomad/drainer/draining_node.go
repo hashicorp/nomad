@@ -81,7 +81,6 @@ func (n *drainingNode) IsDone() (bool, error) {
 	return true, nil
 }
 
-// TODO test that we return the right thing given the strategies
 // RemainingAllocs returns the set of allocations remaining on a node that
 // still need to be drained.
 func (n *drainingNode) RemainingAllocs() ([]*structs.Allocation, error) {
@@ -120,7 +119,7 @@ func (n *drainingNode) RemainingAllocs() ([]*structs.Allocation, error) {
 	return drain, nil
 }
 
-// RunningServices returns the set of jobs on the node
+// RunningServices returns the set of service jobs on the node.
 func (n *drainingNode) RunningServices() ([]structs.NamespacedID, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
