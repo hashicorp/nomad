@@ -152,7 +152,10 @@ func (w *drainingJobWatcher) watch() {
 					w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
 					return
 				default:
-					// The query context was cancelled
+					// The query context was cancelled;
+					// reset index so we don't miss past
+					// updates to newly registered jobs
+					waitIndex = 1
 					continue
 				}
 			}
