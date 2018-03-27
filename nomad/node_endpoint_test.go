@@ -2864,7 +2864,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	nodeEvent := &structs.NodeEvent{
 		Message:   "Registration failed",
 		Subsystem: "Server",
-		Timestamp: time.Now().Unix(),
+		Timestamp: time.Now(),
 	}
 
 	nodeEvents := map[string][]*structs.NodeEvent{node.ID: {nodeEvent}}
