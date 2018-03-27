@@ -387,6 +387,98 @@ func Alloc() *structs.Allocation {
 	return alloc
 }
 
+func BatchAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "worker",
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+			DiskMB:   150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http"}},
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"worker": {
+				CPU:      100,
+				MemoryMB: 100,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  50,
+					},
+				},
+			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
+		Job:           BatchJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func SystemAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "web",
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+			DiskMB:   150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http"}},
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      500,
+				MemoryMB: 256,
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
+		Job:           SystemJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
 func VaultAccessor() *structs.VaultAccessor {
 	return &structs.VaultAccessor{
 		Accessor:    uuid.Generate(),

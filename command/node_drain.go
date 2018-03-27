@@ -410,7 +410,7 @@ func monitorDrain(output func(string), nodeClient *api.Nodes, nodeID string, ind
 	// Loop on alloc messages for a bit longer as we may have gotten the
 	// "node done" first (since the watchers run concurrently the events
 	// may be received out of order)
-	deadline := 250 * time.Millisecond
+	deadline := 500 * time.Millisecond
 	timer := time.NewTimer(deadline)
 	for {
 		select {
