@@ -127,10 +127,15 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 	// Hot path if no attempts are expected
 	if r.policy.Attempts == 0 {
 		r.reason = ReasonNoRestartsAllowed
-		if r.waitRes != nil && r.waitRes.Successful() {
+
+		// If the task does not restart on a successful exit code and
+		// the exit code was successful: terminate.
+		if !r.onSuccess && r.waitRes != nil && r.waitRes.Successful() {
 			return structs.TaskTerminated, 0
 		}
 
+		// Task restarts even on a successful exit code but no restarts
+		// allowed.
 		return structs.TaskNotRestarting, 0
 	}
 
