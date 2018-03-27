@@ -47,14 +47,16 @@ func (n *drainingNode) DeadlineTime() (bool, time.Time) {
 	return n.node.DrainStrategy.DeadlineTime()
 }
 
-// IsDone returns if the node is done draining
-func (n *drainingNode) IsDone() (bool, error) {
+// IsDone returns if the node is done draining and if it is done: the list of
+// system allocs that should be stopped. System allocs will not be stopped on
+// nodes with any non-terminal non-system allocs.
+func (n *drainingNode) IsDone() (bool, []*structs.Allocation, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
 
 	// Should never happen
 	if n.node == nil || n.node.DrainStrategy == nil {
-		return false, fmt.Errorf("node doesn't have a drain strategy set")
+		return false, nil, fmt.Errorf("node doesn't have a drain strategy set")
 	}
 
 	// Grab the relevant drain info
@@ -63,22 +65,32 @@ func (n *drainingNode) IsDone() (bool, error) {
 	// Retrieve the allocs on the node
 	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
+
+	sysAllocs := make([]*structs.Allocation, 0, 6)
 
 	for _, alloc := range allocs {
 		// Skip system if configured to
-		if alloc.Job.Type == structs.JobTypeSystem && ignoreSystem {
+		if alloc.Job.Type == structs.JobTypeSystem {
+			if !ignoreSystem {
+
+				// Build list of system allocs to return if all other
+				// allocs have terminated. Since system jobs are not
+				// being ignored they should be stopped once all other
+				// allocs have completed.
+				sysAllocs = append(sysAllocs, alloc)
+			}
 			continue
 		}
 
 		// If there is a non-terminal we aren't done
 		if !alloc.TerminalStatus() {
-			return false, nil
+			return false, nil, nil
 		}
 	}
 
-	return true, nil
+	return true, sysAllocs, nil
 }
 
 // TODO test that we return the right thing given the strategies

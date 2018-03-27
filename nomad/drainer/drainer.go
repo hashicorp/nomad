@@ -275,13 +275,14 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	// For each node, check if it is now done
 	n.l.RLock()
 	var done []string
+	var allSysAllocs []*structs.Allocation
 	for node := range nodes {
 		draining, ok := n.nodes[node]
 		if !ok {
 			continue
 		}
 
-		isDone, err := draining.IsDone()
+		isDone, sysAllocs, err := draining.IsDone()
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.drain: checking if node %q is done draining: %v", node, err)
 			continue
@@ -292,8 +293,18 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 		}
 
 		done = append(done, node)
+		allSysAllocs = append(allSysAllocs, sysAllocs...)
 	}
 	n.l.RUnlock()
+
+	// Stop any running system jobs on otherwise done nodes
+	if len(allSysAllocs) > 0 {
+		future := structs.NewBatchFuture()
+		n.drainAllocs(future, allSysAllocs)
+		if err := future.Wait(); err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to drain system jobs: %v", err)
+		}
+	}
 
 	// Submit the node transistions in a sharded form to ensure a reasonable
 	// Raft transaction size.

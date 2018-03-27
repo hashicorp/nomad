@@ -80,13 +80,23 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	// allocs immediately gets unmarked as draining
 	// Check if the node is done such that if an operator drains a node with
 	// nothing on it we unset drain
-	done, err := draining.IsDone()
+	done, sysAllocs, err := draining.IsDone()
 	if err != nil {
 		n.logger.Printf("[ERR] nomad.drain: failed to check if node %q is done draining: %v", node.ID, err)
 		return
 	}
 
 	if done {
+		// Stop any running system jobs
+		if len(sysAllocs) > 0 {
+			future := structs.NewBatchFuture()
+			n.drainAllocs(future, sysAllocs)
+			if err := future.Wait(); err != nil {
+				n.logger.Printf("[ERR] nomad.drain: failed to drain system jobs for node %q: %v", node.ID, err)
+			}
+		}
+
+		// Mark node as completed draining
 		index, err := n.raft.NodesDrainComplete([]string{node.ID})
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", node.ID, err)
