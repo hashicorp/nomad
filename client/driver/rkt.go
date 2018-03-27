@@ -132,12 +132,12 @@ func rktGetStatus(uuid string, logger *log.Logger) (*rktv1.Pod, error) {
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
 		if outBuf.Len() > 0 {
-			logger.Printf("[DEBUG] driver.rkt: rktGetStatus(UUID: %s) - outBuf: %q", uuid, elide(outBuf))
+			logger.Printf("[DEBUG] driver.rkt: status output for UUID %s: %q", uuid, elide(outBuf))
 		}
 		if errBuf.Len() == 0 {
 			return nil, err
 		}
-		logger.Printf("[DEBUG] driver.rkt: rktGetStatus(UUID: %s) - errBuf: %q", uuid, elide(errBuf))
+		logger.Printf("[DEBUG] driver.rkt: status error output for UUID %s: %q", uuid, elide(errBuf))
 		return nil, fmt.Errorf("%s. stderr: %q", err, elide(errBuf))
 	}
 	var status rktv1.Pod
@@ -172,13 +172,9 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 	var lastErr error
 	try := 0
 
-	logger.Printf("[DEBUG] driver.rkt: rktGetDriverNetwork(UUID: %s) - trying to get info in %d seconds.", uuid, (rktNetworkDeadline / time.Second))
-
 	for time.Now().Before(deadline) {
 		try++
 		if status, err := rktGetStatus(uuid, logger); err == nil {
-			logger.Printf("[DEBUG] driver.rkt: rktGetDriverNetwork(UUID: %s) - rktGetStatus command successful.", uuid)
-			logger.Printf("[TRACE] driver.rkt: rktGetDriverNetwork(UUID: %s) - rktGetStatus output: %+v", uuid, status)
 			for _, net := range status.Networks {
 				if !net.IP.IsGlobalUnicast() {
 					continue
@@ -199,8 +195,6 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 				}
 
 				// This is a successful landing.
-				logger.Printf("[DEBUG] driver.rkt: rktGetDriverNetwork(UUID: %s) - try %d: Successfully obtained portmap.", uuid, try)
-				logger.Printf("[TRACE] driver.rkt: rktGetDriverNetwork(UUID: %s) - try %d: Obtained portmap: %+v", uuid, try, portmap)
 				return &cstructs.DriverNetwork{
 					PortMap: portmap,
 					IP:      status.Networks[0].IP.String(),
@@ -217,7 +211,7 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 		}
 
 		waitTime := getJitteredNetworkRetryTime()
-		logger.Printf("[DEBUG] driver.rkt: rktGetDriverNetwork(UUID: %s) - try %d: error: %v. Sleeping for %dms", uuid, try, lastErr, waitTime/time.Millisecond)
+		logger.Printf("[DEBUG] driver.rkt: getting network info for pod UUID %s failed attempt %d: %v. Sleeping for %v", uuid, try, lastErr, waitTime)
 		time.Sleep(waitTime)
 	}
 	return nil, fmt.Errorf("timed out, last error: %v", lastErr)
@@ -256,7 +250,7 @@ func rktRemove(uuid string) error {
 	cmd.Stderr = errBuf
 	if err := cmd.Run(); err != nil {
 		if msg := errBuf.String(); len(msg) > 0 {
-			return fmt.Errorf("error removing pod (UUID: %q): %s", uuid, msg)
+			return fmt.Errorf("error removing pod UUID %q: %s", uuid, msg)
 		}
 		return err
 	}
@@ -377,8 +371,7 @@ func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 
 	// Output version information when the fingerprinter first sees rkt
 	if req.Node.Attributes[rktDriverAttr] != "1" {
-		d.logger.Printf("[DEBUG] driver.rkt: rkt found; version info: [%s]",
-			strings.Replace(out, "\n", " ", -1))
+		d.logger.Printf("[DEBUG] driver.rkt: detect version: %s", strings.Replace(out, "\n", " ", -1))
 	}
 	resp.AddAttribute(rktDriverAttr, "1")
 	resp.AddAttribute("driver.rkt.version", rktMatches[1])
@@ -857,8 +850,7 @@ func (h *rktHandle) run() {
 
 // Create a time with a 0 to 100ms jitter for rktGetDriverNetwork retries
 func getJitteredNetworkRetryTime() time.Duration {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return time.Duration(900+r.Intn(100)) * time.Millisecond
+	return time.Duration(900+rand.Intn(100)) * time.Millisecond
 }
 
 // Conditionally elide a buffer to an arbitrary length
