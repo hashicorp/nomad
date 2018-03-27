@@ -414,6 +414,7 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	// decide on what type of connections to accept
 	c.configLock.Lock()
 	c.config.TLSConfig = newConfig
+	c.config.TLSConfig.SetChecksum()
 	c.configLock.Unlock()
 
 	c.connPool.ReloadTLS(tlsWrap)
