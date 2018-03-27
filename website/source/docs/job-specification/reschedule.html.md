@@ -64,12 +64,11 @@ job "docs" {
 - `delay` `(string: <varies>)` - Specifies the duration to wait before attempting
   to reschedule a failed task. This is specified using a label suffix like "30s" or "1h".
 
-- `delay_function` `(string: <varies>)` - Specifies the function according to which
-  the initial delay specified in `delay` changes. `delay_function` has three possible
-  values which are described below.
+- `delay_function` `(string: <varies>)` - Specifies the function that is used to
+  calculate subsequent reschedule delays. The initial delay is specified by the delay parameter.
+  `delay_function` has three possible values which are described below.
     - `constant` - The delay between reschedule attempts stays constant at the `delay` value.
-    - `exponential` - The delay between reschedule attempts doubles until it reaches a specified
-      `max_delay` value.
+    - `exponential` - The delay between reschedule attempts doubles.
     - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
       delays applied. For example if `delay` is set to 5 seconds, the next five reschedule attempts  will be
       delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
