@@ -91,6 +91,9 @@ log_level = "DEBUG"
 # Setup data dir
 data_dir = "/tmp/client1"
 
+# Give the agent a unique name. Defaults to hostname
+name = "client1"
+
 # Enable the client
 client {
     enabled = true
@@ -107,10 +110,9 @@ ports {
 }
 ```
 
-Copy that file to `client2.hcl` and change the `data_dir` to
-be `/tmp/client2` and the `http` port to 5657. Once you've created
-both `client1.hcl` and `client2.hcl`, open a tab for each and
-start the agents:
+Copy that file to `client2.hcl`. Change the `data_dir` to be `/tmp/client2`,
+the `name` to `client2`, and the `http` port to 5657. Once you have created
+both `client1.hcl` and `client2.hcl`, open a tab for each and start the agents:
 
 ```text
 $ sudo nomad agent -config client1.hcl
@@ -140,9 +142,9 @@ we should see both nodes in the `ready` state:
 
 ```text 
 $ nomad node status
-ID        Datacenter  Name   Class   Drain  Status
-fca62612  dc1         nomad  <none>  false  ready
-c887deef  dc1         nomad  <none>  false  ready
+ID        Datacenter  Name     Class   Drain  Status
+fca62612  dc1         client1  <none>  false  ready
+c887deef  dc1         client2  <none>  false  ready
 ```
 
 We now have a simple three node cluster running. The only difference
