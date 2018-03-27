@@ -79,43 +79,97 @@ func TestClientEndpoint_Register(t *testing.T) {
 	})
 }
 
-func TestClientEndpoint_EmitEvents(t *testing.T) {
+// This test asserts that we only track node connections if they are not from
+// forwarded RPCs. This is essential otherwise we will think a Yamux session to
+// a Nomad server is actually the session to the node.
+func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 
-	s1 := TestServer(t, nil)
-	state := s1.fsm.State()
 	defer s1.Shutdown()
-	codec := rpcClient(t, s1)
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
 
-	// create a node that we can register our event to
-	node := mock.Node()
-	err := state.UpsertNode(2, node)
-	require.Nil(err)
-
-	nodeEvent := &structs.NodeEvent{
-		Message:   "Registration failed",
-		Subsystem: "Server",
-		Timestamp: time.Now().Unix(),
+	// Determine the non-leader server
+	var leader, nonLeader *Server
+	if s1.IsLeader() {
+		leader = s1
+		nonLeader = s2
+	} else {
+		leader = s2
+		nonLeader = s1
 	}
 
-	nodeEvents := map[string][]*structs.NodeEvent{node.ID: {nodeEvent}}
-	req := structs.EmitNodeEventsRequest{
-		NodeEvents:   nodeEvents,
+	// Send the requests to the non-leader
+	codec := rpcClient(t, nonLeader)
+
+	// Check that we have no client connections
+	require.Empty(nonLeader.connectedNodes())
+	require.Empty(leader.connectedNodes())
+
+	// Create the register request
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 
+	// Fetch the response
 	var resp structs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
-	require.Nil(err)
-	require.NotEqual(0, resp.Index)
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check that we have the client connections on the non leader
+	nodes := nonLeader.connectedNodes()
+	require.Len(nodes, 1)
+	require.Contains(nodes, node.ID)
+
+	// Check that we have no client connections on the leader
+	nodes = leader.connectedNodes()
+	require.Empty(nodes)
 
 	// Check for the node in the FSM
-	ws := memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	require.Nil(err)
-	require.False(len(out.Events) < 2)
+	state := leader.State()
+	testutil.WaitForResult(func() (bool, error) {
+		out, err := state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("expected node")
+		}
+		if out.CreateIndex != resp.Index {
+			return false, fmt.Errorf("index mis-match")
+		}
+		if out.ComputedClass == "" {
+			return false, fmt.Errorf("ComputedClass not set")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Close the connection and check that we remove the client connections
+	require.Nil(codec.Close())
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := nonLeader.connectedNodes()
+		return len(nodes) == 0, nil
+	}, func(err error) {
+		t.Fatalf("should have no clients")
+	})
 }
 
 func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
@@ -2790,4 +2844,43 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	if resp.Error == nil || !resp.Error.IsRecoverable() {
 		t.Fatalf("bad: %+v", resp.Error)
 	}
+}
+
+func TestClientEndpoint_EmitEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1 := TestServer(t, nil)
+	state := s1.fsm.State()
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create a node that we can register our event to
+	node := mock.Node()
+	err := state.UpsertNode(2, node)
+	require.Nil(err)
+
+	nodeEvent := &structs.NodeEvent{
+		Message:   "Registration failed",
+		Subsystem: "Server",
+		Timestamp: time.Now().Unix(),
+	}
+
+	nodeEvents := map[string][]*structs.NodeEvent{node.ID: {nodeEvent}}
+	req := structs.EmitNodeEventsRequest{
+		NodeEvents:   nodeEvents,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
+	require.Nil(err)
+	require.NotEqual(0, resp.Index)
+
+	// Check for the node in the FSM
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.Nil(err)
+	require.False(len(out.Events) < 2)
 }

@@ -355,6 +355,8 @@ func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, 
 
 	// Handle region forwarding
 	if region != s.config.Region {
+		// Mark that we are forwarding the RPC
+		info.SetForwarded()
 		err := s.forwardRegion(region, method, args, reply)
 		return true, err
 	}
@@ -375,6 +377,8 @@ CHECK_LEADER:
 
 	// Handle the case of a known leader
 	if remoteServer != nil {
+		// Mark that we are forwarding the RPC
+		info.SetForwarded()
 		err := s.forwardLeader(remoteServer, method, args, reply)
 		return true, err
 	}

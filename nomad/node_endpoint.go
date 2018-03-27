@@ -55,6 +55,14 @@ type Node struct {
 // Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
+		// We have a valid node connection since there is no error from the
+		// forwarded server, so add the mapping to cache the
+		// connection and allow the server to send RPCs to the client.
+		if err == nil && n.ctx != nil && n.ctx.NodeID == "" {
+			n.ctx.NodeID = args.Node.ID
+			n.srv.addNodeConn(n.ctx)
+		}
+
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "register"}, time.Now())
@@ -120,8 +128,9 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	// We have a valid node connection, so add the mapping to cache the
-	// connection and allow the server to send RPCs to the client.
-	if n.ctx != nil && n.ctx.NodeID == "" {
+	// connection and allow the server to send RPCs to the client. We only cache
+	// the connection if it is not being forwarded from another server.
+	if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
 		n.ctx.NodeID = args.Node.ID
 		n.srv.addNodeConn(n.ctx)
 	}
@@ -290,6 +299,14 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 // UpdateStatus is used to update the status of a client node
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {
+		// We have a valid node connection since there is no error from the
+		// forwarded server, so add the mapping to cache the
+		// connection and allow the server to send RPCs to the client.
+		if err == nil && n.ctx != nil && n.ctx.NodeID == "" {
+			n.ctx.NodeID = args.NodeID
+			n.srv.addNodeConn(n.ctx)
+		}
+
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
@@ -318,8 +335,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	// We have a valid node connection, so add the mapping to cache the
-	// connection and allow the server to send RPCs to the client.
-	if n.ctx != nil && n.ctx.NodeID == "" {
+	// connection and allow the server to send RPCs to the client. We only cache
+	// the connection if it is not being forwarded from another server.
+	if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
 		n.ctx.NodeID = args.NodeID
 		n.srv.addNodeConn(n.ctx)
 	}
@@ -743,6 +761,14 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeClientAllocsResponse) error {
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
+		// We have a valid node connection since there is no error from the
+		// forwarded server, so add the mapping to cache the
+		// connection and allow the server to send RPCs to the client.
+		if err == nil && n.ctx != nil && n.ctx.NodeID == "" {
+			n.ctx.NodeID = args.NodeID
+			n.srv.addNodeConn(n.ctx)
+		}
+
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
@@ -778,8 +804,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 				}
 
 				// We have a valid node connection, so add the mapping to cache the
-				// connection and allow the server to send RPCs to the client.
-				if n.ctx != nil && n.ctx.NodeID == "" {
+				// connection and allow the server to send RPCs to the client. We only cache
+				// the connection if it is not being forwarded from another server.
+				if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
 					n.ctx.NodeID = args.NodeID
 					n.srv.addNodeConn(n.ctx)
 				}
