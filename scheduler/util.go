@@ -214,11 +214,6 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 			}
 		}
 
-		// Migrate does not apply to system jobs and instead should be marked as
-		// stop because if a node is tainted, the job is invalid on that node.
-		diff.stop = append(diff.stop, diff.migrate...)
-		diff.migrate = nil
-
 		result.Append(diff)
 	}
 
