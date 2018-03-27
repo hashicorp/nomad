@@ -176,9 +176,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	spec := &DrainSpec{
 		Deadline: 10 * time.Second,
 	}
-	wm, err := nodes.UpdateDrain(nodeID, spec, false, nil)
+	drainOut, err := nodes.UpdateDrain(nodeID, spec, false, nil)
 	require.Nil(err)
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &drainOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -188,9 +188,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 
 	// Toggle off again
-	wm, err = nodes.UpdateDrain(nodeID, nil, true, nil)
+	drainOut, err = nodes.UpdateDrain(nodeID, nil, true, nil)
 	require.Nil(err)
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &drainOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -240,11 +240,11 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	}
 
 	// Toggle it off
-	wm, err := nodes.ToggleEligibility(nodeID, false, nil)
+	eligOut, err := nodes.ToggleEligibility(nodeID, false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &eligOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -256,11 +256,11 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	}
 
 	// Toggle on
-	wm, err = nodes.ToggleEligibility(nodeID, true, nil)
+	eligOut, err = nodes.ToggleEligibility(nodeID, true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &eligOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)

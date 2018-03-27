@@ -57,21 +57,31 @@ type NodeUpdateDrainRequest struct {
 	MarkEligible bool
 }
 
+// NodeDrainUpdateResponse is used to respond to a node drain update
+type NodeDrainUpdateResponse struct {
+	NodeModifyIndex uint64
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	WriteMeta
+}
+
 // UpdateDrain is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
 // as having its scheduling being elibile
-func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*WriteMeta, error) {
+func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*NodeDrainUpdateResponse, error) {
 	req := &NodeUpdateDrainRequest{
 		NodeID:       nodeID,
 		DrainSpec:    spec,
 		MarkEligible: markEligible,
 	}
 
-	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, nil, q)
+	var resp NodeDrainUpdateResponse
+	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
-	return wm, nil
+	resp.WriteMeta = *wm
+	return &resp, nil
 }
 
 // NodeUpdateEligibilityRequest is used to update the drain specification for a node.
@@ -81,8 +91,16 @@ type NodeUpdateEligibilityRequest struct {
 	Eligibility string
 }
 
+// NodeEligibilityUpdateResponse is used to respond to a node eligibility update
+type NodeEligibilityUpdateResponse struct {
+	NodeModifyIndex uint64
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	WriteMeta
+}
+
 // ToggleEligibility is used to update the scheduling eligibility of the node
-func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*WriteMeta, error) {
+func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*NodeEligibilityUpdateResponse, error) {
 	e := structs.NodeSchedulingEligible
 	if !eligible {
 		e = structs.NodeSchedulingIneligible
@@ -93,11 +111,13 @@ func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions)
 		Eligibility: e,
 	}
 
-	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, nil, q)
+	var resp NodeEligibilityUpdateResponse
+	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
-	return wm, nil
+	resp.WriteMeta = *wm
+	return &resp, nil
 }
 
 // Allocations is used to return the allocations associated with a node.
