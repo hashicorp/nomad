@@ -117,6 +117,24 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 		require.Nil(err)
 		require.False(isEqual)
 	}
+
+	// Assert that invalid files return an error
+	{
+		a := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert,
+			KeyFile:  fookey2,
+		}
+
+		b := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: "invalid_file",
+			KeyFile:  fookey2,
+		}
+		isEqual, err := a.CertificateInfoIsEqual(b)
+		require.NotNil(err)
+		require.False(isEqual)
+	}
 }
 
 // Certificate info should be equal when the CA file, certificate file, and key
