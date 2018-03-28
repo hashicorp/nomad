@@ -18,7 +18,6 @@ export default Factory.extend({
     const props = [
       'task-event',
       faker.random.number({ min: 1, max: 10 }),
-      false,
       {
         taskStateId: state.id,
       },
