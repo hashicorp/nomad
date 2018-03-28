@@ -2,14 +2,12 @@ package agent
 
 import (
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_Parse(t *testing.T) {
@@ -224,11 +222,11 @@ func TestConfig_Parse(t *testing.T) {
 					Enabled:               false,
 					StateDir:              "",
 					AllocDir:              "",
-					Servers:               []string{},
+					Servers:               nil,
 					NodeClass:             "",
-					Meta:                  map[string]string{},
-					Options:               map[string]string{},
-					ChrootEnv:             map[string]string{},
+					Meta:                  nil,
+					Options:               nil,
+					ChrootEnv:             nil,
 					NetworkInterface:      "",
 					NetworkSpeed:          0,
 					CpuCompute:            0,
@@ -251,12 +249,12 @@ func TestConfig_Parse(t *testing.T) {
 				LeaveOnTerm:               false,
 				EnableSyslog:              false,
 				SyslogFacility:            "",
-				DisableUpdateCheck:        false,
+				DisableUpdateCheck:        nil,
 				DisableAnonymousSignature: false,
 				Consul:                 nil,
 				Vault:                  nil,
 				TLSConfig:              nil,
-				HTTPAPIResponseHeaders: map[string]string{},
+				HTTPAPIResponseHeaders: nil,
 				Sentinel:               nil,
 			},
 			false,
@@ -264,6 +262,7 @@ func TestConfig_Parse(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		require := require.New(t)
 		t.Run(tc.File, func(t *testing.T) {
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
@@ -274,10 +273,7 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
-
-			if !reflect.DeepEqual(actual, tc.Result) {
-				t.Errorf("file: %s  diff: (actual vs expected)\n\n%s", tc.File, strings.Join(pretty.Diff(actual, tc.Result), "\n"))
-			}
+			require.EqualValues(actual, tc.Result)
 		})
 	}
 }
