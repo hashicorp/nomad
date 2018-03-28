@@ -1065,7 +1065,7 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 
 				// Only emit an event if the health status has changed, not if we are
 				// simply updating a node on startup
-				if health.Healthy != oldVal.Healthy && oldVal.HealthDescription != "" {
+				if health.Healthy != oldVal.Healthy && health.HealthDescription != "" {
 					event := &structs.NodeEvent{
 						Subsystem: "Driver",
 						Message:   health.HealthDescription,
