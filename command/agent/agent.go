@@ -783,7 +783,7 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http, rpc bool) {
 
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
-		a.logger.Println("[INFO] agent: error when parsing TLS certificate %v", err)
+		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)
 		return false, false, false
 	} else if !isEqual {
 		return true, true, true
