@@ -67,6 +67,9 @@ client {
   clients can determine their total CPU compute automatically, and thus in most
   cases this should be left unset.
 
+- `memory_total_mb` `(int:0)` - Specifies an override for the total memory. If set,
+  this value overrides any detected memory.
+
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
   group client nodes by user-defined class. This can be used during job
   placement as a filter.

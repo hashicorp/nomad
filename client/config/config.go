@@ -91,6 +91,10 @@ type Config struct {
 	// dynamically. It should be given as Cores * MHz (2 Cores * 2 Ghz = 4000)
 	CpuCompute int
 
+	// MemoryMB is the default node total memory in megabytes if it cannot be
+	// determined dynamically.
+	MemoryMB int
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
 	// used.
