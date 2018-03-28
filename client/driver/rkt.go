@@ -250,7 +250,7 @@ func rktRemove(uuid string) error {
 	cmd.Stderr = errBuf
 	if err := cmd.Run(); err != nil {
 		if msg := errBuf.String(); len(msg) > 0 {
-			return fmt.Errorf("error removing pod UUID %q: %s", uuid, msg)
+			return fmt.Errorf("error removing pod: %s", msg)
 		}
 		return err
 	}
