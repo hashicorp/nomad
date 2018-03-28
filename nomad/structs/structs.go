@@ -6080,6 +6080,11 @@ type AllocDeploymentStatus struct {
 	ModifyIndex uint64
 }
 
+// HasHealth returns true if the allocation has its health set.
+func (a *AllocDeploymentStatus) HasHealth() bool {
+	return a != nil && a.Healthy != nil
+}
+
 // IsHealthy returns if the allocation is marked as healthy as part of a
 // deployment
 func (a *AllocDeploymentStatus) IsHealthy() bool {

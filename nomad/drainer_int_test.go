@@ -42,7 +42,7 @@ func allocPromoter(t *testing.T, ctx context.Context,
 				continue
 			}
 
-			if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil {
+			if alloc.DeploymentStatus.HasHealth() {
 				continue
 			}
 			newAlloc := alloc.Copy()

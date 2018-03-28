@@ -136,7 +136,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if *last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
@@ -186,7 +186,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if *last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
@@ -240,7 +240,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
@@ -330,7 +330,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
@@ -396,7 +396,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if *last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
@@ -443,7 +443,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
@@ -464,7 +464,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 		if newCount <= oldCount {
 			return false, fmt.Errorf("No new updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
@@ -505,7 +505,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
-		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
