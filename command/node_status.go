@@ -431,7 +431,7 @@ func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
 	for i, event := range events {
 		timestamp := formatTime(event.Timestamp)
 		subsystem := event.Subsystem
-		msg := event.Message
+		msg := formatEventMessage(event.Message, event.Details["driver"])
 		if c.verbose {
 			details := formatEventDetails(event.Details)
 			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s|%s", timestamp, subsystem, msg, details)
@@ -440,6 +440,14 @@ func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
 		}
 	}
 	c.Ui.Output(formatList(nodeEvents))
+}
+
+func formatEventMessage(message, driverName string) string {
+	if driverName == "" {
+		return message
+	}
+
+	return fmt.Sprintf("Driver: %s, %s", driverName, message)
 }
 
 func formatEventDetails(details map[string]string) string {
