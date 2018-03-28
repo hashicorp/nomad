@@ -9,6 +9,8 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
+const bytesInMB = 1024 * 1024
+
 // MemoryFingerprint is used to fingerprint the available memory on the node
 type MemoryFingerprint struct {
 	StaticFingerprinter
@@ -27,7 +29,7 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	var totalMemory int
 	cfg := req.Config
 	if cfg.MemoryMB != 0 {
-		totalMemory = cfg.MemoryMB * 1024 * 1024
+		totalMemory = cfg.MemoryMB * bytesInMB
 	} else {
 		memInfo, err := mem.VirtualMemory()
 		if err != nil {
@@ -42,7 +44,7 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	if totalMemory > 0 {
 		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", totalMemory))
 		resp.Resources = &structs.Resources{
-			MemoryMB: int(totalMemory / 1024 / 1024),
+			MemoryMB: totalMemory / bytesInMB,
 		}
 	}
 
