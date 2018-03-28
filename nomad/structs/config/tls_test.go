@@ -95,6 +95,18 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 		}
 		require.False(a.CertificateInfoIsEqual(b))
 	}
+
+	// Assert that mismatching empty types are considered unequal
+	{
+		a := &TLSConfig{}
+
+		b := &TLSConfig{
+			CAFile:   cafile,
+			CertFile: foocert,
+			KeyFile:  fookey2,
+		}
+		require.False(a.CertificateInfoIsEqual(b))
+	}
 }
 
 // Certificate info should be equal when the CA file, certificate file, and key

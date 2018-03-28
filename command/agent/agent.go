@@ -77,9 +77,6 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 		InmemSink:  inmem,
 	}
 
-	// ensure that the TLS configuration is properly set up
-	a.config.TLSConfig.SetChecksum()
-
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}

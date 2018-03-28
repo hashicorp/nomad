@@ -209,14 +209,27 @@ func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) bool {
 
 	if t.IsEmpty() && newConfig.IsEmpty() {
 		return true
-	}
-
-	newCertChecksum, err := createChecksumOfFiles(newConfig.CAFile, newConfig.CertFile, newConfig.KeyFile)
-	if err != nil {
+	} else if t.IsEmpty() || newConfig.IsEmpty() {
 		return false
 	}
 
-	return t.Checksum == newCertChecksum
+	// Set the checksum if it hasn't yet been set (this should happen when the
+	// config is parsed but this provides safety in depth)
+	if newConfig.Checksum == "" {
+		err := newConfig.SetChecksum()
+		if err != nil {
+			return false
+		}
+	}
+
+	if t.Checksum == "" {
+		err := t.SetChecksum()
+		if err != nil {
+			return false
+		}
+	}
+
+	return t.Checksum == newConfig.Checksum
 }
 
 // SetChecksum generates and sets the checksum for a TLS configuration

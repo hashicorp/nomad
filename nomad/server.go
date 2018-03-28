@@ -471,7 +471,6 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	// access to config information, such as rpc.go, where we decide on what kind
 	// of network connections to accept depending on the server configuration
 	s.config.TLSConfig = newTLSConfig
-	s.config.TLSConfig.SetChecksum()
 
 	s.rpcTLS = incomingTLS
 	s.connPool.ReloadTLS(tlsWrap)
