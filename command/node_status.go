@@ -447,7 +447,7 @@ func formatEventMessage(message, driverName string) string {
 		return message
 	}
 
-	return fmt.Sprintf("Driver: %s, Message: %s", driverName, message)
+	return fmt.Sprintf("Driver: %s, %s", driverName, message)
 }
 
 func formatEventDetails(details map[string]string) string {
