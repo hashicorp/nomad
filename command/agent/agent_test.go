@@ -982,10 +982,22 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	-----END CERTIFICATE-----
 	`
 
-	err = ioutil.WriteFile(tmpfn, []byte(newCertificate), 0644)
+	os.Remove(tmpfn)
+	err = ioutil.WriteFile(tmpfn, []byte(newCertificate), 0666)
 	require.Nil(err)
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC = agent.ShouldReload(agentConfig)
+	newAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             tmpfn,
+			KeyFile:              key,
+		},
+	}
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC = agent.ShouldReload(newAgentConfig)
 	require.True(shouldReloadAgent)
 	require.True(shouldReloadHTTP)
 	require.True(shouldReloadRPC)
