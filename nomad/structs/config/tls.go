@@ -202,15 +202,15 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 // It is possible for either the calling TLSConfig to be nil, or the TLSConfig
 // that it is being compared against, so we need to handle both places. See
 // server.go Reload for example.
-func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) bool {
+func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) (bool, error) {
 	if t == nil || newConfig == nil {
-		return t == newConfig
+		return t == newConfig, nil
 	}
 
 	if t.IsEmpty() && newConfig.IsEmpty() {
-		return true
+		return true, nil
 	} else if t.IsEmpty() || newConfig.IsEmpty() {
-		return false
+		return false, nil
 	}
 
 	// Set the checksum if it hasn't yet been set (this should happen when the
@@ -218,18 +218,18 @@ func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) bool {
 	if newConfig.Checksum == "" {
 		err := newConfig.SetChecksum()
 		if err != nil {
-			return false
+			return false, err
 		}
 	}
 
 	if t.Checksum == "" {
 		err := t.SetChecksum()
 		if err != nil {
-			return false
+			return false, err
 		}
 	}
 
-	return t.Checksum == newConfig.Checksum
+	return t.Checksum == newConfig.Checksum, nil
 }
 
 // SetChecksum generates and sets the checksum for a TLS configuration

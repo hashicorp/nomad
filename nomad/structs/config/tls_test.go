@@ -28,10 +28,12 @@ func TestTLSConfig_Merge(t *testing.T) {
 }
 
 func TestTLS_CertificateInfoIsEqual_TrueWhenEmpty(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 	a := &TLSConfig{}
 	b := &TLSConfig{}
-	assert.True(a.CertificateInfoIsEqual(b))
+	isEqual, err := a.CertificateInfoIsEqual(b)
+	require.Nil(err)
+	require.True(isEqual)
 }
 
 func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
@@ -59,7 +61,9 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 			CertFile: foocert2,
 			KeyFile:  fookey2,
 		}
-		require.False(a.CertificateInfoIsEqual(b))
+		isEqual, err := a.CertificateInfoIsEqual(b)
+		require.Nil(err)
+		require.False(isEqual)
 	}
 
 	// Assert that mismatching certificate are considered unequal
@@ -76,7 +80,9 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 			CertFile: foocert2,
 			KeyFile:  fookey,
 		}
-		require.False(a.CertificateInfoIsEqual(b))
+		isEqual, err := a.CertificateInfoIsEqual(b)
+		require.Nil(err)
+		require.False(isEqual)
 	}
 
 	// Assert that mismatching keys are considered unequal
@@ -93,7 +99,9 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 			CertFile: foocert,
 			KeyFile:  fookey2,
 		}
-		require.False(a.CertificateInfoIsEqual(b))
+		isEqual, err := a.CertificateInfoIsEqual(b)
+		require.Nil(err)
+		require.False(isEqual)
 	}
 
 	// Assert that mismatching empty types are considered unequal
@@ -105,7 +113,9 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 			CertFile: foocert,
 			KeyFile:  fookey2,
 		}
-		require.False(a.CertificateInfoIsEqual(b))
+		isEqual, err := a.CertificateInfoIsEqual(b)
+		require.Nil(err)
+		require.False(isEqual)
 	}
 }
 
@@ -130,11 +140,13 @@ func TestTLS_CertificateInfoIsEqual_TrueWhenEqual(t *testing.T) {
 		CertFile: foocert,
 		KeyFile:  fookey,
 	}
-	require.True(a.CertificateInfoIsEqual(b))
+	isEqual, err := a.CertificateInfoIsEqual(b)
+	require.Nil(err)
+	require.True(isEqual)
 }
 
 func TestTLS_Copy(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 	const (
 		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
 		foocert = "../../../helper/tlsutil/testdata/nomad-foo.pem"
@@ -148,15 +160,17 @@ func TestTLS_Copy(t *testing.T) {
 	a.SetChecksum()
 
 	aCopy := a.Copy()
-	assert.True(a.CertificateInfoIsEqual(aCopy))
+	isEqual, err := a.CertificateInfoIsEqual(aCopy)
+	require.Nil(err)
+	require.True(isEqual)
 }
 
 // GetKeyLoader should always return an initialized KeyLoader for a TLSConfig
 // object
 func TestTLS_GetKeyloader(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 	a := &TLSConfig{}
-	assert.NotNil(a.GetKeyLoader())
+	require.NotNil(a.GetKeyLoader())
 }
 
 func TestTLS_SetChecksum(t *testing.T) {
