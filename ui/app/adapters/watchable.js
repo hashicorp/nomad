@@ -114,7 +114,9 @@ export default ApplicationAdapter.extend({
   },
 
   handleResponse(status, headers, payload, requestData) {
-    const newIndex = headers['x-nomad-index'];
+    // Some browsers lowercase all headers. Others keep them
+    // case sensitive.
+    const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     if (newIndex) {
       this.get('watchList').setIndexFor(requestData.url, newIndex);
     }
