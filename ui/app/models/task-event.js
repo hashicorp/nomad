@@ -12,17 +12,5 @@ export default Fragment.extend({
   time: attr('date'),
   timeNanos: attr('number'),
 
-  downloadError: attr('string'),
-  driverError: attr('string'),
-  driverMessage: attr('string'),
-  killError: attr('string'),
-  killReason: attr('string'),
-  killTimeout: attr('number'),
-  restartReason: attr('string'),
-  setupError: attr('string'),
-  startDelay: attr('number'),
-  taskSignal: attr('string'),
-  taskSignalReason: attr('string'),
-  validationError: attr('string'),
   message: attr('string'),
 });
