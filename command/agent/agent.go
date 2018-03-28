@@ -826,7 +826,6 @@ func (a *Agent) Reload(newConfig *Config) error {
 		}
 		a.config.TLSConfig = newConfig.TLSConfig
 		a.config.TLSConfig.KeyLoader = keyloader
-		a.config.TLSConfig.SetChecksum()
 		return nil
 	}
 

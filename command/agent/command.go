@@ -324,7 +324,7 @@ func (c *Command) readConfig() *Config {
 	// Set up the TLS configuration properly if we have one.
 	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
 	// constructor-type actions like this.
-	if !config.TLSConfig.IsEmpty() {
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
 		config.TLSConfig.SetChecksum()
 	}
 
