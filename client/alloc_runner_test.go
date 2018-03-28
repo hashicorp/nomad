@@ -115,7 +115,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(t, true)
 
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -163,7 +163,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(t, true)
 
 	// Make the task block
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -211,7 +211,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	t.Parallel()
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(t, true)
 
 	// Make the task run healthy
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -259,7 +259,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	t.Parallel()
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(t, true)
 
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -352,7 +352,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	assert := assert.New(t)
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(t, true)
 
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -421,7 +421,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	t.Parallel()
 
 	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, false)
+	upd, ar := testAllocRunner(t, true)
 
 	// Make the task run healthy
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -473,6 +473,82 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+// Test that health is reported for services that got migrated; not just part
+// of deployments.
+func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
+	t.Parallel()
+
+	// Ensure the task fails and restarts
+	upd, ar := testAllocRunner(t, true)
+
+	// Make the task run healthy
+	tg := ar.alloc.Job.TaskGroups[0]
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "30s"
+
+	// Shorten the default migration healthy time
+	tg.Migrate = structs.DefaultMigrateStrategy()
+	tg.Migrate.MinHealthyTime = 100 * time.Millisecond
+	tg.Migrate.HealthCheck = structs.MigrateStrategyHealthStates
+
+	// Ensure the alloc is *not* part of a deployment
+	ar.alloc.DeploymentID = ""
+
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		_, last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.DeploymentStatus == nil || last.DeploymentStatus.Healthy == nil {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			return false, fmt.Errorf("want deployment status healthy; got unhealthy")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// Test that health is *not* reported for batch jobs
+func TestAllocRunner_DeploymentHealth_BatchDisabled(t *testing.T) {
+	t.Parallel()
+
+	// Ensure the task fails and restarts
+	alloc := mock.BatchAlloc()
+	tg := alloc.Job.TaskGroups[0]
+
+	// This should not be possile as validation should prevent batch jobs
+	// from having a migration stanza!
+	tg.Migrate = structs.DefaultMigrateStrategy()
+	tg.Migrate.MinHealthyTime = 1 * time.Millisecond
+	tg.Migrate.HealthyDeadline = 2 * time.Millisecond
+	tg.Migrate.HealthCheck = structs.MigrateStrategyHealthStates
+
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "5s"
+	upd, ar := testAllocRunnerFromAlloc(t, alloc, false)
+
+	go ar.Run()
+	defer ar.Destroy()
+
+	for i := 0; i < 10; i++ {
+		time.Sleep(10 * time.Millisecond)
+		_, last := upd.Last()
+		if last == nil {
+			continue
+		}
+		if last.DeploymentStatus != nil {
+			t.Fatalf("unexpected deployment health set: %v", last.DeploymentStatus.Healthy)
+		}
+	}
 }
 
 // TestAllocRuner_RetryArtifact ensures that if one task in a task group is
