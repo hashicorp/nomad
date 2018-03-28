@@ -60,7 +60,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		"migrating1": {
 			ID:                "migrating1",
 			ClientStatus:      structs.AllocClientStatusRunning,
-			DesiredTransition: structs.DesiredTransition{helper.BoolToPtr(true)},
+			DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
 			Job:               batchJob,
 			NodeID:            "draining",
 		},
@@ -68,7 +68,7 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		"migrating2": {
 			ID:                "migrating2",
 			ClientStatus:      structs.AllocClientStatusRunning,
-			DesiredTransition: structs.DesiredTransition{helper.BoolToPtr(true)},
+			DesiredTransition: structs.DesiredTransition{Migrate: helper.BoolToPtr(true)},
 			Job:               batchJob,
 			NodeID:            "nil",
 		},
