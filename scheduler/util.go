@@ -92,6 +92,15 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 			continue
 		}
 
+		// If we have been marked for migration and aren't terminal, migrate
+		if !exist.TerminalStatus() && exist.DesiredTransition.ShouldMigrate() {
+			result.migrate = append(result.migrate, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
 		// If we are on a tainted node, we must migrate if we are a service or
 		// if the batch allocation did not finish
 		if node, ok := taintedNodes[exist.NodeID]; ok {
@@ -104,22 +113,12 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 				goto IGNORE
 			}
 
-			if !exist.TerminalStatus() {
-				if node == nil || node.TerminalStatus() {
-					result.lost = append(result.lost, allocTuple{
-						Name:      name,
-						TaskGroup: tg,
-						Alloc:     exist,
-					})
-				} else if exist.DesiredTransition.ShouldMigrate() {
-					result.migrate = append(result.migrate, allocTuple{
-						Name:      name,
-						TaskGroup: tg,
-						Alloc:     exist,
-					})
-				} else {
-					goto IGNORE
-				}
+			if !exist.TerminalStatus() && (node == nil || node.TerminalStatus()) {
+				result.lost = append(result.lost, allocTuple{
+					Name:      name,
+					TaskGroup: tg,
+					Alloc:     exist,
+				})
 			} else {
 				goto IGNORE
 			}

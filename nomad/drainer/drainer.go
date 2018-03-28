@@ -248,10 +248,19 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 			continue
 		}
 
+		n.logger.Printf("[DEBUG] nomad.drain: node %q deadlined causing %d allocs to be force stopped", node, len(allocs))
 		forceStop = append(forceStop, allocs...)
 	}
 	n.l.RUnlock()
 	n.batchDrainAllocs(forceStop)
+
+	// Submit the node transistions in a sharded form to ensure a reasonable
+	// Raft transaction size.
+	for _, nodes := range partitionIds(nodes) {
+		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
+		}
+	}
 }
 
 // handleJobAllocDrain handles marking a set of allocations as having a desired

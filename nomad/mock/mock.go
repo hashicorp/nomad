@@ -15,10 +15,11 @@ func Node() *structs.Node {
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"kernel.name":   "linux",
-			"arch":          "x86",
-			"nomad.version": "0.5.0",
-			"driver.exec":   "1",
+			"kernel.name":        "linux",
+			"arch":               "x86",
+			"nomad.version":      "0.5.0",
+			"driver.exec":        "1",
+			"driver.mock_driver": "1",
 		},
 		Resources: &structs.Resources{
 			CPU:      4000,
@@ -65,7 +66,7 @@ func Node() *structs.Node {
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
-		ID:          uuid.Generate(),
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
@@ -172,7 +173,7 @@ func Job() *structs.Job {
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
-		ID:          uuid.Generate(),
+		ID:          fmt.Sprintf("mock-batch-%s", uuid.Generate()),
 		Name:        "batch-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeBatch,
@@ -239,7 +240,7 @@ func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
+		ID:          fmt.Sprintf("mock-system-%s", uuid.Generate()),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
 		Priority:    100,
