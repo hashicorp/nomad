@@ -23,13 +23,13 @@ export default Route.extend(WithWatchers, {
     const job = model.get('job');
     controller.set('watchers', {
       job: this.get('watchJob').perform(job),
-      summary: this.get('watchSummary').perform(job),
+      summary: this.get('watchSummary').perform(job.get('summary')),
       allocations: this.get('watchAllocations').perform(job),
     });
   },
 
   watchJob: watchRecord('job'),
-  watchSummary: watchRelationship('summary'),
+  watchSummary: watchRecord('job-summary'),
   watchAllocations: watchRelationship('allocations'),
 
   watchers: collect('watchJob', 'watchSummary', 'watchAllocations'),
