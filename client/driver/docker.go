@@ -1269,7 +1269,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	if len(driverConfig.Labels) > 0 {
-		config.Labels = driverConfig.Labels
+		renderedLabels := make(map[string]string, len(driverConfig.Labels))
+		for k, v := range driverConfig.Labels {
+			renderedLabels[k] = ctx.TaskEnv.ReplaceEnv(v)
+		}
+		config.Labels = renderedLabels
 		d.logger.Printf("[DEBUG] driver.docker: applied labels on the container: %+v", config.Labels)
 	}
 
