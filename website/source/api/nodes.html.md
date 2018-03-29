@@ -153,7 +153,26 @@ $ curl \
   "NodeClass": "",
   "ComputedClass": "v1:10952212473894849978",
   "Drain": false,
-  "Events":[{"CreateIndex":0,"Details":null,"Message":"Node Registered","Subsystem":"Cluster","Timestamp":1521570432}],
+  "Events": [
+     {
+       "CreateIndex": 0,
+       "Details": null,
+       "Message": "Node Registered",
+       "Subsystem": "Cluster",
+       "Timestamp": "2018-03-29T16:26:48Z"
+     },
+     {
+       "CreateIndex": 11,
+       "Details":
+       {
+         "driver": "docker"
+       },
+       "Message": "Driver docker is not detected",
+       "Subsystem": "Driver",
+       "Timestamp": "2018-03-29T16:27:48.556094143Z"
+     }
+  ],
+
   "Status": "ready",
   "StatusDescription": "",
   "StatusUpdatedAt": 1495748907,
