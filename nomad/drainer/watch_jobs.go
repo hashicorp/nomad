@@ -143,7 +143,7 @@ func (w *drainingJobWatcher) watch() {
 	for {
 		w.logger.Printf("[TRACE] nomad.drain.job_watcher: getting job allocs at index %d", waitIndex)
 		jobAllocs, index, err := w.getJobAllocs(w.getQueryCtx(), waitIndex)
-		w.logger.Printf("[TRACE] nomad.drain.job_watcher: got job allocs %d at index %d: %v", len(jobAllocs), waitIndex, err)
+		w.logger.Printf("[TRACE] nomad.drain.job_watcher: got allocs for %d jobs at index %d: %v", len(jobAllocs), index, err)
 		if err != nil {
 			if err == context.Canceled {
 				// Determine if it is a cancel or a shutdown
@@ -205,8 +205,8 @@ func (w *drainingJobWatcher) watch() {
 				continue
 			}
 
-			// Ignore all non-service jobs
-			if job.Type != structs.JobTypeService {
+			// Ignore any system jobs
+			if job.Type == structs.JobTypeSystem {
 				w.deregisterJob(job.ID, job.Namespace)
 				continue
 			}
@@ -299,11 +299,12 @@ func (r *jobResult) String() string {
 // handleJob takes the state of a draining job and returns the desired actions.
 func handleJob(snap *state.StateSnapshot, job *structs.Job, allocs []*structs.Allocation, lastHandledIndex uint64) (*jobResult, error) {
 	r := newJobResult()
+	batch := job.Type == structs.JobTypeBatch
 	taskGroups := make(map[string]*structs.TaskGroup, len(job.TaskGroups))
 	for _, tg := range job.TaskGroups {
-		if tg.Migrate != nil {
-			// TODO handle the upgrade path
-			// Only capture the groups that have a migrate strategy
+		// Only capture the groups that have a migrate strategy or we are just
+		// watching batch
+		if tg.Migrate != nil || batch {
 			taskGroups[tg.Name] = tg
 		}
 	}
@@ -320,7 +321,7 @@ func handleJob(snap *state.StateSnapshot, job *structs.Job, allocs []*structs.Al
 
 	for name, tg := range taskGroups {
 		allocs := tgAllocs[name]
-		if err := handleTaskGroup(snap, tg, allocs, lastHandledIndex, r); err != nil {
+		if err := handleTaskGroup(snap, batch, tg, allocs, lastHandledIndex, r); err != nil {
 			return nil, fmt.Errorf("drain for task group %q failed: %v", name, err)
 		}
 	}
@@ -328,8 +329,11 @@ func handleJob(snap *state.StateSnapshot, job *structs.Job, allocs []*structs.Al
 	return r, nil
 }
 
-// handleTaskGroup takes the state of a draining task group and computes the desired actions.
-func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
+// handleTaskGroup takes the state of a draining task group and computes the
+// desired actions. For batch jobs we only notify when they have been migrated
+// and never mark them for drain. Batch jobs are allowed to complete up until
+// the deadline, after which they are force killed.
+func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGroup,
 	allocs []*structs.Allocation, lastHandledIndex uint64, result *jobResult) error {
 
 	// Determine how many allocations can be drained
@@ -363,9 +367,10 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 			continue
 		}
 
-		// If the alloc is running and has its deployment status set, it is
-		// considered healthy from a migration standpoint.
-		if !alloc.TerminalStatus() &&
+		// If the service alloc is running and has its deployment status set, it
+		// is considered healthy from a migration standpoint.
+		if !batch &&
+			!alloc.TerminalStatus() &&
 			alloc.DeploymentStatus != nil &&
 			alloc.DeploymentStatus.Healthy != nil {
 			healthy++
@@ -384,7 +389,7 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 
 		// If we haven't marked this allocation for migration already, capture
 		// it as eligible for draining.
-		if !alloc.DesiredTransition.ShouldMigrate() {
+		if !batch && !alloc.DesiredTransition.ShouldMigrate() {
 			drainable = append(drainable, alloc)
 		}
 	}
@@ -392,6 +397,11 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 	// Update the done status
 	if remainingDrainingAlloc {
 		result.done = false
+	}
+
+	// We don't mark batch for drain so exit
+	if batch {
+		return nil
 	}
 
 	// Determine how many we can drain

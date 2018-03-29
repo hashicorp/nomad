@@ -554,7 +554,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	require.Nil(err)
 
 	res := newJobResult()
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 102, res))
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 102, res))
 	assert.Lenf(res.drain, tc.ExpectedDrained, "Drain expected %d but found: %d",
 		tc.ExpectedDrained, len(res.drain))
 	assert.Lenf(res.migrated, tc.ExpectedMigrated, "Migrate expected %d but found: %d",
@@ -605,13 +605,13 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 
 	// Handle before and after indexes
 	res := newJobResult()
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 101, res))
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 101, res))
 	require.Empty(res.drain)
 	require.Len(res.migrated, 10)
 	require.True(res.done)
 
 	res = newJobResult()
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 103, res))
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 103, res))
 	require.Empty(res.drain)
 	require.Empty(res.migrated)
 	require.True(res.done)
