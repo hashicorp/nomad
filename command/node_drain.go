@@ -1,13 +1,13 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -271,160 +271,18 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
+	if enable {
+		c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
+	} else {
+		c.Ui.Output(fmt.Sprintf("Node %q drain strategy unset", node.ID))
+	}
 
 	if enable && !detach {
-		if err := monitorDrain(c.Ui.Output, client.Nodes(), node.ID, meta.LastIndex); err != nil {
-			c.Ui.Error(fmt.Sprintf("Error monitoring drain: %v", err))
-			return 1
+		outCh := client.Nodes().MonitorDrain(context.Background(), node.ID, meta.LastIndex, ignoreSystem)
+		for msg := range outCh {
+			c.Ui.Output(msg)
 		}
-
-		c.Ui.Output(fmt.Sprintf("Node %q drain complete", nodeID))
 	}
 
 	return 0
-}
-
-// monitorDrain monitors the node being drained and exits when the node has
-// finished draining.
-func monitorDrain(output func(string), nodeClient *api.Nodes, nodeID string, index uint64) error {
-	doneCh := make(chan struct{})
-	defer close(doneCh)
-
-	// Errors from either goroutine are sent here
-	errCh := make(chan error, 1)
-
-	// Monitor node changes and close chan when drain is complete
-	nodeCh := make(chan struct{})
-	go func() {
-		for {
-			q := api.QueryOptions{
-				AllowStale: true,
-				WaitIndex:  index,
-			}
-			node, meta, err := nodeClient.Info(nodeID, &q)
-			if err != nil {
-				select {
-				case errCh <- err:
-				case <-doneCh:
-				}
-				return
-			}
-
-			if node.DrainStrategy == nil {
-				close(nodeCh)
-				return
-			}
-
-			// Drain still ongoing
-			index = meta.LastIndex
-		}
-	}()
-
-	// Monitor alloc changes
-	allocCh := make(chan string, 1)
-	go func() {
-		allocs, meta, err := nodeClient.Allocations(nodeID, nil)
-		if err != nil {
-			select {
-			case errCh <- err:
-			case <-doneCh:
-			}
-			return
-		}
-
-		initial := make(map[string]*api.Allocation, len(allocs))
-		for _, a := range allocs {
-			initial[a.ID] = a
-		}
-
-		for {
-			q := api.QueryOptions{
-				AllowStale: true,
-				WaitIndex:  meta.LastIndex,
-			}
-
-			allocs, meta, err = nodeClient.Allocations(nodeID, &q)
-			if err != nil {
-				select {
-				case errCh <- err:
-				case <-doneCh:
-				}
-				return
-			}
-
-			for _, a := range allocs {
-				// Get previous version of alloc
-				orig, ok := initial[a.ID]
-
-				// Update local alloc state
-				initial[a.ID] = a
-
-				migrating := a.DesiredTransition.ShouldMigrate()
-
-				msg := ""
-				switch {
-				case !ok:
-					// Should only be possible if response
-					// from initial Allocations call was
-					// stale. No need to output
-
-				case orig.ClientStatus != a.ClientStatus:
-					// Alloc status has changed; output
-					msg = fmt.Sprintf("status %s -> %s", orig.ClientStatus, a.ClientStatus)
-
-				case migrating && !orig.DesiredTransition.ShouldMigrate():
-					// Alloc was marked for migration
-					msg = "marked for migration"
-				case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
-					// Alloc has already been marked for migration and is now being stopped
-					msg = "draining"
-				case a.NextAllocation != "" && orig.NextAllocation == "":
-					// Alloc has been replaced by another allocation
-					msg = fmt.Sprintf("replaced by allocation %q", a.NextAllocation)
-				}
-
-				if msg != "" {
-					select {
-					case allocCh <- fmt.Sprintf("Alloc %q %s", a.ID, msg):
-					case <-doneCh:
-						return
-					}
-				}
-			}
-		}
-	}()
-
-	done := false
-	for !done {
-		select {
-		case err := <-errCh:
-			return err
-		case <-nodeCh:
-			done = true
-		case msg := <-allocCh:
-			output(msg)
-		}
-	}
-
-	// Loop on alloc messages for a bit longer as we may have gotten the
-	// "node done" first (since the watchers run concurrently the events
-	// may be received out of order)
-	deadline := 500 * time.Millisecond
-	timer := time.NewTimer(deadline)
-	for {
-		select {
-		case err := <-errCh:
-			return err
-		case msg := <-allocCh:
-			output(msg)
-			if !timer.Stop() {
-				<-timer.C
-			}
-			timer.Reset(deadline)
-		case <-timer.C:
-			// No events within deadline, exit
-			return nil
-		}
-	}
 }
