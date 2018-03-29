@@ -1426,6 +1426,23 @@ func (n *Node) Ready() bool {
 	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
+func (n *Node) Canonicalize() {
+	if n == nil {
+		return
+	}
+
+	// COMPAT Remove in 0.10
+	// In v0.8.0 we introduced scheduling eligibility, so we need to set it for
+	// upgrading nodes
+	if n.SchedulingEligibility == "" {
+		if n.Drain {
+			n.SchedulingEligibility = NodeSchedulingIneligible
+		} else {
+			n.SchedulingEligibility = NodeSchedulingEligible
+		}
+	}
+}
+
 func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil

@@ -3679,3 +3679,19 @@ func TestBatchFuture(t *testing.T) {
 		t.Fatalf("bad: %d", bf.Index())
 	}
 }
+
+func TestNode_Canonicalize(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Make sure the eligiblity is set properly
+	node := &Node{}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
+
+	node = &Node{
+		Drain: true,
+	}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
+}
