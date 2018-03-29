@@ -2648,25 +2648,24 @@ func TestAllocation_LastEventTime(t *testing.T) {
 		taskState             map[string]*TaskState
 		expectedLastEventTime time.Time
 	}
-	var timeZero time.Time
 
-	t1 := time.Now()
+	t1 := time.Now().UTC()
 
 	testCases := []testCase{
 		{
 			desc: "nil task state",
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc:                  "empty task state",
 			taskState:             make(map[string]*TaskState),
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc: "Finished At not set",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt: t1.Add(-2 * time.Hour)}},
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc: "One finished event",
@@ -2688,7 +2687,7 @@ func TestAllocation_LastEventTime(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			alloc := &Allocation{}
+			alloc := &Allocation{CreateTime: t1.UnixNano(), ModifyTime: t1.UnixNano()}
 			alloc.TaskStates = tc.taskState
 			require.Equal(t, tc.expectedLastEventTime, alloc.LastEventTime())
 		})

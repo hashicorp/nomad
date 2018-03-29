@@ -5731,7 +5731,8 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 }
 
 // LastEventTime is the time of the last task event in the allocation.
-// It is used to determine allocation failure time.
+// It is used to determine allocation failure time. If the FinishedAt field
+// is not set, the alloc's modify time is used
 func (a *Allocation) LastEventTime() time.Time {
 	var lastEventTime time.Time
 	if a.TaskStates != nil {
@@ -5740,6 +5741,9 @@ func (a *Allocation) LastEventTime() time.Time {
 				lastEventTime = e.FinishedAt
 			}
 		}
+	}
+	if lastEventTime.IsZero() {
+		return time.Unix(0, a.ModifyTime).UTC()
 	}
 	return lastEventTime
 }
