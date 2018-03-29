@@ -40,15 +40,15 @@ func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
 	m.mu.Unlock()
 }
 
-// Last returns the total number of updates and the last alloc (or nil)
-func (m *MockAllocStateUpdater) Last() (int, *structs.Allocation) {
+// Last returns a copy of the last alloc (or nil) sync'd
+func (m *MockAllocStateUpdater) Last() *structs.Allocation {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	n := len(m.Allocs)
 	if n == 0 {
-		return 0, nil
+		return nil
 	}
-	return n, m.Allocs[n-1].Copy()
+	return m.Allocs[n-1].Copy()
 }
 
 // allocationBucketExists checks if the allocation bucket was created.
@@ -96,7 +96,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -132,7 +132,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -182,7 +182,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -236,7 +236,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -326,7 +326,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -392,7 +392,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -439,7 +439,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -454,16 +454,13 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	})
 
 	// Mimick an update to a new deployment id
-	oldCount, last := upd.Last()
+	last := upd.Last()
 	last.DeploymentStatus = nil
 	last.DeploymentID = uuid.Generate()
 	ar.Update(last)
 
 	testutil.WaitForResult(func() (bool, error) {
-		newCount, last := upd.Last()
-		if newCount <= oldCount {
-			return false, fmt.Errorf("No new updates")
-		}
+		last := upd.Last()
 		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if !*last.DeploymentStatus.Healthy {
@@ -501,7 +498,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -539,16 +536,18 @@ func TestAllocRunner_DeploymentHealth_BatchDisabled(t *testing.T) {
 	go ar.Run()
 	defer ar.Destroy()
 
-	for i := 0; i < 10; i++ {
-		time.Sleep(10 * time.Millisecond)
-		_, last := upd.Last()
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
 		if last == nil {
-			continue
+			return false, fmt.Errorf("No updates")
 		}
 		if last.DeploymentStatus != nil {
-			t.Fatalf("unexpected deployment health set: %v", last.DeploymentStatus.Healthy)
+			return false, fmt.Errorf("unexpected deployment health set: %v", last.DeploymentStatus.Healthy)
 		}
-	}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 // TestAllocRuner_RetryArtifact ensures that if one task in a task group is
@@ -583,14 +582,17 @@ func TestAllocRunner_RetryArtifact(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		count, last := upd.Last()
-		if min := 6; count < min {
-			return false, fmt.Errorf("Not enough updates (%d < %d)", count, min)
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 
 		// web task should have completed successfully while bad task
 		// retries artifact fetching
-		webstate := last.TaskStates["web"]
+		webstate, ok := last.TaskStates["web"]
+		if !ok {
+			return false, fmt.Errorf("no task state for web")
+		}
 		if webstate.State != structs.TaskStateDead {
 			return false, fmt.Errorf("expected web to be dead but found %q", last.TaskStates["web"].State)
 		}
@@ -623,7 +625,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -642,7 +644,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	ar.Update(update)
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -677,7 +679,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -729,7 +731,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 	}()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -839,14 +841,14 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 			return false, fmt.Errorf("Incorrect number of tasks")
 		}
 
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, nil
 		}
 
 		return last.ClientStatus == structs.AllocClientStatusRunning, nil
 	}, func(err error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates["web"])
 	})
 
@@ -861,7 +863,7 @@ func TestAllocRunner_SaveRestoreState(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
@@ -883,7 +885,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -950,7 +952,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
@@ -959,7 +961,7 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	ar2.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1014,7 +1016,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 
 	// Snapshot state
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1045,9 +1047,9 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 	defer ar2.Destroy() // Just-in-case of failure before Destroy below
 
 	testutil.WaitForResult(func() (bool, error) {
-		count, last := upd.Last()
-		if min := 3; count < min {
-			return false, fmt.Errorf("expected at least %d updates but found %d", min, count)
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 		for _, ev := range last.TaskStates["web"].Events {
 			if strings.HasSuffix(ev.RestartReason, pre06ScriptCheckReason) {
@@ -1056,8 +1058,8 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		}
 		return false, fmt.Errorf("no restart with proper reason found")
 	}, func(err error) {
-		count, last := upd.Last()
-		t.Fatalf("err: %v\nAllocs: %d\nweb state: % #v", err, count, pretty.Formatter(last.TaskStates["web"]))
+		last := upd.Last()
+		t.Fatalf("err: %v\nweb state: % #v", err, pretty.Formatter(last.TaskStates["web"]))
 	})
 
 	// Destroy and wait
@@ -1071,7 +1073,7 @@ func TestAllocRunner_SaveRestoreState_Upgrade(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		t.Fatalf("err: %v %#v %#v", err, last, last.TaskStates)
 	})
 
@@ -1238,7 +1240,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1307,7 +1309,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1392,9 +1394,9 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	go ar.Run()
 
 	// Wait for tasks to start
-	oldCount, last := upd.Last()
+	last := upd.Last()
 	testutil.WaitForResult(func() (bool, error) {
-		oldCount, last = upd.Last()
+		last = upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1411,6 +1413,11 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
+	// Reset updates
+	upd.mu.Lock()
+	upd.Allocs = upd.Allocs[:0]
+	upd.mu.Unlock()
+
 	// Stop alloc
 	update := ar.Alloc()
 	update.DesiredStatus = structs.AllocDesiredStatusStop
@@ -1418,9 +1425,9 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 
 	// Wait for tasks to stop
 	testutil.WaitForResult(func() (bool, error) {
-		newCount, last := upd.Last()
-		if newCount == oldCount {
-			return false, fmt.Errorf("no new updates (count: %d)", newCount)
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
 		}
 		if last.TaskStates["leader"].FinishedAt.UnixNano() >= last.TaskStates["follower1"].FinishedAt.UnixNano() {
 			return false, fmt.Errorf("expected leader to finish before follower1: %s >= %s",
@@ -1432,8 +1439,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		count, last := upd.Last()
-		t.Logf("Updates: %d", count)
+		last := upd.Last()
 		for name, state := range last.TaskStates {
 			t.Logf("%s: %s", name, state.State)
 		}
@@ -1501,9 +1507,9 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 
 	// Wait for tasks to be stopped because leader is dead
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd2.Last()
+		last := upd2.Last()
 		if last == nil {
-			return false, fmt.Errorf("no updates yet")
+			return false, fmt.Errorf("No updates")
 		}
 		if actual := last.TaskStates["leader"].State; actual != structs.TaskStateDead {
 			return false, fmt.Errorf("Task leader is not dead yet (it's %q)", actual)
@@ -1513,8 +1519,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		count, last := upd2.Last()
-		t.Logf("Updates: %d", count)
+		last := upd2.Last()
 		for name, state := range last.TaskStates {
 			t.Logf("%s: %s", name, state.State)
 		}
@@ -1549,7 +1554,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	defer ar.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd.Last()
+		last := upd.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
@@ -1586,7 +1591,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	defer ar2.Destroy()
 
 	testutil.WaitForResult(func() (bool, error) {
-		_, last := upd2.Last()
+		last := upd2.Last()
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
