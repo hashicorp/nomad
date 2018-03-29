@@ -693,17 +693,17 @@ $ curl \
   - `Subsystem` - The subsystem where the node event took place. Subsysystems
     include:
 
-    - `Drain` - Nomad server draining subsystem
+    - `Drain` - The Nomad server draining subsystem.
 
-    - `Driver` - Nomad client driver subsystem
+    - `Driver` - The Nomad client driver subsystem.
 
-    - `Heartbeat` - Either Nomad client or server heartbeating subsystem
+    - `Heartbeat` - Either Nomad client or server heartbeating subsystem.
 
-    - `Cluster` - Nomad server cluster management subsystem
+    - `Cluster` - Nomad server cluster management subsystem.
 
   - `Details` - Any further details about the event, formatted as a key/value
     pair.
 
-  - `Timestamp` - Each node event has a Unix timestamp.
+  - `Timestamp` - Each node event has an ISO 8601 timestamp.
 
   - `CreateIndex` - The Raft index at which the event was committed.
