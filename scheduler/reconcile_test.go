@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -317,6 +318,8 @@ type resultExpectation struct {
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	t.Helper()
+	assert := assert.New(t)
+
 	if exp.createDeployment != nil && r.deployment == nil {
 		t.Fatalf("Expect a created deployment got none")
 	} else if exp.createDeployment == nil && r.deployment != nil {
@@ -330,39 +333,13 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 		}
 	}
 
-	if !reflect.DeepEqual(r.deploymentUpdates, exp.deploymentUpdates) {
-		t.Fatalf("Unexpected deploymentUpdates: %v", pretty.Diff(r.deploymentUpdates, exp.deploymentUpdates))
-	}
-	if l := len(r.place); l != exp.place {
-		t.Fatalf("Expected %d placements; got %d", exp.place, l)
-	}
-	if l := len(r.destructiveUpdate); l != exp.destructive {
-		t.Fatalf("Expected %d destructive; got %d", exp.destructive, l)
-	}
-	if l := len(r.inplaceUpdate); l != exp.inplace {
-		t.Fatalf("Expected %d inplaceUpdate; got %d", exp.inplace, l)
-	}
-	if l := len(r.attributeUpdates); l != exp.attributeUpdates {
-		t.Fatalf("Expected %d attribute updates; got %d", exp.attributeUpdates, l)
-	}
-	if l := len(r.stop); l != exp.stop {
-		t.Fatalf("Expected %d stops; got %d", exp.stop, l)
-	}
-	if l := len(r.desiredTGUpdates); l != len(exp.desiredTGUpdates) {
-		t.Fatalf("Expected %d task group desired tg updates annotations; got %d", len(exp.desiredTGUpdates), l)
-	}
-
-	// Check the desired updates happened
-	for group, desired := range exp.desiredTGUpdates {
-		act, ok := r.desiredTGUpdates[group]
-		if !ok {
-			t.Fatalf("Expected desired updates for group %q", group)
-		}
-
-		if !reflect.DeepEqual(act, desired) {
-			t.Fatalf("Unexpected annotations for group %q: %v", group, pretty.Diff(act, desired))
-		}
-	}
+	assert.EqualValues(exp.deploymentUpdates, r.deploymentUpdates, "Expected Deployment Updates")
+	assert.Len(r.place, exp.place, "Expected Placements")
+	assert.Len(r.destructiveUpdate, exp.destructive, "Expected Destructive")
+	assert.Len(r.inplaceUpdate, exp.inplace, "Expected Inplace Updates")
+	assert.Len(r.attributeUpdates, exp.attributeUpdates, "Expected Attribute Updates")
+	assert.Len(r.stop, exp.stop, "Expected Stops")
+	assert.EqualValues(exp.desiredTGUpdates, r.desiredTGUpdates, "Expected Desired TG Update Annotations")
 }
 
 // Tests the reconciler properly handles placements for a job that has no
@@ -1604,6 +1581,65 @@ func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
 
+}
+
+// Tests service job placement with desired stop and client status complete
+func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	// Set up reschedule policy
+	delayDur := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 1,
+		Interval: 24 * time.Hour,
+		Delay:    delayDur,
+		MaxDelay: 1 * time.Hour,
+	}
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	}
+
+	// Mark one as failed but with desired status stop
+	// Should not trigger rescheduling logic but should trigger a placement
+	allocs[4].ClientStatus = structs.AllocClientStatusFailed
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	r := reconciler.Compute()
+
+	// Should place a new placement for the alloc that was marked stopped
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         1,
+				InPlaceUpdate: 0,
+				Ignore:        4,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
+
+	// Should not have any follow up evals created
+	require := require.New(t)
+	require.Equal(0, len(r.desiredFollowupEvals))
 }
 
 // Tests rescheduling failed service allocations with desired state stop
@@ -3768,6 +3804,100 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Ignore: 2,
+			},
+		},
+	})
+}
+
+// Test that a failed deployment cancels non-promoted canaries
+func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Canary:          3,
+		MaxParallel:     2,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
+		Stagger:         31 * time.Second,
+	}
+
+	// Create v1 of the job
+	jobv1 := job.Copy()
+	jobv1.Version = 1
+	jobv1.TaskGroups[0].Meta = map[string]string{"version": "1"}
+
+	// Create v2 of the job
+	jobv2 := job.Copy()
+	jobv2.Version = 2
+	jobv2.TaskGroups[0].Meta = map[string]string{"version": "2"}
+
+	// Create an existing failed deployment that has promoted one task group
+	d := structs.NewDeployment(jobv2)
+	state := &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 3,
+		PlacedAllocs: 3,
+	}
+	d.TaskGroups[job.TaskGroups[0].Name] = state
+
+	// Create the original
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		new := mock.Alloc()
+		new.Job = jobv2
+		new.JobID = job.ID
+		new.NodeID = uuid.Generate()
+		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		new.TaskGroup = job.TaskGroups[0].Name
+		new.DeploymentID = d.ID
+		new.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		new.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, new)
+
+	}
+	for i := 0; i < 3; i++ {
+		new := mock.Alloc()
+		new.Job = jobv1
+		new.JobID = jobv1.ID
+		new.NodeID = uuid.Generate()
+		new.Name = structs.AllocName(jobv1.ID, jobv1.TaskGroups[0].Name, uint(i))
+		new.TaskGroup = job.TaskGroups[0].Name
+		new.DeploymentID = uuid.Generate()
+		new.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(false),
+		}
+		new.DesiredStatus = structs.AllocDesiredStatusStop
+		new.ClientStatus = structs.AllocClientStatusFailed
+		allocs = append(allocs, new)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, jobv2, d, allocs, nil)
+	r := reconciler.Compute()
+
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: updates,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Stop:          0,
+				InPlaceUpdate: 0,
+				Ignore:        3,
 			},
 		},
 	})
