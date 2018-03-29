@@ -248,11 +248,11 @@ func (a allocSet) filterByRescheduleable(isBatch bool) (untainted, rescheduleNow
 			continue
 		}
 
-		isUntainted, skip := shouldFilter(alloc, isBatch)
+		isUntainted, ignore := shouldFilter(alloc, isBatch)
 		if isUntainted {
 			untainted[alloc.ID] = alloc
 		}
-		if isUntainted || skip {
+		if isUntainted || ignore {
 			continue
 		}
 
@@ -271,16 +271,17 @@ func (a allocSet) filterByRescheduleable(isBatch bool) (untainted, rescheduleNow
 	return
 }
 
-/* shouldFilter returns whether the alloc should be skipped or considered untainted
-Filtering logic for batch jobs:
-			If complete, and ran successfully - don't skip, set untainted
-			If desired state is stop, skip
-
-Filtering logic for service jobs
-            If desired state is stop/evict - skip
-            If client status is complete/lost - skip
-*/
-func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, skip bool) {
+// shouldFilter returns whether the alloc should be ignored or considered untainted
+// Ignored allocs are filtered out.
+// Untainted allocs count against the desired total.
+// Filtering logic for batch jobs:
+// If complete, and ran successfully - untainted
+// If desired state is stop - ignore
+//
+// Filtering logic for service jobs:
+// If desired state is stop/evict - ignore
+// If client status is complete/lost - ignore
+func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bool) {
 	// Allocs from batch jobs should be filtered when the desired status
 	// is terminal and the client did not finish or when the client
 	// status is failed so that they will be replaced. If they are
