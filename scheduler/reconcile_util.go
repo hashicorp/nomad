@@ -283,11 +283,9 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, batch bool)
 	if !batch {
 		// For service type jobs we filter terminal allocs
 		// except for those with ClientStatusFailed - those are checked for reschedulability
-		shouldFilter = alloc.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusFailed
+		shouldFilter = alloc.DesiredStatus == structs.AllocDesiredStatusStop || (alloc.TerminalStatus() && alloc.ClientStatus != structs.AllocClientStatusFailed)
 	}
 	rescheduleTime, eligible := alloc.NextRescheduleTime()
-	// We consider a time difference of less than 5 seconds to be eligible
-	// because we collapse allocations that failed within 5 seconds into a single evaluation
 	if eligible && now.After(rescheduleTime) {
 		rescheduleNow = true
 	} else if !shouldFilter {
