@@ -3873,7 +3873,6 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 		new.DesiredStatus = structs.AllocDesiredStatusStop
 		new.ClientStatus = structs.AllocClientStatusFailed
 		allocs = append(allocs, new)
-		t.Logf("Canary %q", new.ID)
 	}
 
 	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, jobv2, d, allocs, nil)
@@ -3898,7 +3897,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 			job.TaskGroups[0].Name: {
 				Stop:          0,
 				InPlaceUpdate: 0,
-				Ignore:        6,
+				Ignore:        3,
 			},
 		},
 	})
