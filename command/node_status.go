@@ -453,10 +453,7 @@ func formatEventMessage(message, driverName string) string {
 func formatEventDetails(details map[string]string) string {
 	output := make([]string, 0, len(details))
 	for k, v := range details {
-		// this has already been interpolated into the event message
-		if k != "driver" {
-			output = append(output, fmt.Sprintf("%s: %s, ", k, v))
-		}
+		output = append(output, fmt.Sprintf("%s: %s, ", k, v))
 	}
 	return strings.Join(output, ", ")
 }
