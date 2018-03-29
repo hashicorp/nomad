@@ -10,7 +10,27 @@ export default ApplicationAdapter.extend({
   store: service(),
 
   xhrs: computed(function() {
-    return {};
+    return {
+      list: {},
+      track(key, xhr) {
+        if (this.list[key]) {
+          this.list[key].push(xhr);
+        } else {
+          this.list[key] = [xhr];
+        }
+      },
+      cancel(key) {
+        while (this.list[key] && this.list[key].length) {
+          this.remove(key, this.list[key][0]);
+        }
+      },
+      remove(key, xhr) {
+        if (this.list[key]) {
+          xhr.abort();
+          this.list[key].removeObject(xhr);
+        }
+      },
+    };
   }),
 
   ajaxOptions() {
@@ -22,9 +42,9 @@ export default ApplicationAdapter.extend({
       if (previousBeforeSend) {
         previousBeforeSend(...arguments);
       }
-      this.get('xhrs')[key] = jqXHR;
+      this.get('xhrs').track(key, jqXHR);
       jqXHR.always(() => {
-        delete this.get('xhrs')[key];
+        this.get('xhrs').remove(key, jqXHR);
       });
     };
 
@@ -129,10 +149,7 @@ export default ApplicationAdapter.extend({
       return;
     }
     const url = this.urlForFindRecord(id, modelName);
-    const xhr = this.get('xhrs')[url];
-    if (xhr) {
-      xhr.abort();
-    }
+    this.get('xhrs').cancel(url);
   },
 
   cancelFindAll(modelName) {
@@ -144,10 +161,7 @@ export default ApplicationAdapter.extend({
     if (params) {
       url = `${url}?${params}`;
     }
-    const xhr = this.get('xhrs')[url];
-    if (xhr) {
-      xhr.abort();
-    }
+    this.get('xhrs').cancel(url);
   },
 
   cancelReloadRelationship(model, relationshipName) {
@@ -161,10 +175,7 @@ export default ApplicationAdapter.extend({
       );
     } else {
       const url = model[relationship.kind](relationship.key).link();
-      const xhr = this.get('xhrs')[url];
-      if (xhr) {
-        xhr.abort();
-      }
+      this.get('xhrs').cancel(url);
     }
   },
 });
