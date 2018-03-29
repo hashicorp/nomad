@@ -2719,10 +2719,11 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "constant",
 				Delay:         5 * time.Second,
+				Unlimited:     true,
 			},
-			alloc: &Allocation{ClientStatus: AllocClientStatusFailed},
-			expectedRescheduleTime:     time.Time{},
-			expectedRescheduleEligible: false,
+			alloc: &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
+			expectedRescheduleTime:     now.UTC().Add(5 * time.Second),
+			expectedRescheduleEligible: true,
 		},
 		{
 			desc: "linear delay, unlimited restarts, no reschedule tracker",
