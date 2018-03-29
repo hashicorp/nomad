@@ -24,6 +24,7 @@ job "test1" {
     reschedule {
       attempts = 0
       interval = "5m"
+      unlimited = false
    }
   }
 }
