@@ -5,6 +5,7 @@ import (
 	"log"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -35,6 +36,9 @@ type SystemScheduler struct {
 	limitReached bool
 	nextEval     *structs.Evaluation
 
+	deployment *structs.Deployment
+
+	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
 }
@@ -58,7 +62,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
-		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain:
+		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain,
+		structs.EvalTriggerMaxPlans:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -70,15 +75,60 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs, "")
+			// Scheduling was tried but made no forward progress so create a
+			// blocked eval to retry once resources become available.
+			var mErr multierror.Error
+			if err := s.createBlockedEval(true); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+			if err := setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked,
+			        s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+				s.queuedAllocs, s.deployment.GetID()); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+			return mErr.ErrorOrNil()
 		}
 		return err
 	}
 
+	// If the current evaluation is a blocked evaluation and we didn't place
+	// everything, do not update the status to complete.
+	if s.eval.Status == structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 {
+		e := s.ctx.Eligibility()
+		newEval := s.eval.Copy()
+		newEval.EscapedComputedClass = e.HasEscaped()
+		newEval.ClassEligibility = e.GetClasses()
+		newEval.QuotaLimitReached = e.QuotaLimitReached()
+		return s.planner.ReblockEval(newEval)
+	}
+
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, s.blocked, s.failedTGAllocs, structs.EvalStatusComplete, "",
 		s.queuedAllocs, "")
+}
+
+// createBlockedEval creates a blocked eval and submits it to the planner. If
+// failure is set to true, the eval's trigger reason reflects that.
+func (s *SystemScheduler) createBlockedEval(planFailure bool) error {
+
+	e := s.ctx.Eligibility()
+	escaped := e.HasEscaped()
+
+	// Only store the eligible classes if the eval hasn't escaped.
+	var classEligibility map[string]bool
+	if !escaped {
+		classEligibility = e.GetClasses()
+	}
+
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached())
+	if planFailure {
+		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
+		s.blocked.StatusDescription = blockedEvalMaxPlanDesc
+	} else {
+		s.blocked.StatusDescription = blockedEvalFailedPlacements
+	}
+
+	return s.planner.CreateEval(s.blocked)
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -125,6 +175,17 @@ func (s *SystemScheduler) process() (bool, error) {
 	if err := s.computeJobAllocs(); err != nil {
 		s.logger.Printf("[ERR] sched: %#v: %v", s.eval, err)
 		return false, err
+	}
+
+	// If there are failed allocations, we need to create a blocked evaluation
+	// to place the failed allocations when resources become available. If the
+	// current evaluation is already a blocked eval, we reuse it.
+	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil {
+		if err := s.createBlockedEval(false); err != nil {
+			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
+			return false, err
+		}
+		s.logger.Printf("[DEBUG] sched: %#v: failed to place all allocations, blocked eval '%s' created", s.eval, s.blocked.ID)
 	}
 
 	// If the plan is a no-op, we can bail. If AnnotatePlan is set submit the plan
