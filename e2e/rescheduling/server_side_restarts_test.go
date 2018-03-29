@@ -12,16 +12,18 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var _ = Describe("Server Side Restart Tests", func() {
 
 	var (
-		jobs     *api.Jobs
-		system   *api.System
-		job      *api.Job
-		err      error
-		specFile string
+		jobs        *api.Jobs
+		system      *api.System
+		deployments *api.Deployments
+		job         *api.Job
+		err         error
+		specFile    string
 
 		// allocStatuses is a helper function that pulls
 		// out client statuses from a slice of allocs
@@ -43,9 +45,24 @@ var _ = Describe("Server Side Restart Tests", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			var ret []string
 			for _, a := range allocs {
-				if a.RescheduleTracker != nil && len(a.RescheduleTracker.Events) > 0 {
+				if (a.RescheduleTracker != nil && len(a.RescheduleTracker.Events) > 0) || a.FollowupEvalID != "" {
 					ret = append(ret, a.ClientStatus)
 				}
+			}
+			return ret
+		}
+
+		// deploymentStatus is a helper function that returns deployment status of all deployments
+		// sorted by time
+		deploymentStatus = func() []string {
+			deploys, _, err := jobs.Deployments(*job.ID, nil)
+			Expect(err).ShouldNot(HaveOccurred())
+			var ret []string
+			sort.Slice(deploys, func(i, j int) bool {
+				return deploys[i].CreateIndex < deploys[j].CreateIndex
+			})
+			for _, d := range deploys {
+				ret = append(ret, d.Status)
 			}
 			return ret
 		}
@@ -59,6 +76,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		jobs = client.Jobs()
 		system = client.System()
+		deployments = client.Deployments()
 	})
 
 	JustBeforeEach(func() {
@@ -167,17 +185,58 @@ var _ = Describe("Server Side Restart Tests", func() {
 			BeforeEach(func() {
 				specFile = "input/rescheduling_canary.hcl"
 			})
-			It("Should have all running allocs", func() {
+			It("Should have running allocs and successful deployment", func() {
 				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
 					ConsistOf([]string{"running", "running", "running"}))
+
+				time.Sleep(2 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
+				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+					ContainElement(structs.DeploymentStatusSuccessful))
 			})
+
 			Context("Updating job to make allocs fail", func() {
 				It("Should have no rescheduled allocs", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+
+					// Verify new deployment and its status
+					time.Sleep(3 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
+					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+						ContainElement(structs.DeploymentStatusFailed))
 				})
+			})
+
+		})
+
+		Context("Reschedule with canary and auto revert ", func() {
+			BeforeEach(func() {
+				specFile = "input/rescheduling_canary_autorevert.hcl"
+			})
+			It("Should have running allocs and successful deployment", func() {
+				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
+					ConsistOf([]string{"running", "running", "running"}))
+
+				time.Sleep(4 * time.Second)
+				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+					ContainElement(structs.DeploymentStatusSuccessful))
+
+				// Make an update that causes the job to fail
+				job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
+				_, _, err := jobs.Register(job, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+
+				// Wait for the revert
+				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
+					ConsistOf([]string{"failed", "failed", "failed", "running", "running", "running"}))
+
+				// Verify new deployment and its status
+				// There should be one successful, one failed, and one more successful (after revert)
+				time.Sleep(5 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
+				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+					ConsistOf(structs.DeploymentStatusSuccessful, structs.DeploymentStatusFailed, structs.DeploymentStatusSuccessful))
 			})
 
 		})
