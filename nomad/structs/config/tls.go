@@ -1,8 +1,12 @@
 package config
 
 import (
+	"crypto/md5"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"os"
 	"sync"
 )
 
@@ -47,6 +51,10 @@ type TLSConfig struct {
 
 	// Verify connections to the HTTPS API
 	VerifyHTTPSClient bool `mapstructure:"verify_https_client"`
+
+	// Checksum is a MD5 hash of the certificate CA File, Certificate file, and
+	// key file.
+	Checksum string
 }
 
 type KeyLoader struct {
@@ -138,6 +146,9 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.KeyFile = t.KeyFile
 	new.RPCUpgradeMode = t.RPCUpgradeMode
 	new.VerifyHTTPSClient = t.VerifyHTTPSClient
+
+	new.SetChecksum()
+
 	return new
 }
 
@@ -191,12 +202,72 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 // It is possible for either the calling TLSConfig to be nil, or the TLSConfig
 // that it is being compared against, so we need to handle both places. See
 // server.go Reload for example.
-func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) bool {
+func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) (bool, error) {
 	if t == nil || newConfig == nil {
-		return t == newConfig
+		return t == newConfig, nil
 	}
 
-	return t.CAFile == newConfig.CAFile &&
-		t.CertFile == newConfig.CertFile &&
-		t.KeyFile == newConfig.KeyFile
+	if t.IsEmpty() && newConfig.IsEmpty() {
+		return true, nil
+	} else if t.IsEmpty() || newConfig.IsEmpty() {
+		return false, nil
+	}
+
+	// Set the checksum if it hasn't yet been set (this should happen when the
+	// config is parsed but this provides safety in depth)
+	if newConfig.Checksum == "" {
+		err := newConfig.SetChecksum()
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if t.Checksum == "" {
+		err := t.SetChecksum()
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return t.Checksum == newConfig.Checksum, nil
+}
+
+// SetChecksum generates and sets the checksum for a TLS configuration
+func (t *TLSConfig) SetChecksum() error {
+	newCertChecksum, err := createChecksumOfFiles(t.CAFile, t.CertFile, t.KeyFile)
+	if err != nil {
+		return err
+	}
+
+	t.Checksum = newCertChecksum
+	return nil
+}
+
+func getFileChecksum(filepath string) (string, error) {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func createChecksumOfFiles(inputs ...string) (string, error) {
+	h := md5.New()
+
+	for _, input := range inputs {
+		checksum, err := getFileChecksum(input)
+		if err != nil {
+			return "", err
+		}
+		io.WriteString(h, checksum)
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

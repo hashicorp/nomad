@@ -427,6 +427,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 
 	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
+	assert.True(s1.config.TLSConfig.EnableRPC)
 	assert.True(s1.config.TLSConfig.CertificateInfoIsEqual(newTLSConfig))
 
 	codec := rpcClient(t, s1)
