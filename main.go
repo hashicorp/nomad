@@ -27,19 +27,24 @@ var (
 		"client-config",
 		"eval-status",
 		"executor",
-		"fs",
-		"init",
-		"inspect",
 		"keygen",
 		"keyring",
-		"logs",
 		"node-drain",
 		"node-status",
-		"plan",
 		"server-force-leave",
 		"server-join",
 		"server-members",
 		"syslog",
+	}
+
+	// aliases is the list of aliases we want users to be aware of. We hide
+	// these form the help output but autocomplete them.
+	aliases = []string{
+		"fs",
+		"init",
+		"inspect",
+		"logs",
+		"plan",
 		"validate",
 	}
 
@@ -131,10 +136,19 @@ func groupedHelpFunc(f cli.HelpFunc) cli.HelpFunc {
 			printCommand(tw, v, commands[v])
 		}
 
+		// Filter out common commands and aliased commands from the other
+		// commands output
 		otherCommands := make([]string, 0, len(commands))
 		for k := range commands {
 			found := false
 			for _, v := range commonCommands {
+				if k == v {
+					found = true
+					break
+				}
+			}
+
+			for _, v := range aliases {
 				if k == v {
 					found = true
 					break
