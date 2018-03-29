@@ -18,12 +18,11 @@ import (
 var _ = Describe("Server Side Restart Tests", func() {
 
 	var (
-		jobs        *api.Jobs
-		system      *api.System
-		deployments *api.Deployments
-		job         *api.Job
-		err         error
-		specFile    string
+		jobs     *api.Jobs
+		system   *api.System
+		job      *api.Job
+		err      error
+		specFile string
 
 		// allocStatuses is a helper function that pulls
 		// out client statuses from a slice of allocs
@@ -76,7 +75,6 @@ var _ = Describe("Server Side Restart Tests", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		jobs = client.Jobs()
 		system = client.System()
-		deployments = client.Deployments()
 	})
 
 	JustBeforeEach(func() {
