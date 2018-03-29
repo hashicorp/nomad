@@ -5736,9 +5736,19 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 func (a *Allocation) LastEventTime() time.Time {
 	var lastEventTime time.Time
 	if a.TaskStates != nil {
-		for _, e := range a.TaskStates {
-			if lastEventTime.IsZero() || e.FinishedAt.After(lastEventTime) {
-				lastEventTime = e.FinishedAt
+		for _, s := range a.TaskStates {
+			if lastEventTime.IsZero() || s.FinishedAt.After(lastEventTime) {
+				lastEventTime = s.FinishedAt
+			}
+		}
+	}
+	// If no tasks have FinsihedAt set, examine task events
+	if lastEventTime.IsZero() {
+		for _, s := range a.TaskStates {
+			for _, e := range s.Events {
+				if lastEventTime.IsZero() || e.Time > lastEventTime.UnixNano() {
+					lastEventTime = time.Unix(0, e.Time).UTC()
+				}
 			}
 		}
 	}

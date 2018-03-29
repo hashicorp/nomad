@@ -2668,14 +2668,14 @@ func TestAllocation_LastEventTime(t *testing.T) {
 			expectedLastEventTime: t1,
 		},
 		{
-			desc: "One finished event",
+			desc: "One finished ",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt:  t1.Add(-2 * time.Hour),
 				FinishedAt: t1.Add(-1 * time.Hour)}},
 			expectedLastEventTime: t1.Add(-1 * time.Hour),
 		},
 		{
-			desc: "Multiple events",
+			desc: "Multiple task groups",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt:  t1.Add(-2 * time.Hour),
 				FinishedAt: t1.Add(-1 * time.Hour)},
@@ -2683,6 +2683,29 @@ func TestAllocation_LastEventTime(t *testing.T) {
 					StartedAt:  t1.Add(-2 * time.Hour),
 					FinishedAt: t1.Add(-40 * time.Minute)}},
 			expectedLastEventTime: t1.Add(-40 * time.Minute),
+		},
+		{
+			desc: "No finishedAt set, one task event",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1.Add(-20 * time.Minute),
+		},
+		{
+			desc: "No finishedAt set, many task events",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+					{Type: "status change", Time: t1.Add(-10 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1.Add(-10 * time.Minute),
 		},
 	}
 	for _, tc := range testCases {
