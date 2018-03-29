@@ -3297,8 +3297,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		switch j.Type {
 		case JobTypeService, JobTypeSystem:
 		default:
-			// COMPAT: Enable in 0.7.0
-			//mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow update block", j.Type))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow update block", j.Type))
 		}
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)

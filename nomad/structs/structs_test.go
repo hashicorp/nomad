@@ -700,12 +700,19 @@ func TestTaskGroup_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	// COMPAT: Enable in 0.7.0
-	//j.Type = JobTypeBatch
-	//err = tg.Validate(j)
-	//if !strings.Contains(err.Error(), "does not allow update block") {
-	//t.Fatalf("err: %s", err)
-	//}
+	tg = &TaskGroup{
+		Name:  "web",
+		Count: 1,
+		Tasks: []*Task{
+			{Name: "web", Leader: true},
+		},
+		Update: DefaultUpdateStrategy.Copy(),
+	}
+	j.Type = JobTypeBatch
+	err = tg.Validate(j)
+	if !strings.Contains(err.Error(), "does not allow update block") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestTask_Validate(t *testing.T) {
