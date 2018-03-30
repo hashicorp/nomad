@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -205,15 +206,20 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	outBuf := bytes.NewBuffer(nil)
+	ui := &cli.BasicUi{
+		Reader:      bytes.NewReader(nil),
+		Writer:      outBuf,
+		ErrorWriter: outBuf,
+	}
 	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + url, "-self", "-enable", "-deadline", "1s", "-ignore-system"}
 	t.Logf("Running: %v", args)
 	if code := cmd.Run(args); code != 0 {
-		t.Fatalf("expected exit 0, got: %d\n%s", code, ui.OutputWriter.String())
+		t.Fatalf("expected exit 0, got: %d\n%s", code, outBuf.String())
 	}
 
-	out := ui.OutputWriter.String()
+	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
 
 	require.Contains(out, "drain complete")
