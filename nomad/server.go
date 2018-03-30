@@ -476,7 +476,16 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.connPool.ReloadTLS(tlsWrap)
 
 	// reinitialize our rpc listener
-	s.rpcListener.Close()
+	if s.rpcListener == nil {
+		s.logger.Println("Unable to reload configuration due to uninitialized rpc listner")
+		return nil
+	}
+
+	if err := s.rpcListener.Close(); err != nil {
+		s.logger.Printf("[ERR] nomad: Unable to close rpc listener %s", err)
+		return err
+	}
+
 	<-s.listenerCh
 	s.startRPCListener()
 
