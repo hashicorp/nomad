@@ -291,10 +291,6 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
 				// Alloc has already been marked for migration and is now being stopped
 				msg = "draining"
-
-			case a.NextAllocation != "" && orig.NextAllocation == "":
-				// Alloc has been replaced by another allocation
-				msg = fmt.Sprintf("replaced by allocation %q", a.NextAllocation)
 			}
 
 			if msg != "" {
