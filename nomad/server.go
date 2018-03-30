@@ -487,13 +487,16 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	}
 
 	<-s.listenerCh
-	s.startRPCListener()
 
 	listener, err := s.createRPCListener()
 	if err != nil {
 		listener.Close()
 		return err
 	}
+
+	// Ensure that the listener exists before potentially closing it after the
+	// context for the nomad listener has exited
+	s.startRPCListener()
 
 	// Close and reload existing Raft connections
 	wrapper := tlsutil.RegionSpecificWrapper(s.config.Region, tlsWrap)
