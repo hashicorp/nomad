@@ -1,9 +1,15 @@
 ## 0.8 (Unreleased)
 
 __BACKWARDS INCOMPATIBILITIES:__
+ * cli: node drain now blocks until the drain completes and all allocations on
+   the draining node have stopped. Use -detach for the old behavior.
  * discovery: Prevent absolute URLs in check paths. The documentation indicated
    that absolute URLs are not allowed, but it was not enforced. Absolute URLs
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
+ * drain: Draining a node no longer stops all allocations immediately: a new
+   [migrate stanza](https://www.nomadproject.io/docs/job-specification/migrate.html)
+   allows jobs to specify how quickly task groups can be drained. A `-force`
+   option can be used to emulate the old drain behavior.
  * jobspec: The default values for restart policy have changed. Restart policy mode defaults to "fail" and the
    attempts/time interval values have been changed to enable faster server side rescheduling. See
    [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
@@ -21,6 +27,9 @@ IMPROVEMENTS:
  * core: Servers can now retry connecting to Vault to verify tokens without requiring a SIGHUP to do so [[GH-3957](https://github.com/hashicorp/nomad/issues/3957)]
  * core: Updated yamux library to pick up memory and CPU performance improvements [[GH-3980](https://github.com/hashicorp/nomad/issues/3980)]
  * core: Client stanza now supports overriding total memory [[GH-4052](https://github.com/hashicorp/nomad/issues/4052)]
+ * core: Node draining is now able to migrate allocations in a controlled
+   manner with parameters specified by the drain command and in job files using
+   the migrate stanza [[GH-4010](https://github.com/hashicorp/nomad/issues/4010)]
  * acl: Increase token name limit from 64 characters to 256 [[GH-3888](https://github.com/hashicorp/nomad/issues/3888)]
  * cli: Node status and filesystem related commands do not require direct
    network access to the Nomad client nodes [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
