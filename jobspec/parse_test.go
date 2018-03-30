@@ -155,6 +155,7 @@ func TestParse(t *testing.T) {
 								},
 								Resources: &api.Resources{
 									CPU:      helper.IntToPtr(500),
+									SwapMB:   helper.IntToPtr(512),
 									MemoryMB: helper.IntToPtr(128),
 									Networks: []*api.NetworkResource{
 										{
@@ -224,8 +225,8 @@ func TestParse(t *testing.T) {
 								},
 								Resources: &api.Resources{
 									CPU:      helper.IntToPtr(500),
+									SwapMB:   helper.IntToPtr(512),
 									MemoryMB: helper.IntToPtr(128),
-									SwapMB:   helper.IntToPtr(0),
 									IOPS:     helper.IntToPtr(30),
 								},
 								Constraints: []*api.Constraint{

@@ -17,13 +17,13 @@ job "binstore-storagelocker" {
   }
 
   update {
-    stagger      = "60s"
-    max_parallel = 2
-    health_check = "manual"
+    stagger          = "60s"
+    max_parallel     = 2
+    health_check     = "manual"
     min_healthy_time = "10s"
     healthy_deadline = "10m"
-    auto_revert = true
-    canary = 1
+    auto_revert      = true
+    canary           = 1
   }
 
   task "outside" {
@@ -49,22 +49,22 @@ job "binstore-storagelocker" {
     }
 
     reschedule {
-       attempts = 5
-       interval = "12h"
+      attempts = 5
+      interval = "12h"
     }
 
     ephemeral_disk {
-        sticky = true
-        size = 150
+      sticky = true
+      size   = 150
     }
 
     update {
-        max_parallel = 3
-        health_check = "checks"
-        min_healthy_time = "1s"
-        healthy_deadline = "1m"
-        auto_revert = false
-        canary = 2
+      max_parallel     = 3
+      health_check     = "checks"
+      min_healthy_time = "1s"
+      healthy_deadline = "1m"
+      auto_revert      = false
+      canary           = 2
     }
 
     migrate {
@@ -109,8 +109,8 @@ job "binstore-storagelocker" {
           port     = "admin"
 
           check_restart {
-            limit = 3
-            grace = "10s"
+            limit           = 3
+            grace           = "10s"
             ignore_warnings = true
           }
         }
@@ -119,6 +119,7 @@ job "binstore-storagelocker" {
       resources {
         cpu    = 500
         memory = 128
+        swap   = 512
 
         network {
           mbits = "100"
@@ -135,14 +136,11 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "http" {
-          }
+          port "http" {}
 
-          port "https" {
-          }
+          port "https" {}
 
-          port "admin" {
-          }
+          port "admin" {}
         }
       }
 
@@ -159,9 +157,9 @@ job "binstore-storagelocker" {
       }
 
       artifact {
-        source = "http://bar.com/artifact"
+        source      = "http://bar.com/artifact"
         destination = "test/foo/"
-        mode = "file"
+        mode        = "file"
 
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
@@ -173,20 +171,20 @@ job "binstore-storagelocker" {
       }
 
       template {
-        source = "foo"
-        destination = "foo"
-        change_mode = "foo"
+        source        = "foo"
+        destination   = "foo"
+        change_mode   = "foo"
         change_signal = "foo"
-        splay = "10s"
-        env = true
-        vault_grace = "33s"
+        splay         = "10s"
+        env           = true
+        vault_grace   = "33s"
       }
 
       template {
-        source = "bar"
-        destination = "bar"
-        perms = "777"
-        left_delimiter = "--"
+        source          = "bar"
+        destination     = "bar"
+        perms           = "777"
+        left_delimiter  = "--"
         right_delimiter = "__"
       }
     }
@@ -200,6 +198,7 @@ job "binstore-storagelocker" {
 
       resources {
         cpu    = 500
+        swap   = 512
         memory = 128
         iops   = 30
       }
@@ -210,9 +209,9 @@ job "binstore-storagelocker" {
       }
 
       vault {
-        policies = ["foo", "bar"]
-        env = false
-        change_mode = "signal"
+        policies      = ["foo", "bar"]
+        env           = false
+        change_mode   = "signal"
         change_signal = "SIGUSR1"
       }
     }
