@@ -286,6 +286,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		outCh := client.Nodes().MonitorDrain(context.Background(), node.ID, meta.LastIndex, ignoreSystem)
 		for msg := range outCh {
 			switch msg.Level {
+			case api.MonitorMsgLevelInfo:
+				c.Ui.Info(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
 			case api.MonitorMsgLevelWarn:
 				c.Ui.Warn(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
 			case api.MonitorMsgLevelError:

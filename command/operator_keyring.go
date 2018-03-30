@@ -114,7 +114,7 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 	}
 
 	if listKeys {
-		c.Ui.Info("Gathering installed encryption keys...")
+		c.Ui.Output("Gathering installed encryption keys...")
 		r, err := client.Agent().ListKeys()
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
@@ -125,7 +125,7 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 	}
 
 	if installKey != "" {
-		c.Ui.Info("Installing new gossip encryption key...")
+		c.Ui.Output("Installing new gossip encryption key...")
 		_, err := client.Agent().InstallKey(installKey)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
@@ -135,7 +135,7 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 	}
 
 	if useKey != "" {
-		c.Ui.Info("Changing primary gossip encryption key...")
+		c.Ui.Output("Changing primary gossip encryption key...")
 		_, err := client.Agent().UseKey(useKey)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))
@@ -145,7 +145,7 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 	}
 
 	if removeKey != "" {
-		c.Ui.Info("Removing gossip encryption key...")
+		c.Ui.Output("Removing gossip encryption key...")
 		_, err := client.Agent().RemoveKey(removeKey)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("error: %s", err))

@@ -92,16 +92,24 @@ func RunCustom(args []string) int {
 		ErrorWriter: os.Stderr,
 	}
 
+	// The Nomad agent never outputs color
+	agentUi := &cli.BasicUi{
+		Reader:      os.Stdin,
+		Writer:      os.Stdout,
+		ErrorWriter: os.Stderr,
+	}
+
 	// Only use colored UI if stdout is a tty, and not disabled
 	if isTerminal && color {
 		metaPtr.Ui = &cli.ColoredUi{
 			ErrorColor: cli.UiColorRed,
 			WarnColor:  cli.UiColorYellow,
+			InfoColor:  cli.UiColorGreen,
 			Ui:         metaPtr.Ui,
 		}
 	}
 
-	commands := command.Commands(metaPtr)
+	commands := command.Commands(metaPtr, agentUi)
 	cli := &cli.CLI{
 		Name:                       "nomad",
 		Version:                    version.GetVersion().FullVersionNumber(true),

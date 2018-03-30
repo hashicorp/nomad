@@ -89,9 +89,10 @@ func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q
 type MonitorMsgLevel int
 
 const (
-	MonitorMsgLevelInfo  MonitorMsgLevel = 0
-	MonitorMsgLevelWarn  MonitorMsgLevel = 1
-	MonitorMsgLevelError MonitorMsgLevel = 2
+	MonitorMsgLevelNormal MonitorMsgLevel = 0
+	MonitorMsgLevelInfo   MonitorMsgLevel = 1
+	MonitorMsgLevelWarn   MonitorMsgLevel = 2
+	MonitorMsgLevelError  MonitorMsgLevel = 3
 )
 
 // MonitorMessage contains a message and log level.
@@ -208,7 +209,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		}
 
 		if node.DrainStrategy == nil {
-			msg := Messagef(MonitorMsgLevelWarn, "Node %q drain complete", nodeID)
+			msg := Messagef(MonitorMsgLevelInfo, "Node %q drain complete", nodeID)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -288,7 +289,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 
 			if msg != "" {
 				select {
-				case allocCh <- Messagef(MonitorMsgLevelInfo, "Alloc %q %s", a.ID, msg):
+				case allocCh <- Messagef(MonitorMsgLevelNormal, "Alloc %q %s", a.ID, msg):
 				case <-ctx.Done():
 					return
 				}
@@ -312,7 +313,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 
 		// Exit if all allocs are terminal
 		if runningAllocs == 0 {
-			msg := Messagef(MonitorMsgLevelWarn, "All allocations on node %q have stopped.", nodeID)
+			msg := Messagef(MonitorMsgLevelInfo, "All allocations on node %q have stopped.", nodeID)
 			select {
 			case allocCh <- msg:
 			case <-ctx.Done():
