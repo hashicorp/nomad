@@ -68,6 +68,15 @@ type monitor struct {
 // write output information to the provided ui. The length parameter determines
 // the number of characters for identifiers in the ui.
 func newMonitor(ui cli.Ui, client *api.Client, length int) *monitor {
+	if colorUi, ok := ui.(*cli.ColoredUi); ok {
+		// Disable Info color for monitored output
+		ui = &cli.ColoredUi{
+			ErrorColor: colorUi.ErrorColor,
+			WarnColor:  colorUi.WarnColor,
+			InfoColor:  cli.UiColorNone,
+			Ui:         colorUi.Ui,
+		}
+	}
 	mon := &monitor{
 		ui: &cli.PrefixedUi{
 			InfoPrefix:   "==> ",

@@ -529,7 +529,7 @@ func (c *Command) Run(args []string) int {
 	padding := 18
 	c.Ui.Output("Nomad agent configuration:\n")
 	for _, k := range infoKeys {
-		c.Ui.Output(fmt.Sprintf(
+		c.Ui.Info(fmt.Sprintf(
 			"%s%s: %s",
 			strings.Repeat(" ", padding-len(k)),
 			strings.Title(k),
