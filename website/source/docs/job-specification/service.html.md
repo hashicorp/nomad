@@ -97,12 +97,16 @@ does not automatically enable service discovery.
     interpolated and revalidated. This can cause certain service names to pass validation at submit time but fail 
     at runtime.
     
-- `port` `(string: <optional>)` - Specifies the label of the port on which this
-  service is running. Note this is the _label_ of the port and not the port
-  number unless `address_mode = driver`. The port label must match one defined
-   in the [`network`][network] stanza unless you're also using
-  `address_mode="driver"`. Numeric ports may be used when in driver addressing
-   mode.
+- `port` `(string: <optional>)` - Specifies the port to advertise for this
+  service. The value of `port` depends on which [`address_mode`](#address_mode)
+  is being used:
+
+  - `driver` - Advertise the port determined by the driver (eg Docker or rkt).
+    The `port` may be a numeric port or a port label specified in the driver's
+    `port_map`.
+
+  - `host` - Advertise the host port for this service. `port` must match a port
+    _label_ specified in the [`network`][network] stanza.
 
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
