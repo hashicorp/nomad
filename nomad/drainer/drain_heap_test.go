@@ -147,3 +147,34 @@ func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 }
+
+func TestDeadlineHeap_MultipleForce(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	h := NewDeadlineHeap(context.Background(), 1*time.Second)
+
+	nodeID := "1"
+	deadline := time.Time{}
+	h.Watch(nodeID, deadline)
+
+	var batch []string
+	select {
+	case batch = <-h.NextBatch():
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("timeout")
+	}
+
+	require.Len(batch, 1)
+	require.Equal(nodeID, batch[0])
+
+	nodeID = "2"
+	h.Watch(nodeID, deadline)
+	select {
+	case batch = <-h.NextBatch():
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("timeout")
+	}
+
+	require.Len(batch, 1)
+	require.Equal(nodeID, batch[0])
+}
