@@ -365,9 +365,7 @@ func handleTaskGroup(snap *state.StateSnapshot, tg *structs.TaskGroup,
 
 		// If the alloc is running and has its deployment status set, it is
 		// considered healthy from a migration standpoint.
-		if !alloc.TerminalStatus() &&
-			alloc.DeploymentStatus != nil &&
-			alloc.DeploymentStatus.Healthy != nil {
+		if !alloc.TerminalStatus() && alloc.DeploymentStatus.HasHealth() {
 			healthy++
 		}
 

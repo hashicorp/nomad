@@ -39,7 +39,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 	}
 
 	// No need to watch health as it's already set
-	if alloc.DeploymentStatus.IsHealthy() || alloc.DeploymentStatus.IsUnhealthy() {
+	if alloc.DeploymentStatus.HasHealth() {
 		return
 	}
 
