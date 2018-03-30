@@ -577,7 +577,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 
 	d.logger.Printf("[TRACE] driver.docker: docker driver is available and is responsive to `docker ps`")
 	dinfo.Healthy = true
-	dinfo.HealthDescription = "Docker driver is available and responsive"
+	dinfo.HealthDescription = "Driver is available and responsive"
 	resp.AddDriverInfo("docker", dinfo)
 	return nil
 }

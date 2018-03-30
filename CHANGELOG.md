@@ -20,6 +20,7 @@ IMPROVEMENTS:
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
  * core: Servers can now retry connecting to Vault to verify tokens without requiring a SIGHUP to do so [[GH-3957](https://github.com/hashicorp/nomad/issues/3957)]
  * core: Updated yamux library to pick up memory and CPU performance improvements [[GH-3980](https://github.com/hashicorp/nomad/issues/3980)]
+ * core: Client stanza now supports overriding total memory [[GH-4052](https://github.com/hashicorp/nomad/issues/4052)]
  * acl: Increase token name limit from 64 characters to 256 [[GH-3888](https://github.com/hashicorp/nomad/issues/3888)]
  * cli: Node status and filesystem related commands do not require direct
    network access to the Nomad client nodes [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
@@ -47,7 +48,7 @@ IMPROVEMENTS:
  * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
  * driver/rkt: Allow overriding group [[GH-3990](https://github.com/hashicorp/nomad/issues/3990)]
  * telemetry: Support DataDog tags [[GH-3839](https://github.com/hashicorp/nomad/issues/3839)]
- * vault: Allow Nomad to create orphaned tokens for allocations [[GH-3922](https://github.com/hashicorp/nomad/issues/3922)]
+ * vault: Allow Nomad to create orphaned tokens for allocations [[GH-3992](https://github.com/hashicorp/nomad/issues/3992)]
 
 BUG FIXES:
  * core: Fix search endpoint forwarding for multi-region clusters [[GH-3680](https://github.com/hashicorp/nomad/issues/3680)]

@@ -186,8 +186,12 @@ The table below shows this endpoint's support for
                 "Mode": "delay"
             },
             "ReschedulePolicy": {
-                "Interval": 300000000000,
                 "Attempts": 10,
+                "Delay": 30000000000,
+                "DelayFunction": "exponential",
+                "Interval": 0,
+                "MaxDelay": 3600000000000,
+                "Unlimited": true
             },
             "EphemeralDisk": {
                 "SizeMB": 300
@@ -662,7 +666,8 @@ $ curl \
              {
                "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
                "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
-               "RescheduleTime": 1517434161192946200
+               "RescheduleTime": 1517434161192946200,
+               "Delay":5000000000,
               },
             ]
     },

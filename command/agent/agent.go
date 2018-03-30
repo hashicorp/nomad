@@ -356,6 +356,9 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.Client.CpuCompute != 0 {
 		conf.CpuCompute = a.config.Client.CpuCompute
 	}
+	if a.config.Client.MemoryMB != 0 {
+		conf.MemoryMB = a.config.Client.MemoryMB
+	}
 	if a.config.Client.MaxKillTimeout != "" {
 		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
 		if err != nil {
@@ -777,14 +780,31 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // ShouldReload determines if we should reload the configuration and agent
 // connections. If the TLS Configuration has not changed, we shouldn't reload.
-func (a *Agent) ShouldReload(newConfig *Config) (bool, bool) {
+func (a *Agent) ShouldReload(newConfig *Config) (agent, http, rpc bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
-	if a.config.TLSConfig.Equals(newConfig.TLSConfig) {
-		return false, false
+
+	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
+	if err != nil {
+		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)
+		return false, false, false
+	} else if !isEqual {
+		return true, true, true
 	}
 
-	return true, true // requires a reload of both agent and http server
+	// Allow the ability to only reload HTTP connections
+	if a.config.TLSConfig.EnableHTTP != newConfig.TLSConfig.EnableHTTP {
+		http = true
+		agent = true
+	}
+
+	// Allow the ability to only reload HTTP connections
+	if a.config.TLSConfig.EnableRPC != newConfig.TLSConfig.EnableRPC {
+		rpc = true
+		agent = true
+	}
+
+	return agent, http, rpc
 }
 
 // Reload handles configuration changes for the agent. Provides a method that

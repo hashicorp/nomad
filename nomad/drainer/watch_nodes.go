@@ -87,6 +87,21 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	}
 
 	if done {
+		// Node is done draining. Stop remaining system allocs before
+		// marking node as complete.
+		remaining, err := draining.RemainingAllocs()
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.drain: error getting remaining allocs on drained node %q: %v",
+				node.ID, err)
+		} else if len(remaining) > 0 {
+			future := structs.NewBatchFuture()
+			n.drainAllocs(future, remaining)
+			if err := future.Wait(); err != nil {
+				n.logger.Printf("[ERR] nomad.drain: failed to drain %d remaining allocs from done node %q: %v",
+					len(remaining), node.ID, err)
+			}
+		}
+
 		index, err := n.raft.NodesDrainComplete([]string{node.ID})
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", node.ID, err)

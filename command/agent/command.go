@@ -321,6 +321,15 @@ func (c *Command) readConfig() *Config {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
+	// Set up the TLS configuration properly if we have one.
+	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
+	// constructor-type actions like this.
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
+		if err := config.TLSConfig.SetChecksum(); err != nil {
+			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
+		}
+	}
+
 	return config
 }
 
@@ -645,7 +654,7 @@ func (c *Command) handleReload() {
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	shouldReloadAgent, shouldReloadHTTPServer := c.agent.ShouldReload(newConf)
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := c.agent.ShouldReload(newConf)
 	if shouldReloadAgent {
 		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
 		err := c.agent.Reload(newConf)
@@ -653,7 +662,9 @@ func (c *Command) handleReload() {
 			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 			return
 		}
+	}
 
+	if shouldReloadRPC {
 		if s := c.agent.Server(); s != nil {
 			sconf, err := convertServerConfig(newConf, c.logOutput)
 			c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
@@ -686,7 +697,7 @@ func (c *Command) handleReload() {
 	// we error in either of the above cases. For example, reloading the http
 	// server to a TLS connection could succeed, while reloading the server's rpc
 	// connections could fail.
-	if shouldReloadHTTPServer {
+	if shouldReloadHTTP {
 		err := c.reloadHTTPServer()
 		if err != nil {
 			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)

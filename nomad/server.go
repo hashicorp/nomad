@@ -665,7 +665,13 @@ func (s *Server) Reload(newConfig *Config) error {
 		}
 	}
 
-	if !newConfig.TLSConfig.Equals(s.config.TLSConfig) {
+	tlsInfoEqual, err := newConfig.TLSConfig.CertificateInfoIsEqual(s.config.TLSConfig)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: error parsing server TLS configuration: %s", err)
+		return err
+	}
+
+	if !tlsInfoEqual || newConfig.TLSConfig.EnableRPC != s.config.TLSConfig.EnableRPC {
 		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
 			s.logger.Printf("[ERR] nomad: error reloading server TLS configuration: %s", err)
 			multierror.Append(&mErr, err)

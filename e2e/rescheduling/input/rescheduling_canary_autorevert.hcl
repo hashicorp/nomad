@@ -1,11 +1,11 @@
-job "test5" {
+job "test" {
   datacenters = ["dc1"]
   type        = "service"
 
-  group "t5" {
+  group "t1" {
     count = 3
 
-    task "t5" {
+    task "t1" {
       driver = "raw_exec"
 
       config {
@@ -15,23 +15,20 @@ job "test5" {
     }
 
     update {
+      canary           = 3
       max_parallel     = 1
-      canary           = 1
       min_healthy_time = "1s"
-      auto_revert      = false
+      healthy_deadline = "1m"
+      auto_revert      = true
     }
 
     restart {
       attempts = 0
-      delay    = "0s"
       mode     = "fail"
     }
 
     reschedule {
-      attempts  = 3
-      interval  = "5m"
-      delay     = "5s"
-      unlimited = false
+      unlimited = "true"
     }
   }
 }

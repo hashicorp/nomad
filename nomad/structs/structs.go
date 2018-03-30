@@ -165,6 +165,25 @@ type RPCInfo interface {
 	RequestRegion() string
 	IsRead() bool
 	AllowStaleRead() bool
+	IsForwarded() bool
+	SetForwarded()
+}
+
+// InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
+// should NOT be replicated in the API package as it is internal only.
+type InternalRpcInfo struct {
+	// Forwarded marks whether the RPC has been forwarded.
+	Forwarded bool
+}
+
+// IsForwarded returns whether the RPC is forwarded from another server.
+func (i *InternalRpcInfo) IsForwarded() bool {
+	return i.Forwarded
+}
+
+// SetForwarded marks that the RPC is being forwarded from another server.
+func (i *InternalRpcInfo) SetForwarded() {
+	i.Forwarded = true
 }
 
 // QueryOptions is used to specify various flags for read queries
@@ -191,6 +210,8 @@ type QueryOptions struct {
 
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
+
+	InternalRpcInfo
 }
 
 func (q QueryOptions) RequestRegion() string {
@@ -222,6 +243,8 @@ type WriteRequest struct {
 
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
+
+	InternalRpcInfo
 }
 
 func (w WriteRequest) RequestRegion() string {
@@ -906,12 +929,17 @@ type NodeUpdateResponse struct {
 // NodeDrainUpdateResponse is used to respond to a node drain update
 type NodeDrainUpdateResponse struct {
 	NodeModifyIndex uint64
-	QueryMeta
-
-	// Deprecated in Nomad 0.8 as an evaluation is not immediately created but
-	// is instead handled by the drainer.
 	EvalIDs         []string
 	EvalCreateIndex uint64
+	WriteMeta
+}
+
+// NodeEligibilityUpdateResponse is used to respond to a node eligibility update
+type NodeEligibilityUpdateResponse struct {
+	NodeModifyIndex uint64
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	WriteMeta
 }
 
 // NodeAllocsResponse is used to return allocs for a single node
@@ -1165,7 +1193,7 @@ type NodeEvent struct {
 	Message     string
 	Subsystem   string
 	Details     map[string]string
-	Timestamp   int64
+	Timestamp   time.Time
 	CreateIndex uint64
 }
 
@@ -1175,7 +1203,7 @@ func (ne *NodeEvent) String() string {
 		details = append(details, fmt.Sprintf("%s: %s", k, v))
 	}
 
-	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %d", ne.Message, ne.Subsystem, strings.Join(details, ","), ne.Timestamp)
+	return fmt.Sprintf("Message: %s, Subsystem: %s, Details: %s, Timestamp: %s", ne.Message, ne.Subsystem, strings.Join(details, ","), ne.Timestamp.String())
 }
 
 func (ne *NodeEvent) Copy() *NodeEvent {
@@ -1396,6 +1424,23 @@ type Node struct {
 func (n *Node) Ready() bool {
 	// Drain is checked directly to support pre-0.8 Node data
 	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
+}
+
+func (n *Node) Canonicalize() {
+	if n == nil {
+		return
+	}
+
+	// COMPAT Remove in 0.10
+	// In v0.8.0 we introduced scheduling eligibility, so we need to set it for
+	// upgrading nodes
+	if n.SchedulingEligibility == "" {
+		if n.Drain {
+			n.SchedulingEligibility = NodeSchedulingIneligible
+		} else {
+			n.SchedulingEligibility = NodeSchedulingEligible
+		}
+	}
 }
 
 func (n *Node) Copy() *Node {
@@ -2766,7 +2811,7 @@ var (
 		Attempts:      1,
 		Interval:      24 * time.Hour,
 		Delay:         5 * time.Second,
-		DelayFunction: "linear",
+		DelayFunction: "constant",
 	}
 )
 
@@ -2851,7 +2896,7 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 const ReschedulePolicyMinInterval = 15 * time.Second
 const ReschedulePolicyMinDelay = 5 * time.Second
 
-var RescheduleDelayFunctions = [...]string{"linear", "exponential", "fibonacci"}
+var RescheduleDelayFunctions = [...]string{"constant", "exponential", "fibonacci"}
 
 // ReschedulePolicy configures how Tasks are rescheduled  when they crash or fail.
 type ReschedulePolicy struct {
@@ -2866,7 +2911,7 @@ type ReschedulePolicy struct {
 	Delay time.Duration
 
 	// DelayFunction determines how the delay progressively changes on subsequent reschedule
-	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	// attempts. Valid values are "exponential", "constant", and "fibonacci".
 	DelayFunction string
 
 	// MaxDelay is an upper bound on the delay.
@@ -2888,7 +2933,7 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 
 // Validate uses different criteria to validate the reschedule policy
 // Delay must be a minimum of 5 seconds
-// Delay Ceiling is ignored if Delay Function is "linear"
+// Delay Ceiling is ignored if Delay Function is "constant"
 // Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
 	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
@@ -2897,6 +2942,16 @@ func (r *ReschedulePolicy) Validate() error {
 	}
 	var mErr multierror.Error
 	// Check for ambiguous/confusing settings
+	if r.Attempts > 0 {
+		if r.Interval <= 0 {
+			multierror.Append(&mErr, fmt.Errorf("Interval must be a non zero value if Attempts > 0"))
+		}
+		if r.Unlimited {
+			multierror.Append(&mErr, fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, "+
+				"and Unlimited = %v is ambiguous", r.Attempts, r.Interval, r.Unlimited))
+			multierror.Append(&mErr, errors.New("If Attempts >0, Unlimited cannot also be set to true"))
+		}
+	}
 
 	delayPreCheck := true
 	// Delay should be bigger than the default
@@ -2912,13 +2967,13 @@ func (r *ReschedulePolicy) Validate() error {
 	}
 
 	// Validate MaxDelay if not using linear delay progression
-	if r.DelayFunction != "linear" {
+	if r.DelayFunction != "constant" {
 		if r.MaxDelay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
-			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
+			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
 			delayPreCheck = false
 		}
 		if r.MaxDelay < r.Delay {
-			multierror.Append(&mErr, fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
+			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
 			delayPreCheck = false
 		}
 
@@ -2956,7 +3011,7 @@ func (r *ReschedulePolicy) validateDelayParams() error {
 		return nil
 	}
 	var mErr multierror.Error
-	if r.DelayFunction == "linear" {
+	if r.DelayFunction == "constant" {
 		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and "+
 			"delay function %q", possibleAttempts, r.Interval, r.Delay, r.DelayFunction))
 	} else {
@@ -2972,7 +3027,7 @@ func (r *ReschedulePolicy) viableAttempts() (bool, int, time.Duration) {
 	var recommendedInterval time.Duration
 	valid := true
 	switch r.DelayFunction {
-	case "linear":
+	case "constant":
 		recommendedInterval = time.Duration(r.Attempts) * r.Delay
 		if r.Interval < recommendedInterval {
 			possibleAttempts = int(r.Interval / r.Delay)
@@ -3259,8 +3314,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		switch j.Type {
 		case JobTypeService, JobTypeSystem:
 		default:
-			// COMPAT: Enable in 0.7.0
-			//mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow update block", j.Type))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Job type %q does not allow update block", j.Type))
 		}
 		if err := u.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -5674,7 +5728,11 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 	if !enabled {
 		return false
 	}
-	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 || reschedulePolicy.Unlimited {
+	if reschedulePolicy.Unlimited {
+		return true
+	}
+	// Early return true if there are no attempts yet and the number of allowed attempts is > 0
+	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
 		return true
 	}
 	attempted := 0
@@ -5689,15 +5747,29 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 }
 
 // LastEventTime is the time of the last task event in the allocation.
-// It is used to determine allocation failure time.
+// It is used to determine allocation failure time. If the FinishedAt field
+// is not set, the alloc's modify time is used
 func (a *Allocation) LastEventTime() time.Time {
 	var lastEventTime time.Time
 	if a.TaskStates != nil {
-		for _, e := range a.TaskStates {
-			if lastEventTime.IsZero() || e.FinishedAt.After(lastEventTime) {
-				lastEventTime = e.FinishedAt
+		for _, s := range a.TaskStates {
+			if lastEventTime.IsZero() || s.FinishedAt.After(lastEventTime) {
+				lastEventTime = s.FinishedAt
 			}
 		}
+	}
+	// If no tasks have FinsihedAt set, examine task events
+	if lastEventTime.IsZero() {
+		for _, s := range a.TaskStates {
+			for _, e := range s.Events {
+				if lastEventTime.IsZero() || e.Time > lastEventTime.UnixNano() {
+					lastEventTime = time.Unix(0, e.Time).UTC()
+				}
+			}
+		}
+	}
+	if lastEventTime.IsZero() {
+		return time.Unix(0, a.ModifyTime).UTC()
 	}
 	return lastEventTime
 }
@@ -5716,7 +5788,7 @@ func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	failTime := a.LastEventTime()
 	reschedulePolicy := a.ReschedulePolicy()
-	if a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
+	if a.DesiredStatus == AllocDesiredStatusStop || a.ClientStatus != AllocClientStatusFailed || failTime.IsZero() || reschedulePolicy == nil {
 		return time.Time{}, false
 	}
 
@@ -6036,6 +6108,11 @@ type AllocDeploymentStatus struct {
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
+}
+
+// HasHealth returns true if the allocation has its health set.
+func (a *AllocDeploymentStatus) HasHealth() bool {
+	return a != nil && a.Healthy != nil
 }
 
 // IsHealthy returns if the allocation is marked as healthy as part of a

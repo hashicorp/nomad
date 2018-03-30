@@ -802,7 +802,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 	nodeEvent := &structs.NodeEvent{
 		Message:   "failed",
 		Subsystem: "Driver",
-		Timestamp: time.Now().Unix(),
+		Timestamp: time.Now(),
 	}
 	nodeEvents := map[string][]*structs.NodeEvent{
 		node.ID: {nodeEvent},
@@ -845,7 +845,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 		nodeEvent := &structs.NodeEvent{
 			Message:   fmt.Sprintf("%dith failed", i),
 			Subsystem: "Driver",
-			Timestamp: time.Now().Unix(),
+			Timestamp: time.Now(),
 		}
 
 		nodeEvents := map[string][]*structs.NodeEvent{

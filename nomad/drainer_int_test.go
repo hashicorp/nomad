@@ -38,10 +38,13 @@ func allocPromoter(t *testing.T, ctx context.Context,
 		// For each alloc that doesn't have its deployment status set, set it
 		var updates []*structs.Allocation
 		for _, alloc := range allocs {
-			if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil {
+			if alloc.Job.Type != structs.JobTypeService {
 				continue
 			}
 
+			if alloc.DeploymentStatus.HasHealth() {
+				continue
+			}
 			newAlloc := alloc.Copy()
 			newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 				Healthy: helper.BoolToPtr(true),
@@ -59,11 +62,11 @@ func allocPromoter(t *testing.T, ctx context.Context,
 			Alloc:        updates,
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
-		var resp structs.NodeAllocsResponse
+		var resp structs.GenericResponse
 		if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, &resp); err != nil {
 			if ctx.Err() == context.Canceled {
 				return
-			} else {
+			} else if err != nil {
 				require.Nil(t, err)
 			}
 		}
@@ -322,4 +325,156 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+func TestDrainer_AllTypes_Deadline(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create two nodes, registering the second later
+	n1, n2 := mock.Node(), mock.Node()
+	nodeReg := &structs.NodeRegisterRequest{
+		Node:         n1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var nodeResp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReg, &nodeResp))
+
+	// Create a service job that runs on just one
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Create a system job
+	sysjob := mock.SystemJob()
+	req = &structs.JobRegisterRequest{
+		Job: sysjob,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Create a batch job
+	bjob := mock.BatchJob()
+	bjob.TaskGroups[0].Count = 2
+	req = &structs.JobRegisterRequest{
+		Job: bjob,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Wait for the allocations to be placed
+	state := s1.State()
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := state.AllocsByNode(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) == 5, fmt.Errorf("got %d allocs", len(allocs))
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Create the second node
+	nodeReg = &structs.NodeRegisterRequest{
+		Node:         n2,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReg, &nodeResp))
+
+	// Drain the node
+	drainReq := &structs.NodeUpdateDrainRequest{
+		NodeID: n1.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 2 * time.Second,
+			},
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
+
+	// Wait for the allocs to be replaced
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go allocPromoter(t, ctx, state, codec, n1.ID, s1.logger)
+	go allocPromoter(t, ctx, state, codec, n2.ID, s1.logger)
+
+	// Wait for the allocs to be stopped
+	var finalAllocs []*structs.Allocation
+	testutil.WaitForResult(func() (bool, error) {
+		var err error
+		finalAllocs, err = state.AllocsByNode(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, alloc := range finalAllocs {
+			if alloc.DesiredStatus != structs.AllocDesiredStatusStop {
+				return false, fmt.Errorf("got desired status %v", alloc.DesiredStatus)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Check that the node drain is removed
+	testutil.WaitForResult(func() (bool, error) {
+		node, err := state.NodeByID(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		return node.DrainStrategy == nil, fmt.Errorf("has drain strategy still set")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Wait for the allocations to be placed on the other node
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := state.AllocsByNode(nil, n2.ID)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) == 5, fmt.Errorf("got %d allocs", len(allocs))
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Assert that the service finished before the batch and system
+	var serviceMax, batchMax uint64 = 0, 0
+	for _, alloc := range finalAllocs {
+		if alloc.Job.Type == structs.JobTypeService && alloc.ModifyIndex > serviceMax {
+			serviceMax = alloc.ModifyIndex
+		} else if alloc.Job.Type == structs.JobTypeBatch && alloc.ModifyIndex > batchMax {
+			batchMax = alloc.ModifyIndex
+		}
+	}
+	require.True(serviceMax < batchMax)
 }

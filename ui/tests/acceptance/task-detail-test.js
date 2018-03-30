@@ -172,7 +172,7 @@ test('each recent event should list the time, type, and description of the event
   );
   assert.equal(
     recentEvent.querySelector('[data-test-task-event-message]').textContent.trim(),
-    event.message,
+    event.displayMessage,
     'Event message'
   );
 });

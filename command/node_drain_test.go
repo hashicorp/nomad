@@ -119,16 +119,17 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	// Register a job to create an alloc to drain
-	count := 3
+	// Register a service job to create allocs to drain
+	serviceCount := 3
 	job := &api.Job{
 		ID:          helper.StringToPtr("mock_service"),
 		Name:        helper.StringToPtr("mock_service"),
 		Datacenters: []string{"dc1"},
+		Type:        helper.StringToPtr("service"),
 		TaskGroups: []*api.TaskGroup{
 			{
 				Name:  helper.StringToPtr("mock_group"),
-				Count: &count,
+				Count: &serviceCount,
 				Migrate: &api.MigrateStrategy{
 					MaxParallel:     helper.IntToPtr(1),
 					HealthCheck:     helper.StringToPtr("task_states"),
@@ -142,6 +143,10 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 						Config: map[string]interface{}{
 							"run_for": "10m",
 						},
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(50),
+							MemoryMB: helper.IntToPtr(50),
+						},
 					},
 				},
 			},
@@ -151,14 +156,44 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	_, _, err := client.Jobs().Register(job, nil)
 	require.Nil(err)
 
+	// Register a system job to ensure it is ignored during draining
+	sysjob := &api.Job{
+		ID:          helper.StringToPtr("mock_system"),
+		Name:        helper.StringToPtr("mock_system"),
+		Datacenters: []string{"dc1"},
+		Type:        helper.StringToPtr("system"),
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("mock_sysgroup"),
+				Count: helper.IntToPtr(1),
+				Tasks: []*api.Task{
+					{
+						Name:   "mock_systask",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "10m",
+						},
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(50),
+							MemoryMB: helper.IntToPtr(50),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, _, err = client.Jobs().Register(sysjob, nil)
+	require.Nil(err)
+
 	var allocs []*api.Allocation
 	testutil.WaitForResult(func() (bool, error) {
 		allocs, _, err = client.Nodes().Allocations(nodeID, nil)
 		if err != nil {
 			return false, err
 		}
-		if len(allocs) != count {
-			return false, fmt.Errorf("number of allocs %d != count (%d)", len(allocs), count)
+		if len(allocs) != serviceCount+1 {
+			return false, fmt.Errorf("number of allocs %d != count (%d)", len(allocs), serviceCount+1)
 		}
 		for _, a := range allocs {
 			if a.ClientStatus != "running" {
@@ -172,10 +207,10 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 
 	ui := new(cli.MockUi)
 	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
-	args := []string{"-address=" + url, "-self", "-enable", "-deadline", "1s"}
+	args := []string{"-address=" + url, "-self", "-enable", "-deadline", "1s", "-ignore-system"}
 	t.Logf("Running: %v", args)
 	if code := cmd.Run(args); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
+		t.Fatalf("expected exit 0, got: %d\n%s", code, ui.OutputWriter.String())
 	}
 
 	out := ui.OutputWriter.String()
@@ -183,8 +218,18 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 
 	require.Contains(out, "drain complete")
 	for _, a := range allocs {
+		if *a.Job.Type == "system" {
+			if strings.Contains(out, a.ID) {
+				t.Fatalf("output should not contain system alloc %q", a.ID)
+			}
+			continue
+		}
 		require.Contains(out, fmt.Sprintf("Alloc %q marked for migration", a.ID))
 		require.Contains(out, fmt.Sprintf("Alloc %q draining", a.ID))
+	}
+	expected := fmt.Sprintf("All allocations on node %q have stopped.\n", nodeID)
+	if !strings.HasSuffix(out, expected) {
+		t.Fatalf("expected output to end with:\n%s", expected)
 	}
 }
 

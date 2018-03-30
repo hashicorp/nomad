@@ -165,12 +165,12 @@ func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.R
 	}
 	s.parseWriteRequest(req, &drainRequest.WriteRequest)
 
-	var out structs.GenericResponse
+	var out structs.NodeEligibilityUpdateResponse
 	if err := s.agent.RPC("Node.UpdateEligibility", &drainRequest, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
-	return nil, nil
+	return out, nil
 }
 
 func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,

@@ -208,6 +208,10 @@
       border: 1px solid $grey-blue;
       border-width: 0 0 1px;
       padding: 1.25em 1.5em;
+
+      &.is-one-line {
+        white-space: nowrap;
+      }
     }
   }
 

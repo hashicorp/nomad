@@ -2,14 +2,12 @@ package agent
 
 import (
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_Parse(t *testing.T) {
@@ -64,6 +62,7 @@ func TestConfig_Parse(t *testing.T) {
 					NetworkInterface: "eth0",
 					NetworkSpeed:     100,
 					CpuCompute:       4444,
+					MemoryMB:         0,
 					MaxKillTimeout:   "10s",
 					ClientMinPort:    1000,
 					ClientMaxPort:    2000,
@@ -206,9 +205,64 @@ func TestConfig_Parse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"non-optional.hcl",
+			&Config{
+				Region:         "",
+				Datacenter:     "",
+				NodeName:       "",
+				DataDir:        "",
+				LogLevel:       "",
+				BindAddr:       "",
+				EnableDebug:    false,
+				Ports:          nil,
+				Addresses:      nil,
+				AdvertiseAddrs: nil,
+				Client: &ClientConfig{
+					Enabled:               false,
+					StateDir:              "",
+					AllocDir:              "",
+					Servers:               nil,
+					NodeClass:             "",
+					Meta:                  nil,
+					Options:               nil,
+					ChrootEnv:             nil,
+					NetworkInterface:      "",
+					NetworkSpeed:          0,
+					CpuCompute:            0,
+					MemoryMB:              5555,
+					MaxKillTimeout:        "",
+					ClientMinPort:         0,
+					ClientMaxPort:         0,
+					Reserved:              nil,
+					GCInterval:            0,
+					GCParallelDestroys:    0,
+					GCDiskUsageThreshold:  0,
+					GCInodeUsageThreshold: 0,
+					GCMaxAllocs:           0,
+					NoHostUUID:            nil,
+				},
+				Server:                    nil,
+				ACL:                       nil,
+				Telemetry:                 nil,
+				LeaveOnInt:                false,
+				LeaveOnTerm:               false,
+				EnableSyslog:              false,
+				SyslogFacility:            "",
+				DisableUpdateCheck:        nil,
+				DisableAnonymousSignature: false,
+				Consul:                 nil,
+				Vault:                  nil,
+				TLSConfig:              nil,
+				HTTPAPIResponseHeaders: nil,
+				Sentinel:               nil,
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
+		require := require.New(t)
 		t.Run(tc.File, func(t *testing.T) {
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
@@ -219,10 +273,7 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
-
-			if !reflect.DeepEqual(actual, tc.Result) {
-				t.Errorf("file: %s  diff: (actual vs expected)\n\n%s", tc.File, strings.Join(pretty.Diff(actual, tc.Result), "\n"))
-			}
+			require.EqualValues(actual, tc.Result)
 		})
 	}
 }

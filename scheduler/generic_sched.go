@@ -35,6 +35,10 @@ const (
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
 
+	// allocNodeTainted is the status used when stopping an alloc because it's
+	// node is tainted.
+	allocNodeTainted = "alloc not needed as node is tainted"
+
 	// blockedEvalMaxPlanDesc is the description used for blocked evals that are
 	// a result of hitting the max number of plan attempts
 	blockedEvalMaxPlanDesc = "created due to placement conflicts"
@@ -363,6 +367,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			update.DeploymentID = s.deployment.GetID()
 			update.DeploymentStatus = nil
 		}
+		s.ctx.Plan().AppendAlloc(update)
+	}
+
+	// Handle the annotation updates
+	for _, update := range results.attributeUpdates {
 		s.ctx.Plan().AppendAlloc(update)
 	}
 

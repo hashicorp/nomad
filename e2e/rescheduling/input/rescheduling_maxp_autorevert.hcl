@@ -1,4 +1,4 @@
-job "test2" {
+job "demo3" {
   datacenters = ["dc1"]
   type        = "service"
 
@@ -10,20 +10,26 @@ job "test2" {
 
       config {
         command = "bash"
-        args    = ["-c", "lol 5000"]
+        args    = ["-c", "sleep 5000"]
       }
+    }
+
+    update {
+      max_parallel     = 1
+      min_healthy_time = "1s"
+      healthy_deadline = "1m"
+      auto_revert      = true
     }
 
     restart {
       attempts = 0
-      delay    = "0s"
       mode     = "fail"
     }
 
     reschedule {
-      attempts  = 2
-      interval  = "5m"
-      unlimited = false
+      unlimited = "true"
+
+      #  attempts  = 0
     }
   }
 }

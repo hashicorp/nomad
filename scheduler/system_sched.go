@@ -14,10 +14,6 @@ const (
 	// we will attempt to schedule if we continue to hit conflicts for system
 	// jobs.
 	maxSystemScheduleAttempts = 5
-
-	// allocNodeTainted is the status used when stopping an alloc because it's
-	// node is tainted.
-	allocNodeTainted = "alloc not needed as node is tainted"
 )
 
 // SystemScheduler is used for 'system' jobs. This scheduler is
@@ -210,6 +206,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
+	}
+
+	// Add all the allocs to migrate
+	for _, e := range diff.migrate {
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNodeTainted, "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
