@@ -91,6 +91,9 @@ func (d *deadlineHeap) watch() {
 			continue
 		}
 
+		// If the deadline is zero, it is a force drain. Otherwise if the
+		// deadline is in the future, see if we already have a timer setup to
+		// handle it. If we don't create the timer.
 		if deadline.IsZero() || !deadline.Equal(nextDeadline) {
 			timer.Reset(deadline.Sub(time.Now()))
 			nextDeadline = deadline
