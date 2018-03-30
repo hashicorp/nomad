@@ -1,9 +1,15 @@
 ## 0.8 (Unreleased)
 
 __BACKWARDS INCOMPATIBILITIES:__
+ * cli: node drain now blocks until the drain completes and all allocations on
+   the draining node have stopped. Use -detach for the old behavior.
  * discovery: Prevent absolute URLs in check paths. The documentation indicated
    that absolute URLs are not allowed, but it was not enforced. Absolute URLs
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
+ * drain: Draining a node no longer stops all allocations immediately: a new
+   [migrate stanza](https://www.nomadproject.io/docs/job-specification/migrate.html)
+   allows jobs to specify how quickly task groups can be drained. A `-force`
+   option can be used to emulate the old drain behavior.
  * jobspec: The default values for restart policy have changed. Restart policy mode defaults to "fail" and the
    attempts/time interval values have been changed to enable faster server side rescheduling. See
    [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
@@ -21,6 +27,9 @@ IMPROVEMENTS:
  * core: Servers can now retry connecting to Vault to verify tokens without requiring a SIGHUP to do so [[GH-3957](https://github.com/hashicorp/nomad/issues/3957)]
  * core: Updated yamux library to pick up memory and CPU performance improvements [[GH-3980](https://github.com/hashicorp/nomad/issues/3980)]
  * core: Client stanza now supports overriding total memory [[GH-4052](https://github.com/hashicorp/nomad/issues/4052)]
+ * core: Node draining is now able to migrate allocations in a controlled
+   manner with parameters specified by the drain command and in job files using
+   the migrate stanza [[GH-4010](https://github.com/hashicorp/nomad/issues/4010)]
  * acl: Increase token name limit from 64 characters to 256 [[GH-3888](https://github.com/hashicorp/nomad/issues/3888)]
  * cli: Node status and filesystem related commands do not require direct
    network access to the Nomad client nodes [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
@@ -48,6 +57,13 @@ IMPROVEMENTS:
  * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
  * driver/rkt: Allow overriding group [[GH-3990](https://github.com/hashicorp/nomad/issues/3990)]
  * telemetry: Support DataDog tags [[GH-3839](https://github.com/hashicorp/nomad/issues/3839)]
+ * ui: Specialized job detail pages for each job type (system, service, batch, periodic, parameterized, periodic instance, parameterized instance). [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
+ * ui: Allocation stats requests are made through the server instead of directly through clients. [[GH-3908](https://github.com/hashicorp/nomad/issues/3908)]
+ * ui: Allocation log requests fallback to using the server when the client can't be reached. [[GH-3908](https://github.com/hashicorp/nomad/issues/3908)]
+ * ui: All views poll for changes using long-polling via blocking queries. [[GH-3936](https://github.com/hashicorp/nomad/issues/3936)]
+ * ui: Dispatch payload on the parameterized instance job detail page. [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
+ * ui: Periodic force launch button on the periodic job detail page. [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
+ * ui: Allocation breadcrumbs now extend job breadcrumbs. [[GH-3829](https://github.com/hashicorp/nomad/issues/3974)]
  * vault: Allow Nomad to create orphaned tokens for allocations [[GH-3992](https://github.com/hashicorp/nomad/issues/3992)]
 
 BUG FIXES:
@@ -71,8 +87,11 @@ BUG FIXES:
    EnabledScheduler detection [[GH-3978](https://github.com/hashicorp/nomad/issues/3978)]
  * driver/exec: Properly disable swapping [[GH-3958](https://github.com/hashicorp/nomad/issues/3958)]
  * driver/lxc: Cleanup LXC containers after errors on container startup. [[GH-3773](https://github.com/hashicorp/nomad/issues/3773)]
- * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
+ * ui: Always show the task name in the task recent events table on the allocation detail page. [[GH-3985](https://github.com/hashicorp/nomad/pull/3985)]
+ * ui: Only show the placement failures section when there is a blocked evaluation. [[GH-3956](https://github.com/hashicorp/nomad/pull/3956)]
  * ui: Fix requests using client-side certificates in Firefox. [[GH-3728](https://github.com/hashicorp/nomad/pull/3728)]
+ * ui: Fix ui on non-leaders when ACLs are enabled [[GH-3722](https://github.com/hashicorp/nomad/issues/3722)]
+
 
 ## 0.7.1 (December 19, 2017)
 
@@ -83,7 +102,7 @@ __BACKWARDS INCOMPATIBILITIES:__
  * config: Nomad no longer parses Atlas configuration stanzas. Atlas has been
    deprecated since earlier this year. If you have an Atlas stanza in your
    config file it will have to be removed.
- * config: Default minimum CPU configuration has been changed to 100 from 20. Jobs 
+ * config: Default minimum CPU configuration has been changed to 100 from 20. Jobs
    using the old minimum value of 20 will have to be updated.
  * telemetry: Hostname is now emitted via a tag rather than within the key name.
    To maintain old behavior during an upgrade path specify

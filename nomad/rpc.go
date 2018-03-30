@@ -64,6 +64,7 @@ type RPCContext struct {
 
 // listen is used to listen for incoming RPC connections
 func (s *Server) listen(ctx context.Context) {
+	defer close(s.listenerCh)
 	for {
 		select {
 		case <-ctx.Done():
