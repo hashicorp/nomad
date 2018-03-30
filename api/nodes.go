@@ -215,27 +215,11 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys bool, allocCh, errCh chan<- string) {
 	defer close(allocCh)
 
-	// Build initial alloc state
 	q := QueryOptions{AllowStale: true}
-	allocs, meta, err := n.Allocations(nodeID, &q)
-	if err != nil {
-		msg := fmt.Sprintf("Error monitoring allocations: %v", err)
-		select {
-		case errCh <- msg:
-		case <-ctx.Done():
-		}
-		return
-	}
-
-	initial := make(map[string]*Allocation, len(allocs))
-	for _, a := range allocs {
-		initial[a.ID] = a
-	}
+	initial := make(map[string]*Allocation, 4)
 
 	for {
-		q.WaitIndex = meta.LastIndex
-
-		allocs, meta, err = n.Allocations(nodeID, &q)
+		allocs, meta, err := n.Allocations(nodeID, &q)
 		if err != nil {
 			msg := fmt.Sprintf("Error monitoring allocations: %v", err)
 			select {
@@ -244,6 +228,8 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 			}
 			return
 		}
+
+		q.WaitIndex = meta.LastIndex
 
 		runningAllocs := 0
 		for _, a := range allocs {
