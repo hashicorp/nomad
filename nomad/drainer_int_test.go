@@ -633,3 +633,123 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 }
+
+// Test that transistions to force drain work.
+func TestDrainer_Batch_Force(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a node
+	n1 := mock.Node()
+	nodeReg := &structs.NodeRegisterRequest{
+		Node:         n1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var nodeResp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReg, &nodeResp))
+
+	// Create a batch job
+	bjob := mock.BatchJob()
+	bjob.TaskGroups[0].Count = 2
+	req := &structs.JobRegisterRequest{
+		Job: bjob,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: bjob.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Wait for the allocations to be placed
+	state := s1.State()
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, err := state.AllocsByNode(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		return len(allocs) == 2, fmt.Errorf("got %d allocs", len(allocs))
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Drain the node
+	drainReq := &structs.NodeUpdateDrainRequest{
+		NodeID: n1.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 0 * time.Second, // Infinite
+			},
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
+
+	// Wait for the allocs to be replaced
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go allocPromoter(t, ctx, state, codec, n1.ID, s1.logger)
+
+	// Make sure the batch job isn't affected
+	testutil.AssertUntil(500*time.Millisecond, func() (bool, error) {
+		allocs, err := state.AllocsByNode(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, alloc := range allocs {
+			if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
+				return false, fmt.Errorf("got status %v", alloc.DesiredStatus)
+			}
+		}
+		return len(allocs) == 2, fmt.Errorf("got %d allocs", len(allocs))
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Foce drain the node
+	drainReq = &structs.NodeUpdateDrainRequest{
+		NodeID: n1.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second, // Infinite
+			},
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
+
+	// Make sure the batch job is migrated
+	testutil.AssertUntil(500*time.Millisecond, func() (bool, error) {
+		allocs, err := state.AllocsByNode(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		for _, alloc := range allocs {
+			if alloc.DesiredStatus != structs.AllocDesiredStatusStop {
+				return false, fmt.Errorf("got status %v", alloc.DesiredStatus)
+			}
+		}
+		return len(allocs) == 2, fmt.Errorf("got %d allocs", len(allocs))
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Check that the node drain is removed
+	testutil.WaitForResult(func() (bool, error) {
+		node, err := state.NodeByID(nil, n1.ID)
+		if err != nil {
+			return false, err
+		}
+		return node.DrainStrategy == nil, fmt.Errorf("has drain strategy still set")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
