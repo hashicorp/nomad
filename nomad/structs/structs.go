@@ -3241,6 +3241,11 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.ReschedulePolicy = NewReschedulePolicy(job.Type)
 	}
 
+	// Canonicalize Migrate for service jobs
+	if job.Type == JobTypeService && tg.Migrate == nil {
+		tg.Migrate = DefaultMigrateStrategy()
+	}
+
 	// Set a default ephemeral disk object if the user has not requested for one
 	if tg.EphemeralDisk == nil {
 		tg.EphemeralDisk = DefaultEphemeralDisk()

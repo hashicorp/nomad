@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
@@ -92,11 +93,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	sort.Sort(api.AgentMembersNameSort(srvMembers.Members))
 
 	// Determine the leaders per region.
-	leaders, err := regionLeaders(client, srvMembers.Members)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error determining leaders: %s", err))
-		return 1
-	}
+	leaders, leaderErr := regionLeaders(client, srvMembers.Members)
 
 	// Format the list
 	var out []string
@@ -108,6 +105,14 @@ func (c *ServerMembersCommand) Run(args []string) int {
 
 	// Dump the list
 	c.Ui.Output(columnize.SimpleFormat(out))
+
+	// If there were leader errors display a warning
+	if leaderErr != nil {
+		c.Ui.Output("")
+		c.Ui.Warn(fmt.Sprintf("Error determining leaders: %s", leaderErr))
+		return 1
+	}
+
 	return 0
 }
 
@@ -181,19 +186,17 @@ func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]strin
 		return leaders, nil
 	}
 
+	var mErr multierror.Error
 	status := client.Status()
 	for reg := range regions {
 		l, err := status.RegionLeader(reg)
 		if err != nil {
-			// This error means that region has no leader.
-			if strings.Contains(err.Error(), "No cluster leader") {
-				continue
-			}
-			return nil, err
+			multierror.Append(&mErr, fmt.Errorf("Region %q: %v", reg, err))
+			continue
 		}
 
 		leaders[reg] = l
 	}
 
-	return leaders, nil
+	return leaders, mErr.ErrorOrNil()
 }

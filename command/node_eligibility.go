@@ -150,6 +150,10 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Node %q scheduling eligibility set", node.ID))
+	if enable {
+		c.Ui.Output(fmt.Sprintf("Node %q scheduling eligibility set: eligible for scheduling", node.ID))
+	} else {
+		c.Ui.Output(fmt.Sprintf("Node %q scheduling eligibility set: ineligible for scheduling", node.ID))
+	}
 	return 0
 }

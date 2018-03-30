@@ -389,29 +389,28 @@ func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
 	// don't need to use a full Client
 	var nodeClient *Nodes
 
-	outCh := make(chan string, 8)
-	errCh := make(chan string, 1)
-	nodeCh := make(chan string, 1)
-	allocCh := make(chan string, 8)
+	outCh := make(chan *MonitorMessage, 8)
+	nodeCh := make(chan *MonitorMessage, 1)
+	allocCh := make(chan *MonitorMessage, 8)
 	exitedCh := make(chan struct{})
 	go func() {
 		defer close(exitedCh)
-		nodeClient.monitorDrainMultiplex(ctx, cancel, outCh, errCh, nodeCh, allocCh)
+		nodeClient.monitorDrainMultiplex(ctx, cancel, outCh, nodeCh, allocCh)
 	}()
 
 	// Fake an alloc update
-	msg := "alloc update"
+	msg := Messagef(0, "alloc update")
 	allocCh <- msg
 	require.Equal(msg, <-outCh)
 
 	// Fake a node update
-	msg = "node update"
+	msg = Messagef(0, "node update")
 	nodeCh <- msg
 	require.Equal(msg, <-outCh)
 
 	// Fake an error that should shut everything down
-	msg = "fake error"
-	errCh <- msg
+	msg = Messagef(MonitorMsgLevelError, "fake error")
+	nodeCh <- msg
 	require.Equal(msg, <-outCh)
 
 	_, ok := <-exitedCh
@@ -442,18 +441,17 @@ func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
 	// don't need to use a full Client
 	var nodeClient *Nodes
 
-	outCh := make(chan string, 8)
-	errCh := make(chan string, 1)
-	nodeCh := make(chan string, 1)
-	allocCh := make(chan string, 8)
+	outCh := make(chan *MonitorMessage, 8)
+	nodeCh := make(chan *MonitorMessage, 1)
+	allocCh := make(chan *MonitorMessage, 8)
 	exitedCh := make(chan struct{})
 	go func() {
 		defer close(exitedCh)
-		nodeClient.monitorDrainMultiplex(ctx, cancel, outCh, errCh, nodeCh, allocCh)
+		nodeClient.monitorDrainMultiplex(ctx, cancel, outCh, nodeCh, allocCh)
 	}()
 
 	// Fake a node updating and finishing
-	msg := "node update"
+	msg := Messagef(MonitorMsgLevelInfo, "node update")
 	nodeCh <- msg
 	close(nodeCh)
 	require.Equal(msg, <-outCh)
@@ -474,7 +472,7 @@ func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
 	}
 
 	// Fake an alloc update coming in after the node monitor has finished
-	msg = "alloc update"
+	msg = Messagef(0, "alloc update")
 	allocCh <- msg
 	require.Equal(msg, <-outCh)
 

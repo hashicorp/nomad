@@ -478,9 +478,9 @@ func (c *Command) Run(args []string) int {
 
 	// Log config files
 	if len(config.Files) > 0 {
-		c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
+		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
-		c.Ui.Info("No configuration files loaded")
+		c.Ui.Output("No configuration files loaded")
 	}
 
 	// Initialize the telemetry
@@ -529,7 +529,7 @@ func (c *Command) Run(args []string) int {
 	padding := 18
 	c.Ui.Output("Nomad agent configuration:\n")
 	for _, k := range infoKeys {
-		c.Ui.Info(fmt.Sprintf(
+		c.Ui.Output(fmt.Sprintf(
 			"%s%s: %s",
 			strings.Repeat(" ", padding-len(k)),
 			strings.Title(k),
@@ -831,7 +831,7 @@ func (c *Command) startupJoin(config *Config) error {
 		return err
 	}
 
-	c.Ui.Info(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
+	c.Ui.Output(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
 	return nil
 }
 
