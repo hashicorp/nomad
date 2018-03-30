@@ -281,7 +281,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	if enable && !detach {
 		now := time.Now()
-		c.Ui.Warn(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
+		c.Ui.Info(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
 		c.Ui.Output(fmt.Sprintf("%s: Node %q drain strategy set", formatTime(now), node.ID))
 		outCh := client.Nodes().MonitorDrain(context.Background(), node.ID, meta.LastIndex, ignoreSystem)
 		for msg := range outCh {
