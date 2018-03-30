@@ -7,6 +7,7 @@ export default ApplicationSerializer.extend({
     // TaskGroupSummary fragment list
     hash.PlainJobId = hash.JobID;
     hash.ID = JSON.stringify([hash.JobID, hash.Namespace || 'default']);
+    hash.JobID = hash.ID;
 
     hash.TaskGroupSummaries = Object.keys(get(hash, 'Summary') || {}).map(key => {
       const allocStats = get(hash, `Summary.${key}`) || {};

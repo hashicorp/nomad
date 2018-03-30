@@ -46,6 +46,18 @@ export default Watchable.extend({
     return url;
   },
 
+  xhrKey(url, method, options = {}) {
+    const namespace = options.data && options.data.namespace;
+    if (namespace) {
+      return `${url}?namespace=${namespace}`;
+    }
+    return url;
+  },
+
+  relationshipFallbackLinks: {
+    summary: '/summary',
+  },
+
   findAllocations(job) {
     const url = `${this.buildURL('job', job.get('id'), job, 'findRecord')}/allocations`;
     return this.ajax(url, 'GET', { data: this.buildQuery() }).then(allocs => {

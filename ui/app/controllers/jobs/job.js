@@ -10,7 +10,7 @@ export default Controller.extend({
         label: this.get('model.name'),
         args: [
           'jobs.job',
-          this.get('model'),
+          this.get('model.plainId'),
           qpBuilder({
             jobNamespace: this.get('model.namespace.name') || 'default',
           }),

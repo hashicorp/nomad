@@ -5,7 +5,7 @@
 </td>
 <td data-test-modify-time>{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}</td>
 <td data-test-name>{{allocation.name}}</td>
-<td data-test-client-status>
+<td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
 {{#if (eq context "job")}}

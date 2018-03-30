@@ -233,7 +233,7 @@ func testJob() *Job {
 					Interval:      5 * time.Minute,
 					Attempts:      10,
 					Delay:         5 * time.Second,
-					DelayFunction: "linear",
+					DelayFunction: "constant",
 				},
 				Tasks: []*Task{
 					{
@@ -678,7 +678,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Interval:      5 * time.Minute,
 			Attempts:      10,
 			Delay:         5 * time.Second,
-			DelayFunction: "linear",
+			DelayFunction: "constant",
 		},
 	}
 
@@ -700,12 +700,19 @@ func TestTaskGroup_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	// COMPAT: Enable in 0.7.0
-	//j.Type = JobTypeBatch
-	//err = tg.Validate(j)
-	//if !strings.Contains(err.Error(), "does not allow update block") {
-	//t.Fatalf("err: %s", err)
-	//}
+	tg = &TaskGroup{
+		Name:  "web",
+		Count: 1,
+		Tasks: []*Task{
+			{Name: "web", Leader: true},
+		},
+		Update: DefaultUpdateStrategy.Copy(),
+	}
+	j.Type = JobTypeBatch
+	err = tg.Validate(j)
+	if !strings.Contains(err.Error(), "does not allow update block") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestTask_Validate(t *testing.T) {
@@ -2116,7 +2123,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      1,
 				Interval:      5 * time.Minute,
 				Delay:         10 * time.Second,
-				DelayFunction: "linear"},
+				DelayFunction: "constant"},
 		},
 		{
 			desc: "Valid Exponential Delay",
@@ -2157,7 +2164,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Delay:         15 * time.Second,
 				MaxDelay:      5 * time.Second},
 			errors: []error{
-				fmt.Errorf("Delay Ceiling cannot be less than Delay %v (got %v)",
+				fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)",
 					15*time.Second, 5*time.Second),
 			},
 		},
@@ -2166,7 +2173,7 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts:      1,
 				Interval:      1 * time.Second,
-				DelayFunction: "linear"},
+				DelayFunction: "constant"},
 			errors: []error{
 				fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, time.Second),
 				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
@@ -2178,11 +2185,11 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				Attempts:      10,
 				Interval:      1 * time.Hour,
 				Delay:         20 * time.Minute,
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 			},
 			errors: []error{
 				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and"+
-					" delay function %q", 3, time.Hour, 20*time.Minute, "linear"),
+					" delay function %q", 3, time.Hour, 20*time.Minute, "constant"),
 				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
 					200*time.Minute, 10),
 			},
@@ -2226,13 +2233,17 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 		},
 		{
-			desc: "Valid Unlimited config",
+			desc: "Ambiguous Unlimited config, has both attempts and unlimited set",
 			ReschedulePolicy: &ReschedulePolicy{
 				Attempts:      1,
 				Unlimited:     true,
 				DelayFunction: "exponential",
 				Delay:         5 * time.Minute,
 				MaxDelay:      1 * time.Hour,
+			},
+			errors: []error{
+				fmt.Errorf("Interval must be a non zero value if Attempts > 0"),
+				fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, and Unlimited = %v is ambiguous", 1, time.Duration(0), true),
 			},
 		},
 		{
@@ -2245,7 +2256,16 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 			},
 			errors: []error{
 				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
-				fmt.Errorf("Delay Ceiling cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+				fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
+		},
+		{
+			desc: "Valid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Unlimited:     true,
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      1 * time.Hour,
 			},
 		},
 	}
@@ -2539,6 +2559,14 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 			ShouldReschedule: false,
 		},
 		{
+			Desc:             "Reschedule with unlimited and attempts >0",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Unlimited: true},
+			ShouldReschedule: true,
+		},
+		{
 			Desc:             "Reschedule when client status is complete",
 			ClientStatus:     AllocClientStatusComplete,
 			DesiredStatus:    AllocDesiredStatusRun,
@@ -2627,35 +2655,34 @@ func TestAllocation_LastEventTime(t *testing.T) {
 		taskState             map[string]*TaskState
 		expectedLastEventTime time.Time
 	}
-	var timeZero time.Time
 
-	t1 := time.Now()
+	t1 := time.Now().UTC()
 
 	testCases := []testCase{
 		{
 			desc: "nil task state",
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc:                  "empty task state",
 			taskState:             make(map[string]*TaskState),
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc: "Finished At not set",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt: t1.Add(-2 * time.Hour)}},
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
-			desc: "One finished event",
+			desc: "One finished ",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt:  t1.Add(-2 * time.Hour),
 				FinishedAt: t1.Add(-1 * time.Hour)}},
 			expectedLastEventTime: t1.Add(-1 * time.Hour),
 		},
 		{
-			desc: "Multiple events",
+			desc: "Multiple task groups",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt:  t1.Add(-2 * time.Hour),
 				FinishedAt: t1.Add(-1 * time.Hour)},
@@ -2664,10 +2691,33 @@ func TestAllocation_LastEventTime(t *testing.T) {
 					FinishedAt: t1.Add(-40 * time.Minute)}},
 			expectedLastEventTime: t1.Add(-40 * time.Minute),
 		},
+		{
+			desc: "No finishedAt set, one task event",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1.Add(-20 * time.Minute),
+		},
+		{
+			desc: "No finishedAt set, many task events",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+					{Type: "status change", Time: t1.Add(-10 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1.Add(-10 * time.Minute),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			alloc := &Allocation{}
+			alloc := &Allocation{CreateTime: t1.UnixNano(), ModifyTime: t1.UnixNano()}
 			alloc.TaskStates = tc.taskState
 			require.Equal(t, tc.expectedLastEventTime, alloc.LastEventTime())
 		})
@@ -2687,7 +2737,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "Allocation hasn't failed yet",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 			},
 			alloc: &Allocation{},
@@ -2697,17 +2747,18 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "Allocation lacks task state",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
+				Unlimited:     true,
 			},
-			alloc: &Allocation{ClientStatus: AllocClientStatusFailed},
-			expectedRescheduleTime:     time.Time{},
-			expectedRescheduleEligible: false,
+			alloc: &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
+			expectedRescheduleTime:     now.UTC().Add(5 * time.Second),
+			expectedRescheduleEligible: true,
 		},
 		{
 			desc: "linear delay, unlimited restarts, no reschedule tracker",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 				Unlimited:     true,
 			},
@@ -2723,7 +2774,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "linear delay with reschedule tracker",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 				Interval:      10 * time.Minute,
 				Attempts:      2,
@@ -2745,7 +2796,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 		{
 			desc: "linear delay with reschedule tracker, attempts exhausted",
 			reschedulePolicy: &ReschedulePolicy{
-				DelayFunction: "linear",
+				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 				Interval:      10 * time.Minute,
 				Attempts:      2,
@@ -3309,7 +3360,10 @@ func TestACLTokenValidate(t *testing.T) {
 	}
 
 	// Name too long policies
-	tk.Name = uuid.Generate() + uuid.Generate()
+	tk.Name = ""
+	for i := 0; i < 8; i++ {
+		tk.Name += uuid.Generate()
+	}
 	tk.Policies = nil
 	err = tk.Validate()
 	assert.NotNil(t, err)
@@ -3624,4 +3678,20 @@ func TestBatchFuture(t *testing.T) {
 	if bf.Index() != 1000 {
 		t.Fatalf("bad: %d", bf.Index())
 	}
+}
+
+func TestNode_Canonicalize(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Make sure the eligiblity is set properly
+	node := &Node{}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
+
+	node = &Node{
+		Drain: true,
+	}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
 }

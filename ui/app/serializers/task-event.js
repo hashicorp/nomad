@@ -1,6 +1,10 @@
 import ApplicationSerializer from './application';
 
 export default ApplicationSerializer.extend({
+  attrs: {
+    message: 'DisplayMessage',
+  },
+
   normalize(typeHash, hash) {
     // Time is in the form of nanoseconds since epoch, but JS dates
     // only understand time to the millisecond precision. So store

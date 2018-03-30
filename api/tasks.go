@@ -92,7 +92,7 @@ type ReschedulePolicy struct {
 	Delay *time.Duration `mapstructure:"delay"`
 
 	// DelayFunction determines how the delay progressively changes on subsequent reschedule
-	// attempts. Valid values are "exponential", "linear", and "fibonacci".
+	// attempts. Valid values are "exponential", "constant", and "fibonacci".
 	DelayFunction *string `mapstructure:"delay_function"`
 
 	// MaxDelay is an upper bound on the delay.

@@ -265,12 +265,12 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	// We should stop the third alloc
-	if len(stop) != 1 || stop[0].Alloc != allocs[2] {
+	if len(stop) != 0 {
 		t.Fatalf("bad: %#v", stop)
 	}
 
 	// There should be no migrates.
-	if len(migrate) != 0 {
+	if len(migrate) != 1 || migrate[0].Alloc != allocs[2] {
 		t.Fatalf("bad: %#v", migrate)
 	}
 

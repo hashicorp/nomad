@@ -90,7 +90,7 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 	nodeEvent := &structs.NodeEvent{
 		Message:   "Heartbeating failed",
 		Subsystem: "Heartbeat",
-		Timestamp: time.Now().Unix(),
+		Timestamp: time.Now(),
 	}
 
 	nodeEvents := []*structs.NodeEvent{nodeEvent}
@@ -173,6 +173,35 @@ func TestFSM_UpsertNode(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
+}
+
+func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Setup a node without eligiblity
+	node := mock.Node()
+	node.SchedulingEligibility = ""
+
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	n, err := fsm.State().NodeByID(ws, req.Node.ID)
+	require.Nil(err)
+	require.NotNil(n)
+	require.EqualValues(1, n.CreateIndex)
+	require.Equal(structs.NodeSchedulingEligible, n.SchedulingEligibility)
 }
 
 func TestFSM_DeregisterNode(t *testing.T) {
@@ -2195,15 +2224,18 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	state := fsm.State()
 	node1 := mock.Node()
 	state.UpsertNode(1000, node1)
+
+	// Upgrade this node
 	node2 := mock.Node()
+	node2.SchedulingEligibility = ""
 	state.UpsertNode(1001, node2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	ws := memdb.NewWatchSet()
-	out1, _ := state2.NodeByID(ws, node1.ID)
-	out2, _ := state2.NodeByID(ws, node2.ID)
+	out1, _ := state2.NodeByID(nil, node1.ID)
+	out2, _ := state2.NodeByID(nil, node2.ID)
+	node2.SchedulingEligibility = structs.NodeSchedulingEligible
 	if !reflect.DeepEqual(node1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
 	}

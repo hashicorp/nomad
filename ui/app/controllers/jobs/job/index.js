@@ -5,6 +5,7 @@ import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
 export default Controller.extend(WithNamespaceResetting, {
   system: service(),
+
   jobController: controller('jobs.job'),
 
   queryParams: {

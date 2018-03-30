@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sort"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -544,7 +545,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		nodeEvent := &structs.NodeEvent{
 			Message:   "Node Registered",
 			Subsystem: "Cluster",
-			Timestamp: node.StatusUpdatedAt,
+			Timestamp: time.Unix(node.StatusUpdatedAt, 0),
 		}
 		node.Events = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index
@@ -3251,8 +3252,8 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// If there was no existing allocation, this is a placement and we increment
 	// the placement
-	existingHealthSet := existing != nil && existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
-	allocHealthSet := alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil
+	existingHealthSet := existing != nil && existing.DeploymentStatus.HasHealth()
+	allocHealthSet := alloc.DeploymentStatus.HasHealth()
 	if existing == nil || existing.DeploymentID != alloc.DeploymentID {
 		placed++
 	} else if !existingHealthSet && allocHealthSet {

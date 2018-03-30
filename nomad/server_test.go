@@ -377,7 +377,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 
 	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
-	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
+	assert.True(s1.config.TLSConfig.CertificateInfoIsEqual(newTLSConfig))
 
 	codec := rpcClient(t, s1)
 
@@ -425,7 +425,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 
 	err := s1.reloadTLSConnections(newTLSConfig)
 	assert.Nil(err)
-	assert.True(s1.config.TLSConfig.Equals(newTLSConfig))
+	assert.True(s1.config.TLSConfig.CertificateInfoIsEqual(newTLSConfig))
 
 	codec := rpcClient(t, s1)
 
@@ -438,6 +438,116 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	assert.Nil(err)
+}
+
+// Tests that the server will successfully reload its network connections,
+// downgrading only RPC connections
+func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := TestServer(t, func(c *Config) {
+		c.DataDir = path.Join(dir, "nodeB")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            false,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
+	}
+
+	err := s1.reloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+	assert.True(s1.config.TLSConfig.CertificateInfoIsEqual(newTLSConfig))
+
+	codec := rpcClient(t, s1)
+
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	assert.Nil(err)
+}
+
+// Tests that the server will successfully reload its network connections,
+// upgrading only RPC connections
+func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := TestServer(t, func(c *Config) {
+		c.DataDir = path.Join(dir, "nodeB")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            false,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	newTLSConfig := &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
+	}
+
+	err := s1.reloadTLSConnections(newTLSConfig)
+	assert.Nil(err)
+	assert.True(s1.config.TLSConfig.EnableRPC)
+	assert.True(s1.config.TLSConfig.CertificateInfoIsEqual(newTLSConfig))
+
+	codec := rpcClient(t, s1)
+
+	node := mock.Node()
+	req := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+	assert.NotNil(err)
+	assert.True(connectionReset(err.Error()))
 }
 
 // Test that Raft connections are reloaded as expected when a Nomad server is

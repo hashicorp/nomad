@@ -10,24 +10,49 @@ export default ApplicationAdapter.extend({
   store: service(),
 
   xhrs: computed(function() {
-    return {};
+    return {
+      list: {},
+      track(key, xhr) {
+        if (this.list[key]) {
+          this.list[key].push(xhr);
+        } else {
+          this.list[key] = [xhr];
+        }
+      },
+      cancel(key) {
+        while (this.list[key] && this.list[key].length) {
+          this.remove(key, this.list[key][0]);
+        }
+      },
+      remove(key, xhr) {
+        if (this.list[key]) {
+          xhr.abort();
+          this.list[key].removeObject(xhr);
+        }
+      },
+    };
   }),
 
-  ajaxOptions(url) {
+  ajaxOptions() {
     const ajaxOptions = this._super(...arguments);
+    const key = this.xhrKey(...arguments);
 
     const previousBeforeSend = ajaxOptions.beforeSend;
     ajaxOptions.beforeSend = function(jqXHR) {
       if (previousBeforeSend) {
         previousBeforeSend(...arguments);
       }
-      this.get('xhrs')[url] = jqXHR;
+      this.get('xhrs').track(key, jqXHR);
       jqXHR.always(() => {
-        delete this.get('xhrs')[url];
+        this.get('xhrs').remove(key, jqXHR);
       });
     };
 
     return ajaxOptions;
+  },
+
+  xhrKey(url /* method, options */) {
+    return url;
   },
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
@@ -36,7 +61,6 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
-      this.cancelFindAll(type.modelName);
     }
 
     return this.ajax(url, 'GET', {
@@ -50,7 +74,6 @@ export default ApplicationAdapter.extend({
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
       params.index = this.get('watchList').getIndexFor(url);
-      this.cancelFindRecord(type.modelName, id);
     }
 
     return this.ajax(url, 'GET', {
@@ -75,11 +98,15 @@ export default ApplicationAdapter.extend({
 
       if (watch) {
         params.index = this.get('watchList').getIndexFor(url);
-        this.cancelReloadRelationship(model, relationshipName);
       }
 
+      // Avoid duplicating existing query params by passing them to ajax
+      // in the URL and in options.data
       if (url.includes('?')) {
-        params = assign(queryString.parse(url.split('?')[1]), params);
+        const paramsInUrl = queryString.parse(url.split('?')[1]);
+        Object.keys(paramsInUrl).forEach(key => {
+          delete params[key];
+        });
       }
 
       return this.ajax(url, 'GET', {
@@ -107,7 +134,9 @@ export default ApplicationAdapter.extend({
   },
 
   handleResponse(status, headers, payload, requestData) {
-    const newIndex = headers['x-nomad-index'];
+    // Some browsers lowercase all headers. Others keep them
+    // case sensitive.
+    const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     if (newIndex) {
       this.get('watchList').setIndexFor(requestData.url, newIndex);
     }
@@ -120,20 +149,19 @@ export default ApplicationAdapter.extend({
       return;
     }
     const url = this.urlForFindRecord(id, modelName);
-    const xhr = this.get('xhrs')[url];
-    if (xhr) {
-      xhr.abort();
-    }
+    this.get('xhrs').cancel(url);
   },
 
   cancelFindAll(modelName) {
     if (!modelName) {
       return;
     }
-    const xhr = this.get('xhrs')[this.urlForFindAll(modelName)];
-    if (xhr) {
-      xhr.abort();
+    let url = this.urlForFindAll(modelName);
+    const params = queryString.stringify(this.buildQuery());
+    if (params) {
+      url = `${url}?${params}`;
     }
+    this.get('xhrs').cancel(url);
   },
 
   cancelReloadRelationship(model, relationshipName) {
@@ -147,10 +175,7 @@ export default ApplicationAdapter.extend({
       );
     } else {
       const url = model[relationship.kind](relationship.key).link();
-      const xhr = this.get('xhrs')[url];
-      if (xhr) {
-        xhr.abort();
-      }
+      this.get('xhrs').cancel(url);
     }
   },
 });

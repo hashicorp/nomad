@@ -233,25 +233,34 @@ func (n *NodeDrainer) run(ctx context.Context) {
 // marks them for migration.
 func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	// Retrieve the set of allocations that will be force stopped.
-	n.l.RLock()
 	var forceStop []*structs.Allocation
+	n.l.RLock()
 	for _, node := range nodes {
 		draining, ok := n.nodes[node]
 		if !ok {
-			n.logger.Printf("[DEBUG] nomad.node_drainer: skipping untracked deadlined node %q", node)
+			n.logger.Printf("[DEBUG] nomad.drain: skipping untracked deadlined node %q", node)
 			continue
 		}
 
-		allocs, err := draining.DeadlineAllocs()
+		allocs, err := draining.RemainingAllocs()
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.node_drainer: failed to retrive allocs on deadlined node %q: %v", node, err)
+			n.logger.Printf("[ERR] nomad.drain: failed to retrive allocs on deadlined node %q: %v", node, err)
 			continue
 		}
 
+		n.logger.Printf("[DEBUG] nomad.drain: node %q deadlined causing %d allocs to be force stopped", node, len(allocs))
 		forceStop = append(forceStop, allocs...)
 	}
 	n.l.RUnlock()
 	n.batchDrainAllocs(forceStop)
+
+	// Submit the node transistions in a sharded form to ensure a reasonable
+	// Raft transaction size.
+	for _, nodes := range partitionIds(nodes) {
+		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
+		}
+	}
 }
 
 // handleJobAllocDrain handles marking a set of allocations as having a desired
@@ -272,9 +281,11 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 		nodes[alloc.NodeID] = struct{}{}
 	}
 
+	var done []string
+	var remainingAllocs []*structs.Allocation
+
 	// For each node, check if it is now done
 	n.l.RLock()
-	var done []string
 	for node := range nodes {
 		draining, ok := n.nodes[node]
 		if !ok {
@@ -283,7 +294,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 
 		isDone, err := draining.IsDone()
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: checking if node %q is done draining: %v", node, err)
+			n.logger.Printf("[ERR] nomad.drain: error checking if node %q is done draining: %v", node, err)
 			continue
 		}
 
@@ -292,8 +303,26 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 		}
 
 		done = append(done, node)
+
+		remaining, err := draining.RemainingAllocs()
+		if err != nil {
+			n.logger.Printf("[ERR] nomad.drain: node %q is done draining but encountered an error getting remaining allocs: %v", node, err)
+			continue
+		}
+
+		remainingAllocs = append(remainingAllocs, remaining...)
 	}
 	n.l.RUnlock()
+
+	// Stop any running system jobs on otherwise done nodes
+	if len(remainingAllocs) > 0 {
+		future := structs.NewBatchFuture()
+		n.drainAllocs(future, remainingAllocs)
+		if err := future.Wait(); err != nil {
+			n.logger.Printf("[ERR] nomad.drain: failed to drain %d remaining allocs from done nodes: %v",
+				len(remainingAllocs), err)
+		}
+	}
 
 	// Submit the node transistions in a sharded form to ensure a reasonable
 	// Raft transaction size.

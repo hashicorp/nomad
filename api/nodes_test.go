@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -176,9 +177,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	spec := &DrainSpec{
 		Deadline: 10 * time.Second,
 	}
-	wm, err := nodes.UpdateDrain(nodeID, spec, false, nil)
+	drainOut, err := nodes.UpdateDrain(nodeID, spec, false, nil)
 	require.Nil(err)
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &drainOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -188,9 +189,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	}
 
 	// Toggle off again
-	wm, err = nodes.UpdateDrain(nodeID, nil, true, nil)
+	drainOut, err = nodes.UpdateDrain(nodeID, nil, true, nil)
 	require.Nil(err)
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &drainOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -240,11 +241,11 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	}
 
 	// Toggle it off
-	wm, err := nodes.ToggleEligibility(nodeID, false, nil)
+	eligOut, err := nodes.ToggleEligibility(nodeID, false, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &eligOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -256,11 +257,11 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	}
 
 	// Toggle on
-	wm, err = nodes.ToggleEligibility(nodeID, true, nil)
+	eligOut, err = nodes.ToggleEligibility(nodeID, true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	assertWriteMeta(t, wm)
+	assertWriteMeta(t, &eligOut.WriteMeta)
 
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
@@ -374,4 +375,161 @@ func TestNodes_GcAlloc(t *testing.T) {
 	err := nodes.GcAlloc(uuid.Generate(), nil)
 	require.NotNil(err)
 	require.True(structs.IsErrUnknownAllocation(err))
+}
+
+// Unittest monitorDrainMultiplex when an error occurs
+func TestNodes_MonitorDrain_Multiplex_Bad(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	ctx := context.Background()
+	multiplexCtx, cancel := context.WithCancel(ctx)
+
+	// monitorDrainMultiplex doesn't require anything on *Nodes, so we
+	// don't need to use a full Client
+	var nodeClient *Nodes
+
+	outCh := make(chan string, 8)
+	errCh := make(chan string, 1)
+	nodeCh := make(chan string, 1)
+	allocCh := make(chan string, 8)
+	exitedCh := make(chan struct{})
+	go func() {
+		defer close(exitedCh)
+		nodeClient.monitorDrainMultiplex(ctx, cancel, outCh, errCh, nodeCh, allocCh)
+	}()
+
+	// Fake an alloc update
+	msg := "alloc update"
+	allocCh <- msg
+	require.Equal(msg, <-outCh)
+
+	// Fake a node update
+	msg = "node update"
+	nodeCh <- msg
+	require.Equal(msg, <-outCh)
+
+	// Fake an error that should shut everything down
+	msg = "fake error"
+	errCh <- msg
+	require.Equal(msg, <-outCh)
+
+	_, ok := <-exitedCh
+	require.False(ok)
+
+	_, ok = <-outCh
+	require.False(ok)
+
+	// Exiting should also cancel the context that would be passed to the
+	// node & alloc watchers
+	select {
+	case <-multiplexCtx.Done():
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("context wasn't canceled")
+	}
+
+}
+
+// Unittest monitorDrainMultiplex when drain finishes
+func TestNodes_MonitorDrain_Multiplex_Good(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	ctx := context.Background()
+	multiplexCtx, cancel := context.WithCancel(ctx)
+
+	// monitorDrainMultiplex doesn't require anything on *Nodes, so we
+	// don't need to use a full Client
+	var nodeClient *Nodes
+
+	outCh := make(chan string, 8)
+	errCh := make(chan string, 1)
+	nodeCh := make(chan string, 1)
+	allocCh := make(chan string, 8)
+	exitedCh := make(chan struct{})
+	go func() {
+		defer close(exitedCh)
+		nodeClient.monitorDrainMultiplex(ctx, cancel, outCh, errCh, nodeCh, allocCh)
+	}()
+
+	// Fake a node updating and finishing
+	msg := "node update"
+	nodeCh <- msg
+	close(nodeCh)
+	require.Equal(msg, <-outCh)
+
+	// Nothing else should have exited yet
+	select {
+	case msg, ok := <-outCh:
+		if ok {
+			t.Fatalf("unexpected output: %q", msg)
+		}
+		t.Fatalf("out channel closed unexpectedly")
+	case <-exitedCh:
+		t.Fatalf("multiplexer exited unexpectedly")
+	case <-multiplexCtx.Done():
+		t.Fatalf("multiplexer context canceled unexpectedly")
+	case <-time.After(10 * time.Millisecond):
+		t.Logf("multiplexer still running as expected")
+	}
+
+	// Fake an alloc update coming in after the node monitor has finished
+	msg = "alloc update"
+	allocCh <- msg
+	require.Equal(msg, <-outCh)
+
+	// Closing the allocCh should cause everything to exit
+	close(allocCh)
+
+	_, ok := <-exitedCh
+	require.False(ok)
+
+	_, ok = <-outCh
+	require.False(ok)
+
+	// Exiting should also cancel the context that would be passed to the
+	// node & alloc watchers
+	select {
+	case <-multiplexCtx.Done():
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("context wasn't canceled")
+	}
+
+}
+
+func TestNodes_DrainStrategy_Equal(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// nil
+	var d *DrainStrategy
+	require.True(d.Equal(nil))
+
+	o := &DrainStrategy{}
+	require.False(d.Equal(o))
+	require.False(o.Equal(d))
+
+	d = &DrainStrategy{}
+	require.True(d.Equal(o))
+
+	// ForceDeadline
+	d.ForceDeadline = time.Now()
+	require.False(d.Equal(o))
+
+	o.ForceDeadline = d.ForceDeadline
+	require.True(d.Equal(o))
+
+	// Deadline
+	d.Deadline = 1
+	require.False(d.Equal(o))
+
+	o.Deadline = 1
+	require.True(d.Equal(o))
+
+	// IgnoreSystemJobs
+	d.IgnoreSystemJobs = true
+	require.False(d.Equal(o))
+
+	o.IgnoreSystemJobs = true
+	require.True(d.Equal(o))
 }

@@ -59,7 +59,8 @@ $ curl \
           {
             "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
             "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
-            "RescheduleTime": 1517434161192946200
+            "RescheduleTime": 1517434161192946200,
+            "Delay":"5000000000"
            },
          ]
     },
@@ -202,7 +203,8 @@ $ curl \
        {
          "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
          "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
-         "RescheduleTime": 1517434161192946200
+         "RescheduleTime": 1517434161192946200,
+         "Delay":"5000000000"
         },
       ]
   },

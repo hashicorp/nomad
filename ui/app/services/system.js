@@ -35,7 +35,16 @@ export default Service.extend({
   activeNamespace: computed('namespaces.[]', {
     get() {
       const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-      return this.get('namespaces').findBy('id', namespaceId);
+      const namespace = this.get('namespaces').findBy('id', namespaceId);
+
+      if (namespace) {
+        return namespace;
+      }
+
+      // If the namespace is localStorage is no longer in the cluster, it needs to
+      // be cleared from localStorage
+      this.set('activeNamespace', null);
+      return this.get('namespaces').findBy('id', 'default');
     },
     set(key, value) {
       if (value == null) {
@@ -43,9 +52,10 @@ export default Service.extend({
       } else if (typeof value === 'string') {
         window.localStorage.nomadActiveNamespace = value;
         return this.get('namespaces').findBy('id', value);
+      } else {
+        window.localStorage.nomadActiveNamespace = value.get('name');
+        return value;
       }
-      window.localStorage.nomadActiveNamespace = value.get('name');
-      return value;
     },
   }),
 });

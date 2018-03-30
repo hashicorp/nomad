@@ -95,7 +95,7 @@ test('each task row should list high-level information for the task', function(a
       .find('[data-test-message]')
       .text()
       .trim(),
-    event.message,
+    event.displayMessage,
     'Event Message'
   );
   assert.equal(

@@ -1597,7 +1597,7 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 				// race between the stopCollection channel being closed and calling
 				// Stats on the handle.
 				if !strings.Contains(err.Error(), "connection is shut down") {
-					r.logger.Printf("[WARN] client: error fetching stats of task %v: %v", r.task.Name, err)
+					r.logger.Printf("[DEBUG] client: error fetching stats of task %v: %v", r.task.Name, err)
 				}
 				continue
 			}

@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
@@ -346,23 +345,16 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		fm.nodeLock.Unlock()
 	}
 
-	// COMPAT: Remove in 0.9: As of Nomad 0.8 there is a temporary measure to
-	// update all driver attributes to its corresponding driver info object,
-	// as eventually all drivers will need to
-	// support this. Doing this so that we can enable this iteratively and also
-	// in a backwards compatible way, where node attributes for drivers will
-	// eventually be phased out.
-	strippedAttributes := make(map[string]string, 0)
-	for k, v := range response.Attributes {
-		copy := k
-		strings.Replace(copy, "driver.", "", 1)
-		strippedAttributes[k] = v
-	}
-
 	di := &structs.DriverInfo{
-		Attributes: strippedAttributes,
+		Attributes: response.Attributes,
 		Detected:   response.Detected,
 	}
+
+	// Remove the attribute indicating the status of the driver, as the overall
+	// driver info object should indicate this.
+	driverKey := fmt.Sprintf("driver.%s", name)
+	delete(di.Attributes, driverKey)
+
 	if node := fm.updateNodeFromDriver(name, di, nil); node != nil {
 		fm.nodeLock.Lock()
 		fm.node = node

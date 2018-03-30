@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -57,21 +58,259 @@ type NodeUpdateDrainRequest struct {
 	MarkEligible bool
 }
 
+// NodeDrainUpdateResponse is used to respond to a node drain update
+type NodeDrainUpdateResponse struct {
+	NodeModifyIndex uint64
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	WriteMeta
+}
+
 // UpdateDrain is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
 // as having its scheduling being elibile
-func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*WriteMeta, error) {
+func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*NodeDrainUpdateResponse, error) {
 	req := &NodeUpdateDrainRequest{
 		NodeID:       nodeID,
 		DrainSpec:    spec,
 		MarkEligible: markEligible,
 	}
 
-	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, nil, q)
+	var resp NodeDrainUpdateResponse
+	wm, err := n.client.write("/v1/node/"+nodeID+"/drain", req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
-	return wm, nil
+	resp.WriteMeta = *wm
+	return &resp, nil
+}
+
+// MonitorDrain emits drain related events on the returned string channel. The
+// channel will be closed when all allocations on the draining node have
+// stopped or the context is canceled.
+func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, ignoreSys bool) <-chan string {
+	outCh := make(chan string, 8)
+	errCh := make(chan string, 1)
+	nodeCh := make(chan string, 1)
+	allocCh := make(chan string, 8)
+
+	// Multiplex node and alloc chans onto outCh. This goroutine closes
+	// outCh when other chans have been closed or context canceled.
+	multiplexCtx, cancel := context.WithCancel(ctx)
+	go n.monitorDrainMultiplex(ctx, cancel, outCh, errCh, nodeCh, allocCh)
+
+	// Monitor node for updates
+	go n.monitorDrainNode(multiplexCtx, nodeID, index, nodeCh, errCh)
+
+	// Monitor allocs on node for updates
+	go n.monitorDrainAllocs(multiplexCtx, nodeID, ignoreSys, allocCh, errCh)
+
+	return outCh
+}
+
+// monitorDrainMultiplex multiplexes node and alloc updates onto the out chan.
+// Closes out chan when either the context is canceled, both update chans are
+// closed, or an error occurs.
+func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
+	outCh chan<- string, errCh, nodeCh, allocCh <-chan string) {
+
+	defer cancel()
+	defer close(outCh)
+	nodeOk := true
+	allocOk := true
+	var msg string
+	for {
+		// If both chans have been closed, close the output chan
+		if !nodeOk && !allocOk {
+			return
+		}
+
+		select {
+		case msg, nodeOk = <-nodeCh:
+			if !nodeOk {
+				// nil chan to prevent further recvs
+				nodeCh = nil
+			}
+
+		case msg, allocOk = <-allocCh:
+			if !allocOk {
+				// nil chan to prevent further recvs
+				allocCh = nil
+			}
+
+		case errMsg := <-errCh:
+			// Error occurred, exit after sending
+			select {
+			case outCh <- errMsg:
+			case <-ctx.Done():
+			}
+			return
+
+		case <-ctx.Done():
+			return
+		}
+
+		if msg == "" {
+			continue
+		}
+
+		select {
+		case outCh <- msg:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// monitorDrainNode emits node updates on nodeCh and closes the channel when
+// the node has finished draining.
+func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint64, nodeCh, errCh chan<- string) {
+	defer close(nodeCh)
+
+	var lastStrategy *DrainStrategy
+
+	for {
+		q := QueryOptions{
+			AllowStale: true,
+			WaitIndex:  index,
+		}
+		node, meta, err := n.Info(nodeID, &q)
+		if err != nil {
+			msg := fmt.Sprintf("Error monitoring node: %v", err)
+			select {
+			case errCh <- msg:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		if node.DrainStrategy == nil {
+			msg := fmt.Sprintf("Node %q drain complete", nodeID)
+			select {
+			case nodeCh <- msg:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		// DrainStrategy changed
+		if lastStrategy != nil && !node.DrainStrategy.Equal(lastStrategy) {
+			msg := fmt.Sprintf("Node %q drain updated: %s", nodeID, node.DrainStrategy)
+			select {
+			case nodeCh <- msg:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		lastStrategy = node.DrainStrategy
+
+		// Drain still ongoing, update index and block for updates
+		index = meta.LastIndex
+	}
+}
+
+// monitorDrainAllocs emits alloc updates on allocCh and closes the channel
+// when the node has finished draining.
+func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys bool, allocCh, errCh chan<- string) {
+	defer close(allocCh)
+
+	// Build initial alloc state
+	q := QueryOptions{AllowStale: true}
+	allocs, meta, err := n.Allocations(nodeID, &q)
+	if err != nil {
+		msg := fmt.Sprintf("Error monitoring allocations: %v", err)
+		select {
+		case errCh <- msg:
+		case <-ctx.Done():
+		}
+		return
+	}
+
+	initial := make(map[string]*Allocation, len(allocs))
+	for _, a := range allocs {
+		initial[a.ID] = a
+	}
+
+	for {
+		q.WaitIndex = meta.LastIndex
+
+		allocs, meta, err = n.Allocations(nodeID, &q)
+		if err != nil {
+			msg := fmt.Sprintf("Error monitoring allocations: %v", err)
+			select {
+			case errCh <- msg:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		runningAllocs := 0
+		for _, a := range allocs {
+			// Get previous version of alloc
+			orig, existing := initial[a.ID]
+
+			// Update local alloc state
+			initial[a.ID] = a
+
+			migrating := a.DesiredTransition.ShouldMigrate()
+
+			var msg string
+			switch {
+			case !existing:
+				// Should only be possible if response
+				// from initial Allocations call was
+				// stale. No need to output
+
+			case orig.ClientStatus != a.ClientStatus:
+				// Alloc status has changed; output
+				msg = fmt.Sprintf("status %s -> %s", orig.ClientStatus, a.ClientStatus)
+
+			case migrating && !orig.DesiredTransition.ShouldMigrate():
+				// Alloc was marked for migration
+				msg = "marked for migration"
+			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
+				// Alloc has already been marked for migration and is now being stopped
+				msg = "draining"
+			case a.NextAllocation != "" && orig.NextAllocation == "":
+				// Alloc has been replaced by another allocation
+				msg = fmt.Sprintf("replaced by allocation %q", a.NextAllocation)
+			}
+
+			if msg != "" {
+				select {
+				case allocCh <- fmt.Sprintf("Alloc %q %s", a.ID, msg):
+				case <-ctx.Done():
+					return
+				}
+			}
+
+			// Ignore malformed allocs
+			if a.Job == nil || a.Job.Type == nil {
+				continue
+			}
+
+			// Track how many allocs are still running
+			if ignoreSys && a.Job.Type != nil && *a.Job.Type == structs.JobTypeSystem {
+				continue
+			}
+
+			switch a.ClientStatus {
+			case structs.AllocClientStatusPending, structs.AllocClientStatusRunning:
+				runningAllocs++
+			}
+		}
+
+		// Exit if all allocs are terminal
+		if runningAllocs == 0 {
+			msg := fmt.Sprintf("All allocations on node %q have stopped.", nodeID)
+			select {
+			case allocCh <- msg:
+			case <-ctx.Done():
+			}
+			return
+		}
+	}
 }
 
 // NodeUpdateEligibilityRequest is used to update the drain specification for a node.
@@ -81,8 +320,16 @@ type NodeUpdateEligibilityRequest struct {
 	Eligibility string
 }
 
+// NodeEligibilityUpdateResponse is used to respond to a node eligibility update
+type NodeEligibilityUpdateResponse struct {
+	NodeModifyIndex uint64
+	EvalIDs         []string
+	EvalCreateIndex uint64
+	WriteMeta
+}
+
 // ToggleEligibility is used to update the scheduling eligibility of the node
-func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*WriteMeta, error) {
+func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*NodeEligibilityUpdateResponse, error) {
 	e := structs.NodeSchedulingEligible
 	if !eligible {
 		e = structs.NodeSchedulingIneligible
@@ -93,11 +340,13 @@ func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions)
 		Eligibility: e,
 	}
 
-	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, nil, q)
+	var resp NodeEligibilityUpdateResponse
+	wm, err := n.client.write("/v1/node/"+nodeID+"/eligibility", req, &resp, q)
 	if err != nil {
 		return nil, err
 	}
-	return wm, nil
+	resp.WriteMeta = *wm
+	return &resp, nil
 }
 
 // Allocations is used to return the allocations associated with a node.
@@ -200,6 +449,32 @@ type DrainSpec struct {
 	IgnoreSystemJobs bool
 }
 
+func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
+	if d == nil || o == nil {
+		return d == o
+	}
+
+	if d.ForceDeadline != o.ForceDeadline {
+		return false
+	}
+	if d.Deadline != o.Deadline {
+		return false
+	}
+	if d.IgnoreSystemJobs != o.IgnoreSystemJobs {
+		return false
+	}
+
+	return true
+}
+
+// String returns a human readable version of the drain strategy.
+func (d *DrainStrategy) String() string {
+	if d.IgnoreSystemJobs {
+		return fmt.Sprintf("drain ignoring system jobs and deadline at %s", d.ForceDeadline)
+	}
+	return fmt.Sprintf("drain with deadline at %s", d.ForceDeadline)
+}
+
 const (
 	NodeEventSubsystemDrain     = "Drain"
 	NodeEventSubsystemDriver    = "Driver"
@@ -212,7 +487,7 @@ type NodeEvent struct {
 	Message     string
 	Subsystem   string
 	Details     map[string]string
-	Timestamp   int64
+	Timestamp   time.Time
 	CreateIndex uint64
 }
 

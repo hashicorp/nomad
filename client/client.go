@@ -1063,13 +1063,16 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 			} else {
 				hasChanged = true
 
-				// Only emit an event if the health status has changed, not if we are
-				// simply updating a node on startup
-				if health.Healthy != oldVal.Healthy && oldVal.HealthDescription != "" {
+				// Only emit an event if the health status has changed after node
+				// initial startup (the health description will not get populated until
+				// a health check has run; the initial status is equal to whether the
+				// node is detected or not).
+				if health.Healthy != oldVal.Healthy && health.HealthDescription != "" {
 					event := &structs.NodeEvent{
 						Subsystem: "Driver",
 						Message:   health.HealthDescription,
-						Timestamp: time.Now().Unix(),
+						Timestamp: time.Now(),
+						Details:   map[string]string{"driver": name},
 					}
 					c.triggerNodeEvent(event)
 				}

@@ -47,7 +47,9 @@ func (n *drainingNode) DeadlineTime() (bool, time.Time) {
 	return n.node.DrainStrategy.DeadlineTime()
 }
 
-// IsDone returns if the node is done draining
+// IsDone returns if the node is done draining batch and service allocs. System
+// allocs must be stopped before marking drain complete unless they're being
+// ignored.
 func (n *drainingNode) IsDone() (bool, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
@@ -57,9 +59,6 @@ func (n *drainingNode) IsDone() (bool, error) {
 		return false, fmt.Errorf("node doesn't have a drain strategy set")
 	}
 
-	// Grab the relevant drain info
-	ignoreSystem := n.node.DrainStrategy.IgnoreSystemJobs
-
 	// Retrieve the allocs on the node
 	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
 	if err != nil {
@@ -67,8 +66,9 @@ func (n *drainingNode) IsDone() (bool, error) {
 	}
 
 	for _, alloc := range allocs {
-		// Skip system if configured to
-		if alloc.Job.Type == structs.JobTypeSystem && ignoreSystem {
+		// System jobs are only stopped after a node is done draining
+		// everything else, so ignore them here.
+		if alloc.Job.Type == structs.JobTypeSystem {
 			continue
 		}
 
@@ -81,10 +81,9 @@ func (n *drainingNode) IsDone() (bool, error) {
 	return true, nil
 }
 
-// TODO test that we return the right thing given the strategies
-// DeadlineAllocs returns the set of allocations that should be drained given a
-// node is at its deadline
-func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {
+// RemainingAllocs returns the set of allocations remaining on a node that
+// still need to be drained.
+func (n *drainingNode) RemainingAllocs() ([]*structs.Allocation, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
 
@@ -94,10 +93,6 @@ func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {
 	}
 
 	// Grab the relevant drain info
-	inf, _ := n.node.DrainStrategy.DeadlineTime()
-	if inf {
-		return nil, nil
-	}
 	ignoreSystem := n.node.DrainStrategy.IgnoreSystemJobs
 
 	// Retrieve the allocs on the node
@@ -124,7 +119,7 @@ func (n *drainingNode) DeadlineAllocs() ([]*structs.Allocation, error) {
 	return drain, nil
 }
 
-// RunningServices returns the set of jobs on the node
+// RunningServices returns the set of service jobs on the node.
 func (n *drainingNode) RunningServices() ([]structs.NamespacedID, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
