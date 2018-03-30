@@ -713,8 +713,19 @@ func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, que
 // to lost
 func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*structs.Node, allocs []*structs.Allocation) {
 	for _, alloc := range allocs {
-		if _, ok := tainted[alloc.NodeID]; ok &&
-			alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+		node, ok := tainted[alloc.NodeID]
+		if !ok {
+			continue
+		}
+
+		// Only handle down nodes or nodes that are gone (node == nil)
+		if node != nil && node.Status != structs.NodeStatusDown {
+			continue
+		}
+
+		// If the scheduler has marked it as stop already but the alloc wasn't
+		// terminal on the client change the status to lost.
+		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
 			plan.AppendUpdate(alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)

@@ -58,6 +58,8 @@ BUG FIXES:
  * core: Fix an issue in which multiple servers could be acting as a leader. A
    prominent side-effect being nodes TTLing incorrectly [[GH-3890](https://github.com/hashicorp/nomad/issues/3890)]
  * core: Fix an issue where jobs with the same name in a different namespace were not being blocked correctly [[GH-3972](https://github.com/hashicorp/nomad/issues/3972)]
+ * cli: server member command handles failure to retrieve leader in remote
+   regions [[GH-4087](https://github.com/hashicorp/nomad/issues/4087)]
  * client: Support IP detection of wireless interfaces on Windows [[GH-4011](https://github.com/hashicorp/nomad/issues/4011)]
  * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
  * client: Always advertise driver IP when in driver address mode [[GH-3682](https://github.com/hashicorp/nomad/issues/3682)]

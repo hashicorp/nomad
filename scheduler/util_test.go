@@ -1118,6 +1118,7 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 
 func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	node := mock.Node()
+	node.Status = structs.NodeStatusDown
 	alloc1 := mock.Alloc()
 	alloc1.NodeID = node.ID
 	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
@@ -1150,6 +1151,22 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 		allocsLost = append(allocsLost, alloc.ID)
 	}
 	expected := []string{alloc1.ID, alloc2.ID}
+	if !reflect.DeepEqual(allocsLost, expected) {
+		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
+	}
+
+	// Update the node status to ready and try again
+	plan = structs.Plan{
+		NodeUpdate: make(map[string][]*structs.Allocation),
+	}
+	node.Status = structs.NodeStatusReady
+	updateNonTerminalAllocsToLost(&plan, tainted, allocs)
+
+	allocsLost = make([]string, 0, 2)
+	for _, alloc := range plan.NodeUpdate[node.ID] {
+		allocsLost = append(allocsLost, alloc.ID)
+	}
+	expected = []string{}
 	if !reflect.DeepEqual(allocsLost, expected) {
 		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
 	}

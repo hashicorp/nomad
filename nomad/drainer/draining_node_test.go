@@ -46,9 +46,9 @@ func assertDrainingNode(t *testing.T, dn *drainingNode, isDone bool, remaining, 
 	require.Nil(t, err)
 	assert.Len(t, allocs, remaining, "RemainingAllocs mismatch")
 
-	jobs, err := dn.RunningServices()
+	jobs, err := dn.DrainingJobs()
 	require.Nil(t, err)
-	assert.Len(t, jobs, running, "RunningServices mismatch")
+	assert.Len(t, jobs, running, "DrainingJobs mismatch")
 }
 
 func TestDrainingNode_Table(t *testing.T) {
@@ -70,7 +70,7 @@ func TestDrainingNode_Table(t *testing.T) {
 			name:      "Batch",
 			isDone:    false,
 			remaining: 1,
-			running:   0,
+			running:   1,
 			setup: func(t *testing.T, dn *drainingNode) {
 				alloc := mock.BatchAlloc()
 				alloc.NodeID = dn.node.ID
@@ -128,7 +128,7 @@ func TestDrainingNode_Table(t *testing.T) {
 			name:      "ServiceTerminal",
 			isDone:    false,
 			remaining: 2,
-			running:   0,
+			running:   1,
 			setup: func(t *testing.T, dn *drainingNode) {
 				allocs := []*structs.Allocation{mock.Alloc(), mock.BatchAlloc(), mock.SystemAlloc()}
 				for _, a := range allocs {
@@ -146,7 +146,7 @@ func TestDrainingNode_Table(t *testing.T) {
 			name:      "AllTerminalButBatch",
 			isDone:    false,
 			remaining: 1,
-			running:   0,
+			running:   1,
 			setup: func(t *testing.T, dn *drainingNode) {
 				allocs := []*structs.Allocation{mock.Alloc(), mock.BatchAlloc(), mock.SystemAlloc()}
 				for _, a := range allocs {
@@ -184,7 +184,7 @@ func TestDrainingNode_Table(t *testing.T) {
 			name:      "HalfTerminal",
 			isDone:    false,
 			remaining: 3,
-			running:   1,
+			running:   2,
 			setup: func(t *testing.T, dn *drainingNode) {
 				allocs := []*structs.Allocation{
 					mock.Alloc(),

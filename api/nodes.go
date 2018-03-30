@@ -85,25 +85,52 @@ func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q
 	return &resp, nil
 }
 
+// MonitorMsgLevels represents the severity log level of a MonitorMessage.
+type MonitorMsgLevel int
+
+const (
+	MonitorMsgLevelNormal MonitorMsgLevel = 0
+	MonitorMsgLevelInfo   MonitorMsgLevel = 1
+	MonitorMsgLevelWarn   MonitorMsgLevel = 2
+	MonitorMsgLevelError  MonitorMsgLevel = 3
+)
+
+// MonitorMessage contains a message and log level.
+type MonitorMessage struct {
+	Level   MonitorMsgLevel
+	Message string
+}
+
+// Messagef formats a new MonitorMessage.
+func Messagef(lvl MonitorMsgLevel, msg string, args ...interface{}) *MonitorMessage {
+	return &MonitorMessage{
+		Level:   lvl,
+		Message: fmt.Sprintf(msg, args...),
+	}
+}
+
+func (m *MonitorMessage) String() string {
+	return m.Message
+}
+
 // MonitorDrain emits drain related events on the returned string channel. The
 // channel will be closed when all allocations on the draining node have
 // stopped or the context is canceled.
-func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, ignoreSys bool) <-chan string {
-	outCh := make(chan string, 8)
-	errCh := make(chan string, 1)
-	nodeCh := make(chan string, 1)
-	allocCh := make(chan string, 8)
+func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, ignoreSys bool) <-chan *MonitorMessage {
+	outCh := make(chan *MonitorMessage, 8)
+	nodeCh := make(chan *MonitorMessage, 1)
+	allocCh := make(chan *MonitorMessage, 8)
 
 	// Multiplex node and alloc chans onto outCh. This goroutine closes
 	// outCh when other chans have been closed or context canceled.
 	multiplexCtx, cancel := context.WithCancel(ctx)
-	go n.monitorDrainMultiplex(ctx, cancel, outCh, errCh, nodeCh, allocCh)
+	go n.monitorDrainMultiplex(ctx, cancel, outCh, nodeCh, allocCh)
 
 	// Monitor node for updates
-	go n.monitorDrainNode(multiplexCtx, nodeID, index, nodeCh, errCh)
+	go n.monitorDrainNode(multiplexCtx, nodeID, index, nodeCh)
 
 	// Monitor allocs on node for updates
-	go n.monitorDrainAllocs(multiplexCtx, nodeID, ignoreSys, allocCh, errCh)
+	go n.monitorDrainAllocs(multiplexCtx, nodeID, ignoreSys, allocCh)
 
 	return outCh
 }
@@ -112,13 +139,14 @@ func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, i
 // Closes out chan when either the context is canceled, both update chans are
 // closed, or an error occurs.
 func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
-	outCh chan<- string, errCh, nodeCh, allocCh <-chan string) {
+	outCh chan<- *MonitorMessage, nodeCh, allocCh <-chan *MonitorMessage) {
 
 	defer cancel()
 	defer close(outCh)
+
 	nodeOk := true
 	allocOk := true
-	var msg string
+	var msg *MonitorMessage
 	for {
 		// If both chans have been closed, close the output chan
 		if !nodeOk && !allocOk {
@@ -138,19 +166,11 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 				allocCh = nil
 			}
 
-		case errMsg := <-errCh:
-			// Error occurred, exit after sending
-			select {
-			case outCh <- errMsg:
-			case <-ctx.Done():
-			}
-			return
-
 		case <-ctx.Done():
 			return
 		}
 
-		if msg == "" {
+		if msg == nil {
 			continue
 		}
 
@@ -159,33 +179,28 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 		case <-ctx.Done():
 			return
 		}
+
+		// Abort on error messages
+		if msg.Level == MonitorMsgLevelError {
+			return
+		}
 	}
 }
 
 // monitorDrainNode emits node updates on nodeCh and closes the channel when
 // the node has finished draining.
-func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint64, nodeCh, errCh chan<- string) {
+func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint64, nodeCh chan<- *MonitorMessage) {
 	defer close(nodeCh)
 
 	var lastStrategy *DrainStrategy
-
+	q := QueryOptions{
+		AllowStale: true,
+		WaitIndex:  index,
+	}
 	for {
-		q := QueryOptions{
-			AllowStale: true,
-			WaitIndex:  index,
-		}
 		node, meta, err := n.Info(nodeID, &q)
 		if err != nil {
-			msg := fmt.Sprintf("Error monitoring node: %v", err)
-			select {
-			case errCh <- msg:
-			case <-ctx.Done():
-			}
-			return
-		}
-
-		if node.DrainStrategy == nil {
-			msg := fmt.Sprintf("Node %q drain complete", nodeID)
+			msg := Messagef(MonitorMsgLevelError, "Error monitoring node: %v", err)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -193,9 +208,26 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 			return
 		}
 
+		if node.DrainStrategy == nil {
+			msg := Messagef(MonitorMsgLevelInfo, "Node %q drain complete", nodeID)
+			select {
+			case nodeCh <- msg:
+			case <-ctx.Done():
+			}
+			return
+		}
+
+		if node.Status == structs.NodeStatusDown {
+			msg := Messagef(MonitorMsgLevelWarn, "Node %q down", nodeID)
+			select {
+			case nodeCh <- msg:
+			case <-ctx.Done():
+			}
+		}
+
 		// DrainStrategy changed
 		if lastStrategy != nil && !node.DrainStrategy.Equal(lastStrategy) {
-			msg := fmt.Sprintf("Node %q drain updated: %s", nodeID, node.DrainStrategy)
+			msg := Messagef(MonitorMsgLevelInfo, "Node %q drain updated: %s", nodeID, node.DrainStrategy)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -206,44 +238,30 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		lastStrategy = node.DrainStrategy
 
 		// Drain still ongoing, update index and block for updates
-		index = meta.LastIndex
+		q.WaitIndex = meta.LastIndex
 	}
 }
 
 // monitorDrainAllocs emits alloc updates on allocCh and closes the channel
 // when the node has finished draining.
-func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys bool, allocCh, errCh chan<- string) {
+func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys bool, allocCh chan<- *MonitorMessage) {
 	defer close(allocCh)
 
-	// Build initial alloc state
 	q := QueryOptions{AllowStale: true}
-	allocs, meta, err := n.Allocations(nodeID, &q)
-	if err != nil {
-		msg := fmt.Sprintf("Error monitoring allocations: %v", err)
-		select {
-		case errCh <- msg:
-		case <-ctx.Done():
-		}
-		return
-	}
-
-	initial := make(map[string]*Allocation, len(allocs))
-	for _, a := range allocs {
-		initial[a.ID] = a
-	}
+	initial := make(map[string]*Allocation, 4)
 
 	for {
-		q.WaitIndex = meta.LastIndex
-
-		allocs, meta, err = n.Allocations(nodeID, &q)
+		allocs, meta, err := n.Allocations(nodeID, &q)
 		if err != nil {
-			msg := fmt.Sprintf("Error monitoring allocations: %v", err)
+			msg := Messagef(MonitorMsgLevelError, "Error monitoring allocations: %v", err)
 			select {
-			case errCh <- msg:
+			case allocCh <- msg:
 			case <-ctx.Done():
 			}
 			return
 		}
+
+		q.WaitIndex = meta.LastIndex
 
 		runningAllocs := 0
 		for _, a := range allocs {
@@ -269,17 +287,15 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 			case migrating && !orig.DesiredTransition.ShouldMigrate():
 				// Alloc was marked for migration
 				msg = "marked for migration"
+
 			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
 				// Alloc has already been marked for migration and is now being stopped
 				msg = "draining"
-			case a.NextAllocation != "" && orig.NextAllocation == "":
-				// Alloc has been replaced by another allocation
-				msg = fmt.Sprintf("replaced by allocation %q", a.NextAllocation)
 			}
 
 			if msg != "" {
 				select {
-				case allocCh <- fmt.Sprintf("Alloc %q %s", a.ID, msg):
+				case allocCh <- Messagef(MonitorMsgLevelNormal, "Alloc %q %s", a.ID, msg):
 				case <-ctx.Done():
 					return
 				}
@@ -303,7 +319,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 
 		// Exit if all allocs are terminal
 		if runningAllocs == 0 {
-			msg := fmt.Sprintf("All allocations on node %q have stopped.", nodeID)
+			msg := Messagef(MonitorMsgLevelInfo, "All allocations on node %q have stopped.", nodeID)
 			select {
 			case allocCh <- msg:
 			case <-ctx.Done():

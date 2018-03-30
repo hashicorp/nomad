@@ -48,7 +48,7 @@ func (c *DeprecatedCommand) warn() {
 
 // Commands returns the mapping of CLI commands for Nomad. The meta
 // parameter lets you set meta options for all commands.
-func Commands(metaPtr *Meta) map[string]cli.CommandFactory {
+func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 	if metaPtr == nil {
 		metaPtr = new(Meta)
 	}
@@ -156,7 +156,7 @@ func Commands(metaPtr *Meta) map[string]cli.CommandFactory {
 		"agent": func() (cli.Command, error) {
 			return &agent.Command{
 				Version:    version.GetVersion(),
-				Ui:         meta.Ui,
+				Ui:         agentUi,
 				ShutdownCh: make(chan struct{}),
 			}, nil
 		},
