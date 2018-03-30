@@ -68,12 +68,12 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 
 	// TODO Test this
 	// Register interest in the draining jobs.
-	jobs, err := draining.RunningServices()
+	jobs, err := draining.DrainingJobs()
 	if err != nil {
-		n.logger.Printf("[ERR] nomad.drain: error retrieving services on node %q: %v", node.ID, err)
+		n.logger.Printf("[ERR] nomad.drain: error retrieving draining jobs on node %q: %v", node.ID, err)
 		return
 	}
-	n.logger.Printf("[TRACE] nomad.drain: node %q has %d services on it", node.ID, len(jobs))
+	n.logger.Printf("[TRACE] nomad.drain: node %q has %d draining jobs on it", node.ID, len(jobs))
 	n.jobWatcher.RegisterJobs(jobs)
 
 	// TODO Test at this layer as well that a node drain on a node without

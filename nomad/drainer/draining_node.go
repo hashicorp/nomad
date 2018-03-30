@@ -119,8 +119,9 @@ func (n *drainingNode) RemainingAllocs() ([]*structs.Allocation, error) {
 	return drain, nil
 }
 
-// RunningServices returns the set of service jobs on the node.
-func (n *drainingNode) RunningServices() ([]structs.NamespacedID, error) {
+// DrainingJobs returns the set of jobs on the node that can block a drain.
+// These include batch and service jobs.
+func (n *drainingNode) DrainingJobs() ([]structs.NamespacedID, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
 
@@ -133,7 +134,7 @@ func (n *drainingNode) RunningServices() ([]structs.NamespacedID, error) {
 	jobIDs := make(map[structs.NamespacedID]struct{})
 	var jobs []structs.NamespacedID
 	for _, alloc := range allocs {
-		if alloc.TerminalStatus() || alloc.Job.Type != structs.JobTypeService {
+		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
 			continue
 		}
 

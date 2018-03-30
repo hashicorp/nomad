@@ -304,6 +304,9 @@ type handleTaskGroupTestCase struct {
 	// Name of test
 	Name string
 
+	// Batch uses a batch job and alloc
+	Batch bool
+
 	// Expectations
 	ExpectedDrained  int
 	ExpectedMigrated int
@@ -394,8 +397,34 @@ func TestHandeTaskGroup_Table(t *testing.T) {
 			},
 		},
 		{
+			// One already drained, other allocs on non-draining node and healthy
+			Name:             "OneAlreadyDrainedBatched",
+			Batch:            true,
+			ExpectedDrained:  0,
+			ExpectedMigrated: 1,
+			ExpectedDone:     true,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				if i == 0 {
+					a.DesiredStatus = structs.AllocDesiredStatusStop
+					return
+				}
+				a.NodeID = runningID
+			},
+		},
+		{
 			// All allocs are terminl, nothing to be drained
 			Name:             "AllMigrating",
+			ExpectedDrained:  0,
+			ExpectedMigrated: 10,
+			ExpectedDone:     true,
+			AddAlloc: func(i int, a *structs.Allocation, drainingID, runningID string) {
+				a.DesiredStatus = structs.AllocDesiredStatusStop
+			},
+		},
+		{
+			// All allocs are terminl, nothing to be drained
+			Name:             "AllMigratingBatch",
+			Batch:            true,
 			ExpectedDrained:  0,
 			ExpectedMigrated: 10,
 			ExpectedDone:     true,
@@ -522,6 +551,9 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	drainingNode, runningNode := testNodes(t, state)
 
 	job := mock.Job()
+	if tc.Batch {
+		job = mock.BatchJob()
+	}
 	job.TaskGroups[0].Count = 10
 	if tc.Count > 0 {
 		job.TaskGroups[0].Count = tc.Count
@@ -534,6 +566,9 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
 		a := mock.Alloc()
+		if tc.Batch {
+			a = mock.BatchAlloc()
+		}
 		a.JobID = job.ID
 		a.Job = job
 		a.TaskGroup = job.TaskGroups[0].Name
@@ -554,7 +589,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	require.Nil(err)
 
 	res := newJobResult()
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 102, res))
+	require.Nil(handleTaskGroup(snap, tc.Batch, job.TaskGroups[0], allocs, 102, res))
 	assert.Lenf(res.drain, tc.ExpectedDrained, "Drain expected %d but found: %d",
 		tc.ExpectedDrained, len(res.drain))
 	assert.Lenf(res.migrated, tc.ExpectedMigrated, "Migrate expected %d but found: %d",
@@ -603,15 +638,27 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 	snap, err := state.Snapshot()
 	require.Nil(err)
 
-	// Handle before and after indexes
+	// Handle before and after indexes as both service and batch
 	res := newJobResult()
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 101, res))
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 101, res))
 	require.Empty(res.drain)
 	require.Len(res.migrated, 10)
 	require.True(res.done)
 
 	res = newJobResult()
-	require.Nil(handleTaskGroup(snap, job.TaskGroups[0], allocs, 103, res))
+	require.Nil(handleTaskGroup(snap, true, job.TaskGroups[0], allocs, 101, res))
+	require.Empty(res.drain)
+	require.Len(res.migrated, 10)
+	require.True(res.done)
+
+	res = newJobResult()
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 103, res))
+	require.Empty(res.drain)
+	require.Empty(res.migrated)
+	require.True(res.done)
+
+	res = newJobResult()
+	require.Nil(handleTaskGroup(snap, true, job.TaskGroups[0], allocs, 103, res))
 	require.Empty(res.drain)
 	require.Empty(res.migrated)
 	require.True(res.done)
