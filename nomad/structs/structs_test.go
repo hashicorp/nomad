@@ -2655,35 +2655,34 @@ func TestAllocation_LastEventTime(t *testing.T) {
 		taskState             map[string]*TaskState
 		expectedLastEventTime time.Time
 	}
-	var timeZero time.Time
 
-	t1 := time.Now()
+	t1 := time.Now().UTC()
 
 	testCases := []testCase{
 		{
 			desc: "nil task state",
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc:                  "empty task state",
 			taskState:             make(map[string]*TaskState),
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
 			desc: "Finished At not set",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt: t1.Add(-2 * time.Hour)}},
-			expectedLastEventTime: timeZero,
+			expectedLastEventTime: t1,
 		},
 		{
-			desc: "One finished event",
+			desc: "One finished ",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt:  t1.Add(-2 * time.Hour),
 				FinishedAt: t1.Add(-1 * time.Hour)}},
 			expectedLastEventTime: t1.Add(-1 * time.Hour),
 		},
 		{
-			desc: "Multiple events",
+			desc: "Multiple task groups",
 			taskState: map[string]*TaskState{"foo": {State: "start",
 				StartedAt:  t1.Add(-2 * time.Hour),
 				FinishedAt: t1.Add(-1 * time.Hour)},
@@ -2692,10 +2691,33 @@ func TestAllocation_LastEventTime(t *testing.T) {
 					FinishedAt: t1.Add(-40 * time.Minute)}},
 			expectedLastEventTime: t1.Add(-40 * time.Minute),
 		},
+		{
+			desc: "No finishedAt set, one task event",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1.Add(-20 * time.Minute),
+		},
+		{
+			desc: "No finishedAt set, many task events",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+					{Type: "status change", Time: t1.Add(-10 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1.Add(-10 * time.Minute),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			alloc := &Allocation{}
+			alloc := &Allocation{CreateTime: t1.UnixNano(), ModifyTime: t1.UnixNano()}
 			alloc.TaskStates = tc.taskState
 			require.Equal(t, tc.expectedLastEventTime, alloc.LastEventTime())
 		})
@@ -2727,10 +2749,11 @@ func TestAllocation_NextDelay(t *testing.T) {
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "constant",
 				Delay:         5 * time.Second,
+				Unlimited:     true,
 			},
-			alloc: &Allocation{ClientStatus: AllocClientStatusFailed},
-			expectedRescheduleTime:     time.Time{},
-			expectedRescheduleEligible: false,
+			alloc: &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
+			expectedRescheduleTime:     now.UTC().Add(5 * time.Second),
+			expectedRescheduleEligible: true,
 		},
 		{
 			desc: "linear delay, unlimited restarts, no reschedule tracker",
@@ -3655,4 +3678,20 @@ func TestBatchFuture(t *testing.T) {
 	if bf.Index() != 1000 {
 		t.Fatalf("bad: %d", bf.Index())
 	}
+}
+
+func TestNode_Canonicalize(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Make sure the eligiblity is set properly
+	node := &Node{}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
+
+	node = &Node{
+		Drain: true,
+	}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
 }

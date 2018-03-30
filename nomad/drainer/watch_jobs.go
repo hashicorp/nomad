@@ -369,10 +369,7 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 
 		// If the service alloc is running and has its deployment status set, it
 		// is considered healthy from a migration standpoint.
-		if !batch &&
-			!alloc.TerminalStatus() &&
-			alloc.DeploymentStatus != nil &&
-			alloc.DeploymentStatus.Healthy != nil {
+		if !batch && !alloc.TerminalStatus() && alloc.DeploymentStatus.HasHealth() {
 			healthy++
 		}
 

@@ -269,6 +269,9 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Handle upgrade paths
+	req.Node.Canonicalize()
+
 	if err := n.state.UpsertNode(index, req.Node); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertNode failed: %v", err)
 		return err
@@ -1048,6 +1051,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(node); err != nil {
 				return err
 			}
+
+			// Handle upgrade paths
+			node.Canonicalize()
+
 			if err := restore.NodeRestore(node); err != nil {
 				return err
 			}

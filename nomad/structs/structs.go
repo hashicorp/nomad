@@ -1426,6 +1426,23 @@ func (n *Node) Ready() bool {
 	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
+func (n *Node) Canonicalize() {
+	if n == nil {
+		return
+	}
+
+	// COMPAT Remove in 0.10
+	// In v0.8.0 we introduced scheduling eligibility, so we need to set it for
+	// upgrading nodes
+	if n.SchedulingEligibility == "" {
+		if n.Drain {
+			n.SchedulingEligibility = NodeSchedulingIneligible
+		} else {
+			n.SchedulingEligibility = NodeSchedulingEligible
+		}
+	}
+}
+
 func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil
@@ -5730,15 +5747,29 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 }
 
 // LastEventTime is the time of the last task event in the allocation.
-// It is used to determine allocation failure time.
+// It is used to determine allocation failure time. If the FinishedAt field
+// is not set, the alloc's modify time is used
 func (a *Allocation) LastEventTime() time.Time {
 	var lastEventTime time.Time
 	if a.TaskStates != nil {
-		for _, e := range a.TaskStates {
-			if lastEventTime.IsZero() || e.FinishedAt.After(lastEventTime) {
-				lastEventTime = e.FinishedAt
+		for _, s := range a.TaskStates {
+			if lastEventTime.IsZero() || s.FinishedAt.After(lastEventTime) {
+				lastEventTime = s.FinishedAt
 			}
 		}
+	}
+	// If no tasks have FinsihedAt set, examine task events
+	if lastEventTime.IsZero() {
+		for _, s := range a.TaskStates {
+			for _, e := range s.Events {
+				if lastEventTime.IsZero() || e.Time > lastEventTime.UnixNano() {
+					lastEventTime = time.Unix(0, e.Time).UTC()
+				}
+			}
+		}
+	}
+	if lastEventTime.IsZero() {
+		return time.Unix(0, a.ModifyTime).UTC()
 	}
 	return lastEventTime
 }
@@ -6077,6 +6108,11 @@ type AllocDeploymentStatus struct {
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
+}
+
+// HasHealth returns true if the allocation has its health set.
+func (a *AllocDeploymentStatus) HasHealth() bool {
+	return a != nil && a.Healthy != nil
 }
 
 // IsHealthy returns if the allocation is marked as healthy as part of a

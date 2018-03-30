@@ -257,6 +257,41 @@ test('relationship reloads can be canceled', function(assert) {
   });
 });
 
+test('requests can be canceled even if multiple requests for the same URL were made', function(assert) {
+  const { pretender } = this.server;
+  const jobId = JSON.stringify(['job-1', 'default']);
+
+  pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
+
+  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+    reload: true,
+    adapterOptions: { watch: true },
+  });
+
+  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+    reload: true,
+    adapterOptions: { watch: true },
+  });
+
+  const { request: xhr } = pretender.requestReferences[0];
+  assert.equal(xhr.status, 0, 'Request is still pending');
+  assert.equal(pretender.requestReferences.length, 2, 'Two findRecord requests were made');
+  assert.equal(
+    pretender.requestReferences.mapBy('url').uniq().length,
+    1,
+    'The two requests have the same URL'
+  );
+
+  // Schedule the cancelation before waiting
+  run.next(() => {
+    this.subject().cancelFindRecord('job', jobId);
+  });
+
+  return wait().then(() => {
+    assert.ok(xhr.aborted, 'Request was aborted');
+  });
+});
+
 function makeMockModel(id, options) {
   return assign(
     {

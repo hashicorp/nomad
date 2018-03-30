@@ -239,6 +239,39 @@ var _ = Describe("Server Side Restart Tests", func() {
 
 		})
 
+		Context("Reschedule with max parallel/auto_revert false", func() {
+			BeforeEach(func() {
+				specFile = "input/rescheduling_maxp.hcl"
+			})
+			It("Should have running allocs and successful deployment", func() {
+				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
+					ConsistOf([]string{"running", "running", "running"}))
+
+				time.Sleep(2 * time.Second)
+				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+					ContainElement(structs.DeploymentStatusSuccessful))
+			})
+
+			Context("Updating job to make allocs fail", func() {
+				It("Should have no rescheduled allocs", func() {
+					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
+					_, _, err := jobs.Register(job, nil)
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+
+					// Should have 1 failed from max_parallel
+					Eventually(allocStatuses, 3*time.Second, time.Second).Should(
+						ConsistOf([]string{"complete", "failed", "running", "running"}))
+
+					// Verify new deployment and its status
+					time.Sleep(2 * time.Second)
+					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+						ContainElement(structs.DeploymentStatusFailed))
+				})
+			})
+
+		})
+
 	})
 
 })
