@@ -271,16 +271,30 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 
-	if enable {
-		c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
-	} else {
-		c.Ui.Output(fmt.Sprintf("Node %q drain strategy unset", node.ID))
+	if !enable || detach {
+		if enable {
+			c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
+		} else {
+			c.Ui.Output(fmt.Sprintf("Node %q drain strategy unset", node.ID))
+		}
 	}
 
 	if enable && !detach {
+		now := time.Now()
+		c.Ui.Info(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
+		c.Ui.Output(fmt.Sprintf("%s: Node %q drain strategy set", formatTime(now), node.ID))
 		outCh := client.Nodes().MonitorDrain(context.Background(), node.ID, meta.LastIndex, ignoreSystem)
 		for msg := range outCh {
-			c.Ui.Output(msg)
+			switch msg.Level {
+			case api.MonitorMsgLevelInfo:
+				c.Ui.Info(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			case api.MonitorMsgLevelWarn:
+				c.Ui.Warn(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			case api.MonitorMsgLevelError:
+				c.Ui.Error(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			default:
+				c.Ui.Output(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			}
 		}
 	}
 
