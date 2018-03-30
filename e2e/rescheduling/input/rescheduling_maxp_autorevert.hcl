@@ -10,14 +10,14 @@ job "demo3" {
 
       config {
         command = "bash"
-        args    = ["-c", "ssleep 5000"]
+        args    = ["-c", "sleep 5000"]
       }
     }
 
     update {
       max_parallel     = 1
-      min_healthy_time = "5s"
-      healthy_deadline = "10m"
+      min_healthy_time = "1s"
+      healthy_deadline = "1m"
       auto_revert      = true
     }
 

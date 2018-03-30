@@ -10,14 +10,14 @@ job "demo2" {
 
       config {
         command = "bash"
-        args    = ["-c", "sleep 5000"]
+        args    = ["-c", "sleep 7000"]
       }
     }
 
     update {
       max_parallel     = 1
-      min_healthy_time = "5s"
-      healthy_deadline = "10m"
+      min_healthy_time = "1s"
+      healthy_deadline = "1m"
       auto_revert      = false
     }
 
@@ -28,8 +28,6 @@ job "demo2" {
 
     reschedule {
       unlimited = "true"
-
-      #  attempts  = 0
     }
   }
 }
