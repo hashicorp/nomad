@@ -19,7 +19,7 @@ cancel the drain. Drains may be canceled by using the `-disable` parameter
 below.
 
 When draining more than one node at a time, it is recommended you first disable
-[scheduling eligibility][eligibility] on all nodes you are about to drain. For
+[scheduling eligibility][eligibility] on all nodes that will be drained. For
 example if you are decommissioning an entire class of nodes, first run `node
 eligibility -disable` on all of their node IDs, and then run `node drain
 -enable`. This will ensure allocations drained from the first node are not
