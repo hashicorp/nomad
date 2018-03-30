@@ -217,6 +217,14 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 			return
 		}
 
+		if node.Status == structs.NodeStatusDown {
+			msg := Messagef(MonitorMsgLevelWarn, "Node %q down", nodeID)
+			select {
+			case nodeCh <- msg:
+			case <-ctx.Done():
+			}
+		}
+
 		// DrainStrategy changed
 		if lastStrategy != nil && !node.DrainStrategy.Equal(lastStrategy) {
 			msg := Messagef(MonitorMsgLevelInfo, "Node %q drain updated: %s", nodeID, node.DrainStrategy)
@@ -279,9 +287,11 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 			case migrating && !orig.DesiredTransition.ShouldMigrate():
 				// Alloc was marked for migration
 				msg = "marked for migration"
+
 			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
 				// Alloc has already been marked for migration and is now being stopped
 				msg = "draining"
+
 			case a.NextAllocation != "" && orig.NextAllocation == "":
 				// Alloc has been replaced by another allocation
 				msg = fmt.Sprintf("replaced by allocation %q", a.NextAllocation)
