@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -23,21 +23,20 @@ func NewSwapFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *SwapFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *SwapFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	swapInfo, err := mem.SwapMemory()
 	if err != nil {
 		f.logger.Printf("[WARN] Error reading swap information: %s", err)
-		return false, err
+		return err
 	}
 
 	if swapInfo.Total > 0 {
-		node.Attributes["swap.totalbytes"] = fmt.Sprintf("%d", swapInfo.Total)
+		resp.AddAttribute("swap.totalbytes", fmt.Sprintf("%d", swapInfo.Total))
 
-		if node.Resources == nil {
-			node.Resources = &structs.Resources{}
+		resp.Resources = &structs.Resources{
+			SwapMB: int(swapInfo.Total / 1024 / 1024),
 		}
-		node.Resources.SwapMB = int(swapInfo.Total / 1024 / 1024)
-    }
+	}
 
-	return true, nil
+	return nil
 }
