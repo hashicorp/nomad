@@ -230,7 +230,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		lastStrategy = node.DrainStrategy
 
 		// Drain still ongoing, update index and block for updates
-		index = meta.LastIndex
+		q.WaitIndex = meta.LastIndex
 	}
 }
 
