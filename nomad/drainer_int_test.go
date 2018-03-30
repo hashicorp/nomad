@@ -727,7 +727,7 @@ func TestDrainer_Batch_Force(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
 
 	// Make sure the batch job is migrated
-	testutil.AssertUntil(500*time.Millisecond, func() (bool, error) {
+	testutil.WaitForResult(func() (bool, error) {
 		allocs, err := state.AllocsByNode(nil, n1.ID)
 		if err != nil {
 			return false, err

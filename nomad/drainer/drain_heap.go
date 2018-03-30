@@ -54,19 +54,14 @@ func (d *deadlineHeap) watch() {
 	case <-timer.C:
 	default:
 	}
-
-	var nextDeadline time.Time
 	defer timer.Stop()
 
+	var nextDeadline time.Time
 	for {
 		select {
 		case <-d.ctx.Done():
 			return
 		case <-timer.C:
-			if nextDeadline.IsZero() {
-				continue
-			}
-
 			var batch []string
 
 			d.mu.Lock()
@@ -96,7 +91,7 @@ func (d *deadlineHeap) watch() {
 			continue
 		}
 
-		if !deadline.Equal(nextDeadline) {
+		if deadline.IsZero() || !deadline.Equal(nextDeadline) {
 			timer.Reset(deadline.Sub(time.Now()))
 			nextDeadline = deadline
 		}
