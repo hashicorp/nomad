@@ -398,14 +398,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	return s, nil
 }
 
-// startRPCListener starts the server's  the RPC listener
+// startRPCListener starts the server's the RPC listener
 func (s *Server) startRPCListener() {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.rpcCancel = cancel
-	go func() {
-		defer close(s.listenerCh)
-		s.listen(ctx)
-	}()
+	go s.listen(ctx)
 }
 
 // createRPCListener creates the server's RPC listener
@@ -447,6 +444,12 @@ func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.R
 func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.logger.Printf("[INFO] nomad: reloading server connections due to configuration changes")
 
+	// Check if we can reload the RPC listener
+	if s.rpcListener == nil || s.rpcCancel == nil {
+		s.logger.Println("[WARN] nomad: Unable to reload configuration due to uninitialized rpc listner")
+		return fmt.Errorf("can't reload uninitialized RPC listener")
+	}
+
 	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
@@ -459,43 +462,33 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	s.tlsWrap = tlsWrap
 	s.tlsWrapLock.Unlock()
 
-	if s.rpcCancel == nil {
-		err = fmt.Errorf("No existing RPC server to reset.")
-		s.logger.Printf("[ERR] nomad: %s", err)
-		return err
-	}
-
-	s.rpcCancel()
-
 	// Keeping configuration in sync is important for other places that require
 	// access to config information, such as rpc.go, where we decide on what kind
 	// of network connections to accept depending on the server configuration
 	s.config.TLSConfig = newTLSConfig
 
+	// Kill any old listeners
+	s.rpcCancel()
+
 	s.rpcTLS = incomingTLS
 	s.connPool.ReloadTLS(tlsWrap)
-
-	// reinitialize our rpc listener
-	if s.rpcListener == nil {
-		s.logger.Println("Unable to reload configuration due to uninitialized rpc listner")
-		return nil
-	}
 
 	if err := s.rpcListener.Close(); err != nil {
 		s.logger.Printf("[ERR] nomad: Unable to close rpc listener %s", err)
 		return err
 	}
 
+	// Wait for the old listener to exit
 	<-s.listenerCh
 
+	// Create the new listener with the update TLS config
 	listener, err := s.createRPCListener()
 	if err != nil {
 		listener.Close()
 		return err
 	}
 
-	// Ensure that the listener exists before potentially closing it after the
-	// context for the nomad listener has exited
+	// Start the new RPC listener
 	s.startRPCListener()
 
 	// Close and reload existing Raft connections
