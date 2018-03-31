@@ -2,6 +2,8 @@
 
 package nomad
 
+import "net/rpc"
+
 // EnterpriseEndpoints holds the set of enterprise only endpoints to register
 type EnterpriseEndpoints struct {
 	Namespace *Namespace
@@ -15,6 +17,6 @@ func NewEnterpriseEndpoints(s *Server) *EnterpriseEndpoints {
 }
 
 // Register register the enterprise endpoints.
-func (e *EnterpriseEndpoints) Register(s *Server) {
-	s.rpcServer.Register(e.Namespace)
+func (e *EnterpriseEndpoints) Register(rpcServer *rpc.Server) {
+	rpcServer.Register(e.Namespace)
 }
