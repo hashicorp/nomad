@@ -496,7 +496,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		}
 	}
 	var resourcesOutput []string
-	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
+	resourcesOutput = append(resourcesOutput, "CPU|Memory|Swap|Disk|IOPS|Addresses")
 	firstAddr := ""
 	if len(addr) > 0 {
 		firstAddr = addr[0]
@@ -505,6 +505,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	// Display the rolled up stats. If possible prefer the live statistics
 	cpuUsage := strconv.Itoa(*resource.CPU)
 	memUsage := humanize.IBytes(uint64(*resource.MemoryMB * bytesPerMegabyte))
+	swapUsage := humanize.IBytes(uint64(*resource.SwapMB * bytesPerMegabyte))
 	if stats != nil {
 		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
 			if cs := ru.ResourceUsage.CpuStats; cs != nil {
@@ -512,17 +513,19 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			}
 			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
 				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
+				swapUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.Swap), swapUsage)
 			}
 		}
 	}
-	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v|%v",
 		cpuUsage,
 		memUsage,
+		swapUsage,
 		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
 		*resource.IOPS,
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
-		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("|||||%v", addr[i]))
 	}
 	c.Ui.Output(formatListWithSpaces(resourcesOutput))
 
