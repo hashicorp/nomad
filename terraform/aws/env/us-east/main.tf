@@ -1,3 +1,8 @@
+variable "name" {
+  description = "Used to name various infrastructure components"
+  default     = "hashistack"
+}
+
 variable "region" {
   description = "The AWS region to deploy to."
   default     = "us-east-1"
@@ -39,6 +44,7 @@ provider "aws" {
 module "hashistack" {
   source = "../../modules/hashistack"
 
+  name          = "${var.name}"
   region        = "${var.region}"
   ami           = "${var.ami}"
   instance_type = "${var.instance_type}"
