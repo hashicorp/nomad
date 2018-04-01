@@ -1547,6 +1547,7 @@ func (ns Networks) Port(label string) (string, int) {
 type Resources struct {
 	CPU      int
 	MemoryMB int
+	SwapMB   int
 	DiskMB   int
 	IOPS     int
 	Networks Networks
@@ -1564,6 +1565,7 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 300,
+		SwapMB:   0,
 		IOPS:     0,
 	}
 }
@@ -1577,6 +1579,7 @@ func MinResources() *Resources {
 	return &Resources{
 		CPU:      20,
 		MemoryMB: 10,
+		SwapMB:   0,
 		IOPS:     0,
 	}
 }
@@ -1593,6 +1596,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.MemoryMB != 0 {
 		r.MemoryMB = other.MemoryMB
+	}
+	if other.SwapMB != 0 {
+		r.SwapMB = other.SwapMB
 	}
 	if other.DiskMB != 0 {
 		r.DiskMB = other.DiskMB
@@ -1628,6 +1634,9 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
+	}
+	if r.SwapMB < minResources.SwapMB {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum SwapMB value is %d; got %d", minResources.SwapMB, r.SwapMB))
 	}
 	if r.IOPS < minResources.IOPS {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is %d; got %d", minResources.IOPS, r.IOPS))
@@ -1678,6 +1687,9 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.MemoryMB < other.MemoryMB {
 		return false, "memory"
 	}
+	if r.SwapMB < other.SwapMB {
+		return false, "swap"
+	}
 	if r.DiskMB < other.DiskMB {
 		return false, "disk"
 	}
@@ -1696,6 +1708,7 @@ func (r *Resources) Add(delta *Resources) error {
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
 	r.DiskMB += delta.DiskMB
+	r.SwapMB += delta.SwapMB
 	r.IOPS += delta.IOPS
 
 	for _, n := range delta.Networks {

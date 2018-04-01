@@ -475,6 +475,7 @@ type AdvertiseAddrs struct {
 type Resources struct {
 	CPU                 int    `mapstructure:"cpu"`
 	MemoryMB            int    `mapstructure:"memory"`
+	SwapMB              int    `mapstructure:"swap"`
 	DiskMB              int    `mapstructure:"disk"`
 	IOPS                int    `mapstructure:"iops"`
 	ReservedPorts       string `mapstructure:"reserved_ports"`
@@ -1309,6 +1310,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.MemoryMB != 0 {
 		result.MemoryMB = b.MemoryMB
+	}
+	if b.SwapMB != 0 {
+		result.SwapMB = b.SwapMB
 	}
 	if b.DiskMB != 0 {
 		result.DiskMB = b.DiskMB

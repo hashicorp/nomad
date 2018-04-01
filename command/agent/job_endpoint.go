@@ -753,6 +753,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Resources = &structs.Resources{
 		CPU:      *apiTask.Resources.CPU,
 		MemoryMB: *apiTask.Resources.MemoryMB,
+		SwapMB:   *apiTask.Resources.SwapMB,
 		IOPS:     *apiTask.Resources.IOPS,
 	}
 

@@ -2827,6 +2827,7 @@ func TestTaskDiff(t *testing.T) {
 					MemoryMB: 100,
 					DiskMB:   100,
 					IOPS:     100,
+					SwapMB:   100,
 				},
 			},
 			New: &Task{
@@ -2835,6 +2836,7 @@ func TestTaskDiff(t *testing.T) {
 					MemoryMB: 200,
 					DiskMB:   200,
 					IOPS:     200,
+					SwapMB:   200,
 				},
 			},
 			Expected: &TaskDiff{
@@ -2868,6 +2870,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "100",
 								New:  "200",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SwapMB",
+								Old:  "100",
+								New:  "200",
+							},
 						},
 					},
 				},
@@ -2882,6 +2890,7 @@ func TestTaskDiff(t *testing.T) {
 					MemoryMB: 100,
 					DiskMB:   100,
 					IOPS:     100,
+					SwapMB:   100,
 				},
 			},
 			New: &Task{
@@ -2890,6 +2899,7 @@ func TestTaskDiff(t *testing.T) {
 					MemoryMB: 100,
 					DiskMB:   200,
 					IOPS:     100,
+					SwapMB:   100,
 				},
 			},
 			Expected: &TaskDiff{
@@ -2920,6 +2930,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "MemoryMB",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "SwapMB",
 								Old:  "100",
 								New:  "100",
 							},

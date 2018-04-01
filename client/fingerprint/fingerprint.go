@@ -38,6 +38,7 @@ var (
 		"nomad":   NewNomadFingerprint,
 		"signal":  NewSignalFingerprint,
 		"storage": NewStorageFingerprint,
+		"swap":    NewSwapFingerprint,
 		"vault":   NewVaultFingerprint,
 	}
 
