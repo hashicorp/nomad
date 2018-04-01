@@ -1597,7 +1597,7 @@ func (r *Resources) Merge(other *Resources) {
 	if other.MemoryMB != 0 {
 		r.MemoryMB = other.MemoryMB
 	}
-    if other.SwapMB != 0 {
+	if other.SwapMB != 0 {
 		r.SwapMB = other.SwapMB
 	}
 	if other.DiskMB != 0 {
@@ -1635,7 +1635,7 @@ func (r *Resources) MeetsMinResources() error {
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
 	}
-    if r.SwapMB < minResources.SwapMB {
+	if r.SwapMB < minResources.SwapMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum SwapMB value is %d; got %d", minResources.SwapMB, r.SwapMB))
 	}
 	if r.IOPS < minResources.IOPS {
@@ -1687,7 +1687,7 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.MemoryMB < other.MemoryMB {
 		return false, "memory"
 	}
-    if r.SwapMB < other.SwapMB {
+	if r.SwapMB < other.SwapMB {
 		return false, "swap"
 	}
 	if r.DiskMB < other.DiskMB {

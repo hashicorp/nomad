@@ -1199,7 +1199,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"iops",
 		"disk",
 		"memory",
-        "swap",
+		"swap",
 		"network",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {

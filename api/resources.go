@@ -72,7 +72,7 @@ func (r *Resources) Merge(other *Resources) {
 	if other.MemoryMB != nil {
 		r.MemoryMB = other.MemoryMB
 	}
-    if other.SwapMB != nil {
+	if other.SwapMB != nil {
 		r.SwapMB = other.SwapMB
 	}
 	if other.DiskMB != nil {

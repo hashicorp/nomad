@@ -336,7 +336,7 @@ func (d *LxcDriver) startWithCleanup(ctx *ExecContext, task *structs.Task) (*Sta
 		return nil, fmt.Errorf("unable to set memory limits: %v", err), stopAndDestroyCleanup
 	}
 	if err := c.SetMemorySwapLimit(lxc.ByteSize(task.Resources.MemoryMB) +
-                                   lxc.ByteSize(task.Resources.SwapMB)* lxc.MB); err != nil {
+		lxc.ByteSize(task.Resources.SwapMB)*lxc.MB); err != nil {
 		return nil, fmt.Errorf("unable to set memory limits: %v", err)
 	}
 	if err := c.SetCgroupItem("cpu.shares", strconv.Itoa(task.Resources.CPU)); err != nil {
