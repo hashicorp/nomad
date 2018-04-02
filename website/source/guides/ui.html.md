@@ -112,10 +112,6 @@ Each allocation will poll for updates to current stats.
 
 [![Allocation Stats][img-allocation-stats]][img-allocation-stats]
 
-~> **Note.** To collect current CPU and memory statistics, the Web UI makes requests directly to the client
-~> the allocation is running on. These requests will fail unless the browser session is running in the same
-~> subnet as the Nomad client.
-
 Clicking an allocation will navigate to the Allocation Detail page. From here, the event history for each task
 in the allocation can be seen.
 
