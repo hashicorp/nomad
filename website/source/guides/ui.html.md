@@ -10,7 +10,7 @@ description: |-
 # Web UI
 
 The Nomad Web UI offers an easy to use web experience for inspecting a Nomad cluster.
-Jobs, Deployments, Task Groups, Allocations, Clients, and Servers can all be
+Jobs, Deployments, Evaluations, Task Groups, Allocations, Logs, Clients, and Servers can all be
 monitored from the Web UI. The Web UI also supports the use of ACL tokens for
 clusters that are using the [ACL system](/guides/acl.html).
 
@@ -21,12 +21,13 @@ under `/ui`, but visiting the root of the Nomad server in your browser will redi
 to the Web UI. If you are unsure what port the Nomad HTTP API is running under, try the default
 port, `4646`.
 
-~> **Live Demo!** For a quick test drive, see our online Web UI demo at [demo.nomadproject.io](https://demo.nomadproject.io). 
+~> **Live Demo!** For a quick test drive, see our online Web UI demo at [demo.nomadproject.io](https://demo.nomadproject.io).
 
 ## Reviewing Jobs
 
 The home page of the Web UI is the jobs list view. This page has a searchable, sortable,
-paginated table of all jobs in the cluster, regardless of job status.
+paginated table of all jobs in the cluster, regardless of job status. This page will automatically
+update as jobs are started, stopped, and allocations transition through states.
 
 [![Jobs List][img-jobs-list]][img-jobs-list]
 
@@ -47,6 +48,9 @@ number of task groups, and an aggregation of all allocations by allocation statu
 Clicking on a job will navigate to the Job Detail page. This page shows a list of task groups
 for the job as well as the status of each allocation for each task group by allocation status.
 
+This page will automatically update as deployments start and finish, new versions fail to be placed,
+allocations transition through states, and evaluations update.
+
 [![Job Detail][img-job-detail]][img-job-detail]
 
 ### Reading a Job Definition
@@ -61,6 +65,8 @@ job definition is shown as an interactive JSON object.
 Job Versions can be found on the Versions tab on the Job Detail page. This page has a timeline view of
 every tracked version for the job.
 
+This page will automatically update as new versions are submitted to the cluster.
+
 [![Job Versions][img-job-versions]][img-job-versions]
 
 Each version can be toggled to also show the diff between job versions.
@@ -72,6 +78,8 @@ Each version can be toggled to also show the diff between job versions.
 Job Deployments are listed on the Deployments tab on the Job Detail page. Every tracked deployment is listed in
 a timeline view.
 
+This page will automatically update as new versions are submitted to the cluster and deployments proceed.
+
 [![Job Deployments][img-job-deployments]][img-job-deployments]
 
 Each deployment can be toggle to show information about the deployment, including canaries placed and desired,
@@ -81,7 +89,8 @@ allocations placed and desired, healthy and unhealthy allocations, task group me
 
 ### Monitoring a Current Job Deployment
 
-When a deployment is currently running, it is called out on the Job Detail Overview tab.
+When a deployment is currently running, it is called out on the Job Detail Overview tab. It will update
+automatically as canaries and allocations are placed and deemed healthy or unhealthy.
 
 [![Active Job Deployment][img-active-job-deployment]][img-active-job-deployment]
 
@@ -90,12 +99,16 @@ When a deployment is currently running, it is called out on the Job Detail Overv
 Clicking on a task group from the Job Detail page will navigate to the Task Group Detail page. This page shows
 the aggregated resource metrics for a task group as well as a list of all associated allocations.
 
+This page will automatically update as the allocations in the task group change states.
+
 [![Task Group Detail][img-task-group-detail]][img-task-group-detail]
 
 ## Inspecting an Allocation
 
 From the Task Group Detail page, each allocation in the allocations table will report basic information about
 the allocation, including utilized CPU and memory.
+
+Each allocation will poll for updates to current stats.
 
 [![Allocation Stats][img-allocation-stats]][img-allocation-stats]
 
@@ -105,6 +118,8 @@ the allocation, including utilized CPU and memory.
 
 Clicking an allocation will navigate to the Allocation Detail page. From here, the event history for each task
 in the allocation can be seen.
+
+This page will automatically update as new task events are emitted.
 
 [![Allocation Detail][img-allocation-detail]][img-allocation-detail]
 
@@ -119,6 +134,8 @@ sharing links easier.
 In addition to name, each client in the table includes details such as current status, address, datacenter,
 and number of allocations.
 
+This page will automatically update as nodes change states and work is allocated.
+
 [![Clients List][img-clients-list]][img-clients-list]
 
 ## Inspecting a Client
@@ -126,6 +143,9 @@ and number of allocations.
 Clicking on a client will navigate to the Client Detail page. This page shows the status of the client as
 well as the list of all allocations placed on the client. Additionally, all attributes of the machine are
 itemized.
+
+This page will automatically update as allocations come and go on the client and the usage stats for an
+allocation change.
 
 [![Client Detail][img-client-detail]][img-client-detail]
 
