@@ -8,40 +8,38 @@ import (
 )
 
 func TestDrainer_PartitionAllocDrain(t *testing.T) {
+	t.Parallel()
 	// Set the max ids per reap to something lower.
-	old := maxIdsPerTxn
-	defer func() { maxIdsPerTxn = old }()
-	maxIdsPerTxn = 2
+	maxIdsPerTxn := 2
 
 	require := require.New(t)
 	transistions := map[string]*structs.DesiredTransition{"a": nil, "b": nil, "c": nil}
 	evals := []*structs.Evaluation{nil, nil, nil}
-	requests := partitionAllocDrain(transistions, evals)
+	requests := partitionAllocDrain(maxIdsPerTxn, transistions, evals)
 	require.Len(requests, 3)
 
 	first := requests[0]
-	require.Len(first.Transistions, 2)
+	require.Len(first.Transitions, 2)
 	require.Len(first.Evals, 0)
 
 	second := requests[1]
-	require.Len(second.Transistions, 1)
+	require.Len(second.Transitions, 1)
 	require.Len(second.Evals, 1)
 
 	third := requests[2]
-	require.Len(third.Transistions, 0)
+	require.Len(third.Transitions, 0)
 	require.Len(third.Evals, 2)
 }
 
 func TestDrainer_PartitionIds(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	// Set the max ids per reap to something lower.
-	old := maxIdsPerTxn
-	defer func() { maxIdsPerTxn = old }()
-	maxIdsPerTxn = 2
+	maxIdsPerTxn := 2
 
 	ids := []string{"1", "2", "3", "4", "5"}
-	requests := partitionIds(ids)
+	requests := partitionIds(maxIdsPerTxn, ids)
 	require.Len(requests, 3)
 	require.Len(requests[0], 2)
 	require.Len(requests[1], 2)

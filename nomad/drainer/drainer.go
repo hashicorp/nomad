@@ -257,7 +257,7 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 
 	// Submit the node transistions in a sharded form to ensure a reasonable
 	// Raft transaction size.
-	for _, nodes := range partitionIds(nodes) {
+	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, nodes) {
 		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
 		}
@@ -327,7 +327,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 
 	// Submit the node transistions in a sharded form to ensure a reasonable
 	// Raft transaction size.
-	for _, nodes := range partitionIds(done) {
+	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, done) {
 		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
 		}
@@ -398,9 +398,9 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 
 	// Commit this update via Raft
 	var finalIndex uint64
-	for _, u := range partitionAllocDrain(transistions, evals) {
-		index, err := n.raft.AllocUpdateDesiredTransition(u.Transistions, u.Evals)
 	var mErr multierror.Error
+	for _, u := range partitionAllocDrain(defaultMaxIdsPerTxn, transistions, evals) {
+		index, err := n.raft.AllocUpdateDesiredTransition(u.Transitions, u.Evals)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
