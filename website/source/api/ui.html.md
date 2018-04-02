@@ -44,6 +44,29 @@ This page shows an overview of a specific job. Details include name, status, typ
 priority, allocation statuses, and task groups. Additionally, if there is a running
 deployment for the job, it will be shown on the overview.
 
+This page shows an overview of a specific job. The exact information shown varies
+based on the type of job.
+
+- **Service Job** - Includes job metadata (name, status, priority, namespace), allocation
+  statuses, placement failures, active deployment, task groups, and evaluations.
+
+- **Batch Job** - Includes job metadata, allocation statuses, placement failures, task
+  groups, and evaluations.
+
+- **System Job** - Includes job metadata, allocation statuses, placement failures, task
+  groups, and evaluations.
+
+- **Periodic Job** - Includes job metadata, cron information force launch action, children statuses,
+  and children list.
+
+- **Parameterized Job** - Includes job metadata, children statuses, and children list.
+
+- **Periodic Child** - Includes job metadata, link to parent job, allocation statuses, placement
+  failures, task groups, and evaluations.
+
+- **Parameterized Child** - Includes job metadata, link to parent job, allocation statuses,
+  placement failures, task groups, evaluations, and dispatch payload.
+
 | Path               | Produces    |
 | ------------------ | ----------- |
 | `/ui/jobs/:job_id` | `text/html` |
@@ -141,6 +164,27 @@ description of the event.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a querystring parameter.
+
+
+## Task Detail
+
+This page shows details and events for a specific task. Details include when the task started
+and stopped, all static and dynamic addresses, and all recent events.
+
+| Path                                   | Produces    |
+| -------------------------------------- | ----------- |
+| `/ui/allocations/:alloc_id/:task_name` | `text/html` |
+
+
+## Task Logs
+
+This page streams `stdout` and `stderr` logs for a task. By default, `stdout` is tailed, but
+there are available actions to see the head of the log, pause and play streaming, and switching
+to `stderr`.
+
+| Path                                        | Produces    |
+| ------------------------------------------- | ----------- |
+| `/ui/allocations/:alloc_id/:task_name/logs` | `text/html` |
 
 
 ## Nodes List
