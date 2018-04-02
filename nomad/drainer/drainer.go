@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -399,11 +400,12 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 	var finalIndex uint64
 	for _, u := range partitionAllocDrain(transistions, evals) {
 		index, err := n.raft.AllocUpdateDesiredTransition(u.Transistions, u.Evals)
+	var mErr multierror.Error
 		if err != nil {
-			future.Respond(index, err)
+			mErr.Errors = append(mErr.Errors, err)
 		}
 		finalIndex = index
 	}
 
-	future.Respond(finalIndex, nil)
+	future.Respond(finalIndex, mErr.ErrorOrNil())
 }
