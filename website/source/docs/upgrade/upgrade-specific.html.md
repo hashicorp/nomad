@@ -17,7 +17,7 @@ standard upgrade flow.
 
 ## Nomad 0.8.0
 
-#### Raft Protocol Version Compatibility
+### Raft Protocol Version Compatibility
 
 When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need to
 set the [`-raft-protocol`](/docs/agent/options.html#_raft_protocol) option to 1 in
@@ -50,6 +50,30 @@ Raft Protocol versions supported by each Consul version:
 
 In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
+
+### Periods in Environment Variable Names No Longer Escaped
+
+*Applications which expect periods in environment variable names to be replaced
+with underscores must be updated.*
+
+In Nomad 0.7 periods (`.`) in environment variables names were replaced with an
+underscore in both the [`env`](/docs/job-specification/env.html) and
+[`template`](/docs/job-specification/template.html) stanzas.
+
+In Nomad 0.8 periods are *not* replaced and will be included in environment
+variables verbatim.
+
+For example the following stanza:
+
+```text
+env {
+  registry.consul.addr = "${NOMAD_IP_http}:8500"
+}
+```
+
+In Nomad 0.7 would be exposed to the task as
+`registry_consul_addr=127.0.0.1:8500`. In Nomad 0.8 it will now appear exactly
+as specified: `registry.consul.addr=127.0.0.1:8500`.
 
 ## Nomad 0.6.0
 
