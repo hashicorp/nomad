@@ -50,6 +50,10 @@ var (
 	// running operations such as waiting on containers and collect stats
 	waitClient *docker.Client
 
+	// healthCheckClient is a docker client with a timeout of 1 minute. This is
+	// necessary to have a shorter timeout than other API or fingerprint calls
+	healthCheckClient *docker.Client
+
 	// The statistics the Docker driver exposes
 	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage"}
 	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
@@ -106,6 +110,10 @@ const (
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
+
+	// dockerHealthCheckTimeout is the length of time a request for a health
+	// check client can be outstanding before it is timed out.
+	dockerHealthCheckTimeout = 5 * time.Minute
 
 	// dockerImageResKey is the CreatedResources key for docker images
 	dockerImageResKey = "image"
@@ -559,7 +567,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 		UpdateTime: time.Now(),
 	}
 
-	client, _, err := d.dockerClients()
+	healthCheckClient, err := d.dockerHealthCheckClient()
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: failed to retrieve Docker client in the process of a docker health check: %v", err)
 		dinfo.HealthDescription = fmt.Sprintf("Failed retrieving Docker client: %v", err)
@@ -567,7 +575,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 		return nil
 	}
 
-	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
+	_, err = healthCheckClient.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a Docker health check: %v", err)
 		dinfo.HealthDescription = fmt.Sprintf("Failed to list Docker containers: %v", err)
@@ -998,6 +1006,21 @@ func (d *DockerDriver) cleanupImage(imageID string) error {
 	coordinator.RemoveImage(imageID, callerID)
 
 	return nil
+}
+
+func (d *DockerDriver) dockerHealthCheckClient() (*docker.Client, error) {
+	if healthCheckClient != nil {
+		return healthCheckClient, nil
+	}
+
+	newHealthCheckClient, err := d.newDockerClient(dockerHealthCheckTimeout)
+	if err != nil {
+		return nil, err
+	} else {
+		healthCheckClient = newHealthCheckClient
+	}
+
+	return healthCheckClient, nil
 }
 
 func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, error) {
