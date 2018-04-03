@@ -384,6 +384,9 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 }
 
+// outputNodeDriverInfo should only output driver info in non-verbose mode if
+// there are any unhealthy drivers. In verbose mode, it should output the
+// status of every driver.
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Drivers"))
 
@@ -397,21 +400,28 @@ func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
 	}
 
 	drivers := make([]string, 0, len(node.Drivers))
-	for driver := range node.Drivers {
-		drivers = append(drivers, driver)
+	for driver, driverInfo := range node.Drivers {
+		if !driverInfo.Healthy || c.verbose {
+			drivers = append(drivers, driver)
+		}
 	}
 	sort.Strings(drivers)
 
-	for _, driver := range drivers {
-		info := node.Drivers[driver]
-		if c.verbose {
-			timestamp := formatTime(info.UpdateTime)
-			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
-		} else {
-			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v", driver, info.Detected, info.Healthy))
+	// Not in verbose mode, and no drivers have been marked as unhealthy
+	if len(drivers) == 0 {
+		c.Ui.Output("All drivers are healthy")
+	} else {
+		for _, driver := range drivers {
+			info := node.Drivers[driver]
+			if c.verbose {
+				timestamp := formatTime(info.UpdateTime)
+				nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
+			} else {
+				nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v", driver, info.Detected, info.Healthy))
+			}
 		}
+		c.Ui.Output(formatList(nodeDrivers))
 	}
-	c.Ui.Output(formatList(nodeDrivers))
 }
 
 func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
