@@ -334,8 +334,13 @@ type NodeUpdateStatusRequest struct {
 // NodeUpdateDrainRequest is used for updating the drain strategy
 type NodeUpdateDrainRequest struct {
 	NodeID        string
-	Drain         bool // TODO Deprecate
 	DrainStrategy *DrainStrategy
+
+	// COMPAT Remove in version 0.10
+	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
+	// drain strategy but we need to handle the upgrade path where the Raft log
+	// contains drain updates with just the drain boolean being manipulated.
+	Drain bool
 
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
