@@ -41,7 +41,7 @@ var (
 	// We store the clients globally to cache the connection to the docker daemon.
 	createClients sync.Once
 
-	// client is a docker client with a timeout of 1 minute. This is for doing
+	// client is a docker client with a timeout of 5 minutes. This is for doing
 	// all operations with the docker daemon besides which are not long running
 	// such as creating, killing containers, etc.
 	client *docker.Client
@@ -1000,17 +1000,11 @@ func (d *DockerDriver) cleanupImage(imageID string) error {
 	return nil
 }
 
-// dockerClients creates two *docker.Client, one for long running operations and
-// the other for shorter operations. In test / dev mode we can use ENV vars to
-// connect to the docker daemon. In production mode we will read docker.endpoint
-// from the config file.
-func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
-	if client != nil && waitClient != nil {
-		return client, waitClient, nil
-	}
-
+func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, error) {
 	var err error
 	var merr multierror.Error
+	var newClient *docker.Client
+
 	createClients.Do(func() {
 		// Default to using whatever is configured in docker.endpoint. If this is
 		// not specified we'll fall back on NewClientFromEnv which reads config from
@@ -1025,41 +1019,57 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 
 			if cert+key+ca != "" {
 				d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
-				client, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
-				if err != nil {
-					merr.Errors = append(merr.Errors, err)
-				}
-				waitClient, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
+				newClient, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
 				if err != nil {
 					merr.Errors = append(merr.Errors, err)
 				}
 			} else {
 				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
-				client, err = docker.NewClient(dockerEndpoint)
-				if err != nil {
-					merr.Errors = append(merr.Errors, err)
-				}
-				waitClient, err = docker.NewClient(dockerEndpoint)
+				newClient, err = docker.NewClient(dockerEndpoint)
 				if err != nil {
 					merr.Errors = append(merr.Errors, err)
 				}
 			}
-			client.SetTimeout(dockerTimeout)
+			if timeout != 0 {
+				newClient.SetTimeout(timeout)
+			}
 			return
 		}
 
 		d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
-		client, err = docker.NewClientFromEnv()
+		newClient, err = docker.NewClientFromEnv()
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
-		client.SetTimeout(dockerTimeout)
-
-		waitClient, err = docker.NewClientFromEnv()
-		if err != nil {
-			merr.Errors = append(merr.Errors, err)
+		if timeout != 0 {
+			newClient.SetTimeout(timeout)
 		}
 	})
+
+	return newClient, merr.ErrorOrNil()
+}
+
+// dockerClients creates two *docker.Client, one for long running operations and
+// the other for shorter operations. In test / dev mode we can use ENV vars to
+// connect to the docker daemon. In production mode we will read docker.endpoint
+// from the config file.
+func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
+	if client != nil && waitClient != nil {
+		return client, waitClient, nil
+	}
+
+	var merr multierror.Error
+
+	client, err := d.newDockerClient(dockerTimeout)
+	if err != nil {
+		merr.Errors = append(merr.Errors, err)
+	}
+
+	waitClient, err := d.newDockerClient(0 * time.Minute)
+	if err != nil {
+		merr.Errors = append(merr.Errors, err)
+	}
+
 	return client, waitClient, merr.ErrorOrNil()
 }
 
