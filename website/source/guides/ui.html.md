@@ -94,6 +94,28 @@ automatically as canaries and allocations are placed and deemed healthy or unhea
 
 [![Active Job Deployment][img-active-job-deployment]][img-active-job-deployment]
 
+### Inspecting Child Jobs
+
+Child jobs are only listed on the parent periodic or parameterized job detail pages. This leaves the global
+jobs list view uncluttered.
+
+[![Periodic Job Detail Showing Children Jobs][img-periodic-job-detail]][img-periodic-job-detail]
+
+### Forcing a Periodic Launch
+
+From the job detail page for a periodic job, a child instance can be launched on demand rather than waiting
+the scheduled amount of time as defined by the cron in the job definition.
+
+[![Periodic Force Launch Button][img-periodic-force-launch-button]][img-periodic-force-launch-button]
+
+### Inspecting a Dispatch Payload
+
+When a parameterized job is dispatched, the payload is captured and accessible from the bottom of the
+parameterized child job detail page. The Web UI will attempt to parse the payload as JSON for improved
+inspecting capabilities.
+
+[![Parameterized Dispatch Payload][img-parameterized-dispatch-payload]][img-parameterized-dispatch-payload]
+
 ## Inspecting a Task Group
 
 Clicking on a task group from the Job Detail page will navigate to the Task Group Detail page. This page shows
@@ -118,6 +140,23 @@ in the allocation can be seen.
 This page will automatically update as new task events are emitted.
 
 [![Allocation Detail][img-allocation-detail]][img-allocation-detail]
+
+## Reviewing Logs
+
+Clicking on a task from the allocation detail will navigate to the Task Detail page. The Task Detail page includes
+a list of recent events as well as a tab for logs.
+
+On the Logs tab, anything the task writes to `stdout` or `stderr` is accessible. The log stream component allows
+for pausing and playing log streaming, jumping to the head or tail of the log, and toggling between `stdout` and
+`stderr`.
+
+~> **Note.** The Web UI will first attempt to stream logs directly from the client agent to avoid unnecessary load
+~> on server agents. If the client is not accessible, the Web UI will fallback to using the server for convenience.
+
+[![Task Logs][img-task-logs]][img-task-logs]
+
+~> **Note.** Only `stdout` and `stderr` are available in the UI. Any logs written to a file are available from the
+~> CLI using the [`nomad alloc fs`]('/docs/commands/alloc/fs.html'), but filesystem access is not yet in the Web UI.
 
 ## Reviewing Clients
 
@@ -182,3 +221,7 @@ Web UI makes will provide the Secret ID as the ACL Token via the `X-Nomad-Token`
 [img-client-detail]: /assets/images/guide-ui-client-detail.png
 [img-server-detail]: /assets/images/guide-ui-server-detail.png
 [img-acl-tokens]: /assets/images/guide-ui-acl-tokens.png
+[img-task-logs]: /assets/images/guide-ui-task-logs.png
+[img-parameterized-dispatch-payload]: /assets/images/guide-ui-parameterized-dispatch-payload.png
+[img-periodic-force-launch-button]: /assets/images/guide-ui-periodic-force-launch-button.png
+[img-periodic-job-detail]: /assets/images/guide-ui-periodic-job-detail.png
