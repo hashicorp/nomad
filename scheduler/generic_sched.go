@@ -330,7 +330,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	reconciler := NewAllocReconciler(s.ctx.Logger(),
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
-		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted)
+		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID)
 	results := reconciler.Compute()
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, results)
 

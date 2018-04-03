@@ -16,6 +16,11 @@ const (
 	// batchedFailedAllocWindowSize is the window size used
 	// to batch up failed allocations before creating an eval
 	batchedFailedAllocWindowSize = 5 * time.Second
+
+	// rescheduleTimeLapseWindowSize is the window size relative to
+	// current time within which reschedulable allocations are placed.
+	// This helps protect against small clock drifts between servers
+	rescheduleTimeLapseWindowSize = 1 * time.Second
 )
 
 // allocUpdateType takes an existing allocation and a new job definition and
@@ -66,6 +71,13 @@ type allocReconciler struct {
 
 	// existingAllocs is non-terminal existing allocations
 	existingAllocs []*structs.Allocation
+
+	// evalID is the ID of the evaluation that triggered the reconciler
+	evalID string
+
+	// now is used to override current time used when determining rescheduling eligibility
+	// used in unit tests
+	now time.Time
 
 	// result is the results of the reconcile. During computation it can be
 	// used to store intermediate state
@@ -145,7 +157,7 @@ func (r *reconcileResults) Changes() int {
 // the changes required to bring the cluster state inline with the declared jobspec
 func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
-	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node) *allocReconciler {
+	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string) *allocReconciler {
 
 	return &allocReconciler{
 		logger:         logger,
@@ -156,6 +168,7 @@ func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch
 		deployment:     deployment.Copy(),
 		existingAllocs: existingAllocs,
 		taintedNodes:   taintedNodes,
+		evalID:         evalID,
 		result: &reconcileResults{
 			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
 			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
@@ -340,8 +353,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
+	if a.now.IsZero() {
+		a.now = time.Now()
+	}
+
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
