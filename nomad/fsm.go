@@ -340,7 +340,7 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 	// drain strategy but we need to handle the upgrade path where the Raft log
 	// contains drain updates with just the drain boolean being manipulated.
 	if req.Drain && req.DrainStrategy == nil {
-		// Mark the drain strategy as a force to immitate the old style drain
+		// Mark the drain strategy as a force to imitate the old style drain
 		// functionality.
 		req.DrainStrategy = &structs.DrainStrategy{
 			DrainSpec: structs.DrainSpec{
