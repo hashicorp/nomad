@@ -5136,6 +5136,12 @@ func (d *EphemeralDisk) Copy() *EphemeralDisk {
 	return ld
 }
 
+var (
+	// VaultUnrecoverableError matches unrecoverable errors returned by a Vault
+	// server
+	VaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
+)
+
 const (
 	// VaultChangeModeNoop takes no action when a new token is retrieved.
 	VaultChangeModeNoop = "noop"

@@ -1398,10 +1398,6 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	tokens := make(map[string]string, len(results))
 	for task, secret := range results {
 		w := secret.WrapInfo
-		if w == nil {
-			return fmt.Errorf("Vault returned Secret without WrapInfo")
-		}
-
 		tokens[task] = w.Token
 		accessor := &structs.VaultAccessor{
 			Accessor:    w.WrappedAccessor,

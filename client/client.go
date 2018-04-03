@@ -1939,10 +1939,27 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		// Unwrap the vault token
 		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
+			if structs.VaultUnrecoverableError.MatchString(err.Error()) {
+				return nil, err
+			}
+
+			// The error is recoverable
+			return nil, structs.NewRecoverableError(
+				fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err), true)
 		}
-		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
+
+		// Validate the response
+		var validationErr error
+		if unwrapResp == nil {
+			validationErr = fmt.Errorf("Vault returned nil secret when unwrapping")
+		} else if unwrapResp.Auth == nil {
+			validationErr = fmt.Errorf("Vault returned unwrap secret with nil Auth. Secret warnings: %v", unwrapResp.Warnings)
+		} else if unwrapResp.Auth.ClientToken == "" {
+			validationErr = fmt.Errorf("Vault returned unwrap secret with empty Auth.ClientToken. Secret warnings: %v", unwrapResp.Warnings)
+		}
+		if validationErr != nil {
+			c.logger.Printf("[WARN] client.vault: failed to unwrap token: %v", err)
+			return nil, structs.NewRecoverableError(validationErr, true)
 		}
 
 		// Append the unwrapped token to the return value
