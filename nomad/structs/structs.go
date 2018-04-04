@@ -5696,6 +5696,11 @@ func (a *Allocation) TerminalStatus() bool {
 	default:
 	}
 
+	return a.ClientTerminalStatus()
+}
+
+// ClientTerminalStatus returns if the client status is terminal and will no longer transition
+func (a *Allocation) ClientTerminalStatus() bool {
 	switch a.ClientStatus {
 	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
 		return true

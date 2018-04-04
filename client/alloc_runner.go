@@ -523,29 +523,41 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 	return copy
 }
 
+// finalizeTerminalAlloc sets any missing required fields like
+// finishedAt in the alloc runner's task States. finishedAt is used
+// to calculate reschedule time for failed allocs, so we make sure that
+// it is set
+func (r *AllocRunner) finalizeTerminalAlloc(alloc *structs.Allocation) {
+	if !alloc.ClientTerminalStatus() {
+		return
+	}
+	r.taskStatusLock.Lock()
+	defer r.taskStatusLock.Unlock()
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if r.taskStates == nil {
+		r.taskStates = make(map[string]*structs.TaskState)
+	}
+	now := time.Now()
+	for _, task := range group.Tasks {
+		ts, ok := r.taskStates[task.Name]
+		if !ok {
+			ts = &structs.TaskState{}
+			r.taskStates[task.Name] = ts
+		}
+		if ts.FinishedAt.IsZero() {
+			ts.FinishedAt = now
+		}
+	}
+	alloc.TaskStates = copyTaskStates(r.taskStates)
+}
+
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
 	// We rely upon FinishedAt to determine rescheduling eligibility so
 	// this makes sure that it is set for every task group.
 	// If the alloc never started FinishedAt may not be set
-	if r.alloc.TerminalStatus() {
-		group := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup)
-		if r.alloc.TaskStates == nil {
-			r.alloc.TaskStates = make(map[string]*structs.TaskState)
-		}
-		now := time.Now()
-		for _, task := range group.Tasks {
-			ts, ok := r.alloc.TaskStates[task.Name]
-			if !ok {
-				ts = &structs.TaskState{}
-				r.alloc.TaskStates[task.Name] = ts
-			}
-			if ts.FinishedAt.IsZero() {
-				ts.FinishedAt = now
-			}
-		}
-	}
 
 	// Don't do a deep copy of the job
 	alloc := r.alloc.CopySkipJob()
@@ -561,6 +573,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		r.taskStatusLock.RUnlock()
 
 		r.allocLock.Unlock()
+		r.finalizeTerminalAlloc(alloc)
 		return alloc
 	}
 
@@ -589,7 +602,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		}
 	}
 	r.allocLock.Unlock()
-
+	r.finalizeTerminalAlloc(alloc)
 	return alloc
 }
 
