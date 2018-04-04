@@ -24,9 +24,7 @@ func TestJobs_Register(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
-	resp, qm, err := jobs.List(nil)
-	require.Nil(err)
-	assertQueryMeta(t, qm)
+	resp, _, err := jobs.List(nil)
 	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
 
 	// Create a job and attempt to register it
@@ -38,7 +36,8 @@ func TestJobs_Register(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
-	resp, _, err = jobs.List(nil)
+	resp, qm, err := jobs.List(nil)
+	assertQueryMeta(t, qm)
 	require.Nil(err)
 
 	// Check that we got the expected response
@@ -640,69 +639,47 @@ func TestJobs_Canonicalize(t *testing.T) {
 
 func TestJobs_EnforceRegister(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
-	resp, qm, err := jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	assertQueryMeta(t, qm)
-
-	if n := len(resp); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Empty(resp)
 
 	// Create a job and attempt to register it with an incorrect index.
 	job := testJob()
 	resp2, _, err := jobs.EnforceRegister(job, 10, nil)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
-		t.Fatalf("expected enforcement error: %v", err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
 
 	// Register
 	resp2, wm, err := jobs.EnforceRegister(job, 0, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp2 == nil || resp2.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotZero(resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
-	resp, qm, err = jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	resp, qm, err := jobs.List(nil)
+	require.Nil(err)
+	require.Len(resp, 1)
+	require.Equal(*job.ID, resp[0].ID)
 	assertQueryMeta(t, qm)
 
-	// Check that we got the expected response
-	if len(resp) != 1 {
-		t.Fatalf("bad length: %d", len(resp))
-	}
-
-	if resp[0].ID != *job.ID {
-		t.Fatalf("bad: %#v", resp[0])
-	}
-	curIndex := resp[0].JobModifyIndex
-
 	// Fail at incorrect index
+	curIndex := resp[0].JobModifyIndex
 	resp2, _, err = jobs.EnforceRegister(job, 123456, nil)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
-		t.Fatalf("expected enforcement error: %v", err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
 
 	// Works at correct index
 	resp3, wm, err := jobs.EnforceRegister(job, curIndex, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp3 == nil || resp3.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	require.Nil(err)
+	require.NotNil(resp3)
+	require.NotZero(resp3.EvalID)
 	assertWriteMeta(t, wm)
 }
 
