@@ -18,10 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func allocPromoter(t *testing.T, ctx context.Context,
+func allocPromoter(errCh chan<- error, ctx context.Context,
 	state *state.StateStore, codec rpc.ClientCodec, nodeID string,
 	logger *log.Logger) {
-	t.Helper()
 
 	nindex := uint64(1)
 	for {
@@ -31,7 +30,8 @@ func allocPromoter(t *testing.T, ctx context.Context,
 				return
 			}
 
-			t.Fatalf("failed to get node allocs: %v", err)
+			errCh <- fmt.Errorf("failed to get node allocs: %v", err)
+			return
 		}
 		nindex = index
 
@@ -67,9 +67,20 @@ func allocPromoter(t *testing.T, ctx context.Context,
 			if ctx.Err() == context.Canceled {
 				return
 			} else if err != nil {
-				require.Nil(t, err)
+				errCh <- err
 			}
 		}
+	}
+}
+
+// checkAllocPromoter is a small helper to return an error or nil from an error
+// chan like the one given to the allocPromoter goroutine.
+func checkAllocPromoter(errCh chan error) error {
+	select {
+	case err := <-errCh:
+		return err
+	default:
+		return nil
 	}
 }
 
@@ -169,10 +180,11 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
 
 	// Wait for the allocs to be replaced
+	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocPromoter(t, ctx, state, codec, n1.ID, s1.logger)
-	go allocPromoter(t, ctx, state, codec, n2.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n1.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n2.ID, s1.logger)
 
 	testutil.WaitForResult(func() (bool, error) {
 		allocs, err := state.AllocsByNode(nil, n2.ID)
@@ -186,6 +198,9 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 
 	// Check that the node drain is removed
 	testutil.WaitForResult(func() (bool, error) {
+		if err := checkAllocPromoter(errCh); err != nil {
+			return false, err
+		}
 		node, err := state.NodeByID(nil, n1.ID)
 		if err != nil {
 			return false, err
@@ -422,14 +437,19 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
 
 	// Wait for the allocs to be replaced
+	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocPromoter(t, ctx, state, codec, n1.ID, s1.logger)
-	go allocPromoter(t, ctx, state, codec, n2.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n1.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n2.ID, s1.logger)
 
 	// Wait for the allocs to be stopped
 	var finalAllocs []*structs.Allocation
 	testutil.WaitForResult(func() (bool, error) {
+		if err := checkAllocPromoter(errCh); err != nil {
+			return false, err
+		}
+
 		var err error
 		finalAllocs, err = state.AllocsByNode(nil, n1.ID)
 		if err != nil {
@@ -575,10 +595,11 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
 
 	// Wait for the allocs to be replaced
+	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocPromoter(t, ctx, state, codec, n1.ID, s1.logger)
-	go allocPromoter(t, ctx, state, codec, n2.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n1.ID, s1.logger)
+	go allocPromoter(errCh, ctx, state, codec, n2.ID, s1.logger)
 
 	// Wait for the service allocs to be stopped on the draining node
 	testutil.WaitForResult(func() (bool, error) {
@@ -593,6 +614,9 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 			if alloc.DesiredStatus != structs.AllocDesiredStatusStop {
 				return false, fmt.Errorf("got desired status %v", alloc.DesiredStatus)
 			}
+		}
+		if err := checkAllocPromoter(errCh); err != nil {
+			return false, err
 		}
 		return true, nil
 	}, func(err error) {
@@ -635,7 +659,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 }
 
 // Test that transistions to force drain work.
-func TestDrainer_Batch_TransistionToForce(t *testing.T) {
+func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -707,12 +731,17 @@ func TestDrainer_Batch_TransistionToForce(t *testing.T) {
 			require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
 
 			// Wait for the allocs to be replaced
+			errCh := make(chan error, 1)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			go allocPromoter(t, ctx, state, codec, n1.ID, s1.logger)
+			go allocPromoter(errCh, ctx, state, codec, n1.ID, s1.logger)
 
 			// Make sure the batch job isn't affected
 			testutil.AssertUntil(500*time.Millisecond, func() (bool, error) {
+				if err := checkAllocPromoter(errCh); err != nil {
+					return false, err
+				}
+
 				allocs, err := state.AllocsByNode(nil, n1.ID)
 				if err != nil {
 					return false, err
