@@ -74,6 +74,16 @@ func (s *Server) String() string {
 	return s.addr
 }
 
+func (s *Server) Equal(o *Server) bool {
+	if s == nil && o == nil {
+		return true
+	} else if s == nil && o != nil || s != nil && o == nil {
+		return false
+	}
+
+	return s.Addr.String() == o.Addr.String() && s.DC == o.DC
+}
+
 type Servers []*Server
 
 func (s Servers) String() string {
@@ -160,6 +170,9 @@ func (m *Manager) Start() {
 func (m *Manager) SetServers(servers Servers) {
 	m.Lock()
 	defer m.Unlock()
+
+	// Randomize the incoming servers
+	servers.shuffle()
 	m.servers = servers
 }
 
@@ -204,7 +217,7 @@ func (m *Manager) NotifyFailedServer(s *Server) {
 	// If the server being failed is not the first server on the list,
 	// this is a noop.  If, however, the server is failed and first on
 	// the list, move the server to the end of the list.
-	if len(m.servers) > 1 && m.servers[0] == s {
+	if len(m.servers) > 1 && m.servers[0].Equal(s) {
 		m.servers.cycle()
 	}
 }
