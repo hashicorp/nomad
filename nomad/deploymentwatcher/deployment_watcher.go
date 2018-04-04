@@ -407,10 +407,11 @@ func (w *deploymentWatcher) watch() {
 func (w *deploymentWatcher) watch2() {
 	var currentDeadline time.Time
 	deadlineTimer := time.NewTimer(0)
-	deadlineTimer.Stop()
-	select {
-	case <-deadlineTimer.C:
-	default:
+	if deadlineTimer.Stop() {
+		select {
+		case <-deadlineTimer.C:
+		default:
+		}
 	}
 
 	allocIndex := uint64(1)
