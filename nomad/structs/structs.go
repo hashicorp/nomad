@@ -5707,6 +5707,11 @@ func (a *Allocation) TerminalStatus() bool {
 	default:
 	}
 
+	return a.ClientTerminalStatus()
+}
+
+// ClientTerminalStatus returns if the client status is terminal and will no longer transition
+func (a *Allocation) ClientTerminalStatus() bool {
 	switch a.ClientStatus {
 	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
 		return true
@@ -5774,16 +5779,7 @@ func (a *Allocation) LastEventTime() time.Time {
 			}
 		}
 	}
-	// If no tasks have FinsihedAt set, examine task events
-	if lastEventTime.IsZero() {
-		for _, s := range a.TaskStates {
-			for _, e := range s.Events {
-				if lastEventTime.IsZero() || e.Time > lastEventTime.UnixNano() {
-					lastEventTime = time.Unix(0, e.Time).UTC()
-				}
-			}
-		}
-	}
+
 	if lastEventTime.IsZero() {
 		return time.Unix(0, a.ModifyTime).UTC()
 	}
