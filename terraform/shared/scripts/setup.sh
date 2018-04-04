@@ -2,16 +2,19 @@
 
 set -e
 
+# Disable interactive apt prompts
+export DEBIAN_FRONTEND=noninteractive
+
 cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.0.2
+CONSULVERSION=1.0.6
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=0.9.1
+VAULTVERSION=0.9.6
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
@@ -26,7 +29,7 @@ HADOOP_VERSION=2.7.5
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq
+sudo apt-get install -y unzip tree redis-tools jq curl tmux
 
 # Numpy (for Spark)
 sudo apt-get install -y python-setuptools
@@ -35,7 +38,7 @@ sudo pip install numpy
 
 # Disable the firewall
 
-sudo ufw disable
+sudo ufw disable || echo "ufw not installed"
 
 # Consul
 
@@ -83,13 +86,15 @@ sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
 
 # Docker
-echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
-sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
+sudo apt-get install -y apt-transport-https ca-certificates gnupg2 
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
 sudo apt-get update
-sudo apt-get install -y docker-engine
+sudo apt-get install -y docker-ce
 
 # rkt
-VERSION=1.27.0
+VERSION=1.29.0
 DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
 
 function install_rkt() {
