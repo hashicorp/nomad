@@ -115,7 +115,6 @@ func TestAllocRunner_FinishedAtSet(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	_, ar := testAllocRunner(t, false)
-	//ar.alloc.ClientStatus = structs.AllocClientStatusFailed
 	ar.allocClientStatus = structs.AllocClientStatusFailed
 	alloc := ar.Alloc()
 	taskFinishedAt := make(map[string]time.Time)
