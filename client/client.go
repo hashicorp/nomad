@@ -138,7 +138,7 @@ type Client struct {
 	triggerEmitNodeEvent chan *structs.NodeEvent
 
 	// rpcRetryCh is closed when there an event such as server discovery or a
-	// successful RPC occuring happens such that a retry should happen. Access
+	// successful RPC occurring happens such that a retry should happen. Access
 	// should only occur via the getter method
 	rpcRetryCh   chan struct{}
 	rpcRetryLock sync.Mutex
