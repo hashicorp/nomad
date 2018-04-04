@@ -555,9 +555,6 @@ func (r *AllocRunner) finalizeTerminalAlloc(alloc *structs.Allocation) {
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
-	// We rely upon FinishedAt to determine rescheduling eligibility so
-	// this makes sure that it is set for every task group.
-	// If the alloc never started FinishedAt may not be set
 
 	// Don't do a deep copy of the job
 	alloc := r.alloc.CopySkipJob()
