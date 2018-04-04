@@ -15,8 +15,7 @@ description: |-
     <th width="120">Placement</th>
     <td>
       <code>job -> **update**</code>
-    </td>
-    <td>
+      <br>
       <code>job -> group -> **update**</code>
     </td>
   </tr>

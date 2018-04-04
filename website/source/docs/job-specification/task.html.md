@@ -9,6 +9,14 @@ description: |-
 
 # `task` Stanza
 
+<table class="table table-bordered table-striped">
+  <tr>
+    <th width="120">Placement</th>
+    <td>
+      <code>job -> group -> **task**</code>
+    </td>
+  </tr>
+</table>
 The `task` stanza creates an individual unit of work, such as a Docker
 container, web application, or batch processing.
 
