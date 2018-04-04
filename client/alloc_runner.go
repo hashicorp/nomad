@@ -526,6 +526,9 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
+	// We rely upon FinishedAt to determine rescheduling eligibility so
+	// this makes sure that it is set for every task group.
+	// If the alloc never started FinishedAt may not be set
 	if r.alloc.TerminalStatus() {
 		group := r.alloc.Job.LookupTaskGroup(r.alloc.TaskGroup)
 		if r.alloc.TaskStates == nil {
