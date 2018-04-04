@@ -296,14 +296,16 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 }
 
 func TestPrettyTimeDiff(t *testing.T) {
-	now := time.Now()
+	// Grab the time and truncate to the nearest second. This allows our tests
+	// to be deterministic since we don't have to worry about rounding.
+	now := time.Now().Truncate(time.Second)
+
 	test_cases := []struct {
 		t1  time.Time
 		t2  time.Time
 		exp string
 	}{
 		{now, time.Unix(0, 0), ""}, // This is the upgrade path case
-		{now, now.Add(-10 * time.Millisecond), "0s ago"},
 		{now, now.Add(-10 * time.Millisecond), "0s ago"},
 		{now, now.Add(-740 * time.Second), "12m20s ago"},
 		{now, now.Add(-12 * time.Minute), "12m ago"},
@@ -317,10 +319,12 @@ func TestPrettyTimeDiff(t *testing.T) {
 		{now, now.Add(-20460 * time.Hour), "2y4mo ago"},
 	}
 	for _, tc := range test_cases {
-		out := prettyTimeDiff(tc.t2, tc.t1)
-		if out != tc.exp {
-			t.Fatalf("expected :%v but got :%v", tc.exp, out)
-		}
+		t.Run(tc.exp, func(t *testing.T) {
+			out := prettyTimeDiff(tc.t2, tc.t1)
+			if out != tc.exp {
+				t.Fatalf("expected :%v but got :%v", tc.exp, out)
+			}
+		})
 	}
 
 	var t1 time.Time
