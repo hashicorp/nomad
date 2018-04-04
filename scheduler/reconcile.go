@@ -340,12 +340,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		dstate, existingDeployment = a.deployment.TaskGroups[group]
 	}
 	if !existingDeployment {
-		autorevert := false
-		if tg.Update != nil && tg.Update.AutoRevert {
-			autorevert = true
-		}
-		dstate = &structs.DeploymentState{
-			AutoRevert: autorevert,
+		dstate = &structs.DeploymentState{}
+		if tg.Update != nil {
+			dstate.AutoRevert = tg.Update.AutoRevert
+			dstate.ProgressDeadline = tg.Update.ProgressDeadline
 		}
 	}
 

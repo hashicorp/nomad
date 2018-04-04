@@ -5466,6 +5466,14 @@ type DeploymentState struct {
 	// reverted on failure
 	AutoRevert bool
 
+	// ProgressDeadline is the deadline by which an allocation must transistion
+	// to healthy before the deployment is considered failed.
+	ProgressDeadline time.Duration
+
+	// RequireProgressBy is the time by which an allocation must transistion
+	// to healthy before the deployment is considered failed.
+	RequireProgressBy time.Time
+
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
 
