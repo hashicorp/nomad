@@ -323,7 +323,7 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
 	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
-	if eligible && ((alloc.FollowupEvalID != "" && alloc.FollowupEvalID == evalID) || rescheduleTime.Sub(now) <= rescheduleTimeLapseWindowSize) {
+	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
 		return
 	}

@@ -17,10 +17,10 @@ const (
 	// to batch up failed allocations before creating an eval
 	batchedFailedAllocWindowSize = 5 * time.Second
 
-	// rescheduleTimeLapseWindowSize is the window size relative to
+	// rescheduleWindowSize is the window size relative to
 	// current time within which reschedulable allocations are placed.
 	// This helps protect against small clock drifts between servers
-	rescheduleTimeLapseWindowSize = 1 * time.Second
+	rescheduleWindowSize = 1 * time.Second
 )
 
 // allocUpdateType takes an existing allocation and a new job definition and
@@ -75,8 +75,8 @@ type allocReconciler struct {
 	// evalID is the ID of the evaluation that triggered the reconciler
 	evalID string
 
-	// now is used to override current time used when determining rescheduling eligibility
-	// used in unit tests
+	// now is the time used when determining rescheduling eligibility
+	// defaults to time.Now, and overidden in unit tests
 	now time.Time
 
 	// result is the results of the reconcile. During computation it can be
@@ -158,7 +158,6 @@ func (r *reconcileResults) Changes() int {
 func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string) *allocReconciler {
-
 	return &allocReconciler{
 		logger:         logger,
 		allocUpdateFn:  allocUpdateFn,
@@ -169,6 +168,7 @@ func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch
 		existingAllocs: existingAllocs,
 		taintedNodes:   taintedNodes,
 		evalID:         evalID,
+		now:            time.Now(),
 		result: &reconcileResults{
 			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
 			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
@@ -352,10 +352,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
-
-	if a.now.IsZero() {
-		a.now = time.Now()
-	}
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID)

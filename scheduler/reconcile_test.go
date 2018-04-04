@@ -1248,7 +1248,7 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	// Mark one as complete
 	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
 	r := reconciler.Compute()
 
 	// Two reschedule attempts were already made, one more can be made at a future time
@@ -1327,7 +1327,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 			FinishedAt: now.Add(10 * time.Second)}}
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
 	r := reconciler.Compute()
 
 	// Verify that two follow up evals were created
@@ -1494,7 +1494,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	// Mark one as desired state stop
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, uuid.Generate())
 	r := reconciler.Compute()
 
 	// Should place a new placement and create a follow up eval for the delayed reschedule
