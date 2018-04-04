@@ -62,6 +62,11 @@ func TestMultiplier() int64 {
 	return 1
 }
 
+// Timeout takes the desired timeout and increases it if running in Travis
+func Timeout(original time.Duration) time.Duration {
+	return original * time.Duration(TestMultiplier())
+}
+
 func IsTravis() bool {
 	_, ok := os.LookupEnv(TravisRunEnv)
 	return ok

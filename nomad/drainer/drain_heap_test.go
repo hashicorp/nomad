@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +30,7 @@ func TestDeadlineHeap_WatchAndGet(t *testing.T) {
 	var batch []string
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(2 * wait):
+	case <-time.After(testutil.Timeout(2 * wait)):
 		t.Fatal("timeout")
 	}
 
@@ -56,7 +57,7 @@ func TestDeadlineHeap_WatchThenUpdateAndGet(t *testing.T) {
 	var batch []string
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(2 * wait):
+	case <-time.After(testutil.Timeout(2 * wait)):
 		t.Fatal("timeout")
 	}
 
@@ -84,7 +85,7 @@ func TestDeadlineHeap_MultiwatchAndDelete(t *testing.T) {
 	var batch []string
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(2 * wait):
+	case <-time.After(testutil.Timeout(2 * wait)):
 		t.Fatal("timeout")
 	}
 
@@ -120,7 +121,7 @@ func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 	var batch []string
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(1 * time.Second):
+	case <-time.After(testutil.Timeout(time.Second)):
 		t.Fatal("timeout")
 	}
 
@@ -132,7 +133,7 @@ func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(2 * time.Second):
+	case <-time.After(testutil.Timeout(2 * time.Second)):
 		t.Fatal("timeout")
 	}
 
@@ -144,7 +145,7 @@ func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 	select {
 	case <-h.NextBatch():
 		t.Fatal("unexpected batch")
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(testutil.Timeout(100 * time.Millisecond)):
 	}
 }
 
@@ -160,7 +161,7 @@ func TestDeadlineHeap_MultipleForce(t *testing.T) {
 	var batch []string
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(testutil.Timeout(10 * time.Millisecond)):
 		t.Fatal("timeout")
 	}
 
@@ -171,7 +172,7 @@ func TestDeadlineHeap_MultipleForce(t *testing.T) {
 	h.Watch(nodeID, deadline)
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(testutil.Timeout(10 * time.Millisecond)):
 		t.Fatal("timeout")
 	}
 
