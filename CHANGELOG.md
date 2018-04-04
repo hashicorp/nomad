@@ -82,6 +82,7 @@ BUG FIXES:
  * client: Improve auto-detection of network interface when interface name has a
    space in it on Windows [[GH-3855](https://github.com/hashicorp/nomad/issues/3855)]
  * client/vault: Recognize renewing non-renewable Vault lease as fatal [[GH-3727](https://github.com/hashicorp/nomad/issues/3727)]
+ * client/vault: Improved error handling of network errors with Vault [[GH-4100](https://github.com/hashicorp/nomad/issues/4100)]
  * config: Revert minimum CPU limit back to 20 from 100 [[GH-3706](https://github.com/hashicorp/nomad/issues/3706)]
  * config: Always add core scheduler to enabled schedulers and add invalid
    EnabledScheduler detection [[GH-3978](https://github.com/hashicorp/nomad/issues/3978)]
