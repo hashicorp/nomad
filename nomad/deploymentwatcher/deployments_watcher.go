@@ -228,8 +228,9 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 		return nil, fmt.Errorf("deployment %q is terminal", d.ID)
 	}
 
-	// Already watched so no-op
-	if _, ok := w.watchers[d.ID]; ok {
+	// Already watched so just update the deployment
+	if w, ok := w.watchers[d.ID]; ok {
+		w.updateDeployment(d)
 		return nil, nil
 	}
 
