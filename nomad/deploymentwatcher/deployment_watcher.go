@@ -101,7 +101,8 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 	return w
 }
 
-// TODO
+// TODO Fix based on progess deadlien, only work if the deployment is manual,
+// and push a timestamp through to the state store
 func (w *deploymentWatcher) SetAllocHealth(
 	req *structs.DeploymentAllocHealthRequest,
 	resp *structs.DeploymentUpdateResponse) error {

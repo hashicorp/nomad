@@ -2,6 +2,7 @@ package api
 
 import (
 	"sort"
+	"time"
 )
 
 // Deployments is used to query the deployments endpoints.
@@ -139,14 +140,16 @@ type Deployment struct {
 
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
-	PlacedCanaries  []string
-	AutoRevert      bool
-	Promoted        bool
-	DesiredCanaries int
-	DesiredTotal    int
-	PlacedAllocs    int
-	HealthyAllocs   int
-	UnhealthyAllocs int
+	PlacedCanaries    []string
+	AutoRevert        bool
+	ProgressDeadline  time.Duration
+	RequireProgressBy time.Time
+	Promoted          bool
+	DesiredCanaries   int
+	DesiredTotal      int
+	PlacedAllocs      int
+	HealthyAllocs     int
+	UnhealthyAllocs   int
 }
 
 // DeploymentIndexSort is a wrapper to sort deployments by CreateIndex. We

@@ -3536,6 +3536,47 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	now := time.Now()
+	alloc.CreateTime = now.UnixNano()
+	pdeadline := 5 * time.Minute
+	deployment := mock.Deployment()
+	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
+	alloc.DeploymentID = deployment.ID
+
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertDeployment(1000, deployment))
+	require.Nil(state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	healthy := now.Add(time.Second)
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+		DeploymentStatus: &structs.AllocDeploymentStatus{
+			Healthy:   helper.BoolToPtr(true),
+			Timestamp: healthy,
+		},
+	}
+	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
+
+	// Check that the deployment state was updated because the healthy
+	// deployment
+	dout, err := state.DeploymentByID(nil, deployment.ID)
+	require.Nil(err)
+	require.NotNil(dout)
+	require.Len(dout.TaskGroups, 1)
+	dstate := dout.TaskGroups[alloc.TaskGroup]
+	require.NotNil(dstate)
+	require.Equal(1, dstate.PlacedAllocs)
+	require.True(healthy.Add(pdeadline).Equal(dstate.RequireProgressBy))
+}
+
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -3610,28 +3651,25 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 }
 
 func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
-	deployment := mock.Deployment()
 	alloc := mock.Alloc()
+	now := time.Now()
+	alloc.CreateTime = now.UnixNano()
+	pdeadline := 5 * time.Minute
+	deployment := mock.Deployment()
+	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
 	alloc.DeploymentID = deployment.ID
 
-	if err := state.UpsertJob(999, alloc.Job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := state.UpsertDeployment(1000, deployment); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertDeployment(1000, deployment))
 
 	// Create a watch set so we can test that update fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.AllocsByDeployment(ws, alloc.DeploymentID); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.AllocsByDeployment(ws, alloc.DeploymentID))
 
 	err := state.UpsertAllocs(1001, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	if !watchFired(ws) {
 		t.Fatalf("watch not fired")
@@ -3639,29 +3677,26 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 
 	ws = memdb.NewWatchSet()
 	allocs, err := state.AllocsByDeployment(ws, alloc.DeploymentID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if len(allocs) != 1 {
-		t.Fatalf("bad: %#v", allocs)
-	}
-
-	if !reflect.DeepEqual(alloc, allocs[0]) {
-		t.Fatalf("bad: %#v %#v", alloc, allocs[0])
-	}
+	require.Nil(err)
+	require.Len(allocs, 1)
+	require.EqualValues(alloc, allocs[0])
 
 	index, err := state.Index("allocs")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1001 {
-		t.Fatalf("bad: %d", index)
-	}
-
+	require.Nil(err)
+	require.EqualValues(1001, index)
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+
+	// Check that the deployment state was updated
+	dout, err := state.DeploymentByID(nil, deployment.ID)
+	require.Nil(err)
+	require.NotNil(dout)
+	require.Len(dout.TaskGroups, 1)
+	dstate := dout.TaskGroups[alloc.TaskGroup]
+	require.NotNil(dstate)
+	require.Equal(1, dstate.PlacedAllocs)
+	require.True(now.Add(pdeadline).Equal(dstate.RequireProgressBy))
 }
 
 // Testing to ensure we keep issue
@@ -5863,6 +5898,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 
 	// Insert a deployment
 	d := mock.Deployment()
+	d.TaskGroups["web"].ProgressDeadline = 5 * time.Minute
 	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}

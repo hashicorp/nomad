@@ -3283,6 +3283,18 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
 
+	// Update the progress deadline
+	if pd := state.ProgressDeadline; pd != 0 {
+		// If we are the first placed allocation start the progress deadline.
+		if placed != 0 && state.RequireProgressBy.IsZero() {
+			state.RequireProgressBy = time.Unix(0, alloc.CreateTime).Add(pd)
+		} else if healthy != 0 {
+			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(state.RequireProgressBy) {
+				state.RequireProgressBy = d
+			}
+		}
+	}
+
 	// Upsert the deployment
 	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {
 		return err
