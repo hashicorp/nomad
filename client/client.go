@@ -137,9 +137,11 @@ type Client struct {
 	// server for the node event
 	triggerEmitNodeEvent chan *structs.NodeEvent
 
-	// discovered will be ticked whenever Consul discovery completes
-	// successfully
-	serversDiscoveredCh chan struct{}
+	// rpcRetryCh is closed when there an event such as server discovery or a
+	// successful RPC occuring happens such that a retry should happen. Access
+	// should only occur via the getter method
+	rpcRetryCh   chan struct{}
+	rpcRetryLock sync.Mutex
 
 	// allocs maps alloc IDs to their AllocRunner. This map includes all
 	// AllocRunners - running and GC'd - until the server GCs them.
@@ -217,7 +219,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		shutdownCh:           make(chan struct{}),
 		triggerDiscoveryCh:   make(chan struct{}),
 		triggerNodeUpdate:    make(chan struct{}, 8),
-		serversDiscoveredCh:  make(chan struct{}),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 	}
 
@@ -1154,7 +1155,7 @@ func (c *Client) registerAndHeartbeat() {
 
 	for {
 		select {
-		case <-c.serversDiscoveredCh:
+		case <-c.rpcRetryWatcher():
 		case <-heartbeat:
 		case <-c.shutdownCh:
 			return
@@ -1307,7 +1308,7 @@ func (c *Client) retryRegisterNode() {
 			c.logger.Printf("[ERR] client: registration failure: %v", err)
 		}
 		select {
-		case <-c.serversDiscoveredCh:
+		case <-c.rpcRetryWatcher():
 		case <-time.After(c.retryIntv(registerRetryIntv)):
 		case <-c.shutdownCh:
 			return
@@ -1567,7 +1568,7 @@ OUTER:
 			}
 			retry := c.retryIntv(getAllocRetryIntv)
 			select {
-			case <-c.serversDiscoveredCh:
+			case <-c.rpcRetryWatcher():
 				continue
 			case <-time.After(retry):
 				continue
@@ -1622,7 +1623,7 @@ OUTER:
 				c.logger.Printf("[ERR] client: failed to query updated allocations: %v", err)
 				retry := c.retryIntv(getAllocRetryIntv)
 				select {
-				case <-c.serversDiscoveredCh:
+				case <-c.rpcRetryWatcher():
 					continue
 				case <-time.After(retry):
 					continue
@@ -2090,13 +2091,8 @@ DISCOLOOP:
 	// Notify waiting rpc calls. If a goroutine just failed an RPC call and
 	// isn't receiving on this chan yet they'll still retry eventually.
 	// This is a shortcircuit for the longer retry intervals.
-	for {
-		select {
-		case c.serversDiscoveredCh <- struct{}{}:
-		default:
-			return nil
-		}
-	}
+	c.fireRpcRetryWatcher()
+	return nil
 }
 
 // emitStats collects host resource usage stats periodically

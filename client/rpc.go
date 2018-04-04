@@ -67,6 +67,7 @@ TRY:
 	// Make the request.
 	rpcErr := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply)
 	if rpcErr == nil {
+		c.fireRpcRetryWatcher()
 		return nil
 	}
 
@@ -381,4 +382,28 @@ func (c *Client) Ping(srv net.Addr) error {
 	var reply struct{}
 	err := c.connPool.RPC(c.Region(), srv, c.RPCMajorVersion(), "Status.Ping", struct{}{}, &reply)
 	return err
+}
+
+// rpcRetryWatcher returns a channel that will be closed if an event happens
+// such that we expect the next RPC to be successful.
+func (c *Client) rpcRetryWatcher() <-chan struct{} {
+	c.rpcRetryLock.Lock()
+	defer c.rpcRetryLock.Unlock()
+
+	if c.rpcRetryCh == nil {
+		c.rpcRetryCh = make(chan struct{})
+	}
+
+	return c.rpcRetryCh
+}
+
+// fireRpcRetryWatcher causes any RPC retryloops to retry their RPCs because we
+// believe the will be successful.
+func (c *Client) fireRpcRetryWatcher() {
+	c.rpcRetryLock.Lock()
+	defer c.rpcRetryLock.Unlock()
+	if c.rpcRetryCh != nil {
+		close(c.rpcRetryCh)
+		c.rpcRetryCh = nil
+	}
 }
