@@ -268,6 +268,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
+	j.TaskGroups[0].Update.ProgressDeadline = 0
 	j.Stable = true
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -330,6 +331,7 @@ func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
+	j.TaskGroups[0].Update.ProgressDeadline = 0
 	j.Stable = true
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -390,6 +392,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.ProgressDeadline = 0
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
@@ -440,6 +443,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.ProgressDeadline = 0
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
@@ -690,6 +694,7 @@ func TestDeploymentWatcher_Watch(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
+	j.TaskGroups[0].Update.ProgressDeadline = 0
 	j.Stable = true
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -810,6 +815,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
+	j.TaskGroups[0].Update.ProgressDeadline = 0
 	j.Stable = true
 	d := mock.Deployment()
 	d.JobID = j.ID
@@ -916,15 +922,23 @@ func TestWatcher_BatchEvals(t *testing.T) {
 
 	// Create a job, alloc, for two deployments
 	j1 := mock.Job()
+	j1.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j1.TaskGroups[0].Update.ProgressDeadline = 0
 	d1 := mock.Deployment()
 	d1.JobID = j1.ID
 	a1 := mock.Alloc()
+	a1.Job = j1
+	a1.JobID = j1.ID
 	a1.DeploymentID = d1.ID
 
 	j2 := mock.Job()
+	j2.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j2.TaskGroups[0].Update.ProgressDeadline = 0
 	d2 := mock.Deployment()
 	d2.JobID = j2.ID
 	a2 := mock.Alloc()
+	a2.Job = j2
+	a2.JobID = j2.ID
 	a2.DeploymentID = d2.ID
 
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j1), "UpsertJob")
