@@ -310,19 +310,6 @@ func (fm *FingerprintManager) watchDriver(d driver.Driver, name string) {
 				if err := fm.runDriverHealthCheck(name, hc); err != nil {
 					fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %v", name, err)
 				}
-			} else {
-				// If the driver is undetected, change the health status to unhealthy
-				// only once.
-				healthInfo := &structs.DriverInfo{
-					Healthy:           false,
-					HealthDescription: fmt.Sprintf("Driver %s is not detected", name),
-					UpdateTime:        time.Now(),
-				}
-				if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-					fm.nodeLock.Lock()
-					fm.node = node
-					fm.nodeLock.Unlock()
-				}
 			}
 		}
 	}
@@ -364,6 +351,21 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		fm.nodeLock.Lock()
 		fm.node = node
 		fm.nodeLock.Unlock()
+	}
+
+	if !response.Detected {
+		// If the driver is undetected, change the health status to unhealthy
+		// immediately.
+		healthInfo := &structs.DriverInfo{
+			Healthy:           false,
+			HealthDescription: fmt.Sprintf("Driver %s is not detected", name),
+			UpdateTime:        time.Now(),
+		}
+		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
+			fm.nodeLock.Lock()
+			fm.node = node
+			fm.nodeLock.Unlock()
+		}
 	}
 
 	return response.Detected, nil
