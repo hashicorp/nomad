@@ -38,6 +38,10 @@ import (
 )
 
 var (
+	// createClientsLock is a lock that protects reading/writing global client
+	// variables
+	createClientsLock sync.Mutex
+
 	// client is a docker client with a timeout of 5 minutes. This is for doing
 	// all operations with the docker daemon besides which are not long running
 	// such as creating, killing containers, etc.
@@ -110,7 +114,7 @@ const (
 
 	// dockerHealthCheckTimeout is the length of time a request for a health
 	// check client can be outstanding before it is timed out.
-	dockerHealthCheckTimeout = 5 * time.Minute
+	dockerHealthCheckTimeout = 1 * time.Minute
 
 	// dockerImageResKey is the CreatedResources key for docker images
 	dockerImageResKey = "image"
@@ -1005,7 +1009,12 @@ func (d *DockerDriver) cleanupImage(imageID string) error {
 	return nil
 }
 
+// dockerHealthCheckClient creates a single *docker.Client with a timeout of
+// one minute, which will be used when performing Docker health checks.
 func (d *DockerDriver) dockerHealthCheckClient() (*docker.Client, error) {
+	createClientsLock.Lock()
+	defer createClientsLock.Unlock()
+
 	if healthCheckClient != nil {
 		return healthCheckClient, nil
 	}
@@ -1020,6 +1029,38 @@ func (d *DockerDriver) dockerHealthCheckClient() (*docker.Client, error) {
 	return healthCheckClient, nil
 }
 
+// dockerClients creates two *docker.Client, one for long running operations and
+// the other for shorter operations. In test / dev mode we can use ENV vars to
+// connect to the docker daemon. In production mode we will read docker.endpoint
+// from the config file.
+func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
+	createClientsLock.Lock()
+	defer createClientsLock.Unlock()
+
+	if client != nil && waitClient != nil {
+		return client, waitClient, nil
+	}
+
+	var merr multierror.Error
+
+	newClient, err := d.newDockerClient(dockerTimeout)
+	if err != nil {
+		merr.Errors = append(merr.Errors, err)
+	} else {
+		client = newClient
+	}
+
+	newWaitClient, err := d.newDockerClient(0 * time.Minute)
+	if err != nil {
+		merr.Errors = append(merr.Errors, err)
+	} else {
+		waitClient = newWaitClient
+	}
+
+	return client, waitClient, merr.ErrorOrNil()
+}
+
+// newDockerClient creates a new *docker.Client with a configurable timeout
 func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, error) {
 	var err error
 	var merr multierror.Error
@@ -1061,34 +1102,6 @@ func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, e
 		newClient.SetTimeout(timeout)
 	}
 	return newClient, merr.ErrorOrNil()
-}
-
-// dockerClients creates two *docker.Client, one for long running operations and
-// the other for shorter operations. In test / dev mode we can use ENV vars to
-// connect to the docker daemon. In production mode we will read docker.endpoint
-// from the config file.
-func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
-	if client != nil && waitClient != nil {
-		return client, waitClient, nil
-	}
-
-	var merr multierror.Error
-
-	newClient, err := d.newDockerClient(dockerTimeout)
-	if err != nil {
-		merr.Errors = append(merr.Errors, err)
-	} else {
-		client = newClient
-	}
-
-	newWaitClient, err := d.newDockerClient(0 * time.Minute)
-	if err != nil {
-		merr.Errors = append(merr.Errors, err)
-	} else {
-		waitClient = newWaitClient
-	}
-
-	return client, waitClient, merr.ErrorOrNil()
 }
 
 func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, ctx *ExecContext,
