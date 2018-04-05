@@ -80,7 +80,7 @@ export default ApplicationAdapter.extend({
       data: params,
     }).catch(error => {
       if (error instanceof AbortError) {
-        return {};
+        return;
       }
       throw error;
     });
