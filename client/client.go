@@ -1170,11 +1170,11 @@ func (c *Client) registerAndHeartbeat() {
 				c.retryRegisterNode()
 				heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
 			} else {
-				intv := c.retryIntv(registerRetryIntv)
+				intv := c.getHeartbeatRetryIntv()
 				c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
 				heartbeat = time.After(intv)
 
-				// if heartbeating fails, trigger Consul discovery
+				// If heartbeating fails, trigger Consul discovery
 				c.triggerDiscovery()
 			}
 		} else {
@@ -1182,6 +1182,49 @@ func (c *Client) registerAndHeartbeat() {
 			heartbeat = time.After(c.heartbeatTTL)
 			c.heartbeatLock.Unlock()
 		}
+	}
+}
+
+// getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
+// another heartbeat.
+func (c *Client) getHeartbeatRetryIntv() time.Duration {
+	if c.config.DevMode {
+		return devModeRetryIntv
+	}
+
+	// Collect the useful heartbeat info
+	c.heartbeatLock.Lock()
+	haveHeartbeated := c.haveHeartbeated
+	last := c.lastHeartbeat
+	ttl := c.heartbeatTTL
+	c.heartbeatLock.Unlock()
+
+	// Haven't even successfully heartbeated once so treat it as a registration.
+	if !haveHeartbeated {
+		return c.retryIntv(registerRetryIntv)
+	}
+
+	// Determine how much time we have left to heartbeat
+	left := last.Add(ttl).Sub(time.Now())
+
+	// Logic for retrying is:
+	// * Do not retry faster than once a second
+	// * Do not retry less that once every 30 seconds
+	// * Use the absolute time on how long you have left since we may completely
+	//   miss a heartbeat and do not want to  start retrying every second.
+	abs := left
+	if abs < 0 {
+		abs *= -1
+	}
+
+	stagger := lib.RandomStagger(abs)
+	switch {
+	case stagger < time.Second:
+		return time.Second
+	case stagger > 30*time.Second:
+		return 30 * time.Second
+	default:
+		return stagger
 	}
 }
 
