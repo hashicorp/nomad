@@ -1170,7 +1170,7 @@ func (c *Client) registerAndHeartbeat() {
 				c.retryRegisterNode()
 				heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
 			} else {
-				intv := c.getHeartbeatRetryIntv()
+				intv := c.getHeartbeatRetryIntv(err)
 				c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
 				heartbeat = time.After(intv)
 
@@ -1187,7 +1187,7 @@ func (c *Client) registerAndHeartbeat() {
 
 // getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
 // another heartbeat.
-func (c *Client) getHeartbeatRetryIntv() time.Duration {
+func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	if c.config.DevMode {
 		return devModeRetryIntv
 	}
@@ -1199,8 +1199,11 @@ func (c *Client) getHeartbeatRetryIntv() time.Duration {
 	ttl := c.heartbeatTTL
 	c.heartbeatLock.Unlock()
 
-	// Haven't even successfully heartbeated once so treat it as a registration.
-	if !haveHeartbeated {
+	// If we haven't even successfully heartbeated once or there is no leader
+	// treat it as a registration. In the case that there is a leadership loss,
+	// we will have our heartbeat timer reset to a much larger threshold, so
+	// do not put unnecessary pressure on the new leader.
+	if !haveHeartbeated || err == structs.ErrNoLeader {
 		return c.retryIntv(registerRetryIntv)
 	}
 
@@ -1210,17 +1213,20 @@ func (c *Client) getHeartbeatRetryIntv() time.Duration {
 	// Logic for retrying is:
 	// * Do not retry faster than once a second
 	// * Do not retry less that once every 30 seconds
-	// * Use the absolute time on how long you have left since we may completely
-	//   miss a heartbeat and do not want to  start retrying every second.
-	abs := left
-	if abs < 0 {
-		abs *= -1
+	// * If we have missed the heartbeat by more than 30 seconds, start to use
+	// the absolute time since we do not want to retry indefinitely
+	switch {
+	case left < -30*time.Second:
+		left *= -1
+	case left < 0:
+		return time.Second + lib.RandomStagger(time.Second)
+	default:
 	}
 
-	stagger := lib.RandomStagger(abs)
+	stagger := lib.RandomStagger(left)
 	switch {
 	case stagger < time.Second:
-		return time.Second
+		return time.Second + lib.RandomStagger(time.Second)
 	case stagger > 30*time.Second:
 		return 30 * time.Second
 	default:
