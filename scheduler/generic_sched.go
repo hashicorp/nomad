@@ -416,7 +416,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	}
 
 	var deploymentID string
-	if s.deployment != nil {
+	if s.deployment != nil && s.deployment.Active() {
 		deploymentID = s.deployment.ID
 	}
 
