@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/stretchr/testify/require"
 )
 
 type fauxAddr struct {
@@ -48,6 +49,7 @@ func testManagerFailProb(t *testing.T, failPct float64) (m *servers.Manager) {
 }
 
 func TestServers_SetServers(t *testing.T) {
+	require := require.New(t)
 	m := testManager(t)
 	var num int
 	num = m.NumServers()
@@ -57,16 +59,15 @@ func TestServers_SetServers(t *testing.T) {
 
 	s1 := &servers.Server{Addr: &fauxAddr{"server1"}}
 	s2 := &servers.Server{Addr: &fauxAddr{"server2"}}
-	m.SetServers([]*servers.Server{s1, s2})
-	num = m.NumServers()
-	if num != 2 {
-		t.Fatalf("Expected two servers")
-	}
+	require.True(m.SetServers([]*servers.Server{s1, s2}))
+	require.False(m.SetServers([]*servers.Server{s1, s2}))
+	require.False(m.SetServers([]*servers.Server{s2, s1}))
+	require.Equal(2, m.NumServers())
+	require.Len(m.GetServers(), 2)
 
-	all := m.GetServers()
-	if l := len(all); l != 2 {
-		t.Fatalf("expected 2 servers got %d", l)
-	}
+	require.True(m.SetServers([]*servers.Server{s1}))
+	require.Equal(1, m.NumServers())
+	require.Len(m.GetServers(), 1)
 }
 
 func TestServers_FindServer(t *testing.T) {

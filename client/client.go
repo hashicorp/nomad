@@ -2086,12 +2086,15 @@ DISCOLOOP:
 	}
 
 	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", nomadServers)
-	c.servers.SetServers(nomadServers)
 
-	// Notify waiting rpc calls. If a goroutine just failed an RPC call and
-	// isn't receiving on this chan yet they'll still retry eventually.
-	// This is a shortcircuit for the longer retry intervals.
-	c.fireRpcRetryWatcher()
+	// Fire the retry trigger if we have updated the set of servers.
+	if c.servers.SetServers(nomadServers) {
+		// Notify waiting rpc calls. If a goroutine just failed an RPC call and
+		// isn't receiving on this chan yet they'll still retry eventually.
+		// This is a shortcircuit for the longer retry intervals.
+		c.fireRpcRetryWatcher()
+	}
+
 	return nil
 }
 
