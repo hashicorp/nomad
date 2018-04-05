@@ -25,6 +25,7 @@ func TestJobs_Register(t *testing.T) {
 
 	// Listing jobs before registering returns nothing
 	resp, _, err := jobs.List(nil)
+	require.Nil(err)
 	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
 
 	// Create a job and attempt to register it
