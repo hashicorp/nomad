@@ -1217,6 +1217,7 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	// the absolute time since we do not want to retry indefinitely
 	switch {
 	case left < -30*time.Second:
+		// Make left the absolute value so we delay and jitter properly.
 		left *= -1
 	case left < 0:
 		return time.Second + lib.RandomStagger(time.Second)
@@ -1228,7 +1229,7 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	case stagger < time.Second:
 		return time.Second + lib.RandomStagger(time.Second)
 	case stagger > 30*time.Second:
-		return 30 * time.Second
+		return 25*time.Second + lib.RandomStagger(5*time.Second)
 	default:
 		return stagger
 	}
