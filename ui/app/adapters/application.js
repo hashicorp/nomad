@@ -38,16 +38,36 @@ export default RESTAdapter.extend({
   // all records related to the request in question.
   findHasMany(store, snapshot, link, relationship) {
     return this._super(...arguments).then(payload => {
-      const ownerType = snapshot.modelName;
       const relationshipType = relationship.type;
-      // Naively assume that the inverse relationship is named the same as the
-      // owner type. In the event it isn't, findHasMany should be overridden.
-      store
-        .peekAll(relationshipType)
-        .filter(record => record.get(`${ownerType}.id`) === snapshot.id)
-        .forEach(record => {
-          store.unloadRecord(record);
-        });
+      const inverse = snapshot.record.inverseFor(relationship.key);
+      if (inverse) {
+        store
+          .peekAll(relationshipType)
+          .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
+          .forEach(record => {
+            // Collect relationship property names and types
+            const relationshipMeta = [];
+            record.eachRelationship((key, { kind }) => {
+              relationshipMeta.push({ key, kind });
+            });
+            // Push an update to this record with the relationships nulled out.
+            // This unlinks the relationship from the models that aren't about to
+            // be unloaded.
+            store.push({
+              data: {
+                id: record.get('id'),
+                type: relationshipType,
+                relationships: relationshipMeta.reduce((hash, rel) => {
+                  hash[rel.key] = { data: rel.kind === 'hasMany' ? [] : null };
+                  return hash;
+                }, {}),
+              },
+            });
+            // Now that the record has no attachments, it can be safely unloaded
+            // from the store.
+            store.unloadRecord(record);
+          });
+      }
       return payload;
     });
   },
