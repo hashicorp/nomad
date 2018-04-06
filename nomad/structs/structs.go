@@ -2548,7 +2548,7 @@ func (u *UpdateStrategy) Validate() error {
 	if u.MinHealthyTime >= u.HealthyDeadline {
 		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
 	}
-	if u.HealthyDeadline >= u.ProgressDeadline {
+	if u.ProgressDeadline != 0 && u.HealthyDeadline >= u.ProgressDeadline {
 		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be less than progress deadline: %v > %v", u.HealthyDeadline, u.ProgressDeadline))
 	}
 	if u.Stagger <= 0 {
