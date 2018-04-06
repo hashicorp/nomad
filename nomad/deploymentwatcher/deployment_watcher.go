@@ -129,8 +129,6 @@ func (w *deploymentWatcher) getDeployment() *structs.Deployment {
 	return w.d
 }
 
-// TODO Fix based on progess deadlien, only work if the deployment is manual,
-// and push a timestamp through to the state store
 func (w *deploymentWatcher) SetAllocHealth(
 	req *structs.DeploymentAllocHealthRequest,
 	resp *structs.DeploymentUpdateResponse) error {
@@ -213,6 +211,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	if j != nil {
 		resp.RevertedJobVersion = helper.Uint64ToPtr(j.Version)
 	}
+	w.setLatestEval(index)
 	return nil
 }
 
@@ -251,6 +250,7 @@ func (w *deploymentWatcher) PromoteDeployment(
 	resp.EvalCreateIndex = index
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
+	w.setLatestEval(index)
 	return nil
 }
 
@@ -282,6 +282,7 @@ func (w *deploymentWatcher) PauseDeployment(
 	}
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
+	w.setLatestEval(i)
 	return nil
 }
 
@@ -331,6 +332,7 @@ func (w *deploymentWatcher) FailDeployment(
 	if rollbackJob != nil {
 		resp.RevertedJobVersion = helper.Uint64ToPtr(rollbackJob.Version)
 	}
+	w.setLatestEval(i)
 	return nil
 }
 
@@ -456,8 +458,10 @@ FAIL:
 	// Update the status of the deployment to failed and create an evaluation.
 	e := w.getEval()
 	u := w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
-	if _, err := w.upsertDeploymentStatusUpdate(u, e, j); err != nil {
+	if index, err := w.upsertDeploymentStatusUpdate(u, e, j); err != nil {
 		w.logger.Printf("[ERR] nomad.deployment_watcher: failed to update deployment %q status: %v", w.deploymentID, err)
+	} else {
+		w.setLatestEval(index)
 	}
 }
 
@@ -614,8 +618,10 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 		}
 
 		// Create the eval
-		if _, err := w.createEvaluation(w.getEval()); err != nil {
+		if index, err := w.createEvaluation(w.getEval()); err != nil {
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to create evaluation for deployment %q: %v", w.deploymentID, err)
+		} else {
+			w.setLatestEval(index)
 		}
 
 		w.l.Lock()
@@ -730,14 +736,37 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 
 	if len(evals) == 0 {
 		idx, err := snap.Index("evals")
+		if err != nil {
+			w.setLatestEval(idx)
+		}
+
 		return idx, err
 	}
 
 	// Prefer using the snapshot index. Otherwise use the create index
 	e := evals[0]
 	if e.SnapshotIndex != 0 {
+		w.setLatestEval(e.SnapshotIndex)
 		return e.SnapshotIndex, nil
 	}
 
+	w.setLatestEval(e.CreateIndex)
 	return e.CreateIndex, nil
+}
+
+// setLatestEval sets the given index as the latest eval unless the currently
+// stored index is higher.
+func (w *deploymentWatcher) setLatestEval(index uint64) {
+	w.l.Lock()
+	defer w.l.Unlock()
+	if index > w.latestEval {
+		w.latestEval = index
+	}
+}
+
+// getLatestEval returns the latest eval index.
+func (w *deploymentWatcher) getLatestEval() uint64 {
+	w.l.Lock()
+	defer w.l.Unlock()
+	return w.latestEval
 }
