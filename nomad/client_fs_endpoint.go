@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -130,10 +131,24 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, alloc.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if node == nil {
+		return fmt.Errorf("Unknown node %q", alloc.NodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return err
+	}
+
 	// Get the connection to the client
 	state, ok := f.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		return findNodeConnAndForward(f.srv, snap, alloc.NodeID, "FileSystem.List", args, reply)
+		return findNodeConnAndForward(f.srv, alloc.NodeID, "FileSystem.List", args, reply)
 	}
 
 	// Make the RPC
@@ -179,10 +194,24 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, alloc.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if node == nil {
+		return fmt.Errorf("Unknown node %q", alloc.NodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return err
+	}
+
 	// Get the connection to the client
 	state, ok := f.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		return findNodeConnAndForward(f.srv, snap, alloc.NodeID, "FileSystem.Stat", args, reply)
+		return findNodeConnAndForward(f.srv, alloc.NodeID, "FileSystem.Stat", args, reply)
 	}
 
 	// Make the RPC
@@ -244,6 +273,24 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 	nodeID := alloc.NodeID
+
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	if node == nil {
+		err := fmt.Errorf("Unknown node %q", nodeID)
+		f.handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
 
 	// Get the connection to the client either by forwarding to another server
 	// or creating a direct stream
@@ -347,6 +394,24 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 	nodeID := alloc.NodeID
+
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	if node == nil {
+		err := fmt.Errorf("Unknown node %q", nodeID)
+		f.handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		f.handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
 
 	// Get the connection to the client either by forwarding to another server
 	// or creating a direct stream

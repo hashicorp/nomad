@@ -126,7 +126,7 @@ func TestClientStats_Stats_NoNode(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	// Make the request without having a node-id
+	// Make the request with a nonexistent node-id
 	req := &structs.NodeSpecificRequest{
 		NodeID:       uuid.Generate(),
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -138,6 +138,33 @@ func TestClientStats_Stats_NoNode(t *testing.T) {
 	require.Nil(resp.HostStats)
 	require.NotNil(err)
 	require.Contains(err.Error(), "Unknown node")
+}
+
+func TestClientStats_Stats_OldNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	state := s.State()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Test for an old version error
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.7.1"
+	require.Nil(state.UpsertNode(1005, node))
+
+	req := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp cstructs.ClientStatsResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientStats.Stats", req, &resp)
+	require.True(structs.IsErrNodeLacksRpc(err), err.Error())
 }
 
 func TestClientStats_Stats_Remote(t *testing.T) {

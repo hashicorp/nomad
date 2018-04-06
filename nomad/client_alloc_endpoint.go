@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -41,16 +42,29 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 		return errors.New("missing NodeID")
 	}
 
+	// Make sure Node is valid and new enough to support RPC
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	node, err := snap.NodeByID(nil, args.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if node == nil {
+		return fmt.Errorf("Unknown node %q", args.NodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return err
+	}
+
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(args.NodeID)
 	if !ok {
-		// Check if the node even exists
-		snap, err := a.srv.State().Snapshot()
-		if err != nil {
-			return err
-		}
-
-		return findNodeConnAndForward(a.srv, snap, args.NodeID, "ClientAllocations.GarbageCollectAll", args, reply)
+		return findNodeConnAndForward(a.srv, args.NodeID, "ClientAllocations.GarbageCollectAll", args, reply)
 	}
 
 	// Make the RPC
@@ -97,10 +111,24 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, alloc.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if node == nil {
+		return fmt.Errorf("Unknown node %q", alloc.NodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return err
+	}
+
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		return findNodeConnAndForward(a.srv, snap, alloc.NodeID, "ClientAllocations.GarbageCollect", args, reply)
+		return findNodeConnAndForward(a.srv, alloc.NodeID, "ClientAllocations.GarbageCollect", args, reply)
 	}
 
 	// Make the RPC
@@ -147,10 +175,24 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 		return structs.NewErrUnknownAllocation(args.AllocID)
 	}
 
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, alloc.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if node == nil {
+		return fmt.Errorf("Unknown node %q", alloc.NodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return err
+	}
+
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(alloc.NodeID)
 	if !ok {
-		return findNodeConnAndForward(a.srv, snap, alloc.NodeID, "ClientAllocations.Stats", args, reply)
+		return findNodeConnAndForward(a.srv, alloc.NodeID, "ClientAllocations.Stats", args, reply)
 	}
 
 	// Make the RPC

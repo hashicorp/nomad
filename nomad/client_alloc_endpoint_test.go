@@ -139,6 +139,39 @@ func TestClientAllocations_GarbageCollectAll_NoNode(t *testing.T) {
 	require.Contains(err.Error(), "Unknown node")
 }
 
+func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and fake an old client
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	state := s.State()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Test for an old version error
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.7.1"
+	require.Nil(state.UpsertNode(1005, node))
+
+	req := &structs.NodeSpecificRequest{
+		NodeID:       node.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
+	require.True(structs.IsErrNodeLacksRpc(err))
+
+	// Test for a missing version error
+	delete(node.Attributes, "nomad.version")
+	require.Nil(state.UpsertNode(1006, node))
+
+	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
+	require.True(structs.IsErrUnknownNomadVersion(err))
+}
+
 func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -183,6 +216,46 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	var resp cstructs.ClientStatsResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
 	require.Nil(err)
+}
+
+func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and fake an old client
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	state := s.State()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Test for an old version error
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.7.1"
+	require.Nil(state.UpsertNode(1005, node))
+
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+
+	req := &structs.AllocSpecificRequest{
+		AllocID: alloc.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
+	require.True(structs.IsErrNodeLacksRpc(err), err.Error())
+
+	// Test for a missing version error
+	delete(node.Attributes, "nomad.version")
+	require.Nil(state.UpsertNode(1007, node))
+
+	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
+	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
 }
 
 func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
@@ -415,6 +488,45 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	var resp cstructs.ClientStatsResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
 	require.Nil(err)
+}
+
+func TestClientAllocations_Stats_OldNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and fake an old client
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	state := s.State()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Test for an old version error
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.7.1"
+	require.Nil(state.UpsertNode(1005, node))
+
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+
+	req := &structs.AllocSpecificRequest{
+		AllocID: alloc.ID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
+	require.True(structs.IsErrNodeLacksRpc(err), err.Error())
+
+	// Test for a missing version error
+	delete(node.Attributes, "nomad.version")
+	require.Nil(state.UpsertNode(1007, node))
+
+	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
+	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
 }
 
 func TestClientAllocations_Stats_Local(t *testing.T) {

@@ -40,23 +40,29 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 		return errors.New("missing NodeID")
 	}
 
+	// Check if the node even exists and is compatible with NodeRpc
+	snap, err := s.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	node, err := snap.NodeByID(nil, args.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if node == nil {
+		return fmt.Errorf("Unknown node %q", args.NodeID)
+	}
+
+	// Make sure Node is new enough to support RPC
+	if err := nodeSupportsRpc(node); err != nil {
+		return err
+	}
+
 	// Get the connection to the client
 	state, ok := s.srv.getNodeConn(args.NodeID)
 	if !ok {
-		// Check if the node even exists
-		snap, err := s.srv.State().Snapshot()
-		if err != nil {
-			return err
-		}
-
-		node, err := snap.NodeByID(nil, args.NodeID)
-		if err != nil {
-			return err
-		}
-
-		if node == nil {
-			return fmt.Errorf("Unknown node %q", args.NodeID)
-		}
 
 		// Determine the Server that has a connection to the node.
 		srv, err := s.srv.serverWithNodeConn(args.NodeID, s.srv.Region())
