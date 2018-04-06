@@ -22,7 +22,7 @@ func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*
 }
 
 func defaultTestDeploymentWatcher(t *testing.T) (*Watcher, *mockBackend) {
-	return testDeploymentWatcher(t, LimitStateQueriesPerSecond, CrossDeploymentEvalBatchDuration)
+	return testDeploymentWatcher(t, LimitStateQueriesPerSecond, CrossDeploymentUpdateBatchDuration)
 }
 
 // Tests that the watcher properly watches for deployments and reconciles them

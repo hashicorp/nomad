@@ -69,6 +69,13 @@ func matchUpsertEvals(deploymentIDs []string) func(evals []*structs.Evaluation) 
 	}
 }
 
+// TODO A matcher
+func (m *mockBackend) UpdateAllocDesiredTransistion(u *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
+	m.Called(u)
+	i := m.nextIndex()
+	return i, m.state.UpdateAllocsDesiredTransitions(i, u.Allocs, u.Evals)
+}
+
 func (m *mockBackend) UpsertJob(job *structs.Job) (uint64, error) {
 	m.Called(job)
 	i := m.nextIndex()
