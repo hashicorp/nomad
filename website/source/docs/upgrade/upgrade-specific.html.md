@@ -75,6 +75,15 @@ In Nomad 0.7 would be exposed to the task as
 `registry_consul_addr=127.0.0.1:8500`. In Nomad 0.8 it will now appear exactly
 as specified: `registry.consul.addr=127.0.0.1:8500`.
 
+### Client APIs Unavailable on Older Nodes
+
+Because Nomad 0.8 uses a new RPC mechanism to route node-specific APIs like
+[`nomad alloc fs`](/docs/commands/alloc/fs.html) through servers to the node,
+0.8 CLIs are incompatible using these commands on clients older than 0.8.
+
+To access these commands on older clients either continue to use a pre-0.8
+version of the CLI, or upgrade all clients to 0.8.
+
 ## Nomad 0.6.0
 
 ### Default `advertise` address changes
