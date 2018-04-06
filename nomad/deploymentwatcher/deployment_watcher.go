@@ -344,13 +344,18 @@ func (w *deploymentWatcher) StopWatch() {
 // scheduler when more progress can be made, to fail the deployment if it has
 // failed and potentially rolling back the job.
 func (w *deploymentWatcher) watch() {
-	var currentDeadline time.Time
-	deadlineTimer := time.NewTimer(0)
-	if deadlineTimer.Stop() {
-		select {
-		case <-deadlineTimer.C:
-		default:
+	// Get the deadline. This is likely a zero time to begin with but we need to
+	// handle the case that the deployment has already progressed and we are now
+	// just starting to watch it.
+	currentDeadline := getDeploymentProgressCutoff(w.getDeployment())
+	var deadlineTimer *time.Timer
+	if currentDeadline.IsZero() {
+		deadlineTimer = time.NewTimer(0)
+		if !deadlineTimer.Stop() {
+			<-deadlineTimer.C
 		}
+	} else {
+		deadlineTimer = time.NewTimer(currentDeadline.Sub(time.Now()))
 	}
 
 	allocIndex := uint64(1)
@@ -378,16 +383,7 @@ FAIL:
 		case <-w.deploymentUpdateCh:
 			// Get the updated deployment and check if we should change the
 			// deadline timer
-			d := w.getDeployment()
-
-			var next time.Time
-			for _, state := range d.TaskGroups {
-				if state.RequireProgressBy.After(next) {
-					next = state.RequireProgressBy
-				}
-			}
-
-			// Start the deadline timer if given a different deadline
+			next := getDeploymentProgressCutoff(w.getDeployment())
 			if !next.Equal(currentDeadline) {
 				currentDeadline = next
 				if deadlineTimer.Reset(next.Sub(time.Now())) {
@@ -494,8 +490,13 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
+		// Nothing to do for this allocation
+		if alloc.DeploymentStatus == nil || alloc.DeploymentStatus.ModifyIndex <= latestEval {
+			continue
+		}
+
 		// We need to create an eval so the job can progress.
-		if alloc.DeploymentStatus.IsHealthy() && alloc.DeploymentStatus.ModifyIndex > latestEval {
+		if alloc.DeploymentStatus.IsHealthy() {
 			res.createEval = true
 		}
 
@@ -554,6 +555,18 @@ func (w *deploymentWatcher) shouldRollback() (bool, error) {
 	}
 
 	return false, nil
+}
+
+// getDeploymentProgressCutoff returns the progress cutoff for the given
+// deployment
+func getDeploymentProgressCutoff(d *structs.Deployment) time.Time {
+	var next time.Time
+	for _, state := range d.TaskGroups {
+		if next.IsZero() || state.RequireProgressBy.Before(next) {
+			next = state.RequireProgressBy
+		}
+	}
+	return next
 }
 
 // latestStableJob returns the latest stable job. It may be nil if none exist
