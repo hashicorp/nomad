@@ -2715,7 +2715,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Update the health status of each allocation
 	if total := len(req.HealthyAllocationIDs) + len(req.UnhealthyAllocationIDs); total != 0 {
-		setAllocHealth := func(id string, healthy bool) error {
+		setAllocHealth := func(id string, healthy bool, ts time.Time) error {
 			existing, err := txn.First("allocs", "id", id)
 			if err != nil {
 				return fmt.Errorf("alloc %q lookup failed: %v", id, err)
@@ -2735,6 +2735,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
 			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
@@ -2749,12 +2750,12 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 		}
 
 		for _, id := range req.HealthyAllocationIDs {
-			if err := setAllocHealth(id, true); err != nil {
+			if err := setAllocHealth(id, true, req.Timestamp); err != nil {
 				return err
 			}
 		}
 		for _, id := range req.UnhealthyAllocationIDs {
-			if err := setAllocHealth(id, false); err != nil {
+			if err := setAllocHealth(id, false, req.Timestamp); err != nil {
 				return err
 			}
 		}

@@ -194,9 +194,10 @@ func (w *deploymentWatcher) SetAllocHealth(
 	// Create the request
 	areq := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: *req,
-		Eval:             w.getEval(),
-		DeploymentUpdate: u,
-		Job:              j,
+		Timestamp:                    time.Now(),
+		Eval:                         w.getEval(),
+		DeploymentUpdate:             u,
+		Job:                          j,
 	}
 
 	index, err := w.upsertDeploymentAllocHealth(areq)
