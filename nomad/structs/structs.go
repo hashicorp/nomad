@@ -788,6 +788,9 @@ type DeploymentAllocHealthRequest struct {
 type ApplyDeploymentAllocHealthRequest struct {
 	DeploymentAllocHealthRequest
 
+	// Timestamp is the timestamp to use when setting the allocations health.
+	Timestamp time.Time
+
 	// An optional field to update the status of a deployment
 	DeploymentUpdate *DeploymentStatusUpdate
 

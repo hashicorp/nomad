@@ -196,6 +196,11 @@ func matchDeploymentAllocHealthRequest(c *matchDeploymentAllocHealthRequestConfi
 			return false
 		}
 
+		// Require a timestamp
+		if args.Timestamp.IsZero() {
+			return false
+		}
+
 		if len(c.Healthy) != len(args.HealthyAllocationIDs) {
 			return false
 		}

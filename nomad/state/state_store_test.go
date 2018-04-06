@@ -5926,6 +5926,9 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		StatusDescription: desc,
 	}
 
+	// Capture the time for the update
+	ts := time.Now()
+
 	// Set health against the deployment
 	req := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
@@ -5936,6 +5939,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		Job:              j,
 		Eval:             e,
 		DeploymentUpdate: u,
+		Timestamp:        ts,
 	}
 	err := state.UpdateDeploymentAllocHealth(3, req)
 	if err != nil {
@@ -5985,6 +5989,13 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 	}
 	if !out2.DeploymentStatus.IsUnhealthy() {
 		t.Fatalf("bad: alloc %q not unhealthy", out2.ID)
+	}
+
+	if !out1.DeploymentStatus.Timestamp.Equal(ts) {
+		t.Fatalf("bad: alloc %q had timestamp %v; want %v", out1.ID, out1.DeploymentStatus.Timestamp, ts)
+	}
+	if !out2.DeploymentStatus.Timestamp.Equal(ts) {
+		t.Fatalf("bad: alloc %q had timestamp %v; want %v", out2.ID, out2.DeploymentStatus.Timestamp, ts)
 	}
 }
 
