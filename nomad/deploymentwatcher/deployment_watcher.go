@@ -25,8 +25,9 @@ const (
 // deploymentTriggers are the set of functions required to trigger changes on
 // behalf of a deployment
 type deploymentTriggers interface {
-	// createEvaluation is used to create an evaluation.
-	createEvaluation(eval *structs.Evaluation) (uint64, error)
+	// createUpdate is used to create allocation desired transistion updates and
+	// an evaluation.
+	createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error)
 
 	// upsertJob is used to roll back a job when autoreverting for a deployment
 	upsertJob(job *structs.Job) (uint64, error)
@@ -391,9 +392,10 @@ FAIL:
 			next := getDeploymentProgressCutoff(w.getDeployment())
 			if !next.Equal(currentDeadline) {
 				currentDeadline = next
-				if deadlineTimer.Reset(next.Sub(time.Now())) {
+				if !deadlineTimer.Stop() {
 					<-deadlineTimer.C
 				}
+				deadlineTimer.Reset(next.Sub(time.Now()))
 			}
 
 		case updates = <-w.getAllocsCh(allocIndex):
@@ -620,7 +622,7 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 		}
 
 		// Create the eval
-		if index, err := w.createEvaluation(w.getEval()); err != nil {
+		if index, err := w.createUpdate(nil, w.getEval()); err != nil {
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to create evaluation for deployment %q: %v", w.deploymentID, err)
 		} else {
 			w.setLatestEval(index)
