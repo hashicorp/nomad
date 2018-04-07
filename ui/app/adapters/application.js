@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
+import removeRecord from '../utils/remove-record';
 
 export const namespace = 'v1';
 
@@ -45,27 +46,7 @@ export default RESTAdapter.extend({
           .peekAll(relationshipType)
           .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
           .forEach(record => {
-            // Collect relationship property names and types
-            const relationshipMeta = [];
-            record.eachRelationship((key, { kind }) => {
-              relationshipMeta.push({ key, kind });
-            });
-            // Push an update to this record with the relationships nulled out.
-            // This unlinks the relationship from the models that aren't about to
-            // be unloaded.
-            store.push({
-              data: {
-                id: record.get('id'),
-                type: relationshipType,
-                relationships: relationshipMeta.reduce((hash, rel) => {
-                  hash[rel.key] = { data: rel.kind === 'hasMany' ? [] : null };
-                  return hash;
-                }, {}),
-              },
-            });
-            // Now that the record has no attachments, it can be safely unloaded
-            // from the store.
-            store.unloadRecord(record);
+            removeRecord(store, record);
           });
       }
       return payload;
