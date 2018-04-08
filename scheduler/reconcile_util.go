@@ -321,8 +321,15 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
-	rescheduleTime, eligible := alloc.NextRescheduleTime()
+
+	// If the allocation is part of a deployment, only allow it to reschedule if
+	// it has been marked eligible for it explicitly.
+	if alloc.DeploymentID != "" && !alloc.DesiredTransition.ShouldReschedule() {
+		return
+	}
+
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
+	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
 		return
