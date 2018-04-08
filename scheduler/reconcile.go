@@ -194,26 +194,8 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Detect if the deployment is paused
 	if a.deployment != nil {
-		// XXX Fix
-		// XXX An idea for not replacing failed allocs that are part of
-		// deployment that will fail immediately is to only replace them if
-		// their desired transition has a replace bool set by the deployment
-		// watcher.
-
-		// Detect if any allocs associated with this deploy have failed
-		// Failed allocations could edge trigger an evaluation before the deployment watcher
-		// runs and marks the deploy as failed. This block makes sure that is still
-		// considered a failed deploy
-		failedAllocsInDeploy := false
-		//for _, as := range m {
-		//for _, alloc := range as {
-		//if alloc.DeploymentID == a.deployment.ID && alloc.ClientStatus == structs.AllocClientStatusFailed {
-		//failedAllocsInDeploy = true
-		//}
-		//}
-		//}
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
-		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed || failedAllocsInDeploy
+		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 
 	// Reconcile each group
