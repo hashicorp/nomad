@@ -14,6 +14,9 @@ __BACKWARDS INCOMPATIBILITIES:__
    attempts/time interval values have been changed to enable faster server side rescheduling. See
    [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
  * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update stanza syntax. All job spec files should be using update stanza fields introduced in 0.7.0 [[GH-3979](https://github.com/hashicorp/nomad/pull/3979/files)]
+ * client: Periods (`.`) are no longer replaced with underscores (`_`) in
+   environment variables as many applications rely on periods in environment
+   variable names. [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
 
 IMPROVEMENTS:
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
