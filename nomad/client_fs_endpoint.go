@@ -132,16 +132,8 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	}
 
 	// Make sure Node is valid and new enough to support RPC
-	node, err := snap.NodeByID(nil, alloc.NodeID)
+	_, err = getNodeForRpc(snap, alloc.NodeID)
 	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", alloc.NodeID)
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
 		return err
 	}
 
@@ -195,16 +187,8 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	}
 
 	// Make sure Node is valid and new enough to support RPC
-	node, err := snap.NodeByID(nil, alloc.NodeID)
+	_, err = getNodeForRpc(snap, alloc.NodeID)
 	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", alloc.NodeID)
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
 		return err
 	}
 

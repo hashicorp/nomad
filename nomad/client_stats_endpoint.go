@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -46,17 +45,9 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 		return err
 	}
 
-	node, err := snap.NodeByID(nil, args.NodeID)
-	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", args.NodeID)
-	}
-
 	// Make sure Node is new enough to support RPC
-	if err := nodeSupportsRpc(node); err != nil {
+	_, err = getNodeForRpc(snap, args.NodeID)
+	if err != nil {
 		return err
 	}
 

@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -48,16 +47,8 @@ func (a *ClientAllocations) GarbageCollectAll(args *structs.NodeSpecificRequest,
 		return err
 	}
 
-	node, err := snap.NodeByID(nil, args.NodeID)
+	_, err = getNodeForRpc(snap, args.NodeID)
 	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", args.NodeID)
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
 		return err
 	}
 
@@ -112,16 +103,8 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	}
 
 	// Make sure Node is valid and new enough to support RPC
-	node, err := snap.NodeByID(nil, alloc.NodeID)
+	_, err = getNodeForRpc(snap, alloc.NodeID)
 	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", alloc.NodeID)
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
 		return err
 	}
 
@@ -176,16 +159,8 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	}
 
 	// Make sure Node is valid and new enough to support RPC
-	node, err := snap.NodeByID(nil, alloc.NodeID)
+	_, err = getNodeForRpc(snap, alloc.NodeID)
 	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", alloc.NodeID)
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
 		return err
 	}
 
