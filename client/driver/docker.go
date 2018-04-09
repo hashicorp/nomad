@@ -1041,14 +1041,21 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 	}
 
 	var err error
-	client, err = d.newDockerClient(dockerTimeout)
-	if err != nil {
-		return nil, nil, err
+
+	// Onlt initialize the client if it hasn't yet been done
+	if client == nil {
+		client, err = d.newDockerClient(dockerTimeout)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	waitClient, err = d.newDockerClient(0 * time.Minute)
-	if err != nil {
-		return nil, nil, err
+	// Only initialize the waitClient if it hasn't yet been done
+	if waitClient == nil {
+		waitClient, err = d.newDockerClient(0 * time.Minute)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return client, waitClient, nil
