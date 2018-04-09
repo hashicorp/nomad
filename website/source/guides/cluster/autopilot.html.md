@@ -165,8 +165,8 @@ have an overly-large quorum (2-3 nodes per AZ) or give up redundancy within an A
 deploying just one server in each.
 
 If the `EnableRedundancyZones` setting is set, Nomad will use its value to look for a
-zone in each server's specified [`redundancy_zone`]
-(/docs/agent/configuration/server.html#redundancy_zone) field.
+zone in each server's specified [`redundancy_zone`](/docs/agent/configuration/server.html#redundancy_zone)
+field.
 
 Here's an example showing how to configure this:
 
