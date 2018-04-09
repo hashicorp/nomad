@@ -1019,11 +1019,10 @@ func (d *DockerDriver) dockerHealthCheckClient() (*docker.Client, error) {
 		return healthCheckClient, nil
 	}
 
-	newHealthCheckClient, err := d.newDockerClient(dockerHealthCheckTimeout)
+	var err error
+	healthCheckClient, err = d.newDockerClient(dockerHealthCheckTimeout)
 	if err != nil {
 		return nil, err
-	} else {
-		healthCheckClient = newHealthCheckClient
 	}
 
 	return healthCheckClient, nil
@@ -1041,23 +1040,18 @@ func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
 		return client, waitClient, nil
 	}
 
-	var merr multierror.Error
-
-	newClient, err := d.newDockerClient(dockerTimeout)
+	var err error
+	client, err = d.newDockerClient(dockerTimeout)
 	if err != nil {
-		merr.Errors = append(merr.Errors, err)
-	} else {
-		client = newClient
+		return nil, nil, err
 	}
 
-	newWaitClient, err := d.newDockerClient(0 * time.Minute)
+	waitClient, err = d.newDockerClient(0 * time.Minute)
 	if err != nil {
-		merr.Errors = append(merr.Errors, err)
-	} else {
-		waitClient = newWaitClient
+		return nil, nil, err
 	}
 
-	return client, waitClient, merr.ErrorOrNil()
+	return client, waitClient, nil
 }
 
 // newDockerClient creates a new *docker.Client with a configurable timeout
