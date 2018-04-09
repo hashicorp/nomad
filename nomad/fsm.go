@@ -730,11 +730,6 @@ func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) i
 		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocsDesiredTransitions failed: %v", err)
 		return err
 	}
-
-	if err := n.upsertEvals(index, req.Evals); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: AllocUpdateDesiredTransition failed to upsert %d eval(s): %v", len(req.Evals), err)
-		return err
-	}
 	return nil
 }
 

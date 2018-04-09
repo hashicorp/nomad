@@ -712,10 +712,10 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 	j2.Stable = false
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j2), "UpsertJob2")
 
-	// Assert that we will get a createEvaluation call only once. This will
+	// Assert that we will get a update allocation call only once. This will
 	// verify that the watcher is batching allocation changes
-	m1 := matchUpsertEvals([]string{d.ID})
-	m.On("UpsertEvals", mocker.MatchedBy(m1)).Return(nil).Once()
+	m1 := matchUpdateAllocDesiredTransistions([]string{d.ID})
+	m.On("UpdateAllocDesiredTransistion", mocker.MatchedBy(m1)).Return(nil).Once()
 
 	// Assert that we get a call to UpsertDeploymentStatusUpdate
 	c := &matchDeploymentStatusUpdateConfig{
@@ -787,7 +787,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 		t.Fatal(err)
 	})
 
-	m.AssertCalled(t, "UpsertEvals", mocker.MatchedBy(m1))
+	m.AssertCalled(t, "UpdateAllocDesiredTransistion", mocker.MatchedBy(m1))
 
 	// After we upsert the job version will go to 2. So use this to assert the
 	// original call happened.
@@ -907,8 +907,8 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 
 	// Assert that we will get a createEvaluation call only once. This will
 	// verify that the watcher is batching allocation changes
-	m1 := matchUpsertEvals([]string{d.ID})
-	m.On("UpsertEvals", mocker.MatchedBy(m1)).Return(nil).Once()
+	m1 := matchUpdateAllocDesiredTransistions([]string{d.ID})
+	m.On("UpdateAllocDesiredTransistion", mocker.MatchedBy(m1)).Return(nil).Once()
 
 	// Assert that we get a call to UpsertDeploymentStatusUpdate with roll back failed as the status
 	c := &matchDeploymentStatusUpdateConfig{
@@ -980,15 +980,15 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 		t.Fatal(err)
 	})
 
-	m.AssertCalled(t, "UpsertEvals", mocker.MatchedBy(m1))
+	m.AssertCalled(t, "UpdateAllocDesiredTransistion", mocker.MatchedBy(m1))
 
 	// verify that the job version hasn't changed after upsert
 	m.state.JobByID(nil, structs.DefaultNamespace, j.ID)
 	assert.Equal(uint64(0), j.Version, "Expected job version 0 but got ", j.Version)
 }
 
-// Test evaluations are batched between watchers
-func TestWatcher_BatchEvals(t *testing.T) {
+// Test allocation updates and evaluation creation is batched between watchers
+func TestWatcher_BatchAllocUpdates(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Second)
@@ -1024,8 +1024,8 @@ func TestWatcher_BatchEvals(t *testing.T) {
 	// Assert that we will get a createEvaluation call only once and it contains
 	// both deployments. This will verify that the watcher is batching
 	// allocation changes
-	m1 := matchUpsertEvals([]string{d1.ID, d2.ID})
-	m.On("UpsertEvals", mocker.MatchedBy(m1)).Return(nil).Once()
+	m1 := matchUpdateAllocDesiredTransistions([]string{d1.ID, d2.ID})
+	m.On("UpdateAllocDesiredTransistion", mocker.MatchedBy(m1)).Return(nil).Once()
 
 	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 2 == len(w.watchers), nil },
@@ -1062,11 +1062,11 @@ func TestWatcher_BatchEvals(t *testing.T) {
 		}
 
 		if l := len(evals1); l != 1 {
-			return false, fmt.Errorf("Got %d evals; want 1", l)
+			return false, fmt.Errorf("Got %d evals for job %v; want 1", l, j1.ID)
 		}
 
 		if l := len(evals2); l != 1 {
-			return false, fmt.Errorf("Got %d evals; want 1", l)
+			return false, fmt.Errorf("Got %d evals for job 2; want 1", l)
 		}
 
 		return true, nil
@@ -1074,7 +1074,7 @@ func TestWatcher_BatchEvals(t *testing.T) {
 		t.Fatal(err)
 	})
 
-	m.AssertCalled(t, "UpsertEvals", mocker.MatchedBy(m1))
+	m.AssertCalled(t, "UpdateAllocDesiredTransistion", mocker.MatchedBy(m1))
 	testutil.WaitForResult(func() (bool, error) { return 2 == len(w.watchers), nil },
 		func(err error) { assert.Equal(2, len(w.watchers), "Should have 2 deployment") })
 }
