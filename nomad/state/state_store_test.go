@@ -4016,6 +4016,11 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	require.Nil(err)
 	require.EqualValues(1001, index)
 
+	// Check the eval is created
+	eout, err := state.EvalByID(nil, eval.ID)
+	require.Nil(err)
+	require.NotNil(eout)
+
 	m = map[string]*structs.DesiredTransition{alloc.ID: t2}
 	require.Nil(state.UpdateAllocsDesiredTransitions(1002, m, evals))
 
