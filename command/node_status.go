@@ -393,7 +393,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 }
 
 func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string {
-	drivers := make([]string, 1)
+	drivers := make([]string, 0, len(node.Drivers))
 
 	for driverName, driverInfo := range node.Drivers {
 		if !driverInfo.Healthy {
