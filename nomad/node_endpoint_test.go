@@ -1986,17 +1986,29 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	err = state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	require.Nil(err)
 	alloc.TaskGroup = job.TaskGroups[0].Name
-	err = state.UpsertAllocs(100, []*structs.Allocation{alloc})
+
+	alloc2 := mock.Alloc()
+	alloc2.JobID = job.ID
+	alloc2.NodeID = node.ID
+	err = state.UpsertJobSummary(99, mock.JobSummary(alloc2.JobID))
+	require.Nil(err)
+	alloc2.TaskGroup = job.TaskGroups[0].Name
+
+	err = state.UpsertAllocs(100, []*structs.Allocation{alloc, alloc2})
 	require.Nil(err)
 
-	// Attempt update
-	clientAlloc := new(structs.Allocation)
-	*clientAlloc = *alloc
-	clientAlloc.ClientStatus = structs.AllocClientStatusFailed
+	// Attempt updates of more than one alloc for the same job
+	clientAlloc1 := new(structs.Allocation)
+	*clientAlloc1 = *alloc
+	clientAlloc1.ClientStatus = structs.AllocClientStatusFailed
+
+	clientAlloc2 := new(structs.Allocation)
+	*clientAlloc2 = *alloc2
+	clientAlloc2.ClientStatus = structs.AllocClientStatusFailed
 
 	// Update the alloc
 	update := &structs.AllocUpdateRequest{
-		Alloc:        []*structs.Allocation{clientAlloc},
+		Alloc:        []*structs.Allocation{clientAlloc1, clientAlloc2},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeAllocsResponse
@@ -2016,17 +2028,18 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	require.Equal(structs.AllocClientStatusFailed, out.ClientStatus)
 	require.True(out.ModifyTime > 0)
 
-	// Assert that one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
+	// Assert that exactly one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
+	// Assert that exactly one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
 	evaluations, err := state.EvalsByJob(ws, job.Namespace, job.ID)
 	require.Nil(err)
 	require.True(len(evaluations) != 0)
-	found := false
+	foundCount := 0
 	for _, resultEval := range evaluations {
 		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc {
-			found = true
+			foundCount++
 		}
 	}
-	require.True(found, "Should create an eval for failed alloc")
+	require.Equal(1, foundCount, "Should create exactly one eval for failed allocs")
 
 }
 
