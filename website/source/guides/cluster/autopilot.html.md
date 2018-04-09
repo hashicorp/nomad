@@ -16,8 +16,7 @@ To enable Autopilot features (with the exception of dead server cleanup),
 the [`raft_protocol`](/docs/agent/configuration/server.html#raft_protocol) setting in
 the Agent configuration must be set to 3 or higher on all servers. In Nomad
 0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3. For more
-information, see the [Version Upgrade section]
-(/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
+information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
 on Raft Protocol versions.
 
 ## Configuration
@@ -95,9 +94,9 @@ A server is considered healthy if all of the following conditions are true:
 - The number of Raft log entries it trails the leader by does not exceed
 `MaxTrailingLogs`
 
-The status of these health checks can be viewed through the [`/v1/operator/autopilot/health`]
-(/api/operator.html#read-health) HTTP endpoint, with a top level
-`Healthy` field indicating the overall status of the cluster:
+The status of these health checks can be viewed through the 
+[`/v1/operator/autopilot/health`](/api/operator.html#read-health) HTTP endpoint, with
+a top level `Healthy` field indicating the overall status of the cluster:
 
 ```
 $ curl localhost:8500/v1/operator/autopilot/health
@@ -198,9 +197,8 @@ equals or exceeds that of the old servers, Autopilot will begin promoting the ne
 to voters and demoting the old servers. After this is finished, the old servers can be
 safely removed from the cluster.
 
-To check the Nomad version of the servers, either the [autopilot health]
-(/api/operator.html#read-health) endpoint or the `nomad members`
-command can be used:
+To check the Nomad version of the servers, either the [autopilot health](/api/operator.html#read-health)
+endpoint or the `nomad members`command can be used:
 
 ```
 $ nomad server members
