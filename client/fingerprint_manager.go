@@ -284,6 +284,7 @@ func (fm *FingerprintManager) watchDriver(d driver.Driver, name string) {
 		}
 	}
 
+	driverEverDetected := false
 	for {
 		select {
 		case <-fm.shutdownCh:
@@ -292,16 +293,20 @@ func (fm *FingerprintManager) watchDriver(d driver.Driver, name string) {
 			if _, err := fm.fingerprintDriver(name, d); err != nil {
 				fm.logger.Printf("[DEBUG] client.fingerprint_manager: periodic fingerprinting for driver %v failed: %+v", name, err)
 			}
-		case <-healthTicker:
-			// Determine if we should run the health check
+
 			fm.nodeLock.Lock()
 			driver, detected := fm.node.Drivers[name]
-			if detected && driver != nil {
-				detected = driver.Detected
+
+			// Memoize the driver detected status, so that we know whether to run the
+			// health check or not.
+			if detected && driver != nil && driver.Detected {
+				if !driverEverDetected {
+					driverEverDetected = true
+				}
 			}
 			fm.nodeLock.Unlock()
-
-			if detected {
+		case <-healthTicker:
+			if driverEverDetected {
 				if err := fm.runDriverHealthCheck(name, hc); err != nil {
 					fm.logger.Printf("[DEBUG] client.fingerprint_manager: health checking for %v failed: %v", name, err)
 				}
