@@ -903,6 +903,48 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 }
 
+func TestLeader_Reelection(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s2.Shutdown()
+
+	s3 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	TestJoin(t, s1, s2, s3)
+
+	var leader, nonLeader *Server
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	for _, s := range servers {
+		if s.IsLeader() {
+			leader = s
+		} else {
+			nonLeader = s
+		}
+	}
+
+	// Shutdown the leader
+	leader.Shutdown()
+
+	testutil.WaitForLeader(t, nonLeader.RPC)
+
+}
+
 func TestLeader_RollRaftServer(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -955,7 +997,74 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	TestJoin(t, s4, s1)
 	servers[1] = s4
 
-	// Make sure the dead server is removed and we're back to 3 total peers
+	// Kill the v2 server
+	s1.Shutdown()
+
+	for _, s := range []*Server{s3, s4} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 2; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+	// Replace another dead server with one running raft protocol v3
+	s5 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s5.Shutdown()
+	TestJoin(t, s5, s4)
+	servers[0] = s5
+
+	// Make sure all the dead servers are removed and we're back to 3 total peers
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) {
+			addrs := 0
+			ids := 0
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				r.Fatal(err)
+			}
+			for _, server := range future.Configuration().Servers {
+				if string(server.ID) == string(server.Address) {
+					addrs++
+				} else {
+					ids++
+				}
+				fmt.Println("*** server ID before all are 3 ***", server.ID)
+			}
+		})
+	}
+
+	// Kill the last v2 server, now minRaftProtocol should be 3
+	s3.Shutdown()
+
+	for _, s := range []*Server{s4, s5} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 3; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+
+	// Replace the last dead server with one running raft protocol v3
+	s6 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s6.Shutdown()
+	TestJoin(t, s6, s4)
+	servers[2] = s6
+
+	// Make sure all the dead servers are removed and we're back to 3 total peers
 	for _, s := range servers {
 		retry.Run(t, func(r *retry.R) {
 			addrs := 0
@@ -971,10 +1080,10 @@ func TestLeader_RollRaftServer(t *testing.T) {
 					ids++
 				}
 			}
-			if got, want := addrs, 2; got != want {
+			if got, want := addrs, 0; got != want {
 				r.Fatalf("got %d server addresses want %d", got, want)
 			}
-			if got, want := ids, 1; got != want {
+			if got, want := ids, 3; got != want {
 				r.Fatalf("got %d server ids want %d", got, want)
 			}
 		})
