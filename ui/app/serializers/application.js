@@ -2,6 +2,7 @@ import { copy } from '@ember/object/internals';
 import { get } from '@ember/object';
 import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
+import removeRecord from '../utils/remove-record';
 
 export default JSONSerializer.extend({
   primaryKey: 'ID',
@@ -59,7 +60,7 @@ export default JSONSerializer.extend({
       .forEach(old => {
         const newRecord = newRecords.find(record => get(record, 'id') === get(old, 'id'));
         if (!newRecord) {
-          store.unloadRecord(old);
+          removeRecord(store, old);
         } else {
           newRecords.removeObject(newRecord);
         }
