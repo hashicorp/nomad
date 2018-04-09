@@ -2029,7 +2029,6 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	require.True(out.ModifyTime > 0)
 
 	// Assert that exactly one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
-	// Assert that exactly one eval with TriggeredBy EvalTriggerRetryFailedAlloc exists
 	evaluations, err := state.EvalsByJob(ws, job.Namespace, job.ID)
 	require.Nil(err)
 	require.True(len(evaluations) != 0)
