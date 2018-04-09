@@ -9,7 +9,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 	"github.com/ugorji/go/codec"
@@ -237,18 +236,7 @@ func NodeStreamingRpc(session *yamux.Session, method string) (net.Conn, error) {
 // findNodeConnAndForward is a helper for finding the server with a connection
 // to the given node and forwarding the RPC to the correct server. This does not
 // work for streaming RPCs.
-func findNodeConnAndForward(srv *Server, snap *state.StateSnapshot,
-	nodeID, method string, args, reply interface{}) error {
-
-	node, err := snap.NodeByID(nil, nodeID)
-	if err != nil {
-		return err
-	}
-
-	if node == nil {
-		return fmt.Errorf("Unknown node %q", nodeID)
-	}
-
+func findNodeConnAndForward(srv *Server, nodeID, method string, args, reply interface{}) error {
 	// Determine the Server that has a connection to the node.
 	srvWithConn, err := srv.serverWithNodeConn(nodeID, srv.Region())
 	if err != nil {

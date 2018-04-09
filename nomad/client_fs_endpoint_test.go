@@ -259,6 +259,37 @@ func TestClientFS_List_Remote(t *testing.T) {
 	require.NotEmpty(resp.Files)
 }
 
+func TestClientFS_Stat_OldNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	state := s.State()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Test for an old version error
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.7.1"
+	require.Nil(state.UpsertNode(1005, node))
+
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+
+	req := &cstructs.FsStatRequest{
+		AllocID:      alloc.ID,
+		Path:         "/",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var resp cstructs.FsStatResponse
+	err := msgpackrpc.CallWithCodec(codec, "FileSystem.Stat", req, &resp)
+	require.True(structs.IsErrNodeLacksRpc(err), err.Error())
+}
+
 func TestClientFS_Stat_Local(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -1304,6 +1335,86 @@ OUTER:
 			}
 
 			if structs.IsErrUnknownAllocation(msg.Error) {
+				break OUTER
+			}
+		}
+	}
+}
+
+func TestClientFS_Logs_OldNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server
+	s := TestServer(t, nil)
+	defer s.Shutdown()
+	state := s.State()
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Test for an old version error
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.7.1"
+	require.Nil(state.UpsertNode(1005, node))
+
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+
+	req := &cstructs.FsLogsRequest{
+		AllocID:      alloc.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Get the handler
+	handler, err := s.StreamingRpcHandler("FileSystem.Logs")
+	require.Nil(err)
+
+	// Create a pipe
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	streamMsg := make(chan *cstructs.StreamErrWrapper)
+
+	// Start the handler
+	go handler(p2)
+
+	// Start the decoder
+	go func() {
+		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+		for {
+			var msg cstructs.StreamErrWrapper
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+					return
+				}
+				errCh <- fmt.Errorf("error decoding: %v", err)
+			}
+
+			streamMsg <- &msg
+		}
+	}()
+
+	// Send the request
+	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	require.Nil(encoder.Encode(req))
+
+	timeout := time.After(5 * time.Second)
+
+OUTER:
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timeout")
+		case err := <-errCh:
+			t.Fatal(err)
+		case msg := <-streamMsg:
+			if msg.Error == nil {
+				continue
+			}
+
+			if structs.IsErrNodeLacksRpc(msg.Error) {
 				break OUTER
 			}
 		}
