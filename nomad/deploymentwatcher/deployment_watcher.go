@@ -345,11 +345,13 @@ func (w *deploymentWatcher) StopWatch() {
 // watch is the long running watcher that watches for both allocation and
 // deployment changes. Its function is to create evaluations to trigger the
 // scheduler when more progress can be made, to fail the deployment if it has
-// failed and potentially rolling back the job.
+// failed and potentially rolling back the job. Progress can be made when an
+// allocation transistions to healthy, so we create an eval.
 func (w *deploymentWatcher) watch() {
 	// Get the deadline. This is likely a zero time to begin with but we need to
 	// handle the case that the deployment has already progressed and we are now
-	// just starting to watch it.
+	// just starting to watch it. This must likely would occur if there was a
+	// leader transistion and we are now starting our watcher.
 	currentDeadline := getDeploymentProgressCutoff(w.getDeployment())
 	var deadlineTimer *time.Timer
 	if currentDeadline.IsZero() {
@@ -373,7 +375,7 @@ FAIL:
 			return
 		case <-deadlineTimer.C:
 			// We have hit the progress deadline so fail the deployment. We need
-			// to determine whether we should rollback the job by inspecting
+			// to determine whether we should roll back the job by inspecting
 			// which allocs as part of the deployment are healthy and which
 			// aren't.
 			var err error

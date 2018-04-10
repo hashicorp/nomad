@@ -197,7 +197,7 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		// XXX Fix
 		// XXX An idea for not replacing failed allocs that are part of
 		// deployment that will fail immediately is to only replace them if
-		// their desired transistion has a replace bool set by the deployment
+		// their desired transition has a replace bool set by the deployment
 		// watcher.
 
 		// Detect if any allocs associated with this deploy have failed
