@@ -49,6 +49,14 @@ func NewFingerprintManager(getConfig func() *config.Config,
 	}
 }
 
+// setNode updates the current client node
+func (fm *FingerprintManager) setNode(node *structs.Node) {
+	fm.nodeLock.Lock()
+	defer fm.nodeLock.Unlock()
+
+	fm.node = node
+}
+
 // Run starts the process of fingerprinting the node. It does an initial pass,
 // identifying whitelisted and blacklisted fingerprints/drivers. Then, for
 // those which require periotic checking, it starts a periodic process for
@@ -181,9 +189,7 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			UpdateTime: time.Now(),
 		}
 		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-			fm.nodeLock.Lock()
-			fm.node = node
-			fm.nodeLock.Unlock()
+			fm.setNode(node)
 		}
 
 		// Start a periodic watcher to detect changes to a drivers health and
@@ -240,9 +246,7 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 	}
 
 	if node := fm.updateNodeAttributes(&response); node != nil {
-		fm.nodeLock.Lock()
-		fm.node = node
-		fm.nodeLock.Unlock()
+		fm.setNode(node)
 	}
 
 	return response.Detected, nil
@@ -332,9 +336,7 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	}
 
 	if node := fm.updateNodeAttributes(&response); node != nil {
-		fm.nodeLock.Lock()
-		fm.node = node
-		fm.nodeLock.Unlock()
+		fm.setNode(node)
 	}
 
 	di := &structs.DriverInfo{
@@ -348,29 +350,28 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	delete(di.Attributes, driverKey)
 
 	if node := fm.updateNodeFromDriver(name, di, nil); node != nil {
-		fm.nodeLock.Lock()
-		fm.node = node
-		fm.nodeLock.Unlock()
+		fm.setNode(node)
 	}
 
 	// Get a copy of the current node
-	var nodeCopy *structs.Node
+	var driverExists, driverIsHealthy bool
 	fm.nodeLock.Lock()
-	nodeCopy = fm.node
+	driverInfo, driverExists := fm.node.Drivers[name]
+	if driverExists {
+		driverIsHealthy = driverInfo.Healthy
+	}
 	fm.nodeLock.Unlock()
 
 	// If the driver is undetected, change the health status to unhealthy
 	// immediately.
-	if !response.Detected && nodeCopy.Drivers[name] != nil && nodeCopy.Drivers[name].Healthy {
+	if !response.Detected && driverExists && driverIsHealthy {
 		healthInfo := &structs.DriverInfo{
 			Healthy:           false,
 			HealthDescription: fmt.Sprintf("Driver %s is not detected", name),
 			UpdateTime:        time.Now(),
 		}
 		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-			fm.nodeLock.Lock()
-			fm.node = node
-			fm.nodeLock.Unlock()
+			fm.setNode(node)
 		}
 	}
 
@@ -389,9 +390,7 @@ func (fm *FingerprintManager) runDriverHealthCheck(name string, hc fingerprint.H
 	// case of periodic health checks, an error will occur if a health check
 	// fails
 	if node := fm.updateNodeFromDriver(name, nil, response.Drivers[name]); node != nil {
-		fm.nodeLock.Lock()
-		fm.node = node
-		fm.nodeLock.Unlock()
+		fm.setNode(node)
 	}
 
 	return nil
