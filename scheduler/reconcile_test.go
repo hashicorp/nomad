@@ -3428,6 +3428,69 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 	})
 }
 
+// Tests that the reconciler marks a deployment as complete once there is
+// nothing left to place even if there are failed allocations that are part of
+// the deployment.
+func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal:  10,
+		PlacedAllocs:  20,
+		HealthyAllocs: 10,
+	}
+
+	// Create 10 healthy allocs and 10 allocs that are failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 20; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%10))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
+		if i < 10 {
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.DeploymentStatus.Healthy = helper.BoolToPtr(true)
+		} else {
+			alloc.DesiredStatus = structs.AllocDesiredStatusStop
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+			alloc.DeploymentStatus.Healthy = helper.BoolToPtr(false)
+		}
+
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: updates,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
 // Test that a failed deployment cancels non-promoted canaries
 func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 	// Create a job with two task groups
