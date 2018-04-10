@@ -139,6 +139,12 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	err = state.UpsertJob(1001, job)
 	require.Nil(err)
 
+	// Insert a follow up eval that's complete
+	followupEval := mock.Eval()
+	followupEval.JobID = job.ID
+	followupEval.Status = structs.EvalStatusComplete
+	err = state.UpsertEvals(1002, []*structs.Evaluation{followupEval})
+
 	// Insert failed alloc with an old reschedule attempt, can be GCed
 	alloc := mock.Alloc()
 	alloc.EvalID = eval.ID
@@ -146,6 +152,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusFailed
 	alloc.JobID = eval.JobID
 	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.FollowupEvalID = followupEval.ID
 	alloc.RescheduleTracker = &structs.RescheduleTracker{
 		Events: []*structs.RescheduleEvent{
 			{
@@ -156,13 +163,18 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 		},
 	}
 
-	// Insert another failed alloc with a recent reschedule attempt, can't be GCed
+	// Insert another failed alloc with a follow up eval pending, can't be GCed
+	followupEval2 := mock.Eval()
+	followupEval2.JobID = job.ID
+	err = state.UpsertEvals(1002, []*structs.Evaluation{followupEval2})
+
 	alloc2 := mock.Alloc()
 	alloc2.EvalID = eval.ID
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.JobID = eval.JobID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
+	alloc2.FollowupEvalID = followupEval2.ID
 	alloc2.RescheduleTracker = &structs.RescheduleTracker{
 		Events: []*structs.RescheduleEvent{
 			{
@@ -195,6 +207,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, err := state.EvalByID(ws, eval.ID)
 	require.Nil(err)
+	require.NotNil(out)
 	require.Equal(eval.ID, out.ID)
 
 	outA, err := state.AllocByID(ws, alloc.ID)
