@@ -316,7 +316,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
 		if nodeStatsErr != nil {
 			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", nodeStatsErr))
+			c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
 		}
 		if hostStats != nil {
 			uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
@@ -358,7 +358,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		hostResources, err := getHostResources(hostStats, node)
 		if err != nil {
 			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", err))
+			c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", err))
 		}
 		if err == nil {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))

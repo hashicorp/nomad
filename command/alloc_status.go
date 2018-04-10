@@ -196,7 +196,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		if statsErr != nil {
 			c.Ui.Output("")
 			if statsErr != api.NodeDownErr {
-				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats: %v", statsErr))
 			} else {
 				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
