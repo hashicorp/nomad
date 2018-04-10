@@ -362,7 +362,7 @@ func DefaultUpdateStrategy() *UpdateStrategy {
 		HealthCheck:      helper.StringToPtr("checks"),
 		MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
 		HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
-		ProgressDeadline: helper.TimeToPtr(15 * time.Minute),
+		ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
 		AutoRevert:       helper.BoolToPtr(false),
 		Canary:           helper.IntToPtr(0),
 	}

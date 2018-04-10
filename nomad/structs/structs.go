@@ -2486,7 +2486,7 @@ var (
 		HealthCheck:      UpdateStrategyHealthCheck_Checks,
 		MinHealthyTime:   10 * time.Second,
 		HealthyDeadline:  5 * time.Minute,
-		ProgressDeadline: 15 * time.Minute,
+		ProgressDeadline: 10 * time.Minute,
 		AutoRevert:       false,
 		Canary:           0,
 	}
