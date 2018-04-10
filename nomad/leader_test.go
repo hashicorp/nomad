@@ -905,24 +905,33 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 }
 
 func TestLeader_Reelection(t *testing.T) {
-	t.Parallel()
+	raftProtocols := []int{1, 2, 3}
+	for _, p := range raftProtocols {
+		t.Run("Leader Election - Protocol version "+string(p), func(t *testing.T) {
+			leaderElectionTest(t, raft.ProtocolVersion(p))
+		})
+	}
+
+}
+
+func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 	s1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.RaftConfig.ProtocolVersion = 3
+		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 	defer s1.Shutdown()
 
 	s2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
-		c.RaftConfig.ProtocolVersion = 3
+		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 	defer s2.Shutdown()
 
 	s3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
-		c.RaftConfig.ProtocolVersion = 3
+		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 
 	servers := []*Server{s1, s2, s3}
@@ -961,7 +970,6 @@ func TestLeader_Reelection(t *testing.T) {
 	leader.Shutdown()
 	// Wait for new leader to elect
 	testutil.WaitForLeader(t, nonLeader.RPC)
-
 }
 
 func TestLeader_RollRaftServer(t *testing.T) {
@@ -973,7 +981,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
-		c.RaftConfig.ProtocolVersion = 1
+		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s2.Shutdown()
 
@@ -992,8 +1000,8 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
 	}
 
-	// Kill the v1 server
-	s2.Shutdown()
+	// Kill the first v2 server
+	s1.Shutdown()
 
 	for _, s := range []*Server{s1, s3} {
 		retry.Run(t, func(r *retry.R) {
@@ -1013,11 +1021,11 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s4.Shutdown()
-	TestJoin(t, s4, s1)
-	servers[1] = s4
+	TestJoin(t, s4, s2)
+	servers[0] = s4
 
-	// Kill the v2 server
-	s1.Shutdown()
+	// Kill the second v2 server
+	s2.Shutdown()
 
 	for _, s := range []*Server{s3, s4} {
 		retry.Run(t, func(r *retry.R) {
@@ -1037,7 +1045,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	})
 	defer s5.Shutdown()
 	TestJoin(t, s5, s4)
-	servers[0] = s5
+	servers[1] = s5
 
 	// Kill the last v2 server, now minRaftProtocol should be 3
 	s3.Shutdown()
