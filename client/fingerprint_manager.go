@@ -353,9 +353,15 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		fm.nodeLock.Unlock()
 	}
 
-	if !response.Detected {
-		// If the driver is undetected, change the health status to unhealthy
-		// immediately.
+	// Get a copy of the current node
+	var nodeCopy *structs.Node
+	fm.nodeLock.Lock()
+	nodeCopy = fm.node
+	fm.nodeLock.Unlock()
+
+	// If the driver is undetected, change the health status to unhealthy
+	// immediately.
+	if !response.Detected && nodeCopy.Drivers[name] != nil && nodeCopy.Drivers[name].Healthy {
 		healthInfo := &structs.DriverInfo{
 			Healthy:           false,
 			HealthDescription: fmt.Sprintf("Driver %s is not detected", name),
