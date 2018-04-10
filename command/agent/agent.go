@@ -448,8 +448,6 @@ func (a *Agent) setupServer() error {
 		return fmt.Errorf("server config setup failed: %s", err)
 	}
 
-	a.logger.Printf("ALEX: data dir: %q", conf.DataDir)
-
 	// Generate a node ID and persist it if it is the first instance, otherwise
 	// read the persisted node ID.
 	if err := a.setupNodeID(conf); err != nil {
@@ -533,6 +531,12 @@ func (a *Agent) setupServer() error {
 // setupNodeID will pull the persisted node ID, if any, or create a random one
 // and persist it.
 func (a *Agent) setupNodeID(config *nomad.Config) error {
+	// For dev mode we have no filesystem access so just make a node ID.
+	if a.config.DevMode {
+		config.NodeID = uuid.Generate()
+		return nil
+	}
+
 	// Load saved state, if any. Since a user could edit this, we also
 	// validate it. Saved state overwrites any configured node id
 	fileID := filepath.Join(config.DataDir, "node-id")
@@ -566,12 +570,6 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
 			return err
 		}
-		return nil
-	}
-
-	// For dev mode we have no filesystem access so just make one.
-	if a.config.DevMode {
-		config.NodeID = uuid.Generate()
 		return nil
 	}
 
