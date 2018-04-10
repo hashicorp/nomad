@@ -192,7 +192,7 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 
 func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	// Detect if we need to add these columns
-	canaries, autorevert := false, false
+	var canaries, autorevert, progressDeadline bool
 	tgNames := make([]string, 0, len(d.TaskGroups))
 	for name, state := range d.TaskGroups {
 		tgNames = append(tgNames, name)
@@ -201,6 +201,9 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		}
 		if state.DesiredCanaries > 0 {
 			canaries = true
+		}
+		if state.ProgressDeadline != 0 {
+			progressDeadline = true
 		}
 	}
 
@@ -220,6 +223,9 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		rowString += "Canaries|"
 	}
 	rowString += "Placed|Healthy|Unhealthy"
+	if progressDeadline {
+		rowString += "|Progress Deadline"
+	}
 
 	rows := make([]string, len(d.TaskGroups)+1)
 	rows[0] = rowString
@@ -242,6 +248,13 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 			row += fmt.Sprintf("%d|", state.DesiredCanaries)
 		}
 		row += fmt.Sprintf("%d|%d|%d", state.PlacedAllocs, state.HealthyAllocs, state.UnhealthyAllocs)
+		if progressDeadline {
+			if state.RequireProgressBy.IsZero() {
+				row += fmt.Sprintf("|%v", "N/A")
+			} else {
+				row += fmt.Sprintf("|%v", formatTime(state.RequireProgressBy))
+			}
+		}
 		rows[i] = row
 		i++
 	}
