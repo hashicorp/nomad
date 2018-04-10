@@ -577,7 +577,9 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 	// The health has been set
 	if r.allocHealth != nil {
 		if alloc.DeploymentStatus == nil {
-			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Timestamp: time.Now(),
+			}
 		}
 		alloc.DeploymentStatus.Healthy = helper.BoolToPtr(*r.allocHealth)
 	}

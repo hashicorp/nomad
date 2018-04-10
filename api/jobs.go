@@ -320,26 +320,28 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger         *time.Duration `mapstructure:"stagger"`
-	MaxParallel     *int           `mapstructure:"max_parallel"`
-	HealthCheck     *string        `mapstructure:"health_check"`
-	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
-	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
-	AutoRevert      *bool          `mapstructure:"auto_revert"`
-	Canary          *int           `mapstructure:"canary"`
+	Stagger          *time.Duration `mapstructure:"stagger"`
+	MaxParallel      *int           `mapstructure:"max_parallel"`
+	HealthCheck      *string        `mapstructure:"health_check"`
+	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline"`
+	ProgressDeadline *time.Duration `mapstructure:"progress_deadline"`
+	AutoRevert       *bool          `mapstructure:"auto_revert"`
+	Canary           *int           `mapstructure:"canary"`
 }
 
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
 	return &UpdateStrategy{
-		Stagger:         helper.TimeToPtr(30 * time.Second),
-		MaxParallel:     helper.IntToPtr(1),
-		HealthCheck:     helper.StringToPtr("checks"),
-		MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-		HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-		AutoRevert:      helper.BoolToPtr(false),
-		Canary:          helper.IntToPtr(0),
+		Stagger:          helper.TimeToPtr(30 * time.Second),
+		MaxParallel:      helper.IntToPtr(1),
+		HealthCheck:      helper.StringToPtr("checks"),
+		MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+		HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+		ProgressDeadline: helper.TimeToPtr(15 * time.Minute),
+		AutoRevert:       helper.BoolToPtr(false),
+		Canary:           helper.IntToPtr(0),
 	}
 }
 
@@ -368,6 +370,10 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 
 	if u.HealthyDeadline != nil {
 		copy.HealthyDeadline = helper.TimeToPtr(*u.HealthyDeadline)
+	}
+
+	if u.ProgressDeadline != nil {
+		copy.ProgressDeadline = helper.TimeToPtr(*u.ProgressDeadline)
 	}
 
 	if u.AutoRevert != nil {
@@ -406,6 +412,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 		u.HealthyDeadline = helper.TimeToPtr(*o.HealthyDeadline)
 	}
 
+	if o.ProgressDeadline != nil {
+		u.ProgressDeadline = helper.TimeToPtr(*o.ProgressDeadline)
+	}
+
 	if o.AutoRevert != nil {
 		u.AutoRevert = helper.BoolToPtr(*o.AutoRevert)
 	}
@@ -432,6 +442,10 @@ func (u *UpdateStrategy) Canonicalize() {
 
 	if u.HealthyDeadline == nil {
 		u.HealthyDeadline = d.HealthyDeadline
+	}
+
+	if u.ProgressDeadline == nil {
+		u.ProgressDeadline = d.ProgressDeadline
 	}
 
 	if u.MinHealthyTime == nil {
@@ -470,6 +484,10 @@ func (u *UpdateStrategy) Empty() bool {
 	}
 
 	if u.HealthyDeadline != nil && *u.HealthyDeadline != 0 {
+		return false
+	}
+
+	if u.ProgressDeadline != nil && *u.ProgressDeadline != 0 {
 		return false
 	}
 

@@ -2714,7 +2714,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Update the health status of each allocation
 	if total := len(req.HealthyAllocationIDs) + len(req.UnhealthyAllocationIDs); total != 0 {
-		setAllocHealth := func(id string, healthy bool) error {
+		setAllocHealth := func(id string, healthy bool, ts time.Time) error {
 			existing, err := txn.First("allocs", "id", id)
 			if err != nil {
 				return fmt.Errorf("alloc %q lookup failed: %v", id, err)
@@ -2734,6 +2734,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
 			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
@@ -2748,12 +2749,12 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 		}
 
 		for _, id := range req.HealthyAllocationIDs {
-			if err := setAllocHealth(id, true); err != nil {
+			if err := setAllocHealth(id, true, req.Timestamp); err != nil {
 				return err
 			}
 		}
 		for _, id := range req.UnhealthyAllocationIDs {
-			if err := setAllocHealth(id, false); err != nil {
+			if err := setAllocHealth(id, false, req.Timestamp); err != nil {
 				return err
 			}
 		}
@@ -3282,6 +3283,18 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.PlacedAllocs += placed
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
+
+	// Update the progress deadline
+	if pd := state.ProgressDeadline; pd != 0 {
+		// If we are the first placed allocation start the progress deadline.
+		if placed != 0 && state.RequireProgressBy.IsZero() {
+			state.RequireProgressBy = time.Unix(0, alloc.CreateTime).Add(pd)
+		} else if healthy != 0 {
+			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(state.RequireProgressBy) {
+				state.RequireProgressBy = d
+			}
+		}
+	}
 
 	// Upsert the deployment
 	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {
