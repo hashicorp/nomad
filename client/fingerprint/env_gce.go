@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -97,6 +98,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 		URL:    parsedUrl,
 		Header: http.Header{
 			"Metadata-Flavor": []string{"Google"},
+			"User-Agent":      []string{useragent.String()},
 		},
 	}
 
