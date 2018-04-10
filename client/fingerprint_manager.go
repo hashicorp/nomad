@@ -371,8 +371,9 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	}
 	fm.nodeLock.Unlock()
 
-	// If the driver is undetected, change the health status to unhealthy
-	// immediately.
+	// If either 1) the driver is undetected or 2) if the driver does not have
+	// periodic health checks enabled, set the health status to the match that
+	// of the fingerprinter
 	if !hasPeriodicHealthCheck || !response.Detected && driverExists && driverIsHealthy {
 		healthInfo := &structs.DriverInfo{
 			Healthy:           response.Detected,
