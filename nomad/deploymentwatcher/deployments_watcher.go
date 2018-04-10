@@ -20,7 +20,7 @@ const (
 	LimitStateQueriesPerSecond = 100.0
 
 	// CrossDeploymentUpdateBatchDuration is the duration in which allocation
-	// desired transistion and evaluation creation updates are batched across
+	// desired transition and evaluation creation updates are batched across
 	// all deployment watchers before committing to Raft.
 	CrossDeploymentUpdateBatchDuration = 250 * time.Millisecond
 )
@@ -48,9 +48,9 @@ type DeploymentRaftEndpoints interface {
 	// deployment
 	UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error)
 
-	// UpdateAllocDesiredTransistion is used to update the desired transistion
+	// UpdateAllocDesiredTransition is used to update the desired transition
 	// for allocations.
-	UpdateAllocDesiredTransistion(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error)
+	UpdateAllocDesiredTransition(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error)
 }
 
 // Watcher is used to watch deployments and their allocations created
@@ -64,7 +64,7 @@ type Watcher struct {
 	queryLimiter *rate.Limiter
 
 	// updateBatchDuration is the duration to batch allocation desired
-	// transistion and eval creation across all deployment watchers
+	// transition and eval creation across all deployment watchers
 	updateBatchDuration time.Duration
 
 	// raft contains the set of Raft endpoints that can be used by the
@@ -78,7 +78,7 @@ type Watcher struct {
 	watchers map[string]*deploymentWatcher
 
 	// allocUpdateBatcher is used to batch the creation of evaluations and
-	// allocation desired transistion updates
+	// allocation desired transition updates
 	allocUpdateBatcher *AllocUpdateBatcher
 
 	// ctx and exitFn are used to cancel the watcher
@@ -357,7 +357,7 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 	return watcher.FailDeployment(req, resp)
 }
 
-// createUpdate commits the given allocation desired transistion and evaluation
+// createUpdate commits the given allocation desired transition and evaluation
 // to Raft but batches the commit with other calls.
 func (w *Watcher) createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error) {
 	return w.allocUpdateBatcher.CreateUpdate(allocs, eval).Results()

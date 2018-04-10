@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// AllocUpdateBatcher is used to batch the updates to the desired transistions
+// AllocUpdateBatcher is used to batch the updates to the desired transitions
 // of allocations and the creation of evals.
 type AllocUpdateBatcher struct {
 	// batch is the batching duration
@@ -24,7 +24,7 @@ type AllocUpdateBatcher struct {
 }
 
 // NewAllocUpdateBatcher returns an AllocUpdateBatcher that uses the passed raft endpoints to
-// create the allocation desired transistion updates and new evaluations and
+// create the allocation desired transition updates and new evaluations and
 // exits the batcher when the passed exit channel is closed.
 func NewAllocUpdateBatcher(batchDuration time.Duration, raft DeploymentRaftEndpoints, ctx context.Context) *AllocUpdateBatcher {
 	b := &AllocUpdateBatcher{
@@ -38,7 +38,7 @@ func NewAllocUpdateBatcher(batchDuration time.Duration, raft DeploymentRaftEndpo
 	return b
 }
 
-// CreateUpdate batches the allocation desired transistion update and returns a
+// CreateUpdate batches the allocation desired transition update and returns a
 // future that tracks the completion of the request.
 func (b *AllocUpdateBatcher) CreateUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) *BatchFuture {
 	wrapper := &updateWrapper{
@@ -100,7 +100,7 @@ func (b *AllocUpdateBatcher) batcher() {
 			}
 
 			// Upsert the evals in a go routine
-			go f.Set(b.raft.UpdateAllocDesiredTransistion(req))
+			go f.Set(b.raft.UpdateAllocDesiredTransition(req))
 
 			// Reset the evals list and timer
 			evals = make(map[string]*structs.Evaluation)

@@ -13,9 +13,9 @@ func TestDrainer_PartitionAllocDrain(t *testing.T) {
 	maxIdsPerTxn := 2
 
 	require := require.New(t)
-	transistions := map[string]*structs.DesiredTransition{"a": nil, "b": nil, "c": nil}
+	transitions := map[string]*structs.DesiredTransition{"a": nil, "b": nil, "c": nil}
 	evals := []*structs.Evaluation{nil, nil, nil}
-	requests := partitionAllocDrain(maxIdsPerTxn, transistions, evals)
+	requests := partitionAllocDrain(maxIdsPerTxn, transitions, evals)
 	require.Len(requests, 3)
 
 	first := requests[0]
