@@ -3,6 +3,12 @@
 __BACKWARDS INCOMPATIBILITIES:__
  * cli: node drain now blocks until the drain completes and all allocations on
    the draining node have stopped. Use -detach for the old behavior.
+ * client: Periods (`.`) are no longer replaced with underscores (`_`) in
+   environment variables as many applications rely on periods in environment
+   variable names. [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
+ * client/metrics: The key emitted for tracking a client's uptime has changed
+   from "uptime" to "client.uptime". Users monitoring this metric will have to
+   switch to the new key name [[GH-4128](https://github.com/hashicorp/nomad/issues/4128)]
  * discovery: Prevent absolute URLs in check paths. The documentation indicated
    that absolute URLs are not allowed, but it was not enforced. Absolute URLs
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
@@ -10,13 +16,15 @@ __BACKWARDS INCOMPATIBILITIES:__
    [migrate stanza](https://www.nomadproject.io/docs/job-specification/migrate.html)
    allows jobs to specify how quickly task groups can be drained. A `-force`
    option can be used to emulate the old drain behavior.
- * jobspec: The default values for restart policy have changed. Restart policy mode defaults to "fail" and the
-   attempts/time interval values have been changed to enable faster server side rescheduling. See
-   [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
- * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update stanza syntax. All job spec files should be using update stanza fields introduced in 0.7.0 [[GH-3979](https://github.com/hashicorp/nomad/pull/3979/files)]
- * client: Periods (`.`) are no longer replaced with underscores (`_`) in
-   environment variables as many applications rely on periods in environment
-   variable names. [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
+ * jobspec: The default values for restart policy have changed. Restart policy
+   mode defaults to "fail" and the attempts/time interval values have been
+   changed to enable faster server side rescheduling. See [restart
+   stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for
+   more information.
+ * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update
+   stanza syntax. All job spec files should be using update stanza fields
+   introduced in 0.7.0
+   [[GH-3979](https://github.com/hashicorp/nomad/pull/3979/files)]
 
 IMPROVEMENTS:
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
