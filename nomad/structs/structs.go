@@ -2516,7 +2516,7 @@ type UpdateStrategy struct {
 	HealthyDeadline time.Duration
 
 	// ProgressDeadline is the time in which an allocation as part of the
-	// deployment must transistion to healthy. If no allocation becomes healthy
+	// deployment must transition to healthy. If no allocation becomes healthy
 	// after the deadline, the deployment is marked as failed. If the deadline
 	// is zero, the first failure causes the deployment to fail.
 	ProgressDeadline time.Duration
@@ -5469,11 +5469,11 @@ type DeploymentState struct {
 	// reverted on failure
 	AutoRevert bool
 
-	// ProgressDeadline is the deadline by which an allocation must transistion
+	// ProgressDeadline is the deadline by which an allocation must transition
 	// to healthy before the deployment is considered failed.
 	ProgressDeadline time.Duration
 
-	// RequireProgressBy is the time by which an allocation must transistion
+	// RequireProgressBy is the time by which an allocation must transition
 	// to healthy before the deployment is considered failed.
 	RequireProgressBy time.Time
 
