@@ -523,6 +523,35 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 	return copy
 }
 
+// finalizeTerminalAlloc sets any missing required fields like
+// finishedAt in the alloc runner's task States. finishedAt is used
+// to calculate reschedule time for failed allocs, so we make sure that
+// it is set
+func (r *AllocRunner) finalizeTerminalAlloc(alloc *structs.Allocation) {
+	if !alloc.ClientTerminalStatus() {
+		return
+	}
+	r.taskStatusLock.Lock()
+	defer r.taskStatusLock.Unlock()
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if r.taskStates == nil {
+		r.taskStates = make(map[string]*structs.TaskState)
+	}
+	now := time.Now()
+	for _, task := range group.Tasks {
+		ts, ok := r.taskStates[task.Name]
+		if !ok {
+			ts = &structs.TaskState{}
+			r.taskStates[task.Name] = ts
+		}
+		if ts.FinishedAt.IsZero() {
+			ts.FinishedAt = now
+		}
+	}
+	alloc.TaskStates = copyTaskStates(r.taskStates)
+}
+
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
@@ -541,6 +570,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		r.taskStatusLock.RUnlock()
 
 		r.allocLock.Unlock()
+		r.finalizeTerminalAlloc(alloc)
 		return alloc
 	}
 
@@ -569,7 +599,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		}
 	}
 	r.allocLock.Unlock()
-
+	r.finalizeTerminalAlloc(alloc)
 	return alloc
 }
 
@@ -715,8 +745,10 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 			}
 		}
 	case structs.TaskStateDead:
-		// Capture the finished time.
-		taskState.FinishedAt = time.Now().UTC()
+		// Capture the finished time if not already set
+		if taskState.FinishedAt.IsZero() {
+			taskState.FinishedAt = time.Now().UTC()
+		}
 
 		// Find all tasks that are not the one that is dead and check if the one
 		// that is dead is a leader

@@ -16,8 +16,7 @@ description: |-
     <th width="120">Placement</th>
     <td>
       <code>job -> **reschedule**</code>
-    </td>
-    <td>
+      <br>
       <code>job -> group -> **reschedule**</code>
     </td>
   </tr>

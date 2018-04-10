@@ -334,8 +334,13 @@ type NodeUpdateStatusRequest struct {
 // NodeUpdateDrainRequest is used for updating the drain strategy
 type NodeUpdateDrainRequest struct {
 	NodeID        string
-	Drain         bool // TODO Deprecate
 	DrainStrategy *DrainStrategy
+
+	// COMPAT Remove in version 0.10
+	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
+	// drain strategy but we need to handle the upgrade path where the Raft log
+	// contains drain updates with just the drain boolean being manipulated.
+	Drain bool
 
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
@@ -5136,6 +5141,12 @@ func (d *EphemeralDisk) Copy() *EphemeralDisk {
 	return ld
 }
 
+var (
+	// VaultUnrecoverableError matches unrecoverable errors returned by a Vault
+	// server
+	VaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
+)
+
 const (
 	// VaultChangeModeNoop takes no action when a new token is retrieved.
 	VaultChangeModeNoop = "noop"
@@ -5696,6 +5707,11 @@ func (a *Allocation) TerminalStatus() bool {
 	default:
 	}
 
+	return a.ClientTerminalStatus()
+}
+
+// ClientTerminalStatus returns if the client status is terminal and will no longer transition
+func (a *Allocation) ClientTerminalStatus() bool {
 	switch a.ClientStatus {
 	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
 		return true
@@ -5763,16 +5779,7 @@ func (a *Allocation) LastEventTime() time.Time {
 			}
 		}
 	}
-	// If no tasks have FinsihedAt set, examine task events
-	if lastEventTime.IsZero() {
-		for _, s := range a.TaskStates {
-			for _, e := range s.Events {
-				if lastEventTime.IsZero() || e.Time > lastEventTime.UnixNano() {
-					lastEventTime = time.Unix(0, e.Time).UTC()
-				}
-			}
-		}
-	}
+
 	if lastEventTime.IsZero() {
 		return time.Unix(0, a.ModifyTime).UTC()
 	}
@@ -7100,46 +7107,4 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
-}
-
-// BatchFuture is used to wait on a batch update to complete
-type BatchFuture struct {
-	doneCh chan struct{}
-	err    error
-	index  uint64
-}
-
-// NewBatchFuture creates a new batch future
-func NewBatchFuture() *BatchFuture {
-	return &BatchFuture{
-		doneCh: make(chan struct{}),
-	}
-}
-
-// Wait is used to block for the future to complete and returns the error
-func (b *BatchFuture) Wait() error {
-	<-b.doneCh
-	return b.err
-}
-
-// WaitCh is used to block for the future to complete
-func (b *BatchFuture) WaitCh() <-chan struct{} {
-	return b.doneCh
-}
-
-// Error is used to return the error of the batch, only after Wait()
-func (b *BatchFuture) Error() error {
-	return b.err
-}
-
-// Index is used to return the index of the batch, only after Wait()
-func (b *BatchFuture) Index() uint64 {
-	return b.index
-}
-
-// Respond is used to unblock the future
-func (b *BatchFuture) Respond(index uint64, err error) {
-	b.index = index
-	b.err = err
-	close(b.doneCh)
 }

@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -200,4 +202,44 @@ func maxUint64(inputs ...uint64) uint64 {
 		}
 	}
 	return max
+}
+
+// getNodeForRpc returns a Node struct if the Node supports Node RPC. Otherwise
+// an error is returned.
+func getNodeForRpc(snap *state.StateSnapshot, nodeID string) (*structs.Node, error) {
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	if node == nil {
+		return nil, fmt.Errorf("Unknown node %q", nodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}
+
+var minNodeVersionSupportingRPC = version.Must(version.NewVersion("0.8.0-rc1"))
+
+// nodeSupportsRpc returns a non-nil error if a Node does not support RPC.
+func nodeSupportsRpc(node *structs.Node) error {
+	rawNodeVer, ok := node.Attributes["nomad.version"]
+	if !ok {
+		return structs.ErrUnknownNomadVersion
+	}
+
+	nodeVer, err := version.NewVersion(rawNodeVer)
+	if err != nil {
+		return structs.ErrUnknownNomadVersion
+	}
+
+	if nodeVer.LessThan(minNodeVersionSupportingRPC) {
+		return structs.ErrNodeLacksRpc
+	}
+
+	return nil
 }

@@ -7,12 +7,14 @@ import (
 )
 
 const (
-	errNoLeader         = "No cluster leader"
-	errNoRegionPath     = "No path to region"
-	errTokenNotFound    = "ACL token not found"
-	errPermissionDenied = "Permission denied"
-	errNoNodeConn       = "No path to node"
-	errUnknownMethod    = "Unknown rpc method"
+	errNoLeader            = "No cluster leader"
+	errNoRegionPath        = "No path to region"
+	errTokenNotFound       = "ACL token not found"
+	errPermissionDenied    = "Permission denied"
+	errNoNodeConn          = "No path to node"
+	errUnknownMethod       = "Unknown rpc method"
+	errUnknownNomadVersion = "Unable to determine Nomad version"
+	errNodeLacksRpc        = "Node does not support RPC; requires 0.8 or later"
 
 	// Prefix based errors that are used to check if the error is of a given
 	// type. These errors should be created with the associated constructor.
@@ -24,12 +26,14 @@ const (
 )
 
 var (
-	ErrNoLeader         = errors.New(errNoLeader)
-	ErrNoRegionPath     = errors.New(errNoRegionPath)
-	ErrTokenNotFound    = errors.New(errTokenNotFound)
-	ErrPermissionDenied = errors.New(errPermissionDenied)
-	ErrNoNodeConn       = errors.New(errNoNodeConn)
-	ErrUnknownMethod    = errors.New(errUnknownMethod)
+	ErrNoLeader            = errors.New(errNoLeader)
+	ErrNoRegionPath        = errors.New(errNoRegionPath)
+	ErrTokenNotFound       = errors.New(errTokenNotFound)
+	ErrPermissionDenied    = errors.New(errPermissionDenied)
+	ErrNoNodeConn          = errors.New(errNoNodeConn)
+	ErrUnknownMethod       = errors.New(errUnknownMethod)
+	ErrUnknownNomadVersion = errors.New(errUnknownNomadVersion)
+	ErrNodeLacksRpc        = errors.New(errNodeLacksRpc)
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
@@ -123,4 +127,16 @@ func IsErrUnknownEvaluation(err error) bool {
 // deployment.
 func IsErrUnknownDeployment(err error) bool {
 	return err != nil && strings.Contains(err.Error(), ErrUnknownDeploymentPrefix)
+}
+
+// IsErrUnknownNomadVersion returns whether the error is due to Nomad being
+// unable to determine the version of a node.
+func IsErrUnknownNomadVersion(err error) bool {
+	return err != nil && strings.Contains(err.Error(), errUnknownNomadVersion)
+}
+
+// IsErrNodeLacksRpc returns whether error is due to a Nomad server being
+// unable to connect to a client node because the client is too old (pre-v0.8).
+func IsErrNodeLacksRpc(err error) bool {
+	return err != nil && strings.Contains(err.Error(), errNodeLacksRpc)
 }

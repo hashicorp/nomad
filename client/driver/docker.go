@@ -38,10 +38,11 @@ import (
 )
 
 var (
-	// We store the clients globally to cache the connection to the docker daemon.
-	createClients sync.Once
+	// createClientsLock is a lock that protects reading/writing global client
+	// variables
+	createClientsLock sync.Mutex
 
-	// client is a docker client with a timeout of 1 minute. This is for doing
+	// client is a docker client with a timeout of 5 minutes. This is for doing
 	// all operations with the docker daemon besides which are not long running
 	// such as creating, killing containers, etc.
 	client *docker.Client
@@ -49,6 +50,10 @@ var (
 	// waitClient is a docker client with no timeouts. This is used for long
 	// running operations such as waiting on containers and collect stats
 	waitClient *docker.Client
+
+	// healthCheckClient is a docker client with a timeout of 1 minute. This is
+	// necessary to have a shorter timeout than other API or fingerprint calls
+	healthCheckClient *docker.Client
 
 	// The statistics the Docker driver exposes
 	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage"}
@@ -106,6 +111,10 @@ const (
 	// dockerTimeout is the length of time a request can be outstanding before
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
+
+	// dockerHealthCheckTimeout is the length of time a request for a health
+	// check client can be outstanding before it is timed out.
+	dockerHealthCheckTimeout = 1 * time.Minute
 
 	// dockerImageResKey is the CreatedResources key for docker images
 	dockerImageResKey = "image"
@@ -559,7 +568,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 		UpdateTime: time.Now(),
 	}
 
-	client, _, err := d.dockerClients()
+	healthCheckClient, err := d.dockerHealthCheckClient()
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: failed to retrieve Docker client in the process of a docker health check: %v", err)
 		dinfo.HealthDescription = fmt.Sprintf("Failed retrieving Docker client: %v", err)
@@ -567,7 +576,7 @@ func (d *DockerDriver) HealthCheck(req *cstructs.HealthCheckRequest, resp *cstru
 		return nil
 	}
 
-	_, err = client.ListContainers(docker.ListContainersOptions{All: false})
+	_, err = healthCheckClient.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		d.logger.Printf("[WARN] driver.docker: failed to list Docker containers in the process of a Docker health check: %v", err)
 		dinfo.HealthDescription = fmt.Sprintf("Failed to list Docker containers: %v", err)
@@ -1000,67 +1009,100 @@ func (d *DockerDriver) cleanupImage(imageID string) error {
 	return nil
 }
 
+// dockerHealthCheckClient creates a single *docker.Client with a timeout of
+// one minute, which will be used when performing Docker health checks.
+func (d *DockerDriver) dockerHealthCheckClient() (*docker.Client, error) {
+	createClientsLock.Lock()
+	defer createClientsLock.Unlock()
+
+	if healthCheckClient != nil {
+		return healthCheckClient, nil
+	}
+
+	var err error
+	healthCheckClient, err = d.newDockerClient(dockerHealthCheckTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	return healthCheckClient, nil
+}
+
 // dockerClients creates two *docker.Client, one for long running operations and
 // the other for shorter operations. In test / dev mode we can use ENV vars to
 // connect to the docker daemon. In production mode we will read docker.endpoint
 // from the config file.
 func (d *DockerDriver) dockerClients() (*docker.Client, *docker.Client, error) {
+	createClientsLock.Lock()
+	defer createClientsLock.Unlock()
+
 	if client != nil && waitClient != nil {
 		return client, waitClient, nil
 	}
 
 	var err error
+
+	// Onlt initialize the client if it hasn't yet been done
+	if client == nil {
+		client, err = d.newDockerClient(dockerTimeout)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Only initialize the waitClient if it hasn't yet been done
+	if waitClient == nil {
+		waitClient, err = d.newDockerClient(0 * time.Minute)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return client, waitClient, nil
+}
+
+// newDockerClient creates a new *docker.Client with a configurable timeout
+func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, error) {
+	var err error
 	var merr multierror.Error
-	createClients.Do(func() {
-		// Default to using whatever is configured in docker.endpoint. If this is
-		// not specified we'll fall back on NewClientFromEnv which reads config from
-		// the DOCKER_* environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and
-		// DOCKER_CERT_PATH. This allows us to lock down the config in production
-		// but also accept the standard ENV configs for dev and test.
-		dockerEndpoint := d.config.Read("docker.endpoint")
-		if dockerEndpoint != "" {
-			cert := d.config.Read("docker.tls.cert")
-			key := d.config.Read("docker.tls.key")
-			ca := d.config.Read("docker.tls.ca")
+	var newClient *docker.Client
 
-			if cert+key+ca != "" {
-				d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
-				client, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
-				if err != nil {
-					merr.Errors = append(merr.Errors, err)
-				}
-				waitClient, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
-				if err != nil {
-					merr.Errors = append(merr.Errors, err)
-				}
-			} else {
-				d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
-				client, err = docker.NewClient(dockerEndpoint)
-				if err != nil {
-					merr.Errors = append(merr.Errors, err)
-				}
-				waitClient, err = docker.NewClient(dockerEndpoint)
-				if err != nil {
-					merr.Errors = append(merr.Errors, err)
-				}
+	// Default to using whatever is configured in docker.endpoint. If this is
+	// not specified we'll fall back on NewClientFromEnv which reads config from
+	// the DOCKER_* environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and
+	// DOCKER_CERT_PATH. This allows us to lock down the config in production
+	// but also accept the standard ENV configs for dev and test.
+	dockerEndpoint := d.config.Read("docker.endpoint")
+	if dockerEndpoint != "" {
+		cert := d.config.Read("docker.tls.cert")
+		key := d.config.Read("docker.tls.key")
+		ca := d.config.Read("docker.tls.ca")
+
+		if cert+key+ca != "" {
+			d.logger.Printf("[DEBUG] driver.docker: using TLS client connection to %s", dockerEndpoint)
+			newClient, err = docker.NewTLSClient(dockerEndpoint, cert, key, ca)
+			if err != nil {
+				merr.Errors = append(merr.Errors, err)
 			}
-			client.SetTimeout(dockerTimeout)
-			return
+		} else {
+			d.logger.Printf("[DEBUG] driver.docker: using standard client connection to %s", dockerEndpoint)
+			newClient, err = docker.NewClient(dockerEndpoint)
+			if err != nil {
+				merr.Errors = append(merr.Errors, err)
+			}
 		}
-
+	} else {
 		d.logger.Println("[DEBUG] driver.docker: using client connection initialized from environment")
-		client, err = docker.NewClientFromEnv()
+		newClient, err = docker.NewClientFromEnv()
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
-		client.SetTimeout(dockerTimeout)
+	}
 
-		waitClient, err = docker.NewClientFromEnv()
-		if err != nil {
-			merr.Errors = append(merr.Errors, err)
-		}
-	})
-	return client, waitClient, merr.ErrorOrNil()
+	if timeout != 0 {
+		newClient.SetTimeout(timeout)
+	}
+	return newClient, merr.ErrorOrNil()
 }
 
 func (d *DockerDriver) containerBinds(driverConfig *DockerDriverConfig, ctx *ExecContext,

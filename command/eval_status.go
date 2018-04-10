@@ -207,10 +207,15 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status Description|%s", statusDesc),
 		fmt.Sprintf("Type|%s", eval.Type),
 		fmt.Sprintf("TriggeredBy|%s", eval.TriggeredBy),
-		fmt.Sprintf("%s|%s", triggerNoun, triggerSubj),
-		fmt.Sprintf("Priority|%d", eval.Priority),
-		fmt.Sprintf("Placement Failures|%s", failureString),
 	}
+
+	if triggerNoun != "" && triggerSubj != "" {
+		basic = append(basic, fmt.Sprintf("%s|%s", triggerNoun, triggerSubj))
+	}
+
+	basic = append(basic,
+		fmt.Sprintf("Priority|%d", eval.Priority),
+		fmt.Sprintf("Placement Failures|%s", failureString))
 
 	if verbose {
 		// NextEval, PreviousEval, BlockedEval

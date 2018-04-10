@@ -137,9 +137,11 @@ type Client struct {
 	// server for the node event
 	triggerEmitNodeEvent chan *structs.NodeEvent
 
-	// discovered will be ticked whenever Consul discovery completes
-	// successfully
-	serversDiscoveredCh chan struct{}
+	// rpcRetryCh is closed when there an event such as server discovery or a
+	// successful RPC occurring happens such that a retry should happen. Access
+	// should only occur via the getter method
+	rpcRetryCh   chan struct{}
+	rpcRetryLock sync.Mutex
 
 	// allocs maps alloc IDs to their AllocRunner. This map includes all
 	// AllocRunners - running and GC'd - until the server GCs them.
@@ -217,7 +219,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		shutdownCh:           make(chan struct{}),
 		triggerDiscoveryCh:   make(chan struct{}),
 		triggerNodeUpdate:    make(chan struct{}, 8),
-		serversDiscoveredCh:  make(chan struct{}),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 	}
 
@@ -1154,7 +1155,7 @@ func (c *Client) registerAndHeartbeat() {
 
 	for {
 		select {
-		case <-c.serversDiscoveredCh:
+		case <-c.rpcRetryWatcher():
 		case <-heartbeat:
 		case <-c.shutdownCh:
 			return
@@ -1169,11 +1170,11 @@ func (c *Client) registerAndHeartbeat() {
 				c.retryRegisterNode()
 				heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
 			} else {
-				intv := c.retryIntv(registerRetryIntv)
+				intv := c.getHeartbeatRetryIntv(err)
 				c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
 				heartbeat = time.After(intv)
 
-				// if heartbeating fails, trigger Consul discovery
+				// If heartbeating fails, trigger Consul discovery
 				c.triggerDiscovery()
 			}
 		} else {
@@ -1181,6 +1182,56 @@ func (c *Client) registerAndHeartbeat() {
 			heartbeat = time.After(c.heartbeatTTL)
 			c.heartbeatLock.Unlock()
 		}
+	}
+}
+
+// getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
+// another heartbeat.
+func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
+	if c.config.DevMode {
+		return devModeRetryIntv
+	}
+
+	// Collect the useful heartbeat info
+	c.heartbeatLock.Lock()
+	haveHeartbeated := c.haveHeartbeated
+	last := c.lastHeartbeat
+	ttl := c.heartbeatTTL
+	c.heartbeatLock.Unlock()
+
+	// If we haven't even successfully heartbeated once or there is no leader
+	// treat it as a registration. In the case that there is a leadership loss,
+	// we will have our heartbeat timer reset to a much larger threshold, so
+	// do not put unnecessary pressure on the new leader.
+	if !haveHeartbeated || err == structs.ErrNoLeader {
+		return c.retryIntv(registerRetryIntv)
+	}
+
+	// Determine how much time we have left to heartbeat
+	left := last.Add(ttl).Sub(time.Now())
+
+	// Logic for retrying is:
+	// * Do not retry faster than once a second
+	// * Do not retry less that once every 30 seconds
+	// * If we have missed the heartbeat by more than 30 seconds, start to use
+	// the absolute time since we do not want to retry indefinitely
+	switch {
+	case left < -30*time.Second:
+		// Make left the absolute value so we delay and jitter properly.
+		left *= -1
+	case left < 0:
+		return time.Second + lib.RandomStagger(time.Second)
+	default:
+	}
+
+	stagger := lib.RandomStagger(left)
+	switch {
+	case stagger < time.Second:
+		return time.Second + lib.RandomStagger(time.Second)
+	case stagger > 30*time.Second:
+		return 25*time.Second + lib.RandomStagger(5*time.Second)
+	default:
+		return stagger
 	}
 }
 
@@ -1307,7 +1358,7 @@ func (c *Client) retryRegisterNode() {
 			c.logger.Printf("[ERR] client: registration failure: %v", err)
 		}
 		select {
-		case <-c.serversDiscoveredCh:
+		case <-c.rpcRetryWatcher():
 		case <-time.After(c.retryIntv(registerRetryIntv)):
 		case <-c.shutdownCh:
 			return
@@ -1567,7 +1618,7 @@ OUTER:
 			}
 			retry := c.retryIntv(getAllocRetryIntv)
 			select {
-			case <-c.serversDiscoveredCh:
+			case <-c.rpcRetryWatcher():
 				continue
 			case <-time.After(retry):
 				continue
@@ -1622,7 +1673,7 @@ OUTER:
 				c.logger.Printf("[ERR] client: failed to query updated allocations: %v", err)
 				retry := c.retryIntv(getAllocRetryIntv)
 				select {
-				case <-c.serversDiscoveredCh:
+				case <-c.rpcRetryWatcher():
 					continue
 				case <-time.After(retry):
 					continue
@@ -1939,10 +1990,27 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		// Unwrap the vault token
 		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
+			if structs.VaultUnrecoverableError.MatchString(err.Error()) {
+				return nil, err
+			}
+
+			// The error is recoverable
+			return nil, structs.NewRecoverableError(
+				fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err), true)
 		}
-		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
+
+		// Validate the response
+		var validationErr error
+		if unwrapResp == nil {
+			validationErr = fmt.Errorf("Vault returned nil secret when unwrapping")
+		} else if unwrapResp.Auth == nil {
+			validationErr = fmt.Errorf("Vault returned unwrap secret with nil Auth. Secret warnings: %v", unwrapResp.Warnings)
+		} else if unwrapResp.Auth.ClientToken == "" {
+			validationErr = fmt.Errorf("Vault returned unwrap secret with empty Auth.ClientToken. Secret warnings: %v", unwrapResp.Warnings)
+		}
+		if validationErr != nil {
+			c.logger.Printf("[WARN] client.vault: failed to unwrap token: %v", err)
+			return nil, structs.NewRecoverableError(validationErr, true)
 		}
 
 		// Append the unwrapped token to the return value
@@ -2068,18 +2136,19 @@ DISCOLOOP:
 	}
 
 	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", nomadServers)
-	c.servers.SetServers(nomadServers)
 
-	// Notify waiting rpc calls. If a goroutine just failed an RPC call and
-	// isn't receiving on this chan yet they'll still retry eventually.
-	// This is a shortcircuit for the longer retry intervals.
-	for {
-		select {
-		case c.serversDiscoveredCh <- struct{}{}:
-		default:
-			return nil
-		}
+	// Fire the retry trigger if we have updated the set of servers.
+	if c.servers.SetServers(nomadServers) {
+		// Start rebalancing
+		c.servers.RebalanceServers()
+
+		// Notify waiting rpc calls. If a goroutine just failed an RPC call and
+		// isn't receiving on this chan yet they'll still retry eventually.
+		// This is a shortcircuit for the longer retry intervals.
+		c.fireRpcRetryWatcher()
 	}
+
+	return nil
 }
 
 // emitStats collects host resource usage stats periodically
@@ -2265,10 +2334,10 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 // No labels are required so we emit with only a key/value syntax
 func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"uptime"}, float32(hStats.Uptime), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), c.baseLabels)
 	}
 	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"uptime"}, float32(hStats.Uptime))
+		metrics.SetGauge([]string{"client", "uptime"}, float32(hStats.Uptime))
 	}
 }
 

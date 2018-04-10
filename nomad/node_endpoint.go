@@ -39,6 +39,9 @@ type Node struct {
 	// updates holds pending client status updates for allocations
 	updates []*structs.Allocation
 
+	// evals holds pending rescheduling eval updates triggered by failed allocations
+	evals []*structs.Evaluation
+
 	// updateFuture is used to wait for the pending batch update
 	// to complete. This may be nil if no batch is pending.
 	updateFuture *structs.BatchFuture
@@ -964,7 +967,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 					continue
 				}
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
-				if taskGroup != nil && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+				if taskGroup != nil && existingAlloc.FollowupEvalID == "" && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
 					eval := &structs.Evaluation{
 						ID:          uuid.Generate(),
 						Namespace:   existingAlloc.Namespace,
@@ -979,12 +982,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			}
 		}
 	}
-	if len(evals) > 0 {
-		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling failed allocations", len(evals))
-	}
+
 	// Add this to the batch
 	n.updatesLock.Lock()
 	n.updates = append(n.updates, args.Alloc...)
+	n.evals = append(n.evals, evals...)
 
 	// Start a new batch if none
 	future := n.updateFuture
@@ -995,8 +997,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			// Get the pending updates
 			n.updatesLock.Lock()
 			updates := n.updates
+			evals := n.evals
 			future := n.updateFuture
 			n.updates = nil
+			n.evals = nil
 			n.updateFuture = nil
 			n.updateTimer = nil
 			n.updatesLock.Unlock()
@@ -1019,10 +1023,28 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 // batchUpdate is used to update all the allocations
 func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
+	// Group pending evals by jobID to prevent creating unnecessary evals
+	evalsByJobId := make(map[structs.NamespacedID]struct{})
+	var trimmedEvals []*structs.Evaluation
+	for _, eval := range evals {
+		namespacedID := structs.NamespacedID{
+			ID:        eval.JobID,
+			Namespace: eval.Namespace,
+		}
+		_, exists := evalsByJobId[namespacedID]
+		if !exists {
+			trimmedEvals = append(trimmedEvals, eval)
+			evalsByJobId[namespacedID] = struct{}{}
+		}
+	}
+
+	if len(trimmedEvals) > 0 {
+		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling failed allocations", len(trimmedEvals))
+	}
 	// Prepare the batch update
 	batch := &structs.AllocUpdateRequest{
 		Alloc:        updates,
-		Evals:        evals,
+		Evals:        trimmedEvals,
 		WriteRequest: structs.WriteRequest{Region: n.srv.config.Region},
 	}
 
@@ -1398,10 +1420,6 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	tokens := make(map[string]string, len(results))
 	for task, secret := range results {
 		w := secret.WrapInfo
-		if w == nil {
-			return fmt.Errorf("Vault returned Secret without WrapInfo")
-		}
-
 		tokens[task] = w.Token
 		accessor := &structs.VaultAccessor{
 			Accessor:    w.WrappedAccessor,

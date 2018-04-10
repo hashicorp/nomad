@@ -4,70 +4,70 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var (
-	// maxIdsPerTxn is the maximum number of IDs that can be included in a
-	// single Raft transaction. This is to ensure that the Raft message does not
-	// become too large.
-	maxIdsPerTxn = (1024 * 256) / 36 // 0.25 MB of ids.
+const (
+	// defaultMaxIdsPerTxn is the maximum number of IDs that can be included in a
+	// single Raft transaction. This is to ensure that the Raft message
+	// does not become too large.
+	defaultMaxIdsPerTxn = (1024 * 256) / 36 // 0.25 MB of ids.
 )
 
 // partitionIds takes a set of IDs and returns a partitioned view of them such
 // that no batch would result in an overly large raft transaction.
-func partitionIds(ids []string) [][]string {
+func partitionIds(maxIds int, ids []string) [][]string {
 	index := 0
 	total := len(ids)
 	var partitions [][]string
 	for remaining := total - index; remaining > 0; remaining = total - index {
-		if remaining < maxIdsPerTxn {
+		if remaining < maxIds {
 			partitions = append(partitions, ids[index:])
 			break
 		} else {
-			partitions = append(partitions, ids[index:index+maxIdsPerTxn])
-			index += maxIdsPerTxn
+			partitions = append(partitions, ids[index:index+maxIds])
+			index += maxIds
 		}
 	}
 
 	return partitions
 }
 
-// transistionTuple is used to group desired transistions and evals
-type transistionTuple struct {
-	Transistions map[string]*structs.DesiredTransition
-	Evals        []*structs.Evaluation
+// transitionTuple is used to group desired transitions and evals
+type transitionTuple struct {
+	Transitions map[string]*structs.DesiredTransition
+	Evals       []*structs.Evaluation
 }
 
-// partitionAllocDrain returns a list of alloc transistions and evals to apply
+// partitionAllocDrain returns a list of alloc transitions and evals to apply
 // in a single raft transaction.This is necessary to ensure that the Raft
 // transaction does not become too large.
-func partitionAllocDrain(transistions map[string]*structs.DesiredTransition,
-	evals []*structs.Evaluation) []*transistionTuple {
+func partitionAllocDrain(maxIds int, transitions map[string]*structs.DesiredTransition,
+	evals []*structs.Evaluation) []*transitionTuple {
 
-	// Determine a stable ordering of the transistioning allocs
-	allocs := make([]string, 0, len(transistions))
-	for id := range transistions {
+	// Determine a stable ordering of the transitioning allocs
+	allocs := make([]string, 0, len(transitions))
+	for id := range transitions {
 		allocs = append(allocs, id)
 	}
 
-	var requests []*transistionTuple
+	var requests []*transitionTuple
 	submittedEvals, submittedTrans := 0, 0
-	for submittedEvals != len(evals) || submittedTrans != len(transistions) {
-		req := &transistionTuple{
-			Transistions: make(map[string]*structs.DesiredTransition),
+	for submittedEvals != len(evals) || submittedTrans != len(transitions) {
+		req := &transitionTuple{
+			Transitions: make(map[string]*structs.DesiredTransition),
 		}
 		requests = append(requests, req)
-		available := maxIdsPerTxn
+		available := maxIds
 
 		// Add the allocs first
 		if remaining := len(allocs) - submittedTrans; remaining > 0 {
 			if remaining <= available {
 				for _, id := range allocs[submittedTrans:] {
-					req.Transistions[id] = transistions[id]
+					req.Transitions[id] = transitions[id]
 				}
 				available -= remaining
 				submittedTrans += remaining
 			} else {
 				for _, id := range allocs[submittedTrans : submittedTrans+available] {
-					req.Transistions[id] = transistions[id]
+					req.Transitions[id] = transitions[id]
 				}
 				submittedTrans += available
 

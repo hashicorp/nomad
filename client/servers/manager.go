@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -74,6 +75,16 @@ func (s *Server) String() string {
 	return s.addr
 }
 
+func (s *Server) Equal(o *Server) bool {
+	if s == nil && o == nil {
+		return true
+	} else if s == nil && o != nil || s != nil && o == nil {
+		return false
+	}
+
+	return s.Addr.String() == o.Addr.String() && s.DC == o.DC
+}
+
 type Servers []*Server
 
 func (s Servers) String() string {
@@ -104,6 +115,32 @@ func (s Servers) shuffle() {
 		j := rand.Int31n(int32(i + 1))
 		s[i], s[j] = s[j], s[i]
 	}
+}
+
+func (s Servers) Sort() {
+	sort.Slice(s, func(i, j int) bool {
+		a, b := s[i], s[j]
+		if addr1, addr2 := a.Addr.String(), b.Addr.String(); addr1 == addr2 {
+			return a.DC < b.DC
+		} else {
+			return addr1 < addr2
+		}
+	})
+}
+
+// Equal returns if the two server lists are equal, including the ordering.
+func (s Servers) Equal(o Servers) bool {
+	if len(s) != len(o) {
+		return false
+	}
+
+	for i, v := range s {
+		if !v.Equal(o[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 type Manager struct {
@@ -157,10 +194,24 @@ func (m *Manager) Start() {
 	}
 }
 
-func (m *Manager) SetServers(servers Servers) {
+// SetServers sets the servers and returns if the new server list is different
+// than the existing server set
+func (m *Manager) SetServers(servers Servers) bool {
 	m.Lock()
 	defer m.Unlock()
+
+	// Sort both the  existing and incoming servers
+	servers.Sort()
+	m.servers.Sort()
+
+	// Determine if they are equal
+	equal := servers.Equal(m.servers)
+
+	// Randomize the incoming servers
+	servers.shuffle()
 	m.servers = servers
+
+	return !equal
 }
 
 // FindServer returns a server to send an RPC too. If there are no servers, nil
@@ -204,7 +255,7 @@ func (m *Manager) NotifyFailedServer(s *Server) {
 	// If the server being failed is not the first server on the list,
 	// this is a noop.  If, however, the server is failed and first on
 	// the list, move the server to the end of the list.
-	if len(m.servers) > 1 && m.servers[0] == s {
+	if len(m.servers) > 1 && m.servers[0].Equal(s) {
 		m.servers.cycle()
 	}
 }

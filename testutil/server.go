@@ -34,6 +34,7 @@ type TestServerConfig struct {
 	Region            string        `json:"region,omitempty"`
 	DisableCheckpoint bool          `json:"disable_update_check"`
 	LogLevel          string        `json:"log_level,omitempty"`
+	Consul            *Consul       `json:"consul,omitempty"`
 	AdvertiseAddrs    *Advertise    `json:"advertise,omitempty"`
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
@@ -42,6 +43,13 @@ type TestServerConfig struct {
 	ACL               *ACLConfig    `json:"acl,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
+}
+
+// Consul is used to configure the communication with Consul
+type Consul struct {
+	Address string `json:"address,omitempty"`
+	Auth    string `json:"auth,omitempty"`
+	Token   string `json:"token,omitempty"`
 }
 
 // Advertise is used to configure the addresses to advertise

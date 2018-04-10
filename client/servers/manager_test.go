@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/stretchr/testify/require"
 )
 
 type fauxAddr struct {
@@ -32,22 +34,23 @@ func (cp *fauxConnPool) Ping(net.Addr) error {
 	return fmt.Errorf("bad server")
 }
 
-func testManager() (m *servers.Manager) {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+func testManager(t *testing.T) (m *servers.Manager) {
+	logger := testlog.Logger(t)
 	shutdownCh := make(chan struct{})
 	m = servers.New(logger, shutdownCh, &fauxConnPool{})
 	return m
 }
 
-func testManagerFailProb(failPct float64) (m *servers.Manager) {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+func testManagerFailProb(t *testing.T, failPct float64) (m *servers.Manager) {
+	logger := testlog.Logger(t)
 	shutdownCh := make(chan struct{})
 	m = servers.New(logger, shutdownCh, &fauxConnPool{failPct: failPct})
 	return m
 }
 
 func TestServers_SetServers(t *testing.T) {
-	m := testManager()
+	require := require.New(t)
+	m := testManager(t)
 	var num int
 	num = m.NumServers()
 	if num != 0 {
@@ -56,24 +59,19 @@ func TestServers_SetServers(t *testing.T) {
 
 	s1 := &servers.Server{Addr: &fauxAddr{"server1"}}
 	s2 := &servers.Server{Addr: &fauxAddr{"server2"}}
-	m.SetServers([]*servers.Server{s1, s2})
-	num = m.NumServers()
-	if num != 2 {
-		t.Fatalf("Expected two servers")
-	}
+	require.True(m.SetServers([]*servers.Server{s1, s2}))
+	require.False(m.SetServers([]*servers.Server{s1, s2}))
+	require.False(m.SetServers([]*servers.Server{s2, s1}))
+	require.Equal(2, m.NumServers())
+	require.Len(m.GetServers(), 2)
 
-	all := m.GetServers()
-	if l := len(all); l != 2 {
-		t.Fatalf("expected 2 servers got %d", l)
-	}
-
-	if all[0] == s1 || all[0] == s2 {
-		t.Fatalf("expected a copy, got actual server")
-	}
+	require.True(m.SetServers([]*servers.Server{s1}))
+	require.Equal(1, m.NumServers())
+	require.Len(m.GetServers(), 1)
 }
 
 func TestServers_FindServer(t *testing.T) {
-	m := testManager()
+	m := testManager(t)
 
 	if m.FindServer() != nil {
 		t.Fatalf("Expected nil return")
@@ -105,20 +103,14 @@ func TestServers_FindServer(t *testing.T) {
 		t.Fatalf("Expected two servers")
 	}
 	s1 = m.FindServer()
-	if s1 == nil || s1.String() != "s1" {
-		t.Fatalf("Expected s1 server (still)")
+
+	for _, srv := range srvs {
+		m.NotifyFailedServer(srv)
 	}
 
-	m.NotifyFailedServer(s1)
 	s2 := m.FindServer()
-	if s2 == nil || s2.String() != "s2" {
-		t.Fatalf("Expected s2 server")
-	}
-
-	m.NotifyFailedServer(s2)
-	s1 = m.FindServer()
-	if s1 == nil || s1.String() != "s1" {
-		t.Fatalf("Expected s1 server")
+	if s1.Equal(s2) {
+		t.Fatalf("Expected different server")
 	}
 }
 
@@ -132,7 +124,7 @@ func TestServers_New(t *testing.T) {
 }
 
 func TestServers_NotifyFailedServer(t *testing.T) {
-	m := testManager()
+	m := testManager(t)
 
 	if m.NumServers() != 0 {
 		t.Fatalf("Expected zero servers to start")
@@ -159,32 +151,39 @@ func TestServers_NotifyFailedServer(t *testing.T) {
 		t.Fatalf("Expected two servers")
 	}
 
-	s1 = m.FindServer()
-	if s1 == nil || s1.String() != "s1" {
-		t.Fatalf("Expected s1 server")
+	// Grab a server
+	first := m.FindServer()
+
+	// Find the other server
+	second := s1
+	if first.Equal(s1) {
+		second = s2
 	}
 
-	m.NotifyFailedServer(s2)
-	s1 = m.FindServer()
-	if s1 == nil || s1.String() != "s1" {
-		t.Fatalf("Expected s1 server (still)")
+	// Fail the other server
+	m.NotifyFailedServer(second)
+	next := m.FindServer()
+	if !next.Equal(first) {
+		t.Fatalf("Expected first server (still)")
 	}
 
-	m.NotifyFailedServer(s1)
-	s2 = m.FindServer()
-	if s2 == nil || s2.String() != "s2" {
-		t.Fatalf("Expected s2 server")
+	// Fail the first
+	m.NotifyFailedServer(first)
+	next = m.FindServer()
+	if !next.Equal(second) {
+		t.Fatalf("Expected second server")
 	}
 
-	m.NotifyFailedServer(s2)
-	s1 = m.FindServer()
-	if s1 == nil || s1.String() != "s1" {
-		t.Fatalf("Expected s1 server")
+	// Fail the second
+	m.NotifyFailedServer(second)
+	next = m.FindServer()
+	if !next.Equal(first) {
+		t.Fatalf("Expected first server")
 	}
 }
 
 func TestServers_NumServers(t *testing.T) {
-	m := testManager()
+	m := testManager(t)
 	var num int
 	num = m.NumServers()
 	if num != 0 {
@@ -201,7 +200,7 @@ func TestServers_NumServers(t *testing.T) {
 
 func TestServers_RebalanceServers(t *testing.T) {
 	const failPct = 0.5
-	m := testManagerFailProb(failPct)
+	m := testManagerFailProb(t, failPct)
 	const maxServers = 100
 	const numShuffleTests = 100
 	const uniquePassRate = 0.5

@@ -65,15 +65,23 @@
               <td data-test-ports>
                 <ul>
                   {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
-                    <li>
+                    <li data-test-port>
                       <strong>{{port.Label}}:</strong>
-                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                      {{#if row.model.allocation.node.address}}
+                        <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                      {{else}}
+                        ...
+                      {{/if}}
                     </li>
                   {{/each}}
                   {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
                     <li>
                       <strong>{{port.Label}}:</strong>
-                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                      {{#if row.model.allocation.node.address}}
+                        <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
+                      {{else}}
+                        ...
+                      {{/if}}
                     </li>
                   {{/each}}
                 </ul>
