@@ -112,6 +112,7 @@ func (r *AllocRunner) watchHealth(ctx context.Context) {
 
 	r.allocLock.Lock()
 	r.allocHealth = helper.BoolToPtr(allocHealthy)
+	r.allocHealthTime = time.Now()
 	r.allocLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why
