@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
+import { click, findAll, currentURL, find, visit, waitFor } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
@@ -137,5 +137,51 @@ test('when the allocation is not found, an error message is shown, but the URL p
       'Not Found',
       'Error message is for 404'
     );
+  });
+});
+
+moduleForAcceptance('Acceptance | allocation detail (loading states)', {
+  beforeEach() {
+    server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { groupCount: 0 });
+    allocation = server.create('allocation', 'withTaskWithPorts');
+  },
+});
+
+test('when the node the allocation is on has yet to load, address links are in a loading state', function(assert) {
+  server.get('/node/:id', { timing: true });
+
+  visit(`/allocations/${allocation.id}`);
+
+  waitFor('[data-test-port]').then(() => {
+    assert.ok(
+      find('[data-test-port]')
+        .textContent.trim()
+        .endsWith('...'),
+      'The address is in a loading state'
+    );
+    assert.notOk(
+      find('[data-test-port]').querySelector('a'),
+      'While in the loading state, there is no link to the address'
+    );
+
+    server.pretender.requestReferences.forEach(({ request }) => {
+      server.pretender.resolve(request);
+    });
+
+    andThen(() => {
+      const taskResources = allocation.taskResourcesIds
+        .map(id => server.db.taskResources.find(id))
+        .sortBy('name')[0];
+      const port = taskResources.resources.Networks[0].ReservedPorts[0];
+      const addressText = find('[data-test-port]').textContent.trim();
+
+      assert.ok(addressText.includes(port.Label), `Found label ${port.Label}`);
+      assert.ok(addressText.includes(port.Value), `Found value ${port.Value}`);
+      assert.ok(addressText.includes(node.httpAddr.match(/(.+):.+$/)[1]), 'Found the node address');
+      assert.ok(find('[data-test-port]').querySelector('a'), 'Link to address found');
+    });
   });
 });

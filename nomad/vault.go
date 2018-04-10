@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,9 +69,6 @@ const (
 )
 
 var (
-	// vaultUnrecoverableError matches unrecoverable errors
-	vaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
-
 	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
 	// token on the the path. The token must have at least one of the
 	// capabilities.
@@ -695,7 +691,7 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 	_, _, err := v.hasCapability(vaultCapabilitiesLookupPath, vaultCapabilitiesCapability)
 	if err != nil {
 		// Check if there is a permission denied
-		if vaultUnrecoverableError.MatchString(err.Error()) {
+		if structs.VaultUnrecoverableError.MatchString(err.Error()) {
 			// Since we can't read permissions, we just log a warning that we
 			// can't tell if the Vault token will work
 			msg := fmt.Sprintf("Can not lookup token capabilities. "+
@@ -894,7 +890,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 
 	// Determine whether it is unrecoverable
 	if err != nil {
-		if vaultUnrecoverableError.MatchString(err.Error()) {
+		if structs.VaultUnrecoverableError.MatchString(err.Error()) {
 			return secret, err
 		}
 
@@ -902,6 +898,21 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, structs.NewRecoverableError(err, true)
 	}
 
+	// Validate the response
+	var validationErr error
+	if secret == nil {
+		validationErr = fmt.Errorf("Vault returned nil Secret")
+	} else if secret.WrapInfo == nil {
+		validationErr = fmt.Errorf("Vault returned Secret with nil WrapInfo. Secret warnings: %v", secret.Warnings)
+	} else if secret.WrapInfo.WrappedAccessor == "" {
+		validationErr = fmt.Errorf("Vault returned WrapInfo without WrappedAccessor. Secret warnings: %v", secret.Warnings)
+	}
+	if validationErr != nil {
+		v.logger.Printf("[WARN] vault: failed to CreateToken: %v", err)
+		return nil, structs.NewRecoverableError(validationErr, true)
+	}
+
+	// Got a valid response
 	return secret, nil
 }
 

@@ -2692,7 +2692,7 @@ func TestAllocation_LastEventTime(t *testing.T) {
 			expectedLastEventTime: t1.Add(-40 * time.Minute),
 		},
 		{
-			desc: "No finishedAt set, one task event",
+			desc: "No finishedAt set, one task event, should use modify time",
 			taskState: map[string]*TaskState{"foo": {
 				State:     "run",
 				StartedAt: t1.Add(-2 * time.Hour),
@@ -2700,19 +2700,7 @@ func TestAllocation_LastEventTime(t *testing.T) {
 					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
 				}},
 			},
-			expectedLastEventTime: t1.Add(-20 * time.Minute),
-		},
-		{
-			desc: "No finishedAt set, many task events",
-			taskState: map[string]*TaskState{"foo": {
-				State:     "run",
-				StartedAt: t1.Add(-2 * time.Hour),
-				Events: []*TaskEvent{
-					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
-					{Type: "status change", Time: t1.Add(-10 * time.Minute).UnixNano()},
-				}},
-			},
-			expectedLastEventTime: t1.Add(-10 * time.Minute),
+			expectedLastEventTime: t1,
 		},
 	}
 	for _, tc := range testCases {
@@ -3649,34 +3637,6 @@ func TestNetworkResourcesEquals(t *testing.T) {
 		first := testCase.input[0]
 		second := testCase.input[1]
 		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
-	}
-}
-
-func TestBatchFuture(t *testing.T) {
-	t.Parallel()
-	bf := NewBatchFuture()
-
-	// Async respond to the future
-	expect := fmt.Errorf("testing")
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		bf.Respond(1000, expect)
-	}()
-
-	// Block for the result
-	start := time.Now()
-	err := bf.Wait()
-	diff := time.Since(start)
-	if diff < 5*time.Millisecond {
-		t.Fatalf("too fast")
-	}
-
-	// Check the results
-	if err != expect {
-		t.Fatalf("bad: %s", err)
-	}
-	if bf.Index() != 1000 {
-		t.Fatalf("bad: %d", bf.Index())
 	}
 }
 

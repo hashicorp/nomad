@@ -47,6 +47,10 @@ const (
 	// that are a result of failing to place all allocations.
 	blockedEvalFailedPlacements = "created to place remaining allocations"
 
+	// reschedulingFollowupEvalDesc is the description used when creating follow
+	// up evals for delayed rescheduling
+	reschedulingFollowupEvalDesc = "created for delayed rescheduling"
+
 	// maxPastRescheduleEvents is the maximum number of past reschedule event
 	// that we track when unlimited rescheduling is enabled
 	maxPastRescheduleEvents = 5
@@ -330,7 +334,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	reconciler := NewAllocReconciler(s.ctx.Logger(),
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
-		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted)
+		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID)
 	results := reconciler.Compute()
 	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, results)
 
@@ -416,7 +420,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	}
 
 	var deploymentID string
-	if s.deployment != nil {
+	if s.deployment != nil && s.deployment.Active() {
 		deploymentID = s.deployment.ID
 	}
 

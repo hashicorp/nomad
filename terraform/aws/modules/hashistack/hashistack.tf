@@ -1,3 +1,4 @@
+variable "name" {}
 variable "region" {}
 variable "ami" {}
 variable "instance_type" {}
@@ -11,8 +12,8 @@ data "aws_vpc" "default" {
   default = true
 }
 
-resource "aws_security_group" "hashistack" {
-  name   = "hashistack"
+resource "aws_security_group" "primary" {
+  name   = "${var.name}"
   vpc_id = "${data.aws_vpc.default.id}"
 
   ingress {
@@ -102,12 +103,12 @@ resource "aws_instance" "server" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
-  vpc_security_group_ids = ["${aws_security_group.hashistack.id}"]
+  vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.server_count}"
 
   #Instance tags
   tags {
-    Name           = "hashistack-server-${count.index}"
+    Name           = "${var.name}-server-${count.index}"
     ConsulAutoJoin = "auto-join"
   }
 
@@ -119,13 +120,13 @@ resource "aws_instance" "client" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
-  vpc_security_group_ids = ["${aws_security_group.hashistack.id}"]
+  vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.client_count}"
   depends_on             = ["aws_instance.server"]
 
   #Instance tags
   tags {
-    Name           = "hashistack-client-${count.index}"
+    Name           = "${var.name}-client-${count.index}"
     ConsulAutoJoin = "auto-join"
   }
 
@@ -141,12 +142,12 @@ resource "aws_instance" "client" {
 }
 
 resource "aws_iam_instance_profile" "instance_profile" {
-  name_prefix = "hashistack"
+  name_prefix = "${var.name}"
   role        = "${aws_iam_role.instance_role.name}"
 }
 
 resource "aws_iam_role" "instance_role" {
-  name_prefix        = "hashistack"
+  name_prefix        = "${var.name}"
   assume_role_policy = "${data.aws_iam_policy_document.instance_role.json}"
 }
 

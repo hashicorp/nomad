@@ -26,6 +26,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/stretchr/testify/require"
 )
 
 type MockAllocStateUpdater struct {
@@ -107,6 +108,51 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+}
+
+// Test that FinisheAt is set when the alloc is in a terminal state
+func TestAllocRunner_FinishedAtSet(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	_, ar := testAllocRunner(t, false)
+	ar.allocClientStatus = structs.AllocClientStatusFailed
+	alloc := ar.Alloc()
+	taskFinishedAt := make(map[string]time.Time)
+	require.NotEmpty(alloc.TaskStates)
+	for name, s := range alloc.TaskStates {
+		require.False(s.FinishedAt.IsZero())
+		taskFinishedAt[name] = s.FinishedAt
+	}
+
+	// Verify that calling again should not mutate finishedAt
+	alloc2 := ar.Alloc()
+	for name, s := range alloc2.TaskStates {
+		require.Equal(taskFinishedAt[name], s.FinishedAt)
+	}
+
+}
+
+// Test that FinisheAt is set when the alloc is in a terminal state
+func TestAllocRunner_FinishedAtSet_TaskEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	_, ar := testAllocRunner(t, false)
+	ar.taskStates[ar.alloc.Job.TaskGroups[0].Tasks[0].Name] = &structs.TaskState{State: structs.TaskStateDead, Failed: true}
+
+	alloc := ar.Alloc()
+	taskFinishedAt := make(map[string]time.Time)
+	require.NotEmpty(alloc.TaskStates)
+	for name, s := range alloc.TaskStates {
+		require.False(s.FinishedAt.IsZero())
+		taskFinishedAt[name] = s.FinishedAt
+	}
+
+	// Verify that calling again should not mutate finishedAt
+	alloc2 := ar.Alloc()
+	for name, s := range alloc2.TaskStates {
+		require.Equal(taskFinishedAt[name], s.FinishedAt)
+	}
+
 }
 
 // Test that the watcher will mark the allocation as unhealthy.

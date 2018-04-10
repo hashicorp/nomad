@@ -89,6 +89,34 @@ func TestClient_RPC(t *testing.T) {
 	})
 }
 
+func TestClient_RPC_FireRetryWatchers(t *testing.T) {
+	t.Parallel()
+	s1, addr := testServer(t, nil)
+	defer s1.Shutdown()
+
+	c1 := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+	})
+	defer c1.Shutdown()
+
+	watcher := c1.rpcRetryWatcher()
+
+	// RPC should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		var out struct{}
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	select {
+	case <-watcher:
+	default:
+		t.Fatal("watcher should be fired")
+	}
+}
+
 func TestClient_RPC_Passthrough(t *testing.T) {
 	t.Parallel()
 	s1, _ := testServer(t, nil)

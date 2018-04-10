@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
+import removeRecord from '../utils/remove-record';
 
 export const namespace = 'v1';
 
@@ -38,16 +39,16 @@ export default RESTAdapter.extend({
   // all records related to the request in question.
   findHasMany(store, snapshot, link, relationship) {
     return this._super(...arguments).then(payload => {
-      const ownerType = snapshot.modelName;
       const relationshipType = relationship.type;
-      // Naively assume that the inverse relationship is named the same as the
-      // owner type. In the event it isn't, findHasMany should be overridden.
-      store
-        .peekAll(relationshipType)
-        .filter(record => record.get(`${ownerType}.id`) === snapshot.id)
-        .forEach(record => {
-          store.unloadRecord(record);
-        });
+      const inverse = snapshot.record.inverseFor(relationship.key);
+      if (inverse) {
+        store
+          .peekAll(relationshipType)
+          .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
+          .forEach(record => {
+            removeRecord(store, record);
+          });
+      }
       return payload;
     });
   },

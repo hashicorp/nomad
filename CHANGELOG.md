@@ -3,6 +3,12 @@
 __BACKWARDS INCOMPATIBILITIES:__
  * cli: node drain now blocks until the drain completes and all allocations on
    the draining node have stopped. Use -detach for the old behavior.
+ * client: Periods (`.`) are no longer replaced with underscores (`_`) in
+   environment variables as many applications rely on periods in environment
+   variable names. [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
+ * client/metrics: The key emitted for tracking a client's uptime has changed
+   from "uptime" to "client.uptime". Users monitoring this metric will have to
+   switch to the new key name [[GH-4128](https://github.com/hashicorp/nomad/issues/4128)]
  * discovery: Prevent absolute URLs in check paths. The documentation indicated
    that absolute URLs are not allowed, but it was not enforced. Absolute URLs
    in HTTP check paths will now fail to validate. [[GH-3685](https://github.com/hashicorp/nomad/issues/3685)]
@@ -10,10 +16,15 @@ __BACKWARDS INCOMPATIBILITIES:__
    [migrate stanza](https://www.nomadproject.io/docs/job-specification/migrate.html)
    allows jobs to specify how quickly task groups can be drained. A `-force`
    option can be used to emulate the old drain behavior.
- * jobspec: The default values for restart policy have changed. Restart policy mode defaults to "fail" and the
-   attempts/time interval values have been changed to enable faster server side rescheduling. See
-   [restart stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for more information.
- * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update stanza syntax. All job spec files should be using update stanza fields introduced in 0.7.0 [[GH-3979](https://github.com/hashicorp/nomad/pull/3979/files)]
+ * jobspec: The default values for restart policy have changed. Restart policy
+   mode defaults to "fail" and the attempts/time interval values have been
+   changed to enable faster server side rescheduling. See [restart
+   stanza](https://www.nomadproject.io/docs/job-specification/restart.html) for
+   more information.
+ * jobspec: Removed compatibility code that migrated pre Nomad 0.6.0 Update
+   stanza syntax. All job spec files should be using update stanza fields
+   introduced in 0.7.0
+   [[GH-3979](https://github.com/hashicorp/nomad/pull/3979/files)]
 
 IMPROVEMENTS:
  * core: Servers can now service client HTTP endpoints [[GH-3892](https://github.com/hashicorp/nomad/issues/3892)]
@@ -40,30 +51,31 @@ IMPROVEMENTS:
  * cli: Clearer task event descriptions in `nomad alloc-status` when there are server side failures authenticating to Vault [[GH-3968](https://github.com/hashicorp/nomad/issues/3968)]
  * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
  * client: Refactor client fingerprint methods to a request/response format
+ * client: Improved handling of failed RPCs and heartbeat retry logic [[GH-4106](https://github.com/hashicorp/nomad/issues/4106)]
    [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
- * discovery: Allow `check_restart` to be specified in the `service` stanza.
+ * discovery: Allow `check_restart` to be specified in the `service` stanza
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
- * discovery: Allow configuring names of Nomad client and server health checks.
+ * discovery: Allow configuring names of Nomad client and server health checks
    [[GH-4003](https://github.com/hashicorp/nomad/issues/4003)]
  * discovery: Only log if Consul does not support TLSSkipVerify instead of
-   dropping checks which relied on it. Consul has had this feature since 0.7.2. [[GH-3983](https://github.com/hashicorp/nomad/issues/3983)]
+   dropping checks which relied on it. Consul has had this feature since 0.7.2 [[GH-3983](https://github.com/hashicorp/nomad/issues/3983)]
  * driver/docker: Support hard CPU limits [[GH-3825](https://github.com/hashicorp/nomad/issues/3825)]
  * driver/docker: Support advertising IPv6 addresses [[GH-3790](https://github.com/hashicorp/nomad/issues/3790)]
  * driver/docker; Support overriding image entrypoint [[GH-3788](https://github.com/hashicorp/nomad/issues/3788)]
  * driver/docker: Support adding or dropping capabilities [[GH-3754](https://github.com/hashicorp/nomad/issues/3754)]
  * driver/docker: Support mounting root filesystem as read-only [[GH-3802](https://github.com/hashicorp/nomad/issues/3802)]
- * driver/docker: Retry on Portworx "volume is attached on another node" errors.
+ * driver/docker: Retry on Portworx "volume is attached on another node" errors
    [[GH-3993](https://github.com/hashicorp/nomad/issues/3993)]
  * driver/lxc: Add volumes config to LXC driver [[GH-3687](https://github.com/hashicorp/nomad/issues/3687)]
  * driver/rkt: Allow overriding group [[GH-3990](https://github.com/hashicorp/nomad/issues/3990)]
  * telemetry: Support DataDog tags [[GH-3839](https://github.com/hashicorp/nomad/issues/3839)]
- * ui: Specialized job detail pages for each job type (system, service, batch, periodic, parameterized, periodic instance, parameterized instance). [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
- * ui: Allocation stats requests are made through the server instead of directly through clients. [[GH-3908](https://github.com/hashicorp/nomad/issues/3908)]
- * ui: Allocation log requests fallback to using the server when the client can't be reached. [[GH-3908](https://github.com/hashicorp/nomad/issues/3908)]
- * ui: All views poll for changes using long-polling via blocking queries. [[GH-3936](https://github.com/hashicorp/nomad/issues/3936)]
- * ui: Dispatch payload on the parameterized instance job detail page. [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
- * ui: Periodic force launch button on the periodic job detail page. [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
- * ui: Allocation breadcrumbs now extend job breadcrumbs. [[GH-3829](https://github.com/hashicorp/nomad/issues/3974)]
+ * ui: Specialized job detail pages for each job type (system, service, batch, periodic, parameterized, periodic instance, parameterized instance) [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
+ * ui: Allocation stats requests are made through the server instead of directly through clients [[GH-3908](https://github.com/hashicorp/nomad/issues/3908)]
+ * ui: Allocation log requests fallback to using the server when the client can't be reached [[GH-3908](https://github.com/hashicorp/nomad/issues/3908)]
+ * ui: All views poll for changes using long-polling via blocking queries [[GH-3936](https://github.com/hashicorp/nomad/issues/3936)]
+ * ui: Dispatch payload on the parameterized instance job detail page [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
+ * ui: Periodic force launch button on the periodic job detail page [[GH-3829](https://github.com/hashicorp/nomad/issues/3829)]
+ * ui: Allocation breadcrumbs now extend job breadcrumbs [[GH-3829](https://github.com/hashicorp/nomad/issues/3974)]
  * vault: Allow Nomad to create orphaned tokens for allocations [[GH-3992](https://github.com/hashicorp/nomad/issues/3992)]
 
 BUG FIXES:
@@ -79,9 +91,11 @@ BUG FIXES:
  * client: Support IP detection of wireless interfaces on Windows [[GH-4011](https://github.com/hashicorp/nomad/issues/4011)]
  * client: Migrated ephemeral_disk's maintain directory permissions [[GH-3723](https://github.com/hashicorp/nomad/issues/3723)]
  * client: Always advertise driver IP when in driver address mode [[GH-3682](https://github.com/hashicorp/nomad/issues/3682)]
+ * client: Preserve permissions on directories when expanding tarred artifacts [[GH-4129](https://github.com/hashicorp/nomad/issues/4129)]
  * client: Improve auto-detection of network interface when interface name has a
    space in it on Windows [[GH-3855](https://github.com/hashicorp/nomad/issues/3855)]
  * client/vault: Recognize renewing non-renewable Vault lease as fatal [[GH-3727](https://github.com/hashicorp/nomad/issues/3727)]
+ * client/vault: Improved error handling of network errors with Vault [[GH-4100](https://github.com/hashicorp/nomad/issues/4100)]
  * config: Revert minimum CPU limit back to 20 from 100 [[GH-3706](https://github.com/hashicorp/nomad/issues/3706)]
  * config: Always add core scheduler to enabled schedulers and add invalid
    EnabledScheduler detection [[GH-3978](https://github.com/hashicorp/nomad/issues/3978)]

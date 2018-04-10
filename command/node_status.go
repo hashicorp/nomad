@@ -316,16 +316,24 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
 		if nodeStatsErr != nil {
 			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", nodeStatsErr))
+			c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
 		}
 		if hostStats != nil {
 			uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
 			basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 		}
-		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 		// Emit the driver info
-		c.outputNodeDriverInfo(node)
+		if !c.verbose {
+			driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
+			basic = append(basic, driverStatus)
+		}
+
+		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
+
+		if c.verbose {
+			c.outputNodeDriverInfo(node)
+		}
 
 		// Emit node events
 		c.outputNodeStatusEvents(node)
@@ -350,7 +358,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		hostResources, err := getHostResources(hostStats, node)
 		if err != nil {
 			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", err))
+			c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", err))
 		}
 		if err == nil {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
@@ -384,17 +392,26 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 }
 
+func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string {
+	drivers := make([]string, 0, len(node.Drivers))
+
+	for driverName, driverInfo := range node.Drivers {
+		if !driverInfo.Healthy {
+			drivers = append(drivers, fmt.Sprintf("%s (unhealthy)", driverName))
+		} else {
+			drivers = append(drivers, driverName)
+		}
+	}
+	return strings.Trim(strings.Join(drivers, ", "), ", ")
+}
+
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Drivers"))
 
 	size := len(node.Drivers)
 	nodeDrivers := make([]string, 0, size+1)
 
-	if c.verbose {
-		nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy|Message|Time")
-	} else {
-		nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy")
-	}
+	nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy|Message|Time")
 
 	drivers := make([]string, 0, len(node.Drivers))
 	for driver := range node.Drivers {
@@ -404,12 +421,8 @@ func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
 
 	for _, driver := range drivers {
 		info := node.Drivers[driver]
-		if c.verbose {
-			timestamp := formatTime(info.UpdateTime)
-			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
-		} else {
-			nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v", driver, info.Detected, info.Healthy))
-		}
+		timestamp := formatTime(info.UpdateTime)
+		nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
 	}
 	c.Ui.Output(formatList(nodeDrivers))
 }
@@ -455,7 +468,7 @@ func formatEventSubsystem(subsystem, driverName string) string {
 func formatEventDetails(details map[string]string) string {
 	output := make([]string, 0, len(details))
 	for k, v := range details {
-		output = append(output, fmt.Sprintf("%s: %s, ", k, v))
+		output = append(output, fmt.Sprintf("%s: %s ", k, v))
 	}
 	return strings.Join(output, ", ")
 }

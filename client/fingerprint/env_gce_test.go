@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -64,6 +65,14 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		}
 		if value[0] != "Google" {
 			t.Fatalf("Expected Metadata-Flavor Google, saw %s", value[0])
+		}
+
+		uavalue, ok := r.Header["User-Agent"]
+		if !ok {
+			t.Fatal("User-Agent not present in HTTP request header")
+		}
+		if !strings.Contains(uavalue[0], "Nomad/") {
+			t.Fatalf("Expected User-Agent to contain Nomad/, got %s", uavalue[0])
 		}
 
 		found := false

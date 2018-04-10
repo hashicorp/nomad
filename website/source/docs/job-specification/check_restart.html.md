@@ -14,11 +14,7 @@ description: |-
     <th width="120">Placement</th>
     <td>
       <code>job -> group -> task -> service -> **check_restart**</code>
-    </td>
-  </tr>
-  <tr>
-    <th width="120">Placement</th>
-    <td>
+      <br>
       <code>job -> group -> task -> service -> check -> **check_restart**</code>
     </td>
   </tr>
