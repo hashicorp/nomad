@@ -958,11 +958,9 @@ func TestLeader_Reelection(t *testing.T) {
 	}
 
 	// Shutdown the leader
-	s1.logger.Println("-------------------------------- LEADER SHUTDOWN --------------------------------------")
 	leader.Shutdown()
-
+	// Wait for new leader to elect
 	testutil.WaitForLeader(t, nonLeader.RPC)
-	s1.logger.Println("-------------------------------- GOT LEADER --------------------------------------")
 
 }
 
@@ -1040,26 +1038,6 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	defer s5.Shutdown()
 	TestJoin(t, s5, s4)
 	servers[0] = s5
-
-	// Make sure all the dead servers are removed and we're back to 3 total peers
-	for _, s := range servers {
-		retry.Run(t, func(r *retry.R) {
-			addrs := 0
-			ids := 0
-			future := s.raft.GetConfiguration()
-			if err := future.Error(); err != nil {
-				r.Fatal(err)
-			}
-			for _, server := range future.Configuration().Servers {
-				if string(server.ID) == string(server.Address) {
-					addrs++
-				} else {
-					ids++
-				}
-				fmt.Println("*** server ID before all are 3 ***", server.ID)
-			}
-		})
-	}
 
 	// Kill the last v2 server, now minRaftProtocol should be 3
 	s3.Shutdown()

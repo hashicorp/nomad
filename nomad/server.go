@@ -1080,8 +1080,6 @@ func (s *Server) setupRaft() error {
 		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
 	}
 
-	s.logger.Printf("ALEX: NOMAD.SETUP_RAFT: node ID %q", s.config.NodeID)
-
 	// Build an all in-memory setup for dev mode, otherwise prepare a full
 	// disk-based setup.
 	var log raft.LogStore

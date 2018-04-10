@@ -89,9 +89,7 @@ func (d *AutopilotDelegate) PromoteNonVoters(conf *autopilot.Config, health auto
 		return nil, fmt.Errorf("failed to get raft configuration: %v", err)
 	}
 
-	servers := autopilot.PromoteStableServers(conf, health, future.Configuration().Servers)
-	d.server.logger.Printf("ALEX: PROMOTENONVOTER: %+v %+v", conf, health)
-	return servers, nil
+	return autopilot.PromoteStableServers(conf, health, future.Configuration().Servers), nil
 }
 
 func (d *AutopilotDelegate) Raft() *raft.Raft {
