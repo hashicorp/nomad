@@ -27,10 +27,6 @@ const (
 	// maxParallelRequestsPerDerive  is the maximum number of parallel Vault
 	// create token requests that may be outstanding per derive request
 	maxParallelRequestsPerDerive = 16
-
-	// failedAllocsEvalStatusDesc is the description used for evaluations created
-	// when updating reschedulable allocs that have failed
-	failedAllocsEvalStatusDesc = "created to trigger rescheduling failed allocations"
 )
 
 // Node endpoint is used for client interactions
@@ -973,14 +969,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
 				if taskGroup != nil && existingAlloc.FollowupEvalID == "" && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
 					eval := &structs.Evaluation{
-						ID:                uuid.Generate(),
-						Namespace:         existingAlloc.Namespace,
-						TriggeredBy:       structs.EvalTriggerRetryFailedAlloc,
-						JobID:             existingAlloc.JobID,
-						Type:              job.Type,
-						Priority:          job.Priority,
-						Status:            structs.EvalStatusPending,
-						StatusDescription: failedAllocsEvalStatusDesc,
+						ID:          uuid.Generate(),
+						Namespace:   existingAlloc.Namespace,
+						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+						JobID:       existingAlloc.JobID,
+						Type:        job.Type,
+						Priority:    job.Priority,
+						Status:      structs.EvalStatusPending,
 					}
 					evals = append(evals, eval)
 				}

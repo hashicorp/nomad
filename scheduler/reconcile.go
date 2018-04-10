@@ -849,15 +849,16 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 
 	// Create a new eval for the first batch
 	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      a.job.Namespace,
-		Priority:       a.job.Priority,
-		Type:           a.job.Type,
-		TriggeredBy:    structs.EvalTriggerRetryFailedAlloc,
-		JobID:          a.job.ID,
-		JobModifyIndex: a.job.ModifyIndex,
-		Status:         structs.EvalStatusPending,
-		WaitUntil:      nextReschedTime,
+		ID:                uuid.Generate(),
+		Namespace:         a.job.Namespace,
+		Priority:          a.job.Priority,
+		Type:              a.job.Type,
+		TriggeredBy:       structs.EvalTriggerRetryFailedAlloc,
+		JobID:             a.job.ID,
+		JobModifyIndex:    a.job.ModifyIndex,
+		Status:            structs.EvalStatusPending,
+		StatusDescription: reschedulingFollowupEvalDesc,
+		WaitUntil:         nextReschedTime,
 	}
 	evals = append(evals, eval)
 

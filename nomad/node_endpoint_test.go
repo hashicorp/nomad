@@ -1954,7 +1954,13 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 
 func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		// Disabling scheduling in this test so that we can
+		// ensure that the state store doesn't accumulate more evals
+		// than what we expect the unit test to add
+		c.NumSchedulers = 0
+	})
+
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -2035,7 +2041,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	require.True(len(evaluations) != 0)
 	foundCount := 0
 	for _, resultEval := range evaluations {
-		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc && resultEval.WaitUntil.IsZero() && resultEval.StatusDescription == failedAllocsEvalStatusDesc {
+		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc && resultEval.WaitUntil.IsZero() {
 			foundCount++
 		}
 	}
