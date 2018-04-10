@@ -532,6 +532,7 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 	require := require.New(t)
 
 	config := DefaultConfig()
+	config.NodeID = uuid.Generate()
 	config.DevMode = true
 	config.LogOutput = testlog.NewWriter(t)
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"

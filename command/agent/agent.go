@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -15,9 +16,12 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/lib"
+	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -444,6 +448,14 @@ func (a *Agent) setupServer() error {
 		return fmt.Errorf("server config setup failed: %s", err)
 	}
 
+	a.logger.Printf("ALEX: data dir: %q", conf.DataDir)
+
+	// Generate a node ID and persist it if it is the first instance, otherwise
+	// read the persisted node ID.
+	if err := a.setupNodeID(conf); err != nil {
+		return fmt.Errorf("setting up server node ID failed: %s", err)
+	}
+
 	// Sets up the keyring for gossip encryption
 	if err := a.setupKeyrings(conf); err != nil {
 		return fmt.Errorf("failed to configure keyring: %v", err)
@@ -515,6 +527,59 @@ func (a *Agent) setupServer() error {
 		}
 	}
 
+	return nil
+}
+
+// setupNodeID will pull the persisted node ID, if any, or create a random one
+// and persist it.
+func (a *Agent) setupNodeID(config *nomad.Config) error {
+	// If they've configured a node ID manually then just use that, as
+	// long as it's valid.
+	if config.NodeID != "" {
+		config.NodeID = strings.ToLower(string(config.NodeID))
+		if _, err := uuidparse.ParseUUID(string(config.NodeID)); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// For dev mode we have no filesystem access so just make one.
+	if a.config.DevMode {
+		config.NodeID = uuid.Generate()
+		return nil
+	}
+
+	// Load saved state, if any. Since a user could edit this, we also
+	// validate it.
+	fileID := filepath.Join(config.DataDir, "node-id")
+	if _, err := os.Stat(fileID); err == nil {
+		rawID, err := ioutil.ReadFile(fileID)
+		if err != nil {
+			return err
+		}
+
+		nodeID := strings.TrimSpace(string(rawID))
+		nodeID = strings.ToLower(nodeID)
+		if _, err := uuidparse.ParseUUID(nodeID); err != nil {
+			return err
+		}
+
+		config.NodeID = nodeID
+	}
+
+	// If we still don't have a valid node ID, make one.
+	if config.NodeID == "" {
+		id := uuid.Generate()
+		if err := lib.EnsurePath(fileID, false); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {
+			return err
+		}
+
+		config.NodeID = id
+	}
 	return nil
 }
 

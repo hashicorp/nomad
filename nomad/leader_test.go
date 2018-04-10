@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -906,30 +907,48 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 func TestLeader_Reelection(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = 2
+		c.BootstrapExpect = 3
+		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s1.Shutdown()
 
 	s2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
-		c.RaftConfig.ProtocolVersion = 2
+		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s2.Shutdown()
 
 	s3 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
-		c.RaftConfig.ProtocolVersion = 2
+		c.RaftConfig.ProtocolVersion = 3
 	})
 
 	servers := []*Server{s1, s2, s3}
 
 	// Try to join
 	TestJoin(t, s1, s2, s3)
-
-	var leader, nonLeader *Server
-
 	testutil.WaitForLeader(t, s1.RPC)
 
+	testutil.WaitForResult(func() (bool, error) {
+		future := s1.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			return false, err
+		}
+
+		for _, server := range future.Configuration().Servers {
+			if server.Suffrage == raft.Nonvoter {
+				return false, fmt.Errorf("non-voter %v", server)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	var leader, nonLeader *Server
 	for _, s := range servers {
 		if s.IsLeader() {
 			leader = s
@@ -939,9 +958,11 @@ func TestLeader_Reelection(t *testing.T) {
 	}
 
 	// Shutdown the leader
+	s1.logger.Println("-------------------------------- LEADER SHUTDOWN --------------------------------------")
 	leader.Shutdown()
 
 	testutil.WaitForLeader(t, nonLeader.RPC)
+	s1.logger.Println("-------------------------------- GOT LEADER --------------------------------------")
 
 }
 

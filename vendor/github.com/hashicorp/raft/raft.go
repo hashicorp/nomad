@@ -193,13 +193,18 @@ func (r *Raft) runFollower() {
 			if r.configurations.latestIndex == 0 {
 				if !didWarn {
 					r.logger.Printf("[WARN] raft: no known peers, aborting election")
-					didWarn = true
+					//didWarn = true
 				}
 			} else if r.configurations.latestIndex == r.configurations.committedIndex &&
 				!hasVote(r.configurations.latest, r.localID) {
 				if !didWarn {
-					r.logger.Printf("[WARN] raft: not part of stable configuration, aborting election")
-					didWarn = true
+					r.logger.Printf("[WARN] raft: not part of stable configuration, aborting election: %v == %v && !%v", r.configurations.latestIndex, r.configurations.committedIndex, hasVote(r.configurations.latest, r.localID))
+
+					r.logger.Printf("ALEX: local ID: %v", r.localID)
+					for _, srv := range r.configurations.latest.Servers {
+						r.logger.Printf("ALEX: %+v", srv)
+					}
+					//didWarn = true
 				}
 			} else {
 				r.logger.Printf(`[WARN] raft: Heartbeat timeout from %q reached, starting election`, lastLeader)
@@ -494,6 +499,8 @@ func (r *Raft) leaderLoop() {
 	// only a single peer (ourself) and replicating to an undefined set
 	// of peers.
 	stepDown := false
+
+	r.logger.Printf("ALEX: local ID as LEADER: %v", r.localID)
 
 	lease := time.After(r.conf.LeaderLeaseTimeout)
 	for r.getState() == Leader {
