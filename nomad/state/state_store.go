@@ -2084,6 +2084,12 @@ func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[str
 		}
 	}
 
+	for _, eval := range evals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+			return err
+		}
+	}
+
 	// Update the indexes
 	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)

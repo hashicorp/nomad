@@ -22,11 +22,21 @@ const (
 	perJobEvalBatchPeriod = 1 * time.Second
 )
 
+var (
+	// allowRescheduleTransition is the transition that allows failed
+	// allocations part of a deployment to be rescheduled. We create a one off
+	// variable to avoid creating a new object for every request.
+	allowRescheduleTransition = &structs.DesiredTransition{
+		Reschedule: helper.BoolToPtr(true),
+	}
+)
+
 // deploymentTriggers are the set of functions required to trigger changes on
 // behalf of a deployment
 type deploymentTriggers interface {
-	// createEvaluation is used to create an evaluation.
-	createEvaluation(eval *structs.Evaluation) (uint64, error)
+	// createUpdate is used to create allocation desired transition updates and
+	// an evaluation.
+	createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error)
 
 	// upsertJob is used to roll back a job when autoreverting for a deployment
 	upsertJob(job *structs.Job) (uint64, error)
@@ -69,8 +79,12 @@ type deploymentWatcher struct {
 	j *structs.Job
 
 	// outstandingBatch marks whether an outstanding function exists to create
-	// the evaluation. Access should be done through the lock
+	// the evaluation. Access should be done through the lock.
 	outstandingBatch bool
+
+	// outstandingAllowReplacements is the map of allocations that will be
+	// marked as allowing a replacement. Access should be done through the lock.
+	outstandingAllowReplacements map[string]*structs.DesiredTransition
 
 	// latestEval is the latest eval for the job. It is updated by the watch
 	// loop and any time an evaluation is created. The field should be accessed
@@ -346,12 +360,12 @@ func (w *deploymentWatcher) StopWatch() {
 // deployment changes. Its function is to create evaluations to trigger the
 // scheduler when more progress can be made, to fail the deployment if it has
 // failed and potentially rolling back the job. Progress can be made when an
-// allocation transistions to healthy, so we create an eval.
+// allocation transitions to healthy, so we create an eval.
 func (w *deploymentWatcher) watch() {
 	// Get the deadline. This is likely a zero time to begin with but we need to
 	// handle the case that the deployment has already progressed and we are now
 	// just starting to watch it. This must likely would occur if there was a
-	// leader transistion and we are now starting our watcher.
+	// leader transition and we are now starting our watcher.
 	currentDeadline := getDeploymentProgressCutoff(w.getDeployment())
 	var deadlineTimer *time.Timer
 	if currentDeadline.IsZero() {
@@ -391,9 +405,10 @@ FAIL:
 			next := getDeploymentProgressCutoff(w.getDeployment())
 			if !next.Equal(currentDeadline) {
 				currentDeadline = next
-				if deadlineTimer.Reset(next.Sub(time.Now())) {
+				if !deadlineTimer.Stop() {
 					<-deadlineTimer.C
 				}
+				deadlineTimer.Reset(next.Sub(time.Now()))
 			}
 
 		case updates = <-w.getAllocsCh(allocIndex):
@@ -427,8 +442,8 @@ FAIL:
 			}
 
 			// Create an eval to push the deployment along
-			if res.createEval {
-				w.createEvalBatched(allocIndex)
+			if res.createEval || len(res.allowReplacements) != 0 {
+				w.createBatchedUpdate(res.allowReplacements, allocIndex)
 			}
 		}
 	}
@@ -470,9 +485,10 @@ FAIL:
 // allocUpdateResult is used to return the desired actions given the newest set
 // of allocations for the deployment.
 type allocUpdateResult struct {
-	createEval     bool
-	failDeployment bool
-	rollback       bool
+	createEval        bool
+	failDeployment    bool
+	rollback          bool
+	allowReplacements []string
 }
 
 // handleAllocUpdate is used to compute the set of actions to take based on the
@@ -502,13 +518,18 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
+		// Determine if the update stanza for this group is progress based
+		progressBased := dstate.ProgressDeadline != 0
+
 		// We need to create an eval so the job can progress.
 		if alloc.DeploymentStatus.IsHealthy() {
 			res.createEval = true
+		} else if progressBased && alloc.DeploymentStatus.IsUnhealthy() && deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+			res.allowReplacements = append(res.allowReplacements, alloc.ID)
 		}
 
-		// If the group is using a deadline, we don't have to do anything.
-		if dstate.ProgressDeadline != 0 {
+		// If the group is using a progress deadline, we don't have to do anything.
+		if progressBased {
 			continue
 		}
 
@@ -599,12 +620,21 @@ func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
 	return stable, nil
 }
 
-// createEvalBatched creates an eval but batches calls together
-func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
+// createBatchedUpdate creates an eval for the given index as well as updating
+// the given allocations to allow them to reschedule.
+func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forIndex uint64) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
-	if w.outstandingBatch || forIndex < w.latestEval {
+	// Store the allocations that can be replaced
+	for _, allocID := range allowReplacements {
+		if w.outstandingAllowReplacements == nil {
+			w.outstandingAllowReplacements = make(map[string]*structs.DesiredTransition, len(allowReplacements))
+		}
+		w.outstandingAllowReplacements[allocID] = allowRescheduleTransition
+	}
+
+	if w.outstandingBatch || (forIndex < w.latestEval && len(allowReplacements) == 0) {
 		return
 	}
 
@@ -619,17 +649,18 @@ func (w *deploymentWatcher) createEvalBatched(forIndex uint64) {
 		default:
 		}
 
+		w.l.Lock()
+		replacements := w.outstandingAllowReplacements
+		w.outstandingAllowReplacements = nil
+		w.outstandingBatch = false
+		w.l.Unlock()
+
 		// Create the eval
-		if index, err := w.createEvaluation(w.getEval()); err != nil {
+		if index, err := w.createUpdate(replacements, w.getEval()); err != nil {
 			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to create evaluation for deployment %q: %v", w.deploymentID, err)
 		} else {
 			w.setLatestEval(index)
 		}
-
-		w.l.Lock()
-		w.outstandingBatch = false
-		w.l.Unlock()
-
 	})
 }
 

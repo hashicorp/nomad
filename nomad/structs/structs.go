@@ -5535,6 +5535,13 @@ type DesiredTransition struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
 	Migrate *bool
+
+	// Reschedule is used to indicate that this allocation is eligible to be
+	// rescheduled. Most allocations are automatically eligible for
+	// rescheduling, so this field is only required when an allocation is not
+	// automatically eligible. An example is an allocation that is part of a
+	// deployment.
+	Reschedule *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -5543,11 +5550,21 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Migrate != nil {
 		d.Migrate = o.Migrate
 	}
+
+	if o.Reschedule != nil {
+		d.Reschedule = o.Reschedule
+	}
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.
 func (d *DesiredTransition) ShouldMigrate() bool {
 	return d.Migrate != nil && *d.Migrate
+}
+
+// ShouldReschedule returns whether the transition object dictates a
+// rescheduling.
+func (d *DesiredTransition) ShouldReschedule() bool {
+	return d.Reschedule != nil && *d.Reschedule
 }
 
 const (
@@ -5969,6 +5986,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		DesiredDescription: a.DesiredDescription,
 		ClientStatus:       a.ClientStatus,
 		ClientDescription:  a.ClientDescription,
+		DesiredTransition:  a.DesiredTransition,
 		TaskStates:         a.TaskStates,
 		DeploymentStatus:   a.DeploymentStatus,
 		FollowupEvalID:     a.FollowupEvalID,
@@ -5992,6 +6010,7 @@ type AllocListStub struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	DesiredTransition  DesiredTransition
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
 	FollowupEvalID     string

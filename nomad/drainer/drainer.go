@@ -254,7 +254,7 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	n.l.RUnlock()
 	n.batchDrainAllocs(forceStop)
 
-	// Submit the node transistions in a sharded form to ensure a reasonable
+	// Submit the node transitions in a sharded form to ensure a reasonable
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, nodes) {
 		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
@@ -324,7 +324,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 		}
 	}
 
-	// Submit the node transistions in a sharded form to ensure a reasonable
+	// Submit the node transitions in a sharded form to ensure a reasonable
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, done) {
 		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
@@ -374,9 +374,9 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, er
 func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs.Allocation) {
 	// Compute the effected jobs and make the transition map
 	jobs := make(map[string]*structs.Allocation, 4)
-	transistions := make(map[string]*structs.DesiredTransition, len(allocs))
+	transitions := make(map[string]*structs.DesiredTransition, len(allocs))
 	for _, alloc := range allocs {
-		transistions[alloc.ID] = &structs.DesiredTransition{
+		transitions[alloc.ID] = &structs.DesiredTransition{
 			Migrate: helper.BoolToPtr(true),
 		}
 		jobs[alloc.JobID] = alloc
@@ -397,7 +397,7 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 
 	// Commit this update via Raft
 	var finalIndex uint64
-	for _, u := range partitionAllocDrain(defaultMaxIdsPerTxn, transistions, evals) {
+	for _, u := range partitionAllocDrain(defaultMaxIdsPerTxn, transitions, evals) {
 		index, err := n.raft.AllocUpdateDesiredTransition(u.Transitions, u.Evals)
 		if err != nil {
 			future.Respond(0, err)

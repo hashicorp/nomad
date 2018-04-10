@@ -214,6 +214,10 @@ type DesiredTransition struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
 	Migrate *bool
+
+	// Reschedule is used to indicate that this allocation is eligible to be
+	// rescheduled.
+	Reschedule *bool
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.
