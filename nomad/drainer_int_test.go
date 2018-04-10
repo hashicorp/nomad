@@ -37,6 +37,7 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 
 		// For each alloc that doesn't have its deployment status set, set it
 		var updates []*structs.Allocation
+		now := time.Now()
 		for _, alloc := range allocs {
 			if alloc.Job.Type != structs.JobTypeService {
 				continue
@@ -47,7 +48,8 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 			}
 			newAlloc := alloc.Copy()
 			newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: helper.BoolToPtr(true),
+				Healthy:   helper.BoolToPtr(true),
+				Timestamp: now,
 			}
 			updates = append(updates, newAlloc)
 			logger.Printf("Marked deployment health for alloc %q", alloc.ID)
