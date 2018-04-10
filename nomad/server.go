@@ -893,7 +893,7 @@ func (s *Server) setupDeploymentWatcher() error {
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
 		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.CrossDeploymentEvalBatchDuration)
+		deploymentwatcher.CrossDeploymentUpdateBatchDuration)
 
 	return nil
 }
