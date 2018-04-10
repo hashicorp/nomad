@@ -49,7 +49,7 @@ func (d *deploymentWatcherRaftShim) UpdateDeploymentAllocHealth(req *structs.App
 	return d.convertApplyErrors(fsmErrIntf, index, raftErr)
 }
 
-func (d *deploymentWatcherRaftShim) UpdateAllocDesiredTransistion(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
+func (d *deploymentWatcherRaftShim) UpdateAllocDesiredTransition(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
 	fsmErrIntf, index, raftErr := d.apply(structs.AllocUpdateDesiredTransitionRequestType, req)
 	return d.convertApplyErrors(fsmErrIntf, index, raftErr)
 }

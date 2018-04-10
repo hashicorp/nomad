@@ -39,14 +39,14 @@ func (m *mockBackend) nextIndex() uint64 {
 	return i
 }
 
-func (m *mockBackend) UpdateAllocDesiredTransistion(u *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
+func (m *mockBackend) UpdateAllocDesiredTransition(u *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
 	m.Called(u)
 	i := m.nextIndex()
 	return i, m.state.UpdateAllocsDesiredTransitions(i, u.Allocs, u.Evals)
 }
 
-// matchUpdateAllocDesiredTransistions is used to match an upsert request
-func matchUpdateAllocDesiredTransistions(deploymentIDs []string) func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+// matchUpdateAllocDesiredTransitions is used to match an upsert request
+func matchUpdateAllocDesiredTransitions(deploymentIDs []string) func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
 	return func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
 		if len(update.Evals) != len(deploymentIDs) {
 			return false

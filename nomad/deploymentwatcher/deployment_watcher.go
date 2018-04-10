@@ -23,10 +23,10 @@ const (
 )
 
 var (
-	// allowRescheduleTransistion is the transistion that allows failed
+	// allowRescheduleTransition is the transition that allows failed
 	// allocations part of a deployment to be rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
-	allowRescheduleTransistion = &structs.DesiredTransition{
+	allowRescheduleTransition = &structs.DesiredTransition{
 		Reschedule: helper.BoolToPtr(true),
 	}
 )
@@ -34,7 +34,7 @@ var (
 // deploymentTriggers are the set of functions required to trigger changes on
 // behalf of a deployment
 type deploymentTriggers interface {
-	// createUpdate is used to create allocation desired transistion updates and
+	// createUpdate is used to create allocation desired transition updates and
 	// an evaluation.
 	createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error)
 
@@ -360,12 +360,12 @@ func (w *deploymentWatcher) StopWatch() {
 // deployment changes. Its function is to create evaluations to trigger the
 // scheduler when more progress can be made, to fail the deployment if it has
 // failed and potentially rolling back the job. Progress can be made when an
-// allocation transistions to healthy, so we create an eval.
+// allocation transitions to healthy, so we create an eval.
 func (w *deploymentWatcher) watch() {
 	// Get the deadline. This is likely a zero time to begin with but we need to
 	// handle the case that the deployment has already progressed and we are now
 	// just starting to watch it. This must likely would occur if there was a
-	// leader transistion and we are now starting our watcher.
+	// leader transition and we are now starting our watcher.
 	currentDeadline := getDeploymentProgressCutoff(w.getDeployment())
 	var deadlineTimer *time.Timer
 	if currentDeadline.IsZero() {
@@ -631,7 +631,7 @@ func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forI
 		if w.outstandingAllowReplacements == nil {
 			w.outstandingAllowReplacements = make(map[string]*structs.DesiredTransition, len(allowReplacements))
 		}
-		w.outstandingAllowReplacements[allocID] = allowRescheduleTransistion
+		w.outstandingAllowReplacements[allocID] = allowRescheduleTransition
 	}
 
 	if w.outstandingBatch || (forIndex < w.latestEval && len(allowReplacements) == 0) {

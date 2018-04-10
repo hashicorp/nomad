@@ -658,7 +658,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	})
 }
 
-// Test that transistions to force drain work.
+// Test that transitions to force drain work.
 func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
