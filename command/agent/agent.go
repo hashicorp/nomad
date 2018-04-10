@@ -540,7 +540,6 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 	// Load saved state, if any. Since a user could edit this, we also
 	// validate it. Saved state overwrites any configured node id
 	fileID := filepath.Join(config.DataDir, "node-id")
-	savedNodeID := false
 	if _, err := os.Stat(fileID); err == nil {
 		rawID, err := ioutil.ReadFile(fileID)
 		if err != nil {
@@ -553,12 +552,12 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 			return err
 		}
 		config.NodeID = nodeID
-		savedNodeID = true
+		return nil
 	}
 
 	// If they've configured a node ID manually then just use that, as
 	// long as it's valid.
-	if !savedNodeID && config.NodeID != "" {
+	if config.NodeID != "" {
 		config.NodeID = strings.ToLower(config.NodeID)
 		if _, err := uuidparse.ParseUUID(config.NodeID); err != nil {
 			return err
