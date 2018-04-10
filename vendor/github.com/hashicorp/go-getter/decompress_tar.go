@@ -101,10 +101,14 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 		}
 	}
 
-	// Adding a file or subdirectory changes the mtime of a directory
-	// We therefore wait until we've extracted everything and then set the mtime and atime attributes
+	// Perform a final pass over extracted directories to update metadata
 	for _, dirHdr := range dirHdrs {
 		path := filepath.Join(dst, dirHdr.Name)
+		// Chmod the directory since they might be created before we know the mode flags
+		if err := os.Chmod(path, dirHdr.FileInfo().Mode()); err != nil {
+			return err
+		}
+		// Set the mtime/atime attributes since they would have been changed during extraction
 		if err := os.Chtimes(path, dirHdr.AccessTime, dirHdr.ModTime); err != nil {
 			return err
 		}
