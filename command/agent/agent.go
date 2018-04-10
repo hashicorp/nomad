@@ -555,8 +555,8 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 	// If they've configured a node ID manually then just use that, as
 	// long as it's valid.
 	if !savedNodeID && config.NodeID != "" {
-		config.NodeID = strings.ToLower(string(config.NodeID))
-		if _, err := uuidparse.ParseUUID(string(config.NodeID)); err != nil {
+		config.NodeID = strings.ToLower(config.NodeID)
+		if _, err := uuidparse.ParseUUID(config.NodeID); err != nil {
 			return err
 		}
 		// Persist this configured nodeID to our data directory
