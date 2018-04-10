@@ -47,6 +47,10 @@ const (
 	// that are a result of failing to place all allocations.
 	blockedEvalFailedPlacements = "created to place remaining allocations"
 
+	// reschedulingFollowupEvalDesc is the description used when creating follow
+	// up evals for delayed rescheduling
+	reschedulingFollowupEvalDesc = "created for delayed rescheduling"
+
 	// maxPastRescheduleEvents is the maximum number of past reschedule event
 	// that we track when unlimited rescheduling is enabled
 	maxPastRescheduleEvents = 5
