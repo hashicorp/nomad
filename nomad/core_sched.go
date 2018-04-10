@@ -323,7 +323,16 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !allocGCEligible(alloc, job, time.Now(), thresholdIndex) {
+		var followupEval *structs.Evaluation
+		if alloc.FollowupEvalID != "" {
+			followupEval, err = c.snap.EvalByID(ws, alloc.FollowupEvalID)
+			if err != nil {
+				c.srv.logger.Printf("[ERR] sched.core: failed to lookup followup eval %s: %v",
+					eval.ID, err)
+				return false, nil, err
+			}
+		}
+		if !allocGCEligible(alloc, job, followupEval, thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -599,7 +608,7 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 
 // allocGCEligible returns if the allocation is eligible to be garbage collected
 // according to its terminal status and its reschedule trackers
-func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
+func allocGCEligible(a *structs.Allocation, job *structs.Job, followupEval *structs.Evaluation, thresholdIndex uint64) bool {
 	// Not in a terminal status and old enough
 	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
 		return false
@@ -615,24 +624,19 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 	if tg != nil {
 		reschedulePolicy = tg.ReschedulePolicy
 	}
-	// No reschedule policy or restarts are disabled
-	if reschedulePolicy == nil || reschedulePolicy.Attempts == 0 || reschedulePolicy.Interval == 0 {
+	// No reschedule policy or rescheduling is disabled
+	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
 		return true
 	}
 	// Restart tracking information has been carried forward
 	if a.NextAllocation != "" {
 		return true
 	}
-	// Eligible for restarts but none have been attempted yet
-	if a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0 {
-		return false
+
+	// If there's a follow up eval, use its status for determining GC eligibility
+	if followupEval != nil {
+		return followupEval.TerminalStatus()
 	}
 
-	// Most recent reschedule attempt is within time interval
-	interval := reschedulePolicy.Interval
-	lastIndex := len(a.RescheduleTracker.Events)
-	lastRescheduleEvent := a.RescheduleTracker.Events[lastIndex-1]
-	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
-
-	return timeDiff > interval.Nanoseconds()
+	return true
 }
