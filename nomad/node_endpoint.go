@@ -27,6 +27,10 @@ const (
 	// maxParallelRequestsPerDerive  is the maximum number of parallel Vault
 	// create token requests that may be outstanding per derive request
 	maxParallelRequestsPerDerive = 16
+
+	// failedAllocsEvalStatusDesc is the description used for evaluations created
+	// when updating reschedulable allocs that have failed
+	failedAllocsEvalStatusDesc = "created to trigger rescheduling failed allocations"
 )
 
 // Node endpoint is used for client interactions
@@ -969,22 +973,21 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
 				if taskGroup != nil && existingAlloc.FollowupEvalID == "" && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
 					eval := &structs.Evaluation{
-						ID:          uuid.Generate(),
-						Namespace:   existingAlloc.Namespace,
-						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-						JobID:       existingAlloc.JobID,
-						Type:        job.Type,
-						Priority:    job.Priority,
-						Status:      structs.EvalStatusPending,
+						ID:                uuid.Generate(),
+						Namespace:         existingAlloc.Namespace,
+						TriggeredBy:       structs.EvalTriggerRetryFailedAlloc,
+						JobID:             existingAlloc.JobID,
+						Type:              job.Type,
+						Priority:          job.Priority,
+						Status:            structs.EvalStatusPending,
+						StatusDescription: failedAllocsEvalStatusDesc,
 					}
 					evals = append(evals, eval)
 				}
 			}
 		}
 	}
-	if len(evals) > 0 {
-		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling failed allocations", len(evals))
-	}
+
 	// Add this to the batch
 	n.updatesLock.Lock()
 	n.updates = append(n.updates, args.Alloc...)
@@ -1026,7 +1029,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 // batchUpdate is used to update all the allocations
 func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Allocation, evals []*structs.Evaluation) {
 	// Group pending evals by jobID to prevent creating unnecessary evals
-	evalsByJobId := make(map[structs.NamespacedID]*structs.Evaluation)
+	evalsByJobId := make(map[structs.NamespacedID]struct{})
 	var trimmedEvals []*structs.Evaluation
 	for _, eval := range evals {
 		namespacedID := structs.NamespacedID{
@@ -1036,10 +1039,13 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		_, exists := evalsByJobId[namespacedID]
 		if !exists {
 			trimmedEvals = append(trimmedEvals, eval)
-			evalsByJobId[namespacedID] = eval
+			evalsByJobId[namespacedID] = struct{}{}
 		}
 	}
 
+	if len(trimmedEvals) > 0 {
+		n.srv.logger.Printf("[DEBUG] nomad.client: Adding %v evaluations for rescheduling failed allocations", len(trimmedEvals))
+	}
 	// Prepare the batch update
 	batch := &structs.AllocUpdateRequest{
 		Alloc:        updates,

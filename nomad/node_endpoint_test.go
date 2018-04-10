@@ -1976,6 +1976,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	state := s1.fsm.State()
 	// Inject mock job
 	job := mock.Job()
+	job.ID = "mytestjob"
 	err := state.UpsertJob(101, job)
 	require.Nil(err)
 
@@ -2034,7 +2035,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	require.True(len(evaluations) != 0)
 	foundCount := 0
 	for _, resultEval := range evaluations {
-		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc {
+		if resultEval.TriggeredBy == structs.EvalTriggerRetryFailedAlloc && resultEval.WaitUntil.IsZero() && resultEval.StatusDescription == failedAllocsEvalStatusDesc {
 			foundCount++
 		}
 	}
