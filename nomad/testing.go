@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-testing-interface"
@@ -39,7 +38,6 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
 func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
-	config.NodeID = uuid.Generate()
 	config.Build = "0.8.0+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)

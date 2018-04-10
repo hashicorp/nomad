@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
@@ -311,13 +312,12 @@ func DefaultConfig() *Config {
 		panic(err)
 	}
 
-	// TODO Add back random node ID and always persist in the agent startup
-	// TODO Remove places I added uuid.Generate()
 	c := &Config{
 		Region:                           DefaultRegion,
 		AuthoritativeRegion:              DefaultRegion,
 		Datacenter:                       DefaultDC,
 		NodeName:                         hostname,
+		NodeID:                           uuid.Generate(),
 		ProtocolVersion:                  ProtocolVersionMax,
 		RaftConfig:                       raft.DefaultConfig(),
 		RaftTimeout:                      10 * time.Second,

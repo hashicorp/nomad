@@ -533,26 +533,10 @@ func (a *Agent) setupServer() error {
 // setupNodeID will pull the persisted node ID, if any, or create a random one
 // and persist it.
 func (a *Agent) setupNodeID(config *nomad.Config) error {
-	// If they've configured a node ID manually then just use that, as
-	// long as it's valid.
-	if config.NodeID != "" {
-		config.NodeID = strings.ToLower(string(config.NodeID))
-		if _, err := uuidparse.ParseUUID(string(config.NodeID)); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	// For dev mode we have no filesystem access so just make one.
-	if a.config.DevMode {
-		config.NodeID = uuid.Generate()
-		return nil
-	}
-
 	// Load saved state, if any. Since a user could edit this, we also
-	// validate it.
+	// validate it. Saved state overwrites any configured node id
 	fileID := filepath.Join(config.DataDir, "node-id")
+	savedNodeID := false
 	if _, err := os.Stat(fileID); err == nil {
 		rawID, err := ioutil.ReadFile(fileID)
 		if err != nil {
@@ -564,8 +548,31 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 		if _, err := uuidparse.ParseUUID(nodeID); err != nil {
 			return err
 		}
-
 		config.NodeID = nodeID
+		savedNodeID = true
+	}
+
+	// If they've configured a node ID manually then just use that, as
+	// long as it's valid.
+	if !savedNodeID && config.NodeID != "" {
+		config.NodeID = strings.ToLower(string(config.NodeID))
+		if _, err := uuidparse.ParseUUID(string(config.NodeID)); err != nil {
+			return err
+		}
+		// Persist this configured nodeID to our data directory
+		if err := lib.EnsurePath(fileID, false); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// For dev mode we have no filesystem access so just make one.
+	if a.config.DevMode {
+		config.NodeID = uuid.Generate()
+		return nil
 	}
 
 	// If we still don't have a valid node ID, make one.
