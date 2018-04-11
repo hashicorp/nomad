@@ -469,16 +469,31 @@ tls {
 ```
 ## Migrating a cluster to TLS
 
-Nomad supports dynamically reloading it's TLS configuration. To reload Nomad's
-configuration, first update the configuration file and then send the Nomad
-agent a SIGHUP signal. Note that this will only reload a subset of the
-configuration file, including the TLS configuration.
+### Reloading TLS configuration via SIGHUP
+
+Nomad supports dynamically reloading both client and server TLS configuration.
+To reload an agent's TLS  configuration, first update the TLS block in the
+agent's configuration file and then send the Nomad agent a SIGHUP signal.
+Note that this will only reload a subset of the configuration file,
+including the TLS configuration.
 
 When reloading the configuration, if there is a change to the TLS
 configuration, the agent will reload all network connections and when
-establishing new connections, will use the new configuration. This process
-works for both upgrading and downgrading TLS (but we recommend upgrading).
+establishing new connections, will use the new configuration. The agent will
+also close any outstanding old connections. This process works for both
+upgrading and downgrading TLS (but we recommend upgrading).
 
+### RPC Upgrade Mode for Nomad Servers
+
+When migrating to TLS, the `rpc_upgrade_mode` option (default false) in the
+TLS configuration for a Nomad server can be set to true. This allows a server
+to accept both TLS and non-TLS connections, which is helpful to ensure that
+Nomad clients are not marked for failure by a server simply because the
+operator has not yet migrated that client to TLS. However, it is important to
+note that `rpc_upgrade_mode` should be used ad a temporary solution in the
+process of migration, and this option should be re-set to false (meaning that
+the server will strictly accept only TLS connections) once the entire cluster
+has been migrated.
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
