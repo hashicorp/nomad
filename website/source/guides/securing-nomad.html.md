@@ -480,23 +480,22 @@ including the TLS configuration.
 The agent reloads all its network connections when there are changes to its TLS
 configuration during a config reload via SIGHUP. Any new connections
 established will use the updated configuration, and any outstanding old
-connections will be closed. This process works both when upgrading to TLS, or
+connections will be closed. This process works when upgrading to TLS,
 downgrading from it, as well as rolling certificates. We recommend upgrading
 to TLS.
 
 ### RPC Upgrade Mode for Nomad Servers
 
 When migrating to TLS, the [ `rpc_upgrade_mode` ][rpc_upgrade_mode] option
-(defaults to `false`) in the
-TLS configuration for a Nomad server can be set to true. When set to true,
-servers will accept both TLS and non-TLS connections. By accepting non-TLS
-connections, operators can upgrade clients to TLS without the clients being
-marked as lost because the server is rejecting the client connection due to
-the connection not being over TLS. However, it is important to note that
-`rpc_upgrade_mode` should be used ad a temporary solution in the
-process of migration, and this option should be re-set to false (meaning that
-the server will strictly accept only TLS connections) once the entire cluster
-has been migrated.
+(defaults to `false`) in the TLS configuration for a Nomad server can be set
+to true. When set to true, servers will accept both TLS and non-TLS
+connections. By accepting non-TLS connections, operators can upgrade clients
+to TLS without the clients being marked as lost because the server is
+rejecting the client connection due to the connection not being over TLS.
+However, it is important to note that `rpc_upgrade_mode` should be used as a
+temporary solution in the process of migration, and this option should be
+re-set to false (meaning that the server will strictly accept only TLS
+connections) once the entire cluster has been migrated.
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
