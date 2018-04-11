@@ -485,7 +485,7 @@ upgrading and downgrading TLS (but we recommend upgrading).
 
 ### RPC Upgrade Mode for Nomad Servers
 
-When migrating to TLS, the `rpc_upgrade_mode` option (default false) in the
+When migrating to TLS, the [ `rpc_upgrade_mode` ][rpc_upgrade_mode] option (default false) in the
 TLS configuration for a Nomad server can be set to true. This allows a server
 to accept both TLS and non-TLS connections, which is helpful to ensure that
 Nomad clients are not marked for failure by a server simply because the
@@ -502,6 +502,7 @@ has been migrated.
 [guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
 [heartbeat_grace]: /docs/agent/configuration/server.html#heartbeat_grace
 [letsencrypt]: https://letsencrypt.org/
+[rpc_upgrade_mode]: https://www.nomadproject.io/docs/agent/configuration/tls.html#rpc_upgrade_mode/
 [tls]: https://en.wikipedia.org/wiki/Transport_Layer_Security
 [tls_block]: /docs/agent/configuration/tls.html
 [vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile
