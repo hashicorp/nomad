@@ -103,6 +103,9 @@ type ReschedulePolicy struct {
 }
 
 func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
+	if rp == nil {
+		return
+	}
 	if rp.Interval != nil {
 		r.Interval = rp.Interval
 	}
@@ -432,7 +435,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		}
 	}
 
-	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
+	if defaultReschedulePolicy != nil {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
 		g.ReschedulePolicy = defaultReschedulePolicy
 	}
