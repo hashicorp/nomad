@@ -217,6 +217,11 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Priority|%d", eval.Priority),
 		fmt.Sprintf("Placement Failures|%s", failureString))
 
+	if !eval.WaitUntil.IsZero() {
+		basic = append(basic,
+			fmt.Sprintf("Wait Until|%s", formatTime(eval.WaitUntil)))
+	}
+
 	if verbose {
 		// NextEval, PreviousEval, BlockedEval
 		basic = append(basic,
