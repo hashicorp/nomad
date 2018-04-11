@@ -367,6 +367,7 @@ func TestJob_IsPeriodicActive(t *testing.T) {
 func TestJob_SystemJob_Validate(t *testing.T) {
 	j := testJob()
 	j.Type = JobTypeSystem
+	j.TaskGroups[0].ReschedulePolicy = nil
 	j.Canonicalize()
 
 	err := j.Validate()
