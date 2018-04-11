@@ -1519,7 +1519,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	}
 }
 
-// This test ensures periodic jobs don't get GCd til they are stopped
+// This test ensures periodic jobs don't get GCd until they are stopped
 func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	t.Parallel()
 

@@ -410,7 +410,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	})
 	defer c1.Shutdown()
 
-	// Wait til the node is ready
+	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
 	job := mock.Job()
@@ -461,7 +461,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 	defer c1.Shutdown()
 
-	// Wait til the node is ready
+	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
 	// Create mock allocations
@@ -557,7 +557,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	})
 	defer c1.Shutdown()
 
-	// Wait til the node is ready
+	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
 	// Create mock allocations
