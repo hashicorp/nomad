@@ -3303,7 +3303,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	if j.Type == JobTypeSystem {
 		if tg.ReschedulePolicy != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have a reschedule policy but got %+v", tg.ReschedulePolicy))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have a reschedule policy"))
 		}
 	} else {
 		if tg.ReschedulePolicy != nil {
