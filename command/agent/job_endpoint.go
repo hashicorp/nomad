@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -542,6 +543,29 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	}
 	setIndex(resp, out.Index)
 	return out, nil
+}
+
+// JobsParseRequest parses a hcl jobspec and returns a api.Job
+func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := &api.JobsParseRequest{}
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if args.JobHCL == "" {
+		return nil, CodedError(400, "Job spec is empty")
+	}
+
+	jobfile := strings.NewReader(args.JobHCL)
+	jobStruct, err := jobspec.Parse(jobfile)
+	if err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	return jobStruct, nil
 }
 
 func ApiJobToStructJob(job *api.Job) *structs.Job {

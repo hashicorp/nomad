@@ -36,9 +36,22 @@ type Jobs struct {
 	client *Client
 }
 
+type JobsParseRequest struct {
+	JobHCL string
+}
+
 // Jobs returns a handle on the jobs endpoints.
 func (c *Client) Jobs() *Jobs {
 	return &Jobs{client: c}
+}
+
+// Parse is used to convert the HCL repesentation of a Job to JSON server side
+// To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
+func (j *Jobs) Parse(jobHCL string) (*Job, error) {
+	var job *Job
+	req := &JobsParseRequest{JobHCL: jobHCL}
+	_, err := j.client.write("/v1/jobs/parse", req, job, nil)
+	return job, err
 }
 
 func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *WriteMeta, error) {
