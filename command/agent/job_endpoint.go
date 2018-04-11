@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"time"
+
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -639,13 +641,35 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	}
 
 	if taskGroup.ReschedulePolicy != nil {
+		attempts := 0
+		if taskGroup.ReschedulePolicy.Attempts != nil {
+			attempts = *taskGroup.ReschedulePolicy.Attempts
+		}
+		var interval, delay, maxDelay time.Duration
+		if taskGroup.ReschedulePolicy.Interval != nil {
+			interval = *taskGroup.ReschedulePolicy.Interval
+		}
+		if taskGroup.ReschedulePolicy.Delay != nil {
+			delay = *taskGroup.ReschedulePolicy.Delay
+		}
+		if taskGroup.ReschedulePolicy.MaxDelay != nil {
+			maxDelay = *taskGroup.ReschedulePolicy.MaxDelay
+		}
+		delayFunction := ""
+		if taskGroup.ReschedulePolicy.DelayFunction != nil {
+			delayFunction = *taskGroup.ReschedulePolicy.DelayFunction
+		}
+		unlimited := false
+		if taskGroup.ReschedulePolicy.Unlimited != nil {
+			unlimited = *taskGroup.ReschedulePolicy.Unlimited
+		}
 		tg.ReschedulePolicy = &structs.ReschedulePolicy{
-			Attempts:      *taskGroup.ReschedulePolicy.Attempts,
-			Interval:      *taskGroup.ReschedulePolicy.Interval,
-			Delay:         *taskGroup.ReschedulePolicy.Delay,
-			DelayFunction: *taskGroup.ReschedulePolicy.DelayFunction,
-			MaxDelay:      *taskGroup.ReschedulePolicy.MaxDelay,
-			Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
+			Attempts:      attempts,
+			Interval:      interval,
+			Delay:         delay,
+			DelayFunction: delayFunction,
+			MaxDelay:      maxDelay,
+			Unlimited:     unlimited,
 		}
 	}
 

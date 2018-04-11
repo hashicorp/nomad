@@ -430,14 +430,12 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
 			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 		}
-	default:
-		defaultReschedulePolicy = nil
 	}
 
 	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
 		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
+		g.ReschedulePolicy = defaultReschedulePolicy
 	}
-	g.ReschedulePolicy = defaultReschedulePolicy
 
 	// Merge the migrate strategy from the job
 	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
