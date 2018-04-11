@@ -84,6 +84,24 @@ Because Nomad 0.8 uses a new RPC mechanism to route node-specific APIs like
 To access these commands on older clients either continue to use a pre-0.8
 version of the CLI, or upgrade all clients to 0.8.
 
+### CLI Command Changes
+
+Nomad 0.8 has changed the organization of CLI commands to be based on
+subcommands. An example of this change is the change from `nomad alloc-status`
+to `nomad alloc status`. All commands have been made to be backwards compatible,
+but operators should update any usage of the old style commands to the new style
+as the old style will be deprecated in future versions of Nomad.
+
+### RPC Advertise Address
+
+The behavior of the [advertised RPC
+address](/docs/agent/configuration/index.html#rpc-1) has changed to be only used
+to advertise the RPC address of servers to client nodes. Server to server
+communication is done using the advertised Serf address. Existing cluster's
+should not be effected but the advertised RPC address may need to be updated to
+allow connecting client's over a NAT.
+
+
 ## Nomad 0.6.0
 
 ### Default `advertise` address changes
