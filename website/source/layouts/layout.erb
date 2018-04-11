@@ -42,12 +42,14 @@
     <![endif]-->
     <%= javascript_include_tag "application" %>
 
+    <% if config[:environment] == :build %>
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-NR2SD7C');</script>
+    <% end %>
 
     <!-- Typekit script to import Klavika font -->
     <script src="https://use.typekit.net/wxf7mfi.js"></script>
@@ -132,6 +134,7 @@
       </div>
     </div>
 
+    <% if config[:environment] == :build %>
     <script>
       // ga async load
       window['GoogleAnalyticsObject'] = 'ga';
@@ -148,6 +151,7 @@
       !function(b,d,c){if(b.getElementById(c))om597a23b9d91a8_poll(function(){if(window.om_loaded&&!om597a23b9d91a8)return om597a23b9d91a8=new OptinMonsterApp,om597a23b9d91a8.init({s:"35109.597a23b9d91a8",staging:0,dev:0,beta:0})},25);else{var e=!1,a=b.createElement(d);a.id=c;a.src="//a.optnmstr.com/app/js/api.min.js";a.async=!0;a.onload=a.onreadystatechange=function(){if(!(e||this.readyState&&"loaded"!==this.readyState&&"complete"!==this.readyState))try{e=om_loaded=!0,om597a23b9d91a8=new OptinMonsterApp,
       om597a23b9d91a8.init({s:"35109.597a23b9d91a8",staging:0,dev:0,beta:0}),a.onload=a.onreadystatechange=null}catch(f){}};(document.getElementsByTagName("head")[0]||document.documentElement).appendChild(a)}}(document,"script","omapi-script");
     </script>
+    <% end %>
 
     <script type="application/ld+json">
       {
