@@ -395,7 +395,7 @@ func (v *vaultClient) buildClient() error {
 }
 
 // establishConnection is used to make first contact with Vault. This should be
-// called in a go-routine since the connection is retried til the Vault Client
+// called in a go-routine since the connection is retried until the Vault Client
 // is stopped or the connection is successfully made at which point the renew
 // loop is started.
 func (v *vaultClient) establishConnection() {
@@ -1000,7 +1000,7 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 			return nil
 		}
 
-		v.logger.Printf("[WARN] vault: failed to revoke tokens. Will reattempt til TTL: %v", err)
+		v.logger.Printf("[WARN] vault: failed to revoke tokens. Will reattempt until TTL: %v", err)
 		v.storeForRevocation(accessors)
 		return nil
 	} else if !committed {

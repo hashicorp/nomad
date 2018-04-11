@@ -205,7 +205,7 @@ func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 
 // processEnqueue deduplicates evals and either enqueue immediately or enforce
 // the evals wait time. If the token is passed, and the evaluation ID is
-// outstanding, the evaluation is blocked til an Ack/Nack is received.
+// outstanding, the evaluation is blocked until an Ack/Nack is received.
 // processEnqueue must be called with the lock held.
 func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 	// Check if already enqueued
