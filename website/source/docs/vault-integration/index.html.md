@@ -115,7 +115,7 @@ available for download. Below is an example of writing this policy to Vault:
 $ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
 
 # Write the policy to Vault
-$ vault policy-write nomad-server nomad-server-policy.hcl
+$ vault policy write nomad-server nomad-server-policy.hcl
 ```
 
 #### Vault Token Role Configuration
@@ -230,7 +230,7 @@ $ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
 $ curl https://nomadproject.io/data/vault/nomad-cluster-role.json -O -s -L
 
 # Write the policy to Vault
-$ vault policy-write nomad-server nomad-server-policy.hcl
+$ vault policy write nomad-server nomad-server-policy.hcl
 
 # Create the token role with Vault
 $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
@@ -242,7 +242,7 @@ After the token role is created, a token suitable for the Nomad servers may be
 retrieved by issuing the following Vault command:
 
 ```
-$ vault token-create -policy nomad-server -period 72h -orphan
+$ vault token create -policy nomad-server -period 72h -orphan
 Key             Value
 ---             -----
 token           f02f01c2-c0d1-7cb7-6b88-8a14fada58c0
