@@ -477,20 +477,23 @@ agent's configuration file and then send the Nomad agent a SIGHUP signal.
 Note that this will only reload a subset of the configuration file,
 including the TLS configuration.
 
-When reloading the configuration, if there is a change to the TLS
-configuration, the agent will reload all network connections and when
-establishing new connections, will use the new configuration. The agent will
-also close any outstanding old connections. This process works for both
-upgrading and downgrading TLS (but we recommend upgrading).
+The agent reloads all its network connections when there are changes to its TLS
+configuration during a config reload via SIGHUP. Any new connections
+established will use the updated configuration, and any outstanding old
+connections will be closed. This process works both when upgrading to TLS, or
+downgrading from it, as well as rolling certificates. We recommend upgrading
+to TLS.
 
 ### RPC Upgrade Mode for Nomad Servers
 
-When migrating to TLS, the [ `rpc_upgrade_mode` ][rpc_upgrade_mode] option (default false) in the
-TLS configuration for a Nomad server can be set to true. This allows a server
-to accept both TLS and non-TLS connections, which is helpful to ensure that
-Nomad clients are not marked for failure by a server simply because the
-operator has not yet migrated that client to TLS. However, it is important to
-note that `rpc_upgrade_mode` should be used ad a temporary solution in the
+When migrating to TLS, the [ `rpc_upgrade_mode` ][rpc_upgrade_mode] option
+(defaults to `false`) in the
+TLS configuration for a Nomad server can be set to true. When set to true,
+servers will accept both TLS and non-TLS connections. By accepting non-TLS
+connections, operators can upgrade clients to TLS without the clients being
+marked as lost because the server is rejecting the client connection due to
+the connection not being over TLS. However, it is important to note that
+`rpc_upgrade_mode` should be used ad a temporary solution in the
 process of migration, and this option should be re-set to false (meaning that
 the server will strictly accept only TLS connections) once the entire cluster
 has been migrated.
