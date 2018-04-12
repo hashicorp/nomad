@@ -57,9 +57,20 @@ Node draining via the [`node drain`][drain-cli] command or the [drain
 API][drain-api] has been substantially changed in Nomad 0.8. In Nomad 0.7.1 and
 earlier draining a node would immediately stop all allocations on the node
 being drained. Nomad 0.8 now supports a [`migrate`][migrate] stanza in job
-specifications to control how many allocations may be migrated at once.
+specifications to control how many allocations may be migrated at once. For
+service jobs with a `count > 1` the default migrate stanza will be used:
 
-See the [Decommissioning Nodes guide](/guides/node-draining.html) for details.
+```hcl
+  migrate {
+    max_parallel     = 1
+    health_check     = "checks"
+    min_healthy_time = "10s"
+    healthy_deadline = "5m"
+  }
+```
+
+See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
+guide](/guides/node-draining.html) for details.
 
 ### Periods in Environment Variable Names No Longer Escaped
 
