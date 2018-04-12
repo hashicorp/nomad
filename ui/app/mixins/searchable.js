@@ -1,5 +1,7 @@
 import Mixin from '@ember/object/mixin';
 import { get, computed } from '@ember/object';
+import { reads } from '@ember/object/computed';
+import Fuse from 'npm:fuse.js';
 
 /**
   Searchable mixin
@@ -17,16 +19,64 @@ import { get, computed } from '@ember/object';
 export default Mixin.create({
   searchTerm: '',
   listToSearch: computed(() => []),
+
   searchProps: null,
+  exactMatchSearchProps: reads('searchProps'),
+  regexSearchProps: reads('searchProps'),
+  fuzzySearchProps: reads('searchprops'),
+
+  // Three search modes
+  exactMatchEnabled: true,
+  fuzzySearchEnabled: false,
+  regexEnabled: true,
+
+  fuse: computed('listToSearch.[]', 'fuzzySearchProps.[]', function() {
+    return new Fuse(this.get('listToSearch'), {
+      shouldSort: true,
+      threshold: 0.6,
+      location: 0,
+      distance: 100,
+      maxPatternLength: 32,
+      minMatchCharLength: 1,
+      keys: this.get('fuzzySearchProps') || [],
+      getFn(item, key) {
+        return get(item, key);
+      },
+    });
+  }),
 
   listSearched: computed('searchTerm', 'listToSearch.[]', 'searchProps.[]', function() {
     const searchTerm = this.get('searchTerm');
     if (searchTerm && searchTerm.length) {
-      return regexSearch(searchTerm, this.get('listToSearch'), this.get('searchProps'));
+      const results = [];
+      if (this.get('exactMatchEnabled')) {
+        results.push(
+          ...exactMatchSearch(
+            searchTerm,
+            this.get('listToSearch'),
+            this.get('exactMatchSearchProps')
+          )
+        );
+      }
+      if (this.get('fuzzySearchEnabled')) {
+        results.push(...this.get('fuse').search(searchTerm));
+      }
+      if (this.get('regexEnabled')) {
+        results.push(
+          ...regexSearch(searchTerm, this.get('listToSearch'), this.get('regexSearchProps'))
+        );
+      }
+      return results.uniq();
     }
     return this.get('listToSearch');
   }),
 });
+
+function exactMatchSearch(term, list, keys) {
+  if (term.length) {
+    return list.filter(item => keys.some(key => get(item, key) === term));
+  }
+}
 
 function regexSearch(term, list, keys) {
   if (term.length) {
@@ -38,5 +88,6 @@ function regexSearch(term, list, keys) {
     } catch (e) {
       // Swallow the error; most likely due to an eager search of an incomplete regex
     }
+    return [];
   }
 }
