@@ -101,11 +101,11 @@ Use the same actions in step #2 above to confirm cluster health.
 ### 5. Upgrade clients
 
 Following the successful upgrade of the servers you can now update your
-clients using a similar process as the servers.  If you wish to gracefully
-move tasks on a client use the `nomad node drain <node-id>` command to
-gracefully migrate jobs to another client in the cluster.  The `node drain`
-command prevents new tasks from being allocated to the client and begins
-migrating existing allocations to another client.
+clients using a similar process as the servers.  You may either upgrade clients
+in-place or start new nodes on the new version. See the [Decommissioning Nodes
+guide](/guides/node-draining.html) for instructions on how to migrate running
+allocations from the old nodes to the new nodes with the [`nomad node
+drain`](/docs/commands/node/drain.html) command.
 
 ## Done!
 
