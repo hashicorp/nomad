@@ -231,6 +231,75 @@ $ curl \
 }
 ```
 
+## Parse Job
+
+This endpoint will parse an hcl jobspec and produce the equivalent json encoded
+job.
+
+| Method | Path                      | Produces                   |
+| ------ | ------------------------- | -------------------------- |
+| `POST` | `/v1/jobs/parse`          | `application/json`         |
+
+### Parameters
+
+- `JobHCL` `(string: <required>)` - Specifies the HCL definition of the job
+  encoded in a JSON string.
+- `Canonicalize` `(bool: false)` - Flag to enable setting any unset fields to
+  their default values.
+
+## Sample Payload
+
+```json
+{
+    "JobHCL":"job \"example\" { type = \"service\" group \"cache\" {} }",
+    "Canonicalize": true
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    --request POST \
+    --data '{"Canonicalize": true, "JobHCL": "job \"my-job\" {}"}' \
+    https://localhost:4646/v1/jobs/parse
+```
+
+### Sample Response
+
+```json
+{
+    "AllAtOnce": false,
+    "Constraints": null,
+    "CreateIndex": 0,
+    "Datacenters": null,
+    "ID": "my-job",
+    "JobModifyIndex": 0,
+    "Meta": null,
+    "Migrate": null,
+    "ModifyIndex": 0,
+    "Name": "my-job",
+    "Namespace": "default",
+    "ParameterizedJob": null,
+    "ParentID": "",
+    "Payload": null,
+    "Periodic": null,
+    "Priority": 50,
+    "Region": "global",
+    "Reschedule": null,
+    "Stable": false,
+    "Status": "",
+    "StatusDescription": "",
+    "Stop": false,
+    "SubmitTime": null,
+    "TaskGroups": null,
+    "Type": "service",
+    "Update": null,
+    "VaultToken": "",
+    "Version": 0
+}
+```
+
 ## Read Job
 
 This endpoint reads information about a single job for its specification and
