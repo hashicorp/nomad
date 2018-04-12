@@ -275,36 +275,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 func TestHTTP_JobsParse(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
-		jobspec := `
-job "example" {
-	datacenters = ["dc1"]
-	type = "service"
-	group "cache" {
-		count = 1
-		ephemeral_disk {
-			size = 300
-		}
-		task "redis" {
-			driver = "docker"
-			config {
-				image = "redis:3.2"
-				port_map {
-					db = 6379
-				}
-			}
-			resources {
-				cpu = 500
-				memory = 256
-				network {
-					mbits = 10
-					port "db" {}
-				}
-			}
-		}
-	}
-}
-`
-		buf := encodeReq(api.JobsParseRequest{JobHCL: jobspec})
+		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
 		req, err := http.NewRequest("POST", "/v1/jobs/render", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -321,8 +292,15 @@ job "example" {
 		}
 
 		job := obj.(*api.Job)
-		if job.Name == nil || *job.Name != "example" {
-			t.Fatalf("job name is '%s', expected 'example'", *job.Name)
+		expected := mock.Job()
+		if job.Name == nil || *job.Name != expected.Name {
+			t.Fatalf("job name is '%s', expected '%s'", *job.Name, expected.Name)
+		}
+
+		if job.Datacenters == nil ||
+			*job.Datacenters[0] != expected.Datacenters[0] {
+			t.Fatalf("job datacenters is '%s', expected '%s'",
+				*job.Datacenters[0], expected.Datacenters[0])
 		}
 	})
 }
