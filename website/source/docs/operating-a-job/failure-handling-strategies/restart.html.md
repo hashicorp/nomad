@@ -12,7 +12,7 @@ description: |-
 
 To enable restarting a failed task on the node it is running on, the task group can be annotated
 with configurable options using the [`restart` stanza][restart]. Nomad will restart the failed task
-upto `attempts` times within a provided `interval`. Operators can also choose whether to
+up to `attempts` times within a provided `interval`. Operators can also choose whether to
 keep attempting restarts on the same node, or to fail the task so that it can be rescheduled
 on another node, via the `mode` parameter.
 

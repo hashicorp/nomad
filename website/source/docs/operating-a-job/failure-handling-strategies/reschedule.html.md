@@ -14,7 +14,7 @@ Tasks can sometimes fail due to network, CPU or memory issues on the node runnin
 Nomad can reschedule the task on another node. The [`reschedule` stanza][reschedule] can be used to configure how
 Nomad should try placing failed tasks on another node in the cluster. Reschedule attempts have a delay between
 each attempt, and the delay can be configured to increase between each rescheduling attempt according to a configurable
-`delay-function`. See the [documentation][reschedule] for more information on all the options for rescheduling.
+`delay_function`. See the [`reschedule` stanza][reschedule] for more information.
 
 Service jobs are configured by default to have unlimited reschedule attempts. We recommend using the reschedule
 stanza to ensure that failed tasks are automatically reattempted on another node without needing operator intervention.
