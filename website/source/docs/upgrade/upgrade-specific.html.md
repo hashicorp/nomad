@@ -51,6 +51,22 @@ Raft Protocol versions supported by each Consul version:
 In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
+### Node Draining Improvements
+
+Node draining via the [`node drain`][drain-cli] command or the [drain
+API][drain-api] has been substantially changed in Nomad 0.8. In Nomad 0.7.1 and
+earlier draining a node would immediately stop all allocations on the node
+being drained. Nomad 0.8 now supports a [`migrate`][migrate] stanza in job
+specifications to control how many allocations may be migrated at once and the
+default will be used for existing jobs.
+
+The `drain` command now blocks until the drain completes. To get the Nomad
+0.7.1 and earlier drain behavior use the command: `nomad node drain -enable
+-force -detach <node-id>`
+
+See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
+guide](/guides/node-draining.html) for details.
+
 ### Periods in Environment Variable Names No Longer Escaped
 
 *Applications which expect periods in environment variable names to be replaced
@@ -210,3 +226,7 @@ draining the node so no tasks are running on it. This can be verified by running
 `nomad node status <node-id>` and verify there are no tasks in the `running`
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
+
+[drain-api]: /api/nodes.html#drain-node
+[drain-cli]: /docs/commands/node/drain.html
+[migrate]: /docs/job-specification/migrate.html
