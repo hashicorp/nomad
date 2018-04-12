@@ -13,10 +13,9 @@ operator-friendly management of Nomad servers. It includes cleanup of dead
 servers, monitoring the state of the Raft cluster, and stable server introduction.
 
 To enable Autopilot features (with the exception of dead server cleanup),
-the [`raft_protocol`](/docs/agent/configuration/server.html#raft_protocol) setting in
-the Agent configuration must be set to 3 or higher on all servers. In Nomad
-0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3. For more
-information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
+the `raft_protocol` setting in the [server stanza](/docs/agent/configuration/server.html.md)
+must be set to 3 on all servers. In Nomad 0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3.
+For more information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html.md#raft-protocol-version-compatibility)
 on Raft Protocol versions.
 
 ## Configuration
@@ -148,13 +147,14 @@ setting.
 ~> The following Autopilot features are available only in
    [Nomad Enterprise](https://www.hashicorp.com/products/nomad/) version 0.8.0 and later.
 
-## Server Read Scaling
+## Server Read and Scheduling Scaling
 
 With the [`non_voting_server`](/docs/agent/configuration/server.html#non_voting_server) option, a
 server can be explicitly marked as a non-voter and will never be promoted to a voting
 member. This can be useful when more read scaling is needed; being a non-voter means
 that the server will still have data replicated to it, but it will not be part of the
-quorum that the leader must wait for before committing log entries.
+quorum that the leader must wait for before committing log entries. Non voting servers can also
+act as scheduling workers to increase scheduling throughput in large clusters.
 
 ## Redundancy Zones
 
