@@ -1053,6 +1053,16 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 				}
 			}
 		}
+
+		// COMPAT Remove in Nomad 0.10
+		// We maintain the driver enabled attribute until all drivers expose
+		// their attributes as DriverInfo
+		driverName := fmt.Sprintf("driver.%s", name)
+		if fingerprint.Detected {
+			c.config.Node.Attributes[driverName] = "1"
+		} else {
+			delete(c.config.Node.Attributes, driverName)
+		}
 	}
 
 	if health != nil {

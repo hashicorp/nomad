@@ -345,10 +345,6 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		return false, err
 	}
 
-	if node := fm.updateNodeAttributes(&response); node != nil {
-		fm.setNode(node)
-	}
-
 	// Remove the health check attribute indicating the status of the driver,
 	// as the overall driver info object should indicate this.
 	delete(response.Attributes, fmt.Sprintf("driver.%s", name))
