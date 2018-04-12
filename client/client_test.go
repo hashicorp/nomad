@@ -20,7 +20,6 @@ import (
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
@@ -139,18 +138,22 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 
 func TestClient_Fingerprint(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
-
-	driver.CheckForMockDriver(t)
-
 	c := TestClient(t, nil)
 	defer c.Shutdown()
 
-	// Ensure default values are present
-	node := c.Node()
-	require.NotEqual("", node.Attributes["kernel.name"])
-	require.NotEqual("", node.Attributes["cpu.arch"])
-	require.NotEqual("", node.Attributes["driver.mock_driver"])
+	// Ensure we are fingerprinting
+	testutil.WaitForResult(func() (bool, error) {
+		node := c.Node()
+		if _, ok := node.Attributes["kernel.name"]; !ok {
+			return false, fmt.Errorf("Expected value for kernel.name")
+		}
+		if _, ok := node.Attributes["cpu.arch"]; !ok {
+			return false, fmt.Errorf("Expected value for cpu.arch")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestClient_Fingerprint_Periodic(t *testing.T) {
@@ -162,24 +165,25 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	c1 := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			driver.ShutdownPeriodicAfter:    "true",
-			driver.ShutdownPeriodicDuration: "3",
+			driver.ShutdownPeriodicDuration: "1",
 		}
 	})
 	defer c1.Shutdown()
 
 	node := c1.config.Node
-	mockDriverName := "driver.mock_driver"
-
 	{
 		// Ensure the mock driver is registered on the client
 		testutil.WaitForResult(func() (bool, error) {
 			c1.configLock.Lock()
 			defer c1.configLock.Unlock()
-			mockDriverStatus := node.Attributes[mockDriverName]
-			mockDriverInfo := node.Drivers["mock_driver"]
-			if mockDriverStatus == "" {
-				return false, fmt.Errorf("mock driver attribute should be set on the client")
+
+			// assert that the driver is set on the node attributes
+			mockDriverInfoAttr := node.Attributes["driver.mock_driver"]
+			if mockDriverInfoAttr == "" {
+				return false, fmt.Errorf("mock driver is empty when it should be set on the node attributes")
 			}
+
+			mockDriverInfo := node.Drivers["mock_driver"]
 
 			// assert that the Driver information for the node is also set correctly
 			if mockDriverInfo == nil {
@@ -204,11 +208,7 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 		testutil.WaitForResult(func() (bool, error) {
 			c1.configLock.Lock()
 			defer c1.configLock.Unlock()
-			mockDriverStatus := node.Attributes[mockDriverName]
 			mockDriverInfo := node.Drivers["mock_driver"]
-			if mockDriverStatus != "" {
-				return false, fmt.Errorf("mock driver attribute should not be set on the client")
-			}
 			// assert that the Driver information for the node is also set correctly
 			if mockDriverInfo == nil {
 				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")

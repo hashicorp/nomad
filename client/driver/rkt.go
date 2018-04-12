@@ -370,7 +370,7 @@ func (d *RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 	}
 
 	// Output version information when the fingerprinter first sees rkt
-	if req.Node.Attributes[rktDriverAttr] != "1" {
+	if info, ok := req.Node.Drivers["rkt"]; ok && info != nil && !info.Detected {
 		d.logger.Printf("[DEBUG] driver.rkt: detect version: %s", strings.Replace(out, "\n", " ", -1))
 	}
 	resp.AddAttribute(rktDriverAttr, "1")

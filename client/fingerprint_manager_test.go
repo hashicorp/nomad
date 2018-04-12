@@ -16,19 +16,10 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 	driver.CheckForMockDriver(t)
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
-	})
+	testClient := TestClient(t, nil)
 
 	testClient.logger = log.New(os.Stderr, "", log.LstdFlags)
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -44,26 +35,19 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.NotEqual("", node.Attributes["driver.mock_driver"])
+	require.NotNil(node.Drivers["mock_driver"])
+	require.True(node.Drivers["mock_driver"].Detected)
+	require.True(node.Drivers["mock_driver"].Healthy)
 }
 
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
-	driver.CheckForMockDriver(t)
 	t.Parallel()
+	driver.CheckForMockDriver(t)
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
-	})
+	testClient := TestClient(t, nil)
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -87,19 +71,10 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
-	})
+	testClient := TestClient(t, nil)
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -115,7 +90,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.NotEqual("", node.Attributes["driver.raw_exec"])
+	require.NotNil(node.Drivers["raw_exec"])
 	require.True(node.Drivers["raw_exec"].Detected)
 	require.True(node.Drivers["raw_exec"].Healthy)
 }
@@ -123,16 +98,9 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
+	driver.CheckForMockDriver(t)
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
-			"driver.raw_exec.enable":          "1",
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
@@ -140,7 +108,6 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -158,13 +125,13 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		// Ensure the mock driver is registered and healthy on the client
 		testutil.WaitForResult(func() (bool, error) {
 			fm.nodeLock.Lock()
-			node := fm.node
 			defer fm.nodeLock.Unlock()
-
-			mockDriverStatus := node.Attributes["driver.mock_driver"]
-			if mockDriverStatus == "" {
-				return false, fmt.Errorf("mock driver attribute should be set on the client")
+			node := fm.node
+			dinfo, ok := node.Drivers["mock_driver"]
+			if !ok || !dinfo.Detected || !dinfo.Healthy {
+				return false, fmt.Errorf("mock driver should be detected and healthy: %+v", dinfo)
 			}
+
 			return true, nil
 		}, func(err error) {
 			t.Fatalf("err: %v", err)
@@ -175,12 +142,11 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	{
 		testutil.WaitForResult(func() (bool, error) {
 			fm.nodeLock.Lock()
-			node := fm.node
 			defer fm.nodeLock.Unlock()
-
-			mockDriverStatus := node.Attributes["driver.mock_driver"]
-			if mockDriverStatus != "" {
-				return false, fmt.Errorf("mock driver attribute should not be set on the client")
+			node := fm.node
+			dinfo, ok := node.Drivers["mock_driver"]
+			if !ok || dinfo.Detected || dinfo.Healthy {
+				return false, fmt.Errorf("mock driver should not be detected and healthy")
 			}
 			return true, nil
 		}, func(err error) {
@@ -194,14 +160,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"driver.raw_exec.enable":          "1",
 			"test.shutdown_periodic_after":    "true",
@@ -211,7 +170,6 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -269,7 +227,7 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Ensure the mock driver is de-registered when it becomes unhealthy
+	// Ensure the mock driver is registered
 	testutil.WaitForResult(func() (bool, error) {
 		fm.nodeLock.Lock()
 		node := fm.node
@@ -277,7 +235,7 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 
 		mockDriverAttribute := node.Attributes["driver.mock_driver"]
 		if mockDriverAttribute == "" {
-			return false, fmt.Errorf("mock driver info should be set on the client attributes")
+			return false, fmt.Errorf("mock driver info should set on the client attributes")
 		}
 		mockDriverInfo := node.Drivers["mock_driver"]
 		if mockDriverInfo == nil {
@@ -297,22 +255,14 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 	node := fm.node
 	fm.nodeLock.Unlock()
 	mockDriverAttributes := node.Drivers["mock_driver"].Attributes
-	require.Equal(mockDriverAttributes["driver.mock_driver"], "")
+	require.NotContains(mockDriverAttributes, "driver.mock_driver")
 }
 
 func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
-			"driver.raw_exec.enable":          "1",
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
@@ -320,7 +270,6 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -408,15 +357,8 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
-			"driver.raw_exec.enable":          "1",
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
@@ -424,7 +366,6 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -446,14 +387,7 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"fingerprint.whitelist": "  arch,memory,foo,bar	",
 			"fingerprint.blacklist": "  cpu	",
@@ -462,7 +396,6 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -478,7 +411,7 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.Equal(node.Attributes["cpu.frequency"], "")
+	require.NotContains(node.Attributes, "cpu.frequency")
 	require.NotEqual(node.Attributes["memory.totalbytes"], "")
 }
 
@@ -486,13 +419,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"fingerprint.whitelist": "  arch,cpu,memory,foo,bar	",
 			"fingerprint.blacklist": "  memory,nomad	",
@@ -501,7 +428,6 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -519,21 +445,14 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 
 	require.NotEqual(node.Attributes["cpu.frequency"], "")
 	require.NotEqual(node.Attributes["cpu.arch"], "")
-	require.Equal(node.Attributes["memory.totalbytes"], "")
-	require.Equal(node.Attributes["nomad.version"], "")
+	require.NotContains(node.Attributes, "memory.totalbytes")
+	require.NotContains(node.Attributes, "nomad.version")
 }
 
 func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   raw_exec ,  foo	",
@@ -542,7 +461,6 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -557,20 +475,15 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 	require.Nil(err)
 
 	node := testClient.config.Node
-	require.NotEqual(node.Attributes["driver.raw_exec"], "")
+	require.NotNil(node.Drivers["raw_exec"])
+	require.NotContains(node.Drivers, "java")
 }
 
 func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"driver.whitelist": "   foo,bar,baz	",
 		}
@@ -578,7 +491,6 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -594,22 +506,16 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.Equal(node.Attributes["driver.raw_exec"], "")
-	require.Equal(node.Attributes["driver.exec"], "")
-	require.Equal(node.Attributes["driver.docker"], "")
+	require.NotContains(node.Attributes, "driver.raw_exec")
+	require.NotContains(node.Attributes, "driver.exec")
+	require.NotContains(node.Attributes, "driver.docker")
 }
 
 func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   raw_exec,exec,foo,bar,baz	",
@@ -619,7 +525,6 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -635,24 +540,15 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 
 	node := testClient.config.Node
 
-	require.NotEqual(node.Attributes["driver.raw_exec"], "")
-	require.Equal(node.Attributes["driver.exec"], "")
-	require.Equal(node.Attributes["foo"], "")
-	require.Equal(node.Attributes["bar"], "")
-	require.Equal(node.Attributes["baz"], "")
+	require.NotNil(node.Drivers["raw_exec"])
+	require.NotContains(node.Drivers, "exec")
 }
 
 func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, serverAddr := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
 	testClient := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = s1
-		c.Servers = []string{serverAddr}
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   raw_exec,foo,bar,baz	",
@@ -662,7 +558,6 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 
 	testClient.logger = testLogger()
 	defer testClient.Shutdown()
-	waitTilNodeReady(testClient, t)
 
 	fm := NewFingerprintManager(
 		testClient.GetConfig,
@@ -678,6 +573,6 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.NotEqual(node.Attributes["driver.raw_exec"], "")
-	require.Equal(node.Attributes["driver.exec"], "")
+	require.NotNil(node.Drivers["raw_exec"])
+	require.NotContains(node.Drivers, "exec")
 }

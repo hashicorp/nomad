@@ -396,13 +396,17 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 	drivers := make([]string, 0, len(node.Drivers))
 
 	for driverName, driverInfo := range node.Drivers {
+		if !driverInfo.Detected {
+			continue
+		}
+
 		if !driverInfo.Healthy {
 			drivers = append(drivers, fmt.Sprintf("%s (unhealthy)", driverName))
 		} else {
 			drivers = append(drivers, driverName)
 		}
 	}
-	return strings.Trim(strings.Join(drivers, ", "), ", ")
+	return strings.Trim(strings.Join(drivers, ","), ", ")
 }
 
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
