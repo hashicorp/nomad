@@ -465,7 +465,7 @@ role:
 ```
 $ echo 'path "nomad/creds/role-name" {
   capabilities = ["read"]
-}' | vault policy-write nomad-user-policy -
+}' | vault policy write nomad-user-policy -
 Policy 'nomad-user-policy' written.
 ```
 
@@ -474,7 +474,7 @@ a role available on the [Authentication backends page](https://www.vaultproject.
 Otherwise, for testing purposes, a Vault token can be generated associated with the policy:
 
 ```
-$ vault token-create -policy=nomad-user-policy
+$ vault token create -policy=nomad-user-policy
 Key             Value
 ---             -----
 token           deedfa83-99b5-34a1-278d-e8fb76809a5b

@@ -469,16 +469,33 @@ tls {
 ```
 ## Migrating a cluster to TLS
 
-Nomad supports dynamically reloading it's TLS configuration. To reload Nomad's
-configuration, first update the configuration file and then send the Nomad
-agent a SIGHUP signal. Note that this will only reload a subset of the
-configuration file, including the TLS configuration.
+### Reloading TLS configuration via SIGHUP
 
-When reloading the configuration, if there is a change to the TLS
-configuration, the agent will reload all network connections and when
-establishing new connections, will use the new configuration. This process
-works for both upgrading and downgrading TLS (but we recommend upgrading).
+Nomad supports dynamically reloading both client and server TLS configuration.
+To reload an agent's TLS  configuration, first update the TLS block in the
+agent's configuration file and then send the Nomad agent a SIGHUP signal.
+Note that this will only reload a subset of the configuration file,
+including the TLS configuration.
 
+The agent reloads all its network connections when there are changes to its TLS
+configuration during a config reload via SIGHUP. Any new connections
+established will use the updated configuration, and any outstanding old
+connections will be closed. This process works when upgrading to TLS,
+downgrading from it, as well as rolling certificates. We recommend upgrading
+to TLS.
+
+### RPC Upgrade Mode for Nomad Servers
+
+When migrating to TLS, the [ `rpc_upgrade_mode` ][rpc_upgrade_mode] option
+(defaults to `false`) in the TLS configuration for a Nomad server can be set
+to true. When set to true, servers will accept both TLS and non-TLS
+connections. By accepting non-TLS connections, operators can upgrade clients
+to TLS without the clients being marked as lost because the server is
+rejecting the client connection due to the connection not being over TLS.
+However, it is important to note that `rpc_upgrade_mode` should be used as a
+temporary solution in the process of migration, and this option should be
+re-set to false (meaning that the server will strictly accept only TLS
+connections) once the entire cluster has been migrated.
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
@@ -487,6 +504,7 @@ works for both upgrading and downgrading TLS (but we recommend upgrading).
 [guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
 [heartbeat_grace]: /docs/agent/configuration/server.html#heartbeat_grace
 [letsencrypt]: https://letsencrypt.org/
+[rpc_upgrade_mode]: https://www.nomadproject.io/docs/agent/configuration/tls.html#rpc_upgrade_mode/
 [tls]: https://en.wikipedia.org/wiki/Transport_Layer_Security
 [tls_block]: /docs/agent/configuration/tls.html
 [vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile

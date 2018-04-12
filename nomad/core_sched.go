@@ -605,7 +605,15 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 		return false
 	}
 
+	// If the job is deleted, stopped or dead all allocs can be removed
 	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	// If the alloc hasn't failed then we don't need to consider it for rescheduling
+	// Rescheduling needs to copy over information from the previous alloc so that it
+	// can enforce the reschedule policy
+	if a.ClientStatus != structs.AllocClientStatusFailed {
 		return true
 	}
 
@@ -615,20 +623,26 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 	if tg != nil {
 		reschedulePolicy = tg.ReschedulePolicy
 	}
-	// No reschedule policy or restarts are disabled
-	if reschedulePolicy == nil || reschedulePolicy.Attempts == 0 || reschedulePolicy.Interval == 0 {
+	// No reschedule policy or rescheduling is disabled
+	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
 		return true
 	}
 	// Restart tracking information has been carried forward
 	if a.NextAllocation != "" {
 		return true
 	}
-	// Eligible for restarts but none have been attempted yet
+
+	// This task has unlimited rescheduling and the alloc has not been replaced, so we can't GC it yet
+	if reschedulePolicy.Unlimited {
+		return false
+	}
+
+	// No restarts have been attempted yet
 	if a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0 {
 		return false
 	}
 
-	// Most recent reschedule attempt is within time interval
+	// Don't GC if most recent reschedule attempt is within time interval
 	interval := reschedulePolicy.Interval
 	lastIndex := len(a.RescheduleTracker.Events)
 	lastRescheduleEvent := a.RescheduleTracker.Events[lastIndex-1]

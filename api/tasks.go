@@ -103,6 +103,9 @@ type ReschedulePolicy struct {
 }
 
 func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
+	if rp == nil {
+		return
+	}
 	if rp.Interval != nil {
 		r.Interval = rp.Interval
 	}
@@ -121,6 +124,63 @@ func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
 	if rp.Unlimited != nil {
 		r.Unlimited = rp.Unlimited
 	}
+}
+
+func (r *ReschedulePolicy) Canonicalize(jobType string) {
+	dp := NewDefaultReschedulePolicy(jobType)
+	if r.Interval == nil {
+		r.Interval = dp.Interval
+	}
+	if r.Attempts == nil {
+		r.Attempts = dp.Attempts
+	}
+	if r.Delay == nil {
+		r.Delay = dp.Delay
+	}
+	if r.DelayFunction == nil {
+		r.DelayFunction = dp.DelayFunction
+	}
+	if r.MaxDelay == nil {
+		r.MaxDelay = dp.MaxDelay
+	}
+	if r.Unlimited == nil {
+		r.Unlimited = dp.Unlimited
+	}
+}
+
+func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
+	var dp *ReschedulePolicy
+	switch jobType {
+	case "service":
+		dp = &ReschedulePolicy{
+			Attempts:      helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.MaxDelay),
+			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
+		}
+	case "batch":
+		dp = &ReschedulePolicy{
+			Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
+		}
+
+	case "system":
+		dp = &ReschedulePolicy{
+			Attempts:      helper.IntToPtr(0),
+			Interval:      helper.TimeToPtr(0),
+			Delay:         helper.TimeToPtr(0),
+			DelayFunction: helper.StringToPtr(""),
+			MaxDelay:      helper.TimeToPtr(0),
+			Unlimited:     helper.BoolToPtr(false),
+		}
+	}
+	return dp
 }
 
 func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
@@ -408,37 +468,13 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		jobReschedule := job.Reschedule.Copy()
 		g.ReschedulePolicy = jobReschedule
 	}
-
-	// Merge with default reschedule policy
-	var defaultReschedulePolicy *ReschedulePolicy
-	switch *job.Type {
-	case "service":
-		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
-			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
-			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
-			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
-			MaxDelay:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.MaxDelay),
-			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
-		}
-	case "batch":
-		defaultReschedulePolicy = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
-			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
-			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
-		}
-	default:
-		defaultReschedulePolicy = nil
+	// Only use default reschedule policy for non system jobs
+	if g.ReschedulePolicy == nil && *job.Type != "system" {
+		g.ReschedulePolicy = NewDefaultReschedulePolicy(*job.Type)
 	}
-
-	if defaultReschedulePolicy != nil && g.ReschedulePolicy != nil {
-		defaultReschedulePolicy.Merge(g.ReschedulePolicy)
+	if g.ReschedulePolicy != nil {
+		g.ReschedulePolicy.Canonicalize(*job.Type)
 	}
-	g.ReschedulePolicy = defaultReschedulePolicy
-
 	// Merge the migrate strategy from the job
 	if jm, tm := job.Migrate != nil, g.Migrate != nil; jm && tm {
 		jobMigrate := job.Migrate.Copy()

@@ -360,7 +360,7 @@ func NewFrameReader(frames <-chan *StreamFrame, errCh <-chan error, cancelCh cha
 }
 
 // SetUnblockTime sets the time to unblock and return zero bytes read. If the
-// duration is unset or is zero or less, the read will block til data is read.
+// duration is unset or is zero or less, the read will block until data is read.
 func (f *FrameReader) SetUnblockTime(d time.Duration) {
 	f.unblockTime = d
 }
