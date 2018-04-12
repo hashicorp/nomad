@@ -16,7 +16,7 @@ server failover on a per availability zone basis. See the sections below for
 additional details on each of these capabilities. 
 
 * **Automated Upgrades:** Advanced Autopilot enables an upgrade pattern that 
-allows operators to deploy a complete cluster of new servers and then just wait 
+allows operators to deploy a complete cluster of new servers and then simply wait 
 for the upgrade to complete. As the new servers join the cluster, server 
 introduction logic checks the version of each Nomad server. If the version is 
 higher than the version on the current set of voters, it will avoid promoting 
