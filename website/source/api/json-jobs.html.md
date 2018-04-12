@@ -33,6 +33,12 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
         "TaskGroups": [{
             "Name": "cache",
             "Count": 1,
+            "Migrate": {
+                    "HealthCheck": "checks",
+                    "HealthyDeadline": 300000000000,
+                    "MaxParallel": 1,
+                    "MinHealthyTime": 10000000000
+            },
             "Tasks": [{
                 "Name": "redis",
                 "Driver": "docker",
@@ -256,6 +262,21 @@ attributes:
   be running. Must be non-negative, defaults to one.
 
 - `Meta` - A key-value map that annotates the task group with opaque metadata.
+
+- `Migrate` - Specifies a migration strategy to be applied during [node
+  drains][drain].
+
+  - `HealthCheck` - One of `checks` or `task_states`. Indicates how task health
+    should be determined: either via Consul health checks or whether the task
+    was able to run successfully.
+
+  - `HealthyDeadline` - Specifies duration a task must become healthy within
+    before it is considered unhealthy.
+
+  - `MaxParallel` - Specifies how many allocations may be migrated at once.
+
+  - `MinHealthyTime` - Specifies duration a task must be considered healthy
+    before the migration is considered healthy.
 
 - `Name` - The name of the task group. Must be specified.
 
@@ -848,7 +869,7 @@ README][ct].
   does not conflict with the output file itself.
 
 - `Perms` - Specifies the rendered template's permissions. File permissions are
-  given as octal of the Unix file permissions rwxrwxrwx.
+  given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
@@ -889,4 +910,5 @@ README][ct].
 ```
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
+[drain]: /docs/commands/node/drain.html
 [env]: /docs/runtime/environment.html "Nomad Runtime Environment"

@@ -187,17 +187,6 @@ func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 			return err
 		}
 
-		// Set the initial health check status to be the driver detected status.
-		// Later, the periodic health checker will update this value for drivers
-		// where health checks are enabled.
-		healthInfo := &structs.DriverInfo{
-			Healthy:    detected,
-			UpdateTime: time.Now(),
-		}
-		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-			fm.setNode(node)
-		}
-
 		// Start a periodic watcher to detect changes to a drivers health and
 		// attributes.
 		go fm.watchDriver(d, name)
@@ -336,6 +325,18 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	var response cstructs.FingerprintResponse
 
 	fm.nodeLock.Lock()
+
+	// Determine if the driver has been detected before.
+	originalNode, haveDriver := fm.node.Drivers[name]
+	firstDetection := !haveDriver
+
+	// Determine if the driver is healthy
+	var driverIsHealthy bool
+	if haveDriver && originalNode.Healthy {
+		driverIsHealthy = true
+	}
+
+	// Fingerprint the driver.
 	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	err := f.Fingerprint(request, &response)
 	fm.nodeLock.Unlock()
@@ -344,45 +345,39 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		return false, err
 	}
 
-	if node := fm.updateNodeAttributes(&response); node != nil {
-		fm.setNode(node)
-	}
+	// Remove the health check attribute indicating the status of the driver,
+	// as the overall driver info object should indicate this.
+	delete(response.Attributes, fmt.Sprintf("driver.%s", name))
 
-	di := &structs.DriverInfo{
+	fingerprintInfo := &structs.DriverInfo{
 		Attributes: response.Attributes,
 		Detected:   response.Detected,
 	}
 
-	// Remove the attribute indicating the status of the driver, as the overall
-	// driver info object should indicate this.
-	driverKey := fmt.Sprintf("driver.%s", name)
-	delete(di.Attributes, driverKey)
+	// We set the health status based on the detection state of the driver if:
+	// * It is the first time we are fingerprinting the driver. This gives all
+	// drivers an initial health.
+	// * If the driver becomes undetected. This gives us an immediate unhealthy
+	// state and description when it transistions from detected and healthy to
+	// undetected.
+	// * If the driver does not have its own health checks. Then we always
+	// couple the states.
+	var healthInfo *structs.DriverInfo
+	if firstDetection || !hasPeriodicHealthCheck || !response.Detected && driverIsHealthy {
+		state := " "
+		if !response.Detected {
+			state = " not "
+		}
 
-	if node := fm.updateNodeFromDriver(name, di, nil); node != nil {
-		fm.setNode(node)
-	}
-
-	// Get a copy of the current node
-	var driverExists, driverIsHealthy bool
-	fm.nodeLock.Lock()
-	driverInfo, driverExists := fm.node.Drivers[name]
-	if driverExists {
-		driverIsHealthy = driverInfo.Healthy
-	}
-	fm.nodeLock.Unlock()
-
-	// If either 1) the driver is undetected or 2) if the driver does not have
-	// periodic health checks enabled, set the health status to the match that
-	// of the fingerprinter
-	if !hasPeriodicHealthCheck || !response.Detected && driverExists && driverIsHealthy {
-		healthInfo := &structs.DriverInfo{
+		healthInfo = &structs.DriverInfo{
 			Healthy:           response.Detected,
-			HealthDescription: fmt.Sprintf("Driver %s is detected: %t", name, response.Detected),
+			HealthDescription: fmt.Sprintf("Driver %s is%sdetected", name, state),
 			UpdateTime:        time.Now(),
 		}
-		if node := fm.updateNodeFromDriver(name, nil, healthInfo); node != nil {
-			fm.setNode(node)
-		}
+	}
+
+	if node := fm.updateNodeFromDriver(name, fingerprintInfo, healthInfo); node != nil {
+		fm.setNode(node)
 	}
 
 	return response.Detected, nil

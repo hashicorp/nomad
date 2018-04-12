@@ -1023,11 +1023,15 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 
 	var hasChanged bool
 
+	hadDriver := c.config.Node.Drivers[name] != nil
 	if fingerprint != nil {
-		if c.config.Node.Drivers[name] == nil {
+		if !hadDriver {
 			// If the driver info has not yet been set, do that here
 			hasChanged = true
 			c.config.Node.Drivers[name] = fingerprint
+			for attrName, newVal := range fingerprint.Attributes {
+				c.config.Node.Attributes[attrName] = newVal
+			}
 		} else {
 			// The driver info has already been set, fix it up
 			if c.config.Node.Drivers[name].Detected != fingerprint.Detected {
@@ -1049,12 +1053,26 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 				}
 			}
 		}
+
+		// COMPAT Remove in Nomad 0.10
+		// We maintain the driver enabled attribute until all drivers expose
+		// their attributes as DriverInfo
+		driverName := fmt.Sprintf("driver.%s", name)
+		if fingerprint.Detected {
+			c.config.Node.Attributes[driverName] = "1"
+		} else {
+			delete(c.config.Node.Attributes, driverName)
+		}
 	}
 
 	if health != nil {
-		if c.config.Node.Drivers[name] == nil {
+		if !hadDriver {
 			hasChanged = true
-			c.config.Node.Drivers[name] = health
+			if info, ok := c.config.Node.Drivers[name]; !ok {
+				c.config.Node.Drivers[name] = health
+			} else {
+				info.MergeHealthCheck(health)
+			}
 		} else {
 			oldVal := c.config.Node.Drivers[name]
 			if health.HealthCheckEquals(oldVal) {

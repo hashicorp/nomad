@@ -50,9 +50,9 @@ IMPROVEMENTS:
  * cli: Use ISO_8601 time format for cli output [[GH-3814](https://github.com/hashicorp/nomad/pull/3814)]
  * cli: Clearer task event descriptions in `nomad alloc-status` when there are server side failures authenticating to Vault [[GH-3968](https://github.com/hashicorp/nomad/issues/3968)]
  * client: Allow '.' in environment variable names [[GH-3760](https://github.com/hashicorp/nomad/issues/3760)]
- * client: Refactor client fingerprint methods to a request/response format
  * client: Improved handling of failed RPCs and heartbeat retry logic [[GH-4106](https://github.com/hashicorp/nomad/issues/4106)]
-   [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
+ * client: Refactor client fingerprint methods to a request/response format [[GH-3781](https://github.com/hashicorp/nomad/issues/3781)]
+ * client: Enable periodic health checks for drivers. Initial support only includes the Docker driver. [[GH-3856](https://github.com/hashicorp/nomad/issues/3856)]
  * discovery: Allow `check_restart` to be specified in the `service` stanza
    [[GH-3718](https://github.com/hashicorp/nomad/issues/3718)]
  * discovery: Allow configuring names of Nomad client and server health checks

@@ -136,7 +136,7 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.broker.total_blocked`</td>
     <td>
-        Evaluations that are blocked til an existing evaluation for the same job
+        Evaluations that are blocked until an existing evaluation for the same job
         completes
     </td>
     <td># of evaluations</td>
