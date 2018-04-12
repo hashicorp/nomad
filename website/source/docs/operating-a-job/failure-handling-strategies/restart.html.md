@@ -47,45 +47,50 @@ d5dee7c8  8a184f31  demo        0        run      pending  27s ago  5s ago
 ed815997  8a184f31  demo        0        run      pending  27s ago  5s ago
 ```
 
-```text
-$nomad alloc-status ce5b
-ID                  = ce5bf1d1
-Eval ID             = 05681b90
-Name                = demo.demo[1]
-Node ID             = 8a184f31
-Job ID              = demo
-Job Version         = 0
-Client Status       = pending
-Client Description  = <none>
-Desired Status      = run
-Desired Description = <none>
-Created             = 31s ago
-Modified            = 9s ago
+In the following example, the allocation `ce5bf1d1` is restarted by Nomad approximately
+every ten seconds, with a small random jitter. It eventually reaches its limit of three attempts and
+transitions into a `failed` state, after which it becomes eligible for [rescheduling][rescheduling].
 
-Task "demo" is "pending"
+```text
+$nomad alloc-status ce5bf1d1
+ID                     = ce5bf1d1
+Eval ID                = 64e45d11
+Name                   = demo.demo[1]
+Node ID                = a0ccdd8b
+Job ID                 = demo
+Job Version            = 0
+Client Status          = failed
+Client Description     = <none>
+Desired Status         = run
+Desired Description    = <none>
+Created                = 56s ago
+Modified               = 22s ago
+
+Task "demo" is "dead"
 Task Resources
 CPU      Memory   Disk     IOPS  Addresses
 100 MHz  300 MiB  300 MiB  0
 
 Task Events:
-Started At     = 2018-04-12T19:37:40Z
-Finished At    = N/A
+Started At     = 2018-04-12T22:29:08Z
+Finished At    = 2018-04-12T22:29:08Z
 Total Restarts = 3
-Last Restart   = 2018-04-12T14:37:40-05:00
+Last Restart   = 2018-04-12T17:28:57-05:00
 
 Recent Events:
-Time                       Type        Description
-2018-04-12T14:37:40-05:00  Restarting  Task restarting in 11.686056069s
-2018-04-12T14:37:40-05:00  Terminated  Exit Code: 127
-2018-04-12T14:37:40-05:00  Started     Task started by client
-2018-04-12T14:37:29-05:00  Restarting  Task restarting in 10.97348449s
-2018-04-12T14:37:29-05:00  Terminated  Exit Code: 127
-2018-04-12T14:37:29-05:00  Started     Task started by client
-2018-04-12T14:37:19-05:00  Restarting  Task restarting in 10.619985509s
-2018-04-12T14:37:19-05:00  Terminated  Exit Code: 127
-2018-04-12T14:37:19-05:00  Started     Task started by client
-2018-04-12T14:37:19-05:00  Task Setup  Building Task Directory
+Time                       Type            Description
+2018-04-12T17:29:08-05:00  Not Restarting  Exceeded allowed attempts 3 in interval 5m0s and mode is "fail"
+2018-04-12T17:29:08-05:00  Terminated      Exit Code: 127
+2018-04-12T17:29:08-05:00  Started         Task started by client
+2018-04-12T17:28:57-05:00  Restarting      Task restarting in 10.364602876s
+2018-04-12T17:28:57-05:00  Terminated      Exit Code: 127
+2018-04-12T17:28:57-05:00  Started         Task started by client
+2018-04-12T17:28:47-05:00  Restarting      Task restarting in 10.666963769s
+2018-04-12T17:28:47-05:00  Terminated      Exit Code: 127
+2018-04-12T17:28:47-05:00  Started         Task started by client
+2018-04-12T17:28:35-05:00  Restarting      Task restarting in 11.777324721s
 ```
 
 
 [restart]: /docs/job-specification/restart.html "Nomad restart Stanza"
+[rescheduling]: /docs/job-specification/reschedule.html "Nomad restart Stanza"
