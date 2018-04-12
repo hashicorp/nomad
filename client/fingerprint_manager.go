@@ -345,14 +345,18 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 		return false, err
 	}
 
+	if node := fm.updateNodeAttributes(&response); node != nil {
+		fm.setNode(node)
+	}
+
+	// Remove the health check attribute indicating the status of the driver,
+	// as the overall driver info object should indicate this.
+	delete(response.Attributes, fmt.Sprintf("driver.%s", name))
+
 	fingerprintInfo := &structs.DriverInfo{
 		Attributes: response.Attributes,
 		Detected:   response.Detected,
 	}
-
-	// Remove the attribute indicating the status of the driver, as the overall
-	// driver info object should indicate this.
-	delete(fingerprintInfo.Attributes, fmt.Sprintf("driver.%s", name))
 
 	// We set the health status based on the detection state of the driver if:
 	// * It is the first time we are fingerprinting the driver. This gives all

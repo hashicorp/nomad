@@ -190,8 +190,8 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		defer fm.nodeLock.Unlock()
 
 		mockDriverAttribute := node.Attributes["driver.mock_driver"]
-		if mockDriverAttribute != "" {
-			return false, fmt.Errorf("mock driver info should not be set on the client attributes")
+		if mockDriverAttribute == "" {
+			return false, fmt.Errorf("mock driver info should be set on the client attributes")
 		}
 		mockDriverInfo := node.Drivers["mock_driver"]
 		if mockDriverInfo == nil {
@@ -212,8 +212,8 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		defer fm.nodeLock.Unlock()
 
 		rawExecAttribute := node.Attributes["driver.raw_exec"]
-		if rawExecAttribute != "" {
-			return false, fmt.Errorf("raw exec info should not be set on the client attributes")
+		if rawExecAttribute == "" {
+			return false, fmt.Errorf("raw exec info should be set on the client attributes")
 		}
 		rawExecInfo := node.Drivers["raw_exec"]
 		if rawExecInfo == nil {
@@ -227,15 +227,15 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	// Ensure the mock driver is de-registered when it becomes unhealthy
+	// Ensure the mock driver is registered
 	testutil.WaitForResult(func() (bool, error) {
 		fm.nodeLock.Lock()
 		node := fm.node
 		defer fm.nodeLock.Unlock()
 
 		mockDriverAttribute := node.Attributes["driver.mock_driver"]
-		if mockDriverAttribute != "" {
-			return false, fmt.Errorf("mock driver info should not be set on the client attributes")
+		if mockDriverAttribute == "" {
+			return false, fmt.Errorf("mock driver info should set on the client attributes")
 		}
 		mockDriverInfo := node.Drivers["mock_driver"]
 		if mockDriverInfo == nil {
@@ -506,9 +506,9 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.NotContains(node.Attributes, "raw_exec")
-	require.NotContains(node.Attributes, "exec")
-	require.NotContains(node.Attributes, "docker")
+	require.NotContains(node.Attributes, "driver.raw_exec")
+	require.NotContains(node.Attributes, "driver.exec")
+	require.NotContains(node.Attributes, "driver.docker")
 }
 
 func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.T) {

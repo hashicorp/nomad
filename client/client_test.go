@@ -176,6 +176,13 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 		testutil.WaitForResult(func() (bool, error) {
 			c1.configLock.Lock()
 			defer c1.configLock.Unlock()
+
+			// assert that the driver is set on the node attributes
+			mockDriverInfoAttr := node.Attributes["driver.mock_driver"]
+			if mockDriverInfoAttr == "" {
+				return false, fmt.Errorf("mock driver is empty when it should be set on the node attributes")
+			}
+
 			mockDriverInfo := node.Drivers["mock_driver"]
 
 			// assert that the Driver information for the node is also set correctly
