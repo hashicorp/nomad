@@ -146,9 +146,9 @@ node:
 ```text
 $ nomad node status
 ID        DC   Name     Class   Drain  Eligibility  Status
-46f1c6c4  dc1  nomad-5  <none>  false  ineligible   ready
-96b52ad8  dc1  nomad-6  <none>  false  eligible     ready
-f7476465  dc1  nomad-4  <none>  false  eligible     ready
+f7476465  dc1  nomad-1  <none>  false  eligible     ready
+96b52ad8  dc1  nomad-2  <none>  false  eligible     ready
+46f1c6c4  dc1  nomad-3  <none>  false  ineligible   ready
 ```
 
 While node `46f1c6c4` has `Drain = false`, notice that its `Eligibility =
@@ -231,12 +231,12 @@ Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" scheduling eligibility set: ineligib
 
 $ nomad node status
 ID        DC   Name     Class   Drain  Eligibility  Status
-46f1c6c4  dc1  nomad-5  <none>  false  ineligible   ready
-96b52ad8  dc1  nomad-6  <none>  false  ineligible   ready
-f7476465  dc1  nomad-4  <none>  false  eligible     ready
+f7476465  dc1  nomad-1  <none>  false  eligible     ready
+46f1c6c4  dc1  nomad-2  <none>  false  ineligible   ready
+96b52ad8  dc1  nomad-3  <none>  false  ineligible   ready
 ```
 
-Now that both `nomad-5` and `nomad-6` are ineligible for scheduling, they can
+Now that both `nomad-2` and `nomad-3` are ineligible for scheduling, they can
 be drained without risking placing allocations on an _about-to-be-drained_
 node.
 
@@ -263,12 +263,12 @@ an old datacenter (`dc1`) to a new datacenter (`dc2`):
 ```text
 $ nomad node status -allocs
 ID        DC   Name     Class   Drain  Eligibility  Status  Running Allocs
-f7476465  dc1  nomad-4  <none>  false  eligible     ready   4
-46f1c6c4  dc1  nomad-5  <none>  false  eligible     ready   1
-96b52ad8  dc1  nomad-6  <none>  false  eligible     ready   4
-168bdd03  dc2  nomad-7  <none>  false  eligible     ready   0
-9ccb3306  dc2  nomad-8  <none>  false  eligible     ready   0
-7a7f9a37  dc2  nomad-9  <none>  false  eligible     ready   0
+f7476465  dc1  nomad-1  <none>  false  eligible     ready   4
+46f1c6c4  dc1  nomad-2  <none>  false  eligible     ready   1
+96b52ad8  dc1  nomad-3  <none>  false  eligible     ready   4
+168bdd03  dc2  nomad-4  <none>  false  eligible     ready   0
+9ccb3306  dc2  nomad-5  <none>  false  eligible     ready   0
+7a7f9a37  dc2  nomad-6  <none>  false  eligible     ready   0
 ```
 
 Before migrating ensure that all jobs in `dc1` have `datacenters = ["dc1",
@@ -284,12 +284,12 @@ Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" scheduling eligibility set: ineligib
 
 $ nomad node status
 ID        DC   Name     Class   Drain  Eligibility  Status
-f7476465  dc1  nomad-4  <none>  false  ineligible   ready
-46f1c6c4  dc1  nomad-5  <none>  false  ineligible   ready
-96b52ad8  dc1  nomad-6  <none>  false  ineligible   ready
-168bdd03  dc2  nomad-7  <none>  false  eligible     ready
-9ccb3306  dc2  nomad-8  <none>  false  eligible     ready
-7a7f9a37  dc2  nomad-9  <none>  false  eligible     ready
+f7476465  dc1  nomad-1  <none>  false  ineligible   ready
+46f1c6c4  dc1  nomad-2  <none>  false  ineligible   ready
+96b52ad8  dc1  nomad-3  <none>  false  ineligible   ready
+168bdd03  dc2  nomad-4  <none>  false  eligible     ready
+9ccb3306  dc2  nomad-5  <none>  false  eligible     ready
+7a7f9a37  dc2  nomad-6  <none>  false  eligible     ready
 ```
 
 Then drain each node in `dc1`. For this example we will only monitor the final
