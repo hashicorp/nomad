@@ -9,7 +9,7 @@ const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
   id: i => `job-${i}`,
-  name: i => `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun()}-${i}`,
+  name: i => `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun().dasherize()}-${i}`,
 
   groupsCount: () => faker.random.number({ min: 1, max: 5 }),
 
