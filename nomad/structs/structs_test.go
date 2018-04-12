@@ -367,6 +367,7 @@ func TestJob_IsPeriodicActive(t *testing.T) {
 func TestJob_SystemJob_Validate(t *testing.T) {
 	j := testJob()
 	j.Type = JobTypeSystem
+	j.TaskGroups[0].ReschedulePolicy = nil
 	j.Canonicalize()
 
 	err := j.Validate()
@@ -711,6 +712,26 @@ func TestTaskGroup_Validate(t *testing.T) {
 	j.Type = JobTypeBatch
 	err = tg.Validate(j)
 	if !strings.Contains(err.Error(), "does not allow update block") {
+		t.Fatalf("err: %s", err)
+	}
+
+	tg = &TaskGroup{
+		Count: -1,
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
+			Mode:     RestartPolicyModeDelay,
+		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 5,
+			Delay:    5 * time.Second,
+		},
+	}
+	j.Type = JobTypeSystem
+	err = tg.Validate(j)
+	if !strings.Contains(err.Error(), "System jobs should not have a reschedule policy") {
 		t.Fatalf("err: %s", err)
 	}
 }
