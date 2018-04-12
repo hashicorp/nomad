@@ -565,6 +565,9 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, err.Error())
 	}
 
+	if args.Canonicalize {
+		jobStruct.Canonicalize()
+	}
 	return jobStruct, nil
 }
 

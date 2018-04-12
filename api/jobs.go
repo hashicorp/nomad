@@ -36,8 +36,13 @@ type Jobs struct {
 	client *Client
 }
 
+// JobsParseRequest is used for arguments of the /vi/jobs/parse endpoint
 type JobsParseRequest struct {
+	//JobHCL is an hcl jobspec
 	JobHCL string
+	//Canonicalize is a flag as to if the server should return default values
+	//for unset fields
+	Canonicalize bool
 }
 
 // Jobs returns a handle on the jobs endpoints.
