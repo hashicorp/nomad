@@ -255,6 +255,84 @@ $ nomad node eligibility -self -enable
 Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" scheduling eligibility set: eligible for scheduling
 ```
 
+### Example: Migrating Datacenters
+
+A more complete example of draining multiple nodes would be when migrating from
+an old datacenter (`dc1`) to a new datacenter (`dc2`):
+
+```text
+$ nomad node status -allocs
+ID        DC   Name     Class   Drain  Eligibility  Status  Running Allocs
+f7476465  dc1  nomad-4  <none>  false  eligible     ready   4
+46f1c6c4  dc1  nomad-5  <none>  false  eligible     ready   1
+96b52ad8  dc1  nomad-6  <none>  false  eligible     ready   4
+168bdd03  dc2  nomad-7  <none>  false  eligible     ready   0
+9ccb3306  dc2  nomad-8  <none>  false  eligible     ready   0
+7a7f9a37  dc2  nomad-9  <none>  false  eligible     ready   0
+```
+
+Before migrating ensure that all jobs in `dc1` have `datacenters = ["dc1",
+"dc2"]`.  Then before draining, mark all nodes in `dc1` as ineligible for
+scheduling. Shell scripting can help automate manipulating multiple nodes at
+once:
+
+```text
+$ nomad node status | awk '{ print $2 " " $1 }' | grep ^dc1 | awk '{ system("nomad node eligibility -disable "$2) }'
+Node "f7476465-4d6e-c0de-26d0-e383c49be941" scheduling eligibility set: ineligible for scheduling
+Node "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806" scheduling eligibility set: ineligible for scheduling
+Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" scheduling eligibility set: ineligible for scheduling
+
+$ nomad node status
+ID        DC   Name     Class   Drain  Eligibility  Status
+f7476465  dc1  nomad-4  <none>  false  ineligible   ready
+46f1c6c4  dc1  nomad-5  <none>  false  ineligible   ready
+96b52ad8  dc1  nomad-6  <none>  false  ineligible   ready
+168bdd03  dc2  nomad-7  <none>  false  eligible     ready
+9ccb3306  dc2  nomad-8  <none>  false  eligible     ready
+7a7f9a37  dc2  nomad-9  <none>  false  eligible     ready
+```
+
+Then drain each node in `dc1`. For this example we will only monitor the final
+ode that is draining. Watching `nomad node status -allocs` is also a good way
+to monitor the status of drains.
+
+```text
+$ nomad node drain -enable -yes -detach f7476465
+Node "f7476465-4d6e-c0de-26d0-e383c49be941" drain strategy set
+
+$ nomad node drain -enable -yes -detach 46f1c6c4
+Node "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806" drain strategy set
+
+$ nomad node drain -enable -yes 9ccb3306
+2018-04-12T22:08:00Z: Ctrl-C to stop monitoring: will not cancel the node drain
+2018-04-12T22:08:00Z: Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" drain strategy set
+2018-04-12T22:08:15Z: Alloc "392ee2ec-d517-c170-e7b1-d93b2d44642c" marked for migration
+2018-04-12T22:08:16Z: Alloc "392ee2ec-d517-c170-e7b1-d93b2d44642c" draining
+2018-04-12T22:08:17Z: Alloc "6a833b3b-c062-1f5e-8dc2-8b6af18a5b94" marked for migration
+2018-04-12T22:08:17Z: Alloc "6a833b3b-c062-1f5e-8dc2-8b6af18a5b94" draining
+2018-04-12T22:08:21Z: Alloc "392ee2ec-d517-c170-e7b1-d93b2d44642c" status running -> complete
+2018-04-12T22:08:22Z: Alloc "6a833b3b-c062-1f5e-8dc2-8b6af18a5b94" status running -> complete
+2018-04-12T22:09:08Z: Alloc "d572d7a3-024b-fcb7-128b-1932a49c8d79" marked for migration
+2018-04-12T22:09:09Z: Alloc "d572d7a3-024b-fcb7-128b-1932a49c8d79" draining
+2018-04-12T22:09:14Z: Alloc "d572d7a3-024b-fcb7-128b-1932a49c8d79" status running -> complete
+2018-04-12T22:09:33Z: Alloc "f3f24277-4435-56a3-7ee1-1b1eff5e3aa1" marked for migration
+2018-04-12T22:09:33Z: Alloc "f3f24277-4435-56a3-7ee1-1b1eff5e3aa1" draining
+2018-04-12T22:09:33Z: Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" drain complete
+2018-04-12T22:09:39Z: Alloc "f3f24277-4435-56a3-7ee1-1b1eff5e3aa1" status running -> complete
+2018-04-12T22:09:39Z: All allocations on node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" have stopped.
+```
+
+Note that there was a 15 second delay between node `96b52ad8` starting to drain
+and having its first allocation migrated. The delay was due to 2 other
+allocations for the same job already being migrated from the other nodes. Once
+at least 8 out of the 9 allocations are running for the job, another allocation
+could begin draining.
+
+The final node drain command did not exit until 6 seconds after the `drain
+complete` message because the command line tool blocks until all allocations on
+the node have stopped. This allows operators to script shutting down a node
+once a drain command exits and know all services have already exited.
+
 [deadline]: /docs/commands/node/drain.html#deadline
 [eligibility]: /docs/commands/node/eligibility.html
 [force]: /docs/commands/node/drain.html#force
