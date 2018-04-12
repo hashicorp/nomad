@@ -18,9 +18,9 @@ draining nodes.
 
 ## Configuring How Jobs are Migrated
 
-In Nomad 0.8 a [`migrate`][migrate] stanza was added to jobs to allow control over how
-allocations for a job are migrated off of a draining node. For example for a
-job that runs a web service and has a Consul health check:
+In Nomad 0.8 a [`migrate`][migrate] stanza was added to jobs to allow control
+over how allocations for a job are migrated off of a draining node. Below is an
+example job that runs a web service and has a Consul health check:
 
 ```hcl
 job "webapp" {
@@ -70,7 +70,9 @@ job "webapp" {
 ```
 
 The above `migrate` stanza ensures only 2 allocations are stopped at a time to
-migrate during node drains.
+migrate during node drains. Even if multiple nodes running allocations for this
+job were draining at the same time, only 2 allocations would be migrated at a
+time.
 
 When the job is run it may be placed on multiple nodes. In the following
 example the 9 `webapp` allocations are spread across 2 nodes: 
@@ -132,10 +134,9 @@ allocation on the draining node waits to be migrated:
 
 Note that this occurs 25 seconds after the initial migrations. The 25 second
 delay is because a replacement allocation took 10 seconds to become healthy and
-then the `min_healthy_deadline = "15s"` meant node draining waited an
-additional 15 seconds. If the replacement allocation had failed within that
-time the node drain would not have continued until a replacement could be
-successfully made.
+then the `min_healthy_time = "15s"` meant node draining waited an additional 15
+seconds. If the replacement allocation had failed within that time the node
+drain would not have continued until a replacement could be successfully made.
 
 ### Scheduling Eligibility
 
@@ -150,7 +151,7 @@ ID        DC   Name     Class   Drain  Eligibility  Status
 f7476465  dc1  nomad-4  <none>  false  eligible     ready
 ```
 
-While node `46f1` has `Drain = false`, notice that its `Eligibility =
+While node `46f1c6c4` has `Drain = false`, notice that its `Eligibility =
 ineligible`. Node scheduling eligibility is a new field in Nomad 0.8. When a
 node is ineligible for scheduling the scheduler will not consider it for new
 placements.
@@ -172,13 +173,13 @@ caused by not enough capacity existing in the cluster to replace the drained
 allocations or by replacement allocations failing to start successfully in a
 timely fashion.
 
-Operators may specify a deadline using the option for node drain to prevent
-drains from getting stuck. Once the deadline is reached, all remaining
-allocations on the node are stopped regardless of `migrate` stanza parameters.
+Operators may specify a deadline when enabling a node drain to prevent drains
+from not finishing. Once the deadline is reached, all remaining allocations on
+the node are stopped regardless of `migrate` stanza parameters.
 
 The default deadline is 1 hour and may be changed with the
-[`-deadline`][deadline] command line option. The [`-force`][force] option is
-like an instant deadline: all allocations are immediately stopped. The
+[`-deadline`][deadline] command line option. The [`-force`][force] option is an
+instant deadline: all allocations are immediately stopped. The
 [`-no-deadline`][no-deadline] option disables the deadline so a drain may
 continue indefinitely.
 
@@ -203,11 +204,11 @@ forcing it to exit early.
 
 Node drains only stop system jobs once all other allocations have exited. This
 way if a node is running a log shipping daemon or metrics collector as a system
-job, it will continue to run as long as there are other services running.
+job, it will continue to run as long as there are other allocations running.
 
 The [`-ignore-system`][ignore-system] option leaves system jobs running even
 after all other allocations have exited. This is useful when system jobs are
-used to monitor Nomad itself or other system properties.
+used to monitor Nomad or the node itself.
 
 ## Draining Multiple Nodes
 
@@ -217,8 +218,8 @@ draining may migrate all of their allocations to the next node about to be
 drained. In pathological cases this could repeat on each node to be drained and
 cause allocations to be rescheduled repeatedly.
 
-As of Nomad 0.8 an operator can avoid this churn by marking node ineligible for
-scheduling before draining them using the [`nomad node
+As of Nomad 0.8 an operator can avoid this churn by marking nodes ineligible
+for scheduling before draining them using the [`nomad node
 eligibility`][eligibility] command:
 
 ```text
@@ -238,6 +239,21 @@ f7476465  dc1  nomad-4  <none>  false  eligible     ready
 Now that both `nomad-5` and `nomad-6` are ineligible for scheduling, they can
 be drained without risking placing allocations on an _about-to-be-drained_
 node.
+
+Toggling scheduling eligibility can be done totally independently of draining.
+For example when an operator wants to inspect the allocations currently running
+on a node without risking new allocations being scheduled and changing the
+node's state:
+
+```text
+$ nomad node eligibility -self -disable
+Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" scheduling eligibility set: ineligible for scheduling
+
+$ # ...inspect node state...
+
+$ nomad node eligibility -self -enable
+Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" scheduling eligibility set: eligible for scheduling
+```
 
 [deadline]: /docs/commands/node/drain.html#deadline
 [eligibility]: /docs/commands/node/eligibility.html
