@@ -14,7 +14,7 @@ They can fail for various reasons like:
 - A temporary error in the service that resolves when its restarted.
 - An upstream dependency might not be available, leading to a health check failure.
 - Disk, Memory or CPU contention on the node that the application is running on.
-- The application uses Docker and the Docker daemon on that node is unresponsiveS.
+- The application uses Docker and the Docker daemon on that node is unresponsive.
 
 Nomad provides configurable options to enable recovering failed tasks to avoid downtime. Nomad will
 try to restart a failed task on the node it is running on, and also try to reschedule it on another node.
