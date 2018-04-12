@@ -147,13 +147,14 @@ setting.
 ~> The following Autopilot features are available only in
    [Nomad Enterprise](https://www.hashicorp.com/products/nomad/) version 0.8.0 and later.
 
-## Server Read Scaling
+## Server Read and Scheduling Scaling
 
 With the [`non_voting_server`](/docs/agent/configuration/server.html#non_voting_server) option, a
 server can be explicitly marked as a non-voter and will never be promoted to a voting
 member. This can be useful when more read scaling is needed; being a non-voter means
 that the server will still have data replicated to it, but it will not be part of the
-quorum that the leader must wait for before committing log entries.
+quorum that the leader must wait for before committing log entries. Non voting servers can also
+act as scheduling workers to increase scheduling throughput in large clusters.
 
 ## Redundancy Zones
 
