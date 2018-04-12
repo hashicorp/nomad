@@ -164,7 +164,12 @@ node to be eligible for scheduling. To cancel a drain and preserving the node's
 ineligible status use the `-keep-ineligible` option.
 
 Scheduling eligibility can be toggled independently of node drains by using the
-[`nomad node eligibility`][eligibility] command.
+[`nomad node eligibility`][eligibility] command:
+
+```text
+$ nomad node eligibility -disable 46f1
+Node "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806" scheduling eligibility set: ineligible for scheduling
+```
 
 ### Node Drain Deadline
 
