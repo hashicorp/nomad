@@ -2,7 +2,7 @@
 
 set -o errexit
 
-VERSION=0.9.1
+VERSION=0.10.0
 DOWNLOAD=https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip
 
 function install_vault() {
