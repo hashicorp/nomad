@@ -1,4 +1,4 @@
-## 0.8 (Unreleased)
+## 0.8.0 (April 12, 2018)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * cli: node drain now blocks until the drain completes and all allocations on
