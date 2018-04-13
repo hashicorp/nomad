@@ -156,7 +156,7 @@ for pausing and playing log streaming, jumping to the head or tail of the log, a
 [![Task Logs][img-task-logs]][img-task-logs]
 
 ~> **Note.** Only `stdout` and `stderr` are available in the UI. Any logs written to a file are available from the
-~> CLI using the [`nomad alloc fs`]('/docs/commands/alloc/fs.html'), but filesystem access is not yet in the Web UI.
+~> CLI using the [`nomad alloc fs`](/docs/commands/alloc/fs.html), but filesystem access is not yet in the Web UI.
 
 ## Reviewing Clients
 
