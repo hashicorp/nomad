@@ -227,6 +227,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.ctx.TaskDir
 
+	// start command in separate process group
+	if err := e.setNewProcessGroup(); err != nil {
+		return nil, err
+	}
+
 	// configuring the chroot, resource container, and start the plugin
 	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
@@ -435,12 +440,30 @@ var (
 	// finishedErr is the error message received when trying to kill and already
 	// exited process.
 	finishedErr = "os: process already finished"
+
+	// noSuchProcessErr is the error message received when trying to kill a non
+	// existing process (e.g. when killing a process group).
+	noSuchProcessErr = "no such process"
 )
 
 // ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
 // remnants of a child UniversalExecutor.
 func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return clientCleanup(ic, pid)
+}
+
+// Cleanup any still hanging user processes
+func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
+	// If new process group was created upon command execution
+	// we can kill the whole process group now to cleanup any leftovers.
+	if e.cmd.SysProcAttr != nil && e.cmd.SysProcAttr.Setpgid {
+		if err := syscall.Kill(-proc.Pid, syscall.SIGKILL); err != nil && err.Error() != noSuchProcessErr {
+			return err
+		}
+		return nil
+	} else {
+		return proc.Kill()
+	}
 }
 
 // Exit cleans up the alloc directory, destroys resource container and kills the
@@ -470,7 +493,7 @@ func (e *UniversalExecutor) Exit() error {
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
-		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
+		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
