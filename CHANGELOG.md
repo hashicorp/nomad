@@ -1,3 +1,8 @@
+## 0.8.1 (Unreleased)
+
+IMPROVEMENTS:
+ * client: Create new process group on process startup. [[GH-3572](https://github.com/hashicorp/nomad/issues/3572)]
+
 ## 0.8.0 (April 12, 2018)
 
 __BACKWARDS INCOMPATIBILITIES:__
