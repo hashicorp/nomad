@@ -452,20 +452,6 @@ func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return clientCleanup(ic, pid)
 }
 
-// Cleanup any still hanging user processes
-func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
-	// If new process group was created upon command execution
-	// we can kill the whole process group now to cleanup any leftovers.
-	if e.cmd.SysProcAttr != nil && e.cmd.SysProcAttr.Setpgid {
-		if err := syscall.Kill(-proc.Pid, syscall.SIGKILL); err != nil && err.Error() != noSuchProcessErr {
-			return err
-		}
-		return nil
-	} else {
-		return proc.Kill()
-	}
-}
-
 // Exit cleans up the alloc directory, destroys resource container and kills the
 // user process
 func (e *UniversalExecutor) Exit() error {
@@ -516,27 +502,7 @@ func (e *UniversalExecutor) ShutDown() error {
 	if err != nil {
 		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
 	}
-	if runtime.GOOS == "windows" {
-		if err := proc.Kill(); err != nil && err.Error() != finishedErr {
-			return err
-		}
-		return nil
-	}
-
-	// Set default kill signal, as some drivers don't support configurable
-	// signals (such as rkt)
-	var osSignal os.Signal
-	if e.command.TaskKillSignal != nil {
-		osSignal = e.command.TaskKillSignal
-	} else {
-		osSignal = os.Interrupt
-	}
-
-	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
-		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-
-	return nil
+	return e.shutdownProcess(proc)
 }
 
 // pidStats returns the resource usage stats per pid
