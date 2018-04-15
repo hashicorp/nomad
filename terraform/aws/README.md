@@ -43,7 +43,7 @@ a custom AMI:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-8b75d9f6"
+ami                     = "ami-d4b016ab"
 instance_type           = "t2.medium"
 key_name                = "KEY_NAME"
 server_count            = "3"
@@ -57,7 +57,7 @@ variable like so:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-8b75d9f6"
+ami                     = "ami-d4b016ab"
 instance_type           = "t2.medium"
 key_name                = "KEY_NAME"
 server_count            = "3"
