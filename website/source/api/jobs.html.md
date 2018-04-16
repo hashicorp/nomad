@@ -240,6 +240,14 @@ job.
 | ------ | ------------------------- | -------------------------- |
 | `POST` | `/v1/jobs/parse`          | `application/json`         |
 
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `NONE`       |
+
 ### Parameters
 
 - `JobHCL` `(string: <required>)` - Specifies the HCL definition of the job
