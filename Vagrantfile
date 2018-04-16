@@ -156,7 +156,7 @@ def suggestedCPUCores()
 	when /darwin/
 		Integer(`sysctl -n hw.ncpu`) / 2
 	when /linux/
-		Integer(`cat /proc/cpuinfo | grep processor | wc -l`) / 2
+		Integer(`grep -c ^processor /proc/cpuinfo`) / 2
 	else
 		2
 	end
