@@ -265,7 +265,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
-	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
+	fingerprintManager := NewFingerprintManager(c.GetConfig, c.configCopy.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
 		c.logger)
 
@@ -443,7 +443,7 @@ func (c *Client) Leave() error {
 func (c *Client) GetConfig() *config.Config {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
-	return c.config
+	return c.configCopy
 }
 
 // Datacenter returns the datacenter for the given client
