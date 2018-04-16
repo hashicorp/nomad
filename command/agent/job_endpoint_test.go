@@ -298,9 +298,9 @@ func TestHTTP_JobsParse(t *testing.T) {
 		}
 
 		if job.Datacenters == nil ||
-			*job.Datacenters[0] != expected.Datacenters[0] {
+			job.Datacenters[0] != expected.Datacenters[0] {
 			t.Fatalf("job datacenters is '%s', expected '%s'",
-				*job.Datacenters[0], expected.Datacenters[0])
+				job.Datacenters[0], expected.Datacenters[0])
 		}
 	})
 }
