@@ -259,6 +259,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
+	// Store the config copy before restoring state but after it has been
+	// initialized.
+	c.configLock.Lock()
+	c.configCopy = c.config.Copy()
+	c.configLock.Unlock()
+
 	fingerprintManager := NewFingerprintManager(c.GetConfig, c.config.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
 		c.logger)
@@ -1009,10 +1015,10 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	}
 
 	if nodeHasChanged {
-		c.updateNode()
+		c.updateNodeLocked()
 	}
 
-	return c.config.Node
+	return c.configCopy.Node
 }
 
 // updateNodeFromDriver receives either a fingerprint of the driver or its
@@ -1104,10 +1110,10 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 
 	if hasChanged {
 		c.config.Node.Drivers[name].UpdateTime = time.Now()
-		c.updateNode()
+		c.updateNodeLocked()
 	}
 
-	return c.config.Node
+	return c.configCopy.Node
 }
 
 // resourcesAreEqual is a temporary function to compare whether resources are
@@ -1752,9 +1758,14 @@ OUTER:
 	}
 }
 
-// updateNode triggers a client to update its node copy if it isn't doing
+// updateNode updates the Node copy and triggers the client to send the updated
+// Node to the server. This should be done while holding the configLock lock.
 // so already
-func (c *Client) updateNode() {
+func (c *Client) updateNodeLocked() {
+	// Update the config copy.
+	node := c.config.Node.Copy()
+	c.configCopy.Node = node
+
 	select {
 	case c.triggerNodeUpdate <- struct{}{}:
 		// Node update goroutine was released to execute
@@ -1774,15 +1785,7 @@ func (c *Client) watchNodeUpdates() {
 		select {
 		case <-timer.C:
 			c.logger.Printf("[DEBUG] client: state changed, updating node and re-registering.")
-
-			// Update the config copy.
-			c.configLock.Lock()
-			node := c.config.Node.Copy()
-			c.configCopy.Node = node
-			c.configLock.Unlock()
-
 			c.retryRegisterNode()
-
 			hasChanged = false
 		case <-c.triggerNodeUpdate:
 			if hasChanged {
