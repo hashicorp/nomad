@@ -1461,6 +1461,7 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.Drivers = copyNodeDrivers(n.Drivers)
 	return nn
 }
 
@@ -1474,6 +1475,20 @@ func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
 	c := make([]*NodeEvent, l)
 	for i, event := range events {
 		c[i] = event.Copy()
+	}
+	return c
+}
+
+// copyNodeDrivers is a helper to copy a map of DriverInfo
+func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
+	l := len(drivers)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*DriverInfo, l)
+	for driver, info := range drivers {
+		c[driver] = info.Copy()
 	}
 	return c
 }
