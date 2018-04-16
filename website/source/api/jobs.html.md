@@ -246,7 +246,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `NONE`       |
+| `NO`             | `none`       |
 
 ### Parameters
 
