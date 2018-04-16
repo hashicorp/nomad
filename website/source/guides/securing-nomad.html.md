@@ -326,8 +326,8 @@ respond as expected:
 
 ```text
 $ nomad node status
-ID        DC   Name   Class   Drain  Status
-237cd4c5  dc1  nomad  <none>  false  ready
+ID        DC   Name   Class   Drain  Eligibility  Status
+237cd4c5  dc1  nomad  <none>  false  eligible     ready
 
 $ nomad job init
 Example job file written to example.nomad

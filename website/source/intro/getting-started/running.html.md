@@ -82,8 +82,8 @@ $ vagrant ssh
 ...
 
 $ nomad node status
-ID        Datacenter  Name   Class   Drain  Status
-171a583b  dc1         nomad  <none>  false  ready
+ID        DC   Name   Class   Drain  Eligibility  Status
+171a583b  dc1  nomad  <none>  false  eligible     ready
 ```
 
 The output shows our Node ID, which is a randomly generated UUID,
