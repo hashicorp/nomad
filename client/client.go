@@ -732,7 +732,7 @@ func (c *Client) restoreState() error {
 		watcher := noopPrevAlloc{}
 
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
+		ar := NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
 		c.configLock.RUnlock()
 
 		c.allocLock.Lock()
@@ -1902,7 +1902,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	c.configLock.RLock()
 	prevAlloc := newAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
 
-	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
+	// Copy the config since the node can be swapped out as it is being updated.
+	// The long term fix is to pass in the config and node separately and then
+	// we don't have to do a copy.
+	ar := NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
 	c.configLock.RUnlock()
 
 	// Store the alloc runner.
