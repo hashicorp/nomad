@@ -232,16 +232,17 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 	var response cstructs.FingerprintResponse
 
 	fm.nodeLock.Lock()
+	defer fm.nodeLock.Unlock()
+
 	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	err := f.Fingerprint(request, &response)
-	fm.nodeLock.Unlock()
 
 	if err != nil {
 		return false, err
 	}
 
 	if node := fm.updateNodeAttributes(&response); node != nil {
-		fm.setNode(node)
+		fm.node = node
 	}
 
 	return response.Detected, nil
