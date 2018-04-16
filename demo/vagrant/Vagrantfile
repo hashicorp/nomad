@@ -17,7 +17,7 @@ cd /tmp/
 curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
 
 echo "Fetching Consul..."
-curl -sSL https://releases.hashicorp.com/consul/1.0.0/consul_1.0.7_linux_amd64.zip > consul.zip
+curl -sSL https://releases.hashicorp.com/consul/1.0.7/consul_1.0.7_linux_amd64.zip > consul.zip
 
 echo "Installing Nomad..."
 unzip nomad.zip
