@@ -33,9 +33,11 @@ export default Mixin.create({
   fuse: computed('listToSearch.[]', 'fuzzySearchProps.[]', function() {
     return new Fuse(this.get('listToSearch'), {
       shouldSort: true,
-      threshold: 0.6,
+      threshold: 0.4,
       location: 0,
       distance: 100,
+      tokenize: true,
+      matchAllTokens: true,
       maxPatternLength: 32,
       minMatchCharLength: 1,
       keys: this.get('fuzzySearchProps') || [],
