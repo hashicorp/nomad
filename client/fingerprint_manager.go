@@ -325,6 +325,7 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	var response cstructs.FingerprintResponse
 
 	fm.nodeLock.Lock()
+	defer fm.nodeLock.Unlock()
 
 	// Determine if the driver has been detected before.
 	originalNode, haveDriver := fm.node.Drivers[name]
@@ -339,7 +340,6 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	// Fingerprint the driver.
 	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	err := f.Fingerprint(request, &response)
-	fm.nodeLock.Unlock()
 
 	if err != nil {
 		return false, err
@@ -377,7 +377,7 @@ func (fm *FingerprintManager) fingerprintDriver(name string, f fingerprint.Finge
 	}
 
 	if node := fm.updateNodeFromDriver(name, fingerprintInfo, healthInfo); node != nil {
-		fm.setNode(node)
+		fm.node = node
 	}
 
 	return response.Detected, nil
