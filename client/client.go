@@ -277,12 +277,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup the reserved resources
 	c.reservePorts()
 
-	// Store the config copy before restoring state but after it has been
-	// initialized.
-	c.configLock.Lock()
-	c.configCopy = c.config.Copy()
-	c.configLock.Unlock()
-
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
@@ -969,6 +963,9 @@ func (c *Client) reservePorts() {
 	for _, net := range reservedIndex {
 		node.Reserved.Networks = append(node.Reserved.Networks, net)
 	}
+
+	// Make the changes available to the config copy.
+	c.configCopy = c.config.Copy()
 }
 
 // updateNodeFromFingerprint updates the node with the result of
