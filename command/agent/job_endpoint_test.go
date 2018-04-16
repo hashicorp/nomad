@@ -276,7 +276,7 @@ func TestHTTP_JobsParse(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
-		req, err := http.NewRequest("POST", "/v1/jobs/render", buf)
+		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
