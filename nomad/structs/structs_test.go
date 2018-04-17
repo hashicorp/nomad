@@ -3731,7 +3731,7 @@ func TestNode_Copy(t *testing.T) {
 		Status:                NodeStatusReady,
 		SchedulingEligibility: NodeSchedulingEligible,
 		Drivers: map[string]*DriverInfo{
-			"mock_driver": &DriverInfo{
+			"mock_driver": {
 				Attributes:        map[string]string{"running": "1"},
 				Detected:          true,
 				Healthy:           true,
