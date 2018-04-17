@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -59,7 +60,7 @@ func TestConsulScript_Exec_Cancel(t *testing.T) {
 	exec := newBlockingScriptExec()
 
 	// pass nil for heartbeater as it shouldn't be called
-	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, nil, testLogger(), nil)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, nil, testlog.Logger(t), nil)
 	handle := check.run()
 
 	// wait until Exec is called
@@ -111,7 +112,7 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	exec := newBlockingScriptExec()
 
 	hb := newFakeHeartbeater()
-	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), nil)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testlog.Logger(t), nil)
 	handle := check.run()
 	defer handle.cancel() // just-in-case cleanup
 	<-exec.running
@@ -160,7 +161,7 @@ func TestConsulScript_Exec_TimeoutCritical(t *testing.T) {
 		Timeout:  time.Nanosecond,
 	}
 	hb := newFakeHeartbeater()
-	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, sleeperExec{}, hb, testLogger(), nil)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, sleeperExec{}, hb, testlog.Logger(t), nil)
 	handle := check.run()
 	defer handle.cancel() // just-in-case cleanup
 
@@ -205,7 +206,7 @@ func TestConsulScript_Exec_Shutdown(t *testing.T) {
 	hb := newFakeHeartbeater()
 	shutdown := make(chan struct{})
 	exec := newSimpleExec(0, nil)
-	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), shutdown)
+	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testlog.Logger(t), shutdown)
 	handle := check.run()
 	defer handle.cancel() // just-in-case cleanup
 
@@ -242,7 +243,7 @@ func TestConsulScript_Exec_Codes(t *testing.T) {
 			hb := newFakeHeartbeater()
 			shutdown := make(chan struct{})
 			exec := newSimpleExec(code, err)
-			check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testLogger(), shutdown)
+			check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testlog.Logger(t), shutdown)
 			handle := check.run()
 			defer handle.cancel()
 

@@ -36,6 +36,13 @@ const (
 	// defaultMaxRetryInterval is the default max retry interval.
 	defaultMaxRetryInterval = 30 * time.Second
 
+	// defaultPeriodicalInterval is the interval at which the service
+	// client reconciles state between the desired services and checks and
+	// what's actually registered in Consul. This is done at an interval,
+	// rather than being purely edge triggered, to handle the case that the
+	// Consul agent's state may change underneath us
+	defaultPeriodicInterval = 30 * time.Second
+
 	// ttlCheckBuffer is the time interval that Nomad can take to report Consul
 	// the check result
 	ttlCheckBuffer = 31 * time.Second
@@ -190,6 +197,7 @@ type ServiceClient struct {
 	logger           *log.Logger
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
+	periodicInterval time.Duration
 
 	// exitCh is closed when the main Run loop exits
 	exitCh chan struct{}
@@ -235,6 +243,7 @@ func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient 
 		logger:             logger,
 		retryInterval:      defaultRetryInterval,
 		maxRetryInterval:   defaultMaxRetryInterval,
+		periodicInterval:   defaultPeriodicInterval,
 		exitCh:             make(chan struct{}),
 		shutdownCh:         make(chan struct{}),
 		shutdownWait:       defaultShutdownWait,
@@ -279,7 +288,6 @@ func (c *ServiceClient) Run() {
 
 	// Process operations while waiting for initial contact with Consul but
 	// do not sync until contact has been made.
-	hasOps := false
 INIT:
 	for {
 		select {
@@ -289,7 +297,6 @@ INIT:
 		case <-c.shutdownCh:
 			return
 		case ops := <-c.opCh:
-			hasOps = true
 			c.merge(ops)
 		}
 	}
@@ -299,11 +306,8 @@ INIT:
 	// Start checkWatcher
 	go c.checkWatcher.Run(ctx)
 
+	// Always immediately sync to reconcile Nomad and Consul's state
 	retryTimer := time.NewTimer(0)
-	if !hasOps {
-		// No pending operations so don't immediately sync
-		<-retryTimer.C
-	}
 
 	failures := 0
 	for {
@@ -345,6 +349,16 @@ INIT:
 				c.logger.Printf("[INFO] consul.sync: successfully updated services in Consul")
 				failures = 0
 			}
+
+			// Reset timer to periodic interval to periodically
+			// reconile with Consul
+			if !retryTimer.Stop() {
+				select {
+				case <-retryTimer.C:
+				default:
+				}
+			}
+			retryTimer.Reset(c.periodicInterval)
 		}
 
 		select {
