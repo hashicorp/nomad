@@ -8291,13 +8291,7 @@ func (x *FingerprintRequest) CodecEncodeSelf(e *codec1978.Encoder) {
 				if x.Node == nil {
 					r.EncodeNil()
 				} else {
-					yym7 := z.EncBinary()
-					_ = yym7
-					if false {
-					} else if z.HasExtensions() && z.EncExt(x.Node) {
-					} else {
-						z.EncFallback(x.Node)
-					}
+					x.Node.CodecEncodeSelf(e)
 				}
 			} else {
 				z.EncSendContainerState(codecSelfer_containerMapKey102)
@@ -8306,13 +8300,7 @@ func (x *FingerprintRequest) CodecEncodeSelf(e *codec1978.Encoder) {
 				if x.Node == nil {
 					r.EncodeNil()
 				} else {
-					yym8 := z.EncBinary()
-					_ = yym8
-					if false {
-					} else if z.HasExtensions() && z.EncExt(x.Node) {
-					} else {
-						z.EncFallback(x.Node)
-					}
+					x.Node.CodecEncodeSelf(e)
 				}
 			}
 			if yyr2 || yy2arr2 {
@@ -8402,13 +8390,7 @@ func (x *FingerprintRequest) codecDecodeSelfFromMap(l int, d *codec1978.Decoder)
 				if x.Node == nil {
 					x.Node = new(pkg2_structs.Node)
 				}
-				yym7 := z.DecBinary()
-				_ = yym7
-				if false {
-				} else if z.HasExtensions() && z.DecExt(x.Node) {
-				} else {
-					z.DecFallback(x.Node, false)
-				}
+				x.Node.CodecDecodeSelf(d)
 			}
 		default:
 			z.DecStructFieldNotFound(-1, yys3)
@@ -8421,16 +8403,16 @@ func (x *FingerprintRequest) codecDecodeSelfFromArray(l int, d *codec1978.Decode
 	var h codecSelfer102
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
-	var yyj8 int
-	var yyb8 bool
-	var yyhl8 bool = l >= 0
-	yyj8++
-	if yyhl8 {
-		yyb8 = yyj8 > l
+	var yyj7 int
+	var yyb7 bool
+	var yyhl7 bool = l >= 0
+	yyj7++
+	if yyhl7 {
+		yyb7 = yyj7 > l
 	} else {
-		yyb8 = r.CheckBreak()
+		yyb7 = r.CheckBreak()
 	}
-	if yyb8 {
+	if yyb7 {
 		z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 		return
 	}
@@ -8443,21 +8425,21 @@ func (x *FingerprintRequest) codecDecodeSelfFromArray(l int, d *codec1978.Decode
 		if x.Config == nil {
 			x.Config = new(pkg3_config.Config)
 		}
-		yym10 := z.DecBinary()
-		_ = yym10
+		yym9 := z.DecBinary()
+		_ = yym9
 		if false {
 		} else if z.HasExtensions() && z.DecExt(x.Config) {
 		} else {
 			z.DecFallback(x.Config, false)
 		}
 	}
-	yyj8++
-	if yyhl8 {
-		yyb8 = yyj8 > l
+	yyj7++
+	if yyhl7 {
+		yyb7 = yyj7 > l
 	} else {
-		yyb8 = r.CheckBreak()
+		yyb7 = r.CheckBreak()
 	}
-	if yyb8 {
+	if yyb7 {
 		z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 		return
 	}
@@ -8470,26 +8452,20 @@ func (x *FingerprintRequest) codecDecodeSelfFromArray(l int, d *codec1978.Decode
 		if x.Node == nil {
 			x.Node = new(pkg2_structs.Node)
 		}
-		yym12 := z.DecBinary()
-		_ = yym12
-		if false {
-		} else if z.HasExtensions() && z.DecExt(x.Node) {
-		} else {
-			z.DecFallback(x.Node, false)
-		}
+		x.Node.CodecDecodeSelf(d)
 	}
 	for {
-		yyj8++
-		if yyhl8 {
-			yyb8 = yyj8 > l
+		yyj7++
+		if yyhl7 {
+			yyb7 = yyj7 > l
 		} else {
-			yyb8 = r.CheckBreak()
+			yyb7 = r.CheckBreak()
 		}
-		if yyb8 {
+		if yyb7 {
 			break
 		}
 		z.DecSendContainerState(codecSelfer_containerArrayElem102)
-		z.DecStructFieldNotFound(yyj8-1, "")
+		z.DecStructFieldNotFound(yyj7-1, "")
 	}
 	z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 }
@@ -8583,13 +8559,7 @@ func (x *FingerprintResponse) CodecEncodeSelf(e *codec1978.Encoder) {
 				if x.Resources == nil {
 					r.EncodeNil()
 				} else {
-					yym10 := z.EncBinary()
-					_ = yym10
-					if false {
-					} else if z.HasExtensions() && z.EncExt(x.Resources) {
-					} else {
-						z.EncFallback(x.Resources)
-					}
+					x.Resources.CodecEncodeSelf(e)
 				}
 			} else {
 				z.EncSendContainerState(codecSelfer_containerMapKey102)
@@ -8598,13 +8568,7 @@ func (x *FingerprintResponse) CodecEncodeSelf(e *codec1978.Encoder) {
 				if x.Resources == nil {
 					r.EncodeNil()
 				} else {
-					yym11 := z.EncBinary()
-					_ = yym11
-					if false {
-					} else if z.HasExtensions() && z.EncExt(x.Resources) {
-					} else {
-						z.EncFallback(x.Resources)
-					}
+					x.Resources.CodecEncodeSelf(e)
 				}
 			}
 			if yyr2 || yy2arr2 {
@@ -8720,24 +8684,18 @@ func (x *FingerprintResponse) codecDecodeSelfFromMap(l int, d *codec1978.Decoder
 				if x.Resources == nil {
 					x.Resources = new(pkg2_structs.Resources)
 				}
-				yym9 := z.DecBinary()
-				_ = yym9
-				if false {
-				} else if z.HasExtensions() && z.DecExt(x.Resources) {
-				} else {
-					z.DecFallback(x.Resources, false)
-				}
+				x.Resources.CodecDecodeSelf(d)
 			}
 		case "Detected":
 			if r.TryDecodeAsNil() {
 				x.Detected = false
 			} else {
-				yyv10 := &x.Detected
-				yym11 := z.DecBinary()
-				_ = yym11
+				yyv9 := &x.Detected
+				yym10 := z.DecBinary()
+				_ = yym10
 				if false {
 				} else {
-					*((*bool)(yyv10)) = r.DecodeBool()
+					*((*bool)(yyv9)) = r.DecodeBool()
 				}
 			}
 		default:
@@ -8751,16 +8709,16 @@ func (x *FingerprintResponse) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	var h codecSelfer102
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
-	var yyj12 int
-	var yyb12 bool
-	var yyhl12 bool = l >= 0
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	var yyj11 int
+	var yyb11 bool
+	var yyhl11 bool = l >= 0
+	yyj11++
+	if yyhl11 {
+		yyb11 = yyj11 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb11 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb11 {
 		z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 		return
 	}
@@ -8768,21 +8726,21 @@ func (x *FingerprintResponse) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	if r.TryDecodeAsNil() {
 		x.Attributes = nil
 	} else {
-		yyv13 := &x.Attributes
-		yym14 := z.DecBinary()
-		_ = yym14
+		yyv12 := &x.Attributes
+		yym13 := z.DecBinary()
+		_ = yym13
 		if false {
 		} else {
-			z.F.DecMapStringStringX(yyv13, false, d)
+			z.F.DecMapStringStringX(yyv12, false, d)
 		}
 	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	yyj11++
+	if yyhl11 {
+		yyb11 = yyj11 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb11 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb11 {
 		z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 		return
 	}
@@ -8790,21 +8748,21 @@ func (x *FingerprintResponse) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	if r.TryDecodeAsNil() {
 		x.Links = nil
 	} else {
-		yyv15 := &x.Links
-		yym16 := z.DecBinary()
-		_ = yym16
+		yyv14 := &x.Links
+		yym15 := z.DecBinary()
+		_ = yym15
 		if false {
 		} else {
-			z.F.DecMapStringStringX(yyv15, false, d)
+			z.F.DecMapStringStringX(yyv14, false, d)
 		}
 	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	yyj11++
+	if yyhl11 {
+		yyb11 = yyj11 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb11 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb11 {
 		z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 		return
 	}
@@ -8817,21 +8775,15 @@ func (x *FingerprintResponse) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 		if x.Resources == nil {
 			x.Resources = new(pkg2_structs.Resources)
 		}
-		yym18 := z.DecBinary()
-		_ = yym18
-		if false {
-		} else if z.HasExtensions() && z.DecExt(x.Resources) {
-		} else {
-			z.DecFallback(x.Resources, false)
-		}
+		x.Resources.CodecDecodeSelf(d)
 	}
-	yyj12++
-	if yyhl12 {
-		yyb12 = yyj12 > l
+	yyj11++
+	if yyhl11 {
+		yyb11 = yyj11 > l
 	} else {
-		yyb12 = r.CheckBreak()
+		yyb11 = r.CheckBreak()
 	}
-	if yyb12 {
+	if yyb11 {
 		z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 		return
 	}
@@ -8839,26 +8791,26 @@ func (x *FingerprintResponse) codecDecodeSelfFromArray(l int, d *codec1978.Decod
 	if r.TryDecodeAsNil() {
 		x.Detected = false
 	} else {
-		yyv19 := &x.Detected
-		yym20 := z.DecBinary()
-		_ = yym20
+		yyv17 := &x.Detected
+		yym18 := z.DecBinary()
+		_ = yym18
 		if false {
 		} else {
-			*((*bool)(yyv19)) = r.DecodeBool()
+			*((*bool)(yyv17)) = r.DecodeBool()
 		}
 	}
 	for {
-		yyj12++
-		if yyhl12 {
-			yyb12 = yyj12 > l
+		yyj11++
+		if yyhl11 {
+			yyb11 = yyj11 > l
 		} else {
-			yyb12 = r.CheckBreak()
+			yyb11 = r.CheckBreak()
 		}
-		if yyb12 {
+		if yyb11 {
 			break
 		}
 		z.DecSendContainerState(codecSelfer_containerArrayElem102)
-		z.DecStructFieldNotFound(yyj12-1, "")
+		z.DecStructFieldNotFound(yyj11-1, "")
 	}
 	z.DecSendContainerState(codecSelfer_containerArrayEnd102)
 }
