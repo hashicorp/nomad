@@ -1756,8 +1756,8 @@ OUTER:
 }
 
 // updateNode updates the Node copy and triggers the client to send the updated
-// Node to the server. This should be done while holding the configLock lock.
-// so already
+// Node to the server. This should be done while the caller holds the
+// configLock lock.
 func (c *Client) updateNodeLocked() {
 	// Update the config copy.
 	node := c.config.Node.Copy()
