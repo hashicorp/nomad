@@ -3,7 +3,7 @@ import { Factory, faker } from 'ember-cli-mirage';
 const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 
 export default Factory.extend({
-  name: id => `${faker.hacker.noun()}-g-${id}`,
+  name: id => `${faker.hacker.noun().dasherize()}-g-${id}`,
   count: () => faker.random.number({ min: 1, max: 4 }),
 
   ephemeralDisk: () => ({

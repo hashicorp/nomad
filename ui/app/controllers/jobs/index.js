@@ -40,6 +40,7 @@ export default Controller.extend(Sortable, Searchable, {
       const activeNamespace = this.get('system.activeNamespace.id') || 'default';
 
       return this.get('model')
+        .compact()
         .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
         .filter(job => !job.get('parent.content'));
     }
