@@ -167,7 +167,7 @@ $ curl \
 ```
 
 For more information about the Autopilot configuration options, see the
-[agent configuration section](/docs/agent/options.html#autopilot).
+[agent configuration section](/docs/agent/configuration/autopilot.html).
 
 ## Update Autopilot Configuration
 

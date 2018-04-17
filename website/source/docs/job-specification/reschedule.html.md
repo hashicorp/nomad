@@ -112,7 +112,7 @@ defaults by job type:
 
 ### Rescheduling during deployments
 
-The [update stanza](docs/job-specification/update.html) controls rolling updates and canary deployments. A task
+The [update stanza](/docs/job-specification/update.html) controls rolling updates and canary deployments. A task
 group's reschedule stanza does not take affect during a deployment. For example, if a new version of the job
 is rolled out and the deployment failed due to a failing allocation, Nomad will not reschedule it.
 

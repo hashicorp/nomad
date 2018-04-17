@@ -22,4 +22,4 @@ Please see one of the guides below or use the navigation on the left for details
 
 1. [Local Restarts](/docs/operating-a-job/failure-handling-strategies/restart.html)
 1. [Check Restarts](/docs/operating-a-job/failure-handling-strategies/check-restart.html)
-1. [Rescheduling](/docs/operating-a-job/failure-handling-strategies/rescheduling.html)
+1. [Rescheduling](/docs/operating-a-job/failure-handling-strategies/reschedule.html)

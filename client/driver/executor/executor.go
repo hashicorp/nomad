@@ -227,6 +227,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.ctx.TaskDir
 
+	// start command in separate process group
+	if err := e.setNewProcessGroup(); err != nil {
+		return nil, err
+	}
+
 	// configuring the chroot, resource container, and start the plugin
 	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
@@ -435,6 +440,10 @@ var (
 	// finishedErr is the error message received when trying to kill and already
 	// exited process.
 	finishedErr = "os: process already finished"
+
+	// noSuchProcessErr is the error message received when trying to kill a non
+	// existing process (e.g. when killing a process group).
+	noSuchProcessErr = "no such process"
 )
 
 // ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
@@ -470,7 +479,7 @@ func (e *UniversalExecutor) Exit() error {
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
-		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
+		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
@@ -493,27 +502,7 @@ func (e *UniversalExecutor) ShutDown() error {
 	if err != nil {
 		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
 	}
-	if runtime.GOOS == "windows" {
-		if err := proc.Kill(); err != nil && err.Error() != finishedErr {
-			return err
-		}
-		return nil
-	}
-
-	// Set default kill signal, as some drivers don't support configurable
-	// signals (such as rkt)
-	var osSignal os.Signal
-	if e.command.TaskKillSignal != nil {
-		osSignal = e.command.TaskKillSignal
-	} else {
-		osSignal = os.Interrupt
-	}
-
-	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
-		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-
-	return nil
+	return e.shutdownProcess(proc)
 }
 
 // pidStats returns the resource usage stats per pid

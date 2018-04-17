@@ -13,9 +13,9 @@ operator-friendly management of Nomad servers. It includes cleanup of dead
 servers, monitoring the state of the Raft cluster, and stable server introduction.
 
 To enable Autopilot features (with the exception of dead server cleanup),
-the `raft_protocol` setting in the [server stanza](/docs/agent/configuration/server.html.md)
+the `raft_protocol` setting in the [server stanza](/docs/agent/configuration/server.html)
 must be set to 3 on all servers. In Nomad 0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3.
-For more information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html.md#raft-protocol-version-compatibility)
+For more information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
 on Raft Protocol versions.
 
 ## Configuration
