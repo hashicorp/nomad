@@ -142,9 +142,9 @@ we should see both nodes in the `ready` state:
 
 ```text 
 $ nomad node status
-ID        Datacenter  Name     Class   Drain  Status
-fca62612  dc1         client1  <none>  false  ready
-c887deef  dc1         client2  <none>  false  ready
+ID        DC   Name     Class   Drain  Eligibility  Status
+fca62612  dc1  client1  <none>  false  eligible     ready
+c887deef  dc1  client2  <none>  false  eligible     ready
 ```
 
 We now have a simple three node cluster running. The only difference

@@ -2,6 +2,8 @@ package structs
 
 import (
 	"time"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 // DriverInfo is the current state of a single driver. This is updated
@@ -12,6 +14,17 @@ type DriverInfo struct {
 	Healthy           bool
 	HealthDescription string
 	UpdateTime        time.Time
+}
+
+func (di *DriverInfo) Copy() *DriverInfo {
+	if di == nil {
+		return nil
+	}
+
+	cdi := new(DriverInfo)
+	*cdi = *di
+	cdi.Attributes = helper.CopyMapStringString(di.Attributes)
+	return cdi
 }
 
 // MergeHealthCheck merges information from a health check for a drier into a
