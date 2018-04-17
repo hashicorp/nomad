@@ -340,7 +340,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
