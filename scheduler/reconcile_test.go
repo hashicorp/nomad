@@ -4063,3 +4063,55 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 		},
 	})
 }
+
+// Test that a successful deployment with failed allocs will result in
+// rescheduling failed allocations
+func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Mock deployment with failed allocs, but deployment watcher hasn't marked it as failed yet
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusSuccessful
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 10,
+		PlacedAllocs: 10,
+	}
+
+	// Create 10 allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.ClientStatus = structs.AllocClientStatusFailed
+		alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+			StartedAt:  now.Add(-1 * time.Hour),
+			FinishedAt: now.Add(-10 * time.Second)}}
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert that rescheduled placements were created
+	assertResults(t, r, &resultExpectation{
+		place:             10,
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  10,
+				Ignore: 0,
+			},
+		},
+	})
+	assertPlaceResultsHavePreviousAllocs(t, 10, r.place)
+}

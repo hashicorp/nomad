@@ -234,7 +234,7 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 // untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
 // at a future time are also returned so that we can create follow up evaluations for them. Allocs are
 // skipped or considered untainted according to logic defined in shouldFilter method.
-func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
+func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string, deployment *structs.Deployment) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
 	untainted = make(map[string]*structs.Allocation)
 	rescheduleNow = make(map[string]*structs.Allocation)
 
@@ -257,7 +257,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 
 		// Only failed allocs with desired state run get to this point
 		// If the failed alloc is not eligible for rescheduling now we add it to the untainted set
-		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID)
+		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment)
 		if !eligibleNow {
 			untainted[alloc.ID] = alloc
 			if eligibleLater {
@@ -320,11 +320,14 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
-func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
+	// if it has been marked eligible
+	if alloc.DeploymentID != "" && d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+		return
+	}
 
-	// If the allocation is part of a deployment, only allow it to reschedule if
-	// it has been marked eligible for it explicitly.
-	if alloc.DeploymentID != "" && !alloc.DesiredTransition.ShouldReschedule() {
+	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 		return
 	}
 
