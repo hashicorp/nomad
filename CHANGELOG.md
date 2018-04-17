@@ -1,4 +1,10 @@
-## 0.8 (Unreleased)
+## 0.8.1 (April 17, 2018)
+
+BUG FIXES:
+ * client: Fix a race condition while concurrently fingerprinting and accessing
+   the node that could cause a panic [[GH-4166](https://github.com/hashicorp/nomad/issues/4166)]
+
+## 0.8.0 (April 12, 2018)
 
 __BACKWARDS INCOMPATIBILITIES:__
  * cli: node drain now blocks until the drain completes and all allocations on
