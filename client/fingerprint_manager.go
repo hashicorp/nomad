@@ -53,8 +53,14 @@ func NewFingerprintManager(getConfig func() *config.Config,
 func (fm *FingerprintManager) setNode(node *structs.Node) {
 	fm.nodeLock.Lock()
 	defer fm.nodeLock.Unlock()
-
 	fm.node = node
+}
+
+// getNode returns the current client node
+func (fm *FingerprintManager) getNode() *structs.Node {
+	fm.nodeLock.Lock()
+	defer fm.nodeLock.Unlock()
+	return fm.node
 }
 
 // Run starts the process of fingerprinting the node. It does an initial pass,
@@ -167,7 +173,7 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 // supported
 func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 	var availDrivers []string
-	driverCtx := driver.NewDriverContext("", "", fm.getConfig(), fm.node, fm.logger, nil)
+	driverCtx := driver.NewDriverContext("", "", fm.getConfig(), fm.getNode(), fm.logger, nil)
 	for _, name := range drivers {
 
 		d, err := driver.NewDriver(name, driverCtx)
