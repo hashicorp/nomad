@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	syslog "github.com/RackSec/srslog"
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
@@ -286,6 +288,45 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	go e.wait()
 	ic := e.resConCtx.getIsolationConfig()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
+}
+
+// LaunchSyslogServer starts the syslog compatible listener to provide logging
+// to subprocesses.
+func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
+	// Ensure the context has been set first
+	if e.ctx == nil {
+		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
+	}
+
+	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
+	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
+	if err != nil {
+		return nil, err
+	}
+	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
+	if err := e.configureLoggers(); err != nil {
+		return nil, err
+	}
+
+	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
+	go e.syslogServer.Start()
+	go e.collectLogs(e.lre, e.lro)
+	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
+	return &SyslogServerState{Addr: syslogAddr}, nil
+}
+
+func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
+	for logParts := range e.syslogChan {
+		// If the severity of the log line is err then we write to stderr
+		// otherwise all messages go to stdout
+		if logParts.Severity == syslog.LOG_ERR {
+			e.lre.Write(logParts.Message)
+			e.lre.Write([]byte{'\n'})
+		} else {
+			e.lro.Write(logParts.Message)
+			e.lro.Write([]byte{'\n'})
+		}
+	}
 }
 
 // Exec a command inside a container for exec and java drivers.
