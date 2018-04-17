@@ -3676,3 +3676,80 @@ func TestNode_Canonicalize(t *testing.T) {
 	node.Canonicalize()
 	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
 }
+
+func TestNode_Copy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	node := &Node{
+		ID:         uuid.Generate(),
+		SecretID:   uuid.Generate(),
+		Datacenter: "dc1",
+		Name:       "foobar",
+		Attributes: map[string]string{
+			"kernel.name":        "linux",
+			"arch":               "x86",
+			"nomad.version":      "0.5.0",
+			"driver.exec":        "1",
+			"driver.mock_driver": "1",
+		},
+		Resources: &Resources{
+			CPU:      4000,
+			MemoryMB: 8192,
+			DiskMB:   100 * 1024,
+			IOPS:     150,
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		Reserved: &Resources{
+			CPU:      100,
+			MemoryMB: 256,
+			DiskMB:   4 * 1024,
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
+					MBits:         1,
+				},
+			},
+		},
+		Links: map[string]string{
+			"consul": "foobar.dc1",
+		},
+		Meta: map[string]string{
+			"pci-dss":  "true",
+			"database": "mysql",
+			"version":  "5.6",
+		},
+		NodeClass:             "linux-medium-pci",
+		Status:                NodeStatusReady,
+		SchedulingEligibility: NodeSchedulingEligible,
+		Drivers: map[string]*DriverInfo{
+			"mock_driver": &DriverInfo{
+				Attributes:        map[string]string{"running": "1"},
+				Detected:          true,
+				Healthy:           true,
+				HealthDescription: "Currently active",
+				UpdateTime:        time.Now(),
+			},
+		},
+	}
+	node.ComputeClass()
+
+	node2 := node.Copy()
+
+	require.Equal(node.Attributes, node2.Attributes)
+	require.Equal(node.Resources, node2.Resources)
+	require.Equal(node.Reserved, node2.Reserved)
+	require.Equal(node.Links, node2.Links)
+	require.Equal(node.Meta, node2.Meta)
+	require.Equal(node.Events, node2.Events)
+	require.Equal(node.DrainStrategy, node2.DrainStrategy)
+	require.Equal(node.Drivers, node2.Drivers)
+}
