@@ -54,7 +54,7 @@ func TestJobs_Parse(t *testing.T) {
 
 	jobs := c.Jobs()
 
-	checkJob := func(job *Job, expected string) {
+	checkJob := func(job *Job, expectedRegion string) {
 		if job == nil {
 			t.Fatal("job should not be nil")
 		}
@@ -62,22 +62,22 @@ func TestJobs_Parse(t *testing.T) {
 		region := job.Region
 
 		if region == nil {
-			if expected != "" {
-				t.Fatalf("expected job region to be '%s' but was unset", expected)
+			if expectedRegion != "" {
+				t.Fatalf("expected job region to be '%s' but was unset", expectedRegion)
 			}
 		} else {
-			if expected != *region {
-				t.Fatalf("expected job region '%s', but got '%s'", expected, *region)
+			if expectedRegion != *region {
+				t.Fatalf("expected job region '%s', but got '%s'", expectedRegion, *region)
 			}
 		}
 	}
-	job, err := jobs.Parse(mock.HCL(), true)
+	job, err := jobs.ParseHCL(mock.HCL(), true)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	checkJob(job, "global")
 
-	job, err = jobs.Parse(mock.HCL(), false)
+	job, err = jobs.ParseHCL(mock.HCL(), false)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

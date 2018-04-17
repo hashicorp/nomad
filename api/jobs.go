@@ -38,11 +38,11 @@ type Jobs struct {
 
 // JobsParseRequest is used for arguments of the /vi/jobs/parse endpoint
 type JobsParseRequest struct {
-	//JobHCL is an hcl jobspec
+	// JobHCL is an hcl jobspec
 	JobHCL string
 
-	//Canonicalize is a flag as to if the server should return default values
-	//for unset fields
+	// Canonicalize is a flag as to if the server should return default values
+	// for unset fields
 	Canonicalize bool
 }
 
@@ -53,7 +53,7 @@ func (c *Client) Jobs() *Jobs {
 
 // Parse is used to convert the HCL repesentation of a Job to JSON server side.
 // To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
-func (j *Jobs) Parse(jobHCL string, canonicalize bool) (*Job, error) {
+func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 	var job Job
 	req := &JobsParseRequest{
 		JobHCL:       jobHCL,

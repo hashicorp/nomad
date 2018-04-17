@@ -233,7 +233,7 @@ $ curl \
 
 ## Parse Job
 
-This endpoint will parse an hcl jobspec and produce the equivalent json encoded
+This endpoint will parse a HCL jobspec and produce the equivalent JSON encoded
 job.
 
 | Method | Path                      | Produces                   |
