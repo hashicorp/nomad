@@ -27,9 +27,8 @@ func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
 			return err
 		}
 		return nil
-	} else {
-		return proc.Kill()
 	}
+	return proc.Kill()
 }
 
 func (e *UniversalExecutor) shutdownProcess(proc *os.Process) error {
