@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Configuring Tasks - Operating a Job"
-sidebar_current: "docs-operating-a-job-configuring-tasks"
+sidebar_current: "guides-operating-a-job-configuring-tasks"
 description: |-
   Most applications require some kind of configuration. Whether the
   configuration is provided via the command line, environment variables, or a

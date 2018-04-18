@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Blue/Green & Canary Deployments - Operating a Job"
-sidebar_current: "docs-operating-a-job-updating-blue-green-deployments"
+sidebar_current: "guides-operating-a-job-updating-blue-green-deployments"
 description: |-
   Nomad has built-in support for doing blue/green and canary deployments to more
   safely update existing applications and services.
@@ -10,7 +10,7 @@ description: |-
 # Blue/Green &amp; Canary Deployments
 
 Sometimes [rolling
-upgrades](/docs/operating-a-job/update-strategies/rolling-upgrades.html) do not
+upgrades](/guides/operating-a-job/update-strategies/rolling-upgrades.html) do not
 offer the required flexibility for updating an application in production. Often
 organizations prefer to put a "canary" build into production or utilize a
 technique known as a "blue/green" deployment to ensure a safe application

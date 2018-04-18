@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Restart Stanza - Operating a Job"
-sidebar_current: "docs-operating-a-job-failure-handling-strategies-local-restarts"
+sidebar_current: "guides-operating-a-job-failure-handling-strategies-local-restarts"
 description: |-
   Nomad can restart a task on the node it is running on to recover from
   failures. Task restarts can be configured to be limited by number of attempts within

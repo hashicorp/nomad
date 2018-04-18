@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Check Restart Stanza - Operating a Job"
-sidebar_current: "docs-operating-a-job-failure-handling-strategies-check-restart"
+sidebar_current: "guides-operating-a-job-failure-handling-strategies-check-restart"
 description: |-
   Nomad can restart tasks if they have a failing health check based on
   configuration specified in the `check_restart` stanza. Restarts are done locally on the node

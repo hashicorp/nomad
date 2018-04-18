@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Reschedule Stanza - Operating a Job"
-sidebar_current: "docs-operating-a-job-failure-handling-strategies-reschedule"
+sidebar_current: "guides-operating-a-job-failure-handling-strategies-reschedule"
 description: |-
   Nomad can reschedule failing tasks after any local restart attempts have been
   exhausted. This is useful to recover from failures stemming from problems in the node
