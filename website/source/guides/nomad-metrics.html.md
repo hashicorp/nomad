@@ -35,8 +35,8 @@ Configurations for Grafana and Prometheus can be found in the
 
 For Prometheus, first follow Prometheus's [Getting Started
 Guide](https://prometheus.io/docs/introduction/getting_started/) in order to
-set up a Prometheus server. Next, use the (Nomad Prometheus
-Configuration)[https://github.com/hashicorp/nomad/tree/master/integrations/prometheus/prometheus.yml]
+set up a Prometheus server. Next, use the [Nomad Prometheus
+Configuration](https://github.com/hashicorp/nomad/tree/master/integrations/prometheus/prometheus.yml)
 in order to configure Prometheus to talk to a Consul agent to fetch information
 about the Nomad cluster. See the
 [README](https://github.com/hashicorp/nomad/tree/master/integrations/prometheus/README.md)
