@@ -448,15 +448,15 @@ is specified on the path, while the mapping to policies is done by naming them i
 for example:
 
 ```
-$ vault write nomad/role/role-name policy=policyone,policytwo
-Success! Data written to: nomad/roles/role-name
+$ vault write nomad/role/role-name policies=policyone,policytwo
+Success! Data written to: nomad/role/role-name
 ```
 
 Similarly, to create management tokens, or global tokens:
 
 ```
 $ vault write nomad/role/role-name type=management global=true
-Success! Data written to: nomad/roles/role-name
+Success! Data written to: nomad/role/role-name
 ```
 
 Create a Vault policy to allow different identities to get tokens associated with a particular
@@ -490,7 +490,7 @@ Finally obtain a Nomad Token using the existing Vault Token:
 $ vault read nomad/creds/role-name
 Key             Value
 ---             -----
-lease_id        nomad/creds/test/6fb22e25-0cd1-b4c9-494e-aba330c317b9
+lease_id        nomad/creds/role-name/6fb22e25-0cd1-b4c9-494e-aba330c317b9
 lease_duration  768h0m0s
 lease_renewable true
 accessor_id     10b8fb49-7024-2126-8683-ab355b581db2
