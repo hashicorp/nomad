@@ -206,10 +206,10 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_BadStart(t *testing.T) {
 // deadline.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
 
-	// Ensure the task fails and restarts
-	upd, ar := testAllocRunner(t, true)
+	// Don't restart but force service job type
+	upd, ar := testAllocRunner(t, false)
+	ar.alloc.Job.Type = structs.JobTypeService
 
 	// Make the task block
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
@@ -232,24 +232,35 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 		if last == nil {
 			return false, fmt.Errorf("No updates")
 		}
+
+		// Assert alloc is unhealthy
 		if !last.DeploymentStatus.HasHealth() {
 			return false, fmt.Errorf("want deployment status unhealthy; got unset")
 		} else if *last.DeploymentStatus.Healthy {
 			return false, fmt.Errorf("want deployment status unhealthy; got healthy")
 		}
+
+		// Assert there is a task event explaining why we are unhealthy.
+		state, ok := last.TaskStates[task.Name]
+		if !ok {
+			return false, fmt.Errorf("missing state for task %s", task.Name)
+		}
+		n := len(state.Events)
+		if n == 0 {
+			return false, fmt.Errorf("no task events")
+		}
+		lastEvent := state.Events[n-1]
+		if lastEvent.Type != allocHealthEventSource {
+			return false, fmt.Errorf("expected %q; found %q", allocHealthEventSource, lastEvent.Type)
+		}
+		if !strings.Contains(lastEvent.Message, "not running by deadline") {
+			return false, fmt.Errorf(`expected "not running by deadline" but found: %s`, lastEvent.Message)
+		}
+
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
-
-	// Assert that we have an event explaining why we are unhealthy.
-	assert.Len(ar.taskStates, 1)
-	state := ar.taskStates[task.Name]
-	assert.NotNil(state)
-	assert.NotEmpty(state.Events)
-	last := state.Events[len(state.Events)-1]
-	assert.Equal(allocHealthEventSource, last.Type)
-	assert.Contains(last.Message, "not running by deadline")
 }
 
 // Test that the watcher will mark the allocation as healthy.
