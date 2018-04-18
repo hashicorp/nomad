@@ -61,7 +61,7 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	// Check that we got two arguments
 	args = flags.Args()
 	if l := len(args); l != 2 {
-		c.Ui.Error("This command takes two arguments, <name> and <path>")
+		c.Ui.Error("This command takes two arguments: <name> and <path>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

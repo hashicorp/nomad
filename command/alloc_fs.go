@@ -142,7 +142,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 	}
 
 	if len(args) > 2 {
-		f.Ui.Error("This command takes one or two arguments, <allocation> [<path>]")
+		f.Ui.Error("This command takes one or two arguments: <allocation> [<path>]")
 		f.Ui.Error(commandErrorText(f))
 		return 1
 	}

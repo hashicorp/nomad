@@ -49,7 +49,7 @@ func (c *QuotaDeleteCommand) Run(args []string) int {
 	// Check that we got one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument, <quota>")
+		c.Ui.Error("This command takes one argument: <quota>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

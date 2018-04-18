@@ -74,7 +74,7 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 	// Check that we get exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument, <namespace>")
+		c.Ui.Error("This command takes one argument: <namespace>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

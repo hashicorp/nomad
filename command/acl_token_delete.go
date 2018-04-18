@@ -51,7 +51,7 @@ func (c *ACLTokenDeleteCommand) Run(args []string) int {
 	// such token was provided.
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument, <token_accessor_id>")
+		c.Ui.Error("This command takes one argument: <token_accessor_id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

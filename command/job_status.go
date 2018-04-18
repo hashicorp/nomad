@@ -104,7 +104,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 	// Check that we either got no jobs or exactly one.
 	args = flags.Args()
 	if len(args) > 1 {
-		c.Ui.Error("This command takes either no arguments or one, <job>")
+		c.Ui.Error("This command takes either no arguments or one: <job>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

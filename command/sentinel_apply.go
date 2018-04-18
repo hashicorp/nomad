@@ -76,7 +76,7 @@ func (c *SentinelApplyCommand) Run(args []string) int {
 	// Check that we got exactly two arguments
 	args = flags.Args()
 	if l := len(args); l != 2 {
-		c.Ui.Error("This command takes exactly two arguments, <name> <file>")
+		c.Ui.Error("This command takes exactly two arguments: <name> <file>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

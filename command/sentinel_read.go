@@ -59,7 +59,7 @@ func (c *SentinelReadCommand) Run(args []string) int {
 	// Check that we got exactly one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument, <name>")
+		c.Ui.Error("This command takes one argument: <name>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

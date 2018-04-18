@@ -79,7 +79,7 @@ func (c *DeploymentResumeCommand) Run(args []string) int {
 	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument, <deployment id>")
+		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

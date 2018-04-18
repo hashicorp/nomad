@@ -86,7 +86,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 	// Check that we got two args
 	args = flags.Args()
 	if l := len(args); l != 2 {
-		c.Ui.Error("This command takes two arguments, <job> <version>")
+		c.Ui.Error("This command takes two arguments: <job> <version>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

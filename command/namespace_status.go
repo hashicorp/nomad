@@ -50,7 +50,7 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 	// Check that we got one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument, <namespace>")
+		c.Ui.Error("This command takes one argument: <namespace>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

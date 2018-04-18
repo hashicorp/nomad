@@ -40,7 +40,7 @@ func (c *ServerForceLeaveCommand) Run(args []string) int {
 	// Check that we got exactly one node
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error("This command takes one argument, <node>")
+		c.Ui.Error("This command takes one argument: <node>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
