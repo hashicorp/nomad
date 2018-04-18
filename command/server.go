@@ -39,6 +39,8 @@ func (f *ServerCommand) Synopsis() string {
 	return "Interact with servers"
 }
 
+func (f *ServerCommand) Name() string { return "server" }
+
 func (f *ServerCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

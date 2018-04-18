@@ -43,6 +43,8 @@ func (f *NamespaceCommand) Synopsis() string {
 	return "Interact with namespaces"
 }
 
+func (f *NamespaceCommand) Name() string { return "namespace" }
+
 func (f *NamespaceCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

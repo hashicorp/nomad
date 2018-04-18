@@ -67,6 +67,8 @@ func (c *OperatorKeyringCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
+func (c *OperatorKeyringCommand) Name() string { return "operator keyring" }
+
 func (c *OperatorKeyringCommand) Run(args []string) int {
 	var installKey, useKey, removeKey string
 	var listKeys bool
@@ -95,6 +97,7 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 	for _, arg := range []string{installKey, useKey, removeKey} {
 		if found && len(arg) > 0 {
 			c.Ui.Error("Only a single action is allowed")
+			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 		found = found || len(arg) > 0
@@ -102,7 +105,9 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 
 	// Fail fast if no actionable args were passed
 	if !found {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("No actionable argument was passed")
+		c.Ui.Error("Either the '-install', '-use', '-remove' or '-list' flag must be set")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

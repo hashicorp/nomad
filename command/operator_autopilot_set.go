@@ -29,6 +29,8 @@ func (c *OperatorAutopilotSetCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
+func (c *OperatorAutopilotSetCommand) Name() string { return "operator autopilot set-config" }
+
 func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	var cleanupDeadServers flags.BoolValue
 	var maxTrailingLogs flags.UintValue

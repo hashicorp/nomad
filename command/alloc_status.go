@@ -83,11 +83,13 @@ func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *AllocStatusCommand) Name() string { return "alloc status" }
+
 func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("alloc status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -128,7 +130,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one of the following argument conditions:")
+		c.Ui.Error(" * A single <allocation>")
+		c.Ui.Error(" * No arguments, with output format specified")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	allocID := args[0]

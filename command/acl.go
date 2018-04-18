@@ -31,6 +31,8 @@ func (f *ACLCommand) Synopsis() string {
 	return "Interact with ACL policies and tokens"
 }
 
+func (f *ACLCommand) Name() string { return "acl" }
+
 func (f *ACLCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
