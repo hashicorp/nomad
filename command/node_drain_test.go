@@ -251,7 +251,7 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -278,7 +278,7 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-enable", "-disable", "12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -287,7 +287,7 @@ func TestNodeDrainCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

@@ -23,7 +23,7 @@ func TestNamespaceListCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
