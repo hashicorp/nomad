@@ -2,6 +2,7 @@ package agent
 
 import (
 	"log"
+	"strings"
 	"time"
 )
 
@@ -33,7 +34,21 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 	r.logger.Printf("[INFO] agent: Joining cluster...")
 
 	for {
-		addrs := config.Server.RetryJoin
+		var addrs []string
+
+		for _, addr := range config.Server.RetryJoin {
+			switch {
+			case strings.Contains(addr, "provider"):
+				servers, err := r.discover.Addrs(addr, r.logger)
+				if err != nil {
+					r.logger.Printf("[ERR] agent: Join error %s", err)
+				} else {
+					addrs = append(addrs, servers...)
+				}
+			default:
+				addrs = append(addrs, addr)
+			}
+		}
 
 		n, err := r.join(addrs)
 		if err == nil {

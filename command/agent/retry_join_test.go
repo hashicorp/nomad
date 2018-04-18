@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -67,14 +66,14 @@ func TestRetryJoin_Integration(t *testing.T) {
 type MockDiscover struct{}
 
 func (m *MockDiscover) Addrs(s string, l *log.Logger) ([]string, error) {
-	return strings.Split(s, " "), nil
+	return []string{s}, nil
 }
 func (m *MockDiscover) Help() string { return "" }
 func (m *MockDiscover) Names() []string {
 	return []string{""}
 }
 
-func TestRetryJoin_Unit(t *testing.T) {
+func TestRetryJoin_NonCloud(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -104,4 +103,69 @@ func TestRetryJoin_Unit(t *testing.T) {
 
 	require.Equal(1, len(output))
 	require.Equal("127.0.0.1", output[0])
+}
+
+func TestRetryJoin_Cloud(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	newConfig := &Config{
+		Server: &ServerConfig{
+			RetryMaxAttempts: 1,
+			RetryJoin:        []string{"provider=aws, tag_value=foo"},
+			Enabled:          true,
+		},
+	}
+
+	var output []string
+
+	mockJoin := func(s []string) (int, error) {
+		output = s
+		return 0, nil
+	}
+
+	joiner := retryJoiner{
+		discover: &MockDiscover{},
+		join:     mockJoin,
+		logger:   log.New(ioutil.Discard, "", 0),
+		errCh:    make(chan struct{}),
+	}
+
+	joiner.RetryJoin(newConfig)
+
+	require.Equal(1, len(output))
+	require.Equal("provider=aws, tag_value=foo", output[0])
+}
+
+func TestRetryJoin_MixedProvider(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	newConfig := &Config{
+		Server: &ServerConfig{
+			RetryMaxAttempts: 1,
+			RetryJoin:        []string{"provider=aws, tag_value=foo", "127.0.0.1"},
+			Enabled:          true,
+		},
+	}
+
+	var output []string
+
+	mockJoin := func(s []string) (int, error) {
+		output = s
+		return 0, nil
+	}
+
+	joiner := retryJoiner{
+		discover: &MockDiscover{},
+		join:     mockJoin,
+		logger:   log.New(ioutil.Discard, "", 0),
+		errCh:    make(chan struct{}),
+	}
+
+	joiner.RetryJoin(newConfig)
+
+	require.Equal(2, len(output))
+	require.Equal("provider=aws, tag_value=foo", output[0])
+	require.Equal("127.0.0.1", output[1])
 }
