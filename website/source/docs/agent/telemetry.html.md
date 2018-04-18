@@ -702,6 +702,62 @@ detailed above) but any new metrics will only be available in the new format.
   </tr>
 </table>
 
+# Job Metrics
+
+Job metrics are emitted by the Nomad leader server.
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Metric</th>
+    <th>Description</th>
+    <th>Unit</th>
+    <th>Type</th>
+    <th>Labels</th>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.queued`</td>
+    <td>Number of queued allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.complete`</td>
+    <td>Number of complete allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.failed`</td>
+    <td>Number of failed allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.running`</td>
+    <td>Number of running allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.starting`</td>
+    <td>Number of starting allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.lost`</td>
+    <td>Number of lost allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+</table>
+
 # Metric Types
 
 <table class="table table-bordered table-striped">
