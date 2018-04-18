@@ -21,6 +21,7 @@ import (
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
 	checkpoint "github.com/hashicorp/go-checkpoint"
+	discover "github.com/hashicorp/go-discover"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
@@ -545,7 +546,14 @@ func (c *Command) Run(args []string) int {
 
 	// Start retry join process
 	c.retryJoinErrCh = make(chan struct{})
-	go c.retryJoin(config)
+
+	joiner := retryJoiner{
+		join:     c.agent.server.Join,
+		discover: &discover.Discover{},
+		errCh:    c.retryJoinErrCh,
+		logger:   c.agent.logger,
+	}
+	go joiner.RetryJoin(config)
 
 	// Wait for exit
 	return c.handleSignals()
@@ -833,37 +841,6 @@ func (c *Command) startupJoin(config *Config) error {
 
 	c.Ui.Output(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
 	return nil
-}
-
-// retryJoin is used to handle retrying a join until it succeeds or all retries
-// are exhausted.
-func (c *Command) retryJoin(config *Config) {
-	if len(config.Server.RetryJoin) == 0 || !config.Server.Enabled {
-		return
-	}
-
-	logger := c.agent.logger
-	logger.Printf("[INFO] agent: Joining cluster...")
-
-	attempt := 0
-	for {
-		n, err := c.agent.server.Join(config.Server.RetryJoin)
-		if err == nil {
-			logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
-			return
-		}
-
-		attempt++
-		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
-			logger.Printf("[ERR] agent: max join retry exhausted, exiting")
-			close(c.retryJoinErrCh)
-			return
-		}
-
-		logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
-			config.Server.RetryInterval)
-		time.Sleep(config.Server.retryInterval)
-	}
 }
 
 func (c *Command) Synopsis() string {
