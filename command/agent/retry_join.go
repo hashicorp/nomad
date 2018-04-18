@@ -6,30 +6,50 @@ import (
 	"time"
 )
 
+// DiscoverInterface is an interface for the Discover type in the go-discover
+// library. Using an interface allows for ease of testing.
 type DiscoverInterface interface {
+	// Addrs discovers ip addresses of nodes that match the given filter
+	// criteria.
+	// The config string must have the format 'provider=xxx key=val key=val ...'
+	// where the keys and values are provider specific. The values are URL
+	// encoded.
 	Addrs(string, *log.Logger) ([]string, error)
 
+	// Help describes the format of the configuration string for address
+	// discovery and the various provider specific options.
 	Help() string
 
+	// Names returns the names of the configured providers.
 	Names() []string
 }
 
+// retryJoiner is used to handle retrying a join until it succeeds or all of
+// its tries are exhausted.
 type retryJoiner struct {
-	attempt int
-
+	// join adds the specified servers to the serf cluster
 	join func([]string) (int, error)
 
+	// discover is of type Discover, where this is either the go-discover
+	// implementation or a mock used for testing
 	discover DiscoverInterface
 
+	// errCh is used to communicate with the agent when the max retry attempt
+	// limit has been reached
 	errCh chan struct{}
 
+	// logger is the agent logger.
 	logger *log.Logger
 }
 
+// retryJoin is used to handle retrying a join until it succeeds or all retries
+// are exhausted.
 func (r *retryJoiner) RetryJoin(config *Config) {
 	if len(config.Server.RetryJoin) == 0 || !config.Server.Enabled {
 		return
 	}
+
+	attempt := 0
 
 	r.logger.Printf("[INFO] agent: Joining cluster...")
 
@@ -56,8 +76,8 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 			return
 		}
 
-		r.attempt++
-		if config.Server.RetryMaxAttempts > 0 && r.attempt > config.Server.RetryMaxAttempts {
+		attempt++
+		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
 			r.logger.Printf("[ERR] agent: max join retry exhausted, exiting")
 			close(r.errCh)
 			return

@@ -13,6 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type MockDiscover struct{}
+
+func (m *MockDiscover) Addrs(s string, l *log.Logger) ([]string, error) {
+	return []string{s}, nil
+}
+func (m *MockDiscover) Help() string { return "" }
+func (m *MockDiscover) Names() []string {
+	return []string{""}
+}
+
 func TestRetryJoin_Integration(t *testing.T) {
 	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
@@ -61,16 +71,6 @@ func TestRetryJoin_Integration(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf(err.Error())
 	})
-}
-
-type MockDiscover struct{}
-
-func (m *MockDiscover) Addrs(s string, l *log.Logger) ([]string, error) {
-	return []string{s}, nil
-}
-func (m *MockDiscover) Help() string { return "" }
-func (m *MockDiscover) Names() []string {
-	return []string{""}
 }
 
 func TestRetryJoin_NonCloud(t *testing.T) {
