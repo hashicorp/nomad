@@ -899,10 +899,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 	a := mock.Alloc()
 	a.CreateTime = time.Now().UnixNano()
 	a.DeploymentID = d.ID
-	/*a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   helper.BoolToPtr(false),
-		Timestamp: time.Now(),
-	}*/
+
 	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
