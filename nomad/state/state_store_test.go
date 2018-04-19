@@ -3582,18 +3582,15 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	require := require.New(t)
 	state := testStateStore(t)
 
-	ts1 := time.Now()
-	ts2 := ts1.Add(1 * time.Hour)
-
 	alloc := mock.Alloc()
-	alloc.CreateTime = ts1.UnixNano()
+	now := time.Now()
+	alloc.CreateTime = now.UnixNano()
 	pdeadline := 5 * time.Minute
 	deployment := mock.Deployment()
 	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
 	alloc.DeploymentID = deployment.ID
 	alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Canary:    true,
-		Timestamp: ts2,
+		Canary: true,
 	}
 
 	require.Nil(state.UpsertJob(999, alloc.Job))
@@ -3606,9 +3603,8 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 		DeploymentStatus: &structs.AllocDeploymentStatus{
-			Healthy:   helper.BoolToPtr(true),
-			Canary:    false,
-			Timestamp: ts1,
+			Healthy: helper.BoolToPtr(true),
+			Canary:  false,
 		},
 	}
 	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
@@ -3618,7 +3614,6 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	require.Nil(err)
 	require.NotNil(out)
 	require.True(out.DeploymentStatus.Canary)
-	require.Equal(ts2, out.DeploymentStatus.Timestamp)
 }
 
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
