@@ -112,24 +112,132 @@ test('Clicking force launch without proper permissions shows an error message', 
     `);
 
     return wait().then(() => {
-      assert.notOk(find('[data-test-force-error-title]'), 'No error message yet');
+      assert.notOk(find('[data-test-job-error-title]'), 'No error message yet');
 
       click('[data-test-force-launch]');
 
       return wait().then(() => {
         assert.equal(
-          find('[data-test-force-error-title]').textContent,
+          find('[data-test-job-error-title]').textContent,
           'Could Not Force Launch',
           'Appropriate error is shown'
         );
         assert.ok(
-          find('[data-test-force-error-body]').textContent.includes('ACL'),
+          find('[data-test-job-error-body]').textContent.includes('ACL'),
           'The error message mentions ACLs'
         );
 
-        click('[data-test-force-error-close]');
+        click('[data-test-job-error-close]');
 
-        assert.notOk(find('[data-test-force-error-title]'), 'Error message is dismissable');
+        assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+      });
+    });
+  });
+});
+
+test('Stopping a job sends a delete request for the job', function(assert) {
+  const mirageJob = this.server.create('job', 'periodic', {
+    childrenCount: 0,
+    createAllocations: false,
+  });
+
+  this.store.findAll('job');
+
+  return wait().then(() => {
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+
+    this.setProperties({
+      job,
+      sortProperty: 'name',
+      sortDescending: true,
+      currentPage: 1,
+      gotoJob: () => {},
+    });
+
+    this.render(hbs`
+      {{job-page/periodic
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        currentPage=currentPage
+        gotoJob=gotoJob}}
+    `);
+
+    return wait().then(() => {
+      click('[data-test-stop] [data-test-idle-button]');
+      return wait().then(() => {
+        click('[data-test-stop] [data-test-confirm-button]');
+
+        return wait().then(() => {
+          const id = job.get('plainId');
+          const namespace = job.get('namespace.name') || 'default';
+          let expectedURL = `/v1/job/${id}`;
+          if (namespace !== 'default') {
+            expectedURL += `?namespace=${namespace}`;
+          }
+
+          assert.ok(
+            server.pretender.handledRequests
+              .filterBy('method', 'DELETE')
+              .find(req => req.url === expectedURL),
+            'DELETE URL was made correctly'
+          );
+        });
+      });
+    });
+  });
+});
+
+test('Stopping a job without proper permissions shows an error message', function(assert) {
+  server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
+
+  const mirageJob = this.server.create('job', 'periodic', {
+    childrenCount: 0,
+    createAllocations: false,
+  });
+
+  this.store.findAll('job');
+
+  return wait().then(() => {
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+
+    this.setProperties({
+      job,
+      sortProperty: 'name',
+      sortDescending: true,
+      currentPage: 1,
+      gotoJob: () => {},
+    });
+
+    this.render(hbs`
+      {{job-page/periodic
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        currentPage=currentPage
+        gotoJob=gotoJob}}
+    `);
+
+    return wait().then(() => {
+      click('[data-test-stop] [data-test-idle-button]');
+      return wait().then(() => {
+        click('[data-test-stop] [data-test-confirm-button]');
+
+        return wait().then(() => {
+          assert.equal(
+            find('[data-test-job-error-title]').textContent,
+            'Could Not Stop Job',
+            'Appropriate error is shown'
+          );
+          assert.ok(
+            find('[data-test-job-error-body]').textContent.includes('ACL'),
+            'The error message mentions ACLs'
+          );
+
+          click('[data-test-job-error-close]');
+
+          assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+        });
       });
     });
   });

@@ -4,6 +4,7 @@
   {{yield}}
   {{#if (not (eq job.status "dead"))}}
     {{two-step-button
+      data-test-stop
       idleText="Stop"
       cancelText="Cancel"
       confirmText="Yes, Stop"
