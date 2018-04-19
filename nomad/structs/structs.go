@@ -3750,8 +3750,9 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags   []string        // List of tags for the service
-	Checks []*ServiceCheck // List of checks associated with the service
+	Tags       []string        // List of tags for the service
+	CanaryTags []string        // List of tags for the service when it is a canary
+	Checks     []*ServiceCheck // List of checks associated with the service
 }
 
 func (s *Service) Copy() *Service {
@@ -3761,6 +3762,7 @@ func (s *Service) Copy() *Service {
 	ns := new(Service)
 	*ns = *s
 	ns.Tags = helper.CopySliceString(ns.Tags)
+	ns.CanaryTags = helper.CopySliceString(ns.CanaryTags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -3780,6 +3782,9 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	// using DeepEquals
 	if len(s.Tags) == 0 {
 		s.Tags = nil
+	}
+	if len(s.CanaryTags) == 0 {
+		s.CanaryTags = nil
 	}
 	if len(s.Checks) == 0 {
 		s.Checks = nil
@@ -3856,6 +3861,9 @@ func (s *Service) Hash(allocID, taskName string) string {
 	io.WriteString(h, s.PortLabel)
 	io.WriteString(h, s.AddressMode)
 	for _, tag := range s.Tags {
+		io.WriteString(h, tag)
+	}
+	for _, tag := range s.CanaryTags {
 		io.WriteString(h, tag)
 	}
 

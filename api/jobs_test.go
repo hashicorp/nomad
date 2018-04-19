@@ -304,9 +304,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:      "redis-cache",
-										Tags:      []string{"global", "cache"},
-										PortLabel: "db",
+										Name:       "redis-cache",
+										Tags:       []string{"global", "cache"},
+										CanaryTags: []string{"canary", "global", "cache"},
+										PortLabel:  "db",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
@@ -427,6 +428,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 									{
 										Name:        "redis-cache",
 										Tags:        []string{"global", "cache"},
+										CanaryTags:  []string{"canary", "global", "cache"},
 										PortLabel:   "db",
 										AddressMode: "auto",
 										Checks: []ServiceCheck{
