@@ -1,5 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
-  track('.downloads .download .details li a', function(el) {
+document.addEventListener('turbolinks:load', function() {
+  analytics.page()
+  
     var m = el.href.match(/nomad_(.*?)_(.*?)_(.*?)\.zip/)
     return {
       event: 'Download',
