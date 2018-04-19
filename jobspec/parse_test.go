@@ -133,8 +133,9 @@ func TestParse(t *testing.T) {
 								},
 								Services: []*api.Service{
 									{
-										Tags:      []string{"foo", "bar"},
-										PortLabel: "http",
+										Tags:       []string{"foo", "bar"},
+										CanaryTags: []string{"canary", "bam"},
+										PortLabel:  "http",
 										Checks: []api.ServiceCheck{
 											{
 												Name:      "check-name",

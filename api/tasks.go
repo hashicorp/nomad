@@ -233,8 +233,9 @@ type Service struct {
 	Id           string
 	Name         string
 	Tags         []string
-	PortLabel    string `mapstructure:"port"`
-	AddressMode  string `mapstructure:"address_mode"`
+	CanaryTags   []string `mapstructure:"canary_tags"`
+	PortLabel    string   `mapstructure:"port"`
+	AddressMode  string   `mapstructure:"address_mode"`
 	Checks       []ServiceCheck
 	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 }

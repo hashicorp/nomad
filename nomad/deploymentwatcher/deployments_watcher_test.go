@@ -391,11 +391,12 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	j.TaskGroups[0].Update.ProgressDeadline = 0
 	d := mock.Deployment()
 	d.JobID = j.ID
 	a := mock.Alloc()
+	d.TaskGroups[a.TaskGroup].DesiredCanaries = 1
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
@@ -415,6 +416,10 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	}
 	matcher := matchDeploymentPromoteRequest(matchConfig)
 	m.On("UpdateDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
+
+	// We may get an update for the desired transistion.
+	m1 := matchUpdateAllocDesiredTransitions([]string{d.ID})
+	m.On("UpdateAllocDesiredTransition", mocker.MatchedBy(m1)).Return(nil).Once()
 
 	w.SetEnabled(true, m.state)
 	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
@@ -448,6 +453,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
+	d.TaskGroups[a.TaskGroup].DesiredCanaries = 2
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
@@ -476,7 +482,7 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	var resp structs.DeploymentUpdateResponse
 	err := w.PromoteDeployment(req, &resp)
 	if assert.NotNil(err, "PromoteDeployment") {
-		assert.Contains(err.Error(), "is not healthy", "Should error because canary isn't marked healthy")
+		assert.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`, "Should error because canary isn't marked healthy")
 	}
 
 	assert.Equal(1, len(w.watchers), "Deployment should still be active")

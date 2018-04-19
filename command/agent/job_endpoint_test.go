@@ -1223,10 +1223,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 						Services: []*api.Service{
 							{
-								Id:        "id",
-								Name:      "serviceA",
-								Tags:      []string{"1", "2"},
-								PortLabel: "foo",
+								Id:         "id",
+								Name:       "serviceA",
+								Tags:       []string{"1", "2"},
+								CanaryTags: []string{"3", "4"},
+								PortLabel:  "foo",
 								CheckRestart: &api.CheckRestart{
 									Limit: 4,
 									Grace: helper.TimeToPtr(11 * time.Second),
@@ -1449,6 +1450,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							{
 								Name:        "serviceA",
 								Tags:        []string{"1", "2"},
+								CanaryTags:  []string{"3", "4"},
 								PortLabel:   "foo",
 								AddressMode: "auto",
 								Checks: []*structs.ServiceCheck{
