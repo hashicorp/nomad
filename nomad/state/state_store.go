@@ -1894,13 +1894,8 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	// Merge the deployment status taking only what the client should set
 	oldDeploymentStatus := copyAlloc.DeploymentStatus
 	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
-	if oldDeploymentStatus != nil {
-		if oldDeploymentStatus.Canary {
-			copyAlloc.DeploymentStatus.Canary = true
-		}
-		if oldDeploymentStatus.Timestamp.After(copyAlloc.DeploymentStatus.Timestamp) {
-			copyAlloc.DeploymentStatus.Timestamp = oldDeploymentStatus.Timestamp
-		}
+	if oldDeploymentStatus != nil && oldDeploymentStatus.Canary {
+		copyAlloc.DeploymentStatus.Canary = true
 	}
 
 	// Update the modify index
