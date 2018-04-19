@@ -143,6 +143,8 @@ type AllocationListStub struct {
 // healthy.
 type AllocDeploymentStatus struct {
 	Healthy     *bool
+	Timestamp   time.Time
+	Canary      bool
 	ModifyIndex uint64
 }
 

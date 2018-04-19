@@ -1814,6 +1814,11 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	if len(planned) != desiredUpdates {
 		t.Fatalf("bad: %#v", plan)
 	}
+	for _, canary := range planned {
+		if canary.DeploymentStatus == nil || !canary.DeploymentStatus.Canary {
+			t.Fatalf("expected canary field to be set on canary alloc %q", canary.ID)
+		}
+	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 

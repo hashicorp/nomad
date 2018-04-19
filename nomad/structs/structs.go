@@ -6219,6 +6219,10 @@ type AllocDeploymentStatus struct {
 	// Timestamp is the time at which the health status was set.
 	Timestamp time.Time
 
+	// Canary marks whether the allocation is a canary or not. A canary that has
+	// been promoted will have this field set to false.
+	Canary bool
+
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
