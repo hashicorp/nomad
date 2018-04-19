@@ -24,7 +24,7 @@ NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMAD
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-HADOOP_VERSION=2.7.5
+HADOOP_VERSION=2.7.6
 
 # Dependencies
 sudo apt-get install -y software-properties-common
