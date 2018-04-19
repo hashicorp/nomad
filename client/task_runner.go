@@ -1531,6 +1531,7 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
+		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
 	}
 	return taskCopy
 }
