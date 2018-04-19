@@ -102,10 +102,10 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Check that we got exactly one node
+	// Check that we got one or two arguments
 	args = flags.Args()
-	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument: <parameterized job>")
+	if l := len(args); l < 1 || l > 2 {
+		c.Ui.Error("This command takes one or two argument: <parameterized job> [input source]")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
