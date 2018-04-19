@@ -987,6 +987,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 		valid := []string{
 			"name",
 			"tags",
+			"canary_tags",
 			"port",
 			"check",
 			"address_mode",

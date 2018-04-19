@@ -101,6 +101,7 @@ job "binstore-storagelocker" {
 
       service {
         tags = ["foo", "bar"]
+        canary_tags = ["canary", "bam"]
         port = "http"
 
         check {

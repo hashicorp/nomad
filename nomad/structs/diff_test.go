@@ -3457,6 +3457,99 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
+			Name:       "Services tags edited (no checks) with context",
+			Contextual: true,
+			Old: &Task{
+				Services: []*Service{
+					{
+						Tags:       []string{"foo", "bar"},
+						CanaryTags: []string{"foo", "bar"},
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Tags:       []string{"bar", "bam"},
+						CanaryTags: []string{"bar", "bam"},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "CanaryTags",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "CanaryTags",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "CanaryTags",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "CanaryTags",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Tags",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Tags",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Tags",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Tags",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "PortLabel",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name: "Service Checks edited",
 			Old: &Task{
 				Services: []*Service{
