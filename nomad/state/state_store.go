@@ -1890,7 +1890,18 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
+
+	// Merge the deployment status taking only what the client should set
+	oldDeploymentStatus := copyAlloc.DeploymentStatus
 	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
+	if oldDeploymentStatus != nil {
+		if oldDeploymentStatus.Canary {
+			copyAlloc.DeploymentStatus.Canary = true
+		}
+		if oldDeploymentStatus.Timestamp.After(copyAlloc.DeploymentStatus.Timestamp) {
+			copyAlloc.DeploymentStatus.Timestamp = oldDeploymentStatus.Timestamp
+		}
+	}
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
@@ -1961,6 +1972,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
+			if alloc.DeploymentStatus != nil {
+				alloc.DeploymentStatus.ModifyIndex = index
+			}
 
 			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
 			// the a race between a forced garbage collection and the scheduler
@@ -2619,11 +2633,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		return err
 	}
 
+	// groupIndex is a map of groups being promoted
 	groupIndex := make(map[string]struct{}, len(req.Groups))
 	for _, g := range req.Groups {
 		groupIndex[g] = struct{}{}
 	}
 
+	// canaryIndex is the set of placed canaries in the deployment
 	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
 	for _, state := range deployment.TaskGroups {
 		for _, c := range state.PlacedCanaries {
@@ -2631,8 +2647,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
-	haveCanaries := false
-	var unhealthyErr multierror.Error
+	// healthyCounts is a mapping of group to the number of healthy canaries
+	healthyCounts := make(map[string]int, len(deployment.TaskGroups))
+
+	// promotable is the set of allocations that we can move from canary to
+	// non-canary
+	var promotable []*structs.Allocation
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -2653,19 +2674,32 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 		// Ensure the canaries are healthy
 		if !alloc.DeploymentStatus.IsHealthy() {
-			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
 			continue
 		}
 
-		haveCanaries = true
+		healthyCounts[alloc.TaskGroup]++
+		promotable = append(promotable, alloc)
+	}
+
+	// Determine if we have enough healthy allocations
+	var unhealthyErr multierror.Error
+	for tg, state := range deployment.TaskGroups {
+		if _, ok := groupIndex[tg]; !req.All && !ok {
+			continue
+		}
+
+		need := state.DesiredCanaries
+		if need == 0 {
+			continue
+		}
+
+		if have := healthyCounts[tg]; have < need {
+			multierror.Append(&unhealthyErr, fmt.Errorf("Task group %q has %d/%d healthy allocations", tg, have, need))
+		}
 	}
 
 	if err := unhealthyErr.ErrorOrNil(); err != nil {
 		return err
-	}
-
-	if !haveCanaries {
-		return fmt.Errorf("no canaries to promote")
 	}
 
 	// Update deployment
@@ -2695,6 +2729,24 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
 		}
+	}
+
+	// For each promotable allocation remoce the canary field
+	for _, alloc := range promotable {
+		promoted := alloc.Copy()
+		promoted.DeploymentStatus.Canary = false
+		promoted.DeploymentStatus.ModifyIndex = index
+		promoted.ModifyIndex = index
+		promoted.AllocModifyIndex = index
+
+		if err := txn.Insert("allocs", promoted); err != nil {
+			return fmt.Errorf("alloc insert failed: %v", err)
+		}
+	}
+
+	// Update the alloc index
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	txn.Commit()

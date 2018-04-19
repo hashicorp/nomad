@@ -3577,6 +3577,50 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 	require.True(healthy.Add(pdeadline).Equal(dstate.RequireProgressBy))
 }
 
+// This tests that the deployment state is merged correctly
+func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	ts1 := time.Now()
+	ts2 := ts1.Add(1 * time.Hour)
+
+	alloc := mock.Alloc()
+	alloc.CreateTime = ts1.UnixNano()
+	pdeadline := 5 * time.Minute
+	deployment := mock.Deployment()
+	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
+	alloc.DeploymentID = deployment.ID
+	alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Canary:    true,
+		Timestamp: ts2,
+	}
+
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertDeployment(1000, deployment))
+	require.Nil(state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+		DeploymentStatus: &structs.AllocDeploymentStatus{
+			Healthy:   helper.BoolToPtr(true),
+			Canary:    false,
+			Timestamp: ts1,
+		},
+	}
+	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
+
+	// Check that the merging of the deployment status was correct
+	out, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	require.NotNil(out)
+	require.True(out.DeploymentStatus.Canary)
+	require.Equal(ts2, out.DeploymentStatus.Timestamp)
+}
+
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -5525,19 +5569,17 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 // Test promoting unhealthy canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	state := testStateStore(t)
+	require := require.New(t)
 
 	// Create a job
 	j := mock.Job()
-	if err := state.UpsertJob(1, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertJob(1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
 	d.JobID = j.ID
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	d.TaskGroups["web"].DesiredCanaries = 2
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Create a set of allocations
 	c1 := mock.Alloc()
@@ -5549,9 +5591,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c2.DeploymentID = d.ID
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(state.UpsertAllocs(3, []*structs.Allocation{c1, c2}))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -5561,33 +5601,24 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 		},
 	}
 	err := state.UpdateDeploymentPromotion(4, req)
-	if err == nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if !strings.Contains(err.Error(), c1.ID) {
-		t.Fatalf("expect canary %q to be listed as unhealth: %v", c1.ID, err)
-	}
-	if !strings.Contains(err.Error(), c2.ID) {
-		t.Fatalf("expect canary %q to be listed as unhealth: %v", c2.ID, err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
 
 // Test promoting a deployment with no canaries
 func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 	state := testStateStore(t)
+	require := require.New(t)
 
 	// Create a job
 	j := mock.Job()
-	if err := state.UpsertJob(1, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertJob(1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
+	d.TaskGroups["web"].DesiredCanaries = 2
 	d.JobID = j.ID
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -5597,12 +5628,8 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 		},
 	}
 	err := state.UpdateDeploymentPromotion(4, req)
-	if err == nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if !strings.Contains(err.Error(), "no canaries to promote") {
-		t.Fatalf("expect error promoting nonexistent canaries: %v", err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
 
 // Test promoting all canaries in a deployment.
@@ -5705,6 +5732,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 // Test promoting a subset of canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	state := testStateStore(t)
+	require := require.New(t)
 
 	// Create a job with two task groups
 	j := mock.Job()
@@ -5712,9 +5740,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(1, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertJob(1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -5729,18 +5755,19 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertDeployment(2, d))
 
-	// Create a set of allocations
+	// Create a set of allocations for both groups, including an unhealthy one
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
+		Canary:  true,
 	}
+
+	// Should still be a canary
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
 	c2.DeploymentID = d.ID
@@ -5748,11 +5775,19 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
+		Canary:  true,
 	}
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
-		t.Fatalf("err: %v", err)
+	c3 := mock.Alloc()
+	c3.JobID = j.ID
+	c3.DeploymentID = d.ID
+	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
+	c3.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(false),
+		Canary:  true,
 	}
+
+	require.Nil(state.UpsertAllocs(3, []*structs.Allocation{c1, c2, c3}))
 
 	// Create an eval
 	e := mock.Eval()
@@ -5765,36 +5800,34 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpdateDeploymentPromotion(4, req)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpdateDeploymentPromotion(4, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
 	dout, err := state.DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if len(dout.TaskGroups) != 2 {
-		t.Fatalf("bad: %#v", dout.TaskGroups)
-	}
-	stateout, ok := dout.TaskGroups["web"]
-	if !ok {
-		t.Fatalf("bad: no state for task group web")
-	}
-	if !stateout.Promoted {
-		t.Fatalf("bad: task group web not promoted: %#v", stateout)
-	}
+	require.Nil(err)
+	require.Len(dout.TaskGroups, 2)
+	require.Contains(dout.TaskGroups, "web")
+	require.True(dout.TaskGroups["web"].Promoted)
 
 	// Check that the evaluation was created
-	eout, _ := state.EvalByID(ws, e.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if eout == nil {
-		t.Fatalf("bad: %#v", eout)
-	}
+	eout, err := state.EvalByID(ws, e.ID)
+	require.Nil(err)
+	require.NotNil(eout)
+
+	// Check the canary field was set properly
+	aout1, err1 := state.AllocByID(ws, c1.ID)
+	aout2, err2 := state.AllocByID(ws, c2.ID)
+	aout3, err3 := state.AllocByID(ws, c3.ID)
+	require.Nil(err1)
+	require.Nil(err2)
+	require.Nil(err3)
+	require.NotNil(aout1)
+	require.NotNil(aout2)
+	require.NotNil(aout3)
+	require.False(aout1.DeploymentStatus.Canary)
+	require.True(aout2.DeploymentStatus.Canary)
+	require.True(aout3.DeploymentStatus.Canary)
 }
 
 // Test that allocation health can't be set against a nonexistent deployment
