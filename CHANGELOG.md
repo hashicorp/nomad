@@ -4,7 +4,8 @@ IMPROVEMENTS:
  * client: Create new process group on process startup. [[GH-3572](https://github.com/hashicorp/nomad/issues/3572)]
 
 BUG FIXES:
- * driver/exec: Create process group for Windows process and send Ctrl-Break signal on Shutdown [[GH-2117](https://github.com/hashicorp/nomad/issues/2117)]
+ * driver/raw_exec: Create process group for Windows process and send
+   Ctrl-Break signal on Shutdown [[GH-4153](https://github.com/hashicorp/nomad/issues/4153)]
 
 ## 0.8.1 (April 17, 2018)
 
