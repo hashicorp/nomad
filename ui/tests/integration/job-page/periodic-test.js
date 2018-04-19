@@ -4,6 +4,7 @@ import { click, find, findAll } from 'ember-native-dom-helpers';
 import wait from 'ember-test-helpers/wait';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { jobURL, stopJob, expectStopError, expectDeleteRequest } from './helpers';
 
 moduleForComponent('job-page/periodic', 'Integration | Component | job-page/periodic', {
   integration: true,
@@ -68,7 +69,7 @@ test('Clicking Force Launch launches a new periodic child job', function(assert)
         const expectedURL = jobURL(job, '/periodic/force');
 
         assert.ok(
-          server.pretender.handledRequests
+          this.server.pretender.handledRequests
             .filterBy('method', 'POST')
             .find(req => req.url === expectedURL),
           'POST URL was correct'
@@ -81,7 +82,7 @@ test('Clicking Force Launch launches a new periodic child job', function(assert)
 });
 
 test('Clicking force launch without proper permissions shows an error message', function(assert) {
-  server.pretender.post('/v1/job/:id/periodic/force', () => [403, {}, null]);
+  this.server.pretender.post('/v1/job/:id/periodic/force', () => [403, {}, null]);
 
   this.server.create('job', 'periodic', {
     id: 'parent',
@@ -142,11 +143,11 @@ test('Stopping a job sends a delete request for the job', function(assert) {
       return wait();
     })
     .then(stopJob)
-    .then(() => expectDeleteRequest(assert, job));
+    .then(() => expectDeleteRequest(assert, this.server, job));
 });
 
 test('Stopping a job without proper permissions shows an error message', function(assert) {
-  server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
+  this.server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
 
   const mirageJob = this.server.create('job', 'periodic', {
     childrenCount: 0,
@@ -168,52 +169,3 @@ test('Stopping a job without proper permissions shows an error message', functio
     .then(stopJob)
     .then(expectStopError(assert));
 });
-
-function expectDeleteRequest(assert, job) {
-  const expectedURL = jobURL(job);
-
-  assert.ok(
-    server.pretender.handledRequests
-      .filterBy('method', 'DELETE')
-      .find(req => req.url === expectedURL),
-    'DELETE URL was made correctly'
-  );
-
-  return wait();
-}
-
-function jobURL(job, path = '') {
-  const id = job.get('plainId');
-  const namespace = job.get('namespace.name') || 'default';
-  let expectedURL = `/v1/job/${id}${path}`;
-  if (namespace !== 'default') {
-    expectedURL += `?namespace=${namespace}`;
-  }
-  return expectedURL;
-}
-
-function stopJob() {
-  click('[data-test-stop] [data-test-idle-button]');
-  return wait().then(() => {
-    click('[data-test-stop] [data-test-confirm-button]');
-    return wait();
-  });
-}
-
-function expectStopError(assert) {
-  return () => {
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Stop Job',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
-
-    click('[data-test-job-error-close]');
-    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
-    return wait();
-  };
-}
