@@ -94,7 +94,6 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	}
 
 	ctestutils.RktCompatible(t)
-	// TODO: use test server to load from a fixture
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
