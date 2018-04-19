@@ -404,8 +404,13 @@ FAIL:
 			// deadline timer
 			next := getDeploymentProgressCutoff(w.getDeployment())
 			if !next.Equal(currentDeadline) {
+				prevDeadlineZero := currentDeadline.IsZero()
 				currentDeadline = next
-				if !deadlineTimer.Stop() {
+				// The most recent deadline can be zero if no allocs were created for this deployment.
+				// The deadline timer would have already been stopped once in that case. To prevent
+				// deadlocking on the already stopped deadline timer, we only drain the channel if
+				// the previous deadline was not zero.
+				if !prevDeadlineZero && !deadlineTimer.Stop() {
 					<-deadlineTimer.C
 				}
 				deadlineTimer.Reset(next.Sub(time.Now()))
