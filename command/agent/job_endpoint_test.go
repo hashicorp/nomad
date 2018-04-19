@@ -272,6 +272,38 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsParse(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
+		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.JobsParseRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if obj == nil {
+			t.Fatal("response should not be nil")
+		}
+
+		job := obj.(*api.Job)
+		expected := mock.Job()
+		if job.Name == nil || *job.Name != expected.Name {
+			t.Fatalf("job name is '%s', expected '%s'", *job.Name, expected.Name)
+		}
+
+		if job.Datacenters == nil ||
+			job.Datacenters[0] != expected.Datacenters[0] {
+			t.Fatalf("job datacenters is '%s', expected '%s'",
+				job.Datacenters[0], expected.Datacenters[0])
+		}
+	})
+}
 func TestHTTP_JobQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

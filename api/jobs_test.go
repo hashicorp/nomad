@@ -47,6 +47,43 @@ func TestJobs_Register(t *testing.T) {
 	}
 }
 
+func TestJobs_Parse(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	jobs := c.Jobs()
+
+	checkJob := func(job *Job, expectedRegion string) {
+		if job == nil {
+			t.Fatal("job should not be nil")
+		}
+
+		region := job.Region
+
+		if region == nil {
+			if expectedRegion != "" {
+				t.Fatalf("expected job region to be '%s' but was unset", expectedRegion)
+			}
+		} else {
+			if expectedRegion != *region {
+				t.Fatalf("expected job region '%s', but got '%s'", expectedRegion, *region)
+			}
+		}
+	}
+	job, err := jobs.ParseHCL(mock.HCL(), true)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	checkJob(job, "global")
+
+	job, err = jobs.ParseHCL(mock.HCL(), false)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	checkJob(job, "")
+}
+
 func TestJobs_Validate(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
