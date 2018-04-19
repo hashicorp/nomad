@@ -40,6 +40,8 @@ func (f *ACLTokenCommand) Synopsis() string {
 	return "Interact with ACL tokens"
 }
 
+func (f *ACLTokenCommand) Name() string { return "acl token" }
+
 func (f *ACLTokenCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

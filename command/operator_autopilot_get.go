@@ -19,6 +19,7 @@ func (c *OperatorAutopilotGetCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
+func (c *OperatorAutopilotGetCommand) Name() string { return "operator autopilot get-config" }
 func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("autopilot", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }

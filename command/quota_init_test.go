@@ -23,7 +23,7 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expect exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expect help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -75,7 +75,7 @@ func TestQuotaInitCommand_Run_JSON(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expect exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expect help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

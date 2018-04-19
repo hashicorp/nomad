@@ -33,7 +33,7 @@ Remove Peer Options:
 
   -peer-address="IP:port"
 	Remove a Nomad server with given address from the Raft configuration.
-	
+
   -peer-id="id"
 	Remove a Nomad server with the given ID from the Raft configuration.
 `
@@ -55,6 +55,8 @@ func (c *OperatorRaftRemoveCommand) AutocompleteArgs() complete.Predictor {
 func (c *OperatorRaftRemoveCommand) Synopsis() string {
 	return "Remove a Nomad server from the Raft configuration"
 }
+
+func (c *OperatorRaftRemoveCommand) Name() string { return "operator raft remove-peer" }
 
 func (c *OperatorRaftRemoveCommand) Run(args []string) int {
 	var peerAddress string

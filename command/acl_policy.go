@@ -40,6 +40,8 @@ func (f *ACLPolicyCommand) Synopsis() string {
 	return "Interact with ACL policies"
 }
 
+func (f *ACLPolicyCommand) Name() string { return "acl policy" }
+
 func (f *ACLPolicyCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

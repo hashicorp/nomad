@@ -111,9 +111,11 @@ func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *NodeStatusCommand) Name() string { return "node-status" }
+
 func (c *NodeStatusCommand) Run(args []string) int {
 
-	flags := c.Meta.FlagSet("node-status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.short, "short", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
@@ -130,7 +132,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	// Check that we got either a single node or none
 	args = flags.Args()
 	if len(args) > 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes either one or no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

@@ -45,6 +45,8 @@ func (f *SentinelCommand) Synopsis() string {
 	return "Interact with Sentinel policies"
 }
 
+func (f *SentinelCommand) Name() string { return "sentinel" }
+
 func (f *SentinelCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

@@ -43,8 +43,10 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
+func (c *JobValidateCommand) Name() string { return "job validate" }
+
 func (c *JobValidateCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("job validate", FlagSetNone)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetNone)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -53,7 +55,8 @@ func (c *JobValidateCommand) Run(args []string) int {
 	// Check that we got exactly one node
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <path>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

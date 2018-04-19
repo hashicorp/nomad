@@ -114,11 +114,13 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
+func (c *JobRunCommand) Name() string { return "job run" }
+
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override bool
 	var checkIndexStr, vaultToken string
 
-	flags := c.Meta.FlagSet("job run", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -140,14 +142,8 @@ func (c *JobRunCommand) Run(args []string) int {
 	// Check that we got exactly one argument
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
-		return 1
-	}
-
-	// Check that we got exactly one node
-	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <path>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

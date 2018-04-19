@@ -109,11 +109,13 @@ func (f *AllocFSCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (f *AllocFSCommand) Name() string { return "alloc fs" }
+
 func (f *AllocFSCommand) Run(args []string) int {
 	var verbose, machine, job, stat, tail, follow bool
 	var numLines, numBytes int64
 
-	flags := f.Meta.FlagSet("alloc fs", FlagSetClient)
+	flags := f.Meta.FlagSet(f.Name(), FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
@@ -131,15 +133,17 @@ func (f *AllocFSCommand) Run(args []string) int {
 
 	if len(args) < 1 {
 		if job {
-			f.Ui.Error("job ID is required")
+			f.Ui.Error("A job ID is required")
 		} else {
-			f.Ui.Error("allocation ID is required")
+			f.Ui.Error("An allocation ID is required")
 		}
+		f.Ui.Error(commandErrorText(f))
 		return 1
 	}
 
 	if len(args) > 2 {
-		f.Ui.Error(f.Help())
+		f.Ui.Error("This command takes one or two arguments: <allocation> [<path>]")
+		f.Ui.Error(commandErrorText(f))
 		return 1
 	}
 

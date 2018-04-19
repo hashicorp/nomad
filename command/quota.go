@@ -20,7 +20,7 @@ Usage: nomad quota <subcommand> [options] [args]
   quotas allow operators to restrict the aggregate resource usage of namespaces.
   Users can inspect existing quota specifications, create new quotas, delete and
   list existing quotas, and more. For a full guide on resource quotas see:
-  https://www.nomadproject.io/guides/quotas.html 
+  https://www.nomadproject.io/guides/quotas.html
 
   Examine a quota's status:
 
@@ -43,6 +43,8 @@ Usage: nomad quota <subcommand> [options] [args]
 func (f *QuotaCommand) Synopsis() string {
 	return "Interact with quotas"
 }
+
+func (f *QuotaCommand) Name() string { return "quota" }
 
 func (f *QuotaCommand) Run(args []string) int {
 	return cli.RunResultHelp

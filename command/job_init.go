@@ -34,10 +34,13 @@ func (c *JobInitCommand) Synopsis() string {
 	return "Create an example job file"
 }
 
+func (c *JobInitCommand) Name() string { return "job init" }
+
 func (c *JobInitCommand) Run(args []string) int {
 	// Check for misuse
 	if len(args) != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -129,24 +132,24 @@ job "example" {
     # perform in parallel. In this case, this specifies to update a single task
     # at a time.
     max_parallel = 1
-    
+
     # The "min_healthy_time" parameter specifies the minimum time the allocation
     # must be in the healthy state before it is marked as healthy and unblocks
     # further allocations from being updated.
     min_healthy_time = "10s"
-    
+
     # The "healthy_deadline" parameter specifies the deadline in which the
     # allocation must be marked as healthy after which the allocation is
     # automatically transitioned to unhealthy. Transitioning to unhealthy will
     # fail the deployment and potentially roll back the job if "auto_revert" is
     # set to true.
     healthy_deadline = "3m"
-    
+
     # The "auto_revert" parameter specifies if the job should auto-revert to the
     # last stable job on deployment failure. A job is marked as stable if all the
     # allocations as part of its deployment were marked healthy.
     auto_revert = false
-    
+
     # The "canary" parameter specifies that changes to the job that would result
     # in destructive updates should create the specified number of canaries
     # without stopping any previous allocations. Once the operator determines the
@@ -162,7 +165,7 @@ job "example" {
   # The migrate stanza specifies the group's strategy for migrating off of
   # draining nodes. If omitted, a default migration strategy is applied.
   #
-  # For more information on the "migrate" stanza, please see 
+  # For more information on the "migrate" stanza, please see
   # the online documentation at:
   #
   #     https://www.nomadproject.io/docs/job-specification/migrate.html
@@ -243,7 +246,7 @@ job "example" {
       # will migrate the data. This is useful for tasks that store data
       # that should persist across allocation updates.
       # sticky = true
-      # 
+      #
       # Setting migrate to true results in the allocation directory of a
       # sticky allocation directory to be migrated.
       # migrate = true
