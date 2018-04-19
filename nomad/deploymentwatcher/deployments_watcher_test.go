@@ -877,6 +877,68 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	})
 }
 
+// Test scenario where deployment initially has no progress deadline
+// After the deployment is updated, a failed alloc's DesiredTransition should be set
+func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	// Create a job, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.ProgressDeadline = 500 * time.Millisecond
+	j.Stable = true
+	d := mock.Deployment()
+	d.JobID = j.ID
+
+	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+
+	a := mock.Alloc()
+	a.CreateTime = time.Now().UnixNano()
+	a.DeploymentID = d.ID
+	/*a.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   helper.BoolToPtr(false),
+		Timestamp: time.Now(),
+	}*/
+	assert.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+
+	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
+	// Update the deployment with a progress deadline
+	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+
+	// Match on DesiredTransition set to Reschedule for the failed alloc
+	m1 := matchUpdateAllocDesiredTransitionReschedule([]string{a.ID})
+	m.On("UpdateAllocDesiredTransition", mocker.MatchedBy(m1)).Return(nil).Once()
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
+		func(err error) { assert.Equal(1, len(w.watchers), "Should have 1 deployment") })
+
+	// Update the alloc to be unhealthy
+	a2 := a.Copy()
+	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   helper.BoolToPtr(false),
+		Timestamp: time.Now(),
+	}
+	assert.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+
+	// Wait for the alloc's DesiredState to set reschedule
+	testutil.WaitForResult(func() (bool, error) {
+		a, err := m.state.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		dt := a.DesiredTransition
+		shouldReschedule := dt.Reschedule != nil && *dt.Reschedule
+		return shouldReschedule, fmt.Errorf("Desired Transition Reschedule should be set but got %v", shouldReschedule)
+	}, func(err error) {
+		t.Fatal(err)
+	})
+}
+
 // Tests that the watcher fails rollback when the spec hasn't changed
 func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 	t.Parallel()

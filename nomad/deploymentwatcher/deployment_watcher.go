@@ -404,8 +404,9 @@ FAIL:
 			// deadline timer
 			next := getDeploymentProgressCutoff(w.getDeployment())
 			if !next.Equal(currentDeadline) {
+				prevDeadlineZero := currentDeadline.IsZero()
 				currentDeadline = next
-				if !deadlineTimer.Stop() {
+				if !prevDeadlineZero && !deadlineTimer.Stop() {
 					<-deadlineTimer.C
 				}
 				deadlineTimer.Reset(next.Sub(time.Now()))

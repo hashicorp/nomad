@@ -69,6 +69,27 @@ func matchUpdateAllocDesiredTransitions(deploymentIDs []string) func(update *str
 	}
 }
 
+// matchUpdateAllocDesiredTransitionReschedule is used to match allocs that have their DesiredTransition set to Reschedule
+func matchUpdateAllocDesiredTransitionReschedule(allocIDs []string) func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+	return func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+		amap := make(map[string]struct{}, len(allocIDs))
+		for _, d := range allocIDs {
+			amap[d] = struct{}{}
+		}
+
+		for allocID, dt := range update.Allocs {
+			if _, ok := amap[allocID]; !ok {
+				return false
+			}
+			if !*dt.Reschedule {
+				return false
+			}
+		}
+
+		return true
+	}
+}
+
 func (m *mockBackend) UpsertJob(job *structs.Job) (uint64, error) {
 	m.Called(job)
 	i := m.nextIndex()
