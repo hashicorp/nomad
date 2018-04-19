@@ -35,6 +35,7 @@ import (
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
+	"github.com/armon/go-metrics"
 )
 
 var (
@@ -1924,6 +1925,22 @@ func (h *DockerHandle) run() {
 		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
 	} else if container.State.OOMKilled {
 		werr = fmt.Errorf("OOM Killed")
+		labels := []metrics.Label {
+			{
+				Name: "Image",
+				Value:  h.Image,
+			},
+			{
+				Name: "ImageID",
+				Value:  h.ImageID,
+			},
+			{
+				Name: "ContainerID",
+				Value:  h.containerID,
+			},
+
+		}
+		metrics.IncrCounterWithLabels([]string{"driver", "docker","oom"},1,labels)
 	}
 
 	close(h.doneCh)
