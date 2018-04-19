@@ -30,7 +30,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	syslog "github.com/RackSec/srslog"
-	
+
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
