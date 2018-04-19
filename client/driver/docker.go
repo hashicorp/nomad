@@ -234,6 +234,7 @@ type DockerDriverConfig struct {
 	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
 	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
 	CPUHardLimit         bool                `mapstructure:"cpu_hard_limit"`         // Enforce CPU hard limit.
+	ImagePullTimeout     int64               `mapstructure:"image_pull_timeout"`     // Timeout on the image pull after which the pull is cancelled
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -736,6 +737,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"cpu_hard_limit": {
 				Type: fields.TypeBool,
 			},
+			"image_pull_timeout": {
+				Type: fields.TypeInt,
+			},
 		},
 	}
 
@@ -765,6 +769,7 @@ func (d *DockerDriver) getDockerCoordinator(client *docker.Client) (*dockerCoord
 		cleanup:     d.config.ReadBoolDefault(dockerCleanupImageConfigOption, dockerCleanupImageConfigDefault),
 		logger:      d.logger,
 		removeDelay: d.config.ReadDurationDefault(dockerImageRemoveDelayConfigOption, dockerImageRemoveDelayConfigDefault),
+		emitEvent:   d.emitEvent,
 	}
 
 	return GetDockerCoordinator(config), fmt.Sprintf("%s-%s", d.DriverContext.allocID, d.DriverContext.taskName)
@@ -1546,7 +1551,8 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 
 	d.emitEvent("Downloading image %s:%s", repo, tag)
 	coordinator, callerID := d.getDockerCoordinator(client)
-	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID)
+
+	return coordinator.PullImage(driverConfig.ImageName, authOptions, time.Duration(driverConfig.ImagePullTimeout)*time.Second, callerID)
 }
 
 // authBackend encapsulates a function that resolves registry credentials.
