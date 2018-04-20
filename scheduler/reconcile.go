@@ -382,7 +382,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	requireCanary := numDestructive != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
 	if requireCanary && !a.deploymentPaused && !a.deploymentFailed {
 		number := strategy.Canary - len(canaries)
-		number = helper.IntMin(numDestructive, number)
+		//number = helper.IntMin(numDestructive, number)
 		desiredChanges.Canary += uint64(number)
 		if !existingDeployment {
 			dstate.DesiredCanaries = strategy.Canary
