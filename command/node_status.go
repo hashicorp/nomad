@@ -409,6 +409,7 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 			drivers = append(drivers, driverName)
 		}
 	}
+	sort.Strings(drivers)
 	return strings.Trim(strings.Join(drivers, ","), ", ")
 }
 
