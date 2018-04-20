@@ -70,9 +70,9 @@ export default Component.extend({
       try {
         const stats = yield allocation.fetchStats();
         this.set('stats', stats);
+        this.set('statsError', false);
       } catch (error) {
         this.set('statsError', true);
-        break;
       }
       yield timeout(backoffSequence.shift() || maxTiming);
     } while (!Ember.testing);
