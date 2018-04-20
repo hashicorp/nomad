@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
-	_ "github.com/hashicorp/nomad/jobspec"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 

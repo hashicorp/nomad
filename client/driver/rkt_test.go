@@ -22,14 +22,12 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	ctestutils "github.com/hashicorp/nomad/client/testutil"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 func TestRktVersionRegex(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	t.Parallel()
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("NOMAD_TEST_RKT unset, skipping")
-	}
 
 	inputRkt := "rkt version 0.8.1"
 	inputAppc := "appc version 1.2.0"
@@ -47,12 +45,9 @@ func TestRktVersionRegex(t *testing.T) {
 
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	t.Parallel()
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	ctx := testDriverContexts(t, &structs.Task{Name: "foo", Driver: "rkt"})
 	d := NewRktDriver(ctx.DriverCtx)
 	node := &structs.Node{
@@ -86,14 +81,11 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -139,14 +131,11 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -213,14 +202,11 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -269,14 +255,10 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
-
-	ctestutils.RktCompatible(t)
 
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
@@ -346,13 +328,10 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 // TestRktDriver_UserGroup asserts tasks may override the user and group of the
 // rkt image.
 func TestRktDriver_UserGroup(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
-	ctestutils.RktCompatible(t)
 	require := assert.New(t)
 
 	task := &structs.Task{
@@ -407,13 +386,11 @@ func TestRktDriver_UserGroup(t *testing.T) {
 }
 
 func TestRktTrustPrefix(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
-	ctestutils.RktCompatible(t)
+
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -451,8 +428,9 @@ func TestRktTrustPrefix(t *testing.T) {
 }
 
 func TestRktTaskValidate(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	t.Parallel()
-	ctestutils.RktCompatible(t)
+
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -475,16 +453,12 @@ func TestRktTaskValidate(t *testing.T) {
 	}
 }
 
-// TODO: Port Mapping test should be ran with proper ACI image and test the port access.
-func TestRktDriver_PortsMapping(t *testing.T) {
+func TestRktDriver_PortMapping(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -524,6 +498,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	defer resp.Handle.Kill()
 	if resp.Network == nil {
 		t.Fatalf("Expected driver to set a DriverNetwork, but it did not!")
 	}
@@ -548,14 +523,11 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 // TestRktDriver_PortsMapping_Host asserts that port_map isn't required when
 // host networking is used.
 func TestRktDriver_PortsMapping_Host(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -590,6 +562,7 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	defer resp.Handle.Kill()
 	if resp.Network != nil {
 		t.Fatalf("No network should be returned with --net=host but found: %#v", resp.Network)
 	}
@@ -612,14 +585,11 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 }
 
 func TestRktDriver_HandlerExec(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
-	}
 
-	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
 		Driver: "rkt",
@@ -649,24 +619,28 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Give the pod a second to start
-	time.Sleep(time.Second)
+	defer resp.Handle.Kill()
 
 	// Exec a command that should work
-	out, code, err := resp.Handle.Exec(context.TODO(), "/etcd", []string{"--version"})
-	if err != nil {
-		t.Fatalf("error exec'ing etcd --version: %v", err)
-	}
-	if code != 0 {
-		t.Fatalf("expected `etcd --version` to succeed but exit code was: %d\n%s", code, string(out))
-	}
-	if expected := []byte("etcd version "); !bytes.HasPrefix(out, expected) {
-		t.Fatalf("expected output to start with %q but found:\n%q", expected, out)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		out, code, err := resp.Handle.Exec(context.TODO(), "/etcd", []string{"--version"})
+		if err != nil {
+			return false, fmt.Errorf("error exec'ing etcd --version: %v", err)
+		}
+		if code != 0 {
+			return false, fmt.Errorf("expected `etcd --version` to succeed but exit code was: %d\n%s", code, string(out))
+		}
+		if expected := []byte("etcd version "); !bytes.HasPrefix(out, expected) {
+			return false, fmt.Errorf("expected output to start with %q but found:\n%q", expected, out)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	// Exec a command that should fail
-	out, code, err = resp.Handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
+	out, code, err := resp.Handle.Exec(context.TODO(), "/etcd", []string{"--kaljdshf"})
 	if err != nil {
 		t.Fatalf("error exec'ing bad command: %v", err)
 	}
@@ -682,15 +656,69 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	}
 }
 
-func TestRktDriver_Remove_Error(t *testing.T) {
+func TestRktDriver_Stats(t *testing.T) {
+	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
-	if os.Getenv("NOMAD_TEST_RKT") == "" {
-		t.Skip("skipping rkt tests")
+
+	task := &structs.Task{
+		Name:   "etcd",
+		Driver: "rkt",
+		Config: map[string]interface{}{
+			"trust_prefix": "coreos.com/etcd",
+			"image":        "coreos.com/etcd:v2.0.4",
+			"command":      "/etcd",
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 128,
+			CPU:      100,
+		},
 	}
 
-	ctestutils.RktCompatible(t)
+	ctx := testDriverContexts(t, task)
+	defer ctx.AllocDir.Destroy()
+	d := NewRktDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	resp, err := d.Start(ctx.ExecCtx, task)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer resp.Handle.Kill()
+
+	testutil.WaitForResult(func() (bool, error) {
+		stats, err := resp.Handle.Stats()
+		if err != nil {
+			return false, err
+		}
+		if stats == nil || stats.ResourceUsage == nil {
+			return false, fmt.Errorf("stats is nil")
+		}
+		if stats.ResourceUsage.CpuStats.TotalTicks == 0 {
+			return false, fmt.Errorf("cpu ticks unset")
+		}
+		if stats.ResourceUsage.MemoryStats.RSS == 0 {
+			return false, fmt.Errorf("rss stats unset")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error: %v", err)
+	})
+
+}
+
+func TestRktDriver_Remove_Error(t *testing.T) {
+	ctestutil.RktCompatible(t)
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 
 	// Removing a nonexistent pod should return an error
 	if err := rktRemove("00000000-0000-0000-0000-000000000000"); err == nil {
