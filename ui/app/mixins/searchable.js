@@ -48,7 +48,7 @@ export default Mixin.create({
   }),
 
   listSearched: computed('searchTerm', 'listToSearch.[]', 'searchProps.[]', function() {
-    const searchTerm = this.get('searchTerm');
+    const searchTerm = this.get('searchTerm').trim();
     if (searchTerm && searchTerm.length) {
       const results = [];
       if (this.get('exactMatchEnabled')) {
