@@ -17,12 +17,13 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -35,7 +36,6 @@ import (
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
-	"github.com/armon/go-metrics"
 )
 
 var (
@@ -1925,22 +1925,21 @@ func (h *DockerHandle) run() {
 		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
 	} else if container.State.OOMKilled {
 		werr = fmt.Errorf("OOM Killed")
-		labels := []metrics.Label {
+		labels := []metrics.Label{
 			{
-				Name: "Image",
-				Value:  h.Image,
+				Name:  "Image",
+				Value: h.Image,
 			},
 			{
-				Name: "ImageID",
-				Value:  h.ImageID,
+				Name:  "ImageID",
+				Value: h.ImageID,
 			},
 			{
-				Name: "ContainerID",
-				Value:  h.containerID,
+				Name:  "ContainerID",
+				Value: h.containerID,
 			},
-
 		}
-		metrics.IncrCounterWithLabels([]string{"driver", "docker","oom"},1,labels)
+		metrics.IncrCounterWithLabels([]string{"driver", "docker", "oom"}, 1, labels)
 	}
 
 	close(h.doneCh)
