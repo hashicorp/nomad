@@ -769,7 +769,6 @@ func (d *DockerDriver) getDockerCoordinator(client *docker.Client) (*dockerCoord
 		cleanup:     d.config.ReadBoolDefault(dockerCleanupImageConfigOption, dockerCleanupImageConfigDefault),
 		logger:      d.logger,
 		removeDelay: d.config.ReadDurationDefault(dockerImageRemoveDelayConfigOption, dockerImageRemoveDelayConfigDefault),
-		emitEvent:   d.emitEvent,
 	}
 
 	return GetDockerCoordinator(config), fmt.Sprintf("%s-%s", d.DriverContext.allocID, d.DriverContext.taskName)
@@ -1552,7 +1551,7 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 	d.emitEvent("Downloading image %s:%s", repo, tag)
 	coordinator, callerID := d.getDockerCoordinator(client)
 
-	return coordinator.PullImage(driverConfig.ImageName, authOptions, time.Duration(driverConfig.ImagePullTimeout)*time.Second, callerID)
+	return coordinator.PullImage(driverConfig.ImageName, authOptions, time.Duration(driverConfig.ImagePullTimeout)*time.Second, callerID, d.emitEvent)
 }
 
 // authBackend encapsulates a function that resolves registry credentials.
