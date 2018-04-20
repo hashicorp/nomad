@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Update Strategies - Operating a Job"
-sidebar_current: "docs-operating-a-job-updating"
+sidebar_current: "guides-operating-a-job-updating"
 description: |-
   This section describes common patterns for updating already-running jobs
   including rolling upgrades, blue/green deployments, and canary builds. Nomad
@@ -20,6 +20,6 @@ Nomad.
 
 Please see one of the guides below or use the navigation on the left:
 
-1. [Rolling Upgrades](/docs/operating-a-job/update-strategies/rolling-upgrades.html)
-1. [Blue/Green &amp; Canary Deployments](/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments.html)
-1. [Handling Signals](/docs/operating-a-job/update-strategies/handling-signals.html)
+1. [Rolling Upgrades](/guides/operating-a-job/update-strategies/rolling-upgrades.html)
+1. [Blue/Green &amp; Canary Deployments](/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html)
+1. [Handling Signals](/guides/operating-a-job/update-strategies/handling-signals.html)

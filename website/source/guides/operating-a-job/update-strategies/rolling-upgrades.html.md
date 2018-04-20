@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Rolling Upgrades - Operating a Job"
-sidebar_current: "docs-operating-a-job-updating-rolling-upgrades"
+sidebar_current: "guides-operating-a-job-updating-rolling-upgrades"
 description: |-
   In order to update a service while reducing downtime, Nomad provides a
   built-in mechanism for rolling upgrades. Rolling upgrades incrementally

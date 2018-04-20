@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Inspecting State - Operating a Job"
-sidebar_current: "docs-operating-a-job-inspecting-state"
+sidebar_current: "guides-operating-a-job-inspecting-state"
 description: |-
   Nomad exposes a number of tools and techniques for inspecting a running job.
   This is helpful in ensuring the job started successfully. Additionally, it
@@ -17,7 +17,7 @@ indicate the job is actually running. To verify the job is running, we need to
 inspect its state.
 
 This section will utilize the job named "docs" from the [previous
-sections](/docs/operating-a-job/submitting-jobs.html), but these operations
+sections](/guides/operating-a-job/submitting-jobs.html), but these operations
 and command largely apply to all jobs in Nomad.
 
 ## Job Status
@@ -198,7 +198,7 @@ Time                   Type        Description
 ```
 
 To debug these failures, we will need to utilize the "logs" command, which is
-discussed in the [accessing logs](/docs/operating-a-job/accessing-logs.html)
+discussed in the [accessing logs](/guides/operating-a-job/accessing-logs.html)
 section of this documentation.
 
 For more information on the `alloc status` command, please see the [CLI

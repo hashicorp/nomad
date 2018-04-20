@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Submitting Jobs - Operating a Job"
-sidebar_current: "docs-operating-a-job-submitting-jobs"
+sidebar_current: "guides-operating-a-job-submitting-jobs"
 description: |-
   The job file is the unit of work in Nomad. Upon authoring, the job file is
   submitted to the server for evaluation and scheduling. This section discusses
@@ -110,7 +110,7 @@ $ nomad job run docs.nomad
 
 Now that the job is scheduled, it may or may not be running. We need to inspect
 the allocation status and logs to make sure the job started correctly. The next
-section on [inspecting state](/docs/operating-a-job/inspecting-state.html)
+section on [inspecting state](/guides/operating-a-job/inspecting-state.html)
 details ways to examine this job's state.
 
 ## Updating the Job
@@ -169,4 +169,4 @@ nomad job run -check-index 131 docs.nomad
 
 For more details on advanced job updating strategies such as canary builds and
 build-green deployments, please see the documentation on [job update
-strategies](/docs/operating-a-job/update-strategies/index.html).
+strategies](/guides/operating-a-job/update-strategies/index.html).
