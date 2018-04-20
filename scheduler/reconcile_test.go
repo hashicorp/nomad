@@ -258,14 +258,14 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	assert := assert.New(t)
 
 	if exp.createDeployment != nil && r.deployment == nil {
-		t.Fatalf("Expect a created deployment got none")
+		t.Errorf("Expect a created deployment got none")
 	} else if exp.createDeployment == nil && r.deployment != nil {
-		t.Fatalf("Expect no created deployment; got %#v", r.deployment)
+		t.Errorf("Expect no created deployment; got %#v", r.deployment)
 	} else if exp.createDeployment != nil && r.deployment != nil {
 		// Clear the deployment ID
 		r.deployment.ID, exp.createDeployment.ID = "", ""
 		if !reflect.DeepEqual(r.deployment, exp.createDeployment) {
-			t.Fatalf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
+			t.Errorf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
 				r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment))
 		}
 	}
@@ -2745,6 +2745,55 @@ func TestReconciler_NewCanaries(t *testing.T) {
 	})
 
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
+}
+
+// Tests the reconciler creates new canaries when the job changes and the
+// canary count is greater than the task group count
+func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Update = canaryUpdate.Copy()
+	job.TaskGroups[0].Update.Canary = 7
+
+	// Create 3 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	state := &structs.DeploymentState{
+		DesiredCanaries: 7,
+		DesiredTotal:    3,
+	}
+	newD.TaskGroups[job.TaskGroups[0].Name] = state
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  newD,
+		deploymentUpdates: nil,
+		place:             7,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Canary: 7,
+				Ignore: 3,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 2, 3, 6), placeResultsToNames(r.place))
 }
 
 // Tests the reconciler creates new canaries when the job changes for multiple
