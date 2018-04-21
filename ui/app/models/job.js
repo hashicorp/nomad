@@ -162,6 +162,10 @@ export default Model.extend({
     return this.store.adapterFor('job').forcePeriodic(this);
   },
 
+  stop() {
+    return this.store.adapterFor('job').stop(this);
+  },
+
   statusClass: computed('status', function() {
     const classMap = {
       pending: 'is-pending',

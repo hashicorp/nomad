@@ -106,6 +106,12 @@ export default function() {
     return new Response(200, {}, '{}');
   });
 
+  this.delete('/job/:id', function(schema, { params }) {
+    const job = schema.jobs.find(params.id);
+    job.update({ status: 'dead' });
+    return new Response(204, {}, '');
+  });
+
   this.get('/deployment/:id');
 
   this.get('/job/:id/evaluations', function({ evaluations }, { params }) {

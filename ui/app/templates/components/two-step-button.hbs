@@ -1,0 +1,19 @@
+{{#if isIdle}}
+  <button data-test-idle-button type="button" class="button is-warning is-small is-inline" onclick={{action "promptForConfirmation"}}>
+    {{idleText}}
+  </button>
+{{else if isPendingConfirmation}}
+  <span data-test-confirmation-message class="confirmation-text">{{confirmationMessage}}</span>
+  <button data-test-cancel-button type="button" class="button is-dark is-outlined is-small is-inline" onclick={{action (queue
+    (action "setToIdle")
+    (action onCancel)
+  )}}>
+    {{cancelText}}
+  </button>
+  <button data-test-confirm-button class="button is-danger is-small is-inline" onclick={{action (queue
+    (action "setToIdle")
+    (action onConfirm)
+  )}}>
+    {{confirmText}}
+  </button>
+{{/if}}
