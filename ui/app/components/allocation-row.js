@@ -1,6 +1,7 @@
 import Ember from 'ember';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
+import { computed } from '@ember/object';
 import { run } from '@ember/runloop';
 import { lazyClick } from '../helpers/lazy-click';
 import { task, timeout } from 'ember-concurrency';
@@ -17,9 +18,13 @@ export default Component.extend({
   // Used to determine whether the row should mention the node or the job
   context: null,
 
+  backoffSequence: computed(() => [500, 800, 1300, 2100, 3400, 5500]),
+
   // Internal state
   stats: null,
   statsError: false,
+
+  enablePolling: computed(() => !Ember.testing),
 
   onClick() {},
 
@@ -63,8 +68,8 @@ export default Component.extend({
   },
 
   fetchStats: task(function*(allocation) {
-    const maxTiming = 5500;
-    const backoffSequence = [500, 800, 1300, 2100, 3400];
+    const backoffSequence = this.get('backoffSequence').slice();
+    const maxTiming = backoffSequence.pop();
 
     do {
       try {
@@ -75,7 +80,7 @@ export default Component.extend({
         this.set('statsError', true);
       }
       yield timeout(backoffSequence.shift() || maxTiming);
-    } while (!Ember.testing);
+    } while (this.get('enablePolling'));
   }).drop(),
 });
 
