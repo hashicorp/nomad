@@ -1,17 +1,13 @@
 package driver
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"regexp"
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -27,14 +23,12 @@ var (
 	// imageNotFoundMatcher is a regex expression that matches the image not
 	// found error Docker returns.
 	imageNotFoundMatcher = regexp.MustCompile(`Error: image .+ not found`)
+)
 
-	// defaultPullActivityDeadline is the default value set in the imageProgressManager
-	// when newImageProgressManager is called
-	defaultPullActivityDeadline = 2 * time.Minute
-
-	// defaultImageProgressReportInterval is the default value set in the
-	// imageProgressManager when newImageProgressManager is called
-	defaultImageProgressReportInterval = 10 * time.Second
+const (
+	// dockerPullProgressEmitInterval is the interval at which the pull progress
+	// is emitted to the allocation
+	dockerPullProgressEmitInterval = 2 * time.Minute
 )
 
 // pullFuture is a sharable future for retrieving a pulled images ID and any
@@ -147,132 +141,6 @@ func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 	return globalCoordinator
 }
 
-type imageProgress struct {
-	sync.RWMutex
-	lastMessage *jsonmessage.JSONMessage
-	timestamp   time.Time
-}
-
-func (p *imageProgress) get() (string, time.Time) {
-	p.RLock()
-	defer p.RUnlock()
-
-	if p.lastMessage == nil {
-		return "No progress", p.timestamp
-	}
-
-	var prefix string
-	if p.lastMessage.ID != "" {
-		prefix = fmt.Sprintf("%s:", p.lastMessage.ID)
-	}
-
-	if p.lastMessage.Progress == nil {
-		return fmt.Sprintf("%s%s", prefix, p.lastMessage.Status), p.timestamp
-	}
-
-	return fmt.Sprintf("%s%s %s", prefix, p.lastMessage.Status, p.lastMessage.Progress.String()), p.timestamp
-}
-
-func (p *imageProgress) set(msg *jsonmessage.JSONMessage) {
-	p.Lock()
-	defer p.Unlock()
-
-	p.lastMessage = msg
-	p.timestamp = time.Now()
-}
-
-type progressReporterFunc func(image string, msg string, timestamp time.Time, pullStart time.Time)
-
-type imageProgressManager struct {
-	*imageProgress
-	image            string
-	activityDeadline time.Duration
-	inactivityFunc   progressReporterFunc
-	reportInterval   time.Duration
-	reporter         progressReporterFunc
-	cancel           context.CancelFunc
-	stopCh           chan struct{}
-	buf              bytes.Buffer
-	pullStart        time.Time
-}
-
-func newImageProgressManager(
-	image string, cancel context.CancelFunc,
-	inactivityFunc, reporter progressReporterFunc) *imageProgressManager {
-	return &imageProgressManager{
-		image:            image,
-		activityDeadline: defaultPullActivityDeadline,
-		inactivityFunc:   inactivityFunc,
-		reportInterval:   defaultImageProgressReportInterval,
-		reporter:         reporter,
-		imageProgress:    &imageProgress{timestamp: time.Now()},
-		cancel:           cancel,
-		stopCh:           make(chan struct{}),
-	}
-}
-
-func (pm *imageProgressManager) withActivityDeadline(t time.Duration) *imageProgressManager {
-	pm.activityDeadline = t
-	return pm
-}
-
-func (pm *imageProgressManager) withReportInterval(t time.Duration) *imageProgressManager {
-	pm.reportInterval = t
-	return pm
-}
-
-func (pm *imageProgressManager) start() {
-	pm.pullStart = time.Now()
-	go func() {
-		ticker := time.NewTicker(defaultImageProgressReportInterval)
-		for {
-			select {
-			case <-ticker.C:
-				msg, timestamp := pm.get()
-				if time.Now().Sub(timestamp) > pm.activityDeadline {
-					pm.inactivityFunc(pm.image, msg, timestamp, pm.pullStart)
-					pm.cancel()
-					return
-				}
-				pm.reporter(pm.image, msg, timestamp, pm.pullStart)
-			case <-pm.stopCh:
-				return
-			}
-		}
-	}()
-}
-
-func (pm *imageProgressManager) stop() {
-	close(pm.stopCh)
-}
-
-func (pm *imageProgressManager) Write(p []byte) (n int, err error) {
-	n, err = pm.buf.Write(p)
-
-	for {
-		line, err := pm.buf.ReadBytes('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return n, err
-		}
-		var msg jsonmessage.JSONMessage
-		err = json.Unmarshal(line, &msg)
-		if err != nil {
-			return n, err
-		}
-
-		if msg.Error != nil {
-			return n, msg.Error
-		}
-
-		pm.set(&msg)
-	}
-
-	return
-}
-
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
 func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, pullTimeout time.Duration, callerID string, emitFn LogEventFn) (imageID string, err error) {
@@ -319,10 +187,10 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 		tag = "latest"
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	if pullTimeout > 0 {
-		ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(pullTimeout))
-	}
 	defer cancel()
+	if pullTimeout > 0 {
+		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(pullTimeout))
+	}
 
 	pm := newImageProgressManager(image, cancel, d.handlePullInactivity, d.handlePullProgressReport)
 	pullOptions := docker.PullImageOptions{
@@ -533,11 +401,9 @@ func (d *dockerCoordinator) handlePullInactivity(image, msg string, timestamp, p
 }
 
 func (d *dockerCoordinator) handlePullProgressReport(image, msg string, timestamp, pullStart time.Time) {
-	if timestamp.Sub(pullStart) > 10*time.Second {
-		d.logger.Printf("[DEBUG] driver.docker: image %s pull progress: %s", image, msg)
-	}
+	d.logger.Printf("[DEBUG] driver.docker: image %s pull progress: %s", image, msg)
 
-	if timestamp.Sub(pullStart) > 2*time.Minute {
+	if timestamp.Sub(pullStart) > dockerPullProgressEmitInterval {
 		d.emitEvent(image, "Docker image %s pull progress: %s", image, msg)
 	}
 }
