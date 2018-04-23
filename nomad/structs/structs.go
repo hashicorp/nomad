@@ -3853,7 +3853,7 @@ func (s *Service) ValidateName(name string) error {
 
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
 // as they're hashed independently.
-func (s *Service) Hash(allocID, taskName string) string {
+func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	h := sha1.New()
 	io.WriteString(h, allocID)
 	io.WriteString(h, taskName)
@@ -3865,6 +3865,11 @@ func (s *Service) Hash(allocID, taskName string) string {
 	}
 	for _, tag := range s.CanaryTags {
 		io.WriteString(h, tag)
+	}
+
+	// Vary ID on whether or not CanaryTags will be used
+	if canary {
+		h.Write([]byte{'1'})
 	}
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
