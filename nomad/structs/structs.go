@@ -6266,6 +6266,15 @@ func (a *AllocDeploymentStatus) IsUnhealthy() bool {
 	return a.Healthy != nil && !*a.Healthy
 }
 
+// IsCanary returns if the allocation is marked as a canary
+func (a *AllocDeploymentStatus) IsCanary() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Canary
+}
+
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	if a == nil {
 		return nil

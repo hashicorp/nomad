@@ -323,10 +323,6 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
 	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
 	// if it has been marked eligible
-	if alloc.DeploymentID != "" && d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
-		return
-	}
-
 	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 		return
 	}
