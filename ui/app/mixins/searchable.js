@@ -11,6 +11,12 @@ import Fuse from 'npm:fuse.js';
   Properties to override:
     - searchTerm: the string to use as a query
     - searchProps: the props on each object to search
+    -- exactMatchSearchProps: the props for exact search when props are different per search type
+    -- regexSearchProps: the props for regex search when props are different per search type
+    -- fuzzySearchProps: the props for fuzzy search when props are different per search type
+    - exactMatchEnabled: (true) disable to not use the exact match search type
+    - fuzzySearchEnabled: (false) enable to use the fuzzy search type
+    - regexEnabled: (true) disable to disable the regex search type
     - listToSearch: the list of objects to search
 
   Properties provided:
@@ -23,7 +29,7 @@ export default Mixin.create({
   searchProps: null,
   exactMatchSearchProps: reads('searchProps'),
   regexSearchProps: reads('searchProps'),
-  fuzzySearchProps: reads('searchprops'),
+  fuzzySearchProps: reads('searchProps'),
 
   // Three search modes
   exactMatchEnabled: true,
@@ -47,31 +53,41 @@ export default Mixin.create({
     });
   }),
 
-  listSearched: computed('searchTerm', 'listToSearch.[]', 'searchProps.[]', function() {
-    const searchTerm = this.get('searchTerm').trim();
-    if (searchTerm && searchTerm.length) {
-      const results = [];
-      if (this.get('exactMatchEnabled')) {
-        results.push(
-          ...exactMatchSearch(
-            searchTerm,
-            this.get('listToSearch'),
-            this.get('exactMatchSearchProps')
-          )
-        );
+  listSearched: computed(
+    'searchTerm',
+    'listToSearch.[]',
+    'exactMatchEnabled',
+    'fuzzySearchEnabled',
+    'regexEnabled',
+    'exactMatchSearchProps.[]',
+    'fuzzySearchProps.[]',
+    'regexSearchProps.[]',
+    function() {
+      const searchTerm = this.get('searchTerm').trim();
+      if (searchTerm && searchTerm.length) {
+        const results = [];
+        if (this.get('exactMatchEnabled')) {
+          results.push(
+            ...exactMatchSearch(
+              searchTerm,
+              this.get('listToSearch'),
+              this.get('exactMatchSearchProps')
+            )
+          );
+        }
+        if (this.get('fuzzySearchEnabled')) {
+          results.push(...this.get('fuse').search(searchTerm));
+        }
+        if (this.get('regexEnabled')) {
+          results.push(
+            ...regexSearch(searchTerm, this.get('listToSearch'), this.get('regexSearchProps'))
+          );
+        }
+        return results.uniq();
       }
-      if (this.get('fuzzySearchEnabled')) {
-        results.push(...this.get('fuse').search(searchTerm));
-      }
-      if (this.get('regexEnabled')) {
-        results.push(
-          ...regexSearch(searchTerm, this.get('listToSearch'), this.get('regexSearchProps'))
-        );
-      }
-      return results.uniq();
+      return this.get('listToSearch');
     }
-    return this.get('listToSearch');
-  }),
+  ),
 });
 
 function exactMatchSearch(term, list, keys) {
