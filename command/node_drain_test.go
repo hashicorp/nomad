@@ -222,7 +222,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
 
-	require.Contains(out, "drain complete")
+	require.Contains(out, "marked all allocations for migration")
 	for _, a := range allocs {
 		if *a.Job.Type == "system" {
 			if strings.Contains(out, a.ID) {
