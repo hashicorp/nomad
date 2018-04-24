@@ -1368,6 +1368,10 @@ func TestConsul_CanaryTags(t *testing.T) {
 	for _, service := range ctx.FakeConsul.services {
 		require.NotEqual(canaryTags, service.Tags)
 	}
+
+	ctx.ServiceClient.RemoveTask(ctx.Task)
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 0)
 }
 
 // TestIsNomadService asserts the isNomadService helper returns true for Nomad
