@@ -1219,9 +1219,7 @@ func (r *TaskRunner) run() {
 
 				// Remove from consul before killing the task so that traffic
 				// can be rerouted
-				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-				taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
-				r.consul.RemoveTask(taskServices)
+				r.removeServices()
 
 				// Delay actually killing the task if configured. See #244
 				if r.task.ShutdownDelay > 0 {
@@ -1276,9 +1274,7 @@ func (r *TaskRunner) run() {
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
 	// Remove from Consul
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
-	r.consul.RemoveTask(taskServices)
+	r.removeServices()
 
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1341,9 +1337,7 @@ func (r *TaskRunner) shouldRestart() bool {
 	}
 
 	// Unregister from Consul while waiting to restart.
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
-	r.consul.RemoveTask(taskServices)
+	r.removeServices()
 
 	// Sleep but watch for destroy events.
 	select {
@@ -1718,6 +1712,20 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor,
 	oldTaskServices := consul.NewTaskServices(oldAlloc, oldTask, r, exec, net)
 	newTaskServices := consul.NewTaskServices(newAlloc, newTask, r, exec, net)
 	return r.consul.UpdateTask(oldTaskServices, newTaskServices)
+}
+
+// removeServices and checks from Consul. Handles interpolation and deleting
+// Canary=true and Canary=false versions in case Canary=false is set at the
+// same time as the alloc is stopped.
+func (r *TaskRunner) removeServices() {
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
+	r.consul.RemoveTask(taskServices)
+
+	// Flip Canary and remove again in case canary is getting flipped at
+	// the same time as the alloc is being destroyed
+	taskServices.Canary = !taskServices.Canary
+	r.consul.RemoveTask(taskServices)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
