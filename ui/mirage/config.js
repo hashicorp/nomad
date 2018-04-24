@@ -138,6 +138,8 @@ export default function() {
     return this.serialize(allocations.where({ nodeId: params.id }));
   });
 
+  this.get('/allocations');
+
   this.get('/allocation/:id');
 
   this.get('/namespaces', function({ namespaces }) {
