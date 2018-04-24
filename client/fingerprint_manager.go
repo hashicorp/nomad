@@ -173,7 +173,7 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 // supported
 func (fm *FingerprintManager) setupDrivers(drivers []string) error {
 	var availDrivers []string
-	driverCtx := driver.NewDriverContext("", "", fm.getConfig(), fm.getNode(), fm.logger, nil)
+	driverCtx := driver.NewDriverContext("", "", "", "", fm.getConfig(), fm.getNode(), fm.logger, nil)
 	for _, name := range drivers {
 
 		d, err := driver.NewDriver(name, driverCtx)
