@@ -417,7 +417,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	matcher := matchDeploymentPromoteRequest(matchConfig)
 	m.On("UpdateDeploymentPromotion", mocker.MatchedBy(matcher)).Return(nil)
 
-	// We may get an update for the desired transistion.
+	// We may get an update for the desired transition.
 	m1 := matchUpdateAllocDesiredTransitions([]string{d.ID})
 	m.On("UpdateAllocDesiredTransition", mocker.MatchedBy(m1)).Return(nil).Once()
 
