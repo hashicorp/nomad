@@ -209,7 +209,11 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		}
 
 		if node.DrainStrategy == nil {
-			msg := Messagef(MonitorMsgLevelInfo, "Node %q drain complete", nodeID)
+			// #4183 - Do not emit "drain complete" here despite
+			// being technically true. It's misleading to users as
+			// we continue to monitor allocations until they
+			// terminate.
+			msg := Messagef(MonitorMsgLevelInfo, "Node %q marked all allocations for migration", nodeID)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
