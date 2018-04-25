@@ -8,6 +8,9 @@ IMPROVEMENTS:
  * ui: Stop job button added to job detail pages [[GH-4189](https://github.com/hashicorp/nomad/pull/4189)]
 
 BUG FIXES:
+ * core: Fix panic when doing a node drain effecting a job that has an
+   allocation that was on a node that no longer exists
+   [[GH-4215](https://github.com/hashicorp/nomad/issues/4215)]
  * driver/exec: Create process group for Windows process and send Ctrl-Break signal on Shutdown [[GH-4153](https://github.com/hashicorp/nomad/pull/4153)]
  * ui: Alloc stats will continue to poll after a request errors or returns an invalid response [[GH-4195](https://github.com/hashicorp/nomad/pull/4195)]
 
