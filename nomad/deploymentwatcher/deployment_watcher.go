@@ -392,12 +392,18 @@ FAIL:
 			// to determine whether we should roll back the job by inspecting
 			// which allocs as part of the deployment are healthy and which
 			// aren't.
-			var err error
 			deadlineHit = true
-			rollback, err = w.shouldRollback()
+			fail, rback, err := w.shouldFail()
 			if err != nil {
 				w.logger.Printf("[ERR] nomad.deployment_watcher: failed to determine whether to rollback job for deployment %q: %v", w.deploymentID, err)
 			}
+			if !fail {
+				w.logger.Printf("[DEBUG] nomad.deployment_watcher: skipping deadline for deployment %q", w.deploymentID)
+				continue
+			}
+
+			w.logger.Printf("[DEBUG] nomad.deployment_watcher: deadline for deployment %q hit and rollback is %v", w.deploymentID, rback)
+			rollback = rback
 			break FAIL
 		case <-w.deploymentUpdateCh:
 			// Get the updated deployment and check if we should change the
@@ -558,24 +564,34 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 	return res, nil
 }
 
-// shouldRollback returns whether the job should be rolled back to an earlier
-// stable version by examing the allocations in the deployment.
-func (w *deploymentWatcher) shouldRollback() (bool, error) {
+// shouldFail returns whether the job should be failed and whether it should
+// rolled back to an earlier stable version by examing the allocations in the
+// deployment.
+func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	snap, err := w.state.Snapshot()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	d, err := snap.DeploymentByID(nil, w.deploymentID)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
+	fail = false
 	for tg, state := range d.TaskGroups {
-		// We have healthy allocs
-		if state.DesiredTotal == state.HealthyAllocs {
+		// If we are in a canary state we fail if there aren't enough healthy
+		// allocs to satisfy DesiredCanaries
+		if state.DesiredCanaries > 0 && !state.Promoted {
+			if state.HealthyAllocs >= state.DesiredCanaries {
+				continue
+			}
+		} else if state.HealthyAllocs >= state.DesiredTotal {
 			continue
 		}
+
+		// We have failed this TG
+		fail = true
 
 		// We don't need to autorevert this group
 		upd := w.j.LookupTaskGroup(tg).Update
@@ -584,10 +600,10 @@ func (w *deploymentWatcher) shouldRollback() (bool, error) {
 		}
 
 		// Unhealthy allocs and we need to autorevert
-		return true, nil
+		return true, true, nil
 	}
 
-	return false, nil
+	return fail, false, nil
 }
 
 // getDeploymentProgressCutoff returns the progress cutoff for the given

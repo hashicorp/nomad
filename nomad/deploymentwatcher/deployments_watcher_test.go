@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	mocker "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*Watcher, *mockBackend) {
@@ -866,6 +867,82 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	})
 
 	// Assert there are is only one evaluation
+	testutil.WaitForResult(func() (bool, error) {
+		ws := memdb.NewWatchSet()
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals); l != 1 {
+			return false, fmt.Errorf("Got %d evals; want 1", l)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+}
+
+// Test that we will allow the progress deadline to be reached when the canaries
+// are healthy but we haven't promoted
+func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	// Create a job, alloc, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.Canary = 1
+	j.TaskGroups[0].Update.MaxParallel = 1
+	j.TaskGroups[0].Update.ProgressDeadline = 500 * time.Millisecond
+	j.Stable = true
+	d := mock.Deployment()
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	d.JobID = j.ID
+	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
+	d.TaskGroups["web"].DesiredCanaries = 1
+	a := mock.Alloc()
+	a.CreateTime = time.Now().UnixNano()
+	a.DeploymentID = d.ID
+	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Assert that we will get a createEvaluation call only once. This will
+	// verify that the watcher is batching allocation changes
+	m1 := matchUpdateAllocDesiredTransitions([]string{d.ID})
+	m.On("UpdateAllocDesiredTransition", mocker.MatchedBy(m1)).Return(nil).Once()
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
+		func(err error) { require.Equal(1, len(w.watchers), "Should have 1 deployment") })
+
+	// Update the alloc to be unhealthy and require that nothing happens.
+	a2 := a.Copy()
+	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: time.Now(),
+	}
+	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+
+	// Wait for the deployment to cross the deadline
+	dout, err := m.state.DeploymentByID(nil, d.ID)
+	require.NoError(err)
+	require.NotNil(dout)
+	state := dout.TaskGroups["web"]
+	require.NotNil(state)
+	time.Sleep(state.RequireProgressBy.Add(time.Second).Sub(time.Now()))
+
+	// Require the deployment is still running
+	dout, err = m.state.DeploymentByID(nil, d.ID)
+	require.NoError(err)
+	require.NotNil(dout)
+	require.Equal(structs.DeploymentStatusRunning, dout.Status)
+	require.Equal(structs.DeploymentStatusDescriptionRunningNeedsPromotion, dout.StatusDescription)
+
+	// require there are is only one evaluation
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
 		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
