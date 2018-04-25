@@ -351,6 +351,10 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 			if err != nil {
 				return err
 			}
+			// If the node doesn't exist, move on
+			if node == nil {
+				continue
+			}
 
 			onDrainingNode = node.DrainStrategy != nil
 			drainingNodes[node.ID] = onDrainingNode
