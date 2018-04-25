@@ -104,7 +104,9 @@ type dockerCoordinator struct {
 	// only have one request be sent to Docker
 	pullFutures map[string]*pullFuture
 
-	// pullLoggers is used to track the LogEventFn for each alloc pulling an image
+	// pullLoggers is used to track the LogEventFn for each alloc pulling an image.
+	// If multiple alloc's are attempting to pull the same image, each will need
+	// to register its own LogEventFn with the coordinator.
 	pullLoggers map[string][]LogEventFn
 
 	// pullLoggerLock is used to sync access to the pullLoggers map
@@ -143,7 +145,7 @@ func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
-func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, pullTimeout time.Duration, callerID string, emitFn LogEventFn) (imageID string, err error) {
+func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string, emitFn LogEventFn) (imageID string, err error) {
 	// Get the future
 	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
@@ -152,7 +154,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 		// Make the future
 		future = newPullFuture()
 		d.pullFutures[image] = future
-		go d.pullImageImpl(image, authOptions, pullTimeout, future)
+		go d.pullImageImpl(image, authOptions, future)
 	}
 	d.imageLock.Unlock()
 
@@ -179,7 +181,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 
 // pullImageImpl is the implementation of pulling an image. The results are
 // returned via the passed future
-func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, pullTimeout time.Duration, future *pullFuture) {
+func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, future *pullFuture) {
 	defer d.clearPullLogger(image)
 	// Parse the repo and tag
 	repo, tag := docker.ParseRepositoryTag(image)
@@ -188,11 +190,10 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if pullTimeout > 0 {
-		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(pullTimeout))
-	}
 
 	pm := newImageProgressManager(image, cancel, d.handlePullInactivity, d.handlePullProgressReport)
+	defer pm.stop()
+
 	pullOptions := docker.PullImageOptions{
 		Repository:    repo,
 		Tag:           tag,
@@ -207,8 +208,6 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 		auth = *authOptions
 	}
 
-	pm.start()
-	defer pm.stop()
 	err := d.client.PullImage(pullOptions, auth)
 
 	if ctxErr := ctx.Err(); ctxErr == context.DeadlineExceeded {
@@ -395,15 +394,14 @@ func (d *dockerCoordinator) emitEvent(image, message string, args ...interface{}
 	}
 }
 
-func (d *dockerCoordinator) handlePullInactivity(image, msg string, timestamp, pullStart time.Time) {
+func (d *dockerCoordinator) handlePullInactivity(image, msg string, timestamp, pullStart time.Time, interval int64) {
 	d.logger.Printf("[ERR] driver.docker: image %s pull aborted due to inactivity, last message recevieved at [%s]: %s", image, timestamp.String(), msg)
-
 }
 
-func (d *dockerCoordinator) handlePullProgressReport(image, msg string, timestamp, pullStart time.Time) {
+func (d *dockerCoordinator) handlePullProgressReport(image, msg string, timestamp, pullStart time.Time, interval int64) {
 	d.logger.Printf("[DEBUG] driver.docker: image %s pull progress: %s", image, msg)
 
-	if timestamp.Sub(pullStart) > dockerPullProgressEmitInterval {
+	if interval%int64(dockerPullProgressEmitInterval.Seconds()/dockerImageProgressReportInterval.Seconds()) == 0 {
 		d.emitEvent(image, "Docker image %s pull progress: %s", image, msg)
 	}
 }

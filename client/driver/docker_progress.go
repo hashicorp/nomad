@@ -14,13 +14,13 @@ import (
 )
 
 const (
-	// defaultPullActivityDeadline is the default value set in the imageProgressManager
+	// dockerPullActivityDeadline is the default value set in the imageProgressManager
 	// when newImageProgressManager is called
-	defaultPullActivityDeadline = 2 * time.Minute
+	dockerPullActivityDeadline = 2 * time.Minute
 
-	// defaultImageProgressReportInterval is the default value set in the
+	// dockerImageProgressReportInterval is the default value set in the
 	// imageProgressManager when newImageProgressManager is called
-	defaultImageProgressReportInterval = 10 * time.Second
+	dockerImageProgressReportInterval = 10 * time.Second
 )
 
 // layerProgress tracks the state and downloaded bytes of a single layer within
@@ -111,7 +111,7 @@ func (p *imageProgress) get() (string, time.Time) {
 }
 
 // set takes a status message received from the docker engine api during an image
-// pull and updates the status of the coorisponding layer
+// pull and updates the status of the corresponding layer
 func (p *imageProgress) set(msg *jsonmessage.JSONMessage) {
 	p.Lock()
 	defer p.Unlock()
@@ -162,9 +162,9 @@ func (p *imageProgress) totalBytes() int64 {
 
 // progressReporterFunc defines the method for handeling inactivity and report
 // events from the imageProgressManager. The image name, current status message,
-// timestamp of last received status update and timestamp of when the pull started
-// are passed in.
-type progressReporterFunc func(image string, msg string, timestamp time.Time, pullStart time.Time)
+// timestamp of last received status update, timestamp of when the pull started
+// and current report interation are passed in.
+type progressReporterFunc func(image string, msg string, timestamp time.Time, pullStart time.Time, interval int64)
 
 // imageProgressManager tracks the progress of pulling a docker image from an
 // image repository.
@@ -187,11 +187,11 @@ func newImageProgressManager(
 	image string, cancel context.CancelFunc,
 	inactivityFunc, reporter progressReporterFunc) *imageProgressManager {
 
-	return &imageProgressManager{
+	pm := &imageProgressManager{
 		image:            image,
-		activityDeadline: defaultPullActivityDeadline,
+		activityDeadline: dockerPullActivityDeadline,
 		inactivityFunc:   inactivityFunc,
-		reportInterval:   defaultImageProgressReportInterval,
+		reportInterval:   dockerImageProgressReportInterval,
 		reporter:         reporter,
 		imageProgress: &imageProgress{
 			timestamp: time.Now(),
@@ -200,23 +200,28 @@ func newImageProgressManager(
 		cancel: cancel,
 		stopCh: make(chan struct{}),
 	}
+
+	pm.start()
+	return pm
 }
 
 // start intiates the ticker to trigger the inactivity and reporter handlers
 func (pm *imageProgressManager) start() {
 	pm.imageProgress.pullStart = time.Now()
 	go func() {
-		ticker := time.NewTicker(defaultImageProgressReportInterval)
+		ticker := time.NewTicker(dockerImageProgressReportInterval)
+		var interval int64
 		for {
+			interval++
 			select {
 			case <-ticker.C:
 				msg, timestamp := pm.imageProgress.get()
 				if time.Now().Sub(timestamp) > pm.activityDeadline {
-					pm.inactivityFunc(pm.image, msg, timestamp, pm.imageProgress.pullStart)
+					pm.inactivityFunc(pm.image, msg, timestamp, pm.imageProgress.pullStart, interval)
 					pm.cancel()
 					return
 				}
-				pm.reporter(pm.image, msg, timestamp, pm.imageProgress.pullStart)
+				pm.reporter(pm.image, msg, timestamp, pm.imageProgress.pullStart, interval)
 			case <-pm.stopCh:
 				return
 			}
