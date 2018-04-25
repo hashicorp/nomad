@@ -507,8 +507,11 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 	}
 
 	// We have exhausted the preferred and free set. Pick starting from n to
-	// n+remainder, to avoid overlapping where possible.
-	// indexes
+	// n+remainder, to avoid overlapping where possible. An example is the
+	// desired count is 3 and we want 5 canaries. The first 3 canaries can use
+	// index [0, 1, 2] but after that we prefer picking indexes [4, 5] so that
+	// we do not overlap. Once the canaries are promoted, these would be the
+	// allocations that would be shut down as well.
 	for i := uint(a.count); i < uint(a.count)+remainder; i++ {
 		name := structs.AllocName(a.job, a.taskGroup, i)
 		next = append(next, name)
