@@ -525,10 +525,11 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Final check to see if the deployment is complete is to ensure everything
 	// is healthy
 	if deploymentComplete && a.deployment != nil {
-		dstate := a.deployment.TaskGroups[group]
-		if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
-			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
-			deploymentComplete = false
+		if dstate, ok := a.deployment.TaskGroups[group]; ok {
+			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
+				deploymentComplete = false
+			}
 		}
 	}
 
