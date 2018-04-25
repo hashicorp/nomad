@@ -5,9 +5,11 @@ IMPROVEMENTS:
  * cli: Improve help text when invalid arguments are given [[GH-4176](https://github.com/hashicorp/nomad/issues/4176)]
  * client: Create new process group on process startup. [[GH-3572](https://github.com/hashicorp/nomad/issues/3572)]
  * driver/rkt: Enable stats collection for rkt tasks [[GH-4188](https://github.com/hashicorp/nomad/pull/4188)]
+ * ui: Stop job button added to job detail pages [[GH-4189](https://github.com/hashicorp/nomad/pull/4189)]
 
 BUG FIXES:
  * driver/exec: Create process group for Windows process and send Ctrl-Break signal on Shutdown [[GH-4153](https://github.com/hashicorp/nomad/pull/4153)]
+ * ui: Alloc stats will continue to poll after a request errors or returns an invalid response [[GH-4195](https://github.com/hashicorp/nomad/pull/4195)]
 
 ## 0.8.1 (April 17, 2018)
 
