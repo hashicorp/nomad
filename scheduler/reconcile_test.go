@@ -1130,6 +1130,55 @@ func TestReconciler_MultiTG(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(2, 9, 0, 9), placeResultsToNames(r.place))
 }
 
+// Tests the reconciler properly handles jobs with multiple task groups with
+// only one having an update stanza and a deployment already being created
+func TestReconciler_MultiTG_SingleUpdateStanza(t *testing.T) {
+	job := mock.Job()
+	tg2 := job.TaskGroups[0].Copy()
+	tg2.Name = "foo"
+	job.TaskGroups = append(job.TaskGroups, tg2)
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create all the allocs
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 10; j++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[i].Name, uint(j))
+			alloc.TaskGroup = job.TaskGroups[i].Name
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 10,
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+			tg2.Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
 // Tests delayed rescheduling of failed batch allocations
 func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	require := require.New(t)
