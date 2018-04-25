@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // untar is a shared helper for untarring an archive. The reader should provide
@@ -14,6 +15,7 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 	tarR := tar.NewReader(input)
 	done := false
 	dirHdrs := []*tar.Header{}
+	now := time.Now()
 	for {
 		hdr, err := tarR.Next()
 		if err == io.EOF {
@@ -95,8 +97,16 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 			return err
 		}
 
-		// Set the access and modification time
-		if err := os.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		// Set the access and modification time if valid, otherwise default to current time
+		aTime := now
+		mTime := now
+		if hdr.AccessTime.Unix() > 0 {
+			aTime = hdr.AccessTime
+		}
+		if hdr.ModTime.Unix() > 0 {
+			mTime = hdr.ModTime
+		}
+		if err := os.Chtimes(path, aTime, mTime); err != nil {
 			return err
 		}
 	}
@@ -109,7 +119,15 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 			return err
 		}
 		// Set the mtime/atime attributes since they would have been changed during extraction
-		if err := os.Chtimes(path, dirHdr.AccessTime, dirHdr.ModTime); err != nil {
+		aTime := now
+		mTime := now
+		if dirHdr.AccessTime.Unix() > 0 {
+			aTime = dirHdr.AccessTime
+		}
+		if dirHdr.ModTime.Unix() > 0 {
+			mTime = dirHdr.ModTime
+		}
+		if err := os.Chtimes(path, aTime, mTime); err != nil {
 			return err
 		}
 	}
