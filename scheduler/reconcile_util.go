@@ -323,10 +323,6 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
 	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
 	// if it has been marked eligible
-	if alloc.DeploymentID != "" && d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
-		return
-	}
-
 	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 		return
 	}
@@ -480,7 +476,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 	// First select indexes from the allocations that are undergoing destructive
 	// updates. This way we avoid duplicate names as they will get replaced.
 	dmap := bitmapFrom(destructive, uint(a.count))
-	var remainder uint
+	remainder := n
 	for _, idx := range dmap.IndexesInRange(true, uint(0), uint(a.count)-1) {
 		name := structs.AllocName(a.job, a.taskGroup, uint(idx))
 		if _, used := existingNames[name]; !used {
@@ -488,7 +484,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 			a.b.Set(uint(idx))
 
 			// If we have enough, return
-			remainder := n - uint(len(next))
+			remainder = n - uint(len(next))
 			if remainder == 0 {
 				return next
 			}
@@ -510,21 +506,15 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 		}
 	}
 
-	// We have exhausted the preferred and free set, now just pick overlapping
-	// indexes
-	var i uint
-	for i = 0; i < remainder; i++ {
+	// We have exhausted the preferred and free set. Pick starting from n to
+	// n+remainder, to avoid overlapping where possible. An example is the
+	// desired count is 3 and we want 5 canaries. The first 3 canaries can use
+	// index [0, 1, 2] but after that we prefer picking indexes [4, 5] so that
+	// we do not overlap. Once the canaries are promoted, these would be the
+	// allocations that would be shut down as well.
+	for i := uint(a.count); i < uint(a.count)+remainder; i++ {
 		name := structs.AllocName(a.job, a.taskGroup, i)
-		if _, used := existingNames[name]; !used {
-			next = append(next, name)
-			a.b.Set(i)
-
-			// If we have enough, return
-			remainder = n - uint(len(next))
-			if remainder == 0 {
-				return next
-			}
-		}
+		next = append(next, name)
 	}
 
 	return next
