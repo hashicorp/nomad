@@ -36,5 +36,5 @@ export default Model.extend({
     return this.get('httpAddr') == null;
   }),
 
-  allocations: hasMany('allocations'),
+  allocations: hasMany('allocations', { inverse: 'node' }),
 });

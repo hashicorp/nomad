@@ -37,6 +37,13 @@ export default ApplicationSerializer.extend({
     hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
     hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
 
+    hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
+
+    if (hash.RescheduleEvents && hash.RescheduleEvents.length) {
+      hash.PreviousAllocationID = hash.RescheduleEvents[0].PrevAllocID;
+      hash.PreviousNodeID = hash.RescheduleEvents[0].PrevNodeID;
+    }
+
     return this._super(typeHash, hash);
   },
 });

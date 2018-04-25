@@ -37,6 +37,12 @@ export default Model.extend({
     return STATUS_ORDER[this.get('clientStatus')] || 100;
   }),
 
+  // When allocations are server-side rescheduled, a paper trail
+  // is left linking all reschedule attempts.
+  previousAllocation: belongsTo('allocation', { inverse: 'nextAllocation' }),
+  nextAllocation: belongsTo('allocation', { inverse: 'previousAllocation' }),
+  previousNode: belongsTo('node', { inverse: null }),
+
   statusClass: computed('clientStatus', function() {
     const classMap = {
       pending: 'is-pending',
@@ -67,4 +73,5 @@ export default Model.extend({
   },
 
   states: fragmentArray('task-state'),
+  rescheduleEvents: fragmentArray('reschedule-event'),
 });
