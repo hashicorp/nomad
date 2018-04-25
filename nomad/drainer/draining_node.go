@@ -125,6 +125,11 @@ func (n *drainingNode) DrainingJobs() ([]structs.NamespacedID, error) {
 	n.l.RLock()
 	defer n.l.RUnlock()
 
+	// Should never happen
+	if n.node == nil || n.node.DrainStrategy == nil {
+		return nil, fmt.Errorf("node doesn't have a drain strategy set")
+	}
+
 	// Retrieve the allocs on the node
 	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
 	if err != nil {
