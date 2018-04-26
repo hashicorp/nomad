@@ -261,6 +261,9 @@ clean: ## Remove build artifacts
 
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make generate; \
+	fi
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster
