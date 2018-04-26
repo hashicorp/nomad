@@ -3869,7 +3869,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 
 	// Vary ID on whether or not CanaryTags will be used
 	if canary {
-		h.Write([]byte{'1'})
+		h.Write([]byte("Canary"))
 	}
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
