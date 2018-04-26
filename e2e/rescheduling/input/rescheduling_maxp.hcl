@@ -17,8 +17,9 @@ job "demo2" {
     update {
       max_parallel     = 1
       min_healthy_time = "1s"
-      healthy_deadline = "1m"
       auto_revert      = false
+      healthy_deadline = "2s"
+      progress_deadline = "5s"
     }
 
     restart {
