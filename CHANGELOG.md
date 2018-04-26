@@ -9,13 +9,14 @@ IMPROVEMENTS:
  * ui: Stop job button added to job detail pages [[GH-4189](https://github.com/hashicorp/nomad/pull/4189)]
 
 BUG FIXES:
- * core: Fix panic when doing a node drain effecting a job that has an
-   allocation that was on a node that no longer exists
-   [[GH-4215](https://github.com/hashicorp/nomad/issues/4215)]
+ * core: Handle invalid cron specifications more gracefully [[GH-4224](https://github.com/hashicorp/nomad/issues/4224)]
  * core: Sort signals in implicit constraint avoiding unnecessary updates
    [[GH-4216](https://github.com/hashicorp/nomad/issues/4216)]
  * core: Improve tracking of node connections even if the address being used to
    contact the server changes [[GH-4222](https://github.com/hashicorp/nomad/issues/4222)]
+ * core: Fix panic when doing a node drain effecting a job that has an
+   allocation that was on a node that no longer exists
+   [[GH-4215](https://github.com/hashicorp/nomad/issues/4215)]
  * api: Fix an issue in which the autopilot configuration could not be updated
    [[GH-4220](https://github.com/hashicorp/nomad/issues/4220)]
  * client: Populate access time and modify time when unarchiving tar archives
