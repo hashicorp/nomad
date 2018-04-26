@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -537,14 +538,14 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
-func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
+func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if *p.SpecType == PeriodicSpecCron {
 		if e, err := cronexpr.Parse(*p.Spec); err == nil {
-			return e.Next(fromTime)
+			return structs.CronParseNext(e, fromTime, *p.Spec)
 		}
 	}
 
-	return time.Time{}
+	return time.Time{}, nil
 }
 
 func (p *PeriodicConfig) GetLocation() (*time.Location, error) {

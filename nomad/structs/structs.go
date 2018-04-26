@@ -2657,9 +2657,9 @@ func (p *PeriodicConfig) Canonicalize() {
 	p.location = l
 }
 
-// cronParseNext is a helper that parses the next time for the given expression
+// CronParseNext is a helper that parses the next time for the given expression
 // but captures any panic that may occur in the underlying library.
-func cronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
+func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
 	defer func() {
 		if recover() != nil {
 			t = time.Time{}
@@ -2678,7 +2678,7 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return cronParseNext(e, fromTime, p.Spec)
+			return CronParseNext(e, fromTime, p.Spec)
 		}
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")

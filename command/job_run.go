@@ -247,9 +247,13 @@ func (c *JobRunCommand) Run(args []string) int {
 			loc, err := job.Periodic.GetLocation()
 			if err == nil {
 				now := time.Now().In(loc)
-				next := job.Periodic.Next(now)
-				c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
-					formatTime(next), formatTimeDifference(now, next, time.Second)))
+				next, err := job.Periodic.Next(now)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error determining next launch time: %v", err))
+				} else {
+					c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
+						formatTime(next), formatTimeDifference(now, next, time.Second)))
+				}
 			}
 		} else if !paramjob {
 			c.Ui.Output("Evaluation ID: " + evalID)
