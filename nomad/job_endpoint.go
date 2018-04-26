@@ -296,6 +296,7 @@ func setImplicitConstraints(j *structs.Job) {
 // getSignalConstraint builds a suitable constraint based on the required
 // signals
 func getSignalConstraint(signals []string) *structs.Constraint {
+	sort.Strings(signals)
 	return &structs.Constraint{
 		Operand: structs.ConstraintSetContains,
 		LTarget: "${attr.os.signals}",
