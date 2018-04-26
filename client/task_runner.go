@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 
@@ -1218,8 +1219,7 @@ func (r *TaskRunner) run() {
 
 				// Remove from consul before killing the task so that traffic
 				// can be rerouted
-				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-				r.consul.RemoveTask(r.alloc.ID, interpTask)
+				r.removeServices()
 
 				// Delay actually killing the task if configured. See #244
 				if r.task.ShutdownDelay > 0 {
@@ -1274,8 +1274,7 @@ func (r *TaskRunner) run() {
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
 	// Remove from Consul
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	r.consul.RemoveTask(r.alloc.ID, interpTask)
+	r.removeServices()
 
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1338,8 +1337,7 @@ func (r *TaskRunner) shouldRestart() bool {
 	}
 
 	// Unregister from Consul while waiting to restart.
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	r.consul.RemoveTask(r.alloc.ID, interpTask)
+	r.removeServices()
 
 	// Sleep but watch for destroy events.
 	select {
@@ -1498,7 +1496,8 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		exec = h
 	}
 	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, r, exec, n)
+	taskServices := consul.NewTaskServices(r.alloc, interpolatedTask, r, exec, n)
+	return r.consul.RegisterTask(taskServices)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1679,7 +1678,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 
 		// Update services in Consul
 		newInterpolatedTask := interpolateServices(r.envBuilder.Build(), updatedTask)
-		if err := r.updateServices(drv, r.handle, oldInterpolatedTask, newInterpolatedTask); err != nil {
+		if err := r.updateServices(drv, r.handle, r.alloc, oldInterpolatedTask, update, newInterpolatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1697,7 +1696,10 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 }
 
 // updateServices and checks with Consul. Tasks must be interpolated!
-func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, oldTask, newTask *structs.Task) error {
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor,
+	oldAlloc *structs.Allocation, oldTask *structs.Task,
+	newAlloc *structs.Allocation, newTask *structs.Task) error {
+
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
@@ -1706,7 +1708,23 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, oldTask, newTask, r, exec, net)
+	oldTaskServices := consul.NewTaskServices(oldAlloc, oldTask, r, exec, net)
+	newTaskServices := consul.NewTaskServices(newAlloc, newTask, r, exec, net)
+	return r.consul.UpdateTask(oldTaskServices, newTaskServices)
+}
+
+// removeServices and checks from Consul. Handles interpolation and deleting
+// Canary=true and Canary=false versions in case Canary=false is set at the
+// same time as the alloc is stopped.
+func (r *TaskRunner) removeServices() {
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
+	r.consul.RemoveTask(taskServices)
+
+	// Flip Canary and remove again in case canary is getting flipped at
+	// the same time as the alloc is being destroyed
+	taskServices.Canary = !taskServices.Canary
+	r.consul.RemoveTask(taskServices)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,

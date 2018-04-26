@@ -650,7 +650,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Assert it is properly registered and unregistered
-	if expected := 4; len(consul.ops) != expected {
+	if expected := 6; len(consul.ops) != expected {
 		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.ops))
 	}
 	if consul.ops[0].op != "add" {
@@ -659,11 +659,17 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	if consul.ops[1].op != "remove" {
 		t.Errorf("expected second op to be remove but found: %q", consul.ops[1].op)
 	}
-	if consul.ops[2].op != "add" {
-		t.Errorf("expected third op to be add but found: %q", consul.ops[2].op)
+	if consul.ops[2].op != "remove" {
+		t.Errorf("expected third op to be remove but found: %q", consul.ops[2].op)
 	}
-	if consul.ops[3].op != "remove" {
-		t.Errorf("expected fourth/final op to be remove but found: %q", consul.ops[3].op)
+	if consul.ops[3].op != "add" {
+		t.Errorf("expected fourth op to be add but found: %q", consul.ops[3].op)
+	}
+	if consul.ops[4].op != "remove" {
+		t.Errorf("expected fifth op to be remove but found: %q", consul.ops[4].op)
+	}
+	if consul.ops[5].op != "remove" {
+		t.Errorf("expected sixth op to be remove but found: %q", consul.ops[5].op)
 	}
 }
 
