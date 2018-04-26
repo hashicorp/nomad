@@ -253,11 +253,11 @@ var _ = Describe("Server Side Restart Tests", func() {
 			})
 
 			Context("Updating job to make allocs fail", func() {
-				It("Should have no rescheduled allocs", func() {
+				It("Should have rescheduled allocs till progress deadline", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+					Eventually(allocStatusesRescheduled, 3*time.Second, time.Second).ShouldNot(BeEmpty())
 
 					// Should have 1 failed from max_parallel
 					Eventually(allocStatuses, 3*time.Second, time.Second).Should(
@@ -266,7 +266,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 					// Verify new deployment and its status
 					time.Sleep(2 * time.Second)
 					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
-						ContainElement(structs.DeploymentStatusFailed))
+						ContainElement(structs.DeploymentStatusRunning))
 				})
 			})
 
