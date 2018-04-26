@@ -13,6 +13,8 @@ BUG FIXES:
    [[GH-4215](https://github.com/hashicorp/nomad/issues/4215)]
  * core: Sort signals in implicit constraint avoiding unnecessary updates
    [[GH-4216](https://github.com/hashicorp/nomad/issues/4216)]
+ * core: Improve tracking of node connections even if the address being used to
+   contact the server changes [[GH-4222](https://github.com/hashicorp/nomad/issues/4222)]
  * client: Populate access time and modify time when unarchiving tar archives
    that do not specify them explicitly [[GH-4217](https://github.com/hashicorp/nomad/issues/4217)]
  * driver/exec: Create process group for Windows process and send Ctrl-Break
