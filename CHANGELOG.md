@@ -16,7 +16,7 @@ BUG FIXES:
  * core: Improve tracking of node connections even if the address being used to
    contact the server changes [[GH-4222](https://github.com/hashicorp/nomad/issues/4222)]
  * api: Fix an issue in which the autopilot configuration could not be updated
-   [GH-4220]
+   [[GH-4220](https://github.com/hashicorp/nomad/issues/4220)]
  * client: Populate access time and modify time when unarchiving tar archives
    that do not specify them explicitly [[GH-4217](https://github.com/hashicorp/nomad/issues/4217)]
  * driver/exec: Create process group for Windows process and send Ctrl-Break
