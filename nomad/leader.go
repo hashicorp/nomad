@@ -379,7 +379,8 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		if err := s.periodicDispatcher.Add(job); err != nil {
-			return err
+			s.logger.Printf("[ERR] nomad.periodic: %v", err)
+			continue
 		}
 
 		// We do not need to force run the job since it isn't active.
