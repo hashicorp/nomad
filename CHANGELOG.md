@@ -1,4 +1,4 @@
-## 0.8.2 (Unreleased)
+## 0.8.2 (April 26, 2018)
 
 IMPROVEMENTS:
  * api: Add /v1/jobs/parse api endpoint for rendering HCL jobs files as JSON [[GH-2782](https://github.com/hashicorp/nomad/issues/2782)]
