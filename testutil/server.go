@@ -145,7 +145,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	vcmd.Stdout = nil
 	vcmd.Stderr = nil
 	if err := vcmd.Run(); err != nil {
-		t.Skipf("nomad version failed. Did you run your test with -tags nomad_test (%v)", err)
+		t.Skipf("nomad version failed: %v", err)
 	}
 
 	dataDir, err := ioutil.TempDir("", "nomad")

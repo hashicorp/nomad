@@ -114,11 +114,13 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
+func (c *JobRunCommand) Name() string { return "job run" }
+
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override bool
 	var checkIndexStr, vaultToken string
 
-	flags := c.Meta.FlagSet("job run", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -140,14 +142,8 @@ func (c *JobRunCommand) Run(args []string) int {
 	// Check that we got exactly one argument
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
-		return 1
-	}
-
-	// Check that we got exactly one node
-	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <path>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -251,9 +247,13 @@ func (c *JobRunCommand) Run(args []string) int {
 			loc, err := job.Periodic.GetLocation()
 			if err == nil {
 				now := time.Now().In(loc)
-				next := job.Periodic.Next(now)
-				c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
-					formatTime(next), formatTimeDifference(now, next, time.Second)))
+				next, err := job.Periodic.Next(now)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error determining next launch time: %v", err))
+				} else {
+					c.Ui.Output(fmt.Sprintf("Approximate next launch time: %s (%s from now)",
+						formatTime(next), formatTimeDifference(now, next, time.Second)))
+				}
 			}
 		} else if !paramjob {
 			c.Ui.Output("Evaluation ID: " + evalID)

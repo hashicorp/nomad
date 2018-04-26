@@ -93,10 +93,11 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
 }
 
+func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
 
-	flags := c.Meta.FlagSet("job plan", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "diff", true, "")
 	flags.BoolVar(&policyOverride, "policy-override", false, "")
@@ -109,7 +110,8 @@ func (c *JobPlanCommand) Run(args []string) int {
 	// Check that we got exactly one job
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <path>")
+		c.Ui.Error(commandErrorText(c))
 		return 255
 	}
 

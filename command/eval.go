@@ -33,6 +33,8 @@ func (f *EvalCommand) Synopsis() string {
 	return "Interact with evaluations"
 }
 
+func (f *EvalCommand) Name() string { return "eval" }
+
 func (f *EvalCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

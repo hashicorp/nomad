@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Operating a Job"
-sidebar_current: "docs-operating-a-job"
+sidebar_current: "guides-operating-a-job"
 description: |-
   Learn how to operate a Nomad Job.
 ---

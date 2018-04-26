@@ -109,12 +109,14 @@ func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *NodeDrainCommand) Name() string { return "node-drain" }
+
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, detach, force,
 		noDeadline, ignoreSystem, keepIneligible, self, autoYes bool
 	var deadline string
 
-	flags := c.Meta.FlagSet("node-drain", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&enable, "enable", false, "Enable drain mode")
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
@@ -133,7 +135,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// Check that we got either enable or disable, but not both.
 	if (enable && disable) || (!enable && !disable) {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -141,20 +144,24 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	args = flags.Args()
 	if l := len(args); self && l != 0 || !self && l != 1 {
 		c.Ui.Error("Node ID must be specified if -self isn't being used")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	// Validate a compatible set of flags were set
 	if disable && (deadline != "" || force || noDeadline || ignoreSystem) {
 		c.Ui.Error("-disable can't be combined with flags configuring drain strategy")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	if deadline != "" && (force || noDeadline) {
 		c.Ui.Error("-deadline can't be combined with -force or -no-deadline")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	if force && noDeadline {
 		c.Ui.Error("-force and -no-deadline are mutually exclusive")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

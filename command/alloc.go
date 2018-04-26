@@ -35,6 +35,8 @@ func (f *AllocCommand) Synopsis() string {
 	return "Interact with allocations"
 }
 
+func (f *AllocCommand) Name() string { return "alloc" }
+
 func (f *AllocCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

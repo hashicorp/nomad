@@ -12,7 +12,7 @@ type NodeCommand struct {
 
 func (f *NodeCommand) Help() string {
 	helpText := `
-Usage: nomad nomad <subcommand> [options] [args]
+Usage: nomad node <subcommand> [options] [args]
 
   This command groups subcommands for interacting with nodes. Nodes in Nomad are
   agent's that can run submitted workloads. This command can be used to examine
@@ -41,6 +41,8 @@ Usage: nomad nomad <subcommand> [options] [args]
 func (f *NodeCommand) Synopsis() string {
 	return "Interact with nodes"
 }
+
+func (f *NodeCommand) Name() string { return "node" }
 
 func (f *NodeCommand) Run(args []string) int {
 	return cli.RunResultHelp

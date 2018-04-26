@@ -39,8 +39,10 @@ func (c *ACLBootstrapCommand) Synopsis() string {
 	return "Bootstrap the ACL system for initial token"
 }
 
+func (c *ACLBootstrapCommand) Name() string { return "acl bootstrap" }
+
 func (c *ACLBootstrapCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl bootstrap", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -49,7 +51,8 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -36,9 +37,31 @@ type Jobs struct {
 	client *Client
 }
 
+// JobsParseRequest is used for arguments of the /vi/jobs/parse endpoint
+type JobsParseRequest struct {
+	// JobHCL is an hcl jobspec
+	JobHCL string
+
+	// Canonicalize is a flag as to if the server should return default values
+	// for unset fields
+	Canonicalize bool
+}
+
 // Jobs returns a handle on the jobs endpoints.
 func (c *Client) Jobs() *Jobs {
 	return &Jobs{client: c}
+}
+
+// Parse is used to convert the HCL repesentation of a Job to JSON server side.
+// To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
+func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
+	var job Job
+	req := &JobsParseRequest{
+		JobHCL:       jobHCL,
+		Canonicalize: canonicalize,
+	}
+	_, err := j.client.write("/v1/jobs/parse", req, &job, nil)
+	return &job, err
 }
 
 func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *WriteMeta, error) {
@@ -515,14 +538,14 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
-func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
+func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if *p.SpecType == PeriodicSpecCron {
 		if e, err := cronexpr.Parse(*p.Spec); err == nil {
-			return e.Next(fromTime)
+			return structs.CronParseNext(e, fromTime, *p.Spec)
 		}
 	}
 
-	return time.Time{}
+	return time.Time{}, nil
 }
 
 func (p *PeriodicConfig) GetLocation() (*time.Location, error) {

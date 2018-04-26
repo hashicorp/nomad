@@ -27,6 +27,8 @@ func (f *OperatorCommand) Synopsis() string {
 	return "Provides cluster-level tools for Nomad operators"
 }
 
+func (f *OperatorCommand) Name() string { return "operator" }
+
 func (f *OperatorCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

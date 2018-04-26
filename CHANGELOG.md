@@ -1,10 +1,29 @@
-## 0.8.2 (Unreleased)
+## 0.8.2 (April 26, 2018)
 
 IMPROVEMENTS:
+ * api: Add /v1/jobs/parse api endpoint for rendering HCL jobs files as JSON [[GH-2782](https://github.com/hashicorp/nomad/issues/2782)]
+ * cli: Improve help text when invalid arguments are given [[GH-4176](https://github.com/hashicorp/nomad/issues/4176)]
  * client: Create new process group on process startup. [[GH-3572](https://github.com/hashicorp/nomad/issues/3572)]
+ * discovery: Periodically sync services and checks with Consul [[GH-4170](https://github.com/hashicorp/nomad/issues/4170)]
+ * driver/rkt: Enable stats collection for rkt tasks [[GH-4188](https://github.com/hashicorp/nomad/pull/4188)]
+ * ui: Stop job button added to job detail pages [[GH-4189](https://github.com/hashicorp/nomad/pull/4189)]
 
 BUG FIXES:
- * driver/exec: Create process group for Windows process and send Ctrl-Break signal on Shutdown [[GH-2117](https://github.com/hashicorp/nomad/issues/2117)]
+ * core: Handle invalid cron specifications more gracefully [[GH-4224](https://github.com/hashicorp/nomad/issues/4224)]
+ * core: Sort signals in implicit constraint avoiding unnecessary updates
+   [[GH-4216](https://github.com/hashicorp/nomad/issues/4216)]
+ * core: Improve tracking of node connections even if the address being used to
+   contact the server changes [[GH-4222](https://github.com/hashicorp/nomad/issues/4222)]
+ * core: Fix panic when doing a node drain effecting a job that has an
+   allocation that was on a node that no longer exists
+   [[GH-4215](https://github.com/hashicorp/nomad/issues/4215)]
+ * api: Fix an issue in which the autopilot configuration could not be updated
+   [[GH-4220](https://github.com/hashicorp/nomad/issues/4220)]
+ * client: Populate access time and modify time when unarchiving tar archives
+   that do not specify them explicitly [[GH-4217](https://github.com/hashicorp/nomad/issues/4217)]
+ * driver/exec: Create process group for Windows process and send Ctrl-Break
+   signal on Shutdown [[GH-4153](https://github.com/hashicorp/nomad/pull/4153)]
+ * ui: Alloc stats will continue to poll after a request errors or returns an invalid response [[GH-4195](https://github.com/hashicorp/nomad/pull/4195)]
 
 ## 0.8.1 (April 17, 2018)
 

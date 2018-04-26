@@ -58,11 +58,13 @@ func (c *ACLTokenCreateCommand) Synopsis() string {
 	return "Create a new ACL token"
 }
 
+func (c *ACLTokenCreateCommand) Name() string { return "acl token create" }
+
 func (c *ACLTokenCreateCommand) Run(args []string) int {
 	var name, tokenType string
 	var global bool
 	var policies []string
-	flags := c.Meta.FlagSet("acl token create", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&tokenType, "type", "client", "")
@@ -78,7 +80,8 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

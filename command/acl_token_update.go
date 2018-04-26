@@ -58,11 +58,13 @@ func (c *ACLTokenUpdateCommand) Synopsis() string {
 	return "Update an existing ACL token"
 }
 
+func (*ACLTokenUpdateCommand) Name() string { return "acl token update" }
+
 func (c *ACLTokenUpdateCommand) Run(args []string) int {
 	var name, tokenType string
 	var global bool
 	var policies []string
-	flags := c.Meta.FlagSet("acl token update", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&tokenType, "type", "client", "")
@@ -78,7 +80,8 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <token_accessor_id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

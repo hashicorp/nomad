@@ -44,6 +44,8 @@ func (f *DeploymentCommand) Synopsis() string {
 	return "Interact with deployments"
 }
 
+func (f *DeploymentCommand) Name() string { return "deployment" }
+
 func (f *DeploymentCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

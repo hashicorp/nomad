@@ -77,11 +77,13 @@ func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *EvalStatusCommand) Name() string { return "eval status" }
+
 func (c *EvalStatusCommand) Run(args []string) int {
 	var monitor, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("eval status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -121,7 +123,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

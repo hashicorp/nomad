@@ -17,6 +17,9 @@ export default Component.extend({
   gotoTaskGroup() {},
   gotoJob() {},
 
+  // Set to a { title, description } to surface an error
+  errorMessage: null,
+
   breadcrumbs: computed('job.{name,id}', function() {
     const job = this.get('job');
     return [
@@ -33,4 +36,13 @@ export default Component.extend({
       },
     ];
   }),
+
+  actions: {
+    clearErrorMessage() {
+      this.set('errorMessage', null);
+    },
+    handleError(errorObject) {
+      this.set('errorMessage', errorObject);
+    },
+  },
 });

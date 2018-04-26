@@ -22,7 +22,7 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   Dispatch creates an instance of a parameterized job. A data payload to the
   dispatched instance can be provided via stdin by using "-" or by specifying a
   path to a file. Metadata can be supplied by using the meta flag one or more
-  times. 
+  times.
 
   Upon successful creation, the dispatched job ID will be printed and the
   triggered evaluation will be monitored. This can be disabled by supplying the
@@ -40,7 +40,7 @@ Dispatch Options:
     key which is overridden when dispatching. The flag can be provided more than
     once to inject multiple metadata key/value pairs. Arbitrary keys are not
     allowed. The parameterized job must allow the key to be merged.
-    
+
   -detach
     Return immediately instead of entering monitor mode. After job dispatch,
     the evaluation ID will be printed to the screen, which can be used to
@@ -80,11 +80,13 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *JobDispatchCommand) Name() string { return "job dispatch" }
+
 func (c *JobDispatchCommand) Run(args []string) int {
 	var detach, verbose bool
 	var meta []string
 
-	flags := c.Meta.FlagSet("job dispatch", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -100,10 +102,11 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Check that we got exactly one node
+	// Check that we got one or two arguments
 	args = flags.Args()
 	if l := len(args); l < 1 || l > 2 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one or two argument: <parameterized job> [input source]")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

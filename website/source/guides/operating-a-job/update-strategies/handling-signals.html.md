@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Handling Signals - Operating a Job"
-sidebar_current: "docs-operating-a-job-updating-handling-signals"
+sidebar_current: "guides-operating-a-job-updating-handling-signals"
 description: |-
   Well-behaved applications expose a way to perform cleanup prior to exiting.
   Nomad can optionally send a configurable signal to applications before

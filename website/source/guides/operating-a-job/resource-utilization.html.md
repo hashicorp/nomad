@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Resource Utilization - Operating a Job"
-sidebar_current: "docs-operating-a-job-resource-utilization"
+sidebar_current: "guides-operating-a-job-resource-utilization"
 description: |-
   Nomad supports reporting detailed job statistics and resource utilization
   metrics for most task drivers. This section describes the ways to inspect a
@@ -16,7 +16,7 @@ interface for seeing resource utilization is the `alloc status` command with the
 `-stats` flag.
 
 This section will utilize the job named "docs" from the [previous
-sections](/docs/operating-a-job/submitting-jobs.html), but these operations
+sections](/guides/operating-a-job/submitting-jobs.html), but these operations
 and command largely apply to all jobs in Nomad.
 
 As a reminder, here is the output of the run command from the previous example:

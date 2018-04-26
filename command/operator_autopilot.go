@@ -10,6 +10,8 @@ type OperatorAutopilotCommand struct {
 	Meta
 }
 
+func (c *OperatorAutopilotCommand) Name() string { return "operator autopilot" }
+
 func (c *OperatorAutopilotCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
@@ -30,11 +32,11 @@ Usage: nomad operator autopilot <subcommand> [options]
   Get the current Autopilot configuration:
 
       $ nomad operator autopilot get-config
-  
+
   Set a new Autopilot configuration, enabling automatic dead server cleanup:
 
       $ nomad operator autopilot set-config -cleanup-dead-servers=true
-  
+
   Please see the individual subcommand help for detailed usage information.
   `
 	return strings.TrimSpace(helpText)

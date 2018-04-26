@@ -352,8 +352,9 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 				return err
 			}
 
-			onDrainingNode = node.DrainStrategy != nil
-			drainingNodes[node.ID] = onDrainingNode
+			// Check if the node exists and whether it has a drain strategy
+			onDrainingNode = node != nil && node.DrainStrategy != nil
+			drainingNodes[alloc.NodeID] = onDrainingNode
 		}
 
 		// Check if the alloc should be considered migrated. A migrated

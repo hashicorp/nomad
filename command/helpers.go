@@ -484,3 +484,9 @@ func sanitizeUUIDPrefix(prefix string) string {
 	remainder := length % 2
 	return prefix[:len(prefix)-remainder]
 }
+
+// commandErrorText is used to easily render the same messaging across commads
+// when an error is printed.
+func commandErrorText(cmd NamedCommand) string {
+	return fmt.Sprintf("For additional help try 'nomad %s -help'", cmd.Name())
+}

@@ -42,6 +42,8 @@ func (f *JobCommand) Synopsis() string {
 	return "Interact with jobs"
 }
 
+func (f *JobCommand) Name() string { return "job" }
+
 func (f *JobCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

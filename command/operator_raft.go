@@ -35,6 +35,8 @@ func (c *OperatorRaftCommand) Synopsis() string {
 	return "Provides access to the Raft subsystem"
 }
 
+func (c *OperatorRaftCommand) Name() string { return "operator raft" }
+
 func (c *OperatorRaftCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }

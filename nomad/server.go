@@ -143,7 +143,7 @@ type Server struct {
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
-	nodeConns     map[string]*nodeConnState
+	nodeConns     map[string][]*nodeConnState
 	nodeConnsLock sync.RWMutex
 
 	// peers is used to track the known Nomad servers. This is
@@ -294,7 +294,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
 		streamingRpcs: structs.NewStreamingRpcRegistry(),
-		nodeConns:     make(map[string]*nodeConnState),
+		nodeConns:     make(map[string][]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:   make(chan serf.Member, 32),

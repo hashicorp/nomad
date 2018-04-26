@@ -69,10 +69,12 @@ func (c *NodeEligibilityCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *NodeEligibilityCommand) Name() string { return "node-eligibility" }
+
 func (c *NodeEligibilityCommand) Run(args []string) int {
 	var enable, disable, self bool
 
-	flags := c.Meta.FlagSet("node-eligibility", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&enable, "enable", false, "Mark node as eligibile for scheduling")
 	flags.BoolVar(&disable, "disable", false, "Mark node as ineligibile for scheduling")
@@ -84,7 +86,8 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 
 	// Check that we got either enable or disable, but not both.
 	if (enable && disable) || (!enable && !disable) {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -92,6 +95,7 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 	args = flags.Args()
 	if l := len(args); self && l != 0 || !self && l != 1 {
 		c.Ui.Error("Node ID must be specified if -self isn't being used")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
