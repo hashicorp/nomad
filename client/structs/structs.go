@@ -1,6 +1,6 @@
 package structs
 
-//go:generate codecgen -d 102 -o structs.generated.go structs.go
+//go:generate ./generate.sh
 
 import (
 	"crypto/md5"
