@@ -169,11 +169,11 @@ var _ = Describe("Server Side Restart Tests", func() {
 					ConsistOf([]string{"running", "running", "running"}))
 			})
 			Context("Updating job to make allocs fail", func() {
-				It("Should have no rescheduled allocs", func() {
+				It("Should have rescheduled allocs until progress deadline", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+					Eventually(allocStatusesRescheduled, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 				})
 			})
 
@@ -193,16 +193,17 @@ var _ = Describe("Server Side Restart Tests", func() {
 			})
 
 			Context("Updating job to make allocs fail", func() {
-				It("Should have no rescheduled allocs", func() {
+				It("Should have rescheduled allocs until progress deadline", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+					Eventually(allocStatusesRescheduled, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 
 					// Verify new deployment and its status
+					// Deployment status should be running (because of progress deadline)
 					time.Sleep(3 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
 					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
-						ContainElement(structs.DeploymentStatusFailed))
+						ContainElement(structs.DeploymentStatusRunning))
 				})
 			})
 
