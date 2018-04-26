@@ -1997,6 +1997,14 @@ type Job struct {
 	JobModifyIndex uint64
 }
 
+// NamespacedID returns the namespaced id useful for logging
+func (j *Job) NamespacedID() *NamespacedID {
+	return &NamespacedID{
+		ID:        j.ID,
+		Namespace: j.Namespace,
+	}
+}
+
 // Canonicalize is used to canonicalize fields in the Job. This should be called
 // when registering a Job. A set of warnings are returned if the job was changed
 // in anyway that the user should be made aware of.
@@ -2649,11 +2657,13 @@ func (p *PeriodicConfig) Canonicalize() {
 	p.location = l
 }
 
-func cronParseNext(e *cronexpr.Expression, fromTime time.Time) (t time.Time, err error) {
+// cronParseNext is a helper that parses the next time for the given expression
+// but captures any panic that may occur in the underlying library.
+func cronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
 	defer func() {
 		if recover() != nil {
 			t = time.Time{}
-			err = fmt.Errorf("Unable to parse cron expression from time")
+			err = fmt.Errorf("failed parsing cron expression: %q", spec)
 		}
 	}()
 
@@ -2668,7 +2678,7 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return cronParseNext(e, fromTime)
+			return cronParseNext(e, fromTime, p.Spec)
 		}
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")

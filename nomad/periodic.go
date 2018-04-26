@@ -223,7 +223,7 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	p.tracked[tuple] = job
 	next, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
 	if err != nil {
-		return fmt.Errorf("[ERR] nomad.periodic unable to parse cron expression: %v", err)
+		return fmt.Errorf("failed adding job %s: %v", job.NamespacedID(), err)
 	}
 	if tracked {
 		if err := p.heap.Update(job, next); err != nil {
@@ -349,10 +349,9 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 
 	nextLaunch, err := job.Periodic.Next(launchTime)
 	if err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: failed to parse periodic job %v", err)
-	}
-	if err := p.heap.Update(job, nextLaunch); err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %q (%s): %v", job.ID, job.Namespace, err)
+		p.logger.Printf("[ERR] nomad.periodic: failed to parse next periodic launch for job %s: %v", job.NamespacedID(), err)
+	} else if err := p.heap.Update(job, nextLaunch); err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %s: %v", job.NamespacedID(), err)
 	}
 
 	// If the job prohibits overlapping and there are running children, we skip

@@ -1219,7 +1219,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	if args.Job.IsPeriodic() && args.Job.Periodic.Enabled {
 		reply.NextPeriodicLaunch, err = args.Job.Periodic.Next(time.Now().In(args.Job.Periodic.GetLocation()))
 		if err != nil {
-			return fmt.Errorf("Failed to parse cron time %v", err)
+			return fmt.Errorf("Failed to parse cron expression: %v", err)
 		}
 	}
 

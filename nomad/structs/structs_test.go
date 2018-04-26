@@ -2015,7 +2015,10 @@ func TestPeriodicConfig_NextCron(t *testing.T) {
 	for i, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
 		p.Canonicalize()
-		n := p.Next(from)
+		n, err := p.Next(from)
+		if err != nil {
+			t.Fatalf("Next returned error: %v", err)
+		}
 		if expected[i] != n {
 			t.Fatalf("Next(%v) returned %v; want %v", from, n, expected[i])
 		}
@@ -2050,8 +2053,14 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	e1 := time.Date(2017, time.March, 11, 10, 0, 0, 0, time.UTC)
 	e2 := time.Date(2017, time.March, 12, 9, 0, 0, 0, time.UTC)
 
-	n1 := p.Next(t1).UTC()
-	n2 := p.Next(t2).UTC()
+	n1, err1 := p.Next(t1)
+	n2, err2 := p.Next(t2)
+	if err1 != nil || err2 != nil {
+		t.Fatalf("bad: %v %v", err1, err2)
+	}
+
+	n1 = n1.UTC()
+	n2 = n2.UTC()
 
 	if !reflect.DeepEqual(e1, n1) {
 		t.Fatalf("Got %v; want %v", n1, e1)

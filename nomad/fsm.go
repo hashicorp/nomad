@@ -425,7 +425,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// tracking it.
 	if err := n.periodicDispatcher.Add(req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
-		return err
+		return fmt.Errorf("failed adding job to periodic dispatcher: %v", err)
 	}
 
 	// Create a watch set

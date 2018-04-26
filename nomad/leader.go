@@ -402,7 +402,8 @@ func (s *Server) restorePeriodicDispatcher() error {
 		// nextLaunch is the next launch that should occur.
 		nextLaunch, err := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
 		if err != nil {
-			return fmt.Errorf("failed to parse periodic time: %v", err)
+			s.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic launch for job %s: %v", job.NamespacedID(), err)
+			continue
 		}
 
 		// We skip force launching the job if  there should be no next launch
