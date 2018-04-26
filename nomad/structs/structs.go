@@ -2649,20 +2649,31 @@ func (p *PeriodicConfig) Canonicalize() {
 	p.location = l
 }
 
+func cronParseNext(e *cronexpr.Expression, fromTime time.Time) (t time.Time, err error) {
+	defer func() {
+		if recover() != nil {
+			t = time.Time{}
+			err = fmt.Errorf("Unable to parse cron expression from time")
+		}
+	}()
+
+	return e.Next(fromTime), nil
+}
+
 // Next returns the closest time instant matching the spec that is after the
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
-func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
+func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return e.Next(fromTime)
+			return cronParseNext(e, fromTime)
 		}
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")
 		if len(split) == 1 && split[0] == "" {
-			return time.Time{}
+			return time.Time{}, nil
 		}
 
 		// Parse the times
@@ -2670,7 +2681,7 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 		for i, s := range split {
 			unix, err := strconv.Atoi(s)
 			if err != nil {
-				return time.Time{}
+				return time.Time{}, nil
 			}
 
 			times[i] = time.Unix(int64(unix), 0)
@@ -2679,12 +2690,12 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 		// Find the next match
 		for _, next := range times {
 			if fromTime.Before(next) {
-				return next
+				return next, nil
 			}
 		}
 	}
 
-	return time.Time{}
+	return time.Time{}, nil
 }
 
 // GetLocation returns the location to use for determining the time zone to run

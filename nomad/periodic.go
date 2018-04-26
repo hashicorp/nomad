@@ -221,7 +221,10 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 
 	// Add or update the job.
 	p.tracked[tuple] = job
-	next := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	next, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	if err != nil {
+		return fmt.Errorf("[ERR] nomad.periodic unable to parse cron expression: %v", err)
+	}
 	if tracked {
 		if err := p.heap.Update(job, next); err != nil {
 			return fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
@@ -344,7 +347,10 @@ func (p *PeriodicDispatch) run(ctx context.Context) {
 func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	p.l.Lock()
 
-	nextLaunch := job.Periodic.Next(launchTime)
+	nextLaunch, err := job.Periodic.Next(launchTime)
+	if err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to parse periodic job %v", err)
+	}
 	if err := p.heap.Update(job, nextLaunch); err != nil {
 		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %q (%s): %v", job.ID, job.Namespace, err)
 	}
