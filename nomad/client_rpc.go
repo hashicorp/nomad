@@ -40,6 +40,12 @@ func (s *Server) getNodeConn(nodeID string) (*nodeConnState, bool) {
 		}
 	}
 
+	// Shouldn't happen but rather be safe
+	if state == nil {
+		s.logger.Printf("[WARN] nomad.client_rpc: node %q exists in node connection map without any connection", nodeID)
+		return nil, false
+	}
+
 	return state, ok
 }
 
@@ -111,7 +117,15 @@ func (s *Server) removeNodeConn(ctx *RPCContext) {
 	for i, conn := range conns {
 		if conn.Ctx.Conn.LocalAddr().String() == ctx.Conn.LocalAddr().String() &&
 			conn.Ctx.Conn.RemoteAddr().String() == ctx.Conn.RemoteAddr().String() {
-			s.nodeConns[ctx.NodeID] = append(s.nodeConns[ctx.NodeID][:i], s.nodeConns[ctx.NodeID][i+1:]...)
+
+			if len(conns) == 1 {
+				// We are deleting the last conn, remove it from the map
+				delete(s.nodeConns, ctx.NodeID)
+			} else {
+				// Slice out the connection we are deleting
+				s.nodeConns[ctx.NodeID] = append(s.nodeConns[ctx.NodeID][:i], s.nodeConns[ctx.NodeID][i+1:]...)
+			}
+
 			return
 		}
 	}
