@@ -24,6 +24,7 @@ Vagrant.configure(2) do |config|
 
         # Expose the nomad api and ui to the host
         vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
+        vmCfg.vm.network "forwarded_port", guest: 4567, host: 4567, auto_correct: true
 
         # Expose Ember ports to the host (one for the site, one for livereload)
         vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
