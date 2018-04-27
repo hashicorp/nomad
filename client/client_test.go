@@ -138,6 +138,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 
 func TestClient_Fingerprint(t *testing.T) {
 	t.Parallel()
+
 	c := TestClient(t, nil)
 	defer c.Shutdown()
 
@@ -157,11 +158,8 @@ func TestClient_Fingerprint(t *testing.T) {
 }
 
 func TestClient_Fingerprint_Periodic(t *testing.T) {
-	driver.CheckForMockDriver(t)
 	t.Parallel()
 
-	// these constants are only defined when nomad_test is enabled, so these fail
-	// our linter without explicit disabling.
 	c1 := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			driver.ShutdownPeriodicAfter:    "true",

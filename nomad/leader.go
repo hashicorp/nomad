@@ -379,7 +379,8 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		if err := s.periodicDispatcher.Add(job); err != nil {
-			return err
+			s.logger.Printf("[ERR] nomad.periodic: %v", err)
+			continue
 		}
 
 		// We do not need to force run the job since it isn't active.
@@ -400,7 +401,11 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		// nextLaunch is the next launch that should occur.
-		nextLaunch := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
+		nextLaunch, err := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
+		if err != nil {
+			s.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic launch for job %s: %v", job.NamespacedID(), err)
+			continue
+		}
 
 		// We skip force launching the job if  there should be no next launch
 		// (the zero case) or if the next launch time is in the future. If it is

@@ -77,10 +77,12 @@ func (c *JobStopCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *JobStopCommand) Name() string { return "job stop" }
+
 func (c *JobStopCommand) Run(args []string) int {
 	var detach, purge, verbose, autoYes bool
 
-	flags := c.Meta.FlagSet("job stop", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -100,7 +102,8 @@ func (c *JobStopCommand) Run(args []string) int {
 	// Check that we got exactly one job
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <job>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	jobID := args[0]

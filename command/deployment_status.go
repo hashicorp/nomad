@@ -67,11 +67,13 @@ func (c *DeploymentStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
+
 func (c *DeploymentStatusCommand) Run(args []string) int {
 	var json, verbose bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("deployment status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
@@ -81,10 +83,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <deployment id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

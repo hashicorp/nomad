@@ -3,9 +3,6 @@ package consul
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -14,6 +11,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
@@ -26,13 +24,6 @@ const (
 	xPort = 1234
 	yPort = 1235
 )
-
-func testLogger() *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, "", log.LstdFlags)
-	}
-	return log.New(ioutil.Discard, "", 0)
-}
 
 func testTask() *structs.Task {
 	return &structs.Task{
@@ -112,10 +103,10 @@ func (t *testFakeCtx) syncOnce() error {
 
 // setupFake creates a testFakeCtx with a ServiceClient backed by a fakeConsul.
 // A test Task is also provided.
-func setupFake() *testFakeCtx {
+func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, testLogger()),
+		ServiceClient: NewServiceClient(fc, testlog.Logger(t)),
 		FakeConsul:    fc,
 		Task:          testTask(),
 		Restarter:     &restartRecorder{},
@@ -124,7 +115,7 @@ func setupFake() *testFakeCtx {
 }
 
 func TestConsul_ChangeTags(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	allocID := "allocid"
 	if err := ctx.ServiceClient.RegisterTask(allocID, ctx.Task, ctx.Restarter, nil, nil); err != nil {
@@ -225,7 +216,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 // it in Consul. Pre-0.7.1 ports were not part of the service ID and this was a
 // slightly different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:      "c1",
@@ -406,7 +397,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 // TestConsul_ChangeChecks asserts that updating only the checks on a service
 // properly syncs with Consul.
 func TestConsul_ChangeChecks(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:      "c1",
@@ -641,7 +632,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 
 // TestConsul_RegServices tests basic service registration.
 func TestConsul_RegServices(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	// Add a check w/restarting
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -778,7 +769,7 @@ func TestConsul_RegServices(t *testing.T) {
 // ServiceClient.
 func TestConsul_ShutdownOK(t *testing.T) {
 	require := require.New(t)
-	ctx := setupFake()
+	ctx := setupFake(t)
 
 	// Add a script check to make sure its TTL gets updated
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -840,8 +831,8 @@ func TestConsul_ShutdownOK(t *testing.T) {
 // TestConsul_ShutdownSlow tests the slow but ok path for the shutdown logic in
 // ServiceClient.
 func TestConsul_ShutdownSlow(t *testing.T) {
-	t.Parallel() // run the slow tests in parallel
-	ctx := setupFake()
+	t.Parallel()
+	ctx := setupFake(t)
 
 	// Add a script check to make sure its TTL gets updated
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -912,8 +903,8 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 // TestConsul_ShutdownBlocked tests the blocked past deadline path for the
 // shutdown logic in ServiceClient.
 func TestConsul_ShutdownBlocked(t *testing.T) {
-	t.Parallel() // run the slow tests in parallel
-	ctx := setupFake()
+	t.Parallel()
+	ctx := setupFake(t)
 
 	// Add a script check to make sure its TTL gets updated
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
@@ -981,7 +972,7 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 // TestConsul_RemoveScript assert removing a script check removes all objects
 // related to that check.
 func TestConsul_CancelScript(t *testing.T) {
-	ctx := setupFake()
+	ctx := setupFake(t)
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:     "scriptcheckDel",
@@ -1069,7 +1060,8 @@ func TestConsul_CancelScript(t *testing.T) {
 // auto-use set then services should advertise it unless explicitly set to
 // host. Checks should always use host.
 func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
-	ctx := setupFake()
+	t.Parallel()
+	ctx := setupFake(t)
 
 	ctx.Task.Services = []*structs.Service{
 		{
@@ -1195,7 +1187,8 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 // set auto-use only services which request the driver's network should
 // advertise it.
 func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
-	ctx := setupFake()
+	t.Parallel()
+	ctx := setupFake(t)
 
 	ctx.Task.Services = []*structs.Service{
 		{
@@ -1268,7 +1261,8 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 // TestConsul_DriverNetwork_Change asserts that if a driver network is
 // specified and a service updates its use its properly updated in Consul.
 func TestConsul_DriverNetwork_Change(t *testing.T) {
-	ctx := setupFake()
+	t.Parallel()
+	ctx := setupFake(t)
 
 	ctx.Task.Services = []*structs.Service{
 		{
@@ -1337,9 +1331,38 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 	syncAndAssertPort(net.PortMap["x"])
 }
 
+// TestConsul_PeriodicSync asserts that Nomad periodically reconciles with
+// Consul.
+func TestConsul_PeriodicSync(t *testing.T) {
+	t.Parallel()
+
+	ctx := setupFake(t)
+	defer ctx.ServiceClient.Shutdown()
+
+	// Lower periodic sync interval to speed up test
+	ctx.ServiceClient.periodicInterval = 2 * time.Millisecond
+
+	// Run for 10ms and assert hits >= 5 because each sync() calls multiple
+	// Consul APIs
+	go ctx.ServiceClient.Run()
+
+	select {
+	case <-ctx.ServiceClient.exitCh:
+		t.Fatalf("exited unexpectedly")
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	minHits := 5
+	if hits := ctx.FakeConsul.getHits(); hits < minHits {
+		t.Fatalf("expected at least %d hits but found %d", minHits, hits)
+	}
+}
+
 // TestIsNomadService asserts the isNomadService helper returns true for Nomad
 // task IDs and false for unknown IDs and Nomad agent IDs (see #2827).
 func TestIsNomadService(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		id     string
 		result bool

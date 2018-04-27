@@ -1,0 +1,14 @@
+<h1 class="title">
+  {{or title job.name}}
+  <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
+  {{yield}}
+  {{#if (not (eq job.status "dead"))}}
+    {{two-step-button
+      data-test-stop
+      idleText="Stop"
+      cancelText="Cancel"
+      confirmText="Yes, Stop"
+      confirmationMessage="Are you sure you want to stop this job?"
+      onConfirm=(action "stopJob")}}
+  {{/if}}
+</h1>

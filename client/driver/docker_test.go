@@ -225,7 +225,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 
 	conf := testConfig(t)
 	conf.Node = mock.Node()
-	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
+	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testLogger(), nil))
 
 	request := &cstructs.FingerprintRequest{Config: conf, Node: conf.Node}
 	var response cstructs.FingerprintResponse
@@ -277,7 +277,7 @@ func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
 
 	conf := testConfig(t)
 	conf.Node = mock.Node()
-	dd := NewDockerDriver(NewDriverContext("", "", conf, conf.Node, testLogger(), nil))
+	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testLogger(), nil))
 
 	request := &cstructs.HealthCheckRequest{}
 	var response cstructs.HealthCheckResponse
@@ -1667,7 +1667,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
-	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, testLogger(), emitter)
+	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, testLogger(), emitter)
 	driver := NewDockerDriver(driverCtx)
 
 	// Setup execCtx

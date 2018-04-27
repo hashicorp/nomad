@@ -19,12 +19,12 @@ VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULT
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.8.0
+NOMADVERSION=0.8.1
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-HADOOP_VERSION=2.7.5
+HADOOP_VERSION=2.7.6
 
 # Dependencies
 sudo apt-get install -y software-properties-common

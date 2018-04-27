@@ -40,8 +40,10 @@ func (c *QuotaStatusCommand) Synopsis() string {
 	return "Display a quota's status and current usage"
 }
 
+func (c *QuotaStatusCommand) Name() string { return "quota status" }
+
 func (c *QuotaStatusCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("quota status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -51,7 +53,8 @@ func (c *QuotaStatusCommand) Run(args []string) int {
 	// Check that we got one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <quota>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

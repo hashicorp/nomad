@@ -28,6 +28,8 @@ Usage: nomad operator keygen
 	return strings.TrimSpace(helpText)
 }
 
+func (c *OperatorKeygenCommand) Name() string { return "operator keygen" }
+
 func (c *OperatorKeygenCommand) Run(_ []string) int {
 	key := make([]byte, 16)
 	n, err := rand.Reader.Read(key)

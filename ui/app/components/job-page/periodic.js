@@ -4,18 +4,21 @@ import { inject as service } from '@ember/service';
 export default AbstractJobPage.extend({
   store: service(),
 
-  errorMessage: '',
+  errorMessage: null,
 
   actions: {
     forceLaunch() {
       this.get('job')
         .forcePeriodic()
-        .catch(error => {
-          this.set('errorMessage', `Could not force launch: ${error}`);
+        .catch(() => {
+          this.set('errorMessage', {
+            title: 'Could Not Force Launch',
+            description: 'Your ACL token does not grant permission to submit jobs.',
+          });
         });
     },
     clearErrorMessage() {
-      this.set('errorMessage', '');
+      this.set('errorMessage', null);
     },
   },
 });

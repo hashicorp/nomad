@@ -331,7 +331,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	handle := resp.Handle
 
 	// Exec a command that should work and dump the environment
-	out, code, err := handle.Exec(context.Background(), "/bin/sh", []string{"-c", "env | grep NOMAD"})
+	out, code, err := handle.Exec(context.Background(), "/bin/sh", []string{"-c", "env | grep ^NOMAD"})
 	if err != nil {
 		t.Fatalf("error exec'ing stat: %v", err)
 	}

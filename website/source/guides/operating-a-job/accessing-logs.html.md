@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Accessing Logs - Operating a Job"
-sidebar_current: "docs-operating-a-job-accessing-logs"
+sidebar_current: "guides-operating-a-job-accessing-logs"
 description: |-
   Nomad provides a top-level mechanism for viewing application logs and data
   files via the command line interface. This section discusses the nomad alloc
@@ -19,7 +19,7 @@ as simple as possible, Nomad provides:
 - API for programatic [log access](/api/client.html#stream-logs)
 
 This section will utilize the job named "docs" from the [previous
-sections](/docs/operating-a-job/submitting-jobs.html), but these operations
+sections](/guides/operating-a-job/submitting-jobs.html), but these operations
 and command largely apply to all jobs in Nomad.
 
 As a reminder, here is the output of the run command from the previous example:

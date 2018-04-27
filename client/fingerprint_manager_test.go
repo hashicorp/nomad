@@ -7,13 +7,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFingerprintManager_Run_MockDriver(t *testing.T) {
-	driver.CheckForMockDriver(t)
 	t.Parallel()
 	require := require.New(t)
 	testClient := TestClient(t, nil)
@@ -42,7 +40,6 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	t.Parallel()
-	driver.CheckForMockDriver(t)
 	require := require.New(t)
 	testClient := TestClient(t, nil)
 
@@ -98,7 +95,6 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	driver.CheckForMockDriver(t)
 	testClient := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"test.shutdown_periodic_after":    "true",

@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Handling Failures - Operating a Job"
-sidebar_current: "docs-operating-a-job-failure-handling-strategies"
+sidebar_current: "guides-operating-a-job-failure-handling-strategies"
 description: |-
   This section describes features in Nomad that automate recovering from failed tasks.
 ---
@@ -20,6 +20,6 @@ Nomad provides configurable options to enable recovering failed tasks to avoid d
 try to restart a failed task on the node it is running on, and also try to reschedule it on another node.
 Please see one of the guides below or use the navigation on the left for details on each option:
 
-1. [Local Restarts](/docs/operating-a-job/failure-handling-strategies/restart.html)
-1. [Check Restarts](/docs/operating-a-job/failure-handling-strategies/check-restart.html)
-1. [Rescheduling](/docs/operating-a-job/failure-handling-strategies/reschedule.html)
+1. [Local Restarts](/guides/operating-a-job/failure-handling-strategies/restart.html)
+1. [Check Restarts](/guides/operating-a-job/failure-handling-strategies/check-restart.html)
+1. [Rescheduling](/guides/operating-a-job/failure-handling-strategies/reschedule.html)

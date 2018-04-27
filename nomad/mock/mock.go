@@ -63,6 +63,38 @@ func Node() *structs.Node {
 	return node
 }
 
+func HCL() string {
+	return `job "my-job" {
+	datacenters = ["dc1"]
+	type = "service"
+	constraint {
+		attribute = "${attr.kernel.name}"
+		value = "linux"
+	}
+
+	group "web" {
+		count = 10
+		restart {
+			attempts = 3
+			interval = "10m"
+			delay = "1m"
+			mode = "delay"
+		}
+		task "web" {
+			driver = "exec"
+			config {
+				command = "/bin/date"
+			}
+			resources {
+				cpu = 500
+				memory = 256
+			}
+		}
+	}
+}
+`
+}
+
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",

@@ -37,8 +37,10 @@ func (c *ACLTokenInfoCommand) Synopsis() string {
 	return "Fetch information on an existing ACL token"
 }
 
+func (c *ACLTokenInfoCommand) Name() string { return "acl token info" }
+
 func (c *ACLTokenInfoCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl token info", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -47,7 +49,8 @@ func (c *ACLTokenInfoCommand) Run(args []string) int {
 	// Check that we have exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <token_accessor_id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

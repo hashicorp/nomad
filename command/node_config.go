@@ -50,10 +50,12 @@ func (c *NodeConfigCommand) Synopsis() string {
 	return "View or modify client configuration details"
 }
 
+func (c *NodeConfigCommand) Name() string { return "node config" }
+
 func (c *NodeConfigCommand) Run(args []string) int {
 	var listServers, updateServers bool
 
-	flags := c.Meta.FlagSet("node config", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&listServers, "servers", false, "")
 	flags.BoolVar(&updateServers, "update-servers", false, "")
@@ -65,7 +67,8 @@ func (c *NodeConfigCommand) Run(args []string) int {
 
 	// Check the flags for misuse
 	if !listServers && !updateServers {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("The '-servers' or '-update-servers' flag(s) must be set")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -79,7 +82,8 @@ func (c *NodeConfigCommand) Run(args []string) int {
 	if updateServers {
 		// Get the server addresses
 		if len(args) == 0 {
-			c.Ui.Error(c.Help())
+			c.Ui.Error("If the '-update-servers' flag is set, atleast one server argument must be provided")
+			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 

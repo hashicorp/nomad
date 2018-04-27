@@ -36,17 +36,20 @@ func (c *ACLTokenSelfCommand) Synopsis() string {
 	return "Lookup self ACL token"
 }
 
+func (c *ACLTokenSelfCommand) Name() string { return "acl token self" }
+
 func (c *ACLTokenSelfCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl token self", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
-	// Check that we have exactly one argument
+	// Check that we have no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

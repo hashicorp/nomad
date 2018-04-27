@@ -3754,13 +3754,20 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	// Create the register request with a job asking for a template that sends a
 	// signal
 	job := mock.Job()
-	signal := "SIGUSR1"
+	signal1 := "SIGUSR1"
+	signal2 := "SIGHUP"
 	job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			SourcePath:   "foo",
 			DestPath:     "bar",
 			ChangeMode:   structs.TemplateChangeModeSignal,
-			ChangeSignal: signal,
+			ChangeSignal: signal1,
+		},
+		{
+			SourcePath:   "foo",
+			DestPath:     "baz",
+			ChangeMode:   structs.TemplateChangeModeSignal,
+			ChangeSignal: signal2,
 		},
 	}
 	req := &structs.JobRegisterRequest{
@@ -3797,7 +3804,10 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 		t.Fatalf("Expected an implicit constraint")
 	}
 
-	sigConstraint := getSignalConstraint([]string{signal})
+	sigConstraint := getSignalConstraint([]string{signal1, signal2})
+	if !strings.HasPrefix(sigConstraint.RTarget, "SIGHUP") {
+		t.Fatalf("signals not sorted: %v", sigConstraint.RTarget)
+	}
 
 	if !constraints[0].Equal(sigConstraint) {
 		t.Fatalf("Expected implicit vault constraint")

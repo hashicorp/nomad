@@ -220,7 +220,7 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test ent $(NOMAD_UI_TAG)"
+		GO_TAGS="ent $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -238,24 +238,24 @@ prodev: ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test pro $(NOMAD_UI_TAG)"
+		GO_TAGS="pro $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui
+prerelease: GO_TAGS=ui release
 prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui ent
+release: GO_TAGS=ui release ent
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: prorelease
-prorelease: GO_TAGS=ui pro
+prorelease: GO_TAGS=ui release pro
 prorelease: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -272,17 +272,13 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	@NOMAD_TEST_RKT=1 \
-		go test $(if $(VERBOSE),-v) \
+	@go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test ent $(if $(HAS_LXC),lxc)" ./... >test.log ; echo $$? > exit-code
-	@echo "Exit code: $$(cat exit-code)" >> test.log
-	@grep -A1 -- '--- FAIL:' test.log || true
-	@grep '^FAIL' test.log || true
-	@grep -A10 'panic' test.log || true
-	@test "$$TRAVIS" == "true" && cat test.log || true
-	@if [ "$$(cat exit-code)" == "0" ] ; then echo "PASS" ; exit 0 ; else exit 1 ; fi
+			-tags="ent $(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	@if [ $(VERBOSE) ] ; then \
+		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
+	fi
 
 .PHONY: protest
 protest: prodev ## Run Nomad test suites
@@ -291,8 +287,10 @@ protest: prodev ## Run Nomad test suites
 		go test \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test pro $(if $(HAS_LXC),lxc)" \
-			./...
+			-tags="pro $(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	@if [ $(VERBOSE) ] ; then \
+		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
+	fi
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
@@ -304,6 +302,9 @@ clean: ## Remove build artifacts
 
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make generate; \
+	fi
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster

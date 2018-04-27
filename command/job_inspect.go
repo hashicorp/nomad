@@ -66,11 +66,13 @@ func (c *JobInspectCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *JobInspectCommand) Name() string { return "job inspect" }
+
 func (c *JobInspectCommand) Run(args []string) int {
 	var json bool
 	var tmpl, versionStr string
 
-	flags := c.Meta.FlagSet("job inspect", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
@@ -108,7 +110,8 @@ func (c *JobInspectCommand) Run(args []string) int {
 
 	// Check that we got exactly one job
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <job>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	jobID := args[0]

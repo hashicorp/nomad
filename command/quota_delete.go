@@ -36,8 +36,10 @@ func (c *QuotaDeleteCommand) Synopsis() string {
 	return "Delete a quota specification"
 }
 
+func (c *QuotaDeleteCommand) Name() string { return "quota delete" }
+
 func (c *QuotaDeleteCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("quota delete", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -47,7 +49,8 @@ func (c *QuotaDeleteCommand) Run(args []string) int {
 	// Check that we got one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <quota>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
