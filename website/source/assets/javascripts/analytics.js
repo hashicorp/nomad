@@ -1,6 +1,6 @@
 document.addEventListener('turbolinks:load', function() {
   analytics.page()
-  
+  if (typeof el !== 'undefined') {
     var m = el.href.match(/nomad_(.*?)_(.*?)_(.*?)\.zip/)
     return {
       event: 'Download',
@@ -11,5 +11,6 @@ document.addEventListener('turbolinks:load', function() {
       architecture: m[3],
       product: 'nomad'
     }
-  })
+  }
 })
+
