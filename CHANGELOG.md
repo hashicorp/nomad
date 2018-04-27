@@ -1,3 +1,9 @@
+## 0.8.3 (April 27, 2018)
+
+BUG FIXES:
+ * core: Fix panic proxying node connections when the server does not have a
+   connection to the node [[GH-4231](https://github.com/hashicorp/nomad/issues/4231)]
+
 ## 0.8.2 (April 26, 2018)
 
 IMPROVEMENTS:

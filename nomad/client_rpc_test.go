@@ -77,6 +77,9 @@ func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
 	// Delete the second
 	s1.removeNodeConn(ctx2)
 	require.Len(s1.connectedNodes(), 0)
+
+	_, ok = s1.getNodeConn(nodeID)
+	require.False(ok)
 }
 
 func TestServerWithNodeConn_NoPath(t *testing.T) {
