@@ -25,15 +25,6 @@ h1 {
   margin-bottom: 24px;
 }
 
-// Avoid FOUT
-.wf-loading {
-  visibility: hidden;
-}
-
-.wf-active, .wf-inactive {
-  visibility: visible;
-}
-
 @media (min-width: $screen-sm) and (max-width: $screen-md) {
   .container {
     padding: 0;
