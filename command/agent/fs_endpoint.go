@@ -338,15 +338,16 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 		return nil, CodedError(500, handlerErr.Error())
 	}
 
-	p1, p2 := net.Pipe()
-	decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
-	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	// Create a pipe connecting the (possibly remote) handler to the http response
+	httpPipe, handlerPipe := net.Pipe()
+	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
 	// Create a goroutine that closes the pipe if the connection closes.
 	ctx, cancel := context.WithCancel(req.Context())
 	go func() {
 		<-ctx.Done()
-		p1.Close()
+		httpPipe.Close()
 	}()
 
 	// Create an output that gets flushed on every write
@@ -396,7 +397,7 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 		}
 	}()
 
-	handler(p2)
+	handler(handlerPipe)
 	cancel()
 	codedErr := <-errCh
 	if codedErr != nil &&
