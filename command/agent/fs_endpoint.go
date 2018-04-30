@@ -387,7 +387,7 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 				}
 			}
 
-			if _, err := io.Copy(output, bytes.NewBuffer(res.Payload)); err != nil {
+			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
 				errCh <- CodedError(500, err.Error())
 				return
 			}
