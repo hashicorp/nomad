@@ -1,0 +1,61 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "PDMRG1zVjFxDESUXBwR74V+zVHs=",
+			"path": "github.com/Azure/azure-sdk-for-go/arm/network",
+			"revision": "a49674fdba11173ce3bc934d020634e3366464de",
+			"revisionTime": "2017-12-12T18:23:29Z"
+		},
+		{
+			"checksumSHA1": "gF1N5rxCk+rx7oCAzxKvrUjtsx0=",
+			"path": "github.com/Azure/go-autorest/autorest",
+			"revision": "c2a68353555b68de3ee8455a4fd3e890a0ac6d99",
+			"revisionTime": "2018-01-19T19:03:13Z"
+		},
+		{
+			"checksumSHA1": "OxKbGGQUfsDtM4Fz4ysBpallhOE=",
+			"path": "github.com/Azure/go-autorest/autorest/adal",
+			"revision": "c2a68353555b68de3ee8455a4fd3e890a0ac6d99",
+			"revisionTime": "2018-01-19T19:03:13Z"
+		},
+		{
+			"checksumSHA1": "3xE3L8S3TMLhkTJS69P8tFANvLQ=",
+			"path": "github.com/Azure/go-autorest/autorest/azure",
+			"revision": "c2a68353555b68de3ee8455a4fd3e890a0ac6d99",
+			"revisionTime": "2018-01-19T19:03:13Z"
+		},
+		{
+			"checksumSHA1": "9nXCi9qQsYjxCeajJKWttxgEt0I=",
+			"path": "github.com/Azure/go-autorest/autorest/date",
+			"revision": "c2a68353555b68de3ee8455a4fd3e890a0ac6d99",
+			"revisionTime": "2018-01-19T19:03:13Z"
+		},
+		{
+			"checksumSHA1": "SbBb2GcJNm5GjuPKGL2777QywR4=",
+			"path": "github.com/Azure/go-autorest/autorest/to",
+			"revision": "c2a68353555b68de3ee8455a4fd3e890a0ac6d99",
+			"revisionTime": "2018-01-19T19:03:13Z"
+		},
+		{
+			"checksumSHA1": "HfqZyKllcHQDvTwgCaYL1jUPmW0=",
+			"path": "github.com/Azure/go-autorest/autorest/validation",
+			"revision": "c2a68353555b68de3ee8455a4fd3e890a0ac6d99",
+			"revisionTime": "2018-01-19T19:03:13Z"
+		},
+		{
+			"checksumSHA1": "+TKtBzv23ywvmmqRiGEjUba4YmI=",
+			"path": "github.com/dgrijalva/jwt-go",
+			"revision": "dbeaa9332f19a944acb5736b4456cfcc02140e29",
+			"revisionTime": "2017-10-19T21:57:19Z"
+		},
+		{
+			"checksumSHA1": "F8qQlAbbXZWigahcusD+1FOgXuU=",
+			"path": "github.com/hashicorp/go-discover/provider/azure",
+			"revision": "c7c0eb3fc6b6f8024c39cb24f3fe254a72595dd4",
+			"revisionTime": "2018-04-27T00:43:23Z"
+		}
+	],
+	"rootPath": "github.com/hashicorp/go-discover/provider/azure"
+}
