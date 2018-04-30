@@ -423,6 +423,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		for {
 			if _, err := conn.Read(nil); err != nil {
 				if err == io.EOF || err == io.ErrClosedPipe {
+					// One end of the pipe was explicitly closed, exit cleanly
 					cancel()
 					return
 				}
@@ -579,12 +580,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 		// #3342
 		select {
 		case <-framer.ExitCh():
-			err := parseFramerErr(framer.Err())
-			if err == syscall.EPIPE {
-				// EPIPE just means the connection was closed
-				return nil
-			}
-			return err
+			return nil
 		default:
 		}
 
@@ -708,7 +704,7 @@ OUTER:
 				lastEvent = truncateEvent
 				continue OUTER
 			case <-framer.ExitCh():
-				return parseFramerErr(framer.Err())
+				return nil
 			case <-ctx.Done():
 				return nil
 			case err, ok := <-eofCancelCh:

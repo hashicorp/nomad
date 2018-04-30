@@ -55,6 +55,14 @@ func (s *StreamFrame) IsCleared() bool {
 	}
 }
 
+func (s *StreamFrame) Copy() *StreamFrame {
+	n := new(StreamFrame)
+	*n = *s
+	n.Data = make([]byte, len(s.Data))
+	copy(n.Data, s.Data)
+	return n
+}
+
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
 	out chan<- *StreamFrame
@@ -64,21 +72,24 @@ type StreamFramer struct {
 	heartbeat *time.Ticker
 	flusher   *time.Ticker
 
-	shutdown   bool
+	// shutdown is true when a shutdown is triggered
+	shutdown bool
+
+	// shutdownCh is closed when a shutdown is triggered
 	shutdownCh chan struct{}
-	exitCh     chan struct{}
+
+	// exitCh is closed when the run() goroutine exits
+	exitCh chan struct{}
 
 	// The mutex protects everything below
 	l sync.Mutex
 
 	// The current working frame
-	f    StreamFrame
+	f    *StreamFrame
 	data *bytes.Buffer
 
-	// Captures whether the framer is running and any error that occurred to
-	// cause it to stop.
+	// Captures whether the framer is running
 	running bool
-	err     error
 }
 
 // NewStreamFramer creates a new stream framer that will output StreamFrames to
@@ -95,6 +106,7 @@ func NewStreamFramer(out chan<- *StreamFrame,
 		frameSize:  frameSize,
 		heartbeat:  heartbeat,
 		flusher:    flusher,
+		f:          new(StreamFrame),
 		data:       bytes.NewBuffer(make([]byte, 0, 2*frameSize)),
 		shutdownCh: make(chan struct{}),
 		exitCh:     make(chan struct{}),
@@ -110,6 +122,7 @@ func (s *StreamFramer) Destroy() {
 
 	if !wasShutdown {
 		close(s.shutdownCh)
+		close(s.out)
 	}
 
 	s.heartbeat.Stop()
@@ -120,9 +133,6 @@ func (s *StreamFramer) Destroy() {
 	// Ensure things were flushed
 	if running {
 		<-s.exitCh
-	}
-	if !wasShutdown {
-		close(s.out)
 	}
 }
 
@@ -144,23 +154,19 @@ func (s *StreamFramer) ExitCh() <-chan struct{} {
 	return s.exitCh
 }
 
-// Err returns the error that caused the StreamFramer to exit
-func (s *StreamFramer) Err() error {
-	s.l.Lock()
-	defer s.l.Unlock()
-	return s.err
-}
-
 // run is the internal run method. It exits if Destroy is called or an error
 // occurs, in which case the exit channel is closed.
 func (s *StreamFramer) run() {
-	var err error
 	defer func() {
 		s.l.Lock()
 		s.running = false
-		s.err = err
 		s.l.Unlock()
 		close(s.exitCh)
+	}()
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in f", r)
+		}
 	}()
 
 OUTER:
@@ -177,40 +183,38 @@ OUTER:
 			}
 
 			// Read the data for the frame, and send it
-			s.f.Data = s.readData()
-			err = s.send(&s.f)
-			s.f.Clear()
+			s.send()
 			s.l.Unlock()
-			if err != nil {
-				return
-			}
 		case <-s.heartbeat.C:
 			// Send a heartbeat frame
-			if err = s.send(HeartbeatStreamFrame); err != nil {
-				return
+			select {
+			case s.out <- HeartbeatStreamFrame:
+			case <-s.shutdownCh:
 			}
 		}
 	}
 
 	s.l.Lock()
 	if !s.f.IsCleared() {
-		s.f.Data = s.readData()
-		err = s.send(&s.f)
-		s.f.Clear()
+		s.send()
 	}
 	s.l.Unlock()
 }
 
 // send takes a StreamFrame, encodes and sends it
-func (s *StreamFramer) send(f *StreamFrame) error {
-	sending := *f
-	f.Data = nil
-
+func (s *StreamFramer) send() {
+	// Ensure s.out has not already been closd by Destroy
 	select {
-	case s.out <- &sending:
-		return nil
-	case <-s.exitCh:
-		return nil
+	case <-s.shutdownCh:
+		return
+	default:
+	}
+
+	s.f.Data = s.readData()
+	select {
+	case s.out <- s.f.Copy():
+		s.f.Clear()
+	case <-s.shutdownCh:
 	}
 }
 
@@ -236,31 +240,16 @@ func (s *StreamFramer) readData() []byte {
 func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) error {
 	s.l.Lock()
 	defer s.l.Unlock()
-
 	// If we are not running, return the error that caused us to not run or
 	// indicated that it was never started.
 	if !s.running {
-		if s.err != nil {
-			return s.err
-		}
-
 		return fmt.Errorf("StreamFramer not running")
 	}
 
 	// Check if not mergeable
 	if !s.f.IsCleared() && (s.f.File != file || s.f.FileEvent != fileEvent) {
 		// Flush the old frame
-		s.f.Data = s.readData()
-		select {
-		case <-s.exitCh:
-			return nil
-		default:
-		}
-		err := s.send(&s.f)
-		s.f.Clear()
-		if err != nil {
-			return err
-		}
+		s.send()
 	}
 
 	// Store the new data as the current frame.
@@ -285,24 +274,23 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 			force = false
 		}
 
-		// Create a new frame to send it
-		s.f.Data = s.readData()
+		// Ensure s.out has not already been closd by Destroy
 		select {
-		case <-s.exitCh:
+		case <-s.shutdownCh:
 			return nil
 		default:
 		}
 
-		if err := s.send(&s.f); err != nil {
-			return err
+		// Create a new frame to send it
+		s.f.Data = s.readData()
+		select {
+		case s.out <- s.f.Copy():
+		case <-s.shutdownCh:
+			return nil
 		}
 
 		// Update the offset
 		s.f.Offset += int64(len(s.f.Data))
-	}
-
-	if s.data.Len() == 0 {
-		s.f.Clear()
 	}
 
 	return nil
