@@ -361,6 +361,7 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			cancel()
 			return
 		}
+		encoder.Reset(httpPipe)
 
 		for {
 			select {
@@ -377,6 +378,7 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 				cancel()
 				return
 			}
+			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil {
 				if err.Code != nil {

@@ -294,6 +294,7 @@ OUTER:
 				streamErr = err
 				break OUTER
 			}
+			encoder.Reset(conn)
 		case <-ctx.Done():
 			break OUTER
 		}
@@ -405,8 +406,6 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
-	var buf bytes.Buffer
-	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
 
 	// Start streaming
 	go func() {
@@ -437,6 +436,8 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}()
 
 	var streamErr error
+	buf := new(bytes.Buffer)
+	frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
 OUTER:
 	for {
 		select {
@@ -455,6 +456,7 @@ OUTER:
 					streamErr = err
 					break OUTER
 				}
+				frameCodec.Reset(buf)
 
 				resp.Payload = buf.Bytes()
 				buf.Reset()
@@ -464,6 +466,7 @@ OUTER:
 				streamErr = err
 				break OUTER
 			}
+			encoder.Reset(conn)
 		}
 	}
 
