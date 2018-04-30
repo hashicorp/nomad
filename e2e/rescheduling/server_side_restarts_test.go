@@ -208,7 +208,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 
 		})
 
-		Context("Reschedule with canary and auto revert ", func() {
+		Context("Reschedule with canary, auto revert with short progress deadline ", func() {
 			BeforeEach(func() {
 				specFile = "input/rescheduling_canary_autorevert.hcl"
 			})
@@ -229,11 +229,10 @@ var _ = Describe("Server Side Restart Tests", func() {
 				// Wait for the revert
 				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
 					ConsistOf([]string{"failed", "failed", "failed", "running", "running", "running"}))
-
 				// Verify new deployment and its status
 				// There should be one successful, one failed, and one more successful (after revert)
 				time.Sleep(5 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
-				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+				Eventually(deploymentStatus(), 5*time.Second, time.Second).Should(
 					ConsistOf(structs.DeploymentStatusSuccessful, structs.DeploymentStatusFailed, structs.DeploymentStatusSuccessful))
 			})
 
@@ -272,7 +271,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 
 		})
 
-		Context("Reschedule with max parallel and auto revert true ", func() {
+		Context("Reschedule with max parallel, auto revert true and short progress deadline", func() {
 			BeforeEach(func() {
 				specFile = "input/rescheduling_maxp_autorevert.hcl"
 			})
@@ -291,7 +290,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 				Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
 
 				// Wait for the revert
-				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
+				Eventually(allocStatuses, 5*time.Second, time.Second).Should(
 					ConsistOf([]string{"complete", "failed", "running", "running", "running"}))
 
 				// Verify new deployment and its status
