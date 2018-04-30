@@ -356,10 +356,11 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 	// Create a channel that decodes the results
 	errCh := make(chan HTTPCodedError)
 	go func() {
+		defer cancel()
+
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
 			errCh <- CodedError(500, err.Error())
-			cancel()
 			return
 		}
 		encoder.Reset(httpPipe)
@@ -368,7 +369,6 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			select {
 			case <-ctx.Done():
 				errCh <- nil
-				cancel()
 				return
 			default:
 			}
@@ -376,7 +376,6 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			var res cstructs.StreamErrWrapper
 			if err := decoder.Decode(&res); err != nil {
 				errCh <- CodedError(500, err.Error())
-				cancel()
 				return
 			}
 			decoder.Reset(httpPipe)
@@ -384,14 +383,12 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			if err := res.Error; err != nil {
 				if err.Code != nil {
 					errCh <- CodedError(int(*err.Code), err.Error())
-					cancel()
 					return
 				}
 			}
 
 			if _, err := io.Copy(output, bytes.NewBuffer(res.Payload)); err != nil {
 				errCh <- CodedError(500, err.Error())
-				cancel()
 				return
 			}
 		}
