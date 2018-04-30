@@ -429,8 +429,8 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 				select {
 				case errCh <- err:
 				case <-ctx.Done():
-					return
 				}
+				return
 			}
 		}
 	}()
