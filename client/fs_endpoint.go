@@ -422,7 +422,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	go func() {
 		for {
 			if _, err := conn.Read(nil); err != nil {
-				if err == io.EOF {
+				if err == io.EOF || err == io.ErrClosedPipe {
 					cancel()
 					return
 				}
