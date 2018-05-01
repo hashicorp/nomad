@@ -5987,6 +5987,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		TaskStates:         a.TaskStates,
 		DeploymentStatus:   a.DeploymentStatus,
 		FollowupEvalID:     a.FollowupEvalID,
+		RescheduleTracker:  a.RescheduleTracker,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
@@ -6010,6 +6011,7 @@ type AllocListStub struct {
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
 	FollowupEvalID     string
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
