@@ -565,7 +565,7 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 }
 
 // shouldFail returns whether the job should be failed and whether it should
-// rolled back to an earlier stable version by examing the allocations in the
+// rolled back to an earlier stable version by examining the allocations in the
 // deployment.
 func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	snap, err := w.state.Snapshot()
@@ -576,6 +576,10 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	d, err := snap.DeploymentByID(nil, w.deploymentID)
 	if err != nil {
 		return false, false, err
+	}
+	if d == nil {
+		// The deployment wasn't in the state store, possibly due to a system gc
+		return false, false, fmt.Errorf("deployment id not found: %q", w.deploymentID)
 	}
 
 	fail = false
