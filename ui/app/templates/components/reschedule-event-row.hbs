@@ -1,0 +1,33 @@
+<li class="timeline-note">
+  {{#if label}}
+    <strong>{{label}}</strong>
+  {{/if}}
+  {{moment-format time "MMMM D, YYYY HH:mm:ss"}}
+</li>
+<li class="timeline-object">
+  <div class="boxed-section">
+    <div class="boxed-section-head is-light inline-definitions">
+      <span class="bumper-right tag {{allocation.statusClass}}">
+        {{allocation.clientStatus}}
+      </span>
+      <span class="pair">
+        <span class="term">Allocation</span>
+        {{#if linkToAllocation}}
+          {{#link-to "allocations.allocation" allocation.id}}
+            <code>{{allocation.shortId}}</code>
+          {{/link-to}}
+        {{else}}
+          <code>{{allocation.shortId}}</code>
+        {{/if}}
+      </span>
+      <span class="pair">
+        <span class="term">Client</span>
+        <span>
+          {{#link-to "clients.client" allocation.node.id}}
+            <code>{{allocation.node.id}}</code>
+          {{/link-to}}
+        </span>
+      </span>
+    </div>
+  </div>
+</li>
