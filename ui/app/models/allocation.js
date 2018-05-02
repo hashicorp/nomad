@@ -41,7 +41,8 @@ export default Model.extend({
   // is left linking all reschedule attempts.
   previousAllocation: belongsTo('allocation', { inverse: 'nextAllocation' }),
   nextAllocation: belongsTo('allocation', { inverse: 'previousAllocation' }),
-  previousNode: belongsTo('node', { inverse: null }),
+
+  followUpEvaluation: belongsTo('evaluation'),
 
   statusClass: computed('clientStatus', function() {
     const classMap = {
@@ -74,4 +75,8 @@ export default Model.extend({
 
   states: fragmentArray('task-state'),
   rescheduleEvents: fragmentArray('reschedule-event'),
+
+  hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
+    return this.get('rescheduleEvents.length') > 0 || this.get('nextAllocation');
+  }),
 });

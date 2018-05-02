@@ -39,10 +39,12 @@ export default ApplicationSerializer.extend({
 
     hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
 
-    if (hash.RescheduleEvents && hash.RescheduleEvents.length) {
-      hash.PreviousAllocationID = hash.RescheduleEvents[0].PrevAllocID;
-      hash.PreviousNodeID = hash.RescheduleEvents[0].PrevNodeID;
-    }
+    // API returns empty strings instead of null
+    hash.PreviousAllocationID = hash.PreviousAllocation ? hash.PreviousAllocation : null;
+    hash.NextAllocationID = hash.NextAllocation ? hash.NextAllocation : null;
+    hash.FollowUpEvaluationID = hash.FollowupEvalID ? hash.FollowupEvalID : null;
+
+    console.log(hash.FollowUpEvaluationID);
 
     return this._super(typeHash, hash);
   },
