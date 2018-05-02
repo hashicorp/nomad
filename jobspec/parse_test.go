@@ -135,11 +135,13 @@ func TestParse(t *testing.T) {
 										PortLabel: "http",
 										Checks: []api.ServiceCheck{
 											{
-												Name:      "check-name",
-												Type:      "tcp",
-												PortLabel: "admin",
-												Interval:  10 * time.Second,
-												Timeout:   2 * time.Second,
+												Name:       "check-name",
+												Type:       "tcp",
+												PortLabel:  "admin",
+												Interval:   10 * time.Second,
+												Timeout:    2 * time.Second,
+												GRPC:       "localhost:12345/foo",
+												GRPCUseTLS: true,
 												CheckRestart: &api.CheckRestart{
 													Limit:          3,
 													Grace:          helper.TimeToPtr(10 * time.Second),

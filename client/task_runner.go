@@ -1516,6 +1516,7 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task
 			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
 			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
 			check.Method = taskEnv.ReplaceEnv(check.Method)
+			check.GRPC = taskEnv.ReplaceEnv(check.GRPC)
 			if len(check.Header) > 0 {
 				header := make(map[string][]string, len(check.Header))
 				for k, vs := range check.Header {

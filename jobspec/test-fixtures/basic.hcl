@@ -102,11 +102,13 @@ job "binstore-storagelocker" {
         port = "http"
 
         check {
-          name     = "check-name"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-          port     = "admin"
+          name         = "check-name"
+          type         = "tcp"
+          interval     = "10s"
+          timeout      = "2s"
+          port         = "admin"
+          grpc         = "localhost:12345/foo"
+          grpc_use_tls = true
 
           check_restart {
             limit = 3

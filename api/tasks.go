@@ -286,6 +286,8 @@ type ServiceCheck struct {
 	Header        map[string][]string
 	Method        string
 	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
+	GRPC          string
+	GRPCUseTLS    bool `mapstructure:"grpc_use_tls"`
 }
 
 // The Service model represents a Consul service definition

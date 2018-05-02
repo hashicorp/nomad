@@ -1094,12 +1094,22 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		chkReg.HTTP = url.String()
 		chkReg.Method = check.Method
 		chkReg.Header = check.Header
+
 	case structs.ServiceCheckTCP:
 		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
+
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
 		// As of Consul 1.0.0 setting TTL and Interval is a 400
 		chkReg.Interval = ""
+
+	case structs.ServiceCheckGRPC:
+		chkReg.GRPC = check.GRPC
+		chkReg.GRPCUseTLS = check.GRPCUseTLS
+		if check.TLSSkipVerify {
+			chkReg.TLSSkipVerify = true
+		}
+
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
