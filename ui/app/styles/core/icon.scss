@@ -28,6 +28,10 @@ $icon-dimensions-large: 2rem;
     width: $icon-dimensions-large;
   }
 
+  &.is-faded {
+    fill: $grey-light;
+  }
+
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
 
