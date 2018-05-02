@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -145,7 +146,7 @@ func TestFS_Logs(t *testing.T) {
 		}
 
 		// Check length
-		require.Equal(input.Len(), result.Len())
+		assert.Equal(t, input.Len(), result.Len(), "file size mismatch")
 
 		// Check complete ordering
 		for i := 0; i < lines; i++ {

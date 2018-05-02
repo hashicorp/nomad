@@ -65,6 +65,8 @@ func (s *StreamFrame) Copy() *StreamFrame {
 
 // StreamFramer is used to buffer and send frames as well as heartbeat.
 type StreamFramer struct {
+	// out is where frames are sent and is closed when no more frames will
+	// be sent.
 	out chan<- *StreamFrame
 
 	frameSize int
@@ -75,10 +77,12 @@ type StreamFramer struct {
 	// shutdown is true when a shutdown is triggered
 	shutdown bool
 
-	// shutdownCh is closed when a shutdown is triggered
+	// shutdownCh is closed when no more Send()s will be called and run()
+	// should flush pending frames before closing exitCh
 	shutdownCh chan struct{}
 
-	// exitCh is closed when the run() goroutine exits
+	// exitCh is closed when the run() goroutine exits and no more frames
+	// will be sent.
 	exitCh chan struct{}
 
 	// The mutex protects everything below
@@ -122,7 +126,6 @@ func (s *StreamFramer) Destroy() {
 
 	if !wasShutdown {
 		close(s.shutdownCh)
-		close(s.out)
 	}
 
 	s.heartbeat.Stop()
@@ -133,6 +136,11 @@ func (s *StreamFramer) Destroy() {
 	// Ensure things were flushed
 	if running {
 		<-s.exitCh
+	}
+
+	// Close out chan only after exitCh has exited
+	if !wasShutdown {
+		close(s.out)
 	}
 }
 
@@ -163,11 +171,6 @@ func (s *StreamFramer) run() {
 		s.l.Unlock()
 		close(s.exitCh)
 	}()
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in f", r)
-		}
-	}()
 
 OUTER:
 	for {
@@ -195,8 +198,16 @@ OUTER:
 	}
 
 	s.l.Lock()
+	// Send() may have left a partial frame. Send it now.
 	if !s.f.IsCleared() {
-		s.send()
+		s.f.Data = s.readData()
+
+		// Only send if there's actually data left
+		if len(s.f.Data) > 0 {
+			// Cannot select on shutdownCh as it's already closed
+			// Cannot select on exitCh as it's only closed after this exits
+			s.out <- s.f.Copy()
+		}
 	}
 	s.l.Unlock()
 }
@@ -205,7 +216,7 @@ OUTER:
 func (s *StreamFramer) send() {
 	// Ensure s.out has not already been closd by Destroy
 	select {
-	case <-s.shutdownCh:
+	case <-s.exitCh:
 		return
 	default:
 	}
@@ -214,7 +225,7 @@ func (s *StreamFramer) send() {
 	select {
 	case s.out <- s.f.Copy():
 		s.f.Clear()
-	case <-s.shutdownCh:
+	case <-s.exitCh:
 	}
 }
 
@@ -274,9 +285,9 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 			force = false
 		}
 
-		// Ensure s.out has not already been closd by Destroy
+		// Ensure s.out has not already been closed by Destroy
 		select {
-		case <-s.shutdownCh:
+		case <-s.exitCh:
 			return nil
 		default:
 		}
@@ -285,7 +296,7 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 		s.f.Data = s.readData()
 		select {
 		case s.out <- s.f.Copy():
-		case <-s.shutdownCh:
+		case <-s.exitCh:
 			return nil
 		}
 

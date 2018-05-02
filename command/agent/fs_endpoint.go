@@ -363,7 +363,6 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			errCh <- CodedError(500, err.Error())
 			return
 		}
-		encoder.Reset(httpPipe)
 
 		for {
 			select {
@@ -397,6 +396,8 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 	handler(handlerPipe)
 	cancel()
 	codedErr := <-errCh
+
+	// Ignore EOF and ErrClosedPipe errors.
 	if codedErr != nil &&
 		(codedErr == io.EOF ||
 			strings.Contains(codedErr.Error(), "closed") ||
