@@ -826,7 +826,9 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	d.JobID = j.ID
 	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
 	a := mock.Alloc()
-	a.CreateTime = time.Now().UnixNano()
+	now := time.Now()
+	a.CreateTime = now.UnixNano()
+	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
 	assert.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	assert.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
@@ -850,7 +852,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy:   helper.BoolToPtr(false),
-		Timestamp: time.Now(),
+		Timestamp: now,
 	}
 	assert.Nil(m.state.UpdateAllocsFromClient(100, []*structs.Allocation{a2}))
 
@@ -904,7 +906,9 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
 	d.TaskGroups["web"].DesiredCanaries = 1
 	a := mock.Alloc()
-	a.CreateTime = time.Now().UnixNano()
+	now := time.Now()
+	a.CreateTime = now.UnixNano()
+	a.ModifyTime = now.UnixNano()
 	a.DeploymentID = d.ID
 	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
 	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
@@ -923,7 +927,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy:   helper.BoolToPtr(true),
-		Timestamp: time.Now(),
+		Timestamp: now,
 	}
 	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
 
@@ -933,7 +937,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	require.NotNil(dout)
 	state := dout.TaskGroups["web"]
 	require.NotNil(state)
-	time.Sleep(state.RequireProgressBy.Add(time.Second).Sub(time.Now()))
+	time.Sleep(state.RequireProgressBy.Add(time.Second).Sub(now))
 
 	// Require the deployment is still running
 	dout, err = m.state.DeploymentByID(nil, d.ID)
