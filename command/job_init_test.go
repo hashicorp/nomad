@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInitCommand_Implements(t *testing.T) {
@@ -56,6 +57,15 @@ func TestInitCommand_Run(t *testing.T) {
 	if string(content) != defaultJob {
 		t.Fatalf("unexpected file content\n\n%s", string(content))
 	}
+
+	// Works with -short flag
+	os.Remove(DefaultInitName)
+	if code := cmd.Run([]string{"-short"}); code != 0 {
+		require.Zero(t, code, "unexpected exit code: %d", code)
+	}
+	content, err = ioutil.ReadFile(DefaultInitName)
+	require.NoError(t, err)
+	require.Equal(t, string(content), shortJob)
 
 	// Fails if the file exists
 	if code := cmd.Run([]string{}); code != 1 {
