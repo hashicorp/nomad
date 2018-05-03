@@ -417,7 +417,10 @@ FAIL:
 				// deadlocking on the already stopped deadline timer, we only drain the channel if
 				// the previous deadline was not zero.
 				if !prevDeadlineZero && !deadlineTimer.Stop() {
-					<-deadlineTimer.C
+					select {
+					case <-deadlineTimer.C:
+					default:
+					}
 				}
 				deadlineTimer.Reset(next.Sub(time.Now()))
 			}
