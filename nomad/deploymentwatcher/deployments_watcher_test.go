@@ -964,6 +964,91 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	})
 }
 
+// Test that a promoted deployment with alloc healthy updates create
+// evals to move the deployment forward
+func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	// Create a job, alloc, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Count = 2
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.Canary = 1
+	j.TaskGroups[0].Update.MaxParallel = 1
+	j.TaskGroups[0].Update.ProgressDeadline = 50 * time.Millisecond
+	j.Stable = true
+	d := mock.Deployment()
+	d.TaskGroups["web"].DesiredTotal = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
+	d.TaskGroups["web"].HealthyAllocs = 1
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunning
+	d.JobID = j.ID
+	d.TaskGroups["web"].ProgressDeadline = 50 * time.Millisecond
+	d.TaskGroups["web"].RequireProgressBy = time.Now().Add(50 * time.Millisecond)
+	a := mock.Alloc()
+	now := time.Now()
+	a.CreateTime = now.UnixNano()
+	a.ModifyTime = now.UnixNano()
+	a.DeploymentID = d.ID
+	a.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: now,
+	}
+	require.Nil(m.state.UpsertJob(m.nextIndex(), j), "UpsertJob")
+	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a}), "UpsertAllocs")
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
+		func(err error) { require.Equal(1, len(w.watchers), "Should have 1 deployment") })
+
+	m1 := matchUpdateAllocDesiredTransitions([]string{d.ID})
+	m.On("UpdateAllocDesiredTransition", mocker.MatchedBy(m1)).Return(nil).Twice()
+
+	// Create another alloc
+	a2 := a.Copy()
+	a2.ID = uuid.Generate()
+	now = time.Now()
+	a2.CreateTime = now.UnixNano()
+	a2.ModifyTime = now.UnixNano()
+	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   helper.BoolToPtr(true),
+		Timestamp: now,
+	}
+	d.TaskGroups["web"].RequireProgressBy = time.Now().Add(2 * time.Second)
+	require.Nil(m.state.UpsertDeployment(m.nextIndex(), d), "UpsertDeployment")
+	// Wait until batch eval period passes before updating another alloc
+	time.Sleep(1 * time.Second)
+	require.Nil(m.state.UpsertAllocs(m.nextIndex(), []*structs.Allocation{a2}), "UpsertAllocs")
+
+	// Wait for the deployment to cross the deadline
+	dout, err := m.state.DeploymentByID(nil, d.ID)
+	require.NoError(err)
+	require.NotNil(dout)
+	state := dout.TaskGroups["web"]
+	require.NotNil(state)
+	time.Sleep(state.RequireProgressBy.Add(time.Second).Sub(now))
+
+	// There should be two evals
+	testutil.WaitForResult(func() (bool, error) {
+		ws := memdb.NewWatchSet()
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals); l != 2 {
+			return false, fmt.Errorf("Got %d evals; want 2", l)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+}
+
 // Test scenario where deployment initially has no progress deadline
 // After the deployment is updated, a failed alloc's DesiredTransition should be set
 func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
