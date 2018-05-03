@@ -3695,6 +3695,7 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 	alloc := mock.Alloc()
 	now := time.Now()
 	alloc.CreateTime = now.UnixNano()
+	alloc.ModifyTime = now.UnixNano()
 	pdeadline := 5 * time.Minute
 	deployment := mock.Deployment()
 	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
