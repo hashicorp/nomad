@@ -191,7 +191,8 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pm := newImageProgressManager(image, cancel, d.handlePullInactivity, d.handlePullProgressReport)
+	pm := newImageProgressManager(image, cancel, d.handlePullInactivity,
+		d.handlePullProgressReport, d.handleSlowPullProgressReport)
 	defer pm.stop()
 
 	pullOptions := docker.PullImageOptions{
@@ -394,16 +395,16 @@ func (d *dockerCoordinator) emitEvent(image, message string, args ...interface{}
 	}
 }
 
-func (d *dockerCoordinator) handlePullInactivity(image, msg string, timestamp, pullStart time.Time, interval int64) {
+func (d *dockerCoordinator) handlePullInactivity(image, msg string, timestamp time.Time) {
 	d.logger.Printf("[ERR] driver.docker: image %s pull aborted due to inactivity, last message recevieved at [%s]: %s", image, timestamp.String(), msg)
 }
 
-func (d *dockerCoordinator) handlePullProgressReport(image, msg string, timestamp, pullStart time.Time, interval int64) {
+func (d *dockerCoordinator) handlePullProgressReport(image, msg string, _ time.Time) {
 	d.logger.Printf("[DEBUG] driver.docker: image %s pull progress: %s", image, msg)
+}
 
-	if interval%int64(dockerPullProgressEmitInterval.Seconds()/dockerImageProgressReportInterval.Seconds()) == 0 {
-		d.emitEvent(image, "Docker image %s pull progress: %s", image, msg)
-	}
+func (d *dockerCoordinator) handleSlowPullProgressReport(image, msg string, _ time.Time) {
+	d.emitEvent(image, "Docker image %s pull progress: %s", image, msg)
 }
 
 // recoverablePullError wraps the error gotten when trying to pull and image if
