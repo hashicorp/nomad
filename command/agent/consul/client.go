@@ -1104,7 +1104,7 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		chkReg.Interval = ""
 
 	case structs.ServiceCheckGRPC:
-		chkReg.GRPC = check.GRPC
+		chkReg.GRPC = fmt.Sprintf("%s/%s", net.JoinHostPort(host, strconv.Itoa(port)), check.GRPCService)
 		chkReg.GRPCUseTLS = check.GRPCUseTLS
 		if check.TLSSkipVerify {
 			chkReg.TLSSkipVerify = true

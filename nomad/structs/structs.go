@@ -3545,7 +3545,7 @@ type ServiceCheck struct {
 	Method        string              // HTTP Method to use (GET by default)
 	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
-	GRPC          string              // Endpoint for GRPC checks
+	GRPCService   string              // Service for GRPC checks
 	GRPCUseTLS    bool                // Whether or not to use TLS for GRPC checks
 }
 
@@ -3587,6 +3587,7 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 func (sc *ServiceCheck) validate() error {
 	// Validate Type
 	switch strings.ToLower(sc.Type) {
+	case ServiceCheckGRPC:
 	case ServiceCheckTCP:
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
@@ -3603,11 +3604,6 @@ func (sc *ServiceCheck) validate() error {
 	case ServiceCheckScript:
 		if sc.Command == "" {
 			return fmt.Errorf("script type must have a valid script path")
-		}
-
-	case ServiceCheckGRPC:
-		if sc.GRPC == "" {
-			return fmt.Errorf("grpc type must have a valid endpoint")
 		}
 
 	default:
@@ -3654,7 +3650,7 @@ func (sc *ServiceCheck) validate() error {
 // RequiresPort returns whether the service check requires the task has a port.
 func (sc *ServiceCheck) RequiresPort() bool {
 	switch sc.Type {
-	case ServiceCheckHTTP, ServiceCheckTCP:
+	case ServiceCheckGRPC, ServiceCheckHTTP, ServiceCheckTCP:
 		return true
 	default:
 		return false
@@ -3706,8 +3702,8 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	}
 
 	// Only include GRPC if set to maintain ID stability with Nomad <0.8.4
-	if sc.GRPC != "" {
-		io.WriteString(h, sc.GRPC)
+	if sc.GRPCService != "" {
+		io.WriteString(h, sc.GRPCService)
 	}
 	if sc.GRPCUseTLS {
 		io.WriteString(h, "true")

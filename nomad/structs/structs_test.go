@@ -1267,7 +1267,34 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
+	t.Parallel()
+	// Bad (no port)
+	invalidGRPC := &ServiceCheck{
+		Type:     ServiceCheckGRPC,
+		Interval: time.Second,
+		Timeout:  time.Second,
+	}
+	service := &Service{
+		Name:   "test",
+		Checks: []*ServiceCheck{invalidGRPC},
+	}
+
+	assert.Error(t, service.Validate())
+
+	// Good
+	service.Checks[0] = &ServiceCheck{
+		Type:      ServiceCheckGRPC,
+		Interval:  time.Second,
+		Timeout:   time.Second,
+		PortLabel: "some-port-label",
+	}
+
+	assert.NoError(t, service.Validate())
+}
+
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
+	t.Parallel()
 	invalidCheckRestart := &CheckRestart{
 		Limit: -1,
 		Grace: -1,

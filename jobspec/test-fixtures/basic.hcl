@@ -107,7 +107,7 @@ job "binstore-storagelocker" {
           interval     = "10s"
           timeout      = "2s"
           port         = "admin"
-          grpc         = "localhost:12345/foo"
+          grpc_service = "foo.Bar"
           grpc_use_tls = true
 
           check_restart {

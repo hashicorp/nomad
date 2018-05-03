@@ -1061,7 +1061,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"method",
 			"check_restart",
 			"address_mode",
-			"grpc",
+			"grpc_service",
 			"grpc_use_tls",
 		}
 		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {

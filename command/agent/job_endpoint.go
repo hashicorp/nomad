@@ -764,7 +764,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						TLSSkipVerify: check.TLSSkipVerify,
 						Header:        check.Header,
 						Method:        check.Method,
-						GRPC:          check.GRPC,
+						GRPCService:   check.GRPCService,
 						GRPCUseTLS:    check.GRPCUseTLS,
 					}
 					if check.CheckRestart != nil {

@@ -1391,9 +1391,10 @@ func TestIsNomadService(t *testing.T) {
 	}
 }
 
-// TestCreateCheckReg asserts Nomad ServiceCheck structs are properly converted
-// to Consul API AgentCheckRegistrations.
-func TestCreateCheckReg(t *testing.T) {
+// TestCreateCheckReg_HTTP asserts Nomad ServiceCheck structs are properly
+// converted to Consul API AgentCheckRegistrations for HTTP checks.
+func TestCreateCheckReg_HTTP(t *testing.T) {
+	t.Parallel()
 	check := &structs.ServiceCheck{
 		Name:      "name",
 		Type:      "http",
@@ -1433,6 +1434,42 @@ func TestCreateCheckReg(t *testing.T) {
 	if diff := pretty.Diff(actual, expected); len(diff) > 0 {
 		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
 	}
+}
+
+// TestCreateCheckReg_GRPC asserts Nomad ServiceCheck structs are properly
+// converted to Consul API AgentCheckRegistrations for GRPC checks.
+func TestCreateCheckReg_GRPC(t *testing.T) {
+	t.Parallel()
+	check := &structs.ServiceCheck{
+		Name:          "name",
+		Type:          "grpc",
+		PortLabel:     "label",
+		GRPCService:   "foo.Bar",
+		GRPCUseTLS:    true,
+		TLSSkipVerify: true,
+		Timeout:       time.Second,
+		Interval:      time.Minute,
+	}
+
+	serviceID := "testService"
+	checkID := check.Hash(serviceID)
+
+	expected := &api.AgentCheckRegistration{
+		ID:        checkID,
+		Name:      "name",
+		ServiceID: serviceID,
+		AgentServiceCheck: api.AgentServiceCheck{
+			Timeout:       "1s",
+			Interval:      "1m0s",
+			GRPC:          "localhost:8080/foo.Bar",
+			GRPCUseTLS:    true,
+			TLSSkipVerify: true,
+		},
+	}
+
+	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 // TestGetAddress asserts Nomad uses the correct ip and port for services and
