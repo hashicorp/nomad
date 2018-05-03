@@ -44,8 +44,6 @@ export default ApplicationSerializer.extend({
     hash.NextAllocationID = hash.NextAllocation ? hash.NextAllocation : null;
     hash.FollowUpEvaluationID = hash.FollowupEvalID ? hash.FollowupEvalID : null;
 
-    console.log(hash.FollowUpEvaluationID);
-
     return this._super(typeHash, hash);
   },
 });

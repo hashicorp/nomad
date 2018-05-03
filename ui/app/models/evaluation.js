@@ -23,4 +23,6 @@ export default Model.extend({
   job: belongsTo('job'),
 
   modifyIndex: attr('number'),
+
+  waitUntil: attr('date'),
 });

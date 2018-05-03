@@ -79,4 +79,17 @@ export default Model.extend({
   hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
     return this.get('rescheduleEvents.length') > 0 || this.get('nextAllocation');
   }),
+
+  hasStoppedRescheduling: computed(
+    'nextAllocation',
+    'clientStatus',
+    'followUpEvaluation',
+    function() {
+      return (
+        !this.get('nextAllocation') &&
+        !this.get('followUpEvaluation') &&
+        this.get('clientStatus') === 'failed'
+      );
+    }
+  ),
 });
