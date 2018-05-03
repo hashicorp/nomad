@@ -1,7 +1,8 @@
 ## 0.8.4 (Unreleased)
 
 IMPROVEMENTS:
- * command: add -short option to init command that emits a minimal jobspec
+ * command: add -short option to init command that emits a minimal
+   jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
 
 ## 0.8.3 (April 27, 2018)
 
