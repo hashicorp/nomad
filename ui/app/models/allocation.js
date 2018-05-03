@@ -86,8 +86,8 @@ export default Model.extend({
     'followUpEvaluation',
     function() {
       return (
-        !this.get('nextAllocation') &&
-        !this.get('followUpEvaluation') &&
+        !this.get('nextAllocation.content') &&
+        !this.get('followUpEvaluation.content') &&
         this.get('clientStatus') === 'failed'
       );
     }
