@@ -1,3 +1,8 @@
+## 0.8.4 (Unreleased)
+
+IMPROVEMENTS:
+ * command: add -short option to init command that emits a minimal jobspec
+
 ## 0.8.3 (April 27, 2018)
 
 BUG FIXES:
