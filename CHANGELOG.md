@@ -9,6 +9,8 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fix panic proxying node connections when the server does not have a
    connection to the node [[GH-4231](https://github.com/hashicorp/nomad/issues/4231)]
+ * core: Fix bug with not updating ModifyIndex of allocations after updates to 
+   the `NextAllocation` field [[GH-4250](https://github.com/hashicorp/nomad/issues/4250)]
 
 ## 0.8.2 (April 26, 2018)
 
