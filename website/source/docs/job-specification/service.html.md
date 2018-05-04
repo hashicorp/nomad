@@ -376,17 +376,16 @@ service {
     port            = "rpc"
     interval        = "5s"
     timeout         = "2s"
-    grpc_service    = "grpc.health.v1.Health"
+    grpc_service    = "example.Service"
     grpc_use_tls    = true
     tls_skip_verify = true
   }
 }
 ```
 
-This check would translate to having a Consul check registration with the
-[GRPC][consul_grpc] parameter similar to `10.0.3.1:4567/grpc.health.v1.Health`.
-Assuming the service's address is `10.0.3.1` and port is `4567`. See [Using
-Driver Address Mode](#using-driver-address-mode) for details on address
+In this example Consul would health check the `example.Service` service on the
+`rpc` port defined in the task's [network resources][network] stanza.  See
+[Using Driver Address Mode](#using-driver-address-mode) for details on address
 selection.
 
 ### Using Driver Address Mode
