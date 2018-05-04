@@ -2,8 +2,9 @@
 
 IMPROVEMENTS:
  * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
- * command: add -short option to init command that emits a minimal
+ * command: Add -short option to init command that emits a minimal
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
+ * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
 
 ## 0.8.3 (April 27, 2018)
 

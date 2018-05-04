@@ -1272,6 +1272,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Protocol:      "http",
 										PortLabel:     "foo",
 										AddressMode:   "driver",
+										GRPCService:   "foo.Bar",
+										GRPCUseTLS:    true,
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
@@ -1493,6 +1495,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
+										GRPCService:   "foo.Bar",
+										GRPCUseTLS:    true,
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
 											Grace:          11 * time.Second,

@@ -3559,6 +3559,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "GRPCUseTLS",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Interval",
 										Old:  "",
 										New:  "1000000000",
@@ -3609,6 +3615,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Command",
 										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "GRPCUseTLS",
+										Old:  "false",
 										New:  "",
 									},
 									{
@@ -3766,6 +3778,18 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Command",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCService",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCUseTLS",
+										Old:  "false",
+										New:  "false",
 									},
 									{
 										Type: DiffTypeEdited,
