@@ -2037,6 +2037,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			if existingPrevAlloc != nil {
 				prevAllocCopy := existingPrevAlloc.Copy()
 				prevAllocCopy.NextAllocation = alloc.ID
+				prevAllocCopy.ModifyIndex = index
 				if err := txn.Insert("allocs", prevAllocCopy); err != nil {
 					return fmt.Errorf("alloc insert failed: %v", err)
 				}

@@ -4653,6 +4653,15 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 
 	require.Equal(allocs, out)
 	require.False(watchFired(ws))
+
+	// Insert another alloc, verify index of previous alloc also got updated
+	alloc := mock.Alloc()
+	alloc.PreviousAllocation = allocs[0].ID
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+	require.Nil(err)
+	alloc0, err := state.AllocByID(nil, allocs[0].ID)
+	require.Nil(err)
+	require.Equal(alloc0.ModifyIndex, uint64(1001))
 }
 
 func TestStateStore_RestoreAlloc(t *testing.T) {
