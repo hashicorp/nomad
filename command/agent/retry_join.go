@@ -51,14 +51,15 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 
 	attempt := 0
 
-	r.logger.Printf("[INFO] agent: Joining cluster...")
+	addrsToJoin := strings.Join(config.Server.RetryJoin, " ")
+	r.logger.Printf("[INFO] agent: Joining cluster... %s", addrsToJoin)
 
 	for {
 		var addrs []string
 
 		for _, addr := range config.Server.RetryJoin {
 			switch {
-			case strings.Contains(addr, "provider"):
+			case strings.Contains(addr, "provider="):
 				servers, err := r.discover.Addrs(addr, r.logger)
 				if err != nil {
 					r.logger.Printf("[ERR] agent: Join error %s", err)
@@ -70,7 +71,13 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 			}
 		}
 
+		if len(addrs) == 0 {
+			r.logger.Printf("[INFO] agent: Join completed. no addresses specified to sync with")
+			return
+		}
+
 		n, err := r.join(addrs)
+
 		if err == nil {
 			r.logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
 			return

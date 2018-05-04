@@ -13,10 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockDiscover struct{}
+type MockDiscover struct {
+	ReceivedAddrs string
+}
+
+const stubAddress = "127.0.0.1"
 
 func (m *MockDiscover) Addrs(s string, l *log.Logger) ([]string, error) {
-	return []string{s}, nil
+	m.ReceivedAddrs = s
+	return []string{stubAddress}, nil
 }
 func (m *MockDiscover) Help() string { return "" }
 func (m *MockDiscover) Names() []string {
@@ -102,7 +107,7 @@ func TestRetryJoin_NonCloud(t *testing.T) {
 	joiner.RetryJoin(newConfig)
 
 	require.Equal(1, len(output))
-	require.Equal("127.0.0.1", output[0])
+	require.Equal(stubAddress, output[0])
 }
 
 func TestRetryJoin_Cloud(t *testing.T) {
@@ -124,8 +129,9 @@ func TestRetryJoin_Cloud(t *testing.T) {
 		return 0, nil
 	}
 
+	mockDiscover := &MockDiscover{}
 	joiner := retryJoiner{
-		discover: &MockDiscover{},
+		discover: mockDiscover,
 		join:     mockJoin,
 		logger:   log.New(ioutil.Discard, "", 0),
 		errCh:    make(chan struct{}),
@@ -134,7 +140,8 @@ func TestRetryJoin_Cloud(t *testing.T) {
 	joiner.RetryJoin(newConfig)
 
 	require.Equal(1, len(output))
-	require.Equal("provider=aws, tag_value=foo", output[0])
+	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
+	require.Equal(stubAddress, output[0])
 }
 
 func TestRetryJoin_MixedProvider(t *testing.T) {
@@ -156,8 +163,9 @@ func TestRetryJoin_MixedProvider(t *testing.T) {
 		return 0, nil
 	}
 
+	mockDiscover := &MockDiscover{}
 	joiner := retryJoiner{
-		discover: &MockDiscover{},
+		discover: mockDiscover,
 		join:     mockJoin,
 		logger:   log.New(ioutil.Discard, "", 0),
 		errCh:    make(chan struct{}),
@@ -166,6 +174,6 @@ func TestRetryJoin_MixedProvider(t *testing.T) {
 	joiner.RetryJoin(newConfig)
 
 	require.Equal(2, len(output))
-	require.Equal("provider=aws, tag_value=foo", output[0])
-	require.Equal("127.0.0.1", output[1])
+	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
+	require.Equal(stubAddress, output[0])
 }
