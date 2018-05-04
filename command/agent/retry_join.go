@@ -59,7 +59,7 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 
 		for _, addr := range config.Server.RetryJoin {
 			switch {
-			case strings.Contains(addr, "provider="):
+			case strings.HasPrefix(addr, "provider="):
 				servers, err := r.discover.Addrs(addr, r.logger)
 				if err != nil {
 					r.logger.Printf("[ERR] agent: Join error %s", err)
