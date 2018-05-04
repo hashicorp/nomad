@@ -98,36 +98,7 @@
           Reschedule Events
         </div>
         <div class="boxed-section-body">
-          <ol class="timeline">
-            {{#if model.nextAllocation}}
-              {{reschedule-event-row
-                label="Next Allocation"
-                allocation=model.nextAllocation
-                time=model.nextAllocation.modifyTime}}
-            {{/if}}
-            {{#if model.hasStoppedRescheduling}}
-              <li class="timeline-note">
-                {{x-icon "warning" class="is-warning is-text"}} Nomad has stopped attempting to reschedule this allocation.
-              </li>
-            {{/if}}
-            {{#if (and model.followUpEvaluation.waitUntil (not model.nextAllocation))}}
-              <li class="timeline-note">
-                {{x-icon "clock" class="is-info is-text"}} Nomad will attempt to reschedule
-                {{moment-from-now model.followUpEvaluation.waitUntil interval=1000}}
-              </li>
-            {{/if}}
-            {{reschedule-event-row
-              label="This Allocation"
-              allocation=model
-              linkToAllocation=false
-              time=model.modifyTime}}
-
-            {{#each (reverse model.rescheduleEvents) as |event|}}
-              {{reschedule-event-row
-                allocationId=event.previousAllocationId
-                time=event.time}}
-            {{/each}}
-          </ol>
+          {{reschedule-event-timeline allocation=model}}
         </div>
       </div>
     {{/if}}
