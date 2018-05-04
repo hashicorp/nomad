@@ -66,7 +66,6 @@ export default Factory.extend({
     // After rescheduleAttempts hits zero, a final allocation is made with no nextAllocation and
     // a clientStatus of failed or running, depending on rescheduleSuccess
     afterCreate(allocation, server) {
-      console.log('After Create --> rescheduled');
       const attempts = allocation.rescheduleAttempts;
       const previousEvents =
         (allocation.rescheduleTracker && allocation.rescheduleTracker.Events) || [];
@@ -116,7 +115,6 @@ export default Factory.extend({
   }),
 
   afterCreate(allocation, server) {
-    console.log('After Create');
     Ember.assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
       server.db.jobs.length

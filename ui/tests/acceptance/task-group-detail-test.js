@@ -45,6 +45,14 @@ moduleForAcceptance('Acceptance | task group detail', {
       alloc.name = 'aaaaa';
     });
 
+    // Mark the first alloc as rescheduled
+    allocations[0].update({
+      nextAllocation: allocations[1].id,
+    });
+    allocations[1].update({
+      previousAllocation: allocations[0].id,
+    });
+
     visit(`/jobs/${job.id}/${taskGroup.name}`);
   },
 });
@@ -222,4 +230,15 @@ test('when the allocation search has no matches, there is an empty message', fun
     assert.ok(find('[data-test-empty-allocations-list]'));
     assert.equal(find('[data-test-empty-allocations-list-headline]').textContent, 'No Matches');
   });
+});
+
+test('when the allocation has reschedule events, the allocation row is denoted with an icon', function(assert) {
+  const rescheduleRow = find(`[data-test-allocation="${allocations[0].id}"]`);
+  const normalRow = find(`[data-test-allocation="${allocations[1].id}"]`);
+
+  assert.ok(
+    rescheduleRow.querySelector('[data-test-indicators] .icon'),
+    'Reschedule row has an icon'
+  );
+  assert.notOk(normalRow.querySelector('[data-test-indicators] .icon'), 'Normal row has no icon');
 });

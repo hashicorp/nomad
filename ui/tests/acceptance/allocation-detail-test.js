@@ -121,6 +121,10 @@ test('each task row should list high-level information for the task', function(a
   });
 });
 
+test('when the allocation has not been rescheduled, the reschedule events section is not rendered', function(assert) {
+  assert.notOk(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
+});
+
 test('when the allocation is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/allocations/not-a-real-allocation');
 
@@ -184,4 +188,20 @@ test('when the node the allocation is on has yet to load, address links are in a
       assert.ok(find('[data-test-port]').querySelector('a'), 'Link to address found');
     });
   });
+});
+
+moduleForAcceptance('Acceptance | allocation detail (rescheduled)', {
+  beforeEach() {
+    server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { createAllocations: false });
+    allocation = server.create('allocation', 'rescheduled');
+
+    visit(`/allocations/${allocation.id}`);
+  },
+});
+
+test('when the allocation has been rescheduled, the reschedule events section is rendered', function(assert) {
+  assert.ok(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
 });
