@@ -54,6 +54,8 @@ export default Factory.extend({
 
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
 
+  waitUntil: null,
+
   withPlacementFailures: trait({
     status: 'blocked',
     afterCreate(evaluation, server) {

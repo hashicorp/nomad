@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import moment from 'moment';
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, pickOne } from '../utils';
 
@@ -56,7 +57,66 @@ export default Factory.extend({
     },
   }),
 
+  rescheduleAttempts: 0,
+  rescheduleSuccess: false,
+
+  rescheduled: trait({
+    // Create another allocation carrying the events of this as well as the reschduleSuccess state.
+    // Pass along rescheduleAttempts after decrementing.
+    // After rescheduleAttempts hits zero, a final allocation is made with no nextAllocation and
+    // a clientStatus of failed or running, depending on rescheduleSuccess
+    afterCreate(allocation, server) {
+      console.log('After Create --> rescheduled');
+      const attempts = allocation.rescheduleAttempts;
+      const previousEvents =
+        (allocation.rescheduleTracker && allocation.rescheduleTracker.Events) || [];
+
+      let rescheduleTime;
+      if (previousEvents.length) {
+        const lastEvent = previousEvents[previousEvents.length - 1];
+        rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(5, 'minutes');
+      } else {
+        rescheduleTime = faker.date.past(2 / 365, REF_TIME);
+      }
+
+      rescheduleTime *= 1000000;
+
+      const rescheduleTracker = {
+        Events: previousEvents.concat([
+          {
+            PrevAllocID: allocation.id,
+            PrevNodeID: null, //allocation.node.id,
+            RescheduleTime: rescheduleTime,
+          },
+        ]),
+      };
+
+      let nextAllocation;
+      if (attempts) {
+        nextAllocation = server.create('allocation', 'rescheduled', {
+          rescheduleAttempts: Math.max(attempts - 1, 0),
+          rescheduleSuccess: allocation.rescheduleSuccess,
+          previousAllocation: allocation.id,
+          clientStatus: 'failed',
+          rescheduleTracker,
+          followupEvalId: server.create('evaluation', {
+            waitUntil: rescheduleTime,
+          }).id,
+        });
+      } else {
+        nextAllocation = server.create('allocation', {
+          previousAllocation: allocation.id,
+          clientStatus: allocation.rescheduleSuccess ? 'running' : 'failed',
+          rescheduleTracker,
+        });
+      }
+
+      allocation.update({ nextAllocation: nextAllocation.id, clientStatus: 'failed' });
+    },
+  }),
+
   afterCreate(allocation, server) {
+    console.log('After Create');
     Ember.assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
       server.db.jobs.length
