@@ -979,6 +979,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	j.TaskGroups[0].Update.MaxParallel = 1
 	j.TaskGroups[0].Update.ProgressDeadline = 50 * time.Millisecond
 	j.Stable = true
+
 	d := mock.Deployment()
 	d.TaskGroups["web"].DesiredTotal = 2
 	d.TaskGroups["web"].DesiredCanaries = 1
@@ -987,6 +988,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	d.JobID = j.ID
 	d.TaskGroups["web"].ProgressDeadline = 50 * time.Millisecond
 	d.TaskGroups["web"].RequireProgressBy = time.Now().Add(50 * time.Millisecond)
+
 	a := mock.Alloc()
 	now := time.Now()
 	a.CreateTime = now.UnixNano()
