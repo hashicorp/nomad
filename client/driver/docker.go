@@ -479,6 +479,10 @@ type DockerHandle struct {
 	client            *docker.Client
 	waitClient        *docker.Client
 	logger            *log.Logger
+	jobName           string
+	taskGroupName     string
+	taskName          string
+	allocID           string
 	Image             string
 	ImageID           string
 	containerID       string
