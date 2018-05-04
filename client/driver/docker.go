@@ -1935,16 +1935,20 @@ func (h *DockerHandle) run() {
 		werr = fmt.Errorf("OOM Killed")
 		labels := []metrics.Label{
 			{
-				Name:  "Image",
-				Value: h.Image,
+				Name:  "JobName",
+				Value: h.jobName,
 			},
 			{
-				Name:  "ImageID",
-				Value: h.ImageID,
+				Name:  "TaskGroupName",
+				Value: h.taskGroupName,
 			},
 			{
-				Name:  "ContainerID",
-				Value: h.containerID,
+				Name:  "TaskName",
+				Value: h.taskName,
+			},
+			{
+				Name:  "AllocID",
+				Value: h.allocID,
 			},
 		}
 		metrics.IncrCounterWithLabels([]string{"driver", "docker", "oom"}, 1, labels)
