@@ -64,28 +64,34 @@ export default Mixin.create({
     'regexSearchProps.[]',
     function() {
       const searchTerm = this.get('searchTerm').trim();
-      if (searchTerm && searchTerm.length) {
-        const results = [];
-        if (this.get('exactMatchEnabled')) {
-          results.push(
-            ...exactMatchSearch(
-              searchTerm,
-              this.get('listToSearch'),
-              this.get('exactMatchSearchProps')
-            )
-          );
-        }
-        if (this.get('fuzzySearchEnabled')) {
-          results.push(...this.get('fuse').search(searchTerm));
-        }
-        if (this.get('regexEnabled')) {
-          results.push(
-            ...regexSearch(searchTerm, this.get('listToSearch'), this.get('regexSearchProps'))
-          );
-        }
-        return results.uniq();
+
+      if (!searchTerm || !searchTerm.length) {
+        return this.get('listToSearch');
       }
-      return this.get('listToSearch');
+
+      const results = [];
+
+      if (this.get('exactMatchEnabled')) {
+        results.push(
+          ...exactMatchSearch(
+            searchTerm,
+            this.get('listToSearch'),
+            this.get('exactMatchSearchProps')
+          )
+        );
+      }
+
+      if (this.get('fuzzySearchEnabled')) {
+        results.push(...this.get('fuse').search(searchTerm));
+      }
+
+      if (this.get('regexEnabled')) {
+        results.push(
+          ...regexSearch(searchTerm, this.get('listToSearch'), this.get('regexSearchProps'))
+        );
+      }
+
+      return results.uniq();
     }
   ),
 });
