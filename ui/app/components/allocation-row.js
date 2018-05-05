@@ -24,8 +24,7 @@ export default Component.extend({
   stats: null,
   statsError: false,
 
-  // enablePolling: computed(() => !Ember.testing),
-  enablePolling: false,
+  enablePolling: computed(() => !Ember.testing),
 
   onClick() {},
 
