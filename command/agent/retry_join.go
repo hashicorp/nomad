@@ -86,8 +86,10 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 			return
 		}
 
-		r.logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
-			config.Server.RetryInterval)
+		if err != nil {
+			r.logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
+				config.Server.RetryInterval)
+		}
 		time.Sleep(config.Server.retryInterval)
 	}
 }
