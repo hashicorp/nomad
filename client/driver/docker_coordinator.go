@@ -25,12 +25,6 @@ var (
 	imageNotFoundMatcher = regexp.MustCompile(`Error: image .+ not found`)
 )
 
-const (
-	// dockerPullProgressEmitInterval is the interval at which the pull progress
-	// is emitted to the allocation
-	dockerPullProgressEmitInterval = 2 * time.Minute
-)
-
 // pullFuture is a sharable future for retrieving a pulled images ID and any
 // error that may have occurred during the pull.
 type pullFuture struct {
