@@ -5,6 +5,8 @@ IMPROVEMENTS:
  * command: Add -short option to init command that emits a minimal
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
+ * driver/docker: Add progress monitoring and inactivity detection to docker
+   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
 
 ## 0.8.3 (April 27, 2018)
 

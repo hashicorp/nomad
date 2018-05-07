@@ -1546,7 +1546,8 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 
 	d.emitEvent("Downloading image %s:%s", repo, tag)
 	coordinator, callerID := d.getDockerCoordinator(client)
-	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID)
+
+	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID, d.emitEvent)
 }
 
 // authBackend encapsulates a function that resolves registry credentials.
