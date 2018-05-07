@@ -56,6 +56,7 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 
 	for {
 		var addrs []string
+		var err error
 
 		for _, addr := range config.Server.RetryJoin {
 			switch {
@@ -71,16 +72,15 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 			}
 		}
 
-		if len(addrs) == 0 {
-			r.logger.Printf("[INFO] agent: Join completed. no addresses specified to sync with")
-			return
+		if len(addrs) > 0 {
+			n, err := r.join(addrs)
+			if err == nil {
+				r.logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
+			}
 		}
 
-		n, err := r.join(addrs)
-
-		if err == nil {
-			r.logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
-			return
+		if len(addrs) == 0 {
+			r.logger.Printf("[INFO] agent: Join completed. no addresses specified to sync with")
 		}
 
 		attempt++
