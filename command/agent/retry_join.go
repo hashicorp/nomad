@@ -79,10 +79,6 @@ func (r *retryJoiner) RetryJoin(config *Config) {
 			}
 		}
 
-		if len(addrs) == 0 {
-			r.logger.Printf("[INFO] agent: Join completed. no addresses specified to sync with")
-		}
-
 		attempt++
 		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
 			r.logger.Printf("[ERR] agent: max join retry exhausted, exiting")
