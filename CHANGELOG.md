@@ -7,6 +7,8 @@ IMPROVEMENTS:
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
    image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
+ * env: Default interpolation of optional meta fields of parameterized jobs to
+   an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
 
 ## 0.8.3 (April 27, 2018)
 
