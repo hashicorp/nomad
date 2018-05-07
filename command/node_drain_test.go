@@ -237,6 +237,19 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	if !strings.HasSuffix(out, expected) {
 		t.Fatalf("expected output to end with:\n%s", expected)
 	}
+
+	// Test -monitor flag
+	outBuf.Reset()
+	args = []string{"-address=" + url, "-self", "-monitor", "-ignore-system"}
+	t.Logf("Running: %v", args)
+	if code := cmd.Run(args); code != 0 {
+		t.Fatalf("expected exit 0, got: %d\n%s", code, outBuf.String())
+	}
+
+	out = outBuf.String()
+	t.Logf("Output:\n%s", out)
+
+	require.Contains(out, "marked all allocations for migration")
 }
 
 func TestNodeDrainCommand_Fails(t *testing.T) {

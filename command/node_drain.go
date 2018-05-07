@@ -113,7 +113,8 @@ func (c *NodeDrainCommand) Name() string { return "node-drain" }
 
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, detach, force,
-		noDeadline, ignoreSystem, keepIneligible, self, autoYes bool
+		noDeadline, ignoreSystem, keepIneligible,
+		self, autoYes, monitor bool
 	var deadline string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -128,14 +129,22 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&keepIneligible, "keep-ineligible", false, "Do not update the nodes scheduling eligibility")
 	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
+	flags.BoolVar(&monitor, "monitor", false, "Monitor drain status.")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
+	// Check that enable or disable is not set with monitor
+	if monitor && enable || monitor && disable {
+		c.Ui.Error("The -monitor flag cannot be used with the '-enable' or '-disable' flags")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
 	// Check that we got either enable or disable, but not both.
-	if (enable && disable) || (!enable && !disable) {
-		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set")
+	if (enable && disable) || (!monitor && !enable && !disable) {
+		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set, unless using '-monitor'")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -236,6 +245,13 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 
+	// If monitoring the drain start the montior and return when done
+	if monitor {
+		c.Ui.Info(fmt.Sprintf("%s: Monitoring node %q: Ctrl-C to detach monitoring", formatTime(time.Now()), node.ID))
+		c.monitorDrain(client, context.Background(), node, node.ModifyIndex-1, ignoreSystem)
+		return 0
+	}
+
 	// Confirm drain if the node was a prefix match.
 	if nodeID != node.ID && !autoYes {
 		verb := "enable"
@@ -290,20 +306,23 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		now := time.Now()
 		c.Ui.Info(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
 		c.Ui.Output(fmt.Sprintf("%s: Node %q drain strategy set", formatTime(now), node.ID))
-		outCh := client.Nodes().MonitorDrain(context.Background(), node.ID, meta.LastIndex, ignoreSystem)
-		for msg := range outCh {
-			switch msg.Level {
-			case api.MonitorMsgLevelInfo:
-				c.Ui.Info(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
-			case api.MonitorMsgLevelWarn:
-				c.Ui.Warn(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
-			case api.MonitorMsgLevelError:
-				c.Ui.Error(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
-			default:
-				c.Ui.Output(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
-			}
+		c.monitorDrain(client, context.Background(), node, meta.LastIndex, ignoreSystem)
+	}
+	return 0
+}
+
+func (c *NodeDrainCommand) monitorDrain(client *api.Client, ctx context.Context, node *api.Node, index uint64, ignoreSystem bool) {
+	outCh := client.Nodes().MonitorDrain(ctx, node.ID, index, ignoreSystem)
+	for msg := range outCh {
+		switch msg.Level {
+		case api.MonitorMsgLevelInfo:
+			c.Ui.Info(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+		case api.MonitorMsgLevelWarn:
+			c.Ui.Warn(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+		case api.MonitorMsgLevelError:
+			c.Ui.Error(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+		default:
+			c.Ui.Output(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
 		}
 	}
-
-	return 0
 }
