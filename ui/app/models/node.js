@@ -2,7 +2,7 @@ import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
-import { fragment } from 'ember-data-model-fragments/attributes';
+import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import ipParts from '../utils/ip-parts';
 
@@ -37,4 +37,7 @@ export default Model.extend({
   }),
 
   allocations: hasMany('allocations', { inverse: 'node' }),
+
+  drivers: fragmentArray('node-driver'),
+  events: fragmentArray('node-event'),
 });
