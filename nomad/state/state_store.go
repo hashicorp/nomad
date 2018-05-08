@@ -1890,7 +1890,13 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
+
+	// Merge the deployment status taking only what the client should set
+	oldDeploymentStatus := copyAlloc.DeploymentStatus
 	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
+	if oldDeploymentStatus != nil && oldDeploymentStatus.Canary {
+		copyAlloc.DeploymentStatus.Canary = true
+	}
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
@@ -1961,6 +1967,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
+			if alloc.DeploymentStatus != nil {
+				alloc.DeploymentStatus.ModifyIndex = index
+			}
 
 			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
 			// the a race between a forced garbage collection and the scheduler
@@ -2081,6 +2090,12 @@ func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[str
 	// Handle each of the updated allocations
 	for id, transition := range allocs {
 		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transition); err != nil {
+			return err
+		}
+	}
+
+	for _, eval := range evals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
 	}
@@ -2614,11 +2629,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		return err
 	}
 
+	// groupIndex is a map of groups being promoted
 	groupIndex := make(map[string]struct{}, len(req.Groups))
 	for _, g := range req.Groups {
 		groupIndex[g] = struct{}{}
 	}
 
+	// canaryIndex is the set of placed canaries in the deployment
 	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
 	for _, state := range deployment.TaskGroups {
 		for _, c := range state.PlacedCanaries {
@@ -2626,8 +2643,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
-	haveCanaries := false
-	var unhealthyErr multierror.Error
+	// healthyCounts is a mapping of group to the number of healthy canaries
+	healthyCounts := make(map[string]int, len(deployment.TaskGroups))
+
+	// promotable is the set of allocations that we can move from canary to
+	// non-canary
+	var promotable []*structs.Allocation
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -2648,19 +2670,32 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 		// Ensure the canaries are healthy
 		if !alloc.DeploymentStatus.IsHealthy() {
-			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
 			continue
 		}
 
-		haveCanaries = true
+		healthyCounts[alloc.TaskGroup]++
+		promotable = append(promotable, alloc)
+	}
+
+	// Determine if we have enough healthy allocations
+	var unhealthyErr multierror.Error
+	for tg, state := range deployment.TaskGroups {
+		if _, ok := groupIndex[tg]; !req.All && !ok {
+			continue
+		}
+
+		need := state.DesiredCanaries
+		if need == 0 {
+			continue
+		}
+
+		if have := healthyCounts[tg]; have < need {
+			multierror.Append(&unhealthyErr, fmt.Errorf("Task group %q has %d/%d healthy allocations", tg, have, need))
+		}
 	}
 
 	if err := unhealthyErr.ErrorOrNil(); err != nil {
 		return err
-	}
-
-	if !haveCanaries {
-		return fmt.Errorf("no canaries to promote")
 	}
 
 	// Update deployment
@@ -2692,6 +2727,24 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
+	// For each promotable allocation remoce the canary field
+	for _, alloc := range promotable {
+		promoted := alloc.Copy()
+		promoted.DeploymentStatus.Canary = false
+		promoted.DeploymentStatus.ModifyIndex = index
+		promoted.ModifyIndex = index
+		promoted.AllocModifyIndex = index
+
+		if err := txn.Insert("allocs", promoted); err != nil {
+			return fmt.Errorf("alloc insert failed: %v", err)
+		}
+	}
+
+	// Update the alloc index
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -2715,7 +2768,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Update the health status of each allocation
 	if total := len(req.HealthyAllocationIDs) + len(req.UnhealthyAllocationIDs); total != 0 {
-		setAllocHealth := func(id string, healthy bool) error {
+		setAllocHealth := func(id string, healthy bool, ts time.Time) error {
 			existing, err := txn.First("allocs", "id", id)
 			if err != nil {
 				return fmt.Errorf("alloc %q lookup failed: %v", id, err)
@@ -2735,6 +2788,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
 			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
@@ -2749,12 +2803,12 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 		}
 
 		for _, id := range req.HealthyAllocationIDs {
-			if err := setAllocHealth(id, true); err != nil {
+			if err := setAllocHealth(id, true, req.Timestamp); err != nil {
 				return err
 			}
 		}
 		for _, id := range req.UnhealthyAllocationIDs {
-			if err := setAllocHealth(id, false); err != nil {
+			if err := setAllocHealth(id, false, req.Timestamp); err != nil {
 				return err
 			}
 		}
@@ -3283,6 +3337,20 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.PlacedAllocs += placed
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
+
+	// Update the progress deadline
+	if pd := state.ProgressDeadline; pd != 0 {
+		// If we are the first placed allocation for the deployment start the progress deadline.
+		if placed != 0 && state.RequireProgressBy.IsZero() {
+			// Use modify time instead of create time because we may in-place
+			// update the allocation to be part of a new deployment.
+			state.RequireProgressBy = time.Unix(0, alloc.ModifyTime).Add(pd)
+		} else if healthy != 0 {
+			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(state.RequireProgressBy) {
+				state.RequireProgressBy = d
+			}
+		}
+	}
 
 	// Upsert the deployment
 	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {

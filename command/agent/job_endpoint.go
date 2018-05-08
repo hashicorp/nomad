@@ -693,13 +693,14 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 
 	if taskGroup.Update != nil {
 		tg.Update = &structs.UpdateStrategy{
-			Stagger:         *taskGroup.Update.Stagger,
-			MaxParallel:     *taskGroup.Update.MaxParallel,
-			HealthCheck:     *taskGroup.Update.HealthCheck,
-			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,
-			HealthyDeadline: *taskGroup.Update.HealthyDeadline,
-			AutoRevert:      *taskGroup.Update.AutoRevert,
-			Canary:          *taskGroup.Update.Canary,
+			Stagger:          *taskGroup.Update.Stagger,
+			MaxParallel:      *taskGroup.Update.MaxParallel,
+			HealthCheck:      *taskGroup.Update.HealthCheck,
+			MinHealthyTime:   *taskGroup.Update.MinHealthyTime,
+			HealthyDeadline:  *taskGroup.Update.HealthyDeadline,
+			ProgressDeadline: *taskGroup.Update.ProgressDeadline,
+			AutoRevert:       *taskGroup.Update.AutoRevert,
+			Canary:           *taskGroup.Update.Canary,
 		}
 	}
 
@@ -743,6 +744,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Name:        service.Name,
 				PortLabel:   service.PortLabel,
 				Tags:        service.Tags,
+				CanaryTags:  service.CanaryTags,
 				AddressMode: service.AddressMode,
 			}
 

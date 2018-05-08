@@ -582,19 +582,34 @@ func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error 
 		return err
 	}
 
-	for _, eval := range evals {
-		if eval.ShouldEnqueue() {
-			n.evalBroker.Enqueue(eval)
-		} else if eval.ShouldBlock() {
-			n.blockedEvals.Block(eval)
-		} else if eval.Status == structs.EvalStatusComplete &&
-			len(eval.FailedTGAllocs) == 0 {
-			// If we have a successful evaluation for a node, untrack any
-			// blocked evaluation
-			n.blockedEvals.Untrack(eval.JobID)
-		}
-	}
+	n.handleUpsertedEvals(evals)
 	return nil
+}
+
+// handleUpsertingEval is a helper for taking action after upserting
+// evaluations.
+func (n *nomadFSM) handleUpsertedEvals(evals []*structs.Evaluation) {
+	for _, eval := range evals {
+		n.handleUpsertedEval(eval)
+	}
+}
+
+// handleUpsertingEval is a helper for taking action after upserting an eval.
+func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
+	if eval == nil {
+		return
+	}
+
+	if eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(eval)
+	} else if eval.ShouldBlock() {
+		n.blockedEvals.Block(eval)
+	} else if eval.Status == structs.EvalStatusComplete &&
+		len(eval.FailedTGAllocs) == 0 {
+		// If we have a successful evaluation for a node, untrack any
+		// blocked evaluation
+		n.blockedEvals.Untrack(eval.JobID)
+	}
 }
 
 func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
@@ -731,10 +746,7 @@ func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) i
 		return err
 	}
 
-	if err := n.upsertEvals(index, req.Evals); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: AllocUpdateDesiredTransition failed to upsert %d eval(s): %v", len(req.Evals), err)
-		return err
-	}
+	n.handleUpsertedEvals(req.Evals)
 	return nil
 }
 
@@ -826,10 +838,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 		return err
 	}
 
-	if req.Eval != nil && req.Eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(req.Eval)
-	}
-
+	n.handleUpsertedEval(req.Eval)
 	return nil
 }
 
@@ -846,10 +855,7 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 		return err
 	}
 
-	if req.Eval != nil && req.Eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(req.Eval)
-	}
-
+	n.handleUpsertedEval(req.Eval)
 	return nil
 }
 
@@ -867,10 +873,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interfac
 		return err
 	}
 
-	if req.Eval != nil && req.Eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(req.Eval)
-	}
-
+	n.handleUpsertedEval(req.Eval)
 	return nil
 }
 
