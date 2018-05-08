@@ -10,6 +10,10 @@ IMPROVEMENTS:
  * env: Default interpolation of optional meta fields of parameterized jobs to
    an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
 
+BUG FIXES:
+ * api/client: Fix potentially out of order logs and streamed file contents
+   [[GH-4234](https://github.com/hashicorp/nomad/issues/4234)]
+
 ## 0.8.3 (April 27, 2018)
 
 BUG FIXES:
