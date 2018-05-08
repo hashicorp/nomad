@@ -1,12 +1,19 @@
 package stats
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/cpu"
+)
+
+const (
+	// We use this constant to override the built in 3 second timeout in gopsutil
+	cpuInfoTimeout = 10 * time.Second
 )
 
 var (
@@ -28,7 +35,9 @@ func Init() error {
 		}
 
 		var cpuInfo []cpu.InfoStat
-		if cpuInfo, err = cpu.Info(); err != nil {
+		ctx, _ := context.WithTimeout(context.Background(), cpuInfoTimeout)
+
+		if cpuInfo, err = cpu.InfoWithContext(ctx); err != nil {
 			merrs = multierror.Append(merrs, fmt.Errorf("Unable to obtain CPU information: %v", initErr))
 		}
 
