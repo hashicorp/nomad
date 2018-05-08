@@ -40,4 +40,12 @@ export default Model.extend({
 
   drivers: fragmentArray('node-driver'),
   events: fragmentArray('node-event'),
+
+  detectedDrivers: computed('drivers.@each.detected', function() {
+    return this.get('drivers').filterBy('detected');
+  }),
+
+  unhealthyDrivers: computed('detectedDrivers.@each.healthy', function() {
+    return this.get('detectedDrivers').filterBy('healthy', false);
+  }),
 });

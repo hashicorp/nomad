@@ -17,9 +17,27 @@
     <div class="boxed-section is-small">
       <div class="boxed-section-body inline-definitions">
         <span class="label">Client Details</span>
-        <span class="pair" data-test-status-definition><span class="term">Status</span> <span class="status-text node-{{model.status}}">{{model.status}}</span></span>
-        <span class="pair" data-test-address-definition><span class="term">Address</span> {{model.httpAddr}}</span>
-        <span class="pair" data-test-datacenter-definition><span class="term">Datacenter</span> {{model.datacenter}}</span>
+        <span class="pair" data-test-status-definition>
+          <span class="term">Status</span>
+          <span class="status-text node-{{model.status}}">{{model.status}}</span>
+        </span>
+        <span class="pair" data-test-address-definition>
+          <span class="term">Address</span>
+          {{model.httpAddr}}
+        </span>
+        <span class="pair" data-test-datacenter-definition>
+          <span class="term">Datacenter</span>
+          {{model.datacenter}}
+        </span>
+        <span class="pair" data-test-driver-health>
+          <span class="term">Drivers</span>
+          {{#if model.unhealthyDrivers.length}}
+            {{x-icon "warning" class="is-text is-warning"}}
+            {{model.unhealthyDrivers.length}} of {{model.detectedDrivers.length}} {{pluralize "driver" model.detectedDrivers.length}} unhealthy
+          {{else}}
+            All healthy
+          {{/if}}
+        </span>
       </div>
     </div>
 
