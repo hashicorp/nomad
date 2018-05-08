@@ -95,6 +95,34 @@
 
     <div class="boxed-section">
       <div class="boxed-section-head">
+        Client Events
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=sortedEvents class="is-striped" as |t|}}
+          {{#t.head}}
+            <th class="is-2">Time</th>
+            <th class="is-2">Subsystem</th>
+            <th>Message</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-node-event>
+              <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
+              <td data-test-task-event-type>{{row.model.subsystem}}</td>
+              <td data-test-task-event-message>
+                {{#if row.model.message}}
+                  {{row.model.message}}
+                {{else}}
+                  <em>No message</em>
+                {{/if}}
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
         Attributes
       </div>
       <div class="boxed-section-body is-full-bleed">
