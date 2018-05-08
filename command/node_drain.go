@@ -248,7 +248,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	// If monitoring the drain start the montior and return when done
 	if monitor {
 		c.Ui.Info(fmt.Sprintf("%s: Monitoring node %q: Ctrl-C to detach monitoring", formatTime(time.Now()), node.ID))
-		c.monitorDrain(client, context.Background(), node, node.ModifyIndex-1, ignoreSystem)
+		c.monitorDrain(client, context.Background(), node, 0, ignoreSystem)
 		return 0
 	}
 
