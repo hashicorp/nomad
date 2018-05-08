@@ -90,8 +90,14 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
+
+	evalOptions := structs.EvalOptions{}
+	if _, ok := req.URL.Query()["force"]; ok {
+		evalOptions.ForceReschedule = true
+	}
 	args := structs.JobEvaluateRequest{
-		JobID: jobName,
+		JobID:       jobName,
+		EvalOptions: evalOptions,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

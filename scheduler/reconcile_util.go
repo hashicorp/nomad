@@ -327,6 +327,11 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		return
 	}
 
+	// Check if the allocation is marked as it should be force rescheduled
+	if alloc.DesiredTransition.ShouldForceReschedule() {
+		rescheduleNow = true
+	}
+
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
 	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
