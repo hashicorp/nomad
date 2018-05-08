@@ -55,6 +55,10 @@ type TLSConfig struct {
 	// Checksum is a MD5 hash of the certificate CA File, Certificate file, and
 	// key file.
 	Checksum string
+
+	// TLSCipherSuites are operator-defined ciphers to be used in Nomad TLS
+	// connections
+	TLSCipherSuites string `mapstructure:"tls_cipher_suites"`
 }
 
 type KeyLoader struct {

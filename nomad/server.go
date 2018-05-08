@@ -450,7 +450,11 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		return fmt.Errorf("can't reload uninitialized RPC listener")
 	}
 
-	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
+	tlsConf, err := tlsutil.NewTLSConfiguration(newTLSConfig)
+	if err != nil {
+		return err
+	}
+
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)

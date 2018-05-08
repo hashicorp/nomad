@@ -58,6 +58,12 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
   cluster is being upgraded to TLS, and removed after the migration is
   complete. This allows the agent to accept both TLS and plaintext traffic.
 
+- `tls_cipher_suites` - Specifies the TLS cipher suites that will be used by
+  the agent. Known insecure ciphers are disabled (3DES and RC4). By default,
+  an agent is configured to use TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+  TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, and
+  TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.
+
 - `verify_https_client` `(bool: false)` - Specifies agents should require
   client certificates for all incoming HTTPS requests. The client certificates
   must be signed by the same CA as Nomad.

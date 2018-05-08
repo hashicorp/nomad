@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -65,9 +66,18 @@ type Config struct {
 
 	// KeyLoader dynamically reloads TLS configuration.
 	KeyLoader *config.KeyLoader
+
+	// CipherSuites have a default safe configuration, or operators can override
+	// these values for acceptable safe alternatives.
+	CipherSuites []uint16
 }
 
-func NewTLSConfiguration(newConf *config.TLSConfig) *Config {
+func NewTLSConfiguration(newConf *config.TLSConfig) (*Config, error) {
+	ciphers, err := ParseCiphers(newConf.TLSCipherSuites)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		VerifyIncoming:       true,
 		VerifyOutgoing:       true,
@@ -76,7 +86,8 @@ func NewTLSConfiguration(newConf *config.TLSConfig) *Config {
 		CertFile:             newConf.CertFile,
 		KeyFile:              newConf.KeyFile,
 		KeyLoader:            newConf.GetKeyLoader(),
-	}
+		CipherSuites:         ciphers,
+	}, nil
 }
 
 // AppendCA opens and parses the CA file and adds the certificates to
@@ -132,6 +143,7 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		RootCAs:            x509.NewCertPool(),
 		InsecureSkipVerify: true,
+		CipherSuites:       c.CipherSuites,
 	}
 	if c.VerifyServerHostname {
 		tlsConfig.InsecureSkipVerify = false
@@ -248,8 +260,9 @@ func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		ClientCAs:  x509.NewCertPool(),
-		ClientAuth: tls.NoClientCert,
+		ClientCAs:    x509.NewCertPool(),
+		ClientAuth:   tls.NoClientCert,
+		CipherSuites: c.CipherSuites,
 	}
 
 	// Parse the CA cert if any
@@ -278,4 +291,53 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	}
 
 	return tlsConfig, nil
+}
+
+// ParseCiphers parses ciphersuites from the comma-separated string into
+// recognized slice
+func ParseCiphers(cipherStr string) ([]uint16, error) {
+	suites := []uint16{}
+
+	cipherStr = strings.TrimSpace(cipherStr)
+
+	var ciphers []string
+	if cipherStr == "" {
+		// Set strong default values
+		ciphers = []string{"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+			"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+		}
+
+	} else {
+		ciphers = strings.Split(cipherStr, ",")
+	}
+
+	cipherMap := map[string]uint16{
+		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+		"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+		"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+		"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+		"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+	}
+	for _, cipher := range ciphers {
+		if v, ok := cipherMap[cipher]; ok {
+			suites = append(suites, v)
+		} else {
+			return suites, fmt.Errorf("unsupported cipher %q", cipher)
+		}
+	}
+
+	return suites, nil
 }
