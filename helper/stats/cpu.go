@@ -29,7 +29,7 @@ func Init() error {
 
 		var cpuInfo []cpu.InfoStat
 		if cpuInfo, err = cpu.Info(); err != nil {
-			merrs = multierror.Append(merrs, fmt.Errorf("Unable to obtain CPU information: %v", initErr))
+			merrs = multierror.Append(merrs, fmt.Errorf("Unable to obtain CPU information: %v", err))
 		}
 
 		for _, cpu := range cpuInfo {
