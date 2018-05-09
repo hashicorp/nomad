@@ -1325,6 +1325,7 @@ func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
 
 	state := s1.fsm.State()
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
+	require.Nil(err)
 
 	// Create a failed alloc
 	alloc := mock.Alloc()

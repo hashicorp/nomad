@@ -224,9 +224,14 @@ func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *W
 }
 
 // ForceEvaluate is used to force-evaluate an existing job.
-func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) ForceEvaluate(jobID string, opts EvalOptions, q *WriteOptions) (string, *WriteMeta, error) {
+	req := &JobEvaluateRequest{
+		JobID:       jobID,
+		EvalOptions: opts,
+	}
+
 	var resp JobRegisterResponse
-	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", nil, &resp, q)
+	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", req, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1031,4 +1036,16 @@ type JobStabilityRequest struct {
 type JobStabilityResponse struct {
 	JobModifyIndex uint64
 	WriteMeta
+}
+
+// JobEvaluateRequest is used when we just need to re-evaluate a target job
+type JobEvaluateRequest struct {
+	JobID       string
+	EvalOptions EvalOptions
+	WriteRequest
+}
+
+// EvalOptions is used to encapsulate options when forcing a job evaluation
+type EvalOptions struct {
+	ForceReschedule bool
 }

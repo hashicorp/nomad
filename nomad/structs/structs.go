@@ -470,6 +470,7 @@ type JobEvaluateRequest struct {
 	WriteRequest
 }
 
+// EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
 }
