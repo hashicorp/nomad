@@ -234,6 +234,7 @@ type DockerDriverConfig struct {
 	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
 	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
 	CPUHardLimit         bool                `mapstructure:"cpu_hard_limit"`         // Enforce CPU hard limit.
+	MemoryMB             int64               `mapstructure:"memory_mb"`              // Hard memory limit for docker container: 0 - use value from resources, -1 - no limit
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -736,6 +737,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"cpu_hard_limit": {
 				Type: fields.TypeBool,
 			},
+			"memory_mb": {
+				Type: fields.TypeInt,
+			},
 		},
 	}
 
@@ -1191,7 +1195,14 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		config.WorkingDir = driverConfig.WorkDir
 	}
 
-	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
+	var memLimit int64
+	if driverConfig.MemoryMB == 0 {
+		memLimit = int64(task.Resources.MemoryMB) * 1024 * 1024
+	} else if driverConfig.MemoryMB < 0 {
+		memLimit = 0
+	} else {
+		memLimit = driverConfig.MemoryMB * 1024 * 1024
+	}
 
 	if len(driverConfig.Logging) == 0 {
 		if runtime.GOOS == "darwin" {
