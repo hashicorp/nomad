@@ -546,6 +546,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	forceRescheduleAllocs := make(map[string]*structs.DesiredTransition)
+
 	if args.EvalOptions.ForceReschedule {
 		// Find any failed allocs that could be force rescheduled
 		allocs, err := snap.AllocsByJob(ws, args.RequestNamespace(), args.JobID, false)
@@ -556,7 +557,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		for _, alloc := range allocs {
 			taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
 			// Forcing rescheduling is only allowed if task group has rescheduling enabled
-			if taskGroup != nil && taskGroup.ReschedulePolicy != nil && taskGroup.ReschedulePolicy.Enabled() {
+			if taskGroup == nil || taskGroup.ReschedulePolicy == nil || !taskGroup.ReschedulePolicy.Enabled() {
 				continue
 			}
 
