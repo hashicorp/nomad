@@ -103,6 +103,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+	flags.BoolVar(&cmdConfig.UiEnabled, "ui", false, "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -902,6 +903,9 @@ General Options (clients and servers):
     dual-role agent (client + server) which is useful for developing
     or testing Nomad. No other configuration is required to start the
     agent in this mode.
+
+  -ui
+    Enables the built-in web UI server and the required HTTP routes.
 
 Server Options:
 
