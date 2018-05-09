@@ -553,6 +553,7 @@ type NodeListStub struct {
 	SchedulingEligibility string
 	Status                string
 	StatusDescription     string
+	Drivers               map[string]*DriverInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }

@@ -1523,6 +1523,7 @@ func (n *Node) Stub() *NodeListStub {
 		SchedulingEligibility: n.SchedulingEligibility,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
+		Drivers:               n.Drivers,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -1541,6 +1542,7 @@ type NodeListStub struct {
 	SchedulingEligibility string
 	Status                string
 	StatusDescription     string
+	Drivers               map[string]*DriverInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
