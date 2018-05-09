@@ -253,7 +253,8 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	go func() {
 		for {
 			if _, err := conn.Read(nil); err != nil {
-				if err == io.EOF {
+				if err == io.EOF || err == io.ErrClosedPipe {
+					// One end of the pipe was explicitly closed, exit cleanly
 					cancel()
 					return
 				}

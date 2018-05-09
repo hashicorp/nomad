@@ -476,7 +476,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	}
 	reply.NodeModifyIndex = index
 
-	// If the node is transistioning to be eligible, create Node evaluations
+	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.MarkEligible && args.DrainStrategy == nil {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
@@ -556,7 +556,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		}
 	}
 
-	// If the node is transistioning to be eligible, create Node evaluations
+	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.Eligibility == structs.NodeSchedulingEligible {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)

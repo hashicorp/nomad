@@ -50,7 +50,8 @@ type AllocRunner struct {
 	alloc                  *structs.Allocation
 	allocClientStatus      string // Explicit status of allocation. Set when there are failures
 	allocClientDescription string
-	allocHealth            *bool // Whether the allocation is healthy
+	allocHealth            *bool     // Whether the allocation is healthy
+	allocHealthTime        time.Time // Time at which allocation health has been set
 	allocBroadcast         *cstructs.AllocBroadcaster
 	allocLock              sync.Mutex
 
@@ -580,6 +581,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
 		}
 		alloc.DeploymentStatus.Healthy = helper.BoolToPtr(*r.allocHealth)
+		alloc.DeploymentStatus.Timestamp = r.allocHealthTime
 	}
 	r.allocLock.Unlock()
 
@@ -943,6 +945,7 @@ OUTER:
 			// If the deployment ids have changed clear the health
 			if r.alloc.DeploymentID != update.DeploymentID {
 				r.allocHealth = nil
+				r.allocHealthTime = time.Time{}
 			}
 
 			r.alloc = update

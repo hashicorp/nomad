@@ -788,6 +788,9 @@ type DeploymentAllocHealthRequest struct {
 type ApplyDeploymentAllocHealthRequest struct {
 	DeploymentAllocHealthRequest
 
+	// Timestamp is the timestamp to use when setting the allocations health.
+	Timestamp time.Time
+
 	// An optional field to update the status of a deployment
 	DeploymentUpdate *DeploymentStatusUpdate
 
@@ -2478,13 +2481,14 @@ var (
 	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
-		Stagger:         30 * time.Second,
-		MaxParallel:     1,
-		HealthCheck:     UpdateStrategyHealthCheck_Checks,
-		MinHealthyTime:  10 * time.Second,
-		HealthyDeadline: 5 * time.Minute,
-		AutoRevert:      false,
-		Canary:          0,
+		Stagger:          30 * time.Second,
+		MaxParallel:      1,
+		HealthCheck:      UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:   10 * time.Second,
+		HealthyDeadline:  5 * time.Minute,
+		ProgressDeadline: 10 * time.Minute,
+		AutoRevert:       false,
+		Canary:           0,
 	}
 )
 
@@ -2510,6 +2514,12 @@ type UpdateStrategy struct {
 	// healthy before it is automatically transitioned to unhealthy. This time
 	// period doesn't count against the MinHealthyTime.
 	HealthyDeadline time.Duration
+
+	// ProgressDeadline is the time in which an allocation as part of the
+	// deployment must transition to healthy. If no allocation becomes healthy
+	// after the deadline, the deployment is marked as failed. If the deadline
+	// is zero, the first failure causes the deployment to fail.
+	ProgressDeadline time.Duration
 
 	// AutoRevert declares that if a deployment fails because of unhealthy
 	// allocations, there should be an attempt to auto-revert the job to a
@@ -2555,8 +2565,14 @@ func (u *UpdateStrategy) Validate() error {
 	if u.HealthyDeadline <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
 	}
+	if u.ProgressDeadline < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Progress deadline must be zero or greater: %v", u.ProgressDeadline))
+	}
 	if u.MinHealthyTime >= u.HealthyDeadline {
 		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
+	}
+	if u.ProgressDeadline != 0 && u.HealthyDeadline >= u.ProgressDeadline {
+		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be less than progress deadline: %v > %v", u.HealthyDeadline, u.ProgressDeadline))
 	}
 	if u.Stagger <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
@@ -3734,8 +3750,9 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags   []string        // List of tags for the service
-	Checks []*ServiceCheck // List of checks associated with the service
+	Tags       []string        // List of tags for the service
+	CanaryTags []string        // List of tags for the service when it is a canary
+	Checks     []*ServiceCheck // List of checks associated with the service
 }
 
 func (s *Service) Copy() *Service {
@@ -3745,6 +3762,7 @@ func (s *Service) Copy() *Service {
 	ns := new(Service)
 	*ns = *s
 	ns.Tags = helper.CopySliceString(ns.Tags)
+	ns.CanaryTags = helper.CopySliceString(ns.CanaryTags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -3764,6 +3782,9 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	// using DeepEquals
 	if len(s.Tags) == 0 {
 		s.Tags = nil
+	}
+	if len(s.CanaryTags) == 0 {
+		s.CanaryTags = nil
 	}
 	if len(s.Checks) == 0 {
 		s.Checks = nil
@@ -3832,7 +3853,7 @@ func (s *Service) ValidateName(name string) error {
 
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
 // as they're hashed independently.
-func (s *Service) Hash(allocID, taskName string) string {
+func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	h := sha1.New()
 	io.WriteString(h, allocID)
 	io.WriteString(h, taskName)
@@ -3841,6 +3862,14 @@ func (s *Service) Hash(allocID, taskName string) string {
 	io.WriteString(h, s.AddressMode)
 	for _, tag := range s.Tags {
 		io.WriteString(h, tag)
+	}
+	for _, tag := range s.CanaryTags {
+		io.WriteString(h, tag)
+	}
+
+	// Vary ID on whether or not CanaryTags will be used
+	if canary {
+		h.Write([]byte("Canary"))
 	}
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
@@ -5300,6 +5329,7 @@ const (
 	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
 	DeploymentStatusDescriptionNewerJob              = "Cancelled due to newer version of job"
 	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
+	DeploymentStatusDescriptionProgressDeadline      = "Failed due to progress deadline"
 	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
 )
 
@@ -5452,6 +5482,14 @@ type DeploymentState struct {
 	// reverted on failure
 	AutoRevert bool
 
+	// ProgressDeadline is the deadline by which an allocation must transition
+	// to healthy before the deployment is considered failed.
+	ProgressDeadline time.Duration
+
+	// RequireProgressBy is the time by which an allocation must transition
+	// to healthy before the deployment is considered failed.
+	RequireProgressBy time.Time
+
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
 
@@ -5563,6 +5601,13 @@ type DesiredTransition struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
 	Migrate *bool
+
+	// Reschedule is used to indicate that this allocation is eligible to be
+	// rescheduled. Most allocations are automatically eligible for
+	// rescheduling, so this field is only required when an allocation is not
+	// automatically eligible. An example is an allocation that is part of a
+	// deployment.
+	Reschedule *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -5571,11 +5616,21 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Migrate != nil {
 		d.Migrate = o.Migrate
 	}
+
+	if o.Reschedule != nil {
+		d.Reschedule = o.Reschedule
+	}
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.
 func (d *DesiredTransition) ShouldMigrate() bool {
 	return d.Migrate != nil && *d.Migrate
+}
+
+// ShouldReschedule returns whether the transition object dictates a
+// rescheduling.
+func (d *DesiredTransition) ShouldReschedule() bool {
+	return d.Reschedule != nil && *d.Reschedule
 }
 
 const (
@@ -5997,6 +6052,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		DesiredDescription: a.DesiredDescription,
 		ClientStatus:       a.ClientStatus,
 		ClientDescription:  a.ClientDescription,
+		DesiredTransition:  a.DesiredTransition,
 		TaskStates:         a.TaskStates,
 		DeploymentStatus:   a.DeploymentStatus,
 		FollowupEvalID:     a.FollowupEvalID,
@@ -6021,6 +6077,7 @@ type AllocListStub struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	DesiredTransition  DesiredTransition
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
 	FollowupEvalID     string
@@ -6172,6 +6229,13 @@ type AllocDeploymentStatus struct {
 	// healthy or unhealthy.
 	Healthy *bool
 
+	// Timestamp is the time at which the health status was set.
+	Timestamp time.Time
+
+	// Canary marks whether the allocation is a canary or not. A canary that has
+	// been promoted will have this field set to false.
+	Canary bool
+
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
@@ -6200,6 +6264,15 @@ func (a *AllocDeploymentStatus) IsUnhealthy() bool {
 	}
 
 	return a.Healthy != nil && !*a.Healthy
+}
+
+// IsCanary returns if the allocation is marked as a canary
+func (a *AllocDeploymentStatus) IsCanary() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Canary
 }
 
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {

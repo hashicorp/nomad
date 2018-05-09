@@ -39,16 +39,16 @@ func (m *mockBackend) nextIndex() uint64 {
 	return i
 }
 
-func (m *mockBackend) UpsertEvals(evals []*structs.Evaluation) (uint64, error) {
-	m.Called(evals)
+func (m *mockBackend) UpdateAllocDesiredTransition(u *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
+	m.Called(u)
 	i := m.nextIndex()
-	return i, m.state.UpsertEvals(i, evals)
+	return i, m.state.UpdateAllocsDesiredTransitions(i, u.Allocs, u.Evals)
 }
 
-// matchUpsertEvals is used to match an upsert request
-func matchUpsertEvals(deploymentIDs []string) func(evals []*structs.Evaluation) bool {
-	return func(evals []*structs.Evaluation) bool {
-		if len(evals) != len(deploymentIDs) {
+// matchUpdateAllocDesiredTransitions is used to match an upsert request
+func matchUpdateAllocDesiredTransitions(deploymentIDs []string) func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+	return func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+		if len(update.Evals) != len(deploymentIDs) {
 			return false
 		}
 
@@ -57,12 +57,33 @@ func matchUpsertEvals(deploymentIDs []string) func(evals []*structs.Evaluation) 
 			dmap[d] = struct{}{}
 		}
 
-		for _, e := range evals {
+		for _, e := range update.Evals {
 			if _, ok := dmap[e.DeploymentID]; !ok {
 				return false
 			}
 
 			delete(dmap, e.DeploymentID)
+		}
+
+		return true
+	}
+}
+
+// matchUpdateAllocDesiredTransitionReschedule is used to match allocs that have their DesiredTransition set to Reschedule
+func matchUpdateAllocDesiredTransitionReschedule(allocIDs []string) func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+	return func(update *structs.AllocUpdateDesiredTransitionRequest) bool {
+		amap := make(map[string]struct{}, len(allocIDs))
+		for _, d := range allocIDs {
+			amap[d] = struct{}{}
+		}
+
+		for allocID, dt := range update.Allocs {
+			if _, ok := amap[allocID]; !ok {
+				return false
+			}
+			if !*dt.Reschedule {
+				return false
+			}
 		}
 
 		return true
@@ -193,6 +214,11 @@ type matchDeploymentAllocHealthRequestConfig struct {
 func matchDeploymentAllocHealthRequest(c *matchDeploymentAllocHealthRequestConfig) func(args *structs.ApplyDeploymentAllocHealthRequest) bool {
 	return func(args *structs.ApplyDeploymentAllocHealthRequest) bool {
 		if args.DeploymentID != c.DeploymentID {
+			return false
+		}
+
+		// Require a timestamp
+		if args.Timestamp.IsZero() {
 			return false
 		}
 
