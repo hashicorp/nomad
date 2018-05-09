@@ -4571,7 +4571,7 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 	assertPlaceResultsHavePreviousAllocs(t, 10, r.place)
 }
 
-// Tests rescheduling failed service allocations with desired state stop
+// Tests force rescheduling a failed alloc that is past its reschedule limit
 func TestReconciler_ForceReschedule_Service(t *testing.T) {
 	require := require.New(t)
 
