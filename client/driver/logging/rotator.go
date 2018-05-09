@@ -15,8 +15,11 @@ import (
 )
 
 const (
-	bufSize  = 32768
-	flushDur = 100 * time.Millisecond
+	// logBufferSize is the size of the buffer.
+	logBufferSize = 32768
+
+	// bufferFlushDuration is the duration at which we flush the buffer.
+	bufferFlushDuration = 100 * time.Millisecond
 )
 
 // FileRotator writes bytes to a rotated set of files
@@ -53,7 +56,7 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		path:         path,
 		baseFileName: baseFile,
 
-		flushTicker: time.NewTicker(flushDur),
+		flushTicker: time.NewTicker(bufferFlushDuration),
 		logger:      logger,
 		purgeCh:     make(chan struct{}, 1),
 		doneCh:      make(chan struct{}, 1),
@@ -283,7 +286,7 @@ func (f *FileRotator) createOrResetBuffer() {
 	f.bufLock.Lock()
 	defer f.bufLock.Unlock()
 	if f.bufw == nil {
-		f.bufw = bufio.NewWriterSize(f.currentFile, bufSize)
+		f.bufw = bufio.NewWriterSize(f.currentFile, logBufferSize)
 	} else {
 		f.bufw.Reset(f.currentFile)
 	}
