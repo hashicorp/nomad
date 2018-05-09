@@ -1,12 +1,21 @@
 package stats
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/cpu"
+)
+
+const (
+	// cpuInfoTimeout is the timeout used when gathering CPU info. This is used
+	// to override the default timeout in gopsutil which has a tendency to
+	// timeout on Windows.
+	cpuInfoTimeout = 10 * time.Second
 )
 
 var (
@@ -28,7 +37,8 @@ func Init() error {
 		}
 
 		var cpuInfo []cpu.InfoStat
-		if cpuInfo, err = cpu.Info(); err != nil {
+		ctx, _ := context.WithTimeout(context.Background(), cpuInfoTimeout)
+		if cpuInfo, err = cpu.InfoWithContext(ctx); err != nil {
 			merrs = multierror.Append(merrs, fmt.Errorf("Unable to obtain CPU information: %v", err))
 		}
 
