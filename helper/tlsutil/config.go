@@ -12,6 +12,40 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
+// supportedTLSVersions are the current TLS versions that Nomad supports
+var supportedTLSVersions = map[string]uint16{
+	"tls10": tls.VersionTLS10,
+	"tls11": tls.VersionTLS11,
+	"tls12": tls.VersionTLS12,
+}
+
+// supportedTLSCiphers are the complete list of TLS ciphers supported by Nomad
+var supportedTLSCiphers = map[string]uint16{
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+	"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+	"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+	"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+}
+
+// defaultTLSCiphers are the TLS Ciphers that are supported by default
+var defaultTLSCiphers = []string{"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+}
+
 // RegionSpecificWrapper is used to invoke a static Region and turns a
 // RegionWrapper into a Wrapper type.
 func RegionSpecificWrapper(region string, tlsWrap RegionWrapper) Wrapper {
@@ -70,10 +104,18 @@ type Config struct {
 	// CipherSuites have a default safe configuration, or operators can override
 	// these values for acceptable safe alternatives.
 	CipherSuites []uint16
+
+	// MinVersion contains the minimum SSL/TLS version that is accepted.
+	MinVersion uint16
 }
 
 func NewTLSConfiguration(newConf *config.TLSConfig) (*Config, error) {
 	ciphers, err := ParseCiphers(newConf.TLSCipherSuites)
+	if err != nil {
+		return nil, err
+	}
+
+	minVersion, err := ParseMinVersion(newConf.TLSMinVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +129,7 @@ func NewTLSConfiguration(newConf *config.TLSConfig) (*Config, error) {
 		KeyFile:              newConf.KeyFile,
 		KeyLoader:            newConf.GetKeyLoader(),
 		CipherSuites:         ciphers,
+		MinVersion:           minVersion,
 	}, nil
 }
 
@@ -144,6 +187,7 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 		RootCAs:            x509.NewCertPool(),
 		InsecureSkipVerify: true,
 		CipherSuites:       c.CipherSuites,
+		MinVersion:         c.MinVersion,
 	}
 	if c.VerifyServerHostname {
 		tlsConfig.InsecureSkipVerify = false
@@ -263,6 +307,7 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 		ClientCAs:    x509.NewCertPool(),
 		ClientAuth:   tls.NoClientCert,
 		CipherSuites: c.CipherSuites,
+		MinVersion:   c.MinVersion,
 	}
 
 	// Parse the CA cert if any
@@ -302,42 +347,32 @@ func ParseCiphers(cipherStr string) ([]uint16, error) {
 
 	var ciphers []string
 	if cipherStr == "" {
-		// Set strong default values
-		ciphers = []string{"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-			"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-			"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-		}
+		ciphers = defaultTLSCiphers
 
 	} else {
 		ciphers = strings.Split(cipherStr, ",")
 	}
-
-	cipherMap := map[string]uint16{
-		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-		"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-		"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-		"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
-		"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-	}
 	for _, cipher := range ciphers {
-		if v, ok := cipherMap[cipher]; ok {
-			suites = append(suites, v)
-		} else {
-			return suites, fmt.Errorf("unsupported cipher %q", cipher)
+		c, ok := supportedTLSCiphers[cipher]
+		if !ok {
+			return suites, fmt.Errorf("unsupported TLS cipher %q", cipher)
 		}
+		suites = append(suites, c)
 	}
 
 	return suites, nil
+}
+
+// ParseMinVersion parses the specified minimum TLS version for the Nomad agent
+func ParseMinVersion(version string) (uint16, error) {
+	if version == "" {
+		return supportedTLSVersions["tls12"], nil
+	}
+
+	vers, ok := supportedTLSVersions[version]
+	if !ok {
+		return 0, fmt.Errorf("unsupported TLS version %q", version)
+	}
+
+	return vers, nil
 }

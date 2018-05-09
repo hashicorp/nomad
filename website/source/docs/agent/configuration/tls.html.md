@@ -64,6 +64,9 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
   TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, and
   TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.
 
+- `tls_min_version` - Specifies the minimum supported version of TLS. Accepted
+  values are "tls10", "tls11", "tls12". Defaults to TLS 1.2.
+
 - `verify_https_client` `(bool: false)` - Specifies agents should require
   client certificates for all incoming HTTPS requests. The client certificates
   must be signed by the same CA as Nomad.

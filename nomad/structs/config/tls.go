@@ -59,6 +59,10 @@ type TLSConfig struct {
 	// TLSCipherSuites are operator-defined ciphers to be used in Nomad TLS
 	// connections
 	TLSCipherSuites string `mapstructure:"tls_cipher_suites"`
+
+	// TLSMinVersion is used to set the minimum TLS version used for TLS
+	// connections. Should be either "tls10", "tls11", or "tls12".
+	TLSMinVersion string `mapstructure:"tls_min_version"`
 }
 
 type KeyLoader struct {
@@ -150,6 +154,9 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.KeyFile = t.KeyFile
 	new.RPCUpgradeMode = t.RPCUpgradeMode
 	new.VerifyHTTPSClient = t.VerifyHTTPSClient
+
+	new.TLSCipherSuites = t.TLSCipherSuites
+	new.TLSMinVersion = t.TLSMinVersion
 
 	new.SetChecksum()
 

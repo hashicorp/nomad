@@ -762,6 +762,7 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"key_file",
 		"verify_https_client",
 		"tls_cipher_suites",
+		"tls_min_version",
 	}
 
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
@@ -779,6 +780,10 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 	}
 
 	if _, err := tlsutil.ParseCiphers(tlsConfig.TLSCipherSuites); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseMinVersion(tlsConfig.TLSMinVersion); err != nil {
 		return err
 	}
 

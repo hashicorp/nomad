@@ -491,7 +491,43 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	for _, cipher := range invalidCiphers {
 		parsedCiphers, err := ParseCiphers(cipher)
 		require.NotNil(err)
-		require.Equal(fmt.Sprintf("unsupported cipher %q", cipher), err.Error())
+		require.Equal(fmt.Sprintf("unsupported TLS cipher %q", cipher), err.Error())
 		require.Equal(0, len(parsedCiphers))
+	}
+}
+
+func TestConfig_ParseMinVersion_Valid(t *testing.T) {
+	require := require.New(t)
+
+	validVersions := []string{"tls10",
+		"tls11",
+		"tls12",
+	}
+
+	expected := map[string]uint16{
+		"tls10": tls.VersionTLS10,
+		"tls11": tls.VersionTLS11,
+		"tls12": tls.VersionTLS12,
+	}
+
+	for _, version := range validVersions {
+		parsedVersion, err := ParseMinVersion(version)
+		require.Nil(err)
+		require.Equal(expected[version], parsedVersion)
+	}
+}
+
+func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
+	require := require.New(t)
+
+	invalidVersions := []string{"tls13",
+		"tls15",
+	}
+
+	for _, version := range invalidVersions {
+		parsedVersion, err := ParseMinVersion(version)
+		require.NotNil(err)
+		require.Equal(fmt.Sprintf("unsupported TLS version %q", version), err.Error())
+		require.Equal(uint16(0), parsedVersion)
 	}
 }
