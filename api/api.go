@@ -282,6 +282,8 @@ func (c *Config) SetTimeout(t time.Duration) error {
 			Timeout:   t,
 			KeepAlive: 30 * time.Second,
 		}).DialContext
+
+		c.httpClient.Timeout = t
 	}
 
 	return nil
