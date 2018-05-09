@@ -30,6 +30,10 @@ export default Controller.extend(Sortable, Searchable, {
       .reverse();
   }),
 
+  sortedDrivers: computed('model.drivers.@each.name', function() {
+    return this.get('model.drivers').sortBy('name');
+  }),
+
   actions: {
     gotoAllocation(allocation) {
       this.transitionToRoute('allocations.allocation', allocation);

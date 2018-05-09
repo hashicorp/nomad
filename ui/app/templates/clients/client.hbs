@@ -123,6 +123,64 @@
 
     <div class="boxed-section">
       <div class="boxed-section-head">
+        Driver Status
+      </div>
+      <div class="boxed-section-body">
+        {{#list-accordion source=sortedDrivers key="name" as |a|}}
+          {{#a.head buttonLabel="details" isExpandable=a.item.detected}}
+            <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
+              <div class="column is-1">
+                <span>{{a.item.name}}</span>
+              </div>
+              <div class="column is-2">
+                {{#if a.item.detected}}
+                  <span>
+                    <span class="color-swatch {{a.item.healthClass}}"></span>
+                    {{if a.item.healthy "Healthy" "Unhealthy"}}
+                  </span>
+                {{/if}}
+              </div>
+              <div class="column">
+                <span class="pair">
+                  <span class="term">Detected</span>
+                  {{if a.item.detected "Yes" "No"}}
+                </span>
+                <span class="is-pulled-right">
+                  <span class="pair">
+                    <span class="term">Last Updated</span>
+                    {{moment-from-now a.item.updateTime interval=1000}}
+                  </span>
+                </span>
+              </div>
+            </div>
+          {{/a.head}}
+          {{#a.body}}
+            <p class="message">{{a.item.healthDescription}}</p>
+            <div class="boxed-section">
+              <div class="boxed-section-head">
+                 {{capitalize a.item.name}} Attributes
+              </div>
+              {{#if a.item.attributes.attributesStructured}}
+                <div class="boxed-section-body is-full-bleed">
+                  {{attributes-table
+                    attributes=a.item.attributes.attributesStructured
+                    class="attributes-table"}}
+                </div>
+              {{else}}
+                <div class="boxed-section-body">
+                  <div class="empty-message">
+                    <h3 class="empty-message-headline">No Driver Attributes</h3>
+                  </div>
+                </div>
+              {{/if}}
+            </div>
+          {{/a.body}}
+        {{/list-accordion}}
+      </div>
+    </div>
+
+    <div class="boxed-section">
+      <div class="boxed-section-head">
         Attributes
       </div>
       <div class="boxed-section-body is-full-bleed">
