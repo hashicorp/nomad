@@ -452,6 +452,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 
 	tlsConf, err := tlsutil.NewTLSConfiguration(newTLSConfig)
 	if err != nil {
+		s.logger.Printf("[ERR] nomad: unable to create TLS configuration %s", err)
 		return err
 	}
 
