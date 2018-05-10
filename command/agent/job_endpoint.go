@@ -92,8 +92,8 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	}
 	var args structs.JobEvaluateRequest
 
-	// TODO(preetha) remove in 0.9
-	// For backwards compatibility allow using this endpoint without a payload
+	// TODO(preetha): remove in 0.9
+	// COMPAT: For backwards compatibility allow using this endpoint without a payload
 	if req.ContentLength == 0 {
 		args = structs.JobEvaluateRequest{
 			JobID: jobName,

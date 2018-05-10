@@ -13,7 +13,7 @@ The `job eval` command is used to force an evaluation of a job, given the job ID
 ## Usage
 
 ```
-nomad job eval [options] <jobID>
+nomad job eval [options] <job_id>
 ```
 
 The `job eval` command requires a single argument, specifying the job ID to evaluate.
@@ -26,8 +26,8 @@ the job will be evaluated, forcing a scheduler run.
 
 ## Eval Options
 
-* `-force-reschedule`: `force-reschedule` is used to force placement of any failed allocations.
-If this is set, failed allocations that are past their reschedule limit, as well as any that are
+* `-force-reschedule`: `force-reschedule` is used to force placement of failed allocations.
+If this is set, failed allocations that are past their reschedule limit, and those that are
 scheduled to be replaced at a future time are placed immediately. This option only places failed
 allocations if the task group has rescheduling enabled.
 

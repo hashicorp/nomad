@@ -557,11 +557,11 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		for _, alloc := range allocs {
 			taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
 			// Forcing rescheduling is only allowed if task group has rescheduling enabled
-			if taskGroup == nil || taskGroup.ReschedulePolicy == nil || !taskGroup.ReschedulePolicy.Enabled() {
+			if taskGroup == nil || !taskGroup.ReschedulePolicy.Enabled() {
 				continue
 			}
 
-			if alloc.NextAllocation == "" && alloc.ClientStatus == structs.AllocClientStatusFailed {
+			if alloc.NextAllocation == "" && alloc.ClientStatus == structs.AllocClientStatusFailed && !alloc.DesiredTransition.ShouldForceReschedule() {
 				forceRescheduleAllocs[alloc.ID] = allowForceRescheduleTransition
 			}
 		}

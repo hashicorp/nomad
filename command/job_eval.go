@@ -18,7 +18,9 @@ func (c *JobEvalCommand) Help() string {
 	helpText := `
 Usage: nomad job eval [options] <job_id>
 
-  Force an evaluation of the provided job id
+  Force an evaluation of the provided job ID. Forcing an evaluation will trigger the scheduler
+  to re-evaluate the job. The force flags allow operators to force the scheduler to create
+  new allocations under certain scenarios.
 
 General Options:
 
@@ -27,14 +29,14 @@ General Options:
 Eval Options:
 
   -force-reschedule
-    Force reschedule any failed allocations even if they are not currently
-    eligible for rescheduling
+    Force reschedule failed allocations even if they are not currently
+    eligible for rescheduling.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *JobEvalCommand) Synopsis() string {
-	return "Force evaluating a job using its job id"
+	return "Force an evaluation for the job using its job ID"
 }
 
 func (c *JobEvalCommand) AutocompleteFlags() complete.Flags {
@@ -59,7 +61,7 @@ func (c *JobEvalCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *JobEvalCommand) Name() string { return "eval" }
+func (c *JobEvalCommand) Name() string { return "job eval" }
 
 func (c *JobEvalCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -72,8 +74,8 @@ func (c *JobEvalCommand) Run(args []string) int {
 
 	// Check that we either got no jobs or exactly one.
 	args = flags.Args()
-	if len(args) > 1 {
-		c.Ui.Error("This command takes either no arguments or one: <job>")
+	if len(args) != 1 {
+		c.Ui.Error("This command takes one argument: <job>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -85,12 +87,7 @@ func (c *JobEvalCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(args) == 0 {
-		c.Ui.Error("Must provide a job ID")
-		return 1
-	}
-
-	// Call eval end point
+	// Call eval endpoint
 	jobID := args[0]
 
 	opts := api.EvalOptions{

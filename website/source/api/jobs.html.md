@@ -1385,7 +1385,7 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specify the ID of the job in the JSON payload
 
 - `EvalOptions` `(<optional>)` - Specify additional options to be used during the forced evaluation.
-    - `ForceReschedule` `(bool: false)` - If set, any failed allocations of the job are rescheduled
+    - `ForceReschedule` `(bool: false)` - If set, failed allocations of the job are rescheduled
     immediately. This is useful for operators to force immediate placement even if the failed allocations are past
     their reschedule limit, or are delayed by several hours because the allocation's reschedule policy has exponential delay.
 
@@ -1405,7 +1405,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    -d@sample.json \
+    -d @sample.json \
     https://localhost:4646/v1/job/my-job/evaluate
 ```
 
