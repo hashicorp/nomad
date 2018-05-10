@@ -40,6 +40,7 @@
           sortDescending=sortDescending
           class="is-striped" as |t|}}
           {{#t.head}}
+            <th class="is-narrow"></th>
             {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
             {{#t.sort-by prop="state"}}State{{/t.sort-by}}
             <th>Last Event</th>
@@ -48,6 +49,13 @@
           {{/t.head}}
           {{#t.body as |row|}}
             <tr data-test-task-row={{row.model.task.name}}>
+              <td class="is-narrow">
+                {{#if (not row.model.driverStatus.healthy)}}
+                  <span class="tooltip text-center" aria-label="{{row.model.driver}} is unhealthy">
+                    {{x-icon "warning" class="is-warning"}}
+                  </span>
+                {{/if}}
+              </td>
               <td data-test-name>
                 {{#link-to "allocations.allocation.task" row.model.allocation row.model}}
                   {{row.model.name}}
