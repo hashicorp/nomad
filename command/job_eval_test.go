@@ -90,7 +90,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 	err = state.UpsertAllocs(12, []*structs.Allocation{alloc})
 	require.Nil(err)
 
-	if code := cmd.Run([]string{"-address=" + url, "-force-reschedule", job.ID}); code != 0 {
+	if code := cmd.Run([]string{"-address=" + url, "-force-reschedule", "-detach", job.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
 	}
 
