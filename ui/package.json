@@ -72,6 +72,7 @@
     "json-formatter-js": "^2.2.0",
     "lint-staged": "^6.0.0",
     "loader.js": "^4.2.3",
+    "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
     "query-string": "^5.0.0"
   },

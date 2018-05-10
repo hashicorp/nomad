@@ -48,4 +48,8 @@ export default Model.extend({
   unhealthyDrivers: computed('detectedDrivers.@each.healthy', function() {
     return this.get('detectedDrivers').filterBy('healthy', false);
   }),
+
+  unhealthyDriverNames: computed('unhealthyDrivers.@each.name', function() {
+    return this.get('unhealthyDrivers').mapBy('name');
+  }),
 });
