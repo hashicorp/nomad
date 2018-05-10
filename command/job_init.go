@@ -95,10 +95,6 @@ job "example" {
   datacenters = ["dc1"]
 
   group "cache" {
-    ephemeral_disk {
-      size = 300
-    }
-
     task "redis" {
       driver = "docker"
 
