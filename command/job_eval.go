@@ -31,6 +31,13 @@ Eval Options:
   -force-reschedule
     Force reschedule failed allocations even if they are not currently
     eligible for rescheduling.
+  -detach
+    Return immediately instead of entering monitor mode. After deployment
+    resume, the evaluation ID will be printed to the screen, which can be used
+    to examine the evaluation using the eval-status command.
+
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,6 +50,8 @@ func (c *JobEvalCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-force-reschedule": complete.PredictNothing,
+			"-detach":           complete.PredictNothing,
+			"-verbose":          complete.PredictNothing,
 		})
 }
 
@@ -64,9 +73,13 @@ func (c *JobEvalCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobEvalCommand) Name() string { return "job eval" }
 
 func (c *JobEvalCommand) Run(args []string) int {
+	var detach, verbose bool
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.forceRescheduling, "force-reschedule", false, "")
+	flags.BoolVar(&detach, "detach", false, "")
+	flags.BoolVar(&verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -87,6 +100,11 @@ func (c *JobEvalCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
 	// Call eval endpoint
 	jobID := args[0]
 
@@ -98,6 +116,12 @@ func (c *JobEvalCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error evaluating job: %s", err))
 		return 1
 	}
-	c.Ui.Output(fmt.Sprintf("Created eval ID: %q ", evalId))
+	c.Ui.Output(fmt.Sprintf("Created eval ID: %q ", limit(evalId, length)))
+	if detach {
+		return 0
+	}
+
+	mon := newMonitor(c.Ui, client, length)
+	return mon.monitor(evalId, false)
 	return 0
 }
