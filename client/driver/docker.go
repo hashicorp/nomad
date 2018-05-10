@@ -2130,13 +2130,13 @@ func authFromHelper(helperName string) authBackend {
 		helper := dockerAuthHelperPrefix + helperName
 		cmd := exec.Command(helper, "get")
 
-		repoInfo, err := parseRepositoryInfo(repo)
+		repoParsed, err := reference.ParseNamed(repo)
 		if err != nil {
 			return nil, err
 		}
 
 		// Ensure that the HTTPs prefix exists
-		repoAddr := fmt.Sprintf("https://%s", repoInfo.Hostname())
+		repoAddr := fmt.Sprintf("https://%s", repoParsed.Hostname())
 
 		cmd.Stdin = strings.NewReader(repoAddr)
 		output, err := cmd.Output()
