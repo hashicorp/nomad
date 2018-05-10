@@ -49,6 +49,9 @@ Node Drain Options:
   -detach
     Return immediately instead of entering monitor mode.
 
+  -monitor
+    Enter monitor mode directly without modifying the drain status.
+
   -force
     Force remove allocations off the node immediately.
 
@@ -136,7 +139,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Check that enable or disable is not set with monitor
-	if monitor && enable || monitor && disable {
+	if monitor && (enable || disable) {
 		c.Ui.Error("The -monitor flag cannot be used with the '-enable' or '-disable' flags")
 		c.Ui.Error(commandErrorText(c))
 		return 1
