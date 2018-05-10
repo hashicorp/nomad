@@ -169,6 +169,72 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 	})
 }
 
+func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
+	t.Parallel()
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	fr, err := NewFileRotator(path, baseFileName, 10, 5, logger)
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	// We will write two times:
+	// 1st: Write with new lines spanning two files
+	// 2nd: Write long string with no new lines
+	expectations := [][]byte{
+		[]byte("ab\n"),
+		[]byte("cdef\n"),
+		[]byte("12345"),
+		[]byte("6789"),
+	}
+	str1 := "ab\ncdef\n"
+	str2 := "123456789"
+
+	nw, err := fr.Write([]byte(str1))
+	if err != nil {
+		t.Fatalf("got error while writing: %v", err)
+	}
+
+	if nw != len(str1) {
+		t.Fatalf("expected %v, got %v", len(str1), nw)
+	}
+
+	nw, err = fr.Write([]byte(str2))
+	if err != nil {
+		t.Fatalf("got error while writing: %v", err)
+	}
+
+	if nw != len(str2) {
+		t.Fatalf("expected %v, got %v", len(str2), nw)
+	}
+
+	var lastErr error
+	testutil.WaitForResult(func() (bool, error) {
+
+		for i, exp := range expectations {
+			fname := filepath.Join(path, fmt.Sprintf("redis.stdout.%d", i))
+			fi, err := os.Stat(fname)
+			if err != nil {
+				lastErr = err
+				return false, nil
+			}
+			if int(fi.Size()) != len(exp) {
+				lastErr = fmt.Errorf("expected size: %v, actual: %v", len(exp), fi.Size())
+				return false, nil
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("%v", lastErr)
+	})
+}
+
 func TestFileRotator_WriteRemaining(t *testing.T) {
 	t.Parallel()
 	var path string
