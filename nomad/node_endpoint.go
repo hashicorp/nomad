@@ -27,6 +27,11 @@ const (
 	// maxParallelRequestsPerDerive  is the maximum number of parallel Vault
 	// create token requests that may be outstanding per derive request
 	maxParallelRequestsPerDerive = 16
+
+	// NodeDrainEvents are the various drain messages
+	NodeDrainEventDrainSet      = "Node drain strategy set"
+	NodeDrainEventDrainDisabled = "Node drain disabled"
+	NodeDrainEventDrainUpdated  = "Node drain stategy updated"
 )
 
 // Node endpoint is used for client interactions
@@ -469,6 +474,18 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Mark the deadline time
 	if args.DrainStrategy != nil && args.DrainStrategy.Deadline.Nanoseconds() > 0 {
 		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline)
+	}
+
+	// Construct the node event
+	args.NodeEvent = structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemDrain)
+	if node.DrainStrategy == nil && args.DrainStrategy == nil {
+		return nil // Nothing to do
+	} else if node.DrainStrategy == nil && args.DrainStrategy != nil {
+		args.NodeEvent.SetMessage(NodeDrainEventDrainSet)
+	} else if node.DrainStrategy != nil && args.DrainStrategy != nil {
+		args.NodeEvent.SetMessage(NodeDrainEventDrainUpdated)
+	} else if node.DrainStrategy != nil && args.DrainStrategy == nil {
+		args.NodeEvent.SetMessage(NodeDrainEventDrainDisabled)
 	}
 
 	// Commit this update via Raft

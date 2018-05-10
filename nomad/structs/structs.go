@@ -1229,6 +1229,33 @@ func (ne *NodeEvent) Copy() *NodeEvent {
 	return c
 }
 
+// NewNodeEvent generates a new node event storing the current time as the
+// timestamp
+func NewNodeEvent() *NodeEvent {
+	return &NodeEvent{Timestamp: time.Now()}
+}
+
+// SetMessage is used to set the message on the node event
+func (ne *NodeEvent) SetMessage(msg string) *NodeEvent {
+	ne.Message = msg
+	return ne
+}
+
+// SetSubsystem is used to set the subsystem on the node event
+func (ne *NodeEvent) SetSubsystem(sys string) *NodeEvent {
+	ne.Subsystem = sys
+	return ne
+}
+
+// AddDetail is used to add a detail to the node event
+func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
+	if ne.Details == nil {
+		ne.Details = make(map[string]string, 1)
+	}
+	ne.Details[k] = v
+	return ne
+}
+
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"

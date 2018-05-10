@@ -845,6 +845,8 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(out.Drain)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
+	require.Len(out.Events, 2)
+	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
 
 	// before+deadline should be before the forced deadline
 	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
