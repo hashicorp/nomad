@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -288,4 +289,49 @@ func TestFileRotator_PurgeOldFiles(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("%v", lastErr)
 	})
+}
+
+func BenchmarkRotator(b *testing.B) {
+	kb := 1024
+	for _, inputSize := range []int{kb, 2 * kb, 4 * kb, 8 * kb, 16 * kb, 32 * kb, 64 * kb, 128 * kb, 256 * kb} {
+		b.Run(fmt.Sprintf("%dKB", inputSize/kb), func(b *testing.B) {
+			benchmarkRotatorWithInputSize(inputSize, b)
+		})
+	}
+}
+
+func benchmarkRotatorWithInputSize(size int, b *testing.B) {
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		b.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	fr, err := NewFileRotator(path, baseFileName, 5, 1024*1024, logger)
+	if err != nil {
+		b.Fatalf("test setup err: %v", err)
+	}
+	b.ResetTimer()
+
+	// run the Fib function b.N times
+	for n := 0; n < b.N; n++ {
+		// Generate some input
+		data := make([]byte, size)
+		_, err := rand.Read(data)
+		if err != nil {
+			b.Fatalf("Error generating date: %v", err)
+		}
+
+		// Insert random new lines
+		for i := 0; i < 100; i++ {
+			index := rand.Intn(size)
+			data[index] = '\n'
+		}
+
+		// Write the data
+		if _, err := fr.Write(data); err != nil {
+			b.Fatalf("Failed to write data: %v", err)
+		}
+	}
 }

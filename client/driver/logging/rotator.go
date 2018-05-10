@@ -16,7 +16,7 @@ import (
 
 const (
 	// logBufferSize is the size of the buffer.
-	logBufferSize = 32768
+	logBufferSize = 32 * 1024
 
 	// bufferFlushDuration is the duration at which we flush the buffer.
 	bufferFlushDuration = 100 * time.Millisecond
