@@ -14,7 +14,7 @@ IMPROVEMENTS:
    a deployment should see healthy allocations [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
  * core: Canary allocations are tagged in Consul to enable
    using service tags to isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
-
+ * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
 
 BUG FIXES:
  * api/client: Fix potentially out of order logs and streamed file contents
