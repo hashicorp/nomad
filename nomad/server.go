@@ -1245,6 +1245,10 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	}
 	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = true
+	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
+	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
+	// allow for convergence in 99.9% of nodes in a 10 node cluster
+	conf.LeavePropagateDelay = 1 * time.Second
 	conf.Merge = &serfMergeDelegate{}
 
 	// Until Nomad supports this fully, we disable automatic resolution.
