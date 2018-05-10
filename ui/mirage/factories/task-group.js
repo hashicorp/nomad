@@ -16,6 +16,10 @@ export default Factory.extend({
   // created.
   createAllocations: true,
 
+  // Directived used to control whether or not the allocation should fail
+  // and reschedule, creating reschedule events.
+  withRescheduling: false,
+
   afterCreate(group, server) {
     const tasks = server.createList('task', group.count, {
       taskGroup: group,
@@ -30,12 +34,22 @@ export default Factory.extend({
       Array(group.count)
         .fill(null)
         .forEach((_, i) => {
-          server.create('allocation', {
+          const props = {
             jobId: group.job.id,
             namespace: group.job.namespace,
             taskGroup: group.name,
             name: `${group.name}.[${i}]`,
-          });
+            rescheduleSuccess: group.withRescheduling ? faker.random.boolean() : null,
+            rescheduleAttempts: group.withRescheduling
+              ? faker.random.number({ min: 1, max: 5 })
+              : 0,
+          };
+
+          if (group.withRescheduling) {
+            server.create('allocation', 'rescheduled', props);
+          } else {
+            server.create('allocation', props);
+          }
         });
     }
   },

@@ -28,6 +28,15 @@
       background: $white;
     }
 
+    &.is-hollow {
+      border-bottom: none;
+      background: transparent;
+
+      & + .boxed-section-body {
+        border-top: none;
+      }
+    }
+
     & + .boxed-section-body {
       padding: 1.5em;
       border-top-left-radius: 0;

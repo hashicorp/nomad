@@ -59,12 +59,11 @@ export default Component.extend({
     const allocation = this.get('allocation');
 
     if (allocation) {
-      this.get('fetchStats').perform(allocation);
+      run.scheduleOnce('afterRender', this, qualifyAllocation);
     } else {
       this.get('fetchStats').cancelAll();
       this.set('stats', null);
     }
-    run.scheduleOnce('afterRender', this, qualifyJob);
   },
 
   fetchStats: task(function*(allocation) {
@@ -83,6 +82,14 @@ export default Component.extend({
     } while (this.get('enablePolling'));
   }).drop(),
 });
+
+function qualifyAllocation() {
+  const allocation = this.get('allocation');
+  return allocation.reload().then(() => {
+    this.get('fetchStats').perform(allocation);
+    run.scheduleOnce('afterRender', this, qualifyJob);
+  });
+}
 
 function qualifyJob() {
   const allocation = this.get('allocation');

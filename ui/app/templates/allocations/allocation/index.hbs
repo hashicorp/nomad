@@ -91,5 +91,16 @@
         {{/list-table}}
       </div>
     </div>
+
+    {{#if model.hasRescheduleEvents}}
+      <div class="boxed-section" data-test-reschedule-events>
+        <div class="boxed-section-head is-hollow">
+          Reschedule Events
+        </div>
+        <div class="boxed-section-body">
+          {{reschedule-event-timeline allocation=model}}
+        </div>
+      </div>
+    {{/if}}
   </section>
 {{/gutter-menu}}

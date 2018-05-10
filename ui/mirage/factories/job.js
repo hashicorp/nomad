@@ -86,6 +86,9 @@ export default Factory.extend({
   // When true, no evaluations have failed placements
   noFailedPlacements: false,
 
+  // When true, allocations for this job will fail and reschedule, randomly succeeding or not
+  withRescheduling: false,
+
   afterCreate(job, server) {
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
@@ -102,6 +105,7 @@ export default Factory.extend({
     const groups = server.createList('task-group', job.groupsCount, {
       job,
       createAllocations: job.createAllocations,
+      withRescheduling: job.withRescheduling,
     });
 
     job.update({

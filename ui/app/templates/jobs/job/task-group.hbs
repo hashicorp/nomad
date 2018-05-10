@@ -73,6 +73,7 @@
             sortDescending=sortDescending
             class="with-foot" as |t|}}
             {{#t.head}}
+              <th class="is-narrow"></th>
               {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
               {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
               {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
@@ -83,7 +84,7 @@
               <th>Memory</th>
             {{/t.head}}
             {{#t.body as |row|}}
-              {{allocation-row data-test-allocation allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
+              {{allocation-row data-test-allocation=row.model.id allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">

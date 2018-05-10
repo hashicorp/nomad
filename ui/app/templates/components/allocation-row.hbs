@@ -1,3 +1,10 @@
+<td data-test-indicators class="is-narrow">
+  {{#if allocation.nextAllocation}}
+    <span class="tooltip text-center" aria-label="Allocation was rescheduled">
+      {{x-icon "history" class="is-faded"}}
+    </span>
+  {{/if}}
+</td>
 <td data-test-short-id>
   {{#link-to "allocations.allocation" allocation class="is-primary"}}
     {{allocation.shortId}}
