@@ -11,7 +11,7 @@ IMPROVEMENTS:
    an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
 
 BUG FIXES:
- * driver/docker: Fix docker credential helper support [[GH-3818](https://github.com/hashicorp/nomad/issues/3818)] [[GH-4221](https://github.com/hashicorp/nomad/issues/4221)]
+ * driver/docker: Fix docker credential helper support [[GH-4266](https://github.com/hashicorp/nomad/issues/4266)]
 
 ## 0.8.3 (April 27, 2018)
 
