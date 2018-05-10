@@ -439,6 +439,9 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for drain update")
 	}
+	if args.NodeEvent != nil {
+		return fmt.Errorf("node event may not be set")
+	}
 
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()

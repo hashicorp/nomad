@@ -2587,7 +2587,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 				Deadline: 10 * time.Second,
 			},
 		}
-		errCh <- state.UpdateNodeDrain(3, node.ID, s, false)
+		errCh <- state.UpdateNodeDrain(3, node.ID, s, false, nil)
 	})
 
 	req.MinQueryIndex = 2

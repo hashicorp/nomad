@@ -344,6 +344,10 @@ type NodeUpdateDrainRequest struct {
 
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
+
+	// NodeEvent is the event added to the node
+	NodeEvent *NodeEvent
+
 	WriteRequest
 }
 
@@ -352,6 +356,10 @@ type NodeUpdateDrainRequest struct {
 type BatchNodeUpdateDrainRequest struct {
 	// Updates is a mapping of nodes to their updated drain strategy
 	Updates map[string]*DrainUpdate
+
+	// NodeEvents is a mapping of the node to the event to add to the node
+	NodeEvents map[string]*NodeEvent
+
 	WriteRequest
 }
 
