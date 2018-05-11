@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 const (
@@ -37,6 +39,13 @@ Init Options:
 
 func (c *JobInitCommand) Synopsis() string {
 	return "Create an example job file"
+}
+
+func (c *JobInitCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-short": complete.PredictNothing,
+		})
 }
 
 func (c *JobInitCommand) Name() string { return "job init" }
@@ -95,10 +104,6 @@ job "example" {
   datacenters = ["dc1"]
 
   group "cache" {
-    ephemeral_disk {
-      size = 300
-    }
-
     task "redis" {
       driver = "docker"
 
