@@ -585,7 +585,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error {
+func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, event *structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -601,6 +601,11 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
 
 	// Update the status in the copy
 	copyNode.Status = status

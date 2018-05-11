@@ -326,8 +326,9 @@ type NodeServerInfo struct {
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
-	NodeID string
-	Status string
+	NodeID    string
+	Status    string
+	NodeEvent *NodeEvent
 	WriteRequest
 }
 

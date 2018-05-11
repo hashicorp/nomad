@@ -14,6 +14,10 @@ const (
 	// heartbeatNotLeader is the error string returned when the heartbeat request
 	// couldn't be completed since the server is not the leader.
 	heartbeatNotLeader = "failed to reset heartbeat since server is not leader"
+
+	// NodeHeartbeatEventMissed is the event used when the Nodes heartbeat is
+	// missed.
+	NodeHeartbeatEventMissed = "Node heartbeat missed"
 )
 
 var (
@@ -123,8 +127,9 @@ func (s *Server) invalidateHeartbeat(id string) {
 
 	// Make a request to update the node status
 	req := structs.NodeUpdateStatusRequest{
-		NodeID: id,
-		Status: structs.NodeStatusDown,
+		NodeID:    id,
+		Status:    structs.NodeStatusDown,
+		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
 		WriteRequest: structs.WriteRequest{
 			Region: s.config.Region,
 		},

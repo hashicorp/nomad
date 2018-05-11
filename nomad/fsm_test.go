@@ -249,6 +249,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 
 func TestFSM_UpdateNodeStatus(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -257,43 +258,39 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 		Node: node,
 	}
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
 	fsm.blockedEvals.Block(eval)
 
+	event := &structs.NodeEvent{
+		Message:   "Node ready foo",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
+	}
 	req2 := structs.NodeUpdateStatusRequest{
-		NodeID: node.ID,
-		Status: structs.NodeStatusReady,
+		NodeID:    node.ID,
+		Status:    structs.NodeStatusReady,
+		NodeEvent: event,
 	}
 	buf, err = structs.Encode(structs.NodeUpdateStatusRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Verify the status is ready.
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if node.Status != structs.NodeStatusReady {
-		t.Fatalf("bad node: %#v", node)
-	}
+	require.NoError(err)
+	require.Equal(structs.NodeStatusReady, node.Status)
+	require.Len(node.Events, 2)
+	require.Equal(event.Message, node.Events[1].Message)
 
 	// Verify the eval was unblocked.
 	testutil.WaitForResult(func() (bool, error) {

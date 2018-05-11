@@ -2622,7 +2622,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node status update triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown)
+		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown, nil)
 	})
 
 	req.MinQueryIndex = 38

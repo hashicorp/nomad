@@ -649,53 +649,38 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.UpsertNode(800, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(state.UpsertNode(800, node))
 
 	// Create a watchset so we can test that update node status fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
+	_, err := state.NodeByID(ws, node.ID)
+	require.NoError(err)
+
+	event := &structs.NodeEvent{
+		Message:   "Node ready foo",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
 	}
 
-	err = state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, event))
+	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out.Status != structs.NodeStatusReady {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.ModifyIndex != 801 {
-		t.Fatalf("bad: %#v", out)
-	}
+	require.NoError(err)
+	require.Equal(structs.NodeStatusReady, out.Status)
+	require.EqualValues(801, out.ModifyIndex)
+	require.Len(out.Events, 2)
+	require.Equal(event.Message, out.Events[1].Message)
 
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 801 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(err)
+	require.EqualValues(801, index)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
