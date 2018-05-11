@@ -138,10 +138,9 @@ If an agent is operating as a server, [leave_on_terminate](/docs/agent/configura
 be set if the server will never rejoin the cluster again. The default value of `false` for 'leave_on_terminate` and `leave_on_interrupt`
 work well for most scenarios. If Nomad servers are part of an auto scaling group where new servers are brought up to replace
 failed servers, using graceful leave avoids causing a potential availability outage affecting the [consensus protocol](/docs/internals/consensus.html).
-With newer features in [autopilot](/guides/cluster/autopilot.html) in Nomad 0.8, failed or dead servers are removed if they have been replaced.
+As of of Nomad 0.8, Nomad includes Autopilot which automatically removes failed or dead servers. This allows the operator to skip setting leave_on_terminate
 
-If a server does
-forcefully exit and will not be returning into service, the
+If a server does forcefully exit and will not be returning into service, the
 [`server force-leave` command](/docs/commands/server/force-leave.html) should
 be used to force the server from a _failed_ to a _left_ state.
 
