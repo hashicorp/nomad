@@ -224,7 +224,17 @@ func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *W
 }
 
 // ForceEvaluate is used to force-evaluate an existing job.
-func (j *Jobs) ForceEvaluate(jobID string, opts EvalOptions, q *WriteOptions) (string, *WriteMeta, error) {
+func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp JobRegisterResponse
+	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", nil, &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
+// ForceEvaluate is used to force-evaluate an existing job.
+func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions) (string, *WriteMeta, error) {
 	req := &JobEvaluateRequest{
 		JobID:       jobID,
 		EvalOptions: opts,

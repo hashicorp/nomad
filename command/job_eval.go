@@ -112,7 +112,7 @@ func (c *JobEvalCommand) Run(args []string) int {
 	opts := api.EvalOptions{
 		ForceReschedule: c.forceRescheduling,
 	}
-	evalId, _, err := client.Jobs().ForceEvaluate(jobID, opts, nil)
+	evalId, _, err := client.Jobs().EvaluateWithOpts(jobID, opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error evaluating job: %s", err))
 		return 1

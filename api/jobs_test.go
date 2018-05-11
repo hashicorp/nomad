@@ -1049,7 +1049,7 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Force-eval on a non-existent job fails
-	_, _, err := jobs.ForceEvaluate("job1", EvalOptions{}, nil)
+	_, _, err := jobs.ForceEvaluate("job1", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
@@ -1062,7 +1062,7 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Try force-eval again
-	evalID, wm, err := jobs.ForceEvaluate("job1", EvalOptions{}, nil)
+	evalID, wm, err := jobs.ForceEvaluate("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
