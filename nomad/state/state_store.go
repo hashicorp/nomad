@@ -688,7 +688,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID st
 }
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
-func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string) error {
+func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string, event *structs.NodeEvent) error {
 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -705,6 +705,11 @@ func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibil
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
 
 	// Check if this is a valid action
 	if copyNode.DrainStrategy != nil && eligibility == structs.NodeSchedulingEligible {

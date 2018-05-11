@@ -32,6 +32,14 @@ const (
 	NodeDrainEventDrainSet      = "Node drain strategy set"
 	NodeDrainEventDrainDisabled = "Node drain disabled"
 	NodeDrainEventDrainUpdated  = "Node drain stategy updated"
+
+	// NodeEligibilityEventEligible is used when the nodes eligiblity is marked
+	// eligible
+	NodeEligibilityEventEligible = "Node marked as eligible for scheduling"
+
+	// NodeEligibilityEventIneligible is used when the nodes eligiblity is marked
+	// ineligible
+	NodeEligibilityEventIneligible = "Node marked as ineligible for scheduling"
 )
 
 // Node endpoint is used for client interactions
@@ -532,6 +540,9 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for setting scheduling eligibility")
 	}
+	if args.NodeEvent != nil {
+		return fmt.Errorf("node event may not be set")
+	}
 
 	// Check that only allowed types are set
 	switch args.Eligibility {
@@ -561,6 +572,16 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	case structs.NodeSchedulingEligible, structs.NodeSchedulingIneligible:
 	default:
 		return fmt.Errorf("invalid scheduling eligibility %q", args.Eligibility)
+	}
+
+	// Construct the node event
+	args.NodeEvent = structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster)
+	if node.SchedulingEligibility == args.Eligibility {
+		return nil // Nothing to do
+	} else if args.Eligibility == structs.NodeSchedulingEligible {
+		args.NodeEvent.SetMessage(NodeEligibilityEventEligible)
+	} else {
+		args.NodeEvent.SetMessage(NodeEligibilityEventIneligible)
 	}
 
 	// Commit this update via Raft
