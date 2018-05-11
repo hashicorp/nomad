@@ -9,6 +9,8 @@ IMPROVEMENTS:
    image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
  * env: Default interpolation of optional meta fields of parameterized jobs to
    an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
+ * core: Add the option for operators to configure TLS versions and allowed
+   cipher suites. Default is a subset of safe ciphers and TLS 1.2 [[GH-4269](https://github.com/hashicorp/nomad/pull/4269)]
  * core: Add a new [progress_deadline](https://www.nomadproject.io/docs/job-specification/update.html#progress_deadline) parameter to
    support rescheduling failed allocations during a deployment. This allows operators to specify a configurable deadline before which
    a deployment should see healthy allocations [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]

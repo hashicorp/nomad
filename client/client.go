@@ -399,11 +399,16 @@ func (c *Client) init() error {
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
-		tw, err := tlsutil.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
+		tw, err := tlsutil.NewTLSConfiguration(newConfig)
 		if err != nil {
 			return err
 		}
-		tlsWrap = tw
+
+		twWrap, err := tw.OutgoingTLSWrapper()
+		if err != nil {
+			return err
+		}
+		tlsWrap = twWrap
 	}
 
 	// Store the new tls wrapper.

@@ -171,9 +171,10 @@ func TestTLS_Copy(t *testing.T) {
 		fookey  = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	a := &TLSConfig{
-		CAFile:   cafile,
-		CertFile: foocert,
-		KeyFile:  fookey,
+		CAFile:          cafile,
+		CertFile:        foocert,
+		KeyFile:         fookey,
+		TLSCipherSuites: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
 	}
 	a.SetChecksum()
 

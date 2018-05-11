@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -760,6 +761,8 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"cert_file",
 		"key_file",
 		"verify_https_client",
+		"tls_cipher_suites",
+		"tls_min_version",
 	}
 
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
@@ -773,6 +776,14 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 
 	var tlsConfig config.TLSConfig
 	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseCiphers(tlsConfig.TLSCipherSuites); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseMinVersion(tlsConfig.TLSMinVersion); err != nil {
 		return err
 	}
 
