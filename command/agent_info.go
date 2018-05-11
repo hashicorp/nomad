@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type AgentInfoCommand struct {
@@ -24,6 +26,14 @@ General Options:
 
 func (c *AgentInfoCommand) Synopsis() string {
 	return "Display status information about the local agent"
+}
+
+func (c *AgentInfoCommand) AutocompleteFlags() complete.Flags {
+	return c.Meta.AutocompleteFlags(FlagSetClient)
+}
+
+func (c *AgentInfoCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *AgentInfoCommand) Name() string { return "agent-info" }

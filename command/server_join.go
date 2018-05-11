@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type ServerJoinCommand struct {
@@ -27,6 +29,14 @@ General Options:
 
 func (c *ServerJoinCommand) Synopsis() string {
 	return "Join server nodes together"
+}
+
+func (c *ServerJoinCommand) AutocompleteFlags() complete.Flags {
+	return c.Meta.AutocompleteFlags(FlagSetClient)
+}
+
+func (c *ServerJoinCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *ServerJoinCommand) Name() string { return "server join" }
