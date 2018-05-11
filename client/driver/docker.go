@@ -1099,7 +1099,7 @@ func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, e
 		}
 	}
 
-	if timeout != 0 {
+	if timeout != 0 && newClient != nil {
 		newClient.SetTimeout(timeout)
 	}
 	return newClient, merr.ErrorOrNil()
