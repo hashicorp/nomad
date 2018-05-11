@@ -370,6 +370,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_parallel_destroys",
 		"gc_max_allocs",
 		"no_host_uuid",
+		"server_join_info",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -385,6 +386,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	delete(m, "chroot_env")
 	delete(m, "reserved")
 	delete(m, "stats")
+	delete(m, "server_join_info")
 
 	var config ClientConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -445,6 +447,13 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	if o := listVal.Filter("reserved"); len(o.Items) > 0 {
 		if err := parseReserved(&config.Reserved, o); err != nil {
 			return multierror.Prefix(err, "reserved ->")
+		}
+	}
+
+	// Parse ServerJoin config
+	if o := listVal.Filter("server_join_info"); len(o.Items) > 0 {
+		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
+			return multierror.Prefix(err, "server_join_info->")
 		}
 	}
 
@@ -531,16 +540,20 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"heartbeat_grace",
 		"min_heartbeat_ttl",
 		"max_heartbeats_per_second",
-		"start_join",
-		"retry_join",
-		"retry_max",
-		"retry_interval",
 		"rejoin_after_leave",
 		"encrypt",
 		"authoritative_region",
 		"non_voting_server",
 		"redundancy_zone",
 		"upgrade_version",
+
+		"server_join_info",
+
+		// For backwards compatibility
+		"start_join",
+		"retry_join",
+		"retry_max",
+		"retry_interval",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -550,6 +563,8 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 	if err := hcl.DecodeObject(&m, listVal); err != nil {
 		return err
 	}
+
+	delete(m, "server_join_info")
 
 	var config ServerConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -570,7 +585,56 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		}
 	}
 
+	// Parse ServerJoin config
+	if o := listVal.Filter("server_join_info"); len(o.Items) > 0 {
+		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
+			return multierror.Prefix(err, "server_join_info->")
+		}
+	}
+
 	*result = &config
+	return nil
+}
+
+func parseServerJoin(result **ServerJoin, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'server_info_join' block allowed")
+	}
+
+	// Get our object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"start_join",
+		"retry_join",
+		"retry_max",
+		"retry_interval",
+	}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var serverJoinInfo ServerJoin
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &serverJoinInfo,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = &serverJoinInfo
 	return nil
 }
 

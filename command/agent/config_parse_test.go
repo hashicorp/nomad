@@ -47,6 +47,12 @@ func TestConfig_Parse(t *testing.T) {
 					AllocDir:  "/tmp/alloc",
 					Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
 					NodeClass: "linux-medium-64bit",
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
+						StartJoin:        []string{"1.1.1.1", "2.2.2.2"},
+						RetryInterval:    "15s",
+						RetryMaxAttempts: 3,
+					},
 					Meta: map[string]string{
 						"foo": "bar",
 						"baz": "zip",
@@ -106,6 +112,12 @@ func TestConfig_Parse(t *testing.T) {
 					RedundancyZone:         "foo",
 					UpgradeVersion:         "0.8.0",
 					EncryptKey:             "abc",
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
+						StartJoin:        []string{"1.1.1.1", "2.2.2.2"},
+						RetryInterval:    "15s",
+						RetryMaxAttempts: 3,
+					},
 				},
 				ACL: &ACLConfig{
 					Enabled:          true,

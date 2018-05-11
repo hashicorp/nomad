@@ -217,6 +217,9 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join_info"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -311,19 +314,23 @@ type ServerConfig struct {
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
+	// Deprecated in Nomad 0.10
 	StartJoin []string `mapstructure:"start_join"`
 
 	// RetryJoin is a list of addresses to join with retry enabled.
+	// Deprecated in Nomad 0.10
 	RetryJoin []string `mapstructure:"retry_join"`
 
 	// RetryMaxAttempts specifies the maximum number of times to retry joining a
 	// host on startup. This is useful for cases where we know the node will be
 	// online eventually.
+	// Deprecated in Nomad 0.10
 	RetryMaxAttempts int `mapstructure:"retry_max"`
 
 	// RetryInterval specifies the amount of time to wait in between join
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
+	// Deprecated in Nomad 0.10
 	RetryInterval string        `mapstructure:"retry_interval"`
 	retryInterval time.Duration `mapstructure:"-"`
 
@@ -346,6 +353,32 @@ type ServerConfig struct {
 
 	// Encryption key to use for the Serf communication
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join_info"`
+}
+
+// ServerJoin is used in both clients and servers to bootstrap connections to
+// servers
+type ServerJoin struct {
+	// StartJoin is a list of addresses to attempt to join when the
+	// agent starts. If Serf is unable to communicate with any of these
+	// addresses, then the agent will error and exit.
+	StartJoin []string `mapstructure:"start_join"`
+
+	// RetryJoin is a list of addresses to join with retry enabled.
+	RetryJoin []string `mapstructure:"retry_join"`
+
+	// RetryMaxAttempts specifies the maximum number of times to retry joining a
+	// host on startup. This is useful for cases where we know the node will be
+	// online eventually.
+	RetryMaxAttempts int `mapstructure:"retry_max"`
+
+	// RetryInterval specifies the amount of time to wait in between join
+	// attempts on agent start. The minimum allowed value is 1 second and
+	// the default is 30s.
+	RetryInterval string        `mapstructure:"retry_interval"`
+	retryInterval time.Duration `mapstructure:"-"`
 }
 
 // EncryptBytes returns the encryption key configured.
@@ -1055,6 +1088,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey
 	}
+	if b.ServerJoin != nil {
+		result.ServerJoin = b.ServerJoin
+	}
 
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
@@ -1160,6 +1196,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	for k, v := range b.ChrootEnv {
 		result.ChrootEnv[k] = v
+	}
+
+	if b.ServerJoin != nil {
+		result.ServerJoin = b.ServerJoin
 	}
 
 	return &result

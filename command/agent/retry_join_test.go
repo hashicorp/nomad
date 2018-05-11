@@ -82,12 +82,9 @@ func TestRetryJoin_NonCloud(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	newConfig := &Config{
-		Server: &ServerConfig{
-			RetryMaxAttempts: 1,
-			RetryJoin:        []string{"127.0.0.1"},
-			Enabled:          true,
-		},
+	serverJoin := &ServerJoin{
+		RetryMaxAttempts: 1,
+		RetryJoin:        []string{"127.0.0.1"},
 	}
 
 	var output []string
@@ -98,13 +95,14 @@ func TestRetryJoin_NonCloud(t *testing.T) {
 	}
 
 	joiner := retryJoiner{
-		discover: &MockDiscover{},
-		join:     mockJoin,
-		logger:   log.New(ioutil.Discard, "", 0),
-		errCh:    make(chan struct{}),
+		discover:      &MockDiscover{},
+		serverJoin:    mockJoin,
+		serverEnabled: true,
+		logger:        log.New(ioutil.Discard, "", 0),
+		errCh:         make(chan struct{}),
 	}
 
-	joiner.RetryJoin(newConfig)
+	joiner.RetryJoin(serverJoin)
 
 	require.Equal(1, len(output))
 	require.Equal(stubAddress, output[0])
@@ -114,12 +112,9 @@ func TestRetryJoin_Cloud(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	newConfig := &Config{
-		Server: &ServerConfig{
-			RetryMaxAttempts: 1,
-			RetryJoin:        []string{"provider=aws, tag_value=foo"},
-			Enabled:          true,
-		},
+	serverJoin := &ServerJoin{
+		RetryMaxAttempts: 1,
+		RetryJoin:        []string{"provider=aws, tag_value=foo"},
 	}
 
 	var output []string
@@ -131,13 +126,14 @@ func TestRetryJoin_Cloud(t *testing.T) {
 
 	mockDiscover := &MockDiscover{}
 	joiner := retryJoiner{
-		discover: mockDiscover,
-		join:     mockJoin,
-		logger:   log.New(ioutil.Discard, "", 0),
-		errCh:    make(chan struct{}),
+		discover:      mockDiscover,
+		serverJoin:    mockJoin,
+		serverEnabled: true,
+		logger:        log.New(ioutil.Discard, "", 0),
+		errCh:         make(chan struct{}),
 	}
 
-	joiner.RetryJoin(newConfig)
+	joiner.RetryJoin(serverJoin)
 
 	require.Equal(1, len(output))
 	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
@@ -148,12 +144,9 @@ func TestRetryJoin_MixedProvider(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	newConfig := &Config{
-		Server: &ServerConfig{
-			RetryMaxAttempts: 1,
-			RetryJoin:        []string{"provider=aws, tag_value=foo", "127.0.0.1"},
-			Enabled:          true,
-		},
+	serverJoin := &ServerJoin{
+		RetryMaxAttempts: 1,
+		RetryJoin:        []string{"provider=aws, tag_value=foo", "127.0.0.1"},
 	}
 
 	var output []string
@@ -165,15 +158,46 @@ func TestRetryJoin_MixedProvider(t *testing.T) {
 
 	mockDiscover := &MockDiscover{}
 	joiner := retryJoiner{
-		discover: mockDiscover,
-		join:     mockJoin,
-		logger:   log.New(ioutil.Discard, "", 0),
-		errCh:    make(chan struct{}),
+		discover:      mockDiscover,
+		serverJoin:    mockJoin,
+		serverEnabled: true,
+		logger:        log.New(ioutil.Discard, "", 0),
+		errCh:         make(chan struct{}),
 	}
 
-	joiner.RetryJoin(newConfig)
+	joiner.RetryJoin(serverJoin)
 
 	require.Equal(2, len(output))
 	require.Equal("provider=aws, tag_value=foo", mockDiscover.ReceivedAddrs)
+	require.Equal(stubAddress, output[0])
+}
+
+func TestRetryJoin_Client(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	serverJoin := &ServerJoin{
+		RetryMaxAttempts: 1,
+		RetryJoin:        []string{"127.0.0.1"},
+	}
+
+	var output []string
+
+	mockJoin := func(s []string) (int, error) {
+		output = s
+		return 0, nil
+	}
+
+	joiner := retryJoiner{
+		discover:      &MockDiscover{},
+		clientJoin:    mockJoin,
+		clientEnabled: true,
+		logger:        log.New(ioutil.Discard, "", 0),
+		errCh:         make(chan struct{}),
+	}
+
+	joiner.RetryJoin(serverJoin)
+
+	require.Equal(1, len(output))
 	require.Equal(stubAddress, output[0])
 }

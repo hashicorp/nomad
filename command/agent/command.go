@@ -549,13 +549,49 @@ func (c *Command) Run(args []string) int {
 	// Start retry join process
 	c.retryJoinErrCh = make(chan struct{})
 
-	joiner := retryJoiner{
-		join:     c.agent.server.Join,
-		discover: &discover.Discover{},
-		errCh:    c.retryJoinErrCh,
-		logger:   c.agent.logger,
+	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger,
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		// This is for backwards compatibility, this should be removed in Nomad
+		// 0.10 and only ServerJoin should be declared on the server
+		serverJoinInfo := &ServerJoin{
+			RetryJoin:        config.Server.RetryJoin,
+			StartJoin:        config.Server.StartJoin,
+			RetryMaxAttempts: config.Server.RetryMaxAttempts,
+			RetryInterval:    config.Server.RetryInterval,
+		}
+		go joiner.RetryJoin(serverJoinInfo)
 	}
-	go joiner.RetryJoin(config)
+
+	if config.Server.Enabled && config.Server.ServerJoin != nil {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger,
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		go joiner.RetryJoin(config.Server.ServerJoin)
+	}
+
+	if config.Client.Enabled && config.Client.ServerJoin != nil {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger,
+			clientJoin:    c.agent.client.SetServers,
+			clientEnabled: true,
+		}
+
+		go joiner.RetryJoin(config.Client.ServerJoin)
+	}
 
 	// Wait for exit
 	return c.handleSignals()
