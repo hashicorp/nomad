@@ -30,13 +30,21 @@ const (
 	// NodeDeadlineCoalesceWindow is the duration in which deadlining nodes will
 	// be coalesced together
 	NodeDeadlineCoalesceWindow = 5 * time.Second
+
+	// NodeDrainEventComplete is used to indicate that the node drain is
+	// finished.
+	NodeDrainEventComplete = "Node drain complete"
+
+	// NodeDrainEventDetailDeadlined is the key to use when the drain is
+	// complete because a deadline. The acceptable values are "true" and "false"
+	NodeDrainEventDetailDeadlined = "deadline_reached"
 )
 
 // RaftApplier contains methods for applying the raft requests required by the
 // NodeDrainer.
 type RaftApplier interface {
 	AllocUpdateDesiredTransition(allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) (uint64, error)
-	NodesDrainComplete(nodes []string) (uint64, error)
+	NodesDrainComplete(nodes []string, event *structs.NodeEvent) (uint64, error)
 }
 
 // NodeTracker is the interface to notify an object that is tracking draining
@@ -254,10 +262,16 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	n.l.RUnlock()
 	n.batchDrainAllocs(forceStop)
 
+	// Create the node event
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemDrain).
+		SetMessage(NodeDrainEventComplete).
+		AddDetail(NodeDrainEventDetailDeadlined, "true")
+
 	// Submit the node transitions in a sharded form to ensure a reasonable
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, nodes) {
-		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
+		if _, err := n.raft.NodesDrainComplete(nodes, event); err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
 		}
 	}
@@ -324,10 +338,15 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 		}
 	}
 
+	// Create the node event
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemDrain).
+		SetMessage(NodeDrainEventComplete)
+
 	// Submit the node transitions in a sharded form to ensure a reasonable
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, done) {
-		if _, err := n.raft.NodesDrainComplete(nodes); err != nil {
+		if _, err := n.raft.NodesDrainComplete(nodes, event); err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
 		}
 	}
