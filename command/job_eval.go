@@ -31,10 +31,11 @@ Eval Options:
   -force-reschedule
     Force reschedule failed allocations even if they are not currently
     eligible for rescheduling.
+
   -detach
-    Return immediately instead of entering monitor mode. After deployment
-    resume, the evaluation ID will be printed to the screen, which can be used
-    to examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. The ID
+    of the evaluation created will be printed to the screen, which can be
+    used to examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.
@@ -43,7 +44,7 @@ Eval Options:
 }
 
 func (c *JobEvalCommand) Synopsis() string {
-	return "Force an evaluation for the job using its job ID"
+	return "Force an evaluation for the job"
 }
 
 func (c *JobEvalCommand) AutocompleteFlags() complete.Flags {
@@ -116,8 +117,9 @@ func (c *JobEvalCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error evaluating job: %s", err))
 		return 1
 	}
-	c.Ui.Output(fmt.Sprintf("Created eval ID: %q ", limit(evalId, length)))
+
 	if detach {
+		c.Ui.Output(fmt.Sprintf("Created eval ID: %q ", limit(evalId, length)))
 		return 0
 	}
 

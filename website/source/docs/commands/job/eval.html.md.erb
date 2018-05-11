@@ -31,6 +31,12 @@ If this is set, failed allocations that are past their reschedule limit, and tho
 scheduled to be replaced at a future time are placed immediately. This option only places failed
 allocations if the task group has rescheduling enabled.
 
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval status](/docs/commands/eval-status.html) command
+
+* `-verbose`: Show full information.
+
 ## Examples
 
 Evaluate the job with ID "job1":
