@@ -183,34 +183,27 @@ func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 		t.Fatalf("test setup err: %v", err)
 	}
 
-	// We will write two times:
+	// We will write three times:
 	// 1st: Write with new lines spanning two files
 	// 2nd: Write long string with no new lines
+	// 3rd: Write a single new line
 	expectations := [][]byte{
 		[]byte("ab\n"),
 		[]byte("cdef\n"),
 		[]byte("12345"),
-		[]byte("6789"),
-	}
-	str1 := "ab\ncdef\n"
-	str2 := "123456789"
-
-	nw, err := fr.Write([]byte(str1))
-	if err != nil {
-		t.Fatalf("got error while writing: %v", err)
+		[]byte("67890"),
+		[]byte("\n"),
 	}
 
-	if nw != len(str1) {
-		t.Fatalf("expected %v, got %v", len(str1), nw)
-	}
+	for _, str := range []string{"ab\ncdef\n", "1234567890", "\n"} {
+		nw, err := fr.Write([]byte(str))
+		if err != nil {
+			t.Fatalf("got error while writing: %v", err)
+		}
 
-	nw, err = fr.Write([]byte(str2))
-	if err != nil {
-		t.Fatalf("got error while writing: %v", err)
-	}
-
-	if nw != len(str2) {
-		t.Fatalf("expected %v, got %v", len(str2), nw)
+		if nw != len(str) {
+			t.Fatalf("expected %v, got %v", len(str), nw)
+		}
 	}
 
 	var lastErr error
