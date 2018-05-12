@@ -4,6 +4,7 @@ import { DATACENTERS, HOSTS } from '../common';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const NODE_STATUSES = ['initializing', 'ready', 'down'];
+const REF_DATE = new Date();
 
 export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
@@ -27,6 +28,8 @@ export default Factory.extend({
       return `nomad@${ipv4Hosts[i % ipv4Hosts.length]}`;
     },
   }),
+
+  drivers: makeDrivers,
 
   attributes() {
     // TODO add variability to these
@@ -72,5 +75,42 @@ export default Factory.extend({
     server.create('client-stats', {
       id: node.httpAddr,
     });
+
+    const events = server.createList('node-event', faker.random.number({ min: 1, max: 10 }), {
+      nodeId: node.id,
+    });
+
+    node.update({
+      eventIds: events.mapBy('id'),
+    });
   },
 });
+
+function makeDrivers() {
+  const generate = () => {
+    const detected = Math.random() > 0.3;
+    const healthy = detected && Math.random() > 0.3;
+    const attributes = {
+      'driver.name.version': '1.0.0',
+      'driver.name.status': 'awesome',
+      'driver.name.more.details': 'yeah',
+      'driver.name.more.again': 'we got that',
+    };
+    return {
+      Detected: detected,
+      Healthy: healthy,
+      HealthDescription: healthy ? 'Driver is healthy' : 'Uh oh',
+      UpdateTime: faker.date.past(5 / 365, REF_DATE),
+      Attributes: Math.random() > 0.3 && detected ? attributes : null,
+    };
+  };
+
+  return {
+    docker: generate(),
+    rkt: generate(),
+    qemu: generate(),
+    exec: generate(),
+    raw_exec: generate(),
+    java: generate(),
+  };
+}
