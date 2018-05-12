@@ -3,7 +3,6 @@ package nomad
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -531,22 +529,22 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	config := DefaultConfig()
-	config.DevMode = true
-	config.LogOutput = testlog.NewWriter(t)
-	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
-	catalog := consul.NewMockCatalog(logger)
-
 	// Set the config to not have the core scheduler
+	config := DefaultConfig()
+	logger := testlog.Logger(t)
+	s := &Server{
+		config: config,
+		logger: logger,
+	}
+
 	config.EnabledSchedulers = []string{"batch"}
-	_, err := NewServer(config, catalog, logger)
+	err := s.setupWorkers()
 	require.NotNil(err)
 	require.Contains(err.Error(), "scheduler not enabled")
 
 	// Set the config to have an unknown scheduler
 	config.EnabledSchedulers = []string{"batch", structs.JobTypeCore, "foo"}
-	_, err = NewServer(config, catalog, logger)
+	err = s.setupWorkers()
 	require.NotNil(err)
 	require.Contains(err.Error(), "foo")
 }

@@ -40,6 +40,10 @@ const (
 	// NodeEligibilityEventIneligible is used when the nodes eligiblity is marked
 	// ineligible
 	NodeEligibilityEventIneligible = "Node marked as ineligible for scheduling"
+
+	// NodeHeartbeatEventReregistered is the message used when the node becomes
+	// reregistered by the heartbeat.
+	NodeHeartbeatEventReregistered = "Node reregistered by heartbeat"
 )
 
 // Node endpoint is used for client interactions
@@ -367,6 +371,14 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// Commit this update via Raft
 	var index uint64
 	if node.Status != args.Status {
+		// Attach an event if we are updating the node status to ready when it
+		// is down via a heartbeat
+		if node.Status == structs.NodeStatusDown && args.NodeEvent == nil {
+			args.NodeEvent = structs.NewNodeEvent().
+				SetSubsystem(structs.NodeEventSubsystemCluster).
+				SetMessage(NodeHeartbeatEventReregistered)
+		}
+
 		_, index, err = n.srv.raftApply(structs.NodeUpdateStatusRequestType, args)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: status update failed: %v", err)

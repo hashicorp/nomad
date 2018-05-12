@@ -14,6 +14,16 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// NodeRegisterEventReregistered is the message used when the node becomes
+	// reregistered.
+	NodeRegisterEventRegistered = "Node registered"
+
+	// NodeRegisterEventReregistered is the message used when the node becomes
+	// reregistered.
+	NodeRegisterEventReregistered = "Node re-registered"
+)
+
 // IndexEntry is used with the "index" table
 // for managing the latest Raft index affecting a table.
 type IndexEntry struct {
@@ -530,17 +540,23 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		// Retain node events that have already been set on the node
 		node.Events = exist.Events
 
+		// If we are transitioning from down, record the re-registration
+		if exist.Status == structs.NodeStatusDown && node.Status != structs.NodeStatusDown {
+			appendNodeEvents(index, node, []*structs.NodeEvent{
+				structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).
+					SetMessage(NodeRegisterEventReregistered).
+					SetTimestamp(time.Unix(node.StatusUpdatedAt, 0))})
+		}
+
 		node.Drain = exist.Drain                                 // Retain the drain mode
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
 		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
-		nodeEvent := &structs.NodeEvent{
-			Message:   "Node Registered",
-			Subsystem: "Cluster",
-			Timestamp: time.Unix(node.StatusUpdatedAt, 0),
-		}
+		nodeEvent := structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).
+			SetMessage(NodeRegisterEventRegistered).
+			SetTimestamp(time.Unix(node.StatusUpdatedAt, 0))
 		node.Events = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index
 		node.ModifyIndex = index

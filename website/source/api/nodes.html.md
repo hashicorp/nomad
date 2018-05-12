@@ -257,7 +257,7 @@ $ curl \
     {
       "CreateIndex": 0,
       "Details": null,
-      "Message": "Node Registered",
+      "Message": "Node registered",
       "Subsystem": "Cluster",
       "Timestamp": "2018-04-10T23:43:17Z"
     }

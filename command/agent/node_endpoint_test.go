@@ -468,7 +468,7 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		if len(n.Events) < 1 {
 			t.Fatalf("Expected node registration event to be populated: %#v", n)
 		}
-		if n.Events[0].Message != "Node Registered" {
+		if n.Events[0].Message != "Node registered" {
 			t.Fatalf("Expected node registration event to be first node event: %#v", n)
 		}
 	})
