@@ -87,14 +87,14 @@ export default Factory.extend({
 });
 
 function makeDrivers() {
-  const generate = () => {
+  const generate = name => {
     const detected = Math.random() > 0.3;
     const healthy = detected && Math.random() > 0.3;
     const attributes = {
-      'driver.name.version': '1.0.0',
-      'driver.name.status': 'awesome',
-      'driver.name.more.details': 'yeah',
-      'driver.name.more.again': 'we got that',
+      [`driver.${name}.version`]: '1.0.0',
+      [`driver.${name}.status`]: 'awesome',
+      [`driver.${name}.more.details`]: 'yeah',
+      [`driver.${name}.more.again`]: 'we got that',
     };
     return {
       Detected: detected,
@@ -106,11 +106,11 @@ function makeDrivers() {
   };
 
   return {
-    docker: generate(),
-    rkt: generate(),
-    qemu: generate(),
-    exec: generate(),
-    raw_exec: generate(),
-    java: generate(),
+    docker: generate('docker'),
+    rkt: generate('rkt'),
+    qemu: generate('qemu'),
+    exec: generate('exec'),
+    raw_exec: generate('raw_exec'),
+    java: generate('java'),
   };
 }
