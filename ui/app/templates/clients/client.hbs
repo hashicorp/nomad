@@ -93,7 +93,7 @@
       </div>
     </div>
 
-    <div class="boxed-section">
+    <div data-test-client-events class="boxed-section">
       <div class="boxed-section-head">
         Client Events
       </div>
@@ -105,10 +105,10 @@
             <th>Message</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr data-test-node-event>
-              <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
-              <td data-test-task-event-type>{{row.model.subsystem}}</td>
-              <td data-test-task-event-message>
+            <tr data-test-client-event>
+              <td data-test-client-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
+              <td data-test-client-event-subsystem>{{row.model.subsystem}}</td>
+              <td data-test-client-event-message>
                 {{#if row.model.message}}
                   {{row.model.message}}
                 {{else}}
@@ -121,7 +121,7 @@
       </div>
     </div>
 
-    <div class="boxed-section">
+    <div data-test-driver-status class="boxed-section">
       <div class="boxed-section-head">
         Driver Status
       </div>
@@ -130,11 +130,11 @@
           {{#a.head buttonLabel="details" isExpandable=a.item.detected}}
             <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
               <div class="column is-1">
-                <span>{{a.item.name}}</span>
+                <span data-test-name>{{a.item.name}}</span>
               </div>
               <div class="column is-2">
                 {{#if a.item.detected}}
-                  <span>
+                  <span data-test-health>
                     <span class="color-swatch {{a.item.healthClass}}"></span>
                     {{if a.item.healthy "Healthy" "Unhealthy"}}
                   </span>
@@ -143,20 +143,20 @@
               <div class="column">
                 <span class="pair">
                   <span class="term">Detected</span>
-                  {{if a.item.detected "Yes" "No"}}
+                  <span data-test-detected>{{if a.item.detected "Yes" "No"}}</span>
                 </span>
                 <span class="is-pulled-right">
                   <span class="pair">
                     <span class="term">Last Updated</span>
-                    {{moment-from-now a.item.updateTime interval=1000}}
+                    <span data-test-last-updated>{{moment-from-now a.item.updateTime interval=1000}}</span>
                   </span>
                 </span>
               </div>
             </div>
           {{/a.head}}
           {{#a.body}}
-            <p class="message">{{a.item.healthDescription}}</p>
-            <div class="boxed-section">
+            <p data-test-health-description class="message">{{a.item.healthDescription}}</p>
+            <div data-test-driver-attributes class="boxed-section">
               <div class="boxed-section-head">
                  {{capitalize a.item.name}} Attributes
               </div>

@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import { assign } from '@ember/polyfills';
 import { click, findAll, currentURL, find, visit, waitFor } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
@@ -13,8 +14,23 @@ moduleForAcceptance('Acceptance | allocation detail', {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupCount: 0 });
+    job = server.create('job', { groupCount: 0, createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts');
+
+    // Make sure the node has an unhealthy driver
+    node.update({
+      driver: assign(node.drivers, {
+        docker: {
+          detected: true,
+          healthy: false,
+        },
+      }),
+    });
+
+    // Make sure a task for the allocation depends on the unhealthy driver
+    server.schema.tasks.first().update({
+      driver: 'docker',
+    });
 
     visit(`/allocations/${allocation.id}`);
   },
@@ -119,6 +135,10 @@ test('each task row should list high-level information for the task', function(a
     assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
     assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
   });
+});
+
+test('tasks with an unhealthy driver have a warning icon', function(assert) {
+  assert.ok(find('[data-test-task-row] [data-test-icon="unhealthy-driver"]'), 'Warning is shown');
 });
 
 test('when the allocation has not been rescheduled, the reschedule events section is not rendered', function(assert) {
