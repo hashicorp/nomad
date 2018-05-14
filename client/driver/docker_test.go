@@ -1092,6 +1092,30 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	task, _, _ := dockerTask(t)
+	task.Config["load"] = ""
+	task.Config["image"] = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
+	task.Config["force_pull"] = "true"
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	_, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestDockerDriver_SecurityOpt(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
@@ -2456,5 +2480,29 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	if !strings.HasPrefix(container.NetworkSettings.GlobalIPv6Address, expectedPrefix) {
 		t.Fatalf("Got GlobalIPv6address %s want GlobalIPv6address with prefix %s", expectedPrefix, container.NetworkSettings.GlobalIPv6Address)
+	}
+}
+
+func TestParseDockerImage(t *testing.T) {
+	tests := []struct {
+		Image string
+		Repo  string
+		Tag   string
+	}{
+		{"library/hello-world:1.0", "library/hello-world", "1.0"},
+		{"library/hello-world", "library/hello-world", "latest"},
+		{"library/hello-world:latest", "library/hello-world", "latest"},
+		{"library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", "library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", ""},
+	}
+	for _, test := range tests {
+		t.Run(test.Image, func(t *testing.T) {
+			repo, tag := parseDockerImage(test.Image)
+			if repo != test.Repo {
+				t.Errorf("expected repo '%s' but got '%s'", test.Repo, repo)
+			}
+			if repo != test.Repo {
+				t.Errorf("expected tag '%s' but got '%s'", test.Tag, tag)
+			}
+		})
 	}
 }
