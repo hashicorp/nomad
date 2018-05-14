@@ -2497,12 +2497,8 @@ func TestParseDockerImage(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Image, func(t *testing.T) {
 			repo, tag := parseDockerImage(test.Image)
-			if repo != test.Repo {
-				t.Errorf("expected repo '%s' but got '%s'", test.Repo, repo)
-			}
-			if repo != test.Repo {
-				t.Errorf("expected tag '%s' but got '%s'", test.Tag, tag)
-			}
+			require.Equal(t, test.Repo, repo)
+			require.Equal(t, test.Tag, tag)
 		})
 	}
 }
