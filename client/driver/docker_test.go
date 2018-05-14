@@ -1103,6 +1103,7 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	task, _, _ := dockerTask(t)
 	task.Config["load"] = ""
 	task.Config["image"] = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
+	localDigest := "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7"
 	task.Config["force_pull"] = "true"
 
 	client, handle, cleanup := dockerSetup(t, task)
@@ -1110,10 +1111,9 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 
 	waitForExist(t, client, handle)
 
-	_, err := client.InspectContainer(handle.ContainerID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	container, err := client.InspectContainer(handle.ContainerID())
+	require.NoError(t, err)
+	require.Equal(t, localDigest, container.Image)
 }
 
 func TestDockerDriver_SecurityOpt(t *testing.T) {
