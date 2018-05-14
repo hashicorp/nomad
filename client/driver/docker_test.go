@@ -2502,3 +2502,21 @@ func TestParseDockerImage(t *testing.T) {
 		})
 	}
 }
+
+func TestDockerImageRef(t *testing.T) {
+	tests := []struct {
+		Image string
+		Repo  string
+		Tag   string
+	}{
+		{"library/hello-world:1.0", "library/hello-world", "1.0"},
+		{"library/hello-world:latest", "library/hello-world", "latest"},
+		{"library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", "library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", ""},
+	}
+	for _, test := range tests {
+		t.Run(test.Image, func(t *testing.T) {
+			image := dockerImageRef(test.Repo, test.Tag)
+			require.Equal(t, test.Image, image)
+		})
+	}
+}
