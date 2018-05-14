@@ -2183,16 +2183,17 @@ type createContainerClient interface {
 
 func parseDockerImage(image string) (repo, tag string) {
 	repo, tag = docker.ParseRepositoryTag(image)
-	if tag == "" {
-		if i := strings.IndexRune(image, '@'); i > -1 { // Has digest (@sha256:...)
-			// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
-			// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
-			repo = image
-		} else {
-			tag = "latest"
-		}
+	if tag != "" {
+		return repo, tag
 	}
-	return
+	if i := strings.IndexRune(image, '@'); i > -1 { // Has digest (@sha256:...)
+		// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
+		// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
+		repo = image
+	} else {
+		tag = "latest"
+	}
+	return repo, tag
 }
 
 func dockerImageRef(repo string, tag string) string {
