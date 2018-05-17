@@ -6,9 +6,7 @@ description: >
   The operator command provides cluster-level tools for Nomad operators.
 ---
 
-# Nomad Operator
-
-Command: `nomad operator`
+# Command: operator
 
 The `operator` command provides cluster-level tools for Nomad operators, such
 as interacting with the Raft subsystem. This was added in Nomad 0.5.5.
@@ -17,7 +15,7 @@ as interacting with the Raft subsystem. This was added in Nomad 0.5.5.
 outage and even loss of data.
 
 See the [Outage Recovery](/guides/outage.html) guide for some examples of how
-this command is used. For an API to perform these operations programatically,
+this command is used. For an API to perform these operations programmatically,
 please see the documentation for the [Operator](/guides/outage.html)
 endpoint.
 
@@ -28,8 +26,16 @@ Usage: `nomad operator <subcommand> <subcommand> [options]`
 Run `nomad operator <subcommand>` with no arguments for help on that subcommand.
 The following subcommands are available:
 
-* [`raft list-peers`][list] - Display the current Raft peer configuration
-* [`raft remove-peer`][remove] - Remove a Nomad server from the Raft configuration
+* [`operator autopilot get-config`][get-config] - Display the current Autopilot configuration
+* [`operator autopilot set-config`][set-config] - Modify the current Autopilot configuration
+* [`operator keygen`][keygen] - Generates a new encryption key
+* [`operator keyring`][keyring] - Manages gossip layer encryption keys
+* [`operator raft list-peers`][list] - Display the current Raft peer configuration
+* [`operator raft remove-peer`][remove] - Remove a Nomad server from the Raft configuration
 
+[get-config]: /docs/commands/operator/autopilot-get-config.html "Autopilot Get Config command"
+[set-config]: /docs/commands/operator/autopilot-set-config.html "Autopilot Set Config command"
+[keygen]: /docs/commands/operator/keygen.html "Generates a new encryption key"
+[keyring]: /docs/commands/operator/keyring.html "Manages gossip layer encryption keys"
 [list]: /docs/commands/operator/raft-list-peers.html "Raft List Peers command"
 [remove]: /docs/commands/operator/raft-remove-peer.html "Raft Remove Peer command"

@@ -5,7 +5,8 @@
   Overrides the `NOMAD_REGION` environment variable if set. Defaults to the
   Agent's local region.
 
-- `-no-color`: Disables colored command output.
+- `-no-color`: Disables colored command output. Alternatively,
+  `NOMAD_CLI_NO_COLOR` may be set.
 
 - `-ca-cert=<path>`: Path to a PEM encoded CA cert file to use to verify the
   Nomad server SSL certificate. Overrides the `NOMAD_CACERT` environment

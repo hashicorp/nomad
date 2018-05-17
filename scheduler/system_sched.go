@@ -14,10 +14,6 @@ const (
 	// we will attempt to schedule if we continue to hit conflicts for system
 	// jobs.
 	maxSystemScheduleAttempts = 5
-
-	// allocNodeTainted is the status used when stopping an alloc because it's
-	// node is tainted.
-	allocNodeTainted = "alloc not needed as node is tainted"
 )
 
 // SystemScheduler is used for 'system' jobs. This scheduler is
@@ -62,7 +58,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
-		structs.EvalTriggerDeploymentWatcher:
+		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -212,6 +208,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
 	}
 
+	// Add all the allocs to migrate
+	for _, e := range diff.migrate {
+		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNodeTainted, "")
+	}
+
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
@@ -275,7 +276,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option, _ := s.stack.Select(missing.TaskGroup)
+		option, _ := s.stack.Select(missing.TaskGroup, nil)
 
 		if option == nil {
 			// If nodes were filtered because of constraint mismatches and we

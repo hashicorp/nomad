@@ -20,7 +20,7 @@ $ export AWS_SECRET_ACCESS_KEY=[AWS_SECRET_ACCESS_KEY]
 [Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool 
 for creating identical machine images for multiple platforms from a single 
 source configuration. The Terraform templates included in this repo reference a 
-publicly avaialble Amazon machine image (AMI) by default. The AMI can be customized 
+publicly available Amazon machine image (AMI) by default. The AMI can be customized 
 through modifications to the [build configuration script](../shared/scripts/setup.sh) 
 and [packer.json](packer.json).
 
@@ -43,15 +43,27 @@ a custom AMI:
 
 ```bash
 region                  = "us-east-1"
-ami                     = "ami-d42d74ae"
+ami                     = "ami-0ab81575"
 instance_type           = "t2.medium"
 key_name                = "KEY_NAME"
 server_count            = "3"
 client_count            = "4"
 ```
 
-You can also modify the `region`, `instance_type`, `server_count`, and `client_count`. 
-At least one client and one server are required.
+Modify the `region`, `instance_type`, `server_count`, and `client_count` variables
+as appropriate. At least one client and one server are required. You can 
+optionally replace the Nomad binary at runtime by adding the `nomad_binary` 
+variable like so:
+
+```bash
+region                  = "us-east-1"
+ami                     = "ami-0ab81575"
+instance_type           = "t2.medium"
+key_name                = "KEY_NAME"
+server_count            = "3"
+client_count            = "4"
+nomad_binary            = "https://releases.hashicorp.com/nomad/0.7.0/nomad_0.7.0_linux_amd64.zip"
+```
 
 Provision the cluster:
 

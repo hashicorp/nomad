@@ -1,18 +1,15 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 
-const { Controller, computed, inject } = Ember;
-
 export default Controller.extend(Sortable, Searchable, {
-  system: inject.service(),
-  jobsController: inject.controller('jobs'),
+  system: service(),
+  jobsController: controller('jobs'),
 
-  isForbidden: computed.alias('jobsController.isForbidden'),
-
-  pendingJobs: computed.filterBy('model', 'status', 'pending'),
-  runningJobs: computed.filterBy('model', 'status', 'running'),
-  deadJobs: computed.filterBy('model', 'status', 'dead'),
+  isForbidden: alias('jobsController.isForbidden'),
 
   queryParams: {
     currentPage: 'page',
@@ -28,29 +25,38 @@ export default Controller.extend(Sortable, Searchable, {
   sortDescending: true,
 
   searchProps: computed(() => ['id', 'name']),
+  fuzzySearchProps: computed(() => ['name']),
+  fuzzySearchEnabled: true,
 
+  /**
+    Filtered jobs are those that match the selected namespace and aren't children
+    of periodic or parameterized jobs.
+  */
   filteredJobs: computed(
     'model.[]',
+    'model.@each.parent',
     'system.activeNamespace',
     'system.namespaces.length',
     function() {
-      if (this.get('system.namespaces.length')) {
-        return this.get('model').filterBy('namespace.id', this.get('system.activeNamespace.id'));
-      } else {
-        return this.get('model');
-      }
+      const hasNamespaces = this.get('system.namespaces.length');
+      const activeNamespace = this.get('system.activeNamespace.id') || 'default';
+
+      return this.get('model')
+        .compact()
+        .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
+        .filter(job => !job.get('parent.content'));
     }
   ),
 
-  listToSort: computed.alias('filteredJobs'),
-  listToSearch: computed.alias('listSorted'),
-  sortedJobs: computed.alias('listSearched'),
+  listToSort: alias('filteredJobs'),
+  listToSearch: alias('listSorted'),
+  sortedJobs: alias('listSearched'),
 
   isShowingDeploymentDetails: false,
 
   actions: {
     gotoJob(job) {
-      this.transitionToRoute('jobs.job', job);
+      this.transitionToRoute('jobs.job', job.get('plainId'));
     },
 
     refresh() {

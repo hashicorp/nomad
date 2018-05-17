@@ -35,7 +35,7 @@ Apply Options:
     Sets the scope of the policy and when it should be enforced.
 
   -level (default: advisory)
-    Sets the enforcment level of the policy. Must be one of advisory,
+    Sets the enforcement level of the policy. Must be one of advisory,
     soft-mandatory, hard-mandatory.
 
 `
@@ -59,10 +59,12 @@ func (c *SentinelApplyCommand) Synopsis() string {
 	return "Create a new or update existing Sentinel policies"
 }
 
+func (c *SentinelApplyCommand) Name() string { return "sentinel apply" }
+
 func (c *SentinelApplyCommand) Run(args []string) int {
 	var description, scope, enfLevel string
 	var err error
-	flags := c.Meta.FlagSet("sentinel apply", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
 	flags.StringVar(&scope, "scope", "submit-job", "")
@@ -74,7 +76,8 @@ func (c *SentinelApplyCommand) Run(args []string) int {
 	// Check that we got exactly two arguments
 	args = flags.Args()
 	if l := len(args); l != 2 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes exactly two arguments: <name> <file>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

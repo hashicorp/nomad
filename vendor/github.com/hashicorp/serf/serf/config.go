@@ -55,6 +55,13 @@ type Config struct {
 	// set, a timeout of 5 seconds will be set.
 	BroadcastTimeout time.Duration
 
+	// LeavePropagateDelay is for our leave (node dead) message to propagate
+	// through the cluster. In particular, we want to stay up long enough to
+	// service any probes from other nodes before they learn about us
+	// leaving and stop probing. Otherwise, we risk getting node failures as
+	// we leave.
+	LeavePropagateDelay time.Duration
+
 	// The settings below relate to Serf's event coalescence feature. Serf
 	// is able to coalesce multiple events into single events in order to
 	// reduce the amount of noise that is sent along the EventCh. For example
@@ -112,6 +119,10 @@ type Config struct {
 	// node.
 	FlapTimeout time.Duration
 
+	// QueueCheckInterval is the interval at which we check the message
+	// queue to apply the warning and max depth.
+	QueueCheckInterval time.Duration
+
 	// QueueDepthWarning is used to generate warning message if the
 	// number of queued messages to broadcast exceeds this number. This
 	// is to provide the user feedback if events are being triggered
@@ -122,6 +133,12 @@ type Config struct {
 	// of queued messages to broadcast exceeds this number. This is to
 	// prevent an unbounded growth of memory utilization
 	MaxQueueDepth int
+
+	// MinQueueDepth, if >0 will enforce a lower limit for dropping messages
+	// and then the max will be max(MinQueueDepth, 2*SizeOfCluster). This
+	// defaults to 0 which disables this dynamic sizing feature. If this is
+	// >0 then MaxQueueDepth will be ignored.
+	MinQueueDepth int
 
 	// RecentIntentTimeout is used to determine how long we store recent
 	// join and leave intents. This is used to guard against the case where
@@ -245,6 +262,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		NodeName:                     hostname,
 		BroadcastTimeout:             5 * time.Second,
+		LeavePropagateDelay:          1 * time.Second,
 		EventBuffer:                  512,
 		QueryBuffer:                  512,
 		LogOutput:                    os.Stderr,
@@ -253,6 +271,7 @@ func DefaultConfig() *Config {
 		RecentIntentTimeout:          5 * time.Minute,
 		ReconnectInterval:            30 * time.Second,
 		ReconnectTimeout:             24 * time.Hour,
+		QueueCheckInterval:           30 * time.Second,
 		QueueDepthWarning:            128,
 		MaxQueueDepth:                4096,
 		TombstoneTimeout:             24 * time.Hour,

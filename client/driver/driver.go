@@ -126,7 +126,7 @@ func (r *CreatedResources) Remove(k, needle string) bool {
 	return false
 }
 
-// Copy returns a new deep copy of CreatedResrouces.
+// Copy returns a new deep copy of CreatedResources.
 func (r *CreatedResources) Copy() *CreatedResources {
 	if r == nil {
 		return nil
@@ -209,7 +209,7 @@ type Driver interface {
 	fingerprint.Fingerprint
 
 	// Prestart prepares the task environment and performs expensive
-	// intialization steps like downloading images.
+	// initialization steps like downloading images.
 	//
 	// CreatedResources may be non-nil even when an error occurs.
 	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
@@ -257,13 +257,15 @@ type LogEventFn func(message string, args ...interface{})
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and
 // node attributes into a Driver without having to change the Driver interface
-// each time we do it. Used in conjection with Factory, above.
+// each time we do it. Used in conjunction with Factory, above.
 type DriverContext struct {
-	taskName string
-	allocID  string
-	config   *config.Config
-	logger   *log.Logger
-	node     *structs.Node
+	jobName       string
+	taskGroupName string
+	taskName      string
+	allocID       string
+	config        *config.Config
+	logger        *log.Logger
+	node          *structs.Node
 
 	emitEvent LogEventFn
 }
@@ -278,15 +280,18 @@ func NewEmptyDriverContext() *DriverContext {
 // This enables other packages to create DriverContexts but keeps the fields
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
-func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
+func NewDriverContext(jobName, taskGroupName, taskName, allocID string,
+	config *config.Config, node *structs.Node,
 	logger *log.Logger, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName:  taskName,
-		allocID:   allocID,
-		config:    config,
-		node:      node,
-		logger:    logger,
-		emitEvent: eventEmitter,
+		jobName:       jobName,
+		taskGroupName: taskGroupName,
+		taskName:      taskName,
+		allocID:       allocID,
+		config:        config,
+		node:          node,
+		logger:        logger,
+		emitEvent:     eventEmitter,
 	}
 }
 

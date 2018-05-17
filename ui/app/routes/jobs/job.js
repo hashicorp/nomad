@@ -1,10 +1,11 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-const { Route, RSVP, inject } = Ember;
-
 export default Route.extend({
-  store: inject.service(),
+  store: service(),
+  token: service(),
 
   serialize(model) {
     return { job_name: model.get('plainId') };
@@ -13,7 +14,7 @@ export default Route.extend({
   model(params, transition) {
     const namespace = transition.queryParams.namespace || this.get('system.activeNamespace.id');
     const name = params.job_name;
-    const fullId = JSON.stringify([name, namespace]);
+    const fullId = JSON.stringify([name, namespace || 'default']);
     return this.get('store')
       .findRecord('job', fullId, { reload: true })
       .then(job => {

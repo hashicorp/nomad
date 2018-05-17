@@ -1,9 +1,8 @@
 package driver
 
 import (
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/sys/unix"
 )
 
@@ -13,28 +12,31 @@ const (
 	execDriverAttr = "driver.exec"
 )
 
-func (d *ExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	// The exec driver will be detected in every case
+	resp.Detected = true
+
 	// Only enable if cgroups are available and we are root
-	if !cgroupsMounted(node) {
+	if !cgroupsMounted(req.Node) {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
-			d.logger.Printf("[DEBUG] driver.exec: cgroups unavailable, disabling")
+			d.logger.Printf("[INFO] driver.exec: cgroups unavailable, disabling")
 		}
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		delete(node.Attributes, execDriverAttr)
-		return false, nil
+		resp.RemoveAttribute(execDriverAttr)
+		return nil
 	} else if unix.Geteuid() != 0 {
 		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Printf("[DEBUG] driver.exec: must run as root user, disabling")
 		}
-		delete(node.Attributes, execDriverAttr)
 		d.fingerprintSuccess = helper.BoolToPtr(false)
-		return false, nil
+		resp.RemoveAttribute(execDriverAttr)
+		return nil
 	}
 
 	if d.fingerprintSuccess == nil || !*d.fingerprintSuccess {
 		d.logger.Printf("[DEBUG] driver.exec: exec driver is enabled")
 	}
-	node.Attributes[execDriverAttr] = "1"
+	resp.AddAttribute(execDriverAttr, "1")
 	d.fingerprintSuccess = helper.BoolToPtr(true)
-	return true, nil
+	return nil
 }

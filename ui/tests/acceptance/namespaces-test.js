@@ -42,11 +42,11 @@ test('the namespace switcher lists all namespaces', function(assert) {
   visit('/jobs');
 
   andThen(() => {
-    assert.ok(find('.gutter .menu .namespace-switcher'), 'Namespace switcher found');
+    assert.ok(find('[data-test-namespace-switcher]'), 'Namespace switcher found');
   });
 
   andThen(() => {
-    click('.gutter .menu .namespace-switcher .ember-power-select-trigger');
+    click('[data-test-namespace-switcher] .ember-power-select-trigger');
   });
 
   andThen(() => {
@@ -81,7 +81,7 @@ test('changing the namespace sets the namespace in localStorage', function(asser
 
   visit('/jobs');
 
-  selectChoose('.namespace-switcher', namespace.name);
+  selectChoose('[data-test-namespace-switcher]', namespace.name);
   andThen(() => {
     assert.equal(
       window.localStorage.nomadActiveNamespace,
@@ -106,7 +106,7 @@ test('changing the namespace refreshes the jobs list when on the jobs page', fun
     );
   });
 
-  selectChoose('.namespace-switcher', namespace.name);
+  selectChoose('[data-test-namespace-switcher]', namespace.name);
 
   andThen(() => {
     const requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));

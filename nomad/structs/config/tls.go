@@ -1,8 +1,12 @@
 package config
 
 import (
+	"crypto/md5"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"os"
 	"sync"
 )
 
@@ -47,6 +51,18 @@ type TLSConfig struct {
 
 	// Verify connections to the HTTPS API
 	VerifyHTTPSClient bool `mapstructure:"verify_https_client"`
+
+	// Checksum is a MD5 hash of the certificate CA File, Certificate file, and
+	// key file.
+	Checksum string
+
+	// TLSCipherSuites are operator-defined ciphers to be used in Nomad TLS
+	// connections
+	TLSCipherSuites string `mapstructure:"tls_cipher_suites"`
+
+	// TLSMinVersion is used to set the minimum TLS version used for TLS
+	// connections. Should be either "tls10", "tls11", or "tls12".
+	TLSMinVersion string `mapstructure:"tls_min_version"`
 }
 
 type KeyLoader struct {
@@ -138,7 +154,27 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.KeyFile = t.KeyFile
 	new.RPCUpgradeMode = t.RPCUpgradeMode
 	new.VerifyHTTPSClient = t.VerifyHTTPSClient
+
+	new.TLSCipherSuites = t.TLSCipherSuites
+	new.TLSMinVersion = t.TLSMinVersion
+
+	new.SetChecksum()
+
 	return new
+}
+
+func (t *TLSConfig) IsEmpty() bool {
+	if t == nil {
+		return true
+	}
+
+	return t.EnableHTTP == false &&
+		t.EnableRPC == false &&
+		t.VerifyServerHostname == false &&
+		t.CAFile == "" &&
+		t.CertFile == "" &&
+		t.KeyFile == "" &&
+		t.VerifyHTTPSClient == false
 }
 
 // Merge is used to merge two TLS configs together
@@ -170,4 +206,79 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 		result.RPCUpgradeMode = true
 	}
 	return result
+}
+
+// CertificateInfoIsEqual compares the fields of two TLS configuration objects
+// for the fields that are specific to configuring a TLS connection
+// It is possible for either the calling TLSConfig to be nil, or the TLSConfig
+// that it is being compared against, so we need to handle both places. See
+// server.go Reload for example.
+func (t *TLSConfig) CertificateInfoIsEqual(newConfig *TLSConfig) (bool, error) {
+	if t == nil || newConfig == nil {
+		return t == newConfig, nil
+	}
+
+	if t.IsEmpty() && newConfig.IsEmpty() {
+		return true, nil
+	} else if t.IsEmpty() || newConfig.IsEmpty() {
+		return false, nil
+	}
+
+	// Set the checksum if it hasn't yet been set (this should happen when the
+	// config is parsed but this provides safety in depth)
+	if newConfig.Checksum == "" {
+		err := newConfig.SetChecksum()
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if t.Checksum == "" {
+		err := t.SetChecksum()
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return t.Checksum == newConfig.Checksum, nil
+}
+
+// SetChecksum generates and sets the checksum for a TLS configuration
+func (t *TLSConfig) SetChecksum() error {
+	newCertChecksum, err := createChecksumOfFiles(t.CAFile, t.CertFile, t.KeyFile)
+	if err != nil {
+		return err
+	}
+
+	t.Checksum = newCertChecksum
+	return nil
+}
+
+func getFileChecksum(filepath string) (string, error) {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func createChecksumOfFiles(inputs ...string) (string, error) {
+	h := md5.New()
+
+	for _, input := range inputs {
+		checksum, err := getFileChecksum(input)
+		if err != nil {
+			return "", err
+		}
+		io.WriteString(h, checksum)
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

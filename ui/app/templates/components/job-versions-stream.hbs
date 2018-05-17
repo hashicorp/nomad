@@ -1,10 +1,10 @@
-{{#each annotatedVersions as |record|}}
+{{#each annotatedVersions key="version.id" as |record|}}
   {{#if record.meta.showDate}}
-    <li class="timeline-note">
+    <li data-test-version-time class="timeline-note">
       {{moment-format record.version.submitTime "MMMM D, YYYY"}}
     </li>
   {{/if}}
-  <li class="timeline-object">
+  <li data-test-version class="timeline-object">
     {{job-version version=record.version verbose=verbose}}
   </li>
 {{/each}}

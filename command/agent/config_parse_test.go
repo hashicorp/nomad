@@ -2,14 +2,12 @@ package agent
 
 import (
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_Parse(t *testing.T) {
@@ -64,6 +62,7 @@ func TestConfig_Parse(t *testing.T) {
 					NetworkInterface: "eth0",
 					NetworkSpeed:     100,
 					CpuCompute:       4444,
+					MemoryMB:         0,
 					MaxKillTimeout:   "10s",
 					ClientMinPort:    1000,
 					ClientMaxPort:    2000,
@@ -88,6 +87,7 @@ func TestConfig_Parse(t *testing.T) {
 					BootstrapExpect:        5,
 					DataDir:                "/tmp/data",
 					ProtocolVersion:        3,
+					RaftProtocol:           3,
 					NumSchedulers:          2,
 					EnabledSchedulers:      []string{"test"},
 					NodeGCThreshold:        "12h",
@@ -102,6 +102,9 @@ func TestConfig_Parse(t *testing.T) {
 					RetryInterval:          "15s",
 					RejoinAfterLeave:       true,
 					RetryMaxAttempts:       3,
+					NonVotingServer:        true,
+					RedundancyZone:         "foo",
+					UpgradeVersion:         "0.8.0",
 					EncryptKey:             "abc",
 				},
 				ACL: &ACLConfig{
@@ -127,23 +130,27 @@ func TestConfig_Parse(t *testing.T) {
 				LeaveOnTerm:               true,
 				EnableSyslog:              true,
 				SyslogFacility:            "LOCAL1",
-				DisableUpdateCheck:        true,
+				DisableUpdateCheck:        helper.BoolToPtr(true),
 				DisableAnonymousSignature: true,
 				Consul: &config.ConsulConfig{
-					ServerServiceName:  "nomad",
-					ClientServiceName:  "nomad-client",
-					Addr:               "127.0.0.1:9500",
-					Token:              "token1",
-					Auth:               "username:pass",
-					EnableSSL:          &trueValue,
-					VerifySSL:          &trueValue,
-					CAFile:             "/path/to/ca/file",
-					CertFile:           "/path/to/cert/file",
-					KeyFile:            "/path/to/key/file",
-					ServerAutoJoin:     &trueValue,
-					ClientAutoJoin:     &trueValue,
-					AutoAdvertise:      &trueValue,
-					ChecksUseAdvertise: &trueValue,
+					ServerServiceName:   "nomad",
+					ServerHTTPCheckName: "nomad-server-http-health-check",
+					ServerSerfCheckName: "nomad-server-serf-health-check",
+					ServerRPCCheckName:  "nomad-server-rpc-health-check",
+					ClientServiceName:   "nomad-client",
+					ClientHTTPCheckName: "nomad-client-http-health-check",
+					Addr:                "127.0.0.1:9500",
+					Token:               "token1",
+					Auth:                "username:pass",
+					EnableSSL:           &trueValue,
+					VerifySSL:           &trueValue,
+					CAFile:              "/path/to/ca/file",
+					CertFile:            "/path/to/cert/file",
+					KeyFile:             "/path/to/key/file",
+					ServerAutoJoin:      &trueValue,
+					ClientAutoJoin:      &trueValue,
+					AutoAdvertise:       &trueValue,
+					ChecksUseAdvertise:  &trueValue,
 				},
 				Vault: &config.VaultConfig{
 					Addr:                 "127.0.0.1:9500",
@@ -186,12 +193,76 @@ func TestConfig_Parse(t *testing.T) {
 						},
 					},
 				},
+				Autopilot: &config.AutopilotConfig{
+					CleanupDeadServers:      &trueValue,
+					ServerStabilizationTime: 23057 * time.Second,
+					LastContactThreshold:    12705 * time.Second,
+					MaxTrailingLogs:         17849,
+					EnableRedundancyZones:   &trueValue,
+					DisableUpgradeMigration: &trueValue,
+					EnableCustomUpgrades:    &trueValue,
+				},
+			},
+			false,
+		},
+		{
+			"non-optional.hcl",
+			&Config{
+				Region:         "",
+				Datacenter:     "",
+				NodeName:       "",
+				DataDir:        "",
+				LogLevel:       "",
+				BindAddr:       "",
+				EnableDebug:    false,
+				Ports:          nil,
+				Addresses:      nil,
+				AdvertiseAddrs: nil,
+				Client: &ClientConfig{
+					Enabled:               false,
+					StateDir:              "",
+					AllocDir:              "",
+					Servers:               nil,
+					NodeClass:             "",
+					Meta:                  nil,
+					Options:               nil,
+					ChrootEnv:             nil,
+					NetworkInterface:      "",
+					NetworkSpeed:          0,
+					CpuCompute:            0,
+					MemoryMB:              5555,
+					MaxKillTimeout:        "",
+					ClientMinPort:         0,
+					ClientMaxPort:         0,
+					Reserved:              nil,
+					GCInterval:            0,
+					GCParallelDestroys:    0,
+					GCDiskUsageThreshold:  0,
+					GCInodeUsageThreshold: 0,
+					GCMaxAllocs:           0,
+					NoHostUUID:            nil,
+				},
+				Server:                    nil,
+				ACL:                       nil,
+				Telemetry:                 nil,
+				LeaveOnInt:                false,
+				LeaveOnTerm:               false,
+				EnableSyslog:              false,
+				SyslogFacility:            "",
+				DisableUpdateCheck:        nil,
+				DisableAnonymousSignature: false,
+				Consul:                 nil,
+				Vault:                  nil,
+				TLSConfig:              nil,
+				HTTPAPIResponseHeaders: nil,
+				Sentinel:               nil,
 			},
 			false,
 		},
 	}
 
 	for _, tc := range cases {
+		require := require.New(t)
 		t.Run(tc.File, func(t *testing.T) {
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
@@ -202,10 +273,7 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
-
-			if !reflect.DeepEqual(actual, tc.Result) {
-				t.Errorf("file: %s  diff: (actual vs expected)\n\n%s", tc.File, strings.Join(pretty.Diff(actual, tc.Result), "\n"))
-			}
+			require.EqualValues(actual, tc.Result)
 		})
 	}
 }

@@ -27,7 +27,7 @@ func IsUniqueNamespace(key string) bool {
 // ComputeClass computes a derived class for the node based on its attributes.
 // ComputedClass is a unique id that identifies nodes with a common set of
 // attributes and capabilities. Thus, when calculating a node's computed class
-// we avoid including any uniquely identifing fields.
+// we avoid including any uniquely identifying fields.
 func (n *Node) ComputeClass() error {
 	hash, err := hashstructure.Hash(n, nil)
 	if err != nil {

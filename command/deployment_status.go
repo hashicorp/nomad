@@ -67,11 +67,13 @@ func (c *DeploymentStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
+
 func (c *DeploymentStatusCommand) Run(args []string) int {
 	var json, verbose bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("deployment status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
@@ -81,10 +83,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <deployment id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -192,7 +195,7 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 
 func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	// Detect if we need to add these columns
-	canaries, autorevert := false, false
+	var canaries, autorevert, progressDeadline bool
 	tgNames := make([]string, 0, len(d.TaskGroups))
 	for name, state := range d.TaskGroups {
 		tgNames = append(tgNames, name)
@@ -201,6 +204,9 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		}
 		if state.DesiredCanaries > 0 {
 			canaries = true
+		}
+		if state.ProgressDeadline != 0 {
+			progressDeadline = true
 		}
 	}
 
@@ -220,6 +226,9 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		rowString += "Canaries|"
 	}
 	rowString += "Placed|Healthy|Unhealthy"
+	if progressDeadline {
+		rowString += "|Progress Deadline"
+	}
 
 	rows := make([]string, len(d.TaskGroups)+1)
 	rows[0] = rowString
@@ -242,6 +251,13 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 			row += fmt.Sprintf("%d|", state.DesiredCanaries)
 		}
 		row += fmt.Sprintf("%d|%d|%d", state.PlacedAllocs, state.HealthyAllocs, state.UnhealthyAllocs)
+		if progressDeadline {
+			if state.RequireProgressBy.IsZero() {
+				row += fmt.Sprintf("|%v", "N/A")
+			} else {
+				row += fmt.Sprintf("|%v", formatTime(state.RequireProgressBy))
+			}
+		}
 		rows[i] = row
 		i++
 	}

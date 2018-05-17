@@ -6,29 +6,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/testutil/retry"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLeader_LeftServer(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -75,20 +78,20 @@ func TestLeader_LeftServer(t *testing.T) {
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -127,13 +130,13 @@ func TestLeader_LeftLeader(t *testing.T) {
 }
 
 func TestLeader_MultiBootstrap(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, nil)
+	s2 := TestServer(t, nil)
 	defer s2.Shutdown()
 	servers := []*Server{s1, s2}
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -154,20 +157,20 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 }
 
 func TestLeader_PlanQueue_Reset(t *testing.T) {
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -226,24 +229,24 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 }
 
 func TestLeader_EvalBroker_Reset(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	for _, s := range servers {
@@ -303,24 +306,24 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	for _, s := range servers {
@@ -410,7 +413,7 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -466,7 +469,7 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -523,7 +526,7 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatch(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalGCInterval = 5 * time.Millisecond
 	})
@@ -543,7 +546,7 @@ func TestLeader_PeriodicDispatch(t *testing.T) {
 }
 
 func TestLeader_ReapFailedEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalDeliveryLimit = 1
 	})
@@ -614,7 +617,7 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 }
 
 func TestLeader_ReapDuplicateEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -642,7 +645,7 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 }
 
 func TestLeader_RestoreVaultAccessors(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -671,13 +674,13 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, func(c *Config) {
+	s1, root := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
-	s2, _ := testACLServer(t, func(c *Config) {
+	s2, _ := TestACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
@@ -685,7 +688,7 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 		c.ReplicationToken = root.SecretID
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
@@ -739,13 +742,13 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 
 func TestLeader_ReplicateACLTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, func(c *Config) {
+	s1, root := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
-	s2, _ := testACLServer(t, func(c *Config) {
+	s2, _ := TestACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
@@ -753,7 +756,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 		c.ReplicationToken = root.SecretID
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
@@ -814,22 +817,20 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s1.Shutdown()
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
-		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 1
 	})
 	defer s2.Shutdown()
 
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
-		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer s3.Shutdown()
@@ -837,7 +838,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	servers := []*Server{s1, s2, s3}
 
 	// Try to join
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
@@ -854,7 +855,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 
 	for _, s := range []*Server{s1, s3} {
-		minVer, err := MinRaftProtocol(s1.config.Region, s.Members())
+		minVer, err := s.autopilot.MinRaftProtocol()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -864,13 +865,13 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 
 	// Replace the dead server with one running raft protocol v3
-	s4 := testServer(t, func(c *Config) {
+	s4 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer s4.Shutdown()
-	testJoin(t, s1, s4)
+	TestJoin(t, s1, s4)
 	servers[1] = s4
 
 	// Make sure we're back to 3 total peers with the new one added via ID
@@ -901,4 +902,213 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 			t.Fatal(err)
 		})
 	}
+}
+
+func TestLeader_Reelection(t *testing.T) {
+	raftProtocols := []int{1, 2, 3}
+	for _, p := range raftProtocols {
+		t.Run("Leader Election - Protocol version "+string(p), func(t *testing.T) {
+			leaderElectionTest(t, raft.ProtocolVersion(p))
+		})
+	}
+
+}
+
+func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.RaftConfig.ProtocolVersion = raftProtocol
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = raftProtocol
+	})
+	defer s2.Shutdown()
+
+	s3 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = raftProtocol
+	})
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	TestJoin(t, s1, s2, s3)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		future := s1.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			return false, err
+		}
+
+		for _, server := range future.Configuration().Servers {
+			if server.Suffrage == raft.Nonvoter {
+				return false, fmt.Errorf("non-voter %v", server)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	var leader, nonLeader *Server
+	for _, s := range servers {
+		if s.IsLeader() {
+			leader = s
+		} else {
+			nonLeader = s
+		}
+	}
+
+	// Shutdown the leader
+	leader.Shutdown()
+	// Wait for new leader to elect
+	testutil.WaitForLeader(t, nonLeader.RPC)
+}
+
+func TestLeader_RollRaftServer(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s2.Shutdown()
+
+	s3 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s3.Shutdown()
+
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	TestJoin(t, s1, s2, s3)
+
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
+	}
+
+	// Kill the first v2 server
+	s1.Shutdown()
+
+	for _, s := range []*Server{s1, s3} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 2; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+
+	// Replace the dead server with one running raft protocol v3
+	s4 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s4.Shutdown()
+	TestJoin(t, s4, s2)
+	servers[0] = s4
+
+	// Kill the second v2 server
+	s2.Shutdown()
+
+	for _, s := range []*Server{s3, s4} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 2; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+	// Replace another dead server with one running raft protocol v3
+	s5 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s5.Shutdown()
+	TestJoin(t, s5, s4)
+	servers[1] = s5
+
+	// Kill the last v2 server, now minRaftProtocol should be 3
+	s3.Shutdown()
+
+	for _, s := range []*Server{s4, s5} {
+		retry.Run(t, func(r *retry.R) {
+			minVer, err := s.autopilot.MinRaftProtocol()
+			if err != nil {
+				r.Fatal(err)
+			}
+			if got, want := minVer, 3; got != want {
+				r.Fatalf("got min raft version %d want %d", got, want)
+			}
+		})
+	}
+
+	// Replace the last dead server with one running raft protocol v3
+	s6 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s6.Shutdown()
+	TestJoin(t, s6, s4)
+	servers[2] = s6
+
+	// Make sure all the dead servers are removed and we're back to 3 total peers
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) {
+			addrs := 0
+			ids := 0
+			future := s.raft.GetConfiguration()
+			if err := future.Error(); err != nil {
+				r.Fatal(err)
+			}
+			for _, server := range future.Configuration().Servers {
+				if string(server.ID) == string(server.Address) {
+					addrs++
+				} else {
+					ids++
+				}
+			}
+			if got, want := addrs, 0; got != want {
+				r.Fatalf("got %d server addresses want %d", got, want)
+			}
+			if got, want := ids, 3; got != want {
+				r.Fatalf("got %d server ids want %d", got, want)
+			}
+		})
+	}
+}
+
+func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should have finished establish leader loop")
+	})
+
+	require.Nil(t, s1.revokeLeadership())
+	require.Nil(t, s1.revokeLeadership())
+	require.Nil(t, s1.revokeLeadership())
 }

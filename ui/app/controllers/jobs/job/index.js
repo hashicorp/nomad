@@ -1,12 +1,12 @@
-import Ember from 'ember';
-import Sortable from 'nomad-ui/mixins/sortable';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
-const { Controller, computed, inject } = Ember;
+export default Controller.extend(WithNamespaceResetting, {
+  system: service(),
 
-export default Controller.extend(Sortable, WithNamespaceResetting, {
-  system: inject.service(),
-  jobController: inject.controller('jobs.job'),
+  jobController: controller('jobs.job'),
 
   queryParams: {
     currentPage: 'page',
@@ -15,28 +15,22 @@ export default Controller.extend(Sortable, WithNamespaceResetting, {
   },
 
   currentPage: 1,
-  pageSize: 10,
 
   sortProperty: 'name',
   sortDescending: false,
 
-  breadcrumbs: computed.alias('jobController.breadcrumbs'),
-  job: computed.alias('model'),
-
-  taskGroups: computed('model.taskGroups.[]', function() {
-    return this.get('model.taskGroups') || [];
-  }),
-
-  listToSort: computed.alias('taskGroups'),
-  sortedTaskGroups: computed.alias('listSorted'),
-
-  sortedEvaluations: computed('model.evaluations.@each.modifyIndex', function() {
-    return (this.get('model.evaluations') || []).sortBy('modifyIndex').reverse();
-  }),
+  breadcrumbs: alias('jobController.breadcrumbs'),
+  job: alias('model'),
 
   actions: {
     gotoTaskGroup(taskGroup) {
       this.transitionToRoute('jobs.job.task-group', taskGroup.get('job'), taskGroup);
+    },
+
+    gotoJob(job) {
+      this.transitionToRoute('jobs.job', job, {
+        queryParams: { jobNamespace: job.get('namespace.name') },
+      });
     },
   },
 });

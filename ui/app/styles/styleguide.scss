@@ -1,0 +1,44 @@
+#styleguide {
+  .mock-content {
+    display: flex;
+    height: 250px;
+
+    .mock-image,
+    .mock-copy {
+      height: 100%;
+      width: 100%;
+      margin: 1em;
+    }
+
+    .mock-image {
+      background: linear-gradient(
+          to top right,
+          transparent 0%,
+          transparent 49%,
+          $grey-blue 49%,
+          $grey-blue 51%,
+          transparent 51%,
+          transparent 100%
+        ),
+        linear-gradient(
+          to bottom right,
+          transparent 0%,
+          transparent 49%,
+          $grey-blue 49%,
+          $grey-blue 51%,
+          transparent 51%,
+          transparent 100%
+        );
+    }
+
+    .mock-copy {
+      background: repeating-linear-gradient(
+        to bottom,
+        $grey-blue,
+        $grey-blue 5px,
+        transparent 5px,
+        transparent 14px
+      );
+    }
+  }
+}

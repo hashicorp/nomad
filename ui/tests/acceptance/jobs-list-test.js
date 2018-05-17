@@ -1,9 +1,6 @@
-import Ember from 'ember';
 import { click, find, findAll, currentURL, visit, fillIn } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { $ } = Ember;
 
 moduleForAcceptance('Acceptance | jobs list', {
   beforeEach() {
@@ -29,10 +26,11 @@ test('/jobs should list the first page of jobs sorted by modify index', function
 
   andThen(() => {
     const sortedJobs = server.db.jobs.sortBy('modifyIndex').reverse();
-    assert.equal(findAll('.job-row').length, pageSize);
+    assert.equal(findAll('[data-test-job-row]').length, pageSize);
     for (var jobNumber = 0; jobNumber < pageSize; jobNumber++) {
+      const jobRow = findAll('[data-test-job-row]')[jobNumber];
       assert.equal(
-        $(`.job-row:eq(${jobNumber}) td:eq(0)`).text(),
+        jobRow.querySelector('[data-test-job-name]').textContent,
         sortedJobs[jobNumber].name,
         'Jobs are ordered'
       );
@@ -48,26 +46,28 @@ test('each job row should contain information about the job', function(assert) {
   visit('/jobs');
 
   andThen(() => {
-    const jobRow = $(findAll('.job-row')[0]);
+    const jobRow = find('[data-test-job-row]');
 
-    assert.equal(jobRow.find('td:eq(0)').text(), job.name, 'Name');
-    assert.equal(jobRow.find('td:eq(0) a').attr('href'), `/ui/jobs/${job.id}`, 'Detail Link');
+    assert.equal(jobRow.querySelector('[data-test-job-name]').textContent, job.name, 'Name');
     assert.equal(
-      jobRow
-        .find('td:eq(1)')
-        .text()
-        .trim(),
+      jobRow.querySelector('[data-test-job-name] a').getAttribute('href'),
+      `/ui/jobs/${job.id}`,
+      'Detail Link'
+    );
+    assert.equal(
+      jobRow.querySelector('[data-test-job-status]').textContent.trim(),
       job.status,
       'Status'
     );
-    assert.equal(jobRow.find('td:eq(2)').text(), job.type, 'Type');
-    assert.equal(jobRow.find('td:eq(3)').text(), job.priority, 'Priority');
+    assert.equal(jobRow.querySelector('[data-test-job-type]').textContent, typeForJob(job), 'Type');
+    assert.equal(
+      jobRow.querySelector('[data-test-job-priority]').textContent,
+      job.priority,
+      'Priority'
+    );
     andThen(() => {
       assert.equal(
-        jobRow
-          .find('td:eq(4)')
-          .text()
-          .trim(),
+        jobRow.querySelector('[data-test-job-task-groups]').textContent.trim(),
         taskGroups.length,
         '# Groups'
       );
@@ -82,7 +82,7 @@ test('each job row should link to the corresponding job', function(assert) {
   visit('/jobs');
 
   andThen(() => {
-    click($('.job-row:eq(0) td:eq(0) a').get(0));
+    click('[data-test-job-name] a');
   });
 
   andThen(() => {
@@ -94,32 +94,28 @@ test('when there are no jobs, there is an empty message', function(assert) {
   visit('/jobs');
 
   andThen(() => {
-    assert.ok(find('.empty-message'));
-    assert.equal(find('.empty-message-headline').textContent, 'No Jobs');
+    assert.ok(find('[data-test-empty-jobs-list]'));
+    assert.equal(find('[data-test-empty-jobs-list-headline]').textContent, 'No Jobs');
   });
 });
 
-test('when there are jobs, but no matches for a search result, there is an empty message', function(
-  assert
-) {
+test('when there are jobs, but no matches for a search result, there is an empty message', function(assert) {
   server.create('job', { name: 'cat 1' });
   server.create('job', { name: 'cat 2' });
 
   visit('/jobs');
 
   andThen(() => {
-    fillIn('.search-box input', 'dog');
+    fillIn('[data-test-jobs-search] input', 'dog');
   });
 
   andThen(() => {
-    assert.ok(find('.empty-message'));
-    assert.equal(find('.empty-message-headline').textContent, 'No Matches');
+    assert.ok(find('[data-test-empty-jobs-list]'));
+    assert.equal(find('[data-test-empty-jobs-list-headline]').textContent, 'No Matches');
   });
 });
 
-test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', function(
-  assert
-) {
+test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', function(assert) {
   server.createList('namespace', 2);
   const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
   const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
@@ -127,35 +123,41 @@ test('when the namespace query param is set, only matching jobs are shown and th
   visit('/jobs');
 
   andThen(() => {
-    assert.equal(findAll('.job-row').length, 1, 'One job in the default namespace');
-    assert.equal(find('.job-row td').textContent, job1.name, 'The correct job is shown');
+    assert.equal(findAll('[data-test-job-row]').length, 1, 'One job in the default namespace');
+    assert.equal(find('[data-test-job-name]').textContent, job1.name, 'The correct job is shown');
   });
 
   const secondNamespace = server.db.namespaces[1];
   visit(`/jobs?namespace=${secondNamespace.id}`);
 
   andThen(() => {
-    assert.equal(findAll('.job-row').length, 1, `One job in the ${secondNamespace.name} namespace`);
-    assert.equal(find('.job-row td').textContent, job2.name, 'The correct job is shown');
+    assert.equal(
+      findAll('[data-test-job-row]').length,
+      1,
+      `One job in the ${secondNamespace.name} namespace`
+    );
+    assert.equal(find('[data-test-job-name]').textContent, job2.name, 'The correct job is shown');
   });
 });
 
-test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(
-  assert
-) {
+test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(assert) {
   server.pretender.get('/v1/jobs', () => [403, {}, null]);
 
   visit('/jobs');
 
   andThen(() => {
-    assert.equal(find('.empty-message-headline').textContent, 'Not Authorized');
+    assert.equal(find('[data-test-error-title]').textContent, 'Not Authorized');
   });
 
   andThen(() => {
-    click('.empty-message-body a');
+    click('[data-test-error-message] a');
   });
 
   andThen(() => {
     assert.equal(currentURL(), '/settings/tokens');
   });
 });
+
+function typeForJob(job) {
+  return job.periodic ? 'periodic' : job.parameterized ? 'parameterized' : job.type;
+}

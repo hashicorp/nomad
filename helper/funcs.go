@@ -263,6 +263,7 @@ func CleanEnvVar(s string, r byte) string {
 	for i, c := range b {
 		switch {
 		case c == '_':
+		case c == '.':
 		case c >= 'a' && c <= 'z':
 		case c >= 'A' && c <= 'Z':
 		case i > 0 && c >= '0' && c <= '9':

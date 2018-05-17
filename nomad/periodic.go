@@ -163,7 +163,7 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	wasRunning := p.enabled
 	p.enabled = enabled
 
-	// If we are transistioning from enabled to disabled, stop the daemon and
+	// If we are transitioning from enabled to disabled, stop the daemon and
 	// flush.
 	if !enabled && wasRunning {
 		p.stopFn()
@@ -221,7 +221,10 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 
 	// Add or update the job.
 	p.tracked[tuple] = job
-	next := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	next, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	if err != nil {
+		return fmt.Errorf("failed adding job %s: %v", job.NamespacedID(), err)
+	}
 	if tracked {
 		if err := p.heap.Update(job, next); err != nil {
 			return fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
@@ -344,9 +347,11 @@ func (p *PeriodicDispatch) run(ctx context.Context) {
 func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	p.l.Lock()
 
-	nextLaunch := job.Periodic.Next(launchTime)
-	if err := p.heap.Update(job, nextLaunch); err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %q (%s): %v", job.ID, job.Namespace, err)
+	nextLaunch, err := job.Periodic.Next(launchTime)
+	if err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to parse next periodic launch for job %s: %v", job.NamespacedID(), err)
+	} else if err := p.heap.Update(job, nextLaunch); err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %s: %v", job.NamespacedID(), err)
 	}
 
 	// If the job prohibits overlapping and there are running children, we skip

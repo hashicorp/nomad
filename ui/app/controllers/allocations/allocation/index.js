@@ -1,9 +1,10 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import Controller, { inject as controller } from '@ember/controller';
 import Sortable from 'nomad-ui/mixins/sortable';
 
-const { Controller, computed } = Ember;
-
 export default Controller.extend(Sortable, {
+  allocationController: controller('allocations.allocation'),
+
   queryParams: {
     sortProperty: 'sort',
     sortDescending: 'desc',
@@ -12,6 +13,8 @@ export default Controller.extend(Sortable, {
   sortProperty: 'name',
   sortDescending: false,
 
-  listToSort: computed.alias('model.states'),
-  sortedStates: computed.alias('listSorted'),
+  breadcrumbs: alias('allocationController.breadcrumbs'),
+
+  listToSort: alias('model.states'),
+  sortedStates: alias('listSorted'),
 });

@@ -1,9 +1,8 @@
-import Ember from 'ember';
+import { none } from '@ember/object/computed';
+import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragment, fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
-
-const { computed } = Ember;
 
 export default Fragment.extend({
   name: attr('string'),
@@ -12,7 +11,7 @@ export default Fragment.extend({
   finishedAt: attr('date'),
   failed: attr('boolean'),
 
-  isActive: computed.none('finishedAt'),
+  isActive: none('finishedAt'),
 
   allocation: fragmentOwner(),
   task: computed('allocation.taskGroup.tasks.[]', function() {

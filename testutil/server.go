@@ -34,6 +34,7 @@ type TestServerConfig struct {
 	Region            string        `json:"region,omitempty"`
 	DisableCheckpoint bool          `json:"disable_update_check"`
 	LogLevel          string        `json:"log_level,omitempty"`
+	Consul            *Consul       `json:"consul,omitempty"`
 	AdvertiseAddrs    *Advertise    `json:"advertise,omitempty"`
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
@@ -42,6 +43,13 @@ type TestServerConfig struct {
 	ACL               *ACLConfig    `json:"acl,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
+}
+
+// Consul is used to configure the communication with Consul
+type Consul struct {
+	Address string `json:"address,omitempty"`
+	Auth    string `json:"auth,omitempty"`
+	Token   string `json:"token,omitempty"`
 }
 
 // Advertise is used to configure the addresses to advertise
@@ -62,6 +70,7 @@ type PortsConfig struct {
 type ServerConfig struct {
 	Enabled         bool `json:"enabled"`
 	BootstrapExpect int  `json:"bootstrap_expect"`
+	RaftProtocol    int  `json:"raft_protocol,omitempty"`
 }
 
 // ClientConfig is used to configure the client
@@ -91,12 +100,6 @@ func defaultServerConfig(t testing.T) *TestServerConfig {
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
 		LogLevel:          "DEBUG",
-		// Advertise can't be localhost
-		AdvertiseAddrs: &Advertise{
-			HTTP: "169.254.42.42",
-			RPC:  "169.254.42.42",
-			Serf: "169.254.42.42",
-		},
 		Ports: &PortsConfig{
 			HTTP: ports[0],
 			RPC:  ports[1],
@@ -142,7 +145,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	vcmd.Stdout = nil
 	vcmd.Stderr = nil
 	if err := vcmd.Run(); err != nil {
-		t.Skipf("nomad version failed. Did you run your test with -tags nomad_test (%v)", err)
+		t.Skipf("nomad version failed: %v", err)
 	}
 
 	dataDir, err := ioutil.TempDir("", "nomad")

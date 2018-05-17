@@ -1,12 +1,9 @@
-import Ember from 'ember';
-import ApplicationAdapter from './application';
+import { inject as service } from '@ember/service';
+import { assign } from '@ember/polyfills';
+import Watchable from './watchable';
 
-const { RSVP, inject, assign } = Ember;
-
-export default ApplicationAdapter.extend({
-  system: inject.service(),
-
-  shouldReloadAll: () => true,
+export default Watchable.extend({
+  system: service(),
 
   buildQuery() {
     const namespace = this.get('system.activeNamespace.id');
@@ -14,6 +11,7 @@ export default ApplicationAdapter.extend({
     if (namespace && namespace !== 'default') {
       return { namespace };
     }
+    return {};
   },
 
   findAll() {
@@ -26,28 +24,38 @@ export default ApplicationAdapter.extend({
     });
   },
 
-  findRecord(store, { modelName }, id, snapshot) {
-    // To make a findRecord response reflect the findMany response, the JobSummary
-    // from /summary needs to be stitched into the response.
-
-    // URL is the form of /job/:name?namespace=:namespace with arbitrary additional query params
-    const [name, namespace] = JSON.parse(id);
-    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
-    return RSVP.hash({
-      job: this.ajax(this.buildURL(modelName, name, snapshot, 'findRecord'), 'GET', {
-        data: assign(this.buildQuery() || {}, namespaceQuery),
-      }),
-      summary: this.ajax(
-        `${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`,
-        'GET',
-        {
-          data: assign(this.buildQuery() || {}, namespaceQuery),
-        }
-      ),
-    }).then(({ job, summary }) => {
-      job.JobSummary = summary;
-      return job;
+  findRecordSummary(modelName, name, snapshot, namespaceQuery) {
+    return this.ajax(`${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`, 'GET', {
+      data: assign(this.buildQuery() || {}, namespaceQuery),
     });
+  },
+
+  findRecord(store, type, id, snapshot) {
+    const [, namespace] = JSON.parse(id);
+    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
+
+    return this._super(store, type, id, snapshot, namespaceQuery);
+  },
+
+  urlForFindRecord(id, type, hash) {
+    const [name, namespace] = JSON.parse(id);
+    let url = this._super(name, type, hash);
+    if (namespace && namespace !== 'default') {
+      url += `?namespace=${namespace}`;
+    }
+    return url;
+  },
+
+  xhrKey(url, method, options = {}) {
+    const namespace = options.data && options.data.namespace;
+    if (namespace) {
+      return `${url}?namespace=${namespace}`;
+    }
+    return url;
+  },
+
+  relationshipFallbackLinks: {
+    summary: '/summary',
   },
 
   findAllocations(job) {
@@ -60,9 +68,30 @@ export default ApplicationAdapter.extend({
   },
 
   fetchRawDefinition(job) {
-    const [name, namespace] = JSON.parse(job.get('id'));
-    const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
-    const url = this.buildURL('job', name, job, 'findRecord');
-    return this.ajax(url, 'GET', { data: assign(this.buildQuery() || {}, namespaceQuery) });
+    const url = this.buildURL('job', job.get('id'), job, 'findRecord');
+    return this.ajax(url, 'GET', { data: this.buildQuery() });
+  },
+
+  forcePeriodic(job) {
+    if (job.get('periodic')) {
+      const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/periodic/force');
+      return this.ajax(url, 'POST');
+    }
+  },
+
+  stop(job) {
+    const url = this.urlForFindRecord(job.get('id'), 'job');
+    return this.ajax(url, 'DELETE');
   },
 });
+
+function addToPath(url, extension = '') {
+  const [path, params] = url.split('?');
+  let newUrl = `${path}${extension}`;
+
+  if (params) {
+    newUrl += `?${params}`;
+  }
+
+  return newUrl;
+}

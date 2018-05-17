@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -35,6 +36,7 @@ func TestConfig_Merge(t *testing.T) {
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
+		Autopilot:      &config.AutopilotConfig{},
 	}
 
 	c2 := &Config{
@@ -48,13 +50,14 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               false,
 		EnableSyslog:              false,
 		SyslogFacility:            "local0.info",
-		DisableUpdateCheck:        false,
+		DisableUpdateCheck:        helper.BoolToPtr(false),
 		DisableAnonymousSignature: false,
 		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.1:8125",
 			StatsdAddr:                         "127.0.0.1:8125",
 			DataDogAddr:                        "127.0.0.1:8125",
+			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
 			DisableTaggedMetrics:               true,
@@ -83,6 +86,7 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			NetworkSpeed:   100,
 			CpuCompute:     100,
+			MemoryMB:       100,
 			MaxKillTimeout: "20s",
 			ClientMaxPort:  19996,
 			Reserved: &Resources{
@@ -100,11 +104,14 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        1,
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
+			RaftProtocol:           1,
 			NumSchedulers:          1,
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
 			MinHeartbeatTTL:        30 * time.Second,
 			MaxHeartbeatsPerSecond: 30.0,
+			RedundancyZone:         "foo",
+			UpgradeVersion:         "foo",
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -158,6 +165,15 @@ func TestConfig_Merge(t *testing.T) {
 			ClientAutoJoin:     &falseValue,
 			ChecksUseAdvertise: &falseValue,
 		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &falseValue,
+			ServerStabilizationTime: 1 * time.Second,
+			LastContactThreshold:    1 * time.Second,
+			MaxTrailingLogs:         1,
+			EnableRedundancyZones:   &falseValue,
+			DisableUpgradeMigration: &falseValue,
+			EnableCustomUpgrades:    &falseValue,
+		},
 	}
 
 	c3 := &Config{
@@ -171,13 +187,14 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               true,
 		EnableSyslog:              true,
 		SyslogFacility:            "local0.debug",
-		DisableUpdateCheck:        true,
+		DisableUpdateCheck:        helper.BoolToPtr(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",
 			DataDogAddr:                        "127.0.0.1:8125",
+			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    true,
 			PublishNodeMetrics:                 true,
@@ -216,6 +233,7 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMinPort:  22000,
 			NetworkSpeed:   105,
 			CpuCompute:     105,
+			MemoryMB:       105,
 			MaxKillTimeout: "50s",
 			Reserved: &Resources{
 				CPU:                 15,
@@ -248,6 +266,9 @@ func TestConfig_Merge(t *testing.T) {
 			RetryJoin:              []string{"1.1.1.1"},
 			RetryInterval:          "10s",
 			retryInterval:          time.Second * 10,
+			NonVotingServer:        true,
+			RedundancyZone:         "bar",
+			UpgradeVersion:         "bar",
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -310,6 +331,15 @@ func TestConfig_Merge(t *testing.T) {
 					Args: []string{"a", "b", "c"},
 				},
 			},
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &trueValue,
+			ServerStabilizationTime: 2 * time.Second,
+			LastContactThreshold:    2 * time.Second,
+			MaxTrailingLogs:         2,
+			EnableRedundancyZones:   &trueValue,
+			DisableUpgradeMigration: &trueValue,
+			EnableCustomUpgrades:    &trueValue,
 		},
 	}
 

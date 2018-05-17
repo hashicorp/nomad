@@ -91,6 +91,9 @@ log_level = "DEBUG"
 # Setup data dir
 data_dir = "/tmp/client1"
 
+# Give the agent a unique name. Defaults to hostname
+name = "client1"
+
 # Enable the client
 client {
     enabled = true
@@ -107,10 +110,9 @@ ports {
 }
 ```
 
-Copy that file to `client2.hcl` and change the `data_dir` to
-be `/tmp/client2` and the `http` port to 5657. Once you've created
-both `client1.hcl` and `client2.hcl`, open a tab for each and
-start the agents:
+Copy that file to `client2.hcl`. Change the `data_dir` to be `/tmp/client2`,
+the `name` to `client2`, and the `http` port to 5657. Once you have created
+both `client1.hcl` and `client2.hcl`, open a tab for each and start the agents:
 
 ```text
 $ sudo nomad agent -config client1.hcl
@@ -135,14 +137,14 @@ In the output we can see the agent is running in client mode only.
 This agent will be available to run tasks but will not participate
 in managing the cluster or making scheduling decisions.
 
-Using the [`node-status` command](/docs/commands/node-status.html)
+Using the [`node status` command](/docs/commands/node/status.html)
 we should see both nodes in the `ready` state:
 
 ```text 
-$ nomad node-status
-ID        Datacenter  Name   Class   Drain  Status
-fca62612  dc1         nomad  <none>  false  ready
-c887deef  dc1         nomad  <none>  false  ready
+$ nomad node status
+ID        DC   Name     Class   Drain  Eligibility  Status
+fca62612  dc1  client1  <none>  false  eligible     ready
+c887deef  dc1  client2  <none>  false  eligible     ready
 ```
 
 We now have a simple three node cluster running. The only difference
@@ -155,10 +157,10 @@ Now that we have a simple cluster, we can use it to schedule a job.
 We should still have the `example.nomad` job file from before, but
 verify that the `count` is still set to 3.
 
-Then, use the [`run` command](/docs/commands/run.html) to submit the job:
+Then, use the [`job run` command](/docs/commands/job/run.html) to submit the job:
 
 ```text
-$ nomad run example.nomad
+$ nomad job run example.nomad
 ==> Monitoring evaluation "8e0a7cf9"
     Evaluation triggered by job "example"
     Evaluation within deployment: "0917b771"
@@ -209,7 +211,7 @@ ID        Eval ID   Node ID   Task Group  Desired  Status   Created At
 
 We can see that all our tasks have been allocated and are running.
 Once we are satisfied that our job is happily running, we can tear
-it down with `nomad stop`.
+it down with `nomad job stop`.
 
 ## Next Steps
 

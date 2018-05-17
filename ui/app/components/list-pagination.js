@@ -1,6 +1,5 @@
-import Ember from 'ember';
-
-const { Component, computed } = Ember;
+import Component from '@ember/component';
+import { computed } from '@ember/object';
 
 export default Component.extend({
   source: computed(() => []),
@@ -31,9 +30,11 @@ export default Component.extend({
     const lowerBound = Math.max(1, page - spread);
     const upperBound = Math.min(lastPage, page + spread) + 1;
 
-    return Array(upperBound - lowerBound).fill(null).map((_, index) => ({
-      pageNumber: lowerBound + index,
-    }));
+    return Array(upperBound - lowerBound)
+      .fill(null)
+      .map((_, index) => ({
+        pageNumber: lowerBound + index,
+      }));
   }),
 
   list: computed('source.[]', 'page', 'size', function() {

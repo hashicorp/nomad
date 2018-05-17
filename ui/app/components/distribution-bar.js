@@ -1,10 +1,13 @@
-import Ember from 'ember';
+import Component from '@ember/component';
+import { computed, observer } from '@ember/object';
+import { run } from '@ember/runloop';
+import { assign } from '@ember/polyfills';
+import { guidFor, copy } from '@ember/object/internals';
 import d3 from 'npm:d3-selection';
 import 'npm:d3-transition';
 import WindowResizable from '../mixins/window-resizable';
 import styleStringProperty from '../utils/properties/style-string';
 
-const { Component, computed, run, assign, guidFor } = Ember;
 const sumAggregate = (total, val) => total + val;
 
 export default Component.extend(WindowResizable, {
@@ -20,7 +23,7 @@ export default Component.extend(WindowResizable, {
   maskId: null,
 
   _data: computed('data', function() {
-    const data = this.get('data');
+    const data = copy(this.get('data'), true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
     return data.map(({ label, value, className, layers }, index) => ({
@@ -63,6 +66,10 @@ export default Component.extend(WindowResizable, {
     this.renderChart();
   },
 
+  updateChart: observer('_data.@each.{value,label,className}', function() {
+    this.renderChart();
+  }),
+
   // prettier-ignore
   /* eslint-disable */
   renderChart() {
@@ -70,7 +77,7 @@ export default Component.extend(WindowResizable, {
     const width = this.$('svg').width();
     const filteredData = _data.filter(d => d.value > 0);
 
-    let slices = chart.select('.bars').selectAll('g').data(filteredData);
+    let slices = chart.select('.bars').selectAll('g').data(filteredData, d => d.label);
     let sliceCount = filteredData.length;
 
     slices.exit().remove();
@@ -79,7 +86,8 @@ export default Component.extend(WindowResizable, {
       .append('g')
       .on('mouseenter', d => {
         run(() => {
-          const slice = slices.filter(datum => datum === d);
+          const slices = this.get('slices');
+          const slice = slices.filter(datum => datum.label === d.label);
           slices.classed('active', false).classed('inactive', true);
           slice.classed('active', true).classed('inactive', false);
           this.set('activeDatum', d);
@@ -96,7 +104,15 @@ export default Component.extend(WindowResizable, {
       });
 
     slices = slices.merge(slicesEnter);
-    slices.attr('class', d => d.className || `slice-${filteredData.indexOf(d)}`);
+    slices.attr('class', d => {
+      const className = d.className || `slice-${_data.indexOf(d)}`
+      const activeDatum = this.get('activeDatum');
+      const isActive = activeDatum && activeDatum.label === d.label;
+      const isInactive = activeDatum && activeDatum.label !== d.label;
+      return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
+    });
+
+    this.set('slices', slices);
 
     const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
     const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
@@ -113,7 +129,6 @@ export default Component.extend(WindowResizable, {
         .duration(200)
         .attr('width', setWidth)
         .attr('x', setOffset)
-
 
     let layers = slices.selectAll('.bar').data((d, i) => {
       return new Array(d.layers || 1).fill(assign({ index: i }, d));

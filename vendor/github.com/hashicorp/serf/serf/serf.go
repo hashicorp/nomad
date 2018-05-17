@@ -314,7 +314,6 @@ func Create(conf *Config) (*Serf, error) {
 			conf.RejoinAfterLeave,
 			serf.logger,
 			&serf.clock,
-			serf.coordClient,
 			conf.EventCh,
 			serf.shutdownCh)
 		if err != nil {
@@ -691,6 +690,13 @@ func (s *Serf) Leave() error {
 	if err != nil {
 		return err
 	}
+
+	// Wait for the leave to propagate through the cluster. The broadcast
+	// timeout is how long we wait for the message to go out from our own
+	// queue, but this wait is for that message to propagate through the
+	// cluster. In particular, we want to stay up long enough to service
+	// any probes from other nodes before they learn about us leaving.
+	time.Sleep(s.config.LeavePropagateDelay)
 
 	// Transition to Left only if we not already shutdown
 	s.stateLock.Lock()
@@ -1516,21 +1522,37 @@ func (s *Serf) reconnect() {
 	s.memberlist.Join([]string{addr.String()})
 }
 
+// getQueueMax will get the maximum queue depth, which might be dynamic depending
+// on how Serf is configured.
+func (s *Serf) getQueueMax() int {
+	max := s.config.MaxQueueDepth
+	if s.config.MinQueueDepth > 0 {
+		s.memberLock.RLock()
+		max = 2 * len(s.members)
+		s.memberLock.RUnlock()
+
+		if max < s.config.MinQueueDepth {
+			max = s.config.MinQueueDepth
+		}
+	}
+	return max
+}
+
 // checkQueueDepth periodically checks the size of a queue to see if
 // it is too large
 func (s *Serf) checkQueueDepth(name string, queue *memberlist.TransmitLimitedQueue) {
 	for {
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(s.config.QueueCheckInterval):
 			numq := queue.NumQueued()
 			metrics.AddSample([]string{"serf", "queue", name}, float32(numq))
 			if numq >= s.config.QueueDepthWarning {
 				s.logger.Printf("[WARN] serf: %s queue depth: %d", name, numq)
 			}
-			if numq > s.config.MaxQueueDepth {
+			if max := s.getQueueMax(); numq > max {
 				s.logger.Printf("[WARN] serf: %s queue depth (%d) exceeds limit (%d), dropping messages!",
-					name, numq, s.config.MaxQueueDepth)
-				queue.Prune(s.config.MaxQueueDepth)
+					name, numq, max)
+				queue.Prune(max)
 			}
 		case <-s.shutdownCh:
 			return
@@ -1654,11 +1676,18 @@ func (s *Serf) Stats() map[string]string {
 	toString := func(v uint64) string {
 		return strconv.FormatUint(v, 10)
 	}
+	s.memberLock.RLock()
+	members := toString(uint64(len(s.members)))
+	failed := toString(uint64(len(s.failedMembers)))
+	left := toString(uint64(len(s.leftMembers)))
+	health_score := toString(uint64(s.memberlist.GetHealthScore()))
+
+	s.memberLock.RUnlock()
 	stats := map[string]string{
-		"members":      toString(uint64(len(s.members))),
-		"failed":       toString(uint64(len(s.failedMembers))),
-		"left":         toString(uint64(len(s.leftMembers))),
-		"health_score": toString(uint64(s.memberlist.GetHealthScore())),
+		"members":      members,
+		"failed":       failed,
+		"left":         left,
+		"health_score": health_score,
 		"member_time":  toString(uint64(s.clock.Time())),
 		"event_time":   toString(uint64(s.eventClock.Time())),
 		"query_time":   toString(uint64(s.queryClock.Time())),

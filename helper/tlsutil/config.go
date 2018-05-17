@@ -6,10 +6,45 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
+
+// supportedTLSVersions are the current TLS versions that Nomad supports
+var supportedTLSVersions = map[string]uint16{
+	"tls10": tls.VersionTLS10,
+	"tls11": tls.VersionTLS11,
+	"tls12": tls.VersionTLS12,
+}
+
+// supportedTLSCiphers are the complete list of TLS ciphers supported by Nomad
+var supportedTLSCiphers = map[string]uint16{
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+	"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+	"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+	"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+}
+
+// defaultTLSCiphers are the TLS Ciphers that are supported by default
+var defaultTLSCiphers = []string{"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+}
 
 // RegionSpecificWrapper is used to invoke a static Region and turns a
 // RegionWrapper into a Wrapper type.
@@ -65,6 +100,37 @@ type Config struct {
 
 	// KeyLoader dynamically reloads TLS configuration.
 	KeyLoader *config.KeyLoader
+
+	// CipherSuites have a default safe configuration, or operators can override
+	// these values for acceptable safe alternatives.
+	CipherSuites []uint16
+
+	// MinVersion contains the minimum SSL/TLS version that is accepted.
+	MinVersion uint16
+}
+
+func NewTLSConfiguration(newConf *config.TLSConfig) (*Config, error) {
+	ciphers, err := ParseCiphers(newConf.TLSCipherSuites)
+	if err != nil {
+		return nil, err
+	}
+
+	minVersion, err := ParseMinVersion(newConf.TLSMinVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		VerifyIncoming:       true,
+		VerifyOutgoing:       true,
+		VerifyServerHostname: newConf.VerifyServerHostname,
+		CAFile:               newConf.CAFile,
+		CertFile:             newConf.CertFile,
+		KeyFile:              newConf.KeyFile,
+		KeyLoader:            newConf.GetKeyLoader(),
+		CipherSuites:         ciphers,
+		MinVersion:           minVersion,
+	}, nil
 }
 
 // AppendCA opens and parses the CA file and adds the certificates to
@@ -120,6 +186,8 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		RootCAs:            x509.NewCertPool(),
 		InsecureSkipVerify: true,
+		CipherSuites:       c.CipherSuites,
+		MinVersion:         c.MinVersion,
 	}
 	if c.VerifyServerHostname {
 		tlsConfig.InsecureSkipVerify = false
@@ -236,8 +304,10 @@ func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		ClientCAs:  x509.NewCertPool(),
-		ClientAuth: tls.NoClientCert,
+		ClientCAs:    x509.NewCertPool(),
+		ClientAuth:   tls.NoClientCert,
+		CipherSuites: c.CipherSuites,
+		MinVersion:   c.MinVersion,
 	}
 
 	// Parse the CA cert if any
@@ -266,4 +336,43 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	}
 
 	return tlsConfig, nil
+}
+
+// ParseCiphers parses ciphersuites from the comma-separated string into
+// recognized slice
+func ParseCiphers(cipherStr string) ([]uint16, error) {
+	suites := []uint16{}
+
+	cipherStr = strings.TrimSpace(cipherStr)
+
+	var ciphers []string
+	if cipherStr == "" {
+		ciphers = defaultTLSCiphers
+
+	} else {
+		ciphers = strings.Split(cipherStr, ",")
+	}
+	for _, cipher := range ciphers {
+		c, ok := supportedTLSCiphers[cipher]
+		if !ok {
+			return suites, fmt.Errorf("unsupported TLS cipher %q", cipher)
+		}
+		suites = append(suites, c)
+	}
+
+	return suites, nil
+}
+
+// ParseMinVersion parses the specified minimum TLS version for the Nomad agent
+func ParseMinVersion(version string) (uint16, error) {
+	if version == "" {
+		return supportedTLSVersions["tls12"], nil
+	}
+
+	vers, ok := supportedTLSVersions[version]
+	if !ok {
+		return 0, fmt.Errorf("unsupported TLS version %q", version)
+	}
+
+	return vers, nil
 }

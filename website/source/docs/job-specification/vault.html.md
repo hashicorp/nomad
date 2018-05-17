@@ -50,13 +50,8 @@ The Nomad client will make the Vault token available to the task by writing it
 to the secret directory at `secret/vault_token` and by injecting a VAULT_TOKEN
 environment variable.
 
-If Vault token renewal fails due to a Vault outage, the Nomad client will
-attempt to retrieve a new Vault token. When the new Vault token is retrieved,
-the contents of the file will be replaced and action will be taken based on the
-`change_mode`.
-
 If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
-network error), the client will retrieve a new Vault token. If successful, the
+network error), the client will attempt to retrieve a new Vault token. If successful, the
 contents of the secrets file are updated on disk, and action will be taken
 according to the value set in the `change_mode` parameter.
 
@@ -80,7 +75,7 @@ with Vault as well.
   should be set when starting the task.
 
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
-  the task requires. The Nomad client will generate a a Vault token that is
+  the task requires. The Nomad client will generate a Vault token that is
   limited to those policies.
 
 ## `vault` Examples

@@ -1,11 +1,13 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/raft"
 )
@@ -20,7 +22,8 @@ type RaftLayer struct {
 	connCh chan net.Conn
 
 	// TLS wrapper
-	tlsWrap tlsutil.Wrapper
+	tlsWrap     tlsutil.Wrapper
+	tlsWrapLock sync.RWMutex
 
 	// Tracks if we are closed
 	closed    bool
@@ -43,12 +46,14 @@ func NewRaftLayer(addr net.Addr, tlsWrap tlsutil.Wrapper) *RaftLayer {
 
 // Handoff is used to hand off a connection to the
 // RaftLayer. This allows it to be Accept()'ed
-func (l *RaftLayer) Handoff(c net.Conn) error {
+func (l *RaftLayer) Handoff(ctx context.Context, c net.Conn) error {
 	select {
 	case l.connCh <- c:
 		return nil
 	case <-l.closeCh:
 		return fmt.Errorf("Raft RPC layer closed")
+	case <-ctx.Done():
+		return nil
 	}
 }
 
@@ -75,6 +80,21 @@ func (l *RaftLayer) Close() error {
 	return nil
 }
 
+// getTLSWrapper is used to retrieve the current TLS wrapper
+func (l *RaftLayer) getTLSWrapper() tlsutil.Wrapper {
+	l.tlsWrapLock.RLock()
+	defer l.tlsWrapLock.RUnlock()
+	return l.tlsWrap
+}
+
+// ReloadTLS swaps the TLS wrapper. This is useful when upgrading or
+// downgrading TLS connections.
+func (l *RaftLayer) ReloadTLS(tlsWrap tlsutil.Wrapper) {
+	l.tlsWrapLock.Lock()
+	defer l.tlsWrapLock.Unlock()
+	l.tlsWrap = tlsWrap
+}
+
 // Addr is used to return the address of the listener
 func (l *RaftLayer) Addr() net.Addr {
 	return l.addr
@@ -87,23 +107,25 @@ func (l *RaftLayer) Dial(address raft.ServerAddress, timeout time.Duration) (net
 		return nil, err
 	}
 
+	tlsWrapper := l.getTLSWrapper()
+
 	// Check for tls mode
-	if l.tlsWrap != nil {
+	if tlsWrapper != nil {
 		// Switch the connection into TLS mode
-		if _, err := conn.Write([]byte{byte(rpcTLS)}); err != nil {
+		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
 			conn.Close()
 			return nil, err
 		}
 
 		// Wrap the connection in a TLS client
-		conn, err = l.tlsWrap(conn)
+		conn, err = tlsWrapper(conn)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Write the Raft byte to set the mode
-	_, err = conn.Write([]byte{byte(rpcRaft)})
+	_, err = conn.Write([]byte{byte(pool.RpcRaft)})
 	if err != nil {
 		conn.Close()
 		return nil, err

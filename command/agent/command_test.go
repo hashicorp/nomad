@@ -1,13 +1,11 @@
 package agent
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 )
@@ -52,7 +50,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 	}
 	for _, tc := range tcases {
-		// Make a new command. We pre-emptively close the shutdownCh
+		// Make a new command. We preemptively close the shutdownCh
 		// so that the command exits immediately instead of blocking.
 		ui := new(cli.MockUi)
 		shutdownCh := make(chan struct{})
@@ -77,55 +75,4 @@ func TestCommand_Args(t *testing.T) {
 			}
 		}
 	}
-}
-
-// TODO Why is this failing
-func TestRetryJoin(t *testing.T) {
-	t.Parallel()
-	agent := NewTestAgent(t, t.Name(), nil)
-	defer agent.Shutdown()
-
-	doneCh := make(chan struct{})
-	shutdownCh := make(chan struct{})
-
-	defer func() {
-		close(shutdownCh)
-		<-doneCh
-	}()
-
-	cmd := &Command{
-		Version:    version.GetVersion(),
-		ShutdownCh: shutdownCh,
-		Ui: &cli.BasicUi{
-			Reader:      os.Stdin,
-			Writer:      os.Stdout,
-			ErrorWriter: os.Stderr,
-		},
-	}
-
-	serfAddr := agent.Config.normalizedAddrs.Serf
-
-	args := []string{
-		"-dev",
-		"-node", "foo",
-		"-retry-join", serfAddr,
-		"-retry-interval", "1s",
-	}
-
-	go func() {
-		if code := cmd.Run(args); code != 0 {
-			t.Logf("bad: %d", code)
-		}
-		close(doneCh)
-	}()
-
-	testutil.WaitForResult(func() (bool, error) {
-		mem := agent.server.Members()
-		if len(mem) != 2 {
-			return false, fmt.Errorf("bad :%#v", mem)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf(err.Error())
-	})
 }

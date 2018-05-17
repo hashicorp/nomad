@@ -1,21 +1,27 @@
-import Ember from 'ember';
+import { get, computed } from '@ember/object';
 import attr from 'ember-data/attr';
 import Fragment from 'ember-data-model-fragments/fragment';
 import flat from 'npm:flat';
 
-const { computed, get } = Ember;
 const { unflatten } = flat;
 
 export default Fragment.extend({
   attributes: attr(),
 
   attributesStructured: computed('attributes', function() {
-    // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.
     const original = this.get('attributes');
-    const attrs = Object.keys(original).sort().reduce((obj, key) => {
-      obj[key] = original[key];
-      return obj;
-    }, {});
+
+    if (!original) {
+      return;
+    }
+
+    // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.
+    const attrs = Object.keys(original)
+      .sort()
+      .reduce((obj, key) => {
+        obj[key] = original[key];
+        return obj;
+      }, {});
     return unflatten(attrs, { overwrite: true });
   }),
 

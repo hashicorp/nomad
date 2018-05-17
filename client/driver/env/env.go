@@ -162,6 +162,10 @@ func (t *TaskEnv) All() map[string]string {
 // ParseAndReplace takes the user supplied args replaces any instance of an
 // environment variable or Nomad variable in the args with the actual value.
 func (t *TaskEnv) ParseAndReplace(args []string) []string {
+	if args == nil {
+		return nil
+	}
+
 	replaced := make([]string, len(args))
 	for i, arg := range args {
 		replaced[i] = hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)
@@ -200,7 +204,7 @@ type Builder struct {
 	// localDir from task's perspective; eg /local
 	localDir string
 
-	// secrestsDir from task's perspective; eg /secrets
+	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
 	cpuLimit         int
@@ -393,7 +397,23 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 	// Set meta
 	combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, b.taskName)
-	b.taskMeta = make(map[string]string, len(combined)*2)
+	// taskMetaSize is double to total meta keys to account for given and upper
+	// cased values
+	taskMetaSize := len(combined) * 2
+
+	// if job is parameterized initialize optional meta to empty strings
+	if alloc.Job.IsParameterized() {
+		b.taskMeta = make(map[string]string,
+			taskMetaSize+(len(alloc.Job.ParameterizedJob.MetaOptional)*2))
+
+		for _, k := range alloc.Job.ParameterizedJob.MetaOptional {
+			b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = ""
+			b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = ""
+		}
+	} else {
+		b.taskMeta = make(map[string]string, taskMetaSize)
+	}
+
 	for k, v := range combined {
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v

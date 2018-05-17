@@ -42,6 +42,9 @@
           <li<%= sidebar_current("guides-cluster-automatic") %>>
             <a href="/guides/cluster/automatic.html">Automatic</a>
           </li>
+          <li<%= sidebar_current("guides-cluster-autopilot") %>>
+            <a href="/guides/cluster/autopilot.html">Autopilot</a>
+          </li>
           <li<%= sidebar_current("guides-cluster-manual") %>>
             <a href="/guides/cluster/manual.html">Manual</a>
           </li>
@@ -54,8 +57,61 @@
         </ul>
       </li>
 
+      <li<%= sidebar_current("guides-decommissioning-nodes") %>>
+        <a href="/guides/node-draining.html">Decommissioning Nodes</a>
+      </li>
+
       <li<%= sidebar_current("guides-namespaces") %>>
         <a href="/guides/namespaces.html">Namespaces</a>
+      </li>
+
+      <li<%= sidebar_current("guides-operating-a-job") %>>
+        <a href="/guides/operating-a-job/index.html">Operating a Job</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-operating-a-job-configuring-tasks") %>>
+            <a href="/guides/operating-a-job/configuring-tasks.html">Configuring Tasks</a>
+          </li>
+          <li<%= sidebar_current("guides-operating-a-job-submitting-jobs") %>>
+            <a href="/guides/operating-a-job/submitting-jobs.html">Submitting Jobs</a>
+          </li>
+          <li<%= sidebar_current("guides-operating-a-job-inspecting-state") %>>
+            <a href="/guides/operating-a-job/inspecting-state.html">Inspecting State</a>
+          </li>
+          <li<%= sidebar_current("guides-operating-a-job-accessing-logs") %>>
+            <a href="/guides/operating-a-job/accessing-logs.html">Accessing Logs</a>
+          </li>
+          <li<%= sidebar_current("guides-operating-a-job-resource-utilization") %>>
+            <a href="/guides/operating-a-job/resource-utilization.html">Resource Utilization</a>
+          </li>
+          <li<%= sidebar_current("guides-operating-a-job-updating") %>>
+            <a href="/guides/operating-a-job/update-strategies/index.html">Update Strategies</a>
+            <ul class="nav">
+              <li<%= sidebar_current("guides-operating-a-job-updating-rolling-upgrades") %>>
+                <a href="/guides/operating-a-job/update-strategies/rolling-upgrades.html">Rolling Upgrades</a>
+              </li>
+              <li<%= sidebar_current("guides-operating-a-job-updating-blue-green-deployments") %>>
+                <a href="/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html">Blue/Green &amp; Canary</a>
+              </li>
+              <li<%= sidebar_current("guides-operating-a-job-updating-handling-signals") %>>
+                <a href="/guides/operating-a-job/update-strategies/handling-signals.html">Handling Signals</a>
+              </li>
+            </ul>
+          </li>
+           <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies") %>>
+                      <a href="/guides/operating-a-job/failure-handling-strategies/index.html">Failure Recovery Strategies</a>
+                      <ul class="nav">
+                        <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies-local-restarts") %>>
+                          <a href="/guides/operating-a-job/failure-handling-strategies/restart.html">Local Restarts</a>
+                        </li>
+                        <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies-check-restart") %>>
+                          <a href="/guides/operating-a-job/failure-handling-strategies/check-restart.html">Check Restarts</a>
+                        </li>
+                        <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies-reschedule") %>>
+                          <a href="/guides/operating-a-job/failure-handling-strategies/reschedule.html">Rescheduling</a>
+                        </li>
+                      </ul>
+                    </li>
+        </ul>
       </li>
 
       <li<%= sidebar_current("guides-outage-recovery") %>>

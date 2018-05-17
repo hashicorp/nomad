@@ -6,7 +6,7 @@ description: >
   Remove a Nomad server from the Raft configuration.
 ---
 
-# Command: `operator raft remove-peer`
+# Command: operator raft remove-peer
 
 Remove the Nomad server with given address from the Raft configuration.
 
@@ -14,13 +14,13 @@ There are rare cases where a peer may be left behind in the Raft quorum even
 though the server is no longer present and known to the cluster. This command
 can be used to remove the failed server so that it is no longer affects the Raft
 quorum. If the server still shows in the output of the [`nomad
-server-members`](/docs/commands/server-members.html) command, it is preferable
+server members`](/docs/commands/server/members.html) command, it is preferable
 to clean up by simply running [`nomad
-server-force-leave`](/docs/commands/server-force-leave.html) instead of this
+server force-leave`](/docs/commands/server/force-leave.html) instead of this
 command.
 
 See the [Outage Recovery](/guides/outage.html) guide for some examples of how
-this command is used. For an API to perform these operations programatically,
+this command is used. For an API to perform these operations programmatically,
 please see the documentation for the [Operator](/api/operator.html)
 endpoint.
 
@@ -38,3 +38,6 @@ nomad operator raft remove-peer [options]
 
 * `-peer-address`: Remove a Nomad server with given address from the Raft
 configuration. The format is "IP:port"
+
+* `-peer-id`: Remove a Nomad server with the given ID from the Raft 
+configuration. The format is "id"

@@ -7,15 +7,18 @@ import (
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAllocEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -81,7 +84,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -137,7 +140,7 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -212,13 +215,19 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
+	prevAllocID := uuid.Generate()
 	alloc := mock.Alloc()
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{RescheduleTime: time.Now().UTC().UnixNano(), PrevNodeID: "boom", PrevAllocID: prevAllocID},
+		},
+	}
 	state := s1.fsm.State()
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
@@ -246,7 +255,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -320,7 +329,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -375,7 +384,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -410,7 +419,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp.Allocs)
 	}
 
-	// Lookup non-existent allocs.
+	// Lookup nonexistent allocs.
 	get = &structs.AllocsGetRequest{
 		AllocIDs:     []string{"foo"},
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -422,7 +431,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -473,4 +482,88 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	if len(resp.Allocs) != 2 {
 		t.Fatalf("bad: %#v", resp.Allocs)
 	}
+}
+
+func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, _ := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
+	state := s1.fsm.State()
+	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
+
+	t1 := &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(true),
+	}
+
+	// Update the allocs desired status
+	get := &structs.AllocUpdateDesiredTransitionRequest{
+		Allocs: map[string]*structs.DesiredTransition{
+			alloc.ID:  t1,
+			alloc2.ID: t1,
+		},
+		Evals: []*structs.Evaluation{
+			{
+				ID:             uuid.Generate(),
+				Namespace:      alloc.Namespace,
+				Priority:       alloc.Job.Priority,
+				Type:           alloc.Job.Type,
+				TriggeredBy:    structs.EvalTriggerNodeDrain,
+				JobID:          alloc.Job.ID,
+				JobModifyIndex: alloc.Job.ModifyIndex,
+				Status:         structs.EvalStatusPending,
+			},
+			{
+				ID:             uuid.Generate(),
+				Namespace:      alloc2.Namespace,
+				Priority:       alloc2.Job.Priority,
+				Type:           alloc2.Job.Type,
+				TriggeredBy:    structs.EvalTriggerNodeDrain,
+				JobID:          alloc2.Job.ID,
+				JobModifyIndex: alloc2.Job.ModifyIndex,
+				Status:         structs.EvalStatusPending,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+
+	// Try without permissions
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp)
+	require.NotNil(err)
+	require.True(structs.IsErrPermissionDenied(err))
+
+	// Try with permissions
+	get.WriteRequest.AuthToken = s1.getLeaderAcl()
+	var resp2 structs.GenericResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Look up the allocations
+	out1, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	out2, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	e1, err := state.EvalByID(nil, get.Evals[0].ID)
+	require.Nil(err)
+	e2, err := state.EvalByID(nil, get.Evals[1].ID)
+	require.Nil(err)
+
+	require.NotNil(out1.DesiredTransition.Migrate)
+	require.NotNil(out2.DesiredTransition.Migrate)
+	require.NotNil(e1)
+	require.NotNil(e2)
+	require.True(*out1.DesiredTransition.Migrate)
+	require.True(*out2.DesiredTransition.Migrate)
 }

@@ -14,13 +14,13 @@ import (
 
 func TestNomad_JoinPeer(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.Region = "region2"
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
 		if members := s1.Members(); len(members) != 2 {
@@ -55,13 +55,13 @@ func TestNomad_JoinPeer(t *testing.T) {
 
 func TestNomad_RemovePeer(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.Region = "region2"
 	})
 	defer s2.Shutdown()
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
 		if members := s1.Members(); len(members) != 2 {
@@ -96,7 +96,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 	t.Parallel()
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NodeName = "node1"
 		c.BootstrapExpect = 3
 		c.DevMode = false
@@ -104,7 +104,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.NodeName = "node2"
 		c.BootstrapExpect = 3
 		c.DevMode = false
@@ -112,7 +112,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer s2.Shutdown()
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.NodeName = "node3"
 		c.BootstrapExpect = 3
 		c.DevMode = false
@@ -120,11 +120,11 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer s3.Shutdown()
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Retry the join to decrease flakiness
-		testJoin(t, s1, s2, s3)
+		TestJoin(t, s1, s2, s3)
 		if members := s1.Members(); len(members) != 3 {
 			return false, fmt.Errorf("bad s1: %#v", members)
 		}
@@ -191,32 +191,32 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer s2.Shutdown()
-	s3 := testServer(t, func(c *Config) {
+	s3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer s3.Shutdown()
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Retry the join to decrease flakiness
-		testJoin(t, s1, s2, s3)
+		TestJoin(t, s1, s2, s3)
 		peers, err := s1.numPeers()
 		if err != nil {
 			return false, err
@@ -254,7 +254,7 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 
 	// Join a fourth server after quorum has already been formed and ensure
 	// there is no election
-	s4 := testServer(t, func(c *Config) {
+	s4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
 		c.DevDisableBootstrap = true
@@ -300,18 +300,18 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 
 func TestNomad_BadExpect(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevDisableBootstrap = true
 	})
 	defer s1.Shutdown()
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
 	})
 	defer s2.Shutdown()
 	servers := []*Server{s1, s2}
-	testJoin(t, s1, s2)
+	TestJoin(t, s1, s2)
 
 	// Serf members should update
 	testutil.WaitForResult(func() (bool, error) {

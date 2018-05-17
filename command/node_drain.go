@@ -1,11 +1,20 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
+)
+
+var (
+	// defaultDrainDuration is the default drain duration if it is not specified
+	// explicitly
+	defaultDrainDuration = 1 * time.Hour
 )
 
 type NodeDrainCommand struct {
@@ -14,7 +23,7 @@ type NodeDrainCommand struct {
 
 func (c *NodeDrainCommand) Help() string {
 	helpText := `
-Usage: nomad node-drain [options] <node>
+Usage: nomad node drain [options] <node>
 
   Toggles node draining on a specified node. It is required
   that either -enable or -disable is specified, but not both.
@@ -32,8 +41,32 @@ Node Drain Options:
   -enable
     Enable draining for the specified node.
 
+  -deadline <duration>
+    Set the deadline by which all allocations must be moved off the node.
+    Remaining allocations after the deadline are forced removed from the node.
+    If unspecified, a default deadline of one hour is applied.
+
+  -detach
+    Return immediately instead of entering monitor mode.
+
+  -force
+    Force remove allocations off the node immediately.
+
+  -no-deadline
+    No deadline allows the allocations to drain off the node without being force
+    stopped after a certain deadline.
+
+  -ignore-system
+    Ignore system allows the drain to complete without stopping system job
+    allocations. By default system jobs are stopped last.
+
+  -keep-ineligible
+    Keep ineligible will maintain the node's scheduling ineligibility even if
+    the drain is being disabled. This is useful when an existing drain is being
+    cancelled but additional scheduling on the node is not desired.
+
   -self
-    Query the status of the local node.
+    Set the drain status of the local node.
 
   -yes
     Automatic yes to prompts.
@@ -48,10 +81,16 @@ func (c *NodeDrainCommand) Synopsis() string {
 func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-disable": complete.PredictNothing,
-			"-enable":  complete.PredictNothing,
-			"-self":    complete.PredictNothing,
-			"-yes":     complete.PredictNothing,
+			"-disable":         complete.PredictNothing,
+			"-enable":          complete.PredictNothing,
+			"-deadline":        complete.PredictAnything,
+			"-detach":          complete.PredictNothing,
+			"-force":           complete.PredictNothing,
+			"-no-deadline":     complete.PredictNothing,
+			"-ignore-system":   complete.PredictNothing,
+			"-keep-ineligible": complete.PredictNothing,
+			"-self":            complete.PredictNothing,
+			"-yes":             complete.PredictNothing,
 		})
 }
 
@@ -70,13 +109,23 @@ func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *NodeDrainCommand) Run(args []string) int {
-	var enable, disable, self, autoYes bool
+func (c *NodeDrainCommand) Name() string { return "node-drain" }
 
-	flags := c.Meta.FlagSet("node-drain", FlagSetClient)
+func (c *NodeDrainCommand) Run(args []string) int {
+	var enable, disable, detach, force,
+		noDeadline, ignoreSystem, keepIneligible, self, autoYes bool
+	var deadline string
+
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&enable, "enable", false, "Enable drain mode")
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
+	flags.StringVar(&deadline, "deadline", "", "Deadline after which allocations are force stopped")
+	flags.BoolVar(&detach, "detach", false, "")
+	flags.BoolVar(&force, "force", false, "Force immediate drain")
+	flags.BoolVar(&noDeadline, "no-deadline", false, "Drain node with no deadline")
+	flags.BoolVar(&ignoreSystem, "ignore-system", false, "Do not drain system job allocations from the node")
+	flags.BoolVar(&keepIneligible, "keep-ineligible", false, "Do not update the nodes scheduling eligibility")
 	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
 
@@ -86,15 +135,56 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// Check that we got either enable or disable, but not both.
 	if (enable && disable) || (!enable && !disable) {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
 	// Check that we got a node ID
 	args = flags.Args()
 	if l := len(args); self && l != 0 || !self && l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("Node ID must be specified if -self isn't being used")
+		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+
+	// Validate a compatible set of flags were set
+	if disable && (deadline != "" || force || noDeadline || ignoreSystem) {
+		c.Ui.Error("-disable can't be combined with flags configuring drain strategy")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+	if deadline != "" && (force || noDeadline) {
+		c.Ui.Error("-deadline can't be combined with -force or -no-deadline")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+	if force && noDeadline {
+		c.Ui.Error("-force and -no-deadline are mutually exclusive")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	// Parse the duration
+	var d time.Duration
+	if force {
+		d = -1 * time.Second
+	} else if noDeadline {
+		d = 0
+	} else if deadline != "" {
+		dur, err := time.ParseDuration(deadline)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Failed to parse deadline %q: %v", deadline, err))
+			return 1
+		}
+		if dur <= 0 {
+			c.Ui.Error("A positive drain duration must be given")
+			return 1
+		}
+
+		d = dur
+	} else {
+		d = defaultDrainDuration
 	}
 
 	// Get the HTTP client
@@ -122,7 +212,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 
-	nodeID = sanatizeUUIDPrefix(nodeID)
+	nodeID = sanitizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
@@ -134,21 +224,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 	if len(nodes) > 1 {
-		// Format the nodes list that matches the prefix so that the user
-		// can create a more specific request
-		out := make([]string, len(nodes)+1)
-		out[0] = "ID|Datacenter|Name|Class|Drain|Status"
-		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				node.ID,
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.Status)
-		}
-		// Dump the output
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, true)))
 		return 1
 	}
 
@@ -186,10 +263,47 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		}
 	}
 
+	var spec *api.DrainSpec
+	if enable {
+		spec = &api.DrainSpec{
+			Deadline:         d,
+			IgnoreSystemJobs: ignoreSystem,
+		}
+	}
+
 	// Toggle node draining
-	if _, err := client.Nodes().ToggleDrain(node.ID, enable, nil); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
+	meta, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
 	}
+
+	if !enable || detach {
+		if enable {
+			c.Ui.Output(fmt.Sprintf("Node %q drain strategy set", node.ID))
+		} else {
+			c.Ui.Output(fmt.Sprintf("Node %q drain strategy unset", node.ID))
+		}
+	}
+
+	if enable && !detach {
+		now := time.Now()
+		c.Ui.Info(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
+		c.Ui.Output(fmt.Sprintf("%s: Node %q drain strategy set", formatTime(now), node.ID))
+		outCh := client.Nodes().MonitorDrain(context.Background(), node.ID, meta.LastIndex, ignoreSystem)
+		for msg := range outCh {
+			switch msg.Level {
+			case api.MonitorMsgLevelInfo:
+				c.Ui.Info(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			case api.MonitorMsgLevelWarn:
+				c.Ui.Warn(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			case api.MonitorMsgLevelError:
+				c.Ui.Error(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			default:
+				c.Ui.Output(fmt.Sprintf("%s: %s", formatTime(time.Now()), msg))
+			}
+		}
+	}
+
 	return 0
 }

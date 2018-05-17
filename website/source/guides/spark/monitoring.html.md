@@ -95,7 +95,7 @@ $ hdfs dfs -fs hdfs://hdfs.service.consul:8020 -mkdir /spark-events
 You can then deploy the history server with:
 
 ```shell
-$ nomad run spark-history-server-hdfs.nomad
+$ nomad job run spark-history-server-hdfs.nomad
 ```
 
 You can get the private IP for the history server with a Consul DNS lookup:
@@ -127,9 +127,9 @@ $ spark-submit \
 
 Nomad clients collect the `stderr` and `stdout` of running tasks. The CLI or the
  HTTP API can be used to inspect logs, as documented in 
-[Accessing Logs](https://www.nomadproject.io/docs/operating-a-job/accessing-logs.html).
+[Accessing Logs](https://www.nomadproject.io/guides/operating-a-job/accessing-logs.html).
 In cluster mode, the `stderr` and `stdout` of the `driver` application can be 
-accessed in the same way. The [Log Shipper Pattern](https://www.nomadproject.io/docs/operating-a-job/accessing-logs.html#log-shipper-pattern) uses sidecar tasks to forward logs to a central location. This
+accessed in the same way. The [Log Shipper Pattern](https://www.nomadproject.io/guides/operating-a-job/accessing-logs.html#log-shipper-pattern) uses sidecar tasks to forward logs to a central location. This
 can be done using a job template as follows:
 
 ```hcl

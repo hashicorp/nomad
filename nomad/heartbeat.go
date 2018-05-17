@@ -1,12 +1,25 @@
 package nomad
 
 import (
+	"errors"
 	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// heartbeatNotLeader is the error string returned when the heartbeat request
+	// couldn't be completed since the server is not the leader.
+	heartbeatNotLeader = "failed to reset heartbeat since server is not leader"
+)
+
+var (
+	// heartbeatNotLeaderErr is the error returned when the heartbeat request
+	// couldn't be completed since the server is not the leader.
+	heartbeatNotLeaderErr = errors.New(heartbeatNotLeader)
 )
 
 // initializeHeartbeatTimers is used when a leader is newly elected to create
@@ -50,6 +63,14 @@ func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
 	s.heartbeatTimersLock.Lock()
 	defer s.heartbeatTimersLock.Unlock()
 
+	// Do not create a timer for the node since we are not the leader. This
+	// check avoids the race in which leadership is lost but a timer is created
+	// on this server since it was servicing an RPC during a leadership loss.
+	if !s.IsLeader() {
+		s.logger.Printf("[DEBUG] nomad.heartbeat: ignoring resetting node %q TTL since this node is not the leader", id)
+		return 0, heartbeatNotLeaderErr
+	}
+
 	// Compute the target TTL value
 	n := len(s.heartbeatTimers)
 	ttl := lib.RateScaledInterval(s.config.MaxHeartbeatsPerSecond, s.config.MinHeartbeatTTL, n)
@@ -89,6 +110,15 @@ func (s *Server) invalidateHeartbeat(id string) {
 	s.heartbeatTimersLock.Lock()
 	delete(s.heartbeatTimers, id)
 	s.heartbeatTimersLock.Unlock()
+
+	// Do not invalidate the node since we are not the leader. This check avoids
+	// the race in which leadership is lost but a timer is created on this
+	// server since it was servicing an RPC during a leadership loss.
+	if !s.IsLeader() {
+		s.logger.Printf("[DEBUG] nomad.heartbeat: ignoring node %q TTL since this node is not the leader", id)
+		return
+	}
+
 	s.logger.Printf("[WARN] nomad.heartbeat: node '%s' TTL expired", id)
 
 	// Make a request to update the node status
@@ -100,7 +130,7 @@ func (s *Server) invalidateHeartbeat(id string) {
 		},
 	}
 	var resp structs.NodeUpdateResponse
-	if err := s.endpoints.Node.UpdateStatus(&req, &resp); err != nil {
+	if err := s.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		s.logger.Printf("[ERR] nomad.heartbeat: update status failed: %v", err)
 	}
 }

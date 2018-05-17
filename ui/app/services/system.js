@@ -1,12 +1,11 @@
-import Ember from 'ember';
+import Service, { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
 import PromiseObject from '../utils/classes/promise-object';
 import { namespace } from '../adapters/application';
 
-const { Service, computed, inject } = Ember;
-
 export default Service.extend({
-  token: inject.service(),
-  store: inject.service(),
+  token: service(),
+  store: service(),
 
   leader: computed(function() {
     const token = this.get('token');
@@ -36,7 +35,16 @@ export default Service.extend({
   activeNamespace: computed('namespaces.[]', {
     get() {
       const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-      return this.get('namespaces').findBy('id', namespaceId);
+      const namespace = this.get('namespaces').findBy('id', namespaceId);
+
+      if (namespace) {
+        return namespace;
+      }
+
+      // If the namespace is localStorage is no longer in the cluster, it needs to
+      // be cleared from localStorage
+      this.set('activeNamespace', null);
+      return this.get('namespaces').findBy('id', 'default');
     },
     set(key, value) {
       if (value == null) {
@@ -44,9 +52,10 @@ export default Service.extend({
       } else if (typeof value === 'string') {
         window.localStorage.nomadActiveNamespace = value;
         return this.get('namespaces').findBy('id', value);
+      } else {
+        window.localStorage.nomadActiveNamespace = value.get('name');
+        return value;
       }
-      window.localStorage.nomadActiveNamespace = value.get('name');
-      return value;
     },
   }),
 });

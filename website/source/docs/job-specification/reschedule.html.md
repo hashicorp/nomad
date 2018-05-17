@@ -1,0 +1,132 @@
+---
+layout: "docs"
+page_title: "reschedule Stanza - Job Specification"
+sidebar_current: "docs-job-specification-reschedule"
+description: |-
+  The "reschedule" stanza specifies the group's rescheduling strategy upon
+  allocation failures. Nomad will only attempt to reschedule failed allocations on
+  to another node only after any local [restarts](docs/job-specification/restart.html)
+  have been exceeded.
+---
+
+# `reschedule` Stanza
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th width="120">Placement</th>
+    <td>
+      <code>job -> **reschedule**</code>
+      <br>
+      <code>job -> group -> **reschedule**</code>
+    </td>
+  </tr>
+</table>
+
+The `reschedule` stanza specifies the group's rescheduling strategy. If specified at the job
+level, the configuration will apply to all groups within the job. If the
+reschedule stanza is present on both the job and the group, they are merged with
+the group stanza taking the highest precedence and then the job.
+
+Nomad will attempt to schedule the task on another node if any of its allocation
+statuses become "failed". It prefers to create a replacement allocation on a node
+that hasn't previously been used.
+
+```hcl
+job "docs" {
+  group "example" {
+    reschedule {
+      attempts       = 15
+      interval       = "1hr"
+      delay          = "30s"
+      delay_function = "exponential"
+      max_delay      = "120s"
+      unlimited      = false
+    }
+  }
+}
+```
+
+~> The reschedule stanza does not apply to `system` jobs because they run on
+   every node.
+
+## `reschedule` Parameters
+
+- `attempts` `(int: <varies>)` - Specifies the number of reschedule attempts
+   allowed in the configured interval. Defaults vary by job type, see below
+   for more information.
+
+- `interval` `(string: <varies>)` - Specifies the sliding window which begins
+   when the first reschedule attempt starts and ensures that only `attempts`
+   number of reschedule happen within it. If more than `attempts` number of
+   failures happen with this interval, Nomad will not reschedule any more.
+
+- `delay` `(string: <varies>)` - Specifies the duration to wait before attempting
+  to reschedule a failed task. This is specified using a label suffix like "30s" or "1h".
+
+- `delay_function` `(string: <varies>)` - Specifies the function that is used to
+  calculate subsequent reschedule delays. The initial delay is specified by the delay parameter.
+  `delay_function` has three possible values which are described below.
+    - `constant` - The delay between reschedule attempts stays constant at the `delay` value.
+    - `exponential` - The delay between reschedule attempts doubles.
+    - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
+      delays applied. For example if `delay` is set to 5 seconds, the next five reschedule attempts  will be
+      delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
+
+- `max_delay` `(string: <varies>)` - is an upper bound on the delay beyond which it will not increase. This parameter
+  is used when `delay_function` is `exponential` or `fibonacci`, and is ignored when `constant` delay is used.
+
+- `unlimited` `(boolean:<varies>)` - `unlimited` enables unlimited reschedule attempts. If this is set to true
+  the `attempts` and `interval` fields are not used.
+
+Information about reschedule attempts are displayed in the CLI and API for
+allocations. Rescheduling is enabled by default for service and batch jobs
+with the options shown below.
+
+### `reschedule` Parameter Defaults
+
+The values for the `reschedule` parameters vary by job type. Below are the
+defaults by job type:
+
+- The Default Batch Reschedule Policy is:
+
+    ```hcl
+    reschedule {
+      attempts       = 1
+      interval       = "24h"
+      unlimited      = false
+      delay          = "5s"
+      delay_function = "constant"
+    }
+    ```
+
+- The Default Service Reschedule Policy is:
+
+    ```hcl
+   reschedule {
+     delay          = "30s"
+     delay_function = "exponential"
+     max_delay      = "1hr"
+     unlimited      = true
+   }
+    ```
+
+### Rescheduling during deployments
+
+The [update stanza](/docs/job-specification/update.html) controls rolling updates and canary deployments. A task
+group's reschedule stanza does not take affect during a deployment. For example, if a new version of the job
+is rolled out and the deployment failed due to a failing allocation, Nomad will not reschedule it.
+
+### Disabling rescheduling ###
+
+To disable rescheduling, set the `attempts` parameter to zero and `unlimited` to false.
+
+```hcl
+job "docs" {
+  group "example" {
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+  }
+}
+```

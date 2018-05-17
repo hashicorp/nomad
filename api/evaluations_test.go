@@ -95,7 +95,7 @@ func TestEvaluations_Info(t *testing.T) {
 	defer s.Stop()
 	e := c.Evaluations()
 
-	// Querying a non-existent evaluation returns error
+	// Querying a nonexistent evaluation returns error
 	_, _, err := e.Info("8E231CF4-CA48-43FF-B694-5801E69E22FA", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %s", err)

@@ -1,15 +1,15 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
-
-const { get, computed, inject } = Ember;
+import removeRecord from '../utils/remove-record';
 
 export const namespace = 'v1';
 
 export default RESTAdapter.extend({
   namespace,
 
-  token: inject.service(),
+  token: service(),
 
   headers: computed('token.secret', function() {
     const token = this.get('token.secret');
@@ -32,6 +32,24 @@ export default RESTAdapter.extend({
 
       // Rethrow to be handled downstream
       throw error;
+    });
+  },
+
+  // In order to remove stale records from the store, findHasMany has to unload
+  // all records related to the request in question.
+  findHasMany(store, snapshot, link, relationship) {
+    return this._super(...arguments).then(payload => {
+      const relationshipType = relationship.type;
+      const inverse = snapshot.record.inverseFor(relationship.key);
+      if (inverse) {
+        store
+          .peekAll(relationshipType)
+          .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
+          .forEach(record => {
+            removeRecord(store, record);
+          });
+      }
+      return payload;
     });
   },
 

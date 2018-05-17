@@ -6,8 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // EmptyDuration is to be used by fingerprinters that are not periodic.
@@ -86,14 +85,29 @@ func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
 // Factory is used to instantiate a new Fingerprint
 type Factory func(*log.Logger) Fingerprint
 
+// HealthCheck is used for doing periodic health checks. On a given time
+// interfal, a health check will be called by the fingerprint manager of the
+// node.
+type HealthCheck interface {
+	// Check is used to update properties of the node on the status of the health
+	// check
+	HealthCheck(*cstructs.HealthCheckRequest, *cstructs.HealthCheckResponse) error
+
+	// GetHealthCheckInterval is a mechanism for the health checker to indicate that
+	// it should be run periodically. The return value is a boolean indicating
+	// whether it should be done periodically, and the time interval at which
+	// this check should happen.
+	GetHealthCheckInterval(*cstructs.HealthCheckIntervalRequest, *cstructs.HealthCheckIntervalResponse) error
+}
+
 // Fingerprint is used for doing "fingerprinting" of the
 // host to automatically determine attributes, resources,
 // and metadata about it. Each of these is a heuristic, and
 // many of them can be applied on a particular host.
 type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
-	// and returns if the fingerprint was applicable and a potential error.
-	Fingerprint(*config.Config, *structs.Node) (bool, error)
+	// and returns a diff of updated node attributes and a potential error.
+	Fingerprint(*cstructs.FingerprintRequest, *cstructs.FingerprintResponse) error
 
 	// Periodic is a mechanism for the fingerprinter to indicate that it should
 	// be run periodically. The return value is a boolean indicating if it

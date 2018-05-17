@@ -1,14 +1,13 @@
 package state
 
 import (
-	"os"
-
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/mitchellh/go-testing-interface"
 )
 
 func TestStateStore(t testing.T) *StateStore {
 	config := &StateStoreConfig{
-		LogOutput: os.Stderr,
+		LogOutput: testlog.NewWriter(t),
 		Region:    "global",
 	}
 	state, err := NewStateStore(config)

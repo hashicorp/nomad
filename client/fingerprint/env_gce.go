@@ -14,7 +14,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -97,6 +98,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 		URL:    parsedUrl,
 		Header: http.Header{
 			"Metadata-Flavor": []string{"Google"},
+			"User-Agent":      []string{useragent.String()},
 		},
 	}
 
@@ -131,18 +133,16 @@ func checkError(err error, logger *log.Logger, desc string) error {
 	return err
 }
 
-func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
+
 	// Check if we should tighten the timeout
 	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
 		f.client.Timeout = 1 * time.Millisecond
 	}
 
 	if !f.isGCE() {
-		return false, nil
-	}
-
-	if node.Links == nil {
-		node.Links = make(map[string]string)
+		return nil
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -159,7 +159,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	for k, unique := range keys {
 		value, err := f.Get(k, false)
 		if err != nil {
-			return false, checkError(err, f.logger, k)
+			return checkError(err, f.logger, k)
 		}
 
 		// assume we want blank entries
@@ -167,7 +167,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}
-		node.Attributes[key] = strings.Trim(value, "\n")
+		resp.AddAttribute(key, strings.Trim(value, "\n"))
 	}
 
 	// These keys need everything before the final slash removed to be usable.
@@ -178,14 +178,14 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	for k, unique := range keys {
 		value, err := f.Get(k, false)
 		if err != nil {
-			return false, checkError(err, f.logger, k)
+			return checkError(err, f.logger, k)
 		}
 
 		key := "platform.gce." + k
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}
-		node.Attributes[key] = strings.Trim(lastToken(value), "\n")
+		resp.AddAttribute(key, strings.Trim(lastToken(value), "\n"))
 	}
 
 	// Get internal and external IPs (if they exist)
@@ -202,10 +202,10 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		for _, intf := range interfaces {
 			prefix := "platform.gce.network." + lastToken(intf.Network)
 			uniquePrefix := "unique." + prefix
-			node.Attributes[prefix] = "true"
-			node.Attributes[uniquePrefix+".ip"] = strings.Trim(intf.Ip, "\n")
+			resp.AddAttribute(prefix, "true")
+			resp.AddAttribute(uniquePrefix+".ip", strings.Trim(intf.Ip, "\n"))
 			for index, accessConfig := range intf.AccessConfigs {
-				node.Attributes[uniquePrefix+".external-ip."+strconv.Itoa(index)] = accessConfig.ExternalIp
+				resp.AddAttribute(uniquePrefix+".external-ip."+strconv.Itoa(index), accessConfig.ExternalIp)
 			}
 		}
 	}
@@ -213,7 +213,7 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	var tagList []string
 	value, err = f.Get("tags", false)
 	if err != nil {
-		return false, checkError(err, f.logger, "tags")
+		return checkError(err, f.logger, "tags")
 	}
 	if err := json.Unmarshal([]byte(value), &tagList); err != nil {
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance tags: %s", err.Error())
@@ -231,13 +231,13 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 			key = fmt.Sprintf("%s%s", attr, tag)
 		}
 
-		node.Attributes[key] = "true"
+		resp.AddAttribute(key, "true")
 	}
 
 	var attrDict map[string]string
 	value, err = f.Get("attributes/", true)
 	if err != nil {
-		return false, checkError(err, f.logger, "attributes/")
+		return checkError(err, f.logger, "attributes/")
 	}
 	if err := json.Unmarshal([]byte(value), &attrDict); err != nil {
 		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance attributes: %s", err.Error())
@@ -255,13 +255,17 @@ func (f *EnvGCEFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 			key = fmt.Sprintf("%s%s", attr, k)
 		}
 
-		node.Attributes[key] = strings.Trim(v, "\n")
+		resp.AddAttribute(key, strings.Trim(v, "\n"))
 	}
 
 	// populate Links
-	node.Links["gce"] = node.Attributes["unique.platform.gce.id"]
+	if id, ok := resp.Attributes["unique.platform.gce.id"]; ok {
+		resp.AddLink("gce", id)
+	}
 
-	return true, nil
+	resp.Detected = true
+
+	return nil
 }
 
 func (f *EnvGCEFingerprint) isGCE() bool {

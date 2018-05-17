@@ -1,10 +1,10 @@
-import Ember from 'ember';
+import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 
-const { computed } = Ember;
+const maybe = arr => arr || [];
 
 export default Fragment.extend({
   job: fragmentOwner(),
@@ -15,7 +15,7 @@ export default Fragment.extend({
   tasks: fragmentArray('task'),
 
   allocations: computed('job.allocations.@each.taskGroup', function() {
-    return this.get('job.allocations').filterBy('taskGroupName', this.get('name'));
+    return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.get('name'));
   }),
 
   reservedCPU: sumAggregation('tasks', 'reservedCPU'),
@@ -34,6 +34,6 @@ export default Fragment.extend({
   }),
 
   summary: computed('job.taskGroupSummaries.[]', function() {
-    return this.get('job.taskGroupSummaries').findBy('name', this.get('name'));
+    return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.get('name'));
   }),
 });

@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -115,7 +116,10 @@ func (a *TestAgent) Start() *TestAgent {
 		a.Config.NomadConfig.DataDir = d
 	}
 
-	for i := 10; i >= 0; i-- {
+	i := 10
+
+RETRY:
+	for ; i >= 0; i-- {
 		a.pickRandomPorts(a.Config)
 		if a.Config.NodeName == "" {
 			a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
@@ -137,14 +141,14 @@ func (a *TestAgent) Start() *TestAgent {
 			a.Agent = agent
 			break
 		} else if i == 0 {
-			fmt.Println(a.Name, "Error starting agent:", err)
+			a.T.Logf("%s: Error starting agent: %v", a.Name, err)
 			runtime.Goexit()
 		} else {
 			if agent != nil {
 				agent.Shutdown()
 			}
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			fmt.Println(a.Name, "retrying in", wait)
+			a.T.Logf("%s: retrying in %v", a.Name, wait)
 			time.Sleep(wait)
 		}
 
@@ -153,12 +157,13 @@ func (a *TestAgent) Start() *TestAgent {
 		// the data dir, such as in the Raft configuration.
 		if a.DataDir != "" {
 			if err := os.RemoveAll(a.DataDir); err != nil {
-				fmt.Println(a.Name, "Error resetting data dir:", err)
+				a.T.Logf("%s: Error resetting data dir: %v", a.Name, err)
 				runtime.Goexit()
 			}
 		}
 	}
 
+	failed := false
 	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
 		testutil.WaitForResult(func() (bool, error) {
 			args := &structs.GenericRequest{}
@@ -166,7 +171,8 @@ func (a *TestAgent) Start() *TestAgent {
 			err := a.RPC("Status.Leader", args, &leader)
 			return leader != "", err
 		}, func(err error) {
-			a.T.Fatalf("failed to find leader: %v", err)
+			a.T.Logf("failed to find leader: %v", err)
+			failed = true
 		})
 	} else {
 		testutil.WaitForResult(func() (bool, error) {
@@ -175,8 +181,13 @@ func (a *TestAgent) Start() *TestAgent {
 			_, err := a.Server.AgentSelfRequest(resp, req)
 			return err == nil && resp.Code == 200, err
 		}, func(err error) {
-			a.T.Fatalf("failed OK response: %v", err)
+			a.T.Logf("failed to find leader: %v", err)
+			failed = true
 		})
+	}
+	if failed {
+		a.Agent.Shutdown()
+		goto RETRY
 	}
 
 	// Check if ACLs enabled. Use special value of PolicyTTL 0s
@@ -194,7 +205,7 @@ func (a *TestAgent) Start() *TestAgent {
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = os.Stderr
+		a.LogOutput = testlog.NewWriter(a.T)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -252,7 +263,7 @@ func (a *TestAgent) Client() *api.Client {
 
 // pickRandomPorts selects random ports from fixed size random blocks of
 // ports. This does not eliminate the chance for port conflict but
-// reduces it significanltly with little overhead. Furthermore, asking
+// reduces it significantly with little overhead. Furthermore, asking
 // the kernel for a random port by binding to port 0 prolongs the test
 // execution (in our case +20sec) while also not fully eliminating the
 // chance of port conflicts for concurrently executed test binaries.
@@ -263,6 +274,15 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 	c.Ports.HTTP = ports[0]
 	c.Ports.RPC = ports[1]
 	c.Ports.Serf = ports[2]
+
+	// Clear out the advertise addresses such that through retries we
+	// re-normalize the addresses correctly instead of using the values from the
+	// last port selection that had a port conflict.
+	if c.AdvertiseAddrs != nil {
+		c.AdvertiseAddrs.HTTP = ""
+		c.AdvertiseAddrs.RPC = ""
+		c.AdvertiseAddrs.Serf = ""
+	}
 
 	if err := c.normalizeAddrs(); err != nil {
 		a.T.Fatalf("error normalizing config: %v", err)
@@ -300,6 +320,11 @@ func (a *TestAgent) config() *Config {
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
 	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
+
+	// Tighten the autopilot timing
+	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
+	config.ServerHealthInterval = 50 * time.Millisecond
+	config.AutopilotInterval = 100 * time.Millisecond
 
 	// Bootstrap ourselves
 	config.Bootstrap = true

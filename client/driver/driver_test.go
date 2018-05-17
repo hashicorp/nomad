@@ -145,7 +145,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
-	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, logger, emitter)
+	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, logger, emitter)
 
 	return &testContext{allocDir, driverCtx, execCtx, eb}
 }
@@ -414,7 +414,7 @@ func TestCreatedResources_CopyRemove(t *testing.T) {
 	}
 
 	if expected := []string{"v2", "v3"}; !reflect.DeepEqual(expected, res2.Resources["k1"]) {
-		t.Fatalf("unpexpected list for k1: %#v", res2.Resources["k1"])
+		t.Fatalf("unexpected list for k1: %#v", res2.Resources["k1"])
 	}
 
 	// Assert removing the only value from a key removes the key

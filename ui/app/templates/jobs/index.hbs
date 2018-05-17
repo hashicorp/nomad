@@ -1,5 +1,7 @@
 {{#global-header class="page-header"}}
-  Jobs
+  <li class="is-active">
+    {{#link-to "jobs.index"}}Jobs{{/link-to}}
+  </li>
 {{/global-header}}
 {{#gutter-menu class="page-body" onNamespaceChange=(action "refresh")}}
   <section class="section">
@@ -8,7 +10,7 @@
     {{else}}
       {{#if filteredJobs.length}}
         <div class="content">
-          <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
+          <div>{{search-box data-test-jobs-search searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
         </div>
       {{/if}}
       {{#list-pagination
@@ -26,16 +28,19 @@
             {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
             {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
             <th>Groups</th>
-            <th class="is-3">Allocation Status</th>
+            <th class="is-3">Summary</th>
           {{/t.head}}
           {{#t.body key="model.id" as |row|}}
-            {{job-row job=row.model onClick=(action "gotoJob" row.model)}}
+            {{job-row data-test-job-row job=row.model onClick=(action "gotoJob" row.model)}}
           {{/t.body}}
         {{/list-table}}
         <div class="table-foot">
           <nav class="pagination">
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
+              {{#if searchTerm}}
+                <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
+              {{/if}}
             </div>
             {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
             {{#p.next class="pagination-next"}} &gt; {{/p.next}}
@@ -43,14 +48,14 @@
           </nav>
         </div>
       {{else}}
-        <div class="empty-message">
+        <div data-test-empty-jobs-list class="empty-message">
           {{#if (eq filteredJobs.length 0)}}
-            <h3 class="empty-message-headline">No Jobs</h3>
+            <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Jobs</h3>
             <p class="empty-message-body">
               The cluster is currently empty.
             </p>
           {{else if searchTerm}}
-            <h3 class="empty-message-headline">No Matches</h3>
+            <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
             <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
           {{/if}}
         </div>

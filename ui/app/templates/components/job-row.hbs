@@ -1,16 +1,26 @@
-<td>{{#link-to "jobs.job" job class="is-primary"}}{{job.name}}{{/link-to}}</td>
-<td>
+<td data-test-job-name>{{#link-to "jobs.job" job.plainId class="is-primary"}}{{job.name}}{{/link-to}}</td>
+<td data-test-job-status>
   <span class="tag {{job.statusClass}}">{{job.status}}</span>
 </td>
-<td>{{job.type}}</td>
-<td>{{job.priority}}</td>
-<td>
-  {{#if job.isReloading}}
-    ...
+<td data-test-job-type>{{job.displayType}}</td>
+<td data-test-job-priority>{{job.priority}}</td>
+<td data-test-job-task-groups>
+  {{#if job.taskGroupCount}}
+    {{job.taskGroupCount}}
   {{else}}
-    {{job.taskGroups.length}}
+    --
   {{/if}}
 </td>
-<td>
-  <div class="inline-chart">{{allocation-status-bar allocationContainer=job isNarrow=true}}</div>
+<td data-test-job-allocations>
+  <div class="inline-chart">
+    {{#if job.hasChildren}}
+      {{#if (gt job.totalChildren 0)}}
+        {{children-status-bar job=job isNarrow=true}}
+      {{else}}
+        <em class="is-faded">No Children</em>
+      {{/if}}
+    {{else}}
+      {{allocation-status-bar allocationContainer=job isNarrow=true}}
+    {{/if}}
+  </div>
 </td>

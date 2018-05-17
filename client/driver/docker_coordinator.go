@@ -16,7 +16,7 @@ var (
 	// createCoordinator allows us to only create a single coordinator
 	createCoordinator sync.Once
 
-	// globalCoordinator is the shared coordinator and should only be retreived
+	// globalCoordinator is the shared coordinator and should only be retrieved
 	// using the GetDockerCoordinator() method.
 	globalCoordinator *dockerCoordinator
 
@@ -98,10 +98,18 @@ type dockerCoordinator struct {
 	// only have one request be sent to Docker
 	pullFutures map[string]*pullFuture
 
+	// pullLoggers is used to track the LogEventFn for each alloc pulling an image.
+	// If multiple alloc's are attempting to pull the same image, each will need
+	// to register its own LogEventFn with the coordinator.
+	pullLoggers map[string][]LogEventFn
+
+	// pullLoggerLock is used to sync access to the pullLoggers map
+	pullLoggerLock sync.RWMutex
+
 	// imageRefCount is the reference count of image IDs
 	imageRefCount map[string]map[string]struct{}
 
-	// deleteFuture is indexed by image ID and has a cancable delete future
+	// deleteFuture is indexed by image ID and has a cancelable delete future
 	deleteFuture map[string]context.CancelFunc
 }
 
@@ -114,6 +122,7 @@ func NewDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 	return &dockerCoordinator{
 		dockerCoordinatorConfig: config,
 		pullFutures:             make(map[string]*pullFuture),
+		pullLoggers:             make(map[string][]LogEventFn),
 		imageRefCount:           make(map[string]map[string]struct{}),
 		deleteFuture:            make(map[string]context.CancelFunc),
 	}
@@ -130,10 +139,11 @@ func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
-func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string) (imageID string, err error) {
+func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string, emitFn LogEventFn) (imageID string, err error) {
 	// Get the future
 	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
+	d.registerPullLogger(image, emitFn)
 	if !ok {
 		// Make the future
 		future = newPullFuture()
@@ -166,14 +176,25 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 // pullImageImpl is the implementation of pulling an image. The results are
 // returned via the passed future
 func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, future *pullFuture) {
+	defer d.clearPullLogger(image)
 	// Parse the repo and tag
 	repo, tag := docker.ParseRepositoryTag(image)
 	if tag == "" {
 		tag = "latest"
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pm := newImageProgressManager(image, cancel, d.handlePullInactivity,
+		d.handlePullProgressReport, d.handleSlowPullProgressReport)
+	defer pm.stop()
+
 	pullOptions := docker.PullImageOptions{
-		Repository: repo,
-		Tag:        tag,
+		Repository:    repo,
+		Tag:           tag,
+		OutputStream:  pm,
+		RawJSONStream: true,
+		Context:       ctx,
 	}
 
 	// Attempt to pull the image
@@ -181,7 +202,15 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	if authOptions != nil {
 		auth = *authOptions
 	}
+
 	err := d.client.PullImage(pullOptions, auth)
+
+	if ctxErr := ctx.Err(); ctxErr == context.DeadlineExceeded {
+		d.logger.Printf("[ERR] driver.docker: timeout pulling container %s:%s", repo, tag)
+		future.set("", recoverablePullError(ctxErr, image))
+		return
+	}
+
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
 		future.set("", recoverablePullError(err, image))
@@ -258,7 +287,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 		return
 	}
 
-	// This should never be the case but we safefty guard so we don't leak a
+	// This should never be the case but we safety guard so we don't leak a
 	// cancel.
 	if cancel, ok := d.deleteFuture[imageID]; ok {
 		d.logger.Printf("[ERR] driver.docker: image id %q has lingering delete future", imageID)
@@ -275,7 +304,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 }
 
 // removeImageImpl is used to remove an image. It wil wait the specified remove
-// delay to remove the image. If the context is cancalled before that the image
+// delay to remove the image. If the context is cancelled before that the image
 // removal will be cancelled.
 func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	// Wait for the delay or a cancellation event
@@ -335,6 +364,41 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 		cancel()
 	}
 	d.imageLock.Unlock()
+}
+
+func (d *dockerCoordinator) registerPullLogger(image string, logger LogEventFn) {
+	d.pullLoggerLock.Lock()
+	defer d.pullLoggerLock.Unlock()
+	if _, ok := d.pullLoggers[image]; !ok {
+		d.pullLoggers[image] = []LogEventFn{}
+	}
+	d.pullLoggers[image] = append(d.pullLoggers[image], logger)
+}
+
+func (d *dockerCoordinator) clearPullLogger(image string) {
+	d.pullLoggerLock.Lock()
+	defer d.pullLoggerLock.Unlock()
+	delete(d.pullLoggers, image)
+}
+
+func (d *dockerCoordinator) emitEvent(image, message string, args ...interface{}) {
+	d.pullLoggerLock.RLock()
+	defer d.pullLoggerLock.RUnlock()
+	for i := range d.pullLoggers[image] {
+		go d.pullLoggers[image][i](message, args...)
+	}
+}
+
+func (d *dockerCoordinator) handlePullInactivity(image, msg string, timestamp time.Time) {
+	d.logger.Printf("[ERR] driver.docker: image %s pull aborted due to inactivity, last message recevieved at [%s]: %s", image, timestamp.String(), msg)
+}
+
+func (d *dockerCoordinator) handlePullProgressReport(image, msg string, _ time.Time) {
+	d.logger.Printf("[DEBUG] driver.docker: image %s pull progress: %s", image, msg)
+}
+
+func (d *dockerCoordinator) handleSlowPullProgressReport(image, msg string, _ time.Time) {
+	d.emitEvent(image, "Docker image %s pull progress: %s", image, msg)
 }
 
 // recoverablePullError wraps the error gotten when trying to pull and image if

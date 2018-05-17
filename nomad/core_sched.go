@@ -151,25 +151,60 @@ OUTER:
 		return err
 	}
 
-	// Call to the leader to deregister the jobs.
-	for _, job := range gcJob {
-		req := structs.JobDeregisterRequest{
-			JobID: job.ID,
-			Purge: true,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				Namespace: job.Namespace,
-				AuthToken: eval.LeaderACL,
-			},
-		}
-		var resp structs.JobDeregisterResponse
-		if err := c.srv.RPC("Job.Deregister", &req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: job deregister failed: %v", err)
+	// Reap the jobs
+	return c.jobReap(gcJob, eval.LeaderACL)
+}
+
+// jobReap contacts the leader and issues a reap on the passed jobs
+func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
+	// Call to the leader to issue the reap
+	for _, req := range c.partitionJobReap(jobs, leaderACL) {
+		var resp structs.JobBatchDeregisterResponse
+		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
+			c.srv.logger.Printf("[ERR] sched.core: batch job reap failed: %v", err)
 			return err
 		}
 	}
 
 	return nil
+}
+
+// partitionJobReap returns a list of JobBatchDeregisterRequests to make,
+// ensuring a single request does not contain too many jobs. This is necessary
+// to ensure that the Raft transaction does not become too large.
+func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) []*structs.JobBatchDeregisterRequest {
+	option := &structs.JobDeregisterOptions{Purge: true}
+	var requests []*structs.JobBatchDeregisterRequest
+	submittedJobs := 0
+	for submittedJobs != len(jobs) {
+		req := &structs.JobBatchDeregisterRequest{
+			Jobs: make(map[structs.NamespacedID]*structs.JobDeregisterOptions),
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: leaderACL,
+			},
+		}
+		requests = append(requests, req)
+		available := maxIdsPerReap
+
+		if remaining := len(jobs) - submittedJobs; remaining > 0 {
+			if remaining <= available {
+				for _, job := range jobs[submittedJobs:] {
+					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
+					req.Jobs[jns] = option
+				}
+				submittedJobs += remaining
+			} else {
+				for _, job := range jobs[submittedJobs : submittedJobs+available] {
+					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
+					req.Jobs[jns] = option
+				}
+				submittedJobs += available
+			}
+		}
+	}
+
+	return requests
 }
 
 // evalGC is used to garbage collect old evaluations
@@ -241,16 +276,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// Create a watchset
 	ws := memdb.NewWatchSet()
 
+	// Look up the job
+	job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
+	if err != nil {
+		return false, nil, err
+	}
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
-		job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
-		if err != nil {
-			return false, nil, err
-		}
 
 		// Can collect if:
 		// Job doesn't exist
@@ -286,7 +323,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
+		if !allocGCEligible(alloc, job, time.Now(), thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -558,4 +595,58 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 	}
 
 	return requests
+}
+
+// allocGCEligible returns if the allocation is eligible to be garbage collected
+// according to its terminal status and its reschedule trackers
+func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
+	// Not in a terminal status and old enough
+	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+
+	// If the job is deleted, stopped or dead all allocs can be removed
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	// If the alloc hasn't failed then we don't need to consider it for rescheduling
+	// Rescheduling needs to copy over information from the previous alloc so that it
+	// can enforce the reschedule policy
+	if a.ClientStatus != structs.AllocClientStatusFailed {
+		return true
+	}
+
+	var reschedulePolicy *structs.ReschedulePolicy
+	tg := job.LookupTaskGroup(a.TaskGroup)
+
+	if tg != nil {
+		reschedulePolicy = tg.ReschedulePolicy
+	}
+	// No reschedule policy or rescheduling is disabled
+	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
+		return true
+	}
+	// Restart tracking information has been carried forward
+	if a.NextAllocation != "" {
+		return true
+	}
+
+	// This task has unlimited rescheduling and the alloc has not been replaced, so we can't GC it yet
+	if reschedulePolicy.Unlimited {
+		return false
+	}
+
+	// No restarts have been attempted yet
+	if a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0 {
+		return false
+	}
+
+	// Don't GC if most recent reschedule attempt is within time interval
+	interval := reschedulePolicy.Interval
+	lastIndex := len(a.RescheduleTracker.Events)
+	lastRescheduleEvent := a.RescheduleTracker.Events[lastIndex-1]
+	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
+
+	return timeDiff > interval.Nanoseconds()
 }

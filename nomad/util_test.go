@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"errors"
 	"net"
 	"reflect"
 	"testing"
@@ -18,12 +17,14 @@ func TestIsNomadServer(t *testing.T) {
 		Addr:   net.IP([]byte{127, 0, 0, 1}),
 		Status: serf.StatusAlive,
 		Tags: map[string]string{
-			"role":   "nomad",
-			"region": "aws",
-			"dc":     "east-aws",
-			"port":   "10000",
-			"vsn":    "1",
-			"build":  "0.7.0+ent",
+			"role":     "nomad",
+			"region":   "aws",
+			"dc":       "east-aws",
+			"rpc_addr": "1.1.1.1",
+			"port":     "10000",
+			"vsn":      "1",
+			"raft_vsn": "2",
+			"build":    "0.7.0+ent",
 		},
 	}
 	valid, parts := isNomadServer(m)
@@ -42,6 +43,12 @@ func TestIsNomadServer(t *testing.T) {
 	}
 	if parts.Status != serf.StatusAlive {
 		t.Fatalf("bad: %v", parts.Status)
+	}
+	if parts.RaftVersion != 2 {
+		t.Fatalf("bad: %v", parts.RaftVersion)
+	}
+	if parts.RPCAddr.String() != "1.1.1.1:10000" {
+		t.Fatalf("bad: %v", parts.RPCAddr.String())
 	}
 	if seg := parts.Build.Segments(); len(seg) != 3 {
 		t.Fatalf("bad: %v", parts.Build)
@@ -148,105 +155,6 @@ func TestServersMeetMinimumVersion(t *testing.T) {
 		result := ServersMeetMinimumVersion(tc.members, tc.ver)
 		if result != tc.expected {
 			t.Fatalf("bad: %v, %v, %v", result, tc.ver.String(), tc)
-		}
-	}
-}
-
-func TestMinRaftProtocol(t *testing.T) {
-	t.Parallel()
-	makeMember := func(version, region string) serf.Member {
-		return serf.Member{
-			Name: "foo",
-			Addr: net.IP([]byte{127, 0, 0, 1}),
-			Tags: map[string]string{
-				"role":     "nomad",
-				"region":   region,
-				"dc":       "dc1",
-				"port":     "10000",
-				"vsn":      "1",
-				"raft_vsn": version,
-			},
-			Status: serf.StatusAlive,
-		}
-	}
-
-	cases := []struct {
-		members  []serf.Member
-		region   string
-		expected int
-		err      error
-	}{
-		// No servers, error
-		{
-			members:  []serf.Member{},
-			expected: -1,
-			err:      errors.New("no servers found"),
-		},
-		// One server
-		{
-			members: []serf.Member{
-				makeMember("1", "global"),
-			},
-			region:   "global",
-			expected: 1,
-		},
-		// One server, bad version formatting
-		{
-			members: []serf.Member{
-				makeMember("asdf", "global"),
-			},
-			region:   "global",
-			expected: -1,
-			err:      errors.New(`strconv.Atoi: parsing "asdf": invalid syntax`),
-		},
-		// One server, wrong datacenter
-		{
-			members: []serf.Member{
-				makeMember("1", "global"),
-			},
-			region:   "nope",
-			expected: -1,
-			err:      errors.New("no servers found"),
-		},
-		// Multiple servers, different versions
-		{
-			members: []serf.Member{
-				makeMember("1", "global"),
-				makeMember("2", "global"),
-			},
-			region:   "global",
-			expected: 1,
-		},
-		// Multiple servers, same version
-		{
-			members: []serf.Member{
-				makeMember("2", "global"),
-				makeMember("2", "global"),
-			},
-			region:   "global",
-			expected: 2,
-		},
-		// Multiple servers, multiple datacenters
-		{
-			members: []serf.Member{
-				makeMember("3", "r1"),
-				makeMember("2", "r1"),
-				makeMember("1", "r2"),
-			},
-			region:   "r1",
-			expected: 2,
-		},
-	}
-
-	for _, tc := range cases {
-		result, err := MinRaftProtocol(tc.region, tc.members)
-		if result != tc.expected {
-			t.Fatalf("bad: %v, %v, %v", result, tc.expected, tc)
-		}
-		if tc.err != nil {
-			if err == nil || tc.err.Error() != err.Error() {
-				t.Fatalf("bad: %v, %v, %v", err, tc.err, tc)
-			}
 		}
 	}
 }

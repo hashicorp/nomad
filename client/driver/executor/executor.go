@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -27,6 +28,8 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	syslog "github.com/RackSec/srslog"
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -129,7 +132,7 @@ type nomadPid struct {
 	cpuStatsSys   *stats.CpuStats
 }
 
-// SyslogServerState holds the address and islation information of a launched
+// SyslogServerState holds the address and isolation information of a launched
 // syslog server
 type SyslogServerState struct {
 	IsolationConfig *dstructs.IsolationConfig
@@ -207,7 +210,7 @@ func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
 // LaunchCmd launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
+	e.logger.Printf("[INFO] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
 	// Ensure the context has been set first
 	if e.ctx == nil {
@@ -226,6 +229,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.ctx.TaskDir
+
+	// start command in separate process group
+	if err := e.setNewProcessGroup(); err != nil {
+		return nil, err
+	}
 
 	// configuring the chroot, resource container, and start the plugin
 	// process in the chroot.
@@ -425,7 +433,7 @@ func (e *UniversalExecutor) wait() {
 			}
 		}
 	} else {
-		e.logger.Printf("[DEBUG] executor: unexpected Wait() error type: %v", err)
+		e.logger.Printf("[WARN] executor: unexpected Cmd.Wait() error type: %v", err)
 	}
 
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
@@ -435,10 +443,14 @@ var (
 	// finishedErr is the error message received when trying to kill and already
 	// exited process.
 	finishedErr = "os: process already finished"
+
+	// noSuchProcessErr is the error message received when trying to kill a non
+	// existing process (e.g. when killing a process group).
+	noSuchProcessErr = "no such process"
 )
 
 // ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
-// reminants of a child UniversalExecutor.
+// remnants of a child UniversalExecutor.
 func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return clientCleanup(ic, pid)
 }
@@ -470,7 +482,7 @@ func (e *UniversalExecutor) Exit() error {
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
-		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
+		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
@@ -493,27 +505,7 @@ func (e *UniversalExecutor) ShutDown() error {
 	if err != nil {
 		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
 	}
-	if runtime.GOOS == "windows" {
-		if err := proc.Kill(); err != nil && err.Error() != finishedErr {
-			return err
-		}
-		return nil
-	}
-
-	// Set default kill signal, as some drivers don't support configurable
-	// signals (such as rkt)
-	var osSignal os.Signal
-	if e.command.TaskKillSignal != nil {
-		osSignal = e.command.TaskKillSignal
-	} else {
-		osSignal = os.Interrupt
-	}
-
-	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
-		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-
-	return nil
+	return e.shutdownProcess(proc)
 }
 
 // pidStats returns the resource usage stats per pid
@@ -787,4 +779,41 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	}
 
 	return nil
+}
+
+func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
+	// Ensure the context has been set first
+	if e.ctx == nil {
+		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
+	}
+
+	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
+	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
+	if err != nil {
+		return nil, err
+	}
+	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
+	if err := e.configureLoggers(); err != nil {
+		return nil, err
+	}
+
+	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
+	go e.syslogServer.Start()
+	go e.collectLogs(e.lre, e.lro)
+	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
+	return &SyslogServerState{Addr: syslogAddr}, nil
+}
+
+func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
+	for logParts := range e.syslogChan {
+		// If the severity of the log line is err then we write to stderr
+		// otherwise all messages go to stdout
+		if logParts.Severity == syslog.LOG_ERR {
+			e.lre.Write(logParts.Message)
+			e.lre.Write([]byte{'\n'})
+		} else {
+			e.lro.Write(logParts.Message)
+			e.lro.Write([]byte{'\n'})
+		}
+	}
 }

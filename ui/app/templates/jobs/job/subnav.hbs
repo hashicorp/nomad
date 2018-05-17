@@ -1,10 +1,10 @@
-<div class="tabs is-subnav">
+<div data-test-subnav="job" class="tabs is-subnav">
   <ul>
-    <li>{{#link-to "jobs.job.index" job activeClass="is-active"}}Overview{{/link-to}}</li>
-    <li>{{#link-to "jobs.job.definition" job activeClass="is-active"}}Definition{{/link-to}}</li>
-    <li>{{#link-to "jobs.job.versions" job activeClass="is-active"}}Versions{{/link-to}}</li>
+    <li data-test-tab="overview">{{#link-to "jobs.job.index" job activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li data-test-tab="definition">{{#link-to "jobs.job.definition" job activeClass="is-active"}}Definition{{/link-to}}</li>
+    <li data-test-tab="versions">{{#link-to "jobs.job.versions" job activeClass="is-active"}}Versions{{/link-to}}</li>
     {{#if job.supportsDeployments}}
-      <li>{{#link-to "jobs.job.deployments" job activeClass="is-active"}}Deployments{{/link-to}}</li>
+      <li data-test-tab="deployments">{{#link-to "jobs.job.deployments" job activeClass="is-active"}}Deployments{{/link-to}}</li>
     {{/if}}
   </ul>
 </div>

@@ -22,7 +22,7 @@ type AllocStatusCommand struct {
 
 func (c *AllocStatusCommand) Help() string {
 	helpText := `
-Usage: nomad alloc-status [options] <allocation>
+Usage: nomad alloc status [options] <allocation>
 
   Display information about existing allocations and its tasks. This command can
   be used to inspect the current status of an allocation, including its running
@@ -83,11 +83,13 @@ func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *AllocStatusCommand) Name() string { return "alloc status" }
+
 func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -128,7 +130,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one of the following argument conditions:")
+		c.Ui.Error(" * A single <allocation>")
+		c.Ui.Error(" * No arguments, with output format specified")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	allocID := args[0]
@@ -145,7 +150,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	allocID = sanatizeUUIDPrefix(allocID)
+	allocID = sanitizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
@@ -196,7 +201,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		if statsErr != nil {
 			c.Ui.Output("")
 			if statsErr != api.NodeDownErr {
-				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats: %v", statsErr))
 			} else {
 				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
@@ -241,36 +246,44 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 
 	if alloc.DeploymentID != "" {
 		health := "unset"
-		if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil {
-			if *alloc.DeploymentStatus.Healthy {
-				health = "healthy"
-			} else {
-				health = "unhealthy"
+		canary := false
+		if alloc.DeploymentStatus != nil {
+			if alloc.DeploymentStatus.Healthy != nil {
+				if *alloc.DeploymentStatus.Healthy {
+					health = "healthy"
+				} else {
+					health = "unhealthy"
+				}
 			}
+
+			canary = alloc.DeploymentStatus.Canary
 		}
 
 		basic = append(basic,
 			fmt.Sprintf("Deployment ID|%s", limit(alloc.DeploymentID, uuidLength)),
 			fmt.Sprintf("Deployment Health|%s", health))
-
-		// Check if this allocation is a canary
-		deployment, _, err := client.Deployments().Info(alloc.DeploymentID, nil)
-		if err != nil {
-			return "", fmt.Errorf("Error querying deployment %q: %s", alloc.DeploymentID, err)
-		}
-
-		canary := false
-		if state, ok := deployment.TaskGroups[alloc.TaskGroup]; ok {
-			for _, id := range state.PlacedCanaries {
-				if id == alloc.ID {
-					canary = true
-					break
-				}
-			}
-		}
-
 		if canary {
 			basic = append(basic, fmt.Sprintf("Canary|%v", true))
+		}
+	}
+
+	if alloc.RescheduleTracker != nil && len(alloc.RescheduleTracker.Events) > 0 {
+		attempts, total := alloc.RescheduleInfo(time.Unix(0, alloc.ModifyTime))
+		// Show this section only if the reschedule policy limits the number of attempts
+		if total > 0 {
+			reschedInfo := fmt.Sprintf("Reschedule Attempts|%d/%d", attempts, total)
+			basic = append(basic, reschedInfo)
+		}
+	}
+	if alloc.NextAllocation != "" {
+		basic = append(basic,
+			fmt.Sprintf("Replacement Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
+	}
+	if alloc.FollowupEvalID != "" {
+		nextEvalTime := futureEvalTimePretty(alloc.FollowupEvalID, client)
+		if nextEvalTime != "" {
+			basic = append(basic,
+				fmt.Sprintf("Reschedule Eligibility|%s", nextEvalTime))
 		}
 	}
 
@@ -284,6 +297,18 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	return formatKV(basic), nil
+}
+
+// futureEvalTimePretty returns when the eval is eligible to reschedule
+// relative to current time, based on the WaitUntil field
+func futureEvalTimePretty(evalID string, client *api.Client) string {
+	evaluation, _, err := client.Evaluations().Info(evalID, nil)
+	// Eval time is not a critical output,
+	// don't return it on errors, if its not set or already in the past
+	if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+		return ""
+	}
+	return prettyTimeDiff(evaluation.WaitUntil, time.Now())
 }
 
 // outputTaskDetails prints task details for each task in the allocation,

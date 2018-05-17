@@ -1,9 +1,9 @@
-import Ember from 'ember';
-
-const { Route, inject } = Ember;
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import { AbortError } from 'ember-data/adapters/errors';
 
 export default Route.extend({
-  config: inject.service(),
+  config: service(),
 
   resetController(controller, isExiting) {
     if (isExiting) {
@@ -23,7 +23,9 @@ export default Route.extend({
     },
 
     error(error) {
-      this.controllerFor('application').set('error', error);
+      if (!(error instanceof AbortError)) {
+        this.controllerFor('application').set('error', error);
+      }
     },
   },
 });

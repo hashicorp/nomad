@@ -9,6 +9,7 @@ package mem
 import "C"
 
 import (
+	"context"
 	"fmt"
 	"unsafe"
 
@@ -17,6 +18,10 @@ import (
 
 // VirtualMemory returns VirtualmemoryStat.
 func VirtualMemory() (*VirtualMemoryStat, error) {
+	return VirtualMemoryWithContext(context.Background())
+}
+
+func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 	count := C.mach_msg_type_number_t(C.HOST_VM_INFO_COUNT)
 	var vmstat C.vm_statistics_data_t
 

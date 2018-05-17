@@ -11,7 +11,7 @@ type ServerJoinCommand struct {
 
 func (c *ServerJoinCommand) Help() string {
 	helpText := `
-Usage: nomad server-join [options] <addr> [<addr>...]
+Usage: nomad server join [options] <addr> [<addr>...]
 
   Joins the local server to one or more Nomad servers. Joining is
   only required for server nodes, and only needs to succeed
@@ -29,8 +29,10 @@ func (c *ServerJoinCommand) Synopsis() string {
 	return "Join server nodes together"
 }
 
+func (c *ServerJoinCommand) Name() string { return "server join" }
+
 func (c *ServerJoinCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("server-join", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -39,7 +41,8 @@ func (c *ServerJoinCommand) Run(args []string) int {
 	// Check that we got at least one node
 	args = flags.Args()
 	if len(args) < 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("One or more node addresses must be given as arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	nodes := args

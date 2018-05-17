@@ -1,9 +1,8 @@
-import Ember from 'ember';
+import EmberObject, { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
 import TextDecoder from 'nomad-ui/utils/classes/text-decoder';
 import AbstractLogger from './abstract-logger';
-
-const { Object: EmberObject, computed } = Ember;
+import { fetchFailure } from './log';
 
 export default EmberObject.extend(AbstractLogger, {
   reader: null,
@@ -32,7 +31,11 @@ export default EmberObject.extend(AbstractLogger, {
     let buffer = '';
 
     const decoder = new TextDecoder();
-    const reader = yield logFetch(url).then(res => res.body.getReader());
+    const reader = yield logFetch(url).then(res => res.body.getReader(), fetchFailure(url));
+
+    if (!reader) {
+      return;
+    }
 
     this.set('reader', reader);
 

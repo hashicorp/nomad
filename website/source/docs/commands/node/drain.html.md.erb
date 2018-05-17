@@ -1,0 +1,119 @@
+---
+layout: "docs"
+page_title: "Commands: node drain"
+sidebar_current: "docs-commands-node-drain"
+description: >
+  The node drain command is used to configure a node's drain strategy.
+---
+
+# Command: node drain
+
+The `node drain` command is used to toggle drain mode on a given node. Drain
+mode prevents any new tasks from being allocated to the node, and begins
+migrating all existing allocations away. Allocations will be migrated according
+to their [`migrate`][migrate] stanza until the drain's deadline is reached.
+
+By default the `node drain` command blocks until a node is done draining and
+all allocations have terminated. Canceling the `node drain` command *will not*
+cancel the drain. Drains may be canceled by using the `-disable` parameter
+below.
+
+When draining more than one node at a time, it is recommended you first disable
+[scheduling eligibility][eligibility] on all nodes that will be drained. For
+example if you are decommissioning an entire class of nodes, first run `node
+eligibility -disable` on all of their node IDs, and then run `node drain
+-enable`. This will ensure allocations drained from the first node are not
+placed on another node about to be drained.
+
+The [node status](/docs/commands/node/status.html) command compliments this
+nicely by providing the current drain status of a given node.
+
+See the [Decommissioning Nodes guide](/guides/node-draining.html) for detailed
+examples of node draining.
+
+## Usage
+
+```
+nomad node drain [options] <node>
+```
+
+A `-self` flag can be used to drain the local node. If this is not supplied, a
+node ID or prefix must be provided. If there is an exact match, the drain mode
+will be adjusted for that node. Otherwise, a list of matching nodes and
+information will be displayed.
+
+It is also required to pass one of `-enable` or `-disable`, depending on which
+operation is desired.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Drain Options
+
+* `-enable`: Enable node drain mode.
+* `-disable`: Disable node drain mode.
+* `-deadline`: Set the deadline by which all allocations must be moved off the
+  node. Remaining allocations after the deadline are force removed from the
+  node. Defaults to 1 hour.
+* `-detach`: Return immediately instead of entering monitor mode.
+* `-force`: Force remove allocations off the node immediately.
+* `-no-deadline`: No deadline allows the allocations to drain off the node
+  without being force stopped after a certain deadline.
+* `-ignore-system`: Ignore system allows the drain to complete without stopping
+  system job allocations. By default system jobs are stopped last.
+* `-keep-ineligible`: Keep ineligible will maintain the node's scheduling
+  ineligibility even if the drain is being disabled. This is useful when an
+  existing drain is being cancelled but additional scheduling on the node is not
+  desired.
+* `-self`: Drain the local node.
+* `-yes`: Automatic yes to prompts.
+
+## Examples
+
+Enable drain mode on node with ID prefix "4d2ba53b":
+
+```
+$ nomad node drain -enable f4e8a9e5
+Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e"? [y/N] y
+2018-03-30T23:13:16Z: Ctrl-C to stop monitoring: will not cancel the node drain
+2018-03-30T23:13:16Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" drain strategy set
+2018-03-30T23:13:17Z: Alloc "1877230b-64d3-a7dd-9c31-dc5ad3c93e9a" marked for migration
+2018-03-30T23:13:17Z: Alloc "1877230b-64d3-a7dd-9c31-dc5ad3c93e9a" draining
+2018-03-30T23:13:17Z: Alloc "1877230b-64d3-a7dd-9c31-dc5ad3c93e9a" status running -> complete
+2018-03-30T23:13:29Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" marked for migration
+2018-03-30T23:13:29Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" draining
+2018-03-30T23:13:30Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" status running -> complete
+2018-03-30T23:13:41Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" marked for migration
+2018-03-30T23:13:41Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" draining
+2018-03-30T23:13:41Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" has marked all allocations for migration
+2018-03-30T23:13:42Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" status running -> complete
+2018-03-30T23:13:42Z: All allocations on node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" have stopped.
+```
+
+Enable drain mode on the local node:
+
+```
+$ nomad node drain -enable -self
+...
+```
+
+Enable drain mode but do not stop system jobs:
+
+```
+$ nomad node drain -enable -ignore-system 4d2ba53b
+...
+```
+
+Disable drain mode but keep the node ineligible for scheduling. Useful for
+inspecting the current state of a misbehaving node without Nomad trying to
+start or migrate allocations:
+
+```
+$ nomad node drain -disable -keep-ineligible 4d2ba53b
+...
+```
+
+
+[eligibility]: /docs/commands/node/eligibility.html
+[migrate]: /docs/job-specification/migrate.html

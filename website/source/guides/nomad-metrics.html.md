@@ -25,7 +25,7 @@ as [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/),
 [Graphite](https://graphiteapp.org/), [DataDog](https://www.datadoghq.com/),
 and [Circonus](https://www.circonus.com ).
 
-See Nomad's [Metrics API](/api/metrics.html.md) for more information on how
+See Nomad's [Metrics API](/api/metrics.html) for more information on how
 data can be exposed for other metrics tools as well.
 
 ## Setting up metrics
@@ -35,8 +35,8 @@ Configurations for Grafana and Prometheus can be found in the
 
 For Prometheus, first follow Prometheus's [Getting Started
 Guide](https://prometheus.io/docs/introduction/getting_started/) in order to
-set up a Prometheus server. Next, use the (Nomad Prometheus
-Configuration)[https://github.com/hashicorp/nomad/tree/master/integrations/prometheus/prometheus.yml]
+set up a Prometheus server. Next, use the [Nomad Prometheus
+Configuration](https://github.com/hashicorp/nomad/tree/master/integrations/prometheus/prometheus.yml)
 in order to configure Prometheus to talk to a Consul agent to fetch information
 about the Nomad cluster. See the
 [README](https://github.com/hashicorp/nomad/tree/master/integrations/prometheus/README.md)

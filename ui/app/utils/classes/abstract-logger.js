@@ -1,16 +1,16 @@
-import Ember from 'ember';
+import { assert } from '@ember/debug';
+import Mixin from '@ember/object/mixin';
+import { computed } from '@ember/object';
+import { assign } from '@ember/polyfills';
 import queryString from 'npm:query-string';
 
-const { Mixin, computed, assign } = Ember;
 const MAX_OUTPUT_LENGTH = 50000;
 
 export default Mixin.create({
   url: '',
   params: computed(() => ({})),
   logFetch() {
-    Ember.assert(
-      'Loggers need a logFetch method, which should have an interface like window.fetch'
-    );
+    assert('Loggers need a logFetch method, which should have an interface like window.fetch');
   },
 
   endOffset: null,

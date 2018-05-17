@@ -1,6 +1,6 @@
-{{#each annotatedDeployments as |record|}}
+{{#each annotatedDeployments key="deployment.id" as |record|}}
   {{#if record.meta.showDate}}
-    <li class="timeline-note">
+    <li data-test-deployment-time class="timeline-note">
       {{#if record.deployment.version.submitTime}}
         {{moment-format record.deployment.version.submitTime "MMMM D, YYYY"}}
       {{else}}
@@ -8,7 +8,7 @@
       {{/if}}
     </li>
   {{/if}}
-  <li class="timeline-object">
+  <li data-test-deployment class="timeline-object">
     {{job-deployment deployment=record.deployment}}
   </li>
 {{/each}}

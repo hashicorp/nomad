@@ -45,9 +45,11 @@ func (c *NamespaceInspectCommand) Synopsis() string {
 	return "Inspect a namespace"
 }
 
+func (c *NamespaceInspectCommand) Name() string { return "namespace inspect" }
+
 func (c *NamespaceInspectCommand) Run(args []string) int {
 	var tmpl string
-	flags := c.Meta.FlagSet("namespace inspect", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&tmpl, "t", "", "")
 
@@ -58,7 +60,8 @@ func (c *NamespaceInspectCommand) Run(args []string) int {
 	// Check that we got one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <namespace>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

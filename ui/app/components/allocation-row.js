@@ -1,10 +1,13 @@
 import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { run } from '@ember/runloop';
 import { lazyClick } from '../helpers/lazy-click';
-
-const { Component, inject, run } = Ember;
+import { task, timeout } from 'ember-concurrency';
 
 export default Component.extend({
-  store: inject.service(),
+  store: service(),
 
   tagName: 'tr',
 
@@ -14,6 +17,14 @@ export default Component.extend({
 
   // Used to determine whether the row should mention the node or the job
   context: null,
+
+  backoffSequence: computed(() => [500, 800, 1300, 2100, 3400, 5500]),
+
+  // Internal state
+  stats: null,
+  statsError: false,
+
+  enablePolling: computed(() => !Ember.testing),
 
   onClick() {},
 
@@ -45,9 +56,40 @@ export default Component.extend({
     // being resolved through the store (store.findAll('job')). The
     // workaround is to persist the jobID as a string on the allocation
     // and manually re-link the two records here.
-    run.scheduleOnce('afterRender', this, qualifyJob);
+    const allocation = this.get('allocation');
+
+    if (allocation) {
+      run.scheduleOnce('afterRender', this, qualifyAllocation);
+    } else {
+      this.get('fetchStats').cancelAll();
+      this.set('stats', null);
+    }
   },
+
+  fetchStats: task(function*(allocation) {
+    const backoffSequence = this.get('backoffSequence').slice();
+    const maxTiming = backoffSequence.pop();
+
+    do {
+      try {
+        const stats = yield allocation.fetchStats();
+        this.set('stats', stats);
+        this.set('statsError', false);
+      } catch (error) {
+        this.set('statsError', true);
+      }
+      yield timeout(backoffSequence.shift() || maxTiming);
+    } while (this.get('enablePolling'));
+  }).drop(),
 });
+
+function qualifyAllocation() {
+  const allocation = this.get('allocation');
+  return allocation.reload().then(() => {
+    this.get('fetchStats').perform(allocation);
+    run.scheduleOnce('afterRender', this, qualifyJob);
+  });
+}
 
 function qualifyJob() {
   const allocation = this.get('allocation');
@@ -58,6 +100,9 @@ function qualifyJob() {
         job,
         originalJobId: null,
       });
+      if (job.get('isPartial')) {
+        job.reload();
+      }
     } else {
       this.get('store')
         .findRecord('job', allocation.get('originalJobId'))

@@ -1,4 +1,4 @@
-<div class="boxed-section">
+<div data-test-deployment-allocations class="boxed-section">
   <div class="boxed-section-head">
     Allocations
   </div>
@@ -7,6 +7,7 @@
       source=deployment.allocations
       class="allocations" as |t|}}
       {{#t.head}}
+        <th class="is-narrow"></th>
         <th>ID</th>
         <th>Modified</th>
         <th>Name</th>
@@ -17,7 +18,7 @@
         <th>Memory</th>
       {{/t.head}}
       {{#t.body as |row|}}
-        {{allocation-row allocation=row.model context="job"}}
+        {{allocation-row data-test-deployment-allocation allocation=row.model context="job"}}
       {{/t.body}}
     {{/list-table}}
   </div>

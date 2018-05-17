@@ -1,10 +1,9 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 
-const { get, inject } = Ember;
-
 export default ApplicationSerializer.extend({
-  system: inject.service(),
+  system: service(),
 
   attrs: {
     taskGroupName: 'TaskGroup',
@@ -37,6 +36,13 @@ export default ApplicationSerializer.extend({
 
     hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
     hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
+
+    hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
+
+    // API returns empty strings instead of null
+    hash.PreviousAllocationID = hash.PreviousAllocation ? hash.PreviousAllocation : null;
+    hash.NextAllocationID = hash.NextAllocation ? hash.NextAllocation : null;
+    hash.FollowUpEvaluationID = hash.FollowupEvalID ? hash.FollowupEvalID : null;
 
     return this._super(typeHash, hash);
   },

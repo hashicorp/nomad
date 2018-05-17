@@ -3,6 +3,7 @@
   border-radius: $radius;
   border: 1px solid $grey-blue;
   border-collapse: separate;
+  width: 100%;
 
   &.is-fixed {
     table-layout: fixed;
@@ -77,17 +78,21 @@
       width: 25%;
     }
 
+    &.is-truncatable {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &.is-narrow {
+      padding: 1.25em 0 1.25em 0.5em;
+    }
+
     // Only use px modifiers when text needs to be truncated.
     // In this and only this scenario are percentages not effective.
     &.is-200px {
       width: 200px;
       max-width: 200px;
-    }
-
-    &.is-truncatable {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     @for $i from 1 through 11 {
@@ -146,7 +151,7 @@
         position: relative;
 
         &::after {
-          content: "";
+          content: '';
           width: 10px;
           right: 1.5em;
           top: 0.75em;
@@ -156,11 +161,11 @@
         }
 
         &.asc::after {
-          content: "⬇";
+          content: '⬇';
         }
 
         &.desc::after {
-          content: "⬆";
+          content: '⬆';
         }
       }
 
@@ -185,7 +190,7 @@
 
           &::after {
             position: absolute;
-            content: "";
+            content: '';
             width: 3px;
             top: 0;
             bottom: 0;
@@ -207,6 +212,10 @@
       border: 1px solid $grey-blue;
       border-width: 0 0 1px;
       padding: 1.25em 1.5em;
+
+      &.is-one-line {
+        white-space: nowrap;
+      }
     }
   }
 

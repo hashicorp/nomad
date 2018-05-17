@@ -248,7 +248,7 @@ func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
 	}
 }
 
-func TestVaultClient_RenewNonExistentLease(t *testing.T) {
+func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()

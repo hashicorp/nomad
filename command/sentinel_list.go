@@ -38,13 +38,19 @@ func (c *SentinelListCommand) Synopsis() string {
 	return "Display all Sentinel policies"
 }
 
+func (c *SentinelListCommand) Name() string { return "sentinel list" }
+
 func (c *SentinelListCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("sentinel list", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
+	if args = flags.Args(); len(args) > 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
+	}
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {

@@ -75,7 +75,7 @@ raft
 
 Continue with the upgrades across the Server fleet making sure to do a single Nomad
 server at a time.  You can check state of the servers and clients with the
-`nomad server-members` and `nomad node-status` commands which indicate state of the
+`nomad server members` and `nomad node status` commands which indicate state of the
 nodes.
 
 ### 3. Remove the old versions from servers
@@ -87,9 +87,9 @@ If you are doing an upgrade by adding new servers and removing old servers
 from the fleet you need to ensure that the server has left the fleet safely.
 
 1. Stop the service on the existing host
-2. On another server issue a `nomad server-members` and check the status, if
+2. On another server issue a `nomad server members` and check the status, if
 the server is now in a left state you are safe to continue.
-3. If the server is not in a left state, issue a `nomad server-force-leave <server id>`
+3. If the server is not in a left state, issue a `nomad server force-leave <server id>`
 to remove the server from the cluster.
 
 Monitor the logs of the other hosts in the Nomad cluster over this period.
@@ -101,16 +101,16 @@ Use the same actions in step #2 above to confirm cluster health.
 ### 5. Upgrade clients
 
 Following the successful upgrade of the servers you can now update your
-clients using a similar process as the servers.  If you wish to gracefully
-move tasks on a client use the `nomad node-drain <node-id>` command to
-gracefully migrate jobs to another client in the cluster.  The `node-drain`
-command prevents new tasks from being allocated to the client and begins
-migrating existing allocations to another client.
+clients using a similar process as the servers.  You may either upgrade clients
+in-place or start new nodes on the new version. See the [Decommissioning Nodes
+guide](/guides/node-draining.html) for instructions on how to migrate running
+allocations from the old nodes to the new nodes with the [`nomad node
+drain`](/docs/commands/node/drain.html) command.
 
 ## Done!
 
 You are now running the latest Nomad version. You can verify all
-Clients joined by running `nomad node-status` and checking all the clients
+Clients joined by running `nomad node status` and checking all the clients
 are in a `ready` state.
 
 ## Upgrading to Nomad Enterprise

@@ -67,6 +67,7 @@ server {
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3
+	raft_protocol = 3
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
 	node_gc_threshold = "12h"
@@ -81,7 +82,10 @@ server {
 	retry_max = 3
 	retry_interval = "15s"
 	rejoin_after_leave = true
-    encrypt = "abc"
+	non_voting_server = true
+	redundancy_zone = "foo"
+	upgrade_version = "0.8.0"
+	encrypt = "abc"
 }
 acl {
     enabled = true
@@ -111,7 +115,11 @@ http_api_response_headers {
 }
 consul {
     server_service_name = "nomad"
+    server_http_check_name = "nomad-server-http-health-check"
+    server_serf_check_name = "nomad-server-serf-health-check"
+    server_rpc_check_name = "nomad-server-rpc-health-check"
     client_service_name = "nomad-client"
+    client_http_check_name = "nomad-client-http-health-check"
     address = "127.0.0.1:9500"
     token = "token1"
     auth = "username:pass"
@@ -158,4 +166,13 @@ sentinel {
         path = "bar"
         args = ["x", "y", "z"]
     }
+}
+autopilot {
+    cleanup_dead_servers = true
+    disable_upgrade_migration = true
+    last_contact_threshold = "12705s"
+    max_trailing_logs = 17849
+    enable_redundancy_zones = true
+    server_stabilization_time = "23057s"
+    enable_custom_upgrades = true
 }

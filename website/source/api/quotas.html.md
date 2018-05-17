@@ -38,12 +38,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/quotas
+    https://localhost:4646/v1/quotas
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/quotas?prefix=sha
+    https://localhost:4646/v1/quotas?prefix=sha
 ```
 
 ### Sample Response
@@ -98,7 +98,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/quota/shared-quota
+    https://localhost:4646/v1/quota/shared-quota
 ```
 
 ### Sample Response
@@ -172,14 +172,14 @@ object](https://github.com/hashicorp/nomad/blob/master/api/quota.go#L100-L131).
 $ curl \
     --request POST \
     --data @spec.json \
-    https://nomad.rocks/v1/quota/shared-quota
+    https://localhost:4646/v1/quota/shared-quota
 ```
 
 ```text
 $ curl \
     --request POST \
     --data @spec.json \
-    https://nomad.rocks/v1/quota
+    https://localhost:4646/v1/quota
 ```
 
 ## Delete Quota Specification
@@ -208,7 +208,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/quota/shared-quota
+    https://localhost:4646/v1/quota/shared-quota
 ```
 
 ## List Quota Usages
@@ -236,12 +236,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/quota-usages
+    https://localhost:4646/v1/quota-usages
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/quota-usages?prefix=sha
+    https://localhost:4646/v1/quota-usages?prefix=sha
 ```
 
 ### Sample Response
@@ -294,7 +294,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/quota/shared-quota
+    https://localhost:4646/v1/quota/shared-quota
 ```
 
 ### Sample Response

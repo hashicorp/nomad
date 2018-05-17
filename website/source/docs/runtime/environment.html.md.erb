@@ -68,7 +68,7 @@ Nomad makes the following directories available to tasks:
 * `local/`: This directory is private to each task. It can be used to store
   arbitrary data that should not be shared by tasks in the task group.
 * `secrets/`: This directory is private to each task, not accessible via the
-  `nomad fs` command or filesystem APIs and where possible backed by an
+  `nomad alloc fs` command or filesystem APIs and where possible backed by an
   in-memory filesystem. It can be used to store secret data that should not be
   visible outside the task.
 

@@ -9,6 +9,7 @@
           <li>
             <div class="menu-item">
               {{#power-select
+                data-test-namespace-switcher
                 options=sortedNamespaces
                 selected=system.activeNamespace
                 searchField="name"
@@ -41,6 +42,6 @@
     </aside>
   </div>
 </div>
-<div class="page-column is-right">
+<div data-test-page-content class="page-column is-right">
   {{yield}}
 </div>

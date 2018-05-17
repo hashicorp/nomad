@@ -1,6 +1,13 @@
 package nomad
 
 import (
+	"fmt"
+	"strconv"
+
+	"errors"
+
+	"github.com/hashicorp/consul/agent/consul/autopilot"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -102,5 +109,40 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 		ServerDC:     s.srv.config.Datacenter,
 		Members:      members,
 	}
+	return nil
+}
+
+// Used by Autopilot to query the raft stats of the local server.
+func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
+	stats := s.srv.raft.Stats()
+
+	var err error
+	reply.LastContact = stats["last_contact"]
+	reply.LastIndex, err = strconv.ParseUint(stats["last_log_index"], 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing server's last_log_index value: %s", err)
+	}
+	reply.LastTerm, err = strconv.ParseUint(stats["last_log_term"], 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing server's last_log_term value: %s", err)
+	}
+
+	return nil
+}
+
+// HasNodeConn returns whether the server has a connection to the requested
+// Node.
+func (s *Status) HasNodeConn(args *structs.NodeSpecificRequest, reply *structs.NodeConnQueryResponse) error {
+	// Validate the args
+	if args.NodeID == "" {
+		return errors.New("Must provide the NodeID")
+	}
+
+	state, ok := s.srv.getNodeConn(args.NodeID)
+	if ok {
+		reply.Connected = true
+		reply.Established = state.Established
+	}
+
 	return nil
 }

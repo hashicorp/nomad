@@ -11,7 +11,7 @@ type ServerForceLeaveCommand struct {
 
 func (c *ServerForceLeaveCommand) Help() string {
 	helpText := `
-Usage: nomad server-force-leave [options] <node>
+Usage: nomad server force-leave [options] <node>
 
   Forces an server to enter the "left" state. This can be used to
   eject nodes which have failed and will not rejoin the cluster.
@@ -28,8 +28,10 @@ func (c *ServerForceLeaveCommand) Synopsis() string {
 	return "Force a server into the 'left' state"
 }
 
+func (c *ServerForceLeaveCommand) Name() string { return "server force-leave" }
+
 func (c *ServerForceLeaveCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("server-force-leave", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -38,7 +40,8 @@ func (c *ServerForceLeaveCommand) Run(args []string) int {
 	// Check that we got exactly one node
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <node>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	node := args[0]

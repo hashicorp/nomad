@@ -1,10 +1,12 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import { collect } from '@ember/object/computed';
 import notifyError from 'nomad-ui/utils/notify-error';
+import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
+import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-const { Route, inject } = Ember;
-
-export default Route.extend({
-  store: inject.service(),
+export default Route.extend(WithWatchers, {
+  store: service(),
 
   model() {
     return this._super(...arguments).catch(notifyError(this));
@@ -16,4 +18,14 @@ export default Route.extend({
     }
     return model && model.get('allocations');
   },
+
+  startWatchers(controller, model) {
+    controller.set('watchModel', this.get('watch').perform(model));
+    controller.set('watchAllocations', this.get('watchAllocations').perform(model));
+  },
+
+  watch: watchRecord('node'),
+  watchAllocations: watchRelationship('allocations'),
+
+  watchers: collect('watch', 'watchAllocations'),
 });

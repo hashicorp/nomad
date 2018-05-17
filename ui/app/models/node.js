@@ -1,12 +1,10 @@
-import Ember from 'ember';
+import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
 import { fragment } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import ipParts from '../utils/ip-parts';
-
-const { computed } = Ember;
 
 export default Model.extend({
   // Available from list response
@@ -22,6 +20,7 @@ export default Model.extend({
   httpAddr: attr('string'),
   tlsEnabled: attr('boolean'),
   attributes: fragment('node-attributes'),
+  meta: fragment('node-attributes'),
   resources: fragment('resources'),
   reserved: fragment('resources'),
 
@@ -37,5 +36,5 @@ export default Model.extend({
     return this.get('httpAddr') == null;
   }),
 
-  allocations: hasMany('allocations'),
+  allocations: hasMany('allocations', { inverse: 'node' }),
 });

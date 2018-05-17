@@ -2,11 +2,21 @@ set :base_url, "https://www.nomadproject.io/"
 
 activate :hashicorp do |h|
   h.name        = "nomad"
-  h.version     = "0.7.1"
+  h.version     = "0.8.3"
   h.github_slug = "hashicorp/nomad"
 end
 
 helpers do
+  # Returns a segment tracking ID such that local development is not
+  # tracked to production systems.
+  def segmentId()
+    if (ENV['ENV'] == 'production')
+      'qW11yxgipKMsKFKQUCpTVgQUYftYsJj0'
+    else
+      '0EXTgkNx0Ydje2PGXVbRhpKKoe5wtzcE'
+    end
+  end
+
   # Returns the FQDN of the image URL.
   #
   # @param [String] path
