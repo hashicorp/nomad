@@ -103,7 +103,9 @@ configuration, Nomad will automatically connect and configure with Consul.
   communicate with the Consul agent.
 
 - `token` `(string: "")` - Specifies the token used to provide a per-request ACL
-  token. This option overrides the Consul Agent's default token.
+  token. This option overrides the Consul Agent's default token (beware that the 
+  Consul Agent's default token is often an anonymous token which by default doesn't
+  allow writes in Consul).
 
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
   when communicating to the Consul API client over HTTPS
