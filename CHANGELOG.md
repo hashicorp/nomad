@@ -1,14 +1,6 @@
 ## 0.8.4 (Unreleased)
 
 IMPROVEMENTS:
- * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
- * command: Add -short option to init command that emits a minimal
-   jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
- * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
- * driver/docker: Add progress monitoring and inactivity detection to docker
-   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
- * env: Default interpolation of optional meta fields of parameterized jobs to
-   an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
  * core: Add the option for operators to configure TLS versions and allowed
    cipher suites. Default is a subset of safe ciphers and TLS 1.2 [[GH-4269](https://github.com/hashicorp/nomad/pull/4269)]
  * core: Add a new [progress_deadline](https://www.nomadproject.io/docs/job-specification/update.html#progress_deadline) parameter to
@@ -17,12 +9,19 @@ IMPROVEMENTS:
  * core: Canary allocations are tagged in Consul to enable
    using service tags to isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
  * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
+ * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
+ * command: Add -short option to init command that emits a minimal
+   jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
+ * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
+ * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
+ * driver/docker: Add progress monitoring and inactivity detection to docker
+   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
+ * env: Default interpolation of optional meta fields of parameterized jobs to
+   an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
 
 BUG FIXES:
  * api/client: Fix potentially out of order logs and streamed file contents
    [[GH-4234](https://github.com/hashicorp/nomad/issues/4234)]
-
-BUG FIXES:
  * driver/docker: Fix docker credential helper support [[GH-4266](https://github.com/hashicorp/nomad/issues/4266)]
 
 ## 0.8.3 (April 27, 2018)
