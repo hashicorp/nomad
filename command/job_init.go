@@ -48,6 +48,10 @@ func (c *JobInitCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
+func (c *JobInitCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func (c *JobInitCommand) Name() string { return "job init" }
 
 func (c *JobInitCommand) Run(args []string) int {
