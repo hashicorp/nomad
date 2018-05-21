@@ -12,6 +12,7 @@ IMPROVEMENTS:
  * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
  * command: Add -short option to init command that emits a minimal
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
+ * client: Avoid splitting log line across two files [[GH-4282](https://github.com/hashicorp/nomad/issues/4282)]
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
  * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
