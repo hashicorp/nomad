@@ -90,6 +90,22 @@ client {
   receive work. This may be specified as an IP address or DNS, with or without
   the port. If the port is omitted, the default port of `4647` is used.
 
+- `server_join` `(map[string]string` - Specifies the list of server information
+  to retry joining. The fields contained are:
+
+  - `retry_join` `(array<string>: [])` - Specifies a list of server
+    addresses to retry joining if the first attempt fails. The list of
+    addresses will be tried in the order specified, until one
+    succeeds. After one succeeds, no further addresses will be contacted. This is
+    useful for cases where we know the address will become available eventually.
+
+  - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
+    join attempts.
+
+  - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
+    made before exiting with a return code of 1. By default, this is set to 0
+    which is interpreted as infinite retries.
+
 - `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
  to store client state. By default, this is - the top-level
  [data_dir](/docs/agent/configuration/index.html#data_dir) suffixed with

@@ -102,9 +102,9 @@ server {
   second is a tradeoff as it lowers failure detection time of nodes at the
   tradeoff of false positives and increased load on the leader.
 
-- `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether 
-  this server will act as a non-voting member of the cluster to help provide 
-  read scalability. 
+- `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
+  this server will act as a non-voting member of the cluster to help provide
+  read scalability.
 
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
@@ -131,8 +131,8 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
-- `retry_join` `(array<string>: [])` - Specifies a list of server addresses to
-  retry joining if the first attempt fails. This is similar to
+- `retry_join` `(array<string>: [])` - Specifies a list of server
+  addresses to retry joining if the first attempt fails. This is similar to
   [`start_join`](#start_join), but only invokes if the initial join attempt
   fails. The list of addresses will be tried in the order specified, until one
   succeeds. After one succeeds, no further addresses will be contacted. This is
@@ -147,6 +147,13 @@ server {
 - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
   made before exiting with a return code of 1. By default, this is set to 0
   which is interpreted as infinite retries.
+
+- `server_join` `(map[string]string` - Specifies the list of server information
+  to retry joining. The fields contained are [retry_join](#retry_join),
+  [retry_interval](#retry_interval), [retry_max](#retry_max), and
+  [start_join](start_join). These fields will only be able to be specified in
+  the `server_join` stanza after Nomad 0.10 and will are deprecated as top-level
+  configuration on the server stanza.
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
