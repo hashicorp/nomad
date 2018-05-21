@@ -90,8 +90,8 @@ An allocation represents an instance of Task Group placed on a node. To inspect
 an allocation we use the [`alloc status` command](/docs/commands/alloc/status.html):
 
 ```text
-$ nomad alloc status 883269bf
-ID                  = 883269bf
+$ nomad alloc status 8ba85cef 
+ID                  = 8ba85cef
 Eval ID             = 13ebb66d
 Name                = example.cache[0]
 Node ID             = e42d6f19
