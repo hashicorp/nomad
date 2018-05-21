@@ -90,8 +90,25 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	args := structs.JobEvaluateRequest{
-		JobID: jobName,
+	var args structs.JobEvaluateRequest
+
+	// TODO(preetha): remove in 0.9
+	// COMPAT: For backwards compatibility allow using this endpoint without a payload
+	if req.ContentLength == 0 {
+		args = structs.JobEvaluateRequest{
+			JobID: jobName,
+		}
+	} else {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(400, err.Error())
+		}
+		if args.JobID == "" {
+			return nil, CodedError(400, "Job ID must be specified")
+		}
+
+		if jobName != "" && args.JobID != jobName {
+			return nil, CodedError(400, "JobID not same as job name")
+		}
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

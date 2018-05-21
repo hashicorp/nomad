@@ -233,6 +233,22 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
+// EvaluateWithOpts is used to force-evaluate an existing job and takes additional options
+// for whether to force reschedule failed allocations
+func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions) (string, *WriteMeta, error) {
+	req := &JobEvaluateRequest{
+		JobID:       jobID,
+		EvalOptions: opts,
+	}
+
+	var resp JobRegisterResponse
+	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", req, &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
 // PeriodicForce spawns a new instance of the periodic job and returns the eval ID
 func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp periodicForceResponse
@@ -1031,4 +1047,16 @@ type JobStabilityRequest struct {
 type JobStabilityResponse struct {
 	JobModifyIndex uint64
 	WriteMeta
+}
+
+// JobEvaluateRequest is used when we just need to re-evaluate a target job
+type JobEvaluateRequest struct {
+	JobID       string
+	EvalOptions EvalOptions
+	WriteRequest
+}
+
+// EvalOptions is used to encapsulate options when forcing a job evaluation
+type EvalOptions struct {
+	ForceReschedule bool
 }

@@ -465,8 +465,14 @@ type JobDeregisterOptions struct {
 
 // JobEvaluateRequest is used when we just need to re-evaluate a target job
 type JobEvaluateRequest struct {
-	JobID string
+	JobID       string
+	EvalOptions EvalOptions
 	WriteRequest
+}
+
+// EvalOptions is used to encapsulate options when forcing a job evaluation
+type EvalOptions struct {
+	ForceReschedule bool
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
@@ -2990,13 +2996,17 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 	return nrp
 }
 
+func (r *ReschedulePolicy) Enabled() bool {
+	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
+	return enabled
+}
+
 // Validate uses different criteria to validate the reschedule policy
 // Delay must be a minimum of 5 seconds
 // Delay Ceiling is ignored if Delay Function is "constant"
 // Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
-	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
-	if !enabled {
+	if !r.Enabled() {
 		return nil
 	}
 	var mErr multierror.Error
@@ -5610,6 +5620,11 @@ type DesiredTransition struct {
 	// automatically eligible. An example is an allocation that is part of a
 	// deployment.
 	Reschedule *bool
+
+	// ForceReschedule is used to indicate that this allocation must be rescheduled.
+	// This field is only used when operators want to force a placement even if
+	// a failed allocation is not eligible to be rescheduled
+	ForceReschedule *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -5622,6 +5637,10 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Reschedule != nil {
 		d.Reschedule = o.Reschedule
 	}
+
+	if o.ForceReschedule != nil {
+		d.ForceReschedule = o.ForceReschedule
+	}
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.
@@ -5633,6 +5652,15 @@ func (d *DesiredTransition) ShouldMigrate() bool {
 // rescheduling.
 func (d *DesiredTransition) ShouldReschedule() bool {
 	return d.Reschedule != nil && *d.Reschedule
+}
+
+// ShouldForceReschedule returns whether the transition object dictates a
+// forced rescheduling.
+func (d *DesiredTransition) ShouldForceReschedule() bool {
+	if d == nil {
+		return false
+	}
+	return d.ForceReschedule != nil && *d.ForceReschedule
 }
 
 const (
