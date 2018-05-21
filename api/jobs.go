@@ -233,7 +233,8 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
-// ForceEvaluate is used to force-evaluate an existing job.
+// EvaluateWithOpts is used to force-evaluate an existing job and takes additional options
+// for whether to force reschedule failed allocations
 func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions) (string, *WriteMeta, error) {
 	req := &JobEvaluateRequest{
 		JobID:       jobID,

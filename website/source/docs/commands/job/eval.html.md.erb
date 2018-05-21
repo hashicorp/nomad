@@ -43,12 +43,27 @@ Evaluate the job with ID "job1":
 
 ```
 $ nomad job eval job1
-Created eval ID: "6754c2e3-9abb-e7e9-dc92-76aab01751c8"
+==> Monitoring evaluation "0f3bc0f3"
+    Evaluation triggered by job "test"
+    Evaluation within deployment: "51baf5c8"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "0f3bc0f3" finished with status "complete"
+```
+
+Evaluate the job with ID "job1" and return immediately:
+
+```
+$ nomad job eval -detach job1
+Created eval ID: "4947e728"
 ```
 
 Evaluate the job with ID "job1", and reschedule any eligible failed allocations:
 
 ```
 $ nomad job eval -force-reschedule job1
-Created eval ID: "6754c2e3-9abb-e7e9-dc92-76aab01751c8"
+==> Monitoring evaluation "0f3bc0f3"
+    Evaluation triggered by job "test"
+    Evaluation within deployment: "51baf5c8"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "0f3bc0f3" finished with status "complete"
 ```
