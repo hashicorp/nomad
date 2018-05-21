@@ -105,8 +105,7 @@ func (n *NetworkResource) Canonicalize() {
 
 type NvidiaGPUResource struct {
 	UUID          string
-	Index         int
 	DriverVersion string
 	ModelName     string
-	MemoryMB      int
+	MemoryMiB     int
 }

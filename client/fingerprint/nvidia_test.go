@@ -1,27 +1,252 @@
 package fingerprint
 
 import (
+	"errors"
+	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var output = `index, driver_version, name, uuid, memory.total [MiB]
-0, 384.81, Tesla M40, GPU-491d88dd-da82-89f0-df6a-0ba07f9a08a9, 11443 MiB
-1, 384.81, Tesla M40, GPU-7e6521dd-9383-aeb6-cadd-fdd2b2c9c358, 11443 MiB
-2, 384.81, Tesla M40, GPU-852f5619-64b5-d6ab-12ab-4bd4102b9faf, 11443 MiB
-3, 384.81, Tesla M40, GPU-69c95d23-68c3-80ad-3f04-da189ca227f6, 11443 MiB
-4, 384.81, Tesla M40, GPU-a563104b-2b75-e663-448c-0d51c4ab5c1b, 11443 MiB
-5, 384.81, Tesla M40, GPU-3bb6b279-7a9c-aafa-f537-686161f6f6be, 11443 MiB
-6, 384.81, Tesla M40, GPU-08f53071-b844-6983-970c-3fa46931e631, 11443 MiB
-7, 384.81, Tesla M40, GPU-70b656d4-07f0-bd16-3ae4-bf9305f34f5d, 11443 MiB
-`
+// mocking NVML lib
 
-func TestParseOutput(t *testing.T) {
-	f := &NvidiaGPUFingerprint{logger: testLogger()}
-	gpus, err := f.parseOutput([]byte(output))
-	if err != nil {
-		t.Fatalf("err: %v", err)
+type MockNVMLDevice struct {
+	uuidCallSuccessful       bool
+	uuid                     string
+	nameCallSuccessful       bool
+	name                     string
+	memoryInfoCallSuccessful bool
+	totalMemory              uint64
+	allocatedMemory          uint64
+}
+
+func (m MockNVMLDevice) UUID() (string, error) {
+	if !m.uuidCallSuccessful {
+		return "", errors.New("failed to get UUID")
 	}
-	if len(gpus) != 8 {
-		t.Fatalf("gpus: %v", gpus)
+	return m.uuid, nil
+}
+
+func (m MockNVMLDevice) Name() (string, error) {
+	if !m.nameCallSuccessful {
+		return "", errors.New("failed to get Name")
+	}
+	return m.name, nil
+}
+
+func (m MockNVMLDevice) MemoryInfo() (uint64, uint64, error) {
+	if !m.memoryInfoCallSuccessful {
+		return 0, 0, errors.New("failed to get MemoryInfo")
+	}
+	return m.totalMemory, m.allocatedMemory, nil
+}
+
+type MockNVMLDriver struct {
+	initCallSuccessful         bool
+	systemDriverCallSuccessful bool
+	deviceCountCallSuccessful  bool
+	driverVersion              string
+	devices                    []MockNVMLDevice
+}
+
+func (m *MockNVMLDriver) Initialize() error {
+	if !m.initCallSuccessful {
+		return errors.New("failed to initialize")
+	}
+	return nil
+}
+
+func (m *MockNVMLDriver) Shutdown() error {
+	return nil
+}
+
+func (m *MockNVMLDriver) SystemDriverVersion() (string, error) {
+	if !m.systemDriverCallSuccessful {
+		return "", errors.New("failed to get system driver")
+	}
+	return m.driverVersion, nil
+}
+
+func (m *MockNVMLDriver) DeviceCount() (uint, error) {
+	if !m.deviceCountCallSuccessful {
+		return 0, errors.New("failed to get device length")
+	}
+	return uint(len(m.devices)), nil
+}
+
+func (m *MockNVMLDriver) DeviceHandleByIndex(index uint) (NVMLDevice, error) {
+	if index >= uint(len(m.devices)) {
+		return MockNVMLDevice{}, errors.New("index is out of range")
+	}
+	return m.devices[index], nil
+}
+
+func TestGetDataFromNVML(t *testing.T) {
+	for _, testCase := range []struct {
+		Name                string
+		DriverConfiguration *MockNVMLDriver
+		ExpectedError       bool
+		TerminationExpected bool
+		ExpectedResult      []*structs.NvidiaGPUResource
+	}{
+		{
+			Name:                "fail on initialization",
+			ExpectedError:       true,
+			ExpectedResult:      nil,
+			TerminationExpected: false,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         false,
+				systemDriverCallSuccessful: true,
+				deviceCountCallSuccessful:  true,
+			},
+		},
+		{
+			Name:                "fail on systemDriverCallSuccessful",
+			ExpectedError:       true,
+			ExpectedResult:      nil,
+			TerminationExpected: true,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         true,
+				systemDriverCallSuccessful: false,
+				deviceCountCallSuccessful:  true,
+			},
+		},
+		{
+			Name:                "fail on deviceCountCallSuccessful",
+			ExpectedError:       true,
+			ExpectedResult:      nil,
+			TerminationExpected: true,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         true,
+				systemDriverCallSuccessful: true,
+				deviceCountCallSuccessful:  false,
+			},
+		},
+		{
+			Name:          "successful outcome",
+			ExpectedError: false,
+			ExpectedResult: []*structs.NvidiaGPUResource{
+				{
+					DriverVersion: "driverVersion",
+					ModelName:     "ModelName1",
+					UUID:          "UUID1",
+					MemoryMiB:     16,
+				}, {
+					DriverVersion: "driverVersion",
+					ModelName:     "ModelName2",
+					UUID:          "UUID2",
+					MemoryMiB:     8,
+				},
+			},
+			TerminationExpected: false,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         true,
+				systemDriverCallSuccessful: true,
+				deviceCountCallSuccessful:  true,
+				driverVersion:              "driverVersion",
+				devices: []MockNVMLDevice{
+					{
+						uuid:                     "UUID1",
+						name:                     "ModelName1",
+						totalMemory:              16 * 1024 * 1024,
+						allocatedMemory:          5 * 1024 * 1024,
+						uuidCallSuccessful:       true,
+						nameCallSuccessful:       true,
+						memoryInfoCallSuccessful: true,
+					}, {
+						uuid:                     "UUID2",
+						name:                     "ModelName2",
+						totalMemory:              8 * 1024 * 1024,
+						allocatedMemory:          5 * 1024 * 1024,
+						uuidCallSuccessful:       true,
+						nameCallSuccessful:       true,
+						memoryInfoCallSuccessful: true,
+					},
+				},
+			},
+		},
+		{
+			Name:                "device name query failure",
+			ExpectedError:       true,
+			ExpectedResult:      nil,
+			TerminationExpected: true,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         true,
+				systemDriverCallSuccessful: true,
+				deviceCountCallSuccessful:  true,
+				driverVersion:              "driverVersion",
+				devices: []MockNVMLDevice{
+					{
+						uuid:                     "UUID1",
+						name:                     "ModelName1",
+						totalMemory:              16 * 1024 * 1024,
+						allocatedMemory:          5 * 1024 * 1024,
+						uuidCallSuccessful:       true,
+						nameCallSuccessful:       false,
+						memoryInfoCallSuccessful: true,
+					},
+				},
+			},
+		},
+		{
+			Name:                "device uuid query failure",
+			ExpectedError:       true,
+			ExpectedResult:      nil,
+			TerminationExpected: true,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         true,
+				systemDriverCallSuccessful: true,
+				deviceCountCallSuccessful:  true,
+				driverVersion:              "driverVersion",
+				devices: []MockNVMLDevice{
+					{
+						uuid:                     "UUID1",
+						name:                     "ModelName1",
+						totalMemory:              16 * 1024 * 1024,
+						allocatedMemory:          5 * 1024 * 1024,
+						uuidCallSuccessful:       false,
+						nameCallSuccessful:       true,
+						memoryInfoCallSuccessful: true,
+					},
+				},
+			},
+		},
+		{
+			Name:                "device MemoryInfo query failure",
+			ExpectedError:       true,
+			ExpectedResult:      nil,
+			TerminationExpected: true,
+			DriverConfiguration: &MockNVMLDriver{
+				initCallSuccessful:         true,
+				systemDriverCallSuccessful: true,
+				deviceCountCallSuccessful:  true,
+				driverVersion:              "driverVersion",
+				devices: []MockNVMLDevice{
+					{
+						uuid:                     "UUID1",
+						name:                     "ModelName1",
+						totalMemory:              16 * 1024 * 1024,
+						allocatedMemory:          5 * 1024 * 1024,
+						uuidCallSuccessful:       true,
+						nameCallSuccessful:       true,
+						memoryInfoCallSuccessful: false,
+					},
+				},
+			},
+		},
+	} {
+		err, shouldTerminate, allNvidiaGPUResources := getDataFromNVML(testCase.DriverConfiguration)
+		if testCase.ExpectedError && err == nil {
+			t.Errorf("case '%s' : expected Error, but didn't get one", testCase.Name)
+		}
+		if !testCase.ExpectedError && err != nil {
+			t.Errorf("case '%s' : unexpected Error '%v'", testCase.Name, err)
+		}
+		if testCase.TerminationExpected != shouldTerminate {
+			t.Errorf("case '%s' : incorrect termination behavior", testCase.Name)
+		}
+		if !reflect.DeepEqual(testCase.ExpectedResult, allNvidiaGPUResources) {
+			t.Errorf("case '%s' : expected result does not match actual result", testCase.Name)
+		}
 	}
 }
