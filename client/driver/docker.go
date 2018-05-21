@@ -1946,10 +1946,6 @@ func (h *DockerHandle) run() {
 				Name:  "TaskName",
 				Value: h.taskName,
 			},
-			{
-				Name:  "AllocID",
-				Value: h.allocID,
-			},
 		}
 		metrics.IncrCounterWithLabels([]string{"driver", "docker", "oom"}, 1, labels)
 	}
