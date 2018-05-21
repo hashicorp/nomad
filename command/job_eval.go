@@ -125,5 +125,4 @@ func (c *JobEvalCommand) Run(args []string) int {
 
 	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(evalId, false)
-	return 0
 }
