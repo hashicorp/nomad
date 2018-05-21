@@ -6,6 +6,8 @@ IMPROVEMENTS:
  * core: Add a new [progress_deadline](https://www.nomadproject.io/docs/job-specification/update.html#progress_deadline) parameter to
    support rescheduling failed allocations during a deployment. This allows operators to specify a configurable deadline before which
    a deployment should see healthy allocations [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
+ * core: Add a new [job eval](https://www.nomadproject.io/docs/commands/job/eval.html) CLI and API for forcing an evaluation
+   of a job, given the job ID. The new CLI also includes an option to force reschedule failed allocations [[GH-4274](https://github.com/hashicorp/nomad/issues/4274)]
  * core: Canary allocations are tagged in Consul to enable
    using service tags to isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
  * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
