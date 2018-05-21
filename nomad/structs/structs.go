@@ -1816,24 +1816,22 @@ func (r *Resources) GoString() string {
 
 type NvidiaGPUResource struct {
 	UUID          string
-	Index         int
 	DriverVersion string
 	ModelName     string
-	MemoryMB      int
+	MemoryMiB     uint64
 }
 
 func (n *NvidiaGPUResource) Copy() *NvidiaGPUResource {
 	return &NvidiaGPUResource{
 		UUID:          n.UUID,
-		Index:         n.Index,
 		DriverVersion: n.DriverVersion,
 		ModelName:     n.ModelName,
-		MemoryMB:      n.MemoryMB,
+		MemoryMiB:     n.MemoryMiB,
 	}
 }
 
 func (n *NvidiaGPUResource) GoString() string {
-	return fmt.Sprintf("GPU-Resource-%v-%v", n.Index, n.UUID)
+	return fmt.Sprintf("GPU-Resource-%v", n.UUID)
 }
 
 type Port struct {

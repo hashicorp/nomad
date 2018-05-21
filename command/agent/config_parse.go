@@ -371,6 +371,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_max_allocs",
 		"no_host_uuid",
 		"server_join",
+		"restrict_nvidia",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err

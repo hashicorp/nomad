@@ -220,6 +220,10 @@ type ClientConfig struct {
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `mapstructure:"server_join"`
+
+	// RestrictNvidia flag gives cluster operator an opportunity to restrict nomad
+	// to use nvidia resources
+	RestrictNvidia bool `mapstructure:"restrict_nvidia"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -1203,6 +1207,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.NoHostUUID = b.NoHostUUID
 	}
 
+	if b.RestrictNvidia {
+		result.RestrictNvidia = true
+	}
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
 
