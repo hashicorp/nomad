@@ -132,7 +132,7 @@ usage statistics will be reported.
 To see the logs of a task, we can use the [logs command](/docs/commands/alloc/logs.html):
 
 ```text
-$ nomad alloc logs 883269bf redis
+$ nomad alloc logs 8ba85cef redis
                  _._
             _.-``__ ''-._
        _.-``    `.  `_.  ''-._           Redis 3.2.1 (00000000/0) 64 bit
