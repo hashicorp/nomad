@@ -558,8 +558,7 @@ func (c *Command) Run(args []string) int {
 			serverEnabled: true,
 		}
 
-		// This is for backwards compatibility, this should be removed in Nomad
-		// 0.10 and only ServerJoin should be declared on the server
+		// COMPAT: Remove in 0.10 and only use ServerJoin
 		serverJoinInfo := &ServerJoin{
 			RetryJoin:        config.Server.RetryJoin,
 			StartJoin:        config.Server.StartJoin,

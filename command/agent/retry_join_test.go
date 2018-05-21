@@ -78,7 +78,7 @@ func TestRetryJoin_Integration(t *testing.T) {
 	})
 }
 
-func TestRetryJoin_NonCloud(t *testing.T) {
+func TestRetryJoin_Server_NonCloud(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -108,7 +108,7 @@ func TestRetryJoin_NonCloud(t *testing.T) {
 	require.Equal(stubAddress, output[0])
 }
 
-func TestRetryJoin_Cloud(t *testing.T) {
+func TestRetryJoin_Server_Cloud(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -140,7 +140,7 @@ func TestRetryJoin_Cloud(t *testing.T) {
 	require.Equal(stubAddress, output[0])
 }
 
-func TestRetryJoin_MixedProvider(t *testing.T) {
+func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 

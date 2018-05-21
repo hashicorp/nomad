@@ -370,7 +370,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_parallel_destroys",
 		"gc_max_allocs",
 		"no_host_uuid",
-		"server_join_info",
+		"server_join",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -386,7 +386,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	delete(m, "chroot_env")
 	delete(m, "reserved")
 	delete(m, "stats")
-	delete(m, "server_join_info")
+	delete(m, "server_join")
 
 	var config ClientConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -451,9 +451,9 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	}
 
 	// Parse ServerJoin config
-	if o := listVal.Filter("server_join_info"); len(o.Items) > 0 {
+	if o := listVal.Filter("server_join"); len(o.Items) > 0 {
 		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
-			return multierror.Prefix(err, "server_join_info->")
+			return multierror.Prefix(err, "server_join->")
 		}
 	}
 
@@ -547,7 +547,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"redundancy_zone",
 		"upgrade_version",
 
-		"server_join_info",
+		"server_join",
 
 		// For backwards compatibility
 		"start_join",
@@ -564,7 +564,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		return err
 	}
 
-	delete(m, "server_join_info")
+	delete(m, "server_join")
 
 	var config ServerConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -586,9 +586,9 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 	}
 
 	// Parse ServerJoin config
-	if o := listVal.Filter("server_join_info"); len(o.Items) > 0 {
+	if o := listVal.Filter("server_join"); len(o.Items) > 0 {
 		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
-			return multierror.Prefix(err, "server_join_info->")
+			return multierror.Prefix(err, "server_join->")
 		}
 	}
 
@@ -599,7 +599,7 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 func parseServerJoin(result **ServerJoin, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'server_info_join' block allowed")
+		return fmt.Errorf("only one 'server_join' block allowed")
 	}
 
 	// Get our object

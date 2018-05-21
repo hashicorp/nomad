@@ -85,14 +85,14 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 			if r.serverEnabled && r.serverJoin != nil {
 				n, err := r.serverJoin(addrs)
 				if err == nil {
-					r.logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
+					r.logger.Printf("[INFO] agent: Join completed. Server synced with %d initial servers", n)
 					return
 				}
 			}
 			if r.clientEnabled && r.clientJoin != nil {
 				n, err := r.clientJoin(addrs)
 				if err == nil {
-					r.logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
+					r.logger.Printf("[INFO] agent: Join completed. Client synced with %d initial servers", n)
 					return
 				}
 			}

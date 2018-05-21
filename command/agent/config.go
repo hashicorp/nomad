@@ -219,7 +219,7 @@ type ClientConfig struct {
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
 
 	// ServerJoin contains information that is used to attempt to join servers
-	ServerJoin *ServerJoin `mapstructure:"server_join_info"`
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -355,7 +355,7 @@ type ServerConfig struct {
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
 
 	// ServerJoin contains information that is used to attempt to join servers
-	ServerJoin *ServerJoin `mapstructure:"server_join_info"`
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
 }
 
 // ServerJoin is used in both clients and servers to bootstrap connections to

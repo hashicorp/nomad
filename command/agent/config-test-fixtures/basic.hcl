@@ -30,9 +30,8 @@ client {
 		foo = "bar"
 		baz = "zip"
 	}
-  server_join_info {
+  server_join {
     retry_join = [ "1.1.1.1", "2.2.2.2" ]
-      start_join = [ "1.1.1.1", "2.2.2.2" ]
       retry_max = 3
       retry_interval = "15s"
   }
@@ -94,7 +93,7 @@ server {
 	redundancy_zone = "foo"
 	upgrade_version = "0.8.0"
 	encrypt = "abc"
-  server_join_info {
+  server_join {
     retry_join = [ "1.1.1.1", "2.2.2.2" ]
       start_join = [ "1.1.1.1", "2.2.2.2" ]
       retry_max = 3
