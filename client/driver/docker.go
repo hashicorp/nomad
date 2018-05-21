@@ -482,7 +482,6 @@ type DockerHandle struct {
 	jobName           string
 	taskGroupName     string
 	taskName          string
-	allocID           string
 	Image             string
 	ImageID           string
 	containerID       string
@@ -906,7 +905,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		jobName:        d.DriverContext.jobName,
 		taskGroupName:  d.DriverContext.taskGroupName,
 		taskName:       d.DriverContext.taskName,
-		allocID:        d.DriverContext.allocID,
 		Image:          d.driverConfig.ImageName,
 		ImageID:        d.imageID,
 		containerID:    container.ID,
