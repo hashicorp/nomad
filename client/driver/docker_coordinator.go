@@ -178,10 +178,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, future *pullFuture) {
 	defer d.clearPullLogger(image)
 	// Parse the repo and tag
-	repo, tag := docker.ParseRepositoryTag(image)
-	if tag == "" {
-		tag = "latest"
-	}
+	repo, tag := parseDockerImage(image)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -206,18 +203,18 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	err := d.client.PullImage(pullOptions, auth)
 
 	if ctxErr := ctx.Err(); ctxErr == context.DeadlineExceeded {
-		d.logger.Printf("[ERR] driver.docker: timeout pulling container %s:%s", repo, tag)
+		d.logger.Printf("[ERR] driver.docker: timeout pulling container %s", dockerImageRef(repo, tag))
 		future.set("", recoverablePullError(ctxErr, image))
 		return
 	}
 
 	if err != nil {
-		d.logger.Printf("[ERR] driver.docker: failed pulling container %s:%s: %s", repo, tag, err)
+		d.logger.Printf("[ERR] driver.docker: failed pulling container %s: %s", dockerImageRef(repo, tag), err)
 		future.set("", recoverablePullError(err, image))
 		return
 	}
 
-	d.logger.Printf("[DEBUG] driver.docker: docker pull %s:%s succeeded", repo, tag)
+	d.logger.Printf("[DEBUG] driver.docker: docker pull %s succeeded", dockerImageRef(repo, tag))
 
 	dockerImage, err := d.client.InspectImage(image)
 	if err != nil {

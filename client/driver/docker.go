@@ -1500,10 +1500,7 @@ func (d *DockerDriver) Periodic() (bool, time.Duration) {
 // loading it from the file system
 func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir *allocdir.TaskDir) (string, error) {
 	image := driverConfig.ImageName
-	repo, tag := docker.ParseRepositoryTag(image)
-	if tag == "" {
-		tag = "latest"
-	}
+	repo, tag := parseDockerImage(image)
 
 	coordinator, callerID := d.getDockerCoordinator(client)
 
@@ -1511,7 +1508,7 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
 	if driverConfig.ForcePull {
-		d.logger.Printf("[DEBUG] driver.docker: force pull image '%s:%s' instead of inspecting local", repo, tag)
+		d.logger.Printf("[DEBUG] driver.docker: force pull image '%s' instead of inspecting local", dockerImageRef(repo, tag))
 	} else if tag != "latest" {
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
@@ -1544,7 +1541,7 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 		d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
 	}
 
-	d.emitEvent("Downloading image %s:%s", repo, tag)
+	d.emitEvent("Downloading image %s", dockerImageRef(repo, tag))
 	coordinator, callerID := d.getDockerCoordinator(client)
 
 	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID, d.emitEvent)
@@ -2184,4 +2181,26 @@ type createContainerClient interface {
 	InspectContainer(id string) (*docker.Container, error)
 	ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error)
 	RemoveContainer(opts docker.RemoveContainerOptions) error
+}
+
+func parseDockerImage(image string) (repo, tag string) {
+	repo, tag = docker.ParseRepositoryTag(image)
+	if tag != "" {
+		return repo, tag
+	}
+	if i := strings.IndexRune(image, '@'); i > -1 { // Has digest (@sha256:...)
+		// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
+		// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
+		repo = image
+	} else {
+		tag = "latest"
+	}
+	return repo, tag
+}
+
+func dockerImageRef(repo string, tag string) string {
+	if tag == "" {
+		return repo
+	}
+	return fmt.Sprintf("%s:%s", repo, tag)
 }
