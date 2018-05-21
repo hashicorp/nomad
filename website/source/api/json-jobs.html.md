@@ -704,7 +704,7 @@ The `Constraint` object supports the following keys:
         Placing the constraint at both the job level and at the task group level is
         redundant since when placed at the job level, the constraint will be applied
         to all task groups. When specified, `LTarget` should be the property
-        that should be distinct and and `RTarget` should be omitted.
+        that should be distinct and `RTarget` should be omitted.
 
   - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.
