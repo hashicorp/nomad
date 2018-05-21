@@ -1935,15 +1935,15 @@ func (h *DockerHandle) run() {
 		werr = fmt.Errorf("OOM Killed")
 		labels := []metrics.Label{
 			{
-				Name:  "JobName",
+				Name:  "job",
 				Value: h.jobName,
 			},
 			{
-				Name:  "TaskGroupName",
+				Name:  "task_group",
 				Value: h.taskGroupName,
 			},
 			{
-				Name:  "TaskName",
+				Name:  "task",
 				Value: h.taskName,
 			},
 		}
