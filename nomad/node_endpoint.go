@@ -445,7 +445,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("missing node ID for drain update")
 	}
 	if args.NodeEvent != nil {
-		return fmt.Errorf("node event may not be set")
+		return fmt.Errorf("node event must not be set")
 	}
 
 	// Look for the node
