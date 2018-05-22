@@ -558,6 +558,11 @@ func (c *Command) Run(args []string) int {
 			serverEnabled: true,
 		}
 
+		if err := joiner.Validate(config); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
 		// COMPAT: Remove in 0.10 and only use ServerJoin
 		serverJoinInfo := &ServerJoin{
 			RetryJoin:        config.Server.RetryJoin,

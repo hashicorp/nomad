@@ -201,3 +201,152 @@ func TestRetryJoin_Client(t *testing.T) {
 	require.Equal(1, len(output))
 	require.Equal(stubAddress, output[0])
 }
+
+func TestRetryJoin_Validate(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	type validateExpect struct {
+		config  *Config
+		isValid bool
+		reason  string
+	}
+
+	scenarios := []*validateExpect{
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{},
+					},
+					RetryJoin:        []string{"127.0.0.1"},
+					RetryMaxAttempts: 0,
+					RetryInterval:    "0",
+					StartJoin:        []string{},
+				},
+			},
+			isValid: false,
+			reason:  "server_join cannot be defined if retry_join is defined on the server stanza",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{},
+					},
+					StartJoin:        []string{"127.0.0.1"},
+					RetryMaxAttempts: 0,
+					RetryInterval:    "0",
+					RetryJoin:        []string{},
+				},
+			},
+			isValid: false,
+			reason:  "server_join cannot be defined if start_join is defined on the server stanza",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{},
+					},
+					StartJoin:        []string{},
+					RetryMaxAttempts: 1,
+					RetryInterval:    "0",
+					RetryJoin:        []string{},
+				},
+			},
+			isValid: false,
+			reason:  "server_join cannot be defined if retry_max_attempts is defined on the server stanza",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{},
+					},
+					StartJoin:        []string{},
+					RetryMaxAttempts: 0,
+					RetryInterval:    "1",
+					RetryJoin:        []string{},
+				},
+			},
+			isValid: false,
+			reason:  "server_join cannot be defined if retry_interval is defined on the server stanza",
+		},
+		{
+			config: &Config{
+				Client: &ClientConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{"127.0.0.1"},
+					},
+				},
+			},
+			isValid: false,
+			reason:  "start_join should not be defined on the client",
+		},
+		{
+			config: &Config{
+				Client: &ClientConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+					},
+				},
+			},
+			isValid: true,
+			reason:  "client server_join should be valid",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{},
+					},
+					StartJoin:        []string{},
+					RetryMaxAttempts: 0,
+					RetryInterval:    "0",
+					RetryJoin:        []string{},
+				},
+			},
+			isValid: true,
+			reason:  "server server_join should be valid",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					StartJoin:        []string{"127.0.0.1"},
+					RetryMaxAttempts: 1,
+					RetryInterval:    "0",
+					RetryJoin:        []string{},
+				},
+			},
+			isValid: true,
+			reason:  "server deprecated retry_join configuration should be valid",
+		},
+	}
+
+	joiner := retryJoiner{}
+	for _, scenario := range scenarios {
+		err := joiner.Validate(scenario.config)
+		require.Equal(err == nil, scenario.isValid, scenario.reason)
+	}
+}
