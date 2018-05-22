@@ -376,6 +376,10 @@ type DrainUpdate struct {
 type NodeUpdateEligibilityRequest struct {
 	NodeID      string
 	Eligibility string
+
+	// NodeEvent is the event added to the node
+	NodeEvent *NodeEvent
+
 	WriteRequest
 }
 

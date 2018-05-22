@@ -451,10 +451,17 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 	resp := fsm.Apply(makeLog(buf))
 	require.Nil(resp)
 
+	event := &structs.NodeEvent{
+		Message:   "Node marked as ineligible",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
+	}
+
 	// Set the eligibility
 	req2 := structs.NodeUpdateEligibilityRequest{
 		NodeID:      node.ID,
 		Eligibility: structs.NodeSchedulingIneligible,
+		NodeEvent:   event,
 	}
 	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req2)
 	require.Nil(err)
@@ -466,6 +473,8 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 	node, err = fsm.State().NodeByID(nil, req.Node.ID)
 	require.Nil(err)
 	require.Equal(node.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	require.Len(node.Events, 2)
+	require.Equal(event.Message, node.Events[1].Message)
 
 	// Update the drain
 	strategy := &structs.DrainStrategy{

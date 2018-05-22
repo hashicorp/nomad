@@ -384,7 +384,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 		return err
 	}
 
-	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility); err != nil {
+	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility, req.NodeEvent); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed: %v", err)
 		return err
 	}

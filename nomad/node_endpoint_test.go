@@ -1095,6 +1095,8 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 	out, err := state.NodeByID(nil, node.ID)
 	require.Nil(err)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	require.Len(out.Events, 2)
+	require.Equal(NodeEligibilityEventIneligible, out.Events[1].Message)
 
 	// Register a system job
 	job := mock.SystemJob()
@@ -1107,6 +1109,11 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 	require.NotZero(resp3.Index)
 	require.NotZero(resp3.EvalCreateIndex)
 	require.Len(resp3.EvalIDs, 1)
+
+	out, err = state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Len(out.Events, 3)
+	require.Equal(NodeEligibilityEventEligible, out.Events[2].Message)
 }
 
 func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {

@@ -952,13 +952,20 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility))
+	event := &structs.NodeEvent{
+		Message:   "Node marked as ineligible",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 	require.Equal(out.SchedulingEligibility, expectedEligibility)
+	require.Len(out.Events, 2)
+	require.Equal(out.Events[1], event)
 	require.EqualValues(1001, out.ModifyIndex)
 
 	index, err := state.Index("nodes")
@@ -975,7 +982,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, nil))
 
 	// Try to set the node to eligible
-	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible)
+	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), "while it is draining")
 }
