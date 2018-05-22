@@ -619,11 +619,11 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 }
 
 // BatchUpdateNodeDrain is used to update the drain of a node set of nodes
-func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate) error {
+func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 	for node, update := range updates {
-		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible); err != nil {
+		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, events[node]); err != nil {
 			return err
 		}
 	}
@@ -633,11 +633,11 @@ func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*stru
 
 // UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool) error {
+	drain *structs.DrainStrategy, markEligible bool, event *structs.NodeEvent) error {
 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible); err != nil {
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, event); err != nil {
 		return err
 	}
 	txn.Commit()
@@ -645,7 +645,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 }
 
 func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool) error {
+	drain *structs.DrainStrategy, markEligible bool, event *structs.NodeEvent) error {
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -659,6 +659,11 @@ func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID st
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
 
 	// Update the drain in the copy
 	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.9
@@ -754,18 +759,7 @@ func (s *StateStore) upsertNodeEvents(index uint64, nodeID string, events []*str
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
-
-	// Add the events, updating the indexes
-	for _, e := range events {
-		e.CreateIndex = index
-		copyNode.Events = append(copyNode.Events, e)
-	}
-
-	// Keep node events pruned to not exceed the max allowed
-	if l := len(copyNode.Events); l > structs.MaxRetainedNodeEvents {
-		delta := l - structs.MaxRetainedNodeEvents
-		copyNode.Events = copyNode.Events[delta:]
-	}
+	appendNodeEvents(index, copyNode, events)
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {
@@ -776,6 +770,22 @@ func (s *StateStore) upsertNodeEvents(index uint64, nodeID string, events []*str
 	}
 
 	return nil
+}
+
+// appendNodeEvents is a helper that takes a node and new events and appends
+// them, pruning older events as needed.
+func appendNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEvent) {
+	// Add the events, updating the indexes
+	for _, e := range events {
+		e.CreateIndex = index
+		node.Events = append(node.Events, e)
+	}
+
+	// Keep node events pruned to not exceed the max allowed
+	if l := len(node.Events); l > structs.MaxRetainedNodeEvents {
+		delta := l - structs.MaxRetainedNodeEvents
+		node.Events = node.Events[delta:]
+	}
 }
 
 // NodeByID is used to lookup a node by ID

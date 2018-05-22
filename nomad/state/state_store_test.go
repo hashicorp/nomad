@@ -726,7 +726,17 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.BatchUpdateNodeDrain(1002, update))
+	event := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	events := map[string]*structs.NodeEvent{
+		n1.ID: event,
+		n2.ID: event,
+	}
+
+	require.Nil(state.BatchUpdateNodeDrain(1002, update, events))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -736,6 +746,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		require.True(out.Drain)
 		require.NotNil(out.DrainStrategy)
 		require.Equal(out.DrainStrategy, expectedDrain)
+		require.Len(out.Events, 2)
 		require.EqualValues(1002, out.ModifyIndex)
 	}
 
@@ -763,7 +774,12 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false))
+	event := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -772,6 +788,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	require.True(out.Drain)
 	require.NotNil(out.DrainStrategy)
 	require.Equal(out.DrainStrategy, expectedDrain)
+	require.Len(out.Events, 2)
 	require.EqualValues(1001, out.ModifyIndex)
 
 	index, err := state.Index("nodes")
@@ -886,11 +903,21 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false))
+	event1 := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false, event1))
 	require.True(watchFired(ws))
 
 	// Remove the drain
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true))
+	event2 := &structs.NodeEvent{
+		Message:   "Drain strategy disabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true, event2))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
@@ -898,6 +925,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 	require.False(out.Drain)
 	require.Nil(out.DrainStrategy)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	require.Len(out.Events, 3)
 	require.EqualValues(1002, out.ModifyIndex)
 
 	index, err := state.Index("nodes")
@@ -944,7 +972,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 			Deadline: -1 * time.Second,
 		},
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, nil))
 
 	// Try to set the node to eligible
 	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible)

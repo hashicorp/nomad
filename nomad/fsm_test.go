@@ -327,11 +327,19 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 			Deadline: 10 * time.Second,
 		},
 	}
+	event := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
 	req2 := structs.BatchNodeUpdateDrainRequest{
 		Updates: map[string]*structs.DrainUpdate{
 			node.ID: {
 				DrainStrategy: strategy,
 			},
+		},
+		NodeEvents: map[string]*structs.NodeEvent{
+			node.ID: event,
 		},
 	}
 	buf, err = structs.Encode(structs.BatchNodeUpdateDrainRequestType, req2)
@@ -346,6 +354,7 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
+	require.Len(node.Events, 2)
 }
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
@@ -371,6 +380,11 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	req2 := structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
+		NodeEvent: &structs.NodeEvent{
+			Message:   "Drain strategy enabled",
+			Subsystem: structs.NodeEventSubsystemDrain,
+			Timestamp: time.Now(),
+		},
 	}
 	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
 	require.Nil(err)
@@ -384,6 +398,7 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
+	require.Len(node.Events, 2)
 }
 
 func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {

@@ -344,6 +344,10 @@ type NodeUpdateDrainRequest struct {
 
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
+
+	// NodeEvent is the event added to the node
+	NodeEvent *NodeEvent
+
 	WriteRequest
 }
 
@@ -352,6 +356,10 @@ type NodeUpdateDrainRequest struct {
 type BatchNodeUpdateDrainRequest struct {
 	// Updates is a mapping of nodes to their updated drain strategy
 	Updates map[string]*DrainUpdate
+
+	// NodeEvents is a mapping of the node to the event to add to the node
+	NodeEvents map[string]*NodeEvent
+
 	WriteRequest
 }
 
@@ -1225,6 +1233,33 @@ func (ne *NodeEvent) Copy() *NodeEvent {
 	*c = *ne
 	c.Details = helper.CopyMapStringString(ne.Details)
 	return c
+}
+
+// NewNodeEvent generates a new node event storing the current time as the
+// timestamp
+func NewNodeEvent() *NodeEvent {
+	return &NodeEvent{Timestamp: time.Now()}
+}
+
+// SetMessage is used to set the message on the node event
+func (ne *NodeEvent) SetMessage(msg string) *NodeEvent {
+	ne.Message = msg
+	return ne
+}
+
+// SetSubsystem is used to set the subsystem on the node event
+func (ne *NodeEvent) SetSubsystem(sys string) *NodeEvent {
+	ne.Subsystem = sys
+	return ne
+}
+
+// AddDetail is used to add a detail to the node event
+func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
+	if ne.Details == nil {
+		ne.Details = make(map[string]string, 1)
+	}
+	ne.Details[k] = v
+	return ne
 }
 
 const (
