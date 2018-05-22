@@ -293,7 +293,8 @@ type WriteMeta struct {
 // NodeRegisterRequest is used for Node.Register endpoint
 // to register a node as being a schedulable entity.
 type NodeRegisterRequest struct {
-	Node *Node
+	Node      *Node
+	NodeEvent *NodeEvent
 	WriteRequest
 }
 
@@ -326,8 +327,9 @@ type NodeServerInfo struct {
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
-	NodeID string
-	Status string
+	NodeID    string
+	Status    string
+	NodeEvent *NodeEvent
 	WriteRequest
 }
 
@@ -1254,6 +1256,12 @@ func (ne *NodeEvent) SetMessage(msg string) *NodeEvent {
 // SetSubsystem is used to set the subsystem on the node event
 func (ne *NodeEvent) SetSubsystem(sys string) *NodeEvent {
 	ne.Subsystem = sys
+	return ne
+}
+
+// SetTimestamp is used to set the timestamp on the node event
+func (ne *NodeEvent) SetTimestamp(ts time.Time) *NodeEvent {
+	ne.Timestamp = ts
 	return ne
 }
 

@@ -551,54 +551,45 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_UpsertNode_Node(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
 	node := mock.Node()
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
 	_, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(err)
 
-	err = state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(state.UpsertNode(1000, node))
+	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	out2, err := state.NodeBySecretID(ws, node.SecretID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(node, out2) {
-		t.Fatalf("bad: %#v %#v", node, out2)
-	}
-
-	if !reflect.DeepEqual(node, out) {
-		t.Fatalf("bad: %#v %#v", node, out)
-	}
+	require.NoError(err)
+	require.EqualValues(node, out)
+	require.EqualValues(node, out2)
+	require.Len(out.Events, 1)
+	require.Equal(NodeRegisterEventRegistered, out.Events[0].Message)
 
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1000 {
-		t.Fatalf("bad: %d", index)
-	}
+	require.NoError(err)
+	require.EqualValues(1000, index)
+	require.False(watchFired(ws))
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	// Transition the node to down and then up and ensure we get a re-register
+	// event
+	down := out.Copy()
+	down.Status = structs.NodeStatusDown
+	require.NoError(state.UpsertNode(1001, down))
+	require.NoError(state.UpsertNode(1002, out))
+
+	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.Len(out.Events, 2)
+	require.Equal(NodeRegisterEventReregistered, out.Events[1].Message)
 }
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
@@ -649,53 +640,38 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.UpsertNode(800, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(state.UpsertNode(800, node))
 
 	// Create a watchset so we can test that update node status fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
+	_, err := state.NodeByID(ws, node.ID)
+	require.NoError(err)
+
+	event := &structs.NodeEvent{
+		Message:   "Node ready foo",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
 	}
 
-	err = state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, event))
+	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out.Status != structs.NodeStatusReady {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.ModifyIndex != 801 {
-		t.Fatalf("bad: %#v", out)
-	}
+	require.NoError(err)
+	require.Equal(structs.NodeStatusReady, out.Status)
+	require.EqualValues(801, out.ModifyIndex)
+	require.Len(out.Events, 2)
+	require.Equal(event.Message, out.Events[1].Message)
 
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 801 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(err)
+	require.EqualValues(801, index)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
@@ -809,7 +785,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 
 	require.Equal(1, len(node.Events))
 	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
-	require.Equal("Node Registered", node.Events[0].Message)
+	require.Equal(NodeRegisterEventRegistered, node.Events[0].Message)
 
 	// Create a watchset so we can test that AddNodeEvent fires the watch
 	ws := memdb.NewWatchSet()
@@ -851,7 +827,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 	}
 	require.Equal(1, len(node.Events))
 	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
-	require.Equal("Node Registered", node.Events[0].Message)
+	require.Equal(NodeRegisterEventRegistered, node.Events[0].Message)
 
 	var out *structs.Node
 	for i := 1; i <= 20; i++ {

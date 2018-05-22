@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
@@ -506,6 +507,56 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 	if l := len(tvc.RevokedTokens); l != 2 {
 		t.Fatalf("Deregister revoked %d tokens; want 2", l)
 	}
+}
+
+func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Check that we have no client connections
+	require.Empty(s1.connectedNodes())
+
+	// Create the register request but make the node down
+	node := mock.Node()
+	node.Status = structs.NodeStatusDown
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the status
+	dereg := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusInit,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeUpdateResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for heartbeat interval
+	ttl := resp2.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.EqualValues(resp2.Index, out.ModifyIndex)
+	require.Len(out.Events, 2)
+	require.Equal(NodeHeartbeatEventReregistered, out.Events[1].Message)
 }
 
 func TestClientEndpoint_Register_GetEvals(t *testing.T) {
@@ -1222,7 +1273,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	if len(resp2.Node.Events) != 1 {
 		t.Fatalf("Did not set node events: %#v", resp2.Node)
 	}
-	if resp2.Node.Events[0].Message != "Node Registered" {
+	if resp2.Node.Events[0].Message != state.NodeRegisterEventRegistered {
 		t.Fatalf("Did not set node register event correctly: %#v", resp2.Node)
 	}
 
@@ -2622,7 +2673,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node status update triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown)
+		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown, nil)
 	})
 
 	req.MinQueryIndex = 38

@@ -140,6 +140,7 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 
 func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -147,10 +148,7 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	// Create a node
 	node := mock.Node()
 	state := s1.fsm.State()
-	err := state.UpsertNode(1, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(state.UpsertNode(1, node))
 
 	// This should cause a status update
 	s1.invalidateHeartbeat(node.ID)
@@ -158,12 +156,10 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	// Check it is updated
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !out.TerminalStatus() {
-		t.Fatalf("should update node: %#v", out)
-	}
+	require.NoError(err)
+	require.True(out.TerminalStatus())
+	require.Len(out.Events, 2)
+	require.Equal(NodeHeartbeatEventMissed, out.Events[1].Message)
 }
 
 func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
