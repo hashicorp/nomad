@@ -49,9 +49,9 @@ export default Watchable.extend({
   xhrKey(url, method, options = {}) {
     const namespace = options.data && options.data.namespace;
     if (namespace) {
-      return `${url}?namespace=${namespace}`;
+      return `${method} ${url}?namespace=${namespace}`;
     }
-    return url;
+    return `${method} ${url}`;
   },
 
   relationshipFallbackLinks: {
