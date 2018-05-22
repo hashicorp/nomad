@@ -321,6 +321,12 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	// host and -dev mode.
 	conf.Servers = a.config.Client.Servers
 	if a.server != nil {
+		if a.config.AdvertiseAddrs == nil || a.config.AdvertiseAddrs.RPC == "" {
+			return nil, fmt.Errorf("AdvertiseAddrs is nil or empty")
+		} else if a.config.normalizedAddrs == nil || a.config.normalizedAddrs.RPC == "" {
+			return nil, fmt.Errorf("normalizedAddrs is nil or empty")
+		}
+
 		conf.Servers = append(conf.Servers,
 			a.config.normalizedAddrs.RPC,
 			a.config.AdvertiseAddrs.RPC)
