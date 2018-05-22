@@ -89,7 +89,7 @@ extern bool go_lxc_config_item_is_supported(const char *key);
  * we don't want to have to pass all the arguments in to let conditional
  * compilation handle things, but the call will still fail
  */
-#if LXC_VERSION_MAJOR != 2
+#if !VERSION_AT_LEAST(2, 0, 0)
 struct migrate_opts {
 	char *directory;
 	bool verbose;
@@ -119,8 +119,8 @@ struct lxc_console_log {
 	bool read;
 	uint64_t *read_max;
 	char *data;
-	bool write_logfile;
 };
 #endif
 
 extern int go_lxc_console_log(struct lxc_container *c, struct lxc_console_log *log);
+extern int go_lxc_error_num(struct lxc_container *c);
