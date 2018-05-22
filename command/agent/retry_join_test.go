@@ -287,9 +287,23 @@ func TestRetryJoin_Validate(t *testing.T) {
 		},
 		{
 			config: &Config{
-				Client: &ClientConfig{
+				Server: &ServerConfig{
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    "0",
+						StartJoin:        []string{"127.0.0.1"},
+					},
+				},
+			},
+			isValid: false,
+			reason:  "start_join and retry_join should not both be defined",
+		},
+		{
+			config: &Config{
+				Client: &ClientConfig{
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{},
 						RetryMaxAttempts: 0,
 						RetryInterval:    "0",
 						StartJoin:        []string{"127.0.0.1"},

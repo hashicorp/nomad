@@ -78,7 +78,7 @@ func (r *retryJoiner) Validate(config *Config) error {
 	// set as this configuration is only defined for servers.
 	if config.Client != nil && config.Client.ServerJoin != nil {
 		if config.Client.ServerJoin.StartJoin != nil {
-			return fmt.Errorf("server_join is not supported for Nomad clients")
+			return fmt.Errorf("start_join is not supported for Nomad clients")
 		}
 	}
 

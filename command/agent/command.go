@@ -582,6 +582,11 @@ func (c *Command) Run(args []string) int {
 			serverEnabled: true,
 		}
 
+		if err := joiner.Validate(config); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
 		go joiner.RetryJoin(config.Server.ServerJoin)
 	}
 
@@ -592,6 +597,11 @@ func (c *Command) Run(args []string) int {
 			logger:        c.agent.logger,
 			clientJoin:    c.agent.client.SetServers,
 			clientEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
 		}
 
 		go joiner.RetryJoin(config.Client.ServerJoin)
