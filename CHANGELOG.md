@@ -1,20 +1,23 @@
 ## 0.8.4 (Unreleased)
 
 IMPROVEMENTS:
+ * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
  * core: Add the option for operators to configure TLS versions and allowed
    cipher suites. Default is a subset of safe ciphers and TLS 1.2 [[GH-4269](https://github.com/hashicorp/nomad/pull/4269)]
  * core: Add a new [progress_deadline](https://www.nomadproject.io/docs/job-specification/update.html#progress_deadline) parameter to
    support rescheduling failed allocations during a deployment. This allows operators to specify a configurable deadline before which
    a deployment should see healthy allocations [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
- * core: Add a new [job eval](https://www.nomadproject.io/docs/commands/job/eval.html) CLI and API for forcing an evaluation
-   of a job, given the job ID. The new CLI also includes an option to force reschedule failed allocations [[GH-4274](https://github.com/hashicorp/nomad/issues/4274)]
- * core: Canary allocations are tagged in Consul to enable
-   using service tags to isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
- * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
+ * core: Add a new [job eval](https://www.nomadproject.io/docs/commands/job/eval.html) CLI and API
+   for forcing an evaluation of a job, given the job ID. The new CLI also includes an option to force
+   reschedule failed allocations [[GH-4274](https://github.com/hashicorp/nomad/issues/4274)]
+ * core: Canary allocations are tagged in Consul to enable using service tags to
+   isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
+ * core: Emit Node events for drain and eligibility operations as well as for
+   missed heartbeats [[GH-4284](https://github.com/hashicorp/nomad/issues/4284)], [[GH-4291](https://github.com/hashicorp/nomad/issues/4291)], [[GH-4292](https://github.com/hashicorp/nomad/issues/4292)]
  * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
+ * client: Avoid splitting log line across two files [[GH-4282](https://github.com/hashicorp/nomad/issues/4282)]
  * command: Add -short option to init command that emits a minimal
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
- * client: Avoid splitting log line across two files [[GH-4282](https://github.com/hashicorp/nomad/issues/4282)]
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
  * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
