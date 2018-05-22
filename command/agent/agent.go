@@ -322,7 +322,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Servers = a.config.Client.Servers
 	if a.server != nil {
 		conf.Servers = append(conf.Servers,
-			a.config.Addresses.RPC,
+			a.config.normalizedAddrs.RPC,
 			a.config.AdvertiseAddrs.RPC)
 	}
 
