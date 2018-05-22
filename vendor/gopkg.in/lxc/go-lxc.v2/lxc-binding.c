@@ -454,6 +454,11 @@ bool go_lxc_config_item_is_supported(const char *key)
 #endif
 }
 
+int go_lxc_error_num(struct lxc_container *c)
+{
+	return c->error_num;
+}
+
 int go_lxc_console_log(struct lxc_container *c, struct lxc_console_log *log) {
 #if VERSION_AT_LEAST(3, 0, 0)
 	return c->console_log(c, log);
