@@ -541,7 +541,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		return fmt.Errorf("missing node ID for setting scheduling eligibility")
 	}
 	if args.NodeEvent != nil {
-		return fmt.Errorf("node event may not be set")
+		return fmt.Errorf("node event must not be set")
 	}
 
 	// Check that only allowed types are set
