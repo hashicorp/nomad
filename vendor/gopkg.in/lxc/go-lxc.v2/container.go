@@ -1860,10 +1860,9 @@ func (c *Container) ConsoleLog(opt ConsoleLogOptions) ([]byte, error) {
 	defer c.mu.Unlock()
 
 	cl := C.struct_lxc_console_log{
-		clear:         C.bool(opt.ClearLog),
-		read:          C.bool(opt.ReadLog),
-		data:          nil,
-		write_logfile: C.bool(opt.WriteToLogFile),
+		clear: C.bool(opt.ClearLog),
+		read:  C.bool(opt.ReadLog),
+		data:  nil,
 	}
 	// CGO is a fickle little beast:
 	// We need to manually allocate memory here that we pass to C. If we
@@ -1891,4 +1890,10 @@ func (c *Container) ConsoleLog(opt ConsoleLogOptions) ([]byte, error) {
 	}
 
 	return C.GoBytes(unsafe.Pointer(cl.data), numBytes), nil
+}
+
+// ErrorNum returns the error_num field of the container.
+func (c *Container) ErrorNum() int {
+	cError := C.go_lxc_error_num(c.container)
+	return int(cError)
 }
