@@ -2,7 +2,6 @@ job "hello" {
   datacenters = ["dc1"]
   
   update {
-    canary = 1
     max_parallel = 1
     min_healthy_time = "20s"
     auto_revert = true
