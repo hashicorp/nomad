@@ -1369,6 +1369,39 @@ func TestConsul_CanaryTags(t *testing.T) {
 	require.Len(ctx.FakeConsul.services, 0)
 }
 
+// TestConsul_CanaryTags_NoTags asserts Tags are used when Canary=true and there
+// are no specified canary tags
+func TestConsul_CanaryTags_NoTags(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctx := setupFake(t)
+
+	tags := []string{"tag1", "foo"}
+	ctx.Task.Canary = true
+	ctx.Task.Services[0].Tags = tags
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(tags, service.Tags)
+	}
+
+	// Disable canary and assert tags dont change
+	origTask := ctx.Task.Copy()
+	ctx.Task.Canary = false
+	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(tags, service.Tags)
+	}
+
+	ctx.ServiceClient.RemoveTask(ctx.Task)
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 0)
+}
+
 // TestConsul_PeriodicSync asserts that Nomad periodically reconciles with
 // Consul.
 func TestConsul_PeriodicSync(t *testing.T) {

@@ -626,7 +626,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 
 	// Determine whether to use tags or canary_tags
 	var tags []string
-	if task.Canary {
+	if task.Canary && len(service.CanaryTags) > 0 {
 		tags = make([]string, len(service.CanaryTags))
 		copy(tags, service.CanaryTags)
 	} else {

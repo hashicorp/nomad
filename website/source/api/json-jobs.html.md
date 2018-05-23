@@ -383,6 +383,11 @@ The `Task` object supports the following keys:
      - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
 
+     - `CanaryTags`: A list of string tags associated with this Service while it
+       is a canary. Once the canary is promoted, the registered tags will be
+       updated to the set defined in the `Tags` field. String interpolation is
+       supported in tags.
+
      - `PortLabel`: `PortLabel` is an optional string and is used to associate
        a port with the service.  If specified, the port label must match one
        defined in the resources block.  This could be a label of either a
