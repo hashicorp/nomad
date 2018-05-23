@@ -2740,6 +2740,24 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 }
 
+func TestFSM_LeakedDeployments(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	d := mock.Deployment()
+	require.NoError(state.UpsertDeployment(1000, d))
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out, _ := state2.DeploymentByID(nil, d.ID)
+	require.NotNil(out)
+	require.Equal(structs.DeploymentStatusCancelled, out.Status)
+}
+
 func TestFSM_Autopilot(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
