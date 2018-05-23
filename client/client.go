@@ -197,11 +197,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
-		tw, err := cfg.TLSConfiguration().OutgoingTLSWrapper()
+		tw, err := tlsutil.NewTLSConfiguration(cfg.TLSConfig, true, true)
 		if err != nil {
 			return nil, err
 		}
-		tlsWrap = tw
+		tlsWrap, err = tw.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create the client
@@ -399,7 +402,7 @@ func (c *Client) init() error {
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
-		tw, err := tlsutil.NewTLSConfiguration(newConfig)
+		tw, err := tlsutil.NewTLSConfiguration(newConfig, true, true)
 		if err != nil {
 			return err
 		}
