@@ -8,15 +8,6 @@ description: |-
 
 # `server_join` Stanza
 
-<table class="table table-bordered table-striped">
-  <tr>
-    <th width="120">Placement</th>
-    <td>
-      <code>**acl**</code>
-    </td>
-  </tr>
-</table>
-
 The `server_join` stanza configures the Nomad agent to enable retry_join logic for connecting to Nomad servers.
 
 ```hcl

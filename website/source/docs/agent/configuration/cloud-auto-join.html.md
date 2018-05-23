@@ -1,9 +1,9 @@
 ---
 layout: "docs"
-page_title: "Cloud Auto Join- Agent Configuration"
-sidebar_current: "docs-agent-configuration-cloud_auto_join"
+page_title: "Cloud Auto-join"
+sidebar_current: "docs-agent-cloud-auto-join"
 description: |-
-Nomad supports automatic cluster joining using cloud metadata on various providers.
+  Nomad supports automatic cluster joining using cloud metadata on various providers.
 ---
 
 # Cloud Auto-joining
