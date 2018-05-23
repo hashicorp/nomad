@@ -11,8 +11,8 @@ func sayHello(w http.ResponseWriter, r *http.Request) {
 	message := r.URL.Path
 	message = strings.TrimPrefix(message, "/")
 	message = fmt.Sprintf("<h2>Hi %s</h2>", message)
-        w.Header().Set("Content-Type", "text/html; charset=utf-8")
-        w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, message)
 }

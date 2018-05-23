@@ -3,7 +3,7 @@ job "hello" {
   
   update {
     max_parallel = 1
-    min_healthy_time = "20s"
+    min_healthy_time = "15s"
     auto_revert = true
   }  
 
@@ -12,7 +12,7 @@ job "hello" {
     count = 3
  
     task "hello" {
-      driver = "raw_exec"
+      driver = "exec"
 
       config {
         command = "local/hello"
