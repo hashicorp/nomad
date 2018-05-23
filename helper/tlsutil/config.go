@@ -107,6 +107,12 @@ type Config struct {
 
 	// MinVersion contains the minimum SSL/TLS version that is accepted.
 	MinVersion uint16
+
+	// PreferServerCipherSuites controls whether the server selects the
+	// client's most preferred ciphersuite, or the server's most preferred
+	// ciphersuite. If true then the server's preference, as expressed in
+	// the order of elements in CipherSuites, is used.
+	PreferServerCipherSuites bool
 }
 
 func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoing bool) (*Config, error) {
@@ -121,15 +127,16 @@ func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoi
 	}
 
 	return &Config{
-		VerifyIncoming:       verifyIncoming,
-		VerifyOutgoing:       verifyOutgoing,
-		VerifyServerHostname: newConf.VerifyServerHostname,
-		CAFile:               newConf.CAFile,
-		CertFile:             newConf.CertFile,
-		KeyFile:              newConf.KeyFile,
-		KeyLoader:            newConf.GetKeyLoader(),
-		CipherSuites:         ciphers,
-		MinVersion:           minVersion,
+		VerifyIncoming:           verifyIncoming,
+		VerifyOutgoing:           verifyOutgoing,
+		VerifyServerHostname:     newConf.VerifyServerHostname,
+		CAFile:                   newConf.CAFile,
+		CertFile:                 newConf.CertFile,
+		KeyFile:                  newConf.KeyFile,
+		KeyLoader:                newConf.GetKeyLoader(),
+		CipherSuites:             ciphers,
+		MinVersion:               minVersion,
+		PreferServerCipherSuites: newConf.TLSPreferServerCipherSuites,
 	}, nil
 }
 
@@ -184,10 +191,11 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	}
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		RootCAs:            x509.NewCertPool(),
-		InsecureSkipVerify: true,
-		CipherSuites:       c.CipherSuites,
-		MinVersion:         c.MinVersion,
+		RootCAs:                  x509.NewCertPool(),
+		InsecureSkipVerify:       true,
+		CipherSuites:             c.CipherSuites,
+		MinVersion:               c.MinVersion,
+		PreferServerCipherSuites: c.PreferServerCipherSuites,
 	}
 	if c.VerifyServerHostname {
 		tlsConfig.InsecureSkipVerify = false
@@ -304,10 +312,11 @@ func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		ClientCAs:    x509.NewCertPool(),
-		ClientAuth:   tls.NoClientCert,
-		CipherSuites: c.CipherSuites,
-		MinVersion:   c.MinVersion,
+		ClientCAs:                x509.NewCertPool(),
+		ClientAuth:               tls.NoClientCert,
+		CipherSuites:             c.CipherSuites,
+		MinVersion:               c.MinVersion,
+		PreferServerCipherSuites: c.PreferServerCipherSuites,
 	}
 
 	// Parse the CA cert if any

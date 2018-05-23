@@ -156,6 +156,9 @@ tls {
     key_file = "pipe"
     rpc_upgrade_mode = true
     verify_https_client = true
+    tls_prefer_server_cipher_suites = true
+    tls_cipher_suites = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+    tls_min_version = "tls12"
 }
 sentinel {
     import "foo" {

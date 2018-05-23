@@ -67,6 +67,9 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
 - `tls_min_version` - Specifies the minimum supported version of TLS. Accepted
   values are "tls10", "tls11", "tls12". Defaults to TLS 1.2.
 
+- tls_prefer_server_cipher_suites - This option will cause Nomad to prefer the
+  server's ciphersuite over the client ciphersuites.
+
 - `verify_https_client` `(bool: false)` - Specifies agents should require
   client certificates for all incoming HTTPS requests. The client certificates
   must be signed by the same CA as Nomad.
