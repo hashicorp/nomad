@@ -349,17 +349,11 @@ func (e *UniversalExecutor) configureLoggers() error {
 			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
 		}
 
-		r, w, err := os.Pipe()
+		r, err := NewLogRotatorWrapper(lro)
 		if err != nil {
-			return fmt.Errorf("failed to create os.Pipe for extracting logs: %v", err)
+			return err
 		}
-
-		e.lro = &logRotatorWrapper{
-			processOutWriter: w,
-			processOutReader: r,
-			rotatorWriter:    lro,
-		}
-		e.lro.Start()
+		e.lro = r
 	}
 
 	if e.lre == nil {
@@ -369,17 +363,11 @@ func (e *UniversalExecutor) configureLoggers() error {
 			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
 		}
 
-		r, w, err := os.Pipe()
+		r, err := NewLogRotatorWrapper(lre)
 		if err != nil {
-			return fmt.Errorf("failed to create os.Pipe for extracting logs: %v", err)
+			return err
 		}
-
-		e.lre = &logRotatorWrapper{
-			processOutWriter: w,
-			processOutReader: r,
-			rotatorWriter:    lre,
-		}
-		e.lre.Start()
+		e.lre = r
 	}
 	return nil
 }
@@ -842,15 +830,33 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 
 // logRotatorWrapper wraps our log rotator and exposes a pipe that can feed the
 // log rotator data. The processOutWriter should be attached to the process and
-// Start is called to copy data from the reader to the rotator.
+// data will be copied from the reader to the rotator.
 type logRotatorWrapper struct {
 	processOutWriter *os.File
 	processOutReader *os.File
 	rotatorWriter    *logging.FileRotator
 }
 
-// Start starts a go-routine that copies from the pipe into the rotator.
-func (l *logRotatorWrapper) Start() {
+// NewLogRotatorWrapper takes a rotator and returns a wrapper that has the
+// processOutWriter to attach to the processes stdout or stderr.
+func NewLogRotatorWrapper(rotator *logging.FileRotator) (*logRotatorWrapper, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create os.Pipe for extracting logs: %v", err)
+	}
+
+	wrap := &logRotatorWrapper{
+		processOutWriter: w,
+		processOutReader: r,
+		rotatorWriter:    rotator,
+	}
+	wrap.start()
+	return wrap, nil
+}
+
+// start starts a go-routine that copies from the pipe into the rotator. This is
+// called by the constructor and not the user of the wrapper.
+func (l *logRotatorWrapper) start() {
 	go func() {
 		io.Copy(l.rotatorWriter, l.processOutReader)
 		l.processOutReader.Close() // in case io.Copy stopped due to write error
