@@ -14,6 +14,8 @@ IMPROVEMENTS:
    isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
  * core: Emit Node events for drain and eligibility operations as well as for
    missed heartbeats [[GH-4284](https://github.com/hashicorp/nomad/issues/4284)], [[GH-4291](https://github.com/hashicorp/nomad/issues/4291)], [[GH-4292](https://github.com/hashicorp/nomad/issues/4292)]
+ * cli: Add node drain monitoring with new `-monitor` flag on node drain
+   command [[GH-4260](https://github.com/hashicorp/nomad/issues/4260)]
  * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
  * client: Avoid splitting log line across two files [[GH-4282](https://github.com/hashicorp/nomad/issues/4282)]
  * command: Add -short option to init command that emits a minimal

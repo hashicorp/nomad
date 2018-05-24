@@ -193,6 +193,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 	defer close(nodeCh)
 
 	var lastStrategy *DrainStrategy
+	var strategyChanged bool
 	q := QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
@@ -209,7 +210,12 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		}
 
 		if node.DrainStrategy == nil {
-			msg := Messagef(MonitorMsgLevelInfo, "Node %q has marked all allocations for migration", nodeID)
+			var msg *MonitorMessage
+			if strategyChanged {
+				msg = Messagef(MonitorMsgLevelInfo, "Node %q has marked all allocations for migration", nodeID)
+			} else {
+				msg = Messagef(MonitorMsgLevelInfo, "No drain strategy set for node %s", nodeID)
+			}
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -236,6 +242,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		}
 
 		lastStrategy = node.DrainStrategy
+		strategyChanged = true
 
 		// Drain still ongoing, update index and block for updates
 		q.WaitIndex = meta.LastIndex
