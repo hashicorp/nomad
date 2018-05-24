@@ -82,6 +82,33 @@ func (r *retryJoiner) Validate(config *Config) error {
 		}
 	}
 
+	if config.Server != nil {
+		dur, err := time.ParseDuration(config.Server.RetryInterval)
+		if err != nil {
+			return fmt.Errorf("Error parsing server retry interval: %s", err)
+		} else {
+			config.Server.retryInterval = dur
+		}
+
+		if config.Server.ServerJoin != nil {
+			dur, err := time.ParseDuration(config.Server.RetryInterval)
+			if err != nil {
+				return fmt.Errorf("Error parsing server retry interval: %s", err)
+			} else {
+				config.Server.ServerJoin.retryInterval = dur
+			}
+		}
+	}
+
+	if config.Client != nil && config.Client.ServerJoin != nil {
+		dur, err := time.ParseDuration(config.Client.ServerJoin.RetryInterval)
+		if err != nil {
+			return fmt.Errorf("Error parsing retry interval: %s", err)
+		} else {
+			config.Client.ServerJoin.retryInterval = dur
+		}
+	}
+
 	return nil
 }
 

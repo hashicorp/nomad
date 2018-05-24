@@ -349,12 +349,52 @@ func TestRetryJoin_Validate(t *testing.T) {
 				Server: &ServerConfig{
 					StartJoin:        []string{"127.0.0.1"},
 					RetryMaxAttempts: 1,
-					RetryInterval:    "0",
+					RetryInterval:    "3s",
 					RetryJoin:        []string{},
 				},
 			},
 			isValid: true,
 			reason:  "server deprecated retry_join configuration should be valid",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					StartJoin:        []string{"127.0.0.1"},
+					RetryMaxAttempts: 1,
+					RetryInterval:    "invalid!TimeInterval",
+					RetryJoin:        []string{},
+				},
+			},
+			isValid: false,
+			reason:  "invalid time interval",
+		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					ServerJoin: &ServerJoin{
+						StartJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 1,
+						RetryInterval:    "invalid!TimeInterval",
+						RetryJoin:        []string{},
+					},
+				},
+			},
+			isValid: false,
+			reason:  "invalid time interval",
+		},
+		{
+			config: &Config{
+				Client: &ClientConfig{
+					ServerJoin: &ServerJoin{
+						StartJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 1,
+						RetryInterval:    "invalid!TimeInterval",
+						RetryJoin:        []string{},
+					},
+				},
+			},
+			isValid: false,
+			reason:  "invalid time interval",
 		},
 	}
 

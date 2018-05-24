@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -905,5 +906,71 @@ func TestIsMissingPort(t *testing.T) {
 	_, _, err = net.SplitHostPort("localhost:9000")
 	if missing := isMissingPort(err); missing {
 		t.Errorf("expected no error, but got %v", err)
+	}
+}
+
+func TestMergeServerJoin(t *testing.T) {
+	require := require.New(t)
+
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := "1"
+
+		a := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    retryInterval,
+		}
+		b := &ServerJoin{}
+
+		a.Merge(b)
+		require.Equal(a.RetryJoin, retryJoin)
+		require.Equal(a.StartJoin, startJoin)
+		require.Equal(a.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(a.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := "1"
+
+		a := &ServerJoin{}
+		b := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    retryInterval,
+		}
+
+		a.Merge(b)
+		require.Equal(a.RetryJoin, retryJoin)
+		require.Equal(a.StartJoin, startJoin)
+		require.Equal(a.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(a.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := "1"
+
+		a := &ServerJoin{
+			RetryJoin: retryJoin,
+			StartJoin: startJoin,
+		}
+		b := &ServerJoin{
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    retryInterval,
+		}
+
+		a.Merge(b)
+		require.Equal(a.RetryJoin, retryJoin)
+		require.Equal(a.StartJoin, startJoin)
+		require.Equal(a.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(a.RetryInterval, retryInterval)
 	}
 }
