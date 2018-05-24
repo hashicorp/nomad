@@ -90,7 +90,7 @@ client {
   receive work. This may be specified as an IP address or DNS, with or without
   the port. If the port is omitted, the default port of `4647` is used.
 
-- `server_join` <code>([ServerJoin][server_join]: nil)</code> - Specifies
+- `server_join` [ServerJoin][server_join] - Specifies
   configuration which is specific to retry joining Nomad servers.
 
 - `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
@@ -349,3 +349,4 @@ client {
   }
 }
 ```
+[server_join]: /docs/agent/configuration/server_join.html "Server Join"

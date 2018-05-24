@@ -72,6 +72,13 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-rejoin`: Equivalent to the [rejoin_after_leave](#rejoin_after_leave) config option.
 * `-retry-interval`: Equivalent to the [retry_interval](#retry_interval) config option.
 * `-retry-join`: Similar to `-join` but allows retrying a join if the first attempt fails.
+
+Note that `retry_join` can be defined for only servers as a command-line
+flag (clients are only able to define via the client configuration).
+```sh
+$ nomad agent -retry-join "127.0.0.1:4648"
+`
+
 * `-retry-max`: Similar to the [retry_max](#retry_max) config option.
 * `-server`: Enable server mode on the local agent.
 * `-servers=<host:port>`: Equivalent to the Client [servers](#servers) config

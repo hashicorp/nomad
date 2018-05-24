@@ -3,12 +3,12 @@ layout: "docs"
 page_title: "server_join Stanza - Agent Configuration"
 sidebar_current: "docs-agent-configuration-server_join"
 description: |-
-  The "server_join" stanza configures the Nomad agent to enable retry_join logic for connecting to Nomad servers.
+  The server_join stanza specifies how the Nomad agent will discover and connect to Nomad servers.
 ---
 
 # `server_join` Stanza
 
-The `server_join` stanza configures the Nomad agent to enable retry_join logic for connecting to Nomad servers.
+The server_join stanza specifies how the Nomad agent will discover and connect to Nomad servers.
 
 ```hcl
 server_join {
@@ -106,7 +106,7 @@ nomad-01.company.local => nomad-01.company.local:4648
 
 #### Via the go-discover interface
 
-As of Nomad 0.9, `retry-join` accepts a unified interface using the
+As of Nomad 0.8.4, `retry-join` accepts a unified interface using the
 [go-discover](https://github.com/hashicorp/go-discover) library for doing
 automated cluster joining using cloud metadata.
 
