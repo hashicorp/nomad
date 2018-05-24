@@ -249,7 +249,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	out = outBuf.String()
 	t.Logf("Output:\n%s", out)
 
-	require.Contains(out, "marked all allocations for migration")
+	require.Contains(out, "No drain strategy set")
 }
 
 func TestNodeDrainCommand_Fails(t *testing.T) {
