@@ -531,3 +531,22 @@ func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
 		require.Equal(uint16(0), parsedVersion)
 	}
 }
+
+func TestConfig_NewTLSConfiguration(t *testing.T) {
+	require := require.New(t)
+
+	conf := &config.TLSConfig{
+		TLSCipherSuites: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+	}
+
+	tlsConf, err := NewTLSConfiguration(conf, true, true)
+	require.Nil(err)
+	require.True(tlsConf.VerifyIncoming)
+	require.True(tlsConf.VerifyOutgoing)
+
+	expectedCiphers := []uint16{
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	}
+	require.Equal(tlsConf.CipherSuites, expectedCiphers)
+}

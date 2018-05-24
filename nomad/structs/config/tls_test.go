@@ -21,6 +21,8 @@ func TestTLSConfig_Merge(t *testing.T) {
 		CAFile:               "test-ca-file-2",
 		CertFile:             "test-cert-file-2",
 		RPCUpgradeMode:       true,
+		TLSCipherSuites:      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+		TLSMinVersion:        "tls12",
 	}
 
 	new := a.Merge(b)

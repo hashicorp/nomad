@@ -273,7 +273,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	}
 
 	// Configure TLS
-	tlsConf := config.tlsConfig()
+	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
+	if err != nil {
+		return nil, err
+	}
 	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		return nil, err
@@ -450,7 +453,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		return fmt.Errorf("can't reload uninitialized RPC listener")
 	}
 
-	tlsConf, err := tlsutil.NewTLSConfiguration(newTLSConfig)
+	tlsConf, err := tlsutil.NewTLSConfiguration(newTLSConfig, true, true)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to create TLS configuration %s", err)
 		return err

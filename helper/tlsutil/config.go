@@ -109,7 +109,7 @@ type Config struct {
 	MinVersion uint16
 }
 
-func NewTLSConfiguration(newConf *config.TLSConfig) (*Config, error) {
+func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoing bool) (*Config, error) {
 	ciphers, err := ParseCiphers(newConf.TLSCipherSuites)
 	if err != nil {
 		return nil, err
@@ -121,8 +121,8 @@ func NewTLSConfiguration(newConf *config.TLSConfig) (*Config, error) {
 	}
 
 	return &Config{
-		VerifyIncoming:       true,
-		VerifyOutgoing:       true,
+		VerifyIncoming:       verifyIncoming,
+		VerifyOutgoing:       verifyOutgoing,
 		VerifyServerHostname: newConf.VerifyServerHostname,
 		CAFile:               newConf.CAFile,
 		CertFile:             newConf.CertFile,

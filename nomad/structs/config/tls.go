@@ -205,6 +205,12 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	if b.RPCUpgradeMode {
 		result.RPCUpgradeMode = true
 	}
+	if b.TLSCipherSuites != "" {
+		result.TLSCipherSuites = b.TLSCipherSuites
+	}
+	if b.TLSMinVersion != "" {
+		result.TLSMinVersion = b.TLSMinVersion
+	}
 	return result
 }
 
