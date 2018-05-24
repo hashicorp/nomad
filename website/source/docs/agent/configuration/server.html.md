@@ -131,7 +131,7 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
-- `server_join` [ServerJoin][server_join] - Specifies
+- `server_join` - Specifies the [Server Join][server_join] stanza for
   configuration which is specific to retry joining Nomad servers.
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
@@ -213,4 +213,4 @@ server {
 ```
 
 [encryption]: /docs/agent/encryption.html "Nomad Agent Encryption"
-[server_join]: /docs/agent/configuration/server_join.html "Server Join"
+[server_join]: /docs/agent/configuration/server_join.html.md "Server Join"

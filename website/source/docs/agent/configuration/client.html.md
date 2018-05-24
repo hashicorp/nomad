@@ -349,4 +349,4 @@ client {
   }
 }
 ```
-[server_join]: /docs/agent/configuration/server_join.html "Server Join"
+[server_join]: /docs/agent/configuration/server_join.html.md "Server Join"
