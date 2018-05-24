@@ -518,6 +518,8 @@ func (c *Command) Run(args []string) int {
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
+	info["bind addrs"] = c.getBindAddrSynopsis()
+	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
@@ -841,6 +843,50 @@ func (c *Command) startupJoin(config *Config) error {
 
 	c.Ui.Output(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
 	return nil
+}
+
+// getBindAddrSynopsis returns a string that describes the addresses the agent
+// is bound to.
+func (c *Command) getBindAddrSynopsis() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.normalizedAddrs == nil {
+		return ""
+	}
+
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "HTTP: %s", c.agent.config.normalizedAddrs.HTTP)
+
+	if c.agent.server != nil {
+		if c.agent.config.normalizedAddrs.RPC != "" {
+			fmt.Fprintf(b, "; RPC: %s", c.agent.config.normalizedAddrs.RPC)
+		}
+		if c.agent.config.normalizedAddrs.Serf != "" {
+			fmt.Fprintf(b, "; Serf: %s", c.agent.config.normalizedAddrs.Serf)
+		}
+	}
+
+	return b.String()
+}
+
+// getAdvertiseAddrSynopsis returns a string that describes the addresses the agent
+// is advertising.
+func (c *Command) getAdvertiseAddrSynopsis() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.AdvertiseAddrs == nil {
+		return ""
+	}
+
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "HTTP: %s", c.agent.config.AdvertiseAddrs.HTTP)
+
+	if c.agent.server != nil {
+		if c.agent.config.AdvertiseAddrs.RPC != "" {
+			fmt.Fprintf(b, "; RPC: %s", c.agent.config.AdvertiseAddrs.RPC)
+		}
+		if c.agent.config.AdvertiseAddrs.Serf != "" {
+			fmt.Fprintf(b, "; Serf: %s", c.agent.config.AdvertiseAddrs.Serf)
+		}
+	}
+
+	return b.String()
 }
 
 func (c *Command) Synopsis() string {
