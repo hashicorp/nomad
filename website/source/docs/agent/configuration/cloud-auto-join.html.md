@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Cloud Auto-join"
 sidebar_current: "docs-agent-cloud-auto-join"
 description: |-
-  Nomad supports automatic cluster joining using cloud metadata on various providers.
+  Nomad supports automatic cluster joining using cloud metadata from various cloud providers
 ---
 
 # Cloud Auto-joining
@@ -32,8 +32,9 @@ In order to use discovery behind a proxy, you will need to set
 `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables per
 [Golang `net/http` library](https://golang.org/pkg/net/http/#ProxyFromEnvironment).
 
-The following sections give the options specific to each supported cloud
-provider.
+The following sections give the options specific to a subset of supported cloud
+provider. For information on all providers, see further documentation in
+[go-discover](https://github.com/hashicorp/go-discover).
 
 ### Amazon EC2
 

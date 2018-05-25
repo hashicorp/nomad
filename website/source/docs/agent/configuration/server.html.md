@@ -28,7 +28,11 @@ join failures, and more.
 server {
   enabled          = true
   bootstrap_expect = 3
-  retry_join       = ["1.2.3.4", "5.6.7.8"]
+  server_join {
+    retry_join = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max = 3
+    retry_interval = "15s"
+  }
 }
 ```
 
@@ -131,8 +135,8 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
-- `server_join` - Specifies the [Server Join][server_join] stanza for
-  configuration which is specific to retry joining Nomad servers.
+- `server_join` <code>([server_join](#server-join): nil)</code> - Specifies
+  configuration for retry joining Nomad servers if the first attempt fails.
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
@@ -147,25 +151,25 @@ server {
   succeeds. After one succeeds, no further addresses will be contacted. This is
   useful for cases where we know the address will become available eventually.
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
-  both options**. See the [server_join](#server_join)
+  both options**. See the [server_join](#server-join)
   section for more information on the format of the string. This field is
-  deprecated in favor of [server_join](#server_join).
+  deprecated in favor of [server_join](#server-join).
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
   join attempts. This field is  deprecated in favor of
-  [server_join](#server_join).
+  [server_join](#server-join).
 
 - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
   made before exiting with a return code of 1. By default, this is set to 0
   which is interpreted as infinite retries. This field is  deprecated in favor
-  of [server_join](#server_join).
+  of [server_join](#server-join).
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
   addresses, agent startup will fail. See the
   [server address format](#server-address-format) section for more information
   on the format of the string. This field is  deprecated in favor of
-  [server_join](#server_join).
+  [server_join](#server-join).
 
 ## `server` Examples
 
@@ -213,4 +217,4 @@ server {
 ```
 
 [encryption]: /docs/agent/encryption.html "Nomad Agent Encryption"
-[server_join]: /docs/agent/configuration/server_join.html.md "Server Join"
+[server-join]: /docs/agent/configuration/server_join.html.md "Server Join"
