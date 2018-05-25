@@ -62,7 +62,7 @@ func findCustomDrivers(dir string) (files []string, err error) {
 }
 
 
-func loadCustomDrivers(files []string, openPlugin func(string) error {
+func loadCustomDrivers(files []string, openPlugin func(string)) error {
 	for _, file := range files {
 			plug, err := openPlugin(file)
 			if err != nil {
