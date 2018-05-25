@@ -15,17 +15,17 @@ func init() {
 		return
 	}
 
-	dirs, err := ioutil.ReadDir()
+	files, err := ioutil.ReadDir()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	for _, dir := range dirs {
-		if strings.HasSuffix(dir.FileName, ".so") {
-			pluginName := strings.StripSuffix(dir.FileName, ".so")
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".so") {
+			pluginName := strings.StripSuffix(file.Name(), ".so")
 
-			plug, err := plugin.Open(mod)
+			plug, err := plugin.Open(file.Name())
 			if err != nil {
 				fmt.Println(err)
 				continue
