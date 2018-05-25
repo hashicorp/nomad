@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-init() {
+func init() {
 	dirs, err := ioutil.ReadDir("drivers")
 	if err != nil {
 		fmt.Println(err)
