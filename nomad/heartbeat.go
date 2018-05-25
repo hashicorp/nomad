@@ -112,7 +112,10 @@ func (s *Server) invalidateHeartbeat(id string) {
 	defer metrics.MeasureSince([]string{"nomad", "heartbeat", "invalidate"}, time.Now())
 	// Clear the heartbeat timer
 	s.heartbeatTimersLock.Lock()
-	delete(s.heartbeatTimers, id)
+	if timer, ok := s.heartbeatTimers[id]; ok {
+		timer.Stop()
+		delete(s.heartbeatTimers, id)
+	}
 	s.heartbeatTimersLock.Unlock()
 
 	// Do not invalidate the node since we are not the leader. This check avoids
