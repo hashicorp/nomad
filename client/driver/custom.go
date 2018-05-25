@@ -29,23 +29,25 @@ func init() {
 func goPluginNewDriver(file string) (interface{}, error) {
 	plug, err := plugin.Open(file)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	constructorLookup, err := plug.Lookup(customDriverConstructorName)
 	if err != nil {
-		return err
+		return constructorLookup, err
 	}
+
+	return nil, nil
 }
 
 func findCustomDrivers(dir string) (files []string, err error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
+		return files, nil
 	}
 
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return err
+		return files, err
 	}
 
 	for _, file := range files {
@@ -60,7 +62,7 @@ func findCustomDrivers(dir string) (files []string, err error) {
 }
 
 
-func loadCustomDrivers(files []string, openPlugin func(string) (interface{}, error) {
+func loadCustomDrivers(files []string, openPlugin func(string) error {
 	for _, file := range files {
 			plug, err := openPlugin(file)
 			if err != nil {
