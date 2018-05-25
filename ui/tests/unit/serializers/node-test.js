@@ -6,7 +6,13 @@ import moduleForSerializer from '../../helpers/module-for-serializer';
 import pushPayloadToStore from '../../utils/push-payload-to-store';
 
 moduleForSerializer('node', 'Unit | Serializer | Node', {
-  needs: ['serializer:node', 'service:config', 'transform:fragment', 'model:allocation'],
+  needs: [
+    'serializer:node',
+    'service:config',
+    'transform:fragment',
+    'transform:fragment-array',
+    'model:allocation',
+  ],
 });
 
 test('local store is culled to reflect the state of findAll requests', function(assert) {

@@ -1,3 +1,4 @@
+import { assign } from '@ember/polyfills';
 import $ from 'jquery';
 import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
@@ -24,12 +25,12 @@ test('/clients/:id should have a breadcrumb trail linking back to clients', func
 
   andThen(() => {
     assert.equal(
-      find('[data-test-breadcrumb="clients"]').textContent,
+      find('[data-test-breadcrumb="clients"]').textContent.trim(),
       'Clients',
       'First breadcrumb says clients'
     );
     assert.equal(
-      find('[data-test-breadcrumb="client"]').textContent,
+      find('[data-test-breadcrumb="client"]').textContent.trim(),
       node.id.split('-')[0],
       'Second breadcrumb says the node short id'
     );
@@ -58,23 +59,26 @@ test('/clients/:id should list additional detail for the node below the title', 
   visit(`/clients/${node.id}`);
 
   andThen(() => {
-    assert.equal(
-      findAll('.inline-definitions .pair')[0].textContent,
-      `Status ${node.status}`,
+    assert.ok(
+      find('.inline-definitions .pair')
+        .textContent.trim()
+        .includes(node.status),
       'Status is in additional details'
     );
     assert.ok(
       $('[data-test-status-definition] .status-text').hasClass(`node-${node.status}`),
       'Status is decorated with a status class'
     );
-    assert.equal(
-      find('[data-test-address-definition]').textContent,
-      `Address ${node.httpAddr}`,
+    assert.ok(
+      find('[data-test-address-definition]')
+        .textContent.trim()
+        .includes(node.httpAddr),
       'Address is in additional details'
     );
-    assert.equal(
-      find('[data-test-datacenter-definition]').textContent,
-      `Datacenter ${node.datacenter}`,
+    assert.ok(
+      find('[data-test-datacenter-definition]')
+        .textContent.trim()
+        .includes(node.datacenter),
       'Datacenter is in additional details'
     );
   });
@@ -330,9 +334,174 @@ test('when the node is not found, an error message is shown, but the URL persist
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');
     assert.equal(
-      find('[data-test-error-title]').textContent,
+      find('[data-test-error-title]').textContent.trim(),
       'Not Found',
       'Error message is for 404'
+    );
+  });
+});
+
+test('/clients/:id shows the recent events list', function(assert) {
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(find('[data-test-client-events]'), 'Client events section exists');
+  });
+});
+
+test('each node event shows basic node event information', function(assert) {
+  const event = server.db.nodeEvents
+    .where({ nodeId: node.id })
+    .sortBy('time')
+    .reverse()[0];
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    const eventRow = $(find('[data-test-client-event]'));
+    assert.equal(
+      eventRow
+        .find('[data-test-client-event-time]')
+        .text()
+        .trim(),
+      moment(event.time).format('MM/DD/YY HH:mm:ss'),
+      'Event timestamp'
+    );
+    assert.equal(
+      eventRow
+        .find('[data-test-client-event-subsystem]')
+        .text()
+        .trim(),
+      event.subsystem,
+      'Event subsystem'
+    );
+    assert.equal(
+      eventRow
+        .find('[data-test-client-event-message]')
+        .text()
+        .trim(),
+      event.message,
+      'Event message'
+    );
+  });
+});
+
+test('/clients/:id shows the driver status of every driver for the node', function(assert) {
+  // Set the drivers up so health and detection is well tested
+  const nodeDrivers = node.drivers;
+  const undetectedDriver = 'raw_exec';
+
+  Object.values(nodeDrivers).forEach(driver => {
+    driver.Detected = true;
+  });
+
+  nodeDrivers[undetectedDriver].Detected = false;
+  node.drivers = nodeDrivers;
+
+  const drivers = Object.keys(node.drivers)
+    .map(driverName => assign({ Name: driverName }, node.drivers[driverName]))
+    .sortBy('Name');
+
+  assert.ok(drivers.length > 0, 'Node has drivers');
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    const driverRows = findAll('[data-test-driver-status] [data-test-accordion-head]');
+
+    drivers.forEach((driver, index) => {
+      const driverRow = $(driverRows[index]);
+
+      assert.equal(
+        driverRow
+          .find('[data-test-name]')
+          .text()
+          .trim(),
+        driver.Name,
+        `${driver.Name}: Name is correct`
+      );
+      assert.equal(
+        driverRow
+          .find('[data-test-detected]')
+          .text()
+          .trim(),
+        driver.Detected ? 'Yes' : 'No',
+        `${driver.Name}: Detection is correct`
+      );
+      assert.equal(
+        driverRow
+          .find('[data-test-last-updated]')
+          .text()
+          .trim(),
+        moment(driver.UpdateTime).fromNow(),
+        `${driver.Name}: Last updated shows time since now`
+      );
+
+      if (driver.Name === undetectedDriver) {
+        assert.notOk(
+          driverRow.find('[data-test-health]').length,
+          `${driver.Name}: No health for the undetected driver`
+        );
+      } else {
+        assert.equal(
+          driverRow
+            .find('[data-test-health]')
+            .text()
+            .trim(),
+          driver.Healthy ? 'Healthy' : 'Unhealthy',
+          `${driver.Name}: Health is correct`
+        );
+        assert.ok(
+          driverRow
+            .find('[data-test-health] .color-swatch')
+            .hasClass(driver.Healthy ? 'running' : 'failed'),
+          `${driver.Name}: Swatch with correct class is shown`
+        );
+      }
+    });
+  });
+});
+
+test('each driver can be opened to see a message and attributes', function(assert) {
+  // Only detected drivers can be expanded
+  const nodeDrivers = node.drivers;
+  Object.values(nodeDrivers).forEach(driver => {
+    driver.Detected = true;
+  });
+  node.drivers = nodeDrivers;
+
+  const driver = Object.keys(node.drivers)
+    .map(driverName => assign({ Name: driverName }, node.drivers[driverName]))
+    .sortBy('Name')[0];
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    const driverBody = $(find('[data-test-driver-status] [data-test-accordion-body]'));
+    assert.notOk(
+      driverBody.find('[data-test-health-description]').length,
+      'Driver health description is not shown'
+    );
+    assert.notOk(
+      driverBody.find('[data-test-driver-attributes]').length,
+      'Driver attributes section is not shown'
+    );
+    click('[data-test-driver-status] [data-test-accordion-toggle]');
+  });
+
+  andThen(() => {
+    const driverBody = $(find('[data-test-driver-status] [data-test-accordion-body]'));
+    assert.equal(
+      driverBody
+        .find('[data-test-health-description]')
+        .text()
+        .trim(),
+      driver.HealthDescription,
+      'Driver health description is now shown'
+    );
+    assert.ok(
+      driverBody.find('[data-test-driver-attributes]').length,
+      'Driver attributes section is now shown'
     );
   });
 });

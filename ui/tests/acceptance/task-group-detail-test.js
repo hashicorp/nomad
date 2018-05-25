@@ -237,8 +237,11 @@ test('when the allocation has reschedule events, the allocation row is denoted w
   const normalRow = find(`[data-test-allocation="${allocations[1].id}"]`);
 
   assert.ok(
-    rescheduleRow.querySelector('[data-test-indicators] .icon'),
-    'Reschedule row has an icon'
+    rescheduleRow.querySelector('[data-test-indicators] [data-test-icon="reschedule"]'),
+    'Reschedule row has a reschedule icon'
   );
-  assert.notOk(normalRow.querySelector('[data-test-indicators] .icon'), 'Normal row has no icon');
+  assert.notOk(
+    normalRow.querySelector('[data-test-indicators] [data-test-icon="reschedule"]'),
+    'Normal row has no reschedule icon'
+  );
 });
