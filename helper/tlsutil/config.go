@@ -3,6 +3,7 @@ package tlsutil
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -146,8 +147,18 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 		return fmt.Errorf("Failed to read CA file: %v", err)
 	}
 
+	block, _ := pem.Decode([]byte(data))
+	if block == nil {
+		return fmt.Errorf("Failed to decode CA file from pem format")
+	}
+
+	// Parse the certificate to ensure that it is properly formatted
+	if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+		return fmt.Errorf("Failed to parse CA file: %v", err)
+	}
+
 	if !pool.AppendCertsFromPEM(data) {
-		return fmt.Errorf("Failed to parse any CA certificates")
+		return fmt.Errorf("Failed to add any CA certificates")
 	}
 
 	return nil

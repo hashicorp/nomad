@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"testing"
 
@@ -26,14 +27,55 @@ const (
 )
 
 func TestConfig_AppendCA_None(t *testing.T) {
+	require := require.New(t)
+
 	conf := &Config{}
 	pool := x509.NewCertPool()
 	err := conf.AppendCA(pool)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+
+	require.Nil(err)
+}
+
+func TestConfig_AppendCA_Valid(t *testing.T) {
+	require := require.New(t)
+
+	conf := &Config{
+		CAFile: cacert,
 	}
-	if len(pool.Subjects()) != 0 {
-		t.Fatalf("bad: %v", pool.Subjects())
+	pool := x509.NewCertPool()
+	err := conf.AppendCA(pool)
+
+	require.Nil(err)
+}
+
+func TestConfig_AppendCA_Invalid(t *testing.T) {
+	require := require.New(t)
+	{
+		conf := &Config{
+			CAFile: "invalidFile",
+		}
+		pool := x509.NewCertPool()
+		err := conf.AppendCA(pool)
+		require.NotNil(err)
+		require.Contains(err.Error(), "Failed to read CA file")
+		require.Equal(len(pool.Subjects()), 0)
+	}
+
+	{
+		tmpFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+		require.Nil(err)
+		defer os.Remove(tmpFile.Name())
+		_, err = tmpFile.Write([]byte("Invalid CA Content!"))
+		require.Nil(err)
+
+		conf := &Config{
+			CAFile: tmpFile.Name(),
+		}
+		pool := x509.NewCertPool()
+		err = conf.AppendCA(pool)
+		require.NotNil(err)
+		require.Contains(err.Error(), "Failed to decode CA file from pem format")
+		require.Equal(len(pool.Subjects()), 0)
 	}
 }
 
