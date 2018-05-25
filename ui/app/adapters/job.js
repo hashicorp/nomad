@@ -47,11 +47,12 @@ export default Watchable.extend({
   },
 
   xhrKey(url, method, options = {}) {
+    const plainKey = this._super(...arguments);
     const namespace = options.data && options.data.namespace;
     if (namespace) {
-      return `${method} ${url}?namespace=${namespace}`;
+      return `${plainKey}?namespace=${namespace}`;
     }
-    return `${method} ${url}`;
+    return plainKey;
   },
 
   relationshipFallbackLinks: {
