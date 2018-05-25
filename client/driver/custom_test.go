@@ -23,7 +23,7 @@ func TestCustomDriver_noDynamicLinkedDirs(t *testing.T) {
 }
 
 func TestCustomDriver_foundNewDriver(t *testing.T) {
-	err := loadCustomDrivers("plugin01", func(file string) (interface{}, error) {
+	err := loadCustomDrivers([]string{"plugin01"}, func(file string) (interface{}, error) {
 		return NewRawExecDriver, nil
 	})
 	if err != nil {
@@ -37,7 +37,7 @@ func TestCustomDriver_foundNewDriver(t *testing.T) {
 }
 
 func TestCustomDriver_notfoundNewDriver(t *testing.T) {
-	err := loadCustomDrivers("plugin01", func(file string) (interface{}, error) {
+	_ := loadCustomDrivers([]string{"plugin01"}, func(file string) (interface{}, error) {
 		return nil, nil
 	})
 

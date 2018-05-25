@@ -55,9 +55,8 @@ func findCustomDrivers(dir string) (files []string, err error) {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".so") {
 			pluginName := strings.TrimSuffix(file.Name(), ".so")
+			files = append(files, path.Join(dir, pluginName))
 		}
-
-		files = append(files, path.Join(dir, file.Name()))
 	}
 
 	return files, nil
