@@ -49,7 +49,7 @@ func TestConfig_Parse(t *testing.T) {
 					NodeClass: "linux-medium-64bit",
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
-						RetryInterval:    "15s",
+						RetryInterval:    time.Duration(15) * time.Second,
 						RetryMaxAttempts: 3,
 					},
 					Meta: map[string]string{
@@ -114,7 +114,7 @@ func TestConfig_Parse(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 						StartJoin:        []string{"1.1.1.1", "2.2.2.2"},
-						RetryInterval:    "15s",
+						RetryInterval:    time.Duration(15) * time.Second,
 						RetryMaxAttempts: 3,
 					},
 				},

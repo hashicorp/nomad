@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/version"
@@ -219,7 +220,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 						StartJoin:        []string{},
 					},
 					RetryJoin:        []string{"127.0.0.1"},
@@ -237,7 +238,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 						StartJoin:        []string{},
 					},
 					StartJoin:        []string{"127.0.0.1"},
@@ -255,7 +256,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 						StartJoin:        []string{},
 					},
 					StartJoin:        []string{},
@@ -273,12 +274,13 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    time.Duration(1),
 						StartJoin:        []string{},
 					},
 					StartJoin:        []string{},
 					RetryMaxAttempts: 0,
-					RetryInterval:    "1",
+					RetryInterval:    "3s",
+					retryInterval:    time.Duration(3),
 					RetryJoin:        []string{},
 				},
 			},
@@ -291,7 +293,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 						StartJoin:        []string{"127.0.0.1"},
 					},
 				},
@@ -305,7 +307,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 						StartJoin:        []string{"127.0.0.1"},
 					},
 				},
@@ -319,7 +321,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 					},
 				},
 			},
@@ -332,7 +334,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"127.0.0.1"},
 						RetryMaxAttempts: 0,
-						RetryInterval:    "0",
+						RetryInterval:    0,
 						StartJoin:        []string{},
 					},
 					StartJoin:        []string{},
@@ -349,52 +351,12 @@ func TestRetryJoin_Validate(t *testing.T) {
 				Server: &ServerConfig{
 					StartJoin:        []string{"127.0.0.1"},
 					RetryMaxAttempts: 1,
-					RetryInterval:    "3s",
+					RetryInterval:    "0",
 					RetryJoin:        []string{},
 				},
 			},
 			isValid: true,
 			reason:  "server deprecated retry_join configuration should be valid",
-		},
-		{
-			config: &Config{
-				Server: &ServerConfig{
-					StartJoin:        []string{"127.0.0.1"},
-					RetryMaxAttempts: 1,
-					RetryInterval:    "invalid!TimeInterval",
-					RetryJoin:        []string{},
-				},
-			},
-			isValid: false,
-			reason:  "invalid time interval",
-		},
-		{
-			config: &Config{
-				Server: &ServerConfig{
-					ServerJoin: &ServerJoin{
-						StartJoin:        []string{"127.0.0.1"},
-						RetryMaxAttempts: 1,
-						RetryInterval:    "invalid!TimeInterval",
-						RetryJoin:        []string{},
-					},
-				},
-			},
-			isValid: false,
-			reason:  "invalid time interval",
-		},
-		{
-			config: &Config{
-				Client: &ClientConfig{
-					ServerJoin: &ServerJoin{
-						StartJoin:        []string{"127.0.0.1"},
-						RetryMaxAttempts: 1,
-						RetryInterval:    "invalid!TimeInterval",
-						RetryJoin:        []string{},
-					},
-				},
-			},
-			isValid: false,
-			reason:  "invalid time interval",
 		},
 	}
 

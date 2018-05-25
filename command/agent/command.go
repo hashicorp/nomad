@@ -267,6 +267,14 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
+	// COMPAT: Remove in 0.10.  Parse the RetryInterval
+	dur, err := time.ParseDuration(config.Server.RetryInterval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
+		return nil
+	}
+	config.Server.retryInterval = dur
+
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
@@ -560,7 +568,7 @@ func (c *Command) Run(args []string) int {
 			RetryJoin:        config.Server.RetryJoin,
 			StartJoin:        config.Server.StartJoin,
 			RetryMaxAttempts: config.Server.RetryMaxAttempts,
-			RetryInterval:    config.Server.RetryInterval,
+			RetryInterval:    config.Server.retryInterval,
 		}
 		go joiner.RetryJoin(serverJoinInfo)
 	}

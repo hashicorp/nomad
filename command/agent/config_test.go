@@ -916,13 +916,13 @@ func TestMergeServerJoin(t *testing.T) {
 		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
 		startJoin := []string{"127.0.0.1", "127.0.0.2"}
 		retryMaxAttempts := 1
-		retryInterval := "1"
+		retryInterval := time.Duration(0)
 
 		a := &ServerJoin{
 			RetryJoin:        retryJoin,
 			StartJoin:        startJoin,
 			RetryMaxAttempts: retryMaxAttempts,
-			RetryInterval:    retryInterval,
+			RetryInterval:    time.Duration(retryInterval),
 		}
 		b := &ServerJoin{}
 
@@ -936,14 +936,14 @@ func TestMergeServerJoin(t *testing.T) {
 		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
 		startJoin := []string{"127.0.0.1", "127.0.0.2"}
 		retryMaxAttempts := 1
-		retryInterval := "1"
+		retryInterval := time.Duration(0)
 
 		a := &ServerJoin{}
 		b := &ServerJoin{
 			RetryJoin:        retryJoin,
 			StartJoin:        startJoin,
 			RetryMaxAttempts: retryMaxAttempts,
-			RetryInterval:    retryInterval,
+			RetryInterval:    time.Duration(retryInterval),
 		}
 
 		a.Merge(b)
@@ -956,7 +956,7 @@ func TestMergeServerJoin(t *testing.T) {
 		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
 		startJoin := []string{"127.0.0.1", "127.0.0.2"}
 		retryMaxAttempts := 1
-		retryInterval := "1"
+		retryInterval := time.Duration(0)
 
 		a := &ServerJoin{
 			RetryJoin: retryJoin,
@@ -964,7 +964,7 @@ func TestMergeServerJoin(t *testing.T) {
 		}
 		b := &ServerJoin{
 			RetryMaxAttempts: retryMaxAttempts,
-			RetryInterval:    retryInterval,
+			RetryInterval:    time.Duration(retryInterval),
 		}
 
 		a.Merge(b)

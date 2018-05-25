@@ -377,8 +377,7 @@ type ServerJoin struct {
 	// RetryInterval specifies the amount of time to wait in between join
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
-	RetryInterval string        `mapstructure:"retry_interval"`
-	retryInterval time.Duration `mapstructure:"-"`
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
 }
 
 func (s *ServerJoin) Merge(b *ServerJoin) {
@@ -391,7 +390,7 @@ func (s *ServerJoin) Merge(b *ServerJoin) {
 	if b.RetryMaxAttempts != 0 {
 		s.RetryMaxAttempts = b.RetryMaxAttempts
 	}
-	if b.RetryInterval != "" {
+	if b.RetryInterval != 0 {
 		s.RetryInterval = b.RetryInterval
 	}
 }
