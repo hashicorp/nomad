@@ -33,7 +33,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	}
 
 	// Disable raw exec.
-	cfg := &config.Config{Options: map[string]string{rawExecConfigOption: "false"}}
+	cfg := &config.Config{Options: map[string]string{rawExecEnableOption: "false"}}
 
 	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
 	var response cstructs.FingerprintResponse
@@ -47,7 +47,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	}
 
 	// Enable raw exec.
-	request.Config.Options[rawExecConfigOption] = "true"
+	request.Config.Options[rawExecEnableOption] = "true"
 	err = d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)

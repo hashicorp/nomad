@@ -118,6 +118,11 @@ type ExecCommand struct {
 	// ResourceLimits determines whether resource limits are enforced by the
 	// executor.
 	ResourceLimits bool
+
+	// Cgroup marks whether we put the process in a cgroup. Setting this field
+	// doesn't enforce resource limits. To enforce limits, set ResoruceLimits.
+	// Using the cgroup does allow more precise cleanup of processes.
+	Cgroup bool
 }
 
 // ProcessState holds information about the state of a user process.
@@ -497,7 +502,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	// Prefer killing the process via the resource container.
-	if e.cmd.Process != nil && !e.command.ResourceLimits {
+	if e.cmd.Process != nil && !(e.command.ResourceLimits || e.command.Cgroup) {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
@@ -508,7 +513,7 @@ func (e *UniversalExecutor) Exit() error {
 		}
 	}
 
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.Cgroup {
 		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}

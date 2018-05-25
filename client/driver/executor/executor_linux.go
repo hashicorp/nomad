@@ -36,7 +36,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 		}
 	}
 
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.Cgroup {
 		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
@@ -46,7 +46,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 
 // applyLimits puts a process in a pre-configured cgroup
 func (e *UniversalExecutor) applyLimits(pid int) error {
-	if !e.command.ResourceLimits {
+	if !(e.command.ResourceLimits || e.command.Cgroup) {
 		return nil
 	}
 
@@ -76,8 +76,13 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	cgroupName := uuid.Generate()
 	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
 
-	// TODO: verify this is needed for things like network access
+	// Allow access to /dev/
 	e.resConCtx.groups.Resources.AllowAllDevices = true
+
+	// Use a cgroup but don't apply limits
+	if !e.command.ResourceLimits {
+		return nil
+	}
 
 	if resources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
@@ -110,7 +115,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 // isolation we aggregate the resource utilization of all the pids launched by
 // the executor.
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	if !e.command.ResourceLimits {
+	if !(e.command.ResourceLimits || e.command.Cgroup) {
 		pidStats, err := e.pidStats()
 		if err != nil {
 			return nil, err
@@ -234,7 +239,7 @@ func (e *UniversalExecutor) configureChroot() error {
 // isolation and we scan the entire process table if the user is not using any
 // isolation
 func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.Cgroup {
 		manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
 		pids, err := manager.GetAllPids()
 		if err != nil {
