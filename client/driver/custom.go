@@ -1,3 +1,5 @@
+// +build !windows
+
 package driver
 
 import (
@@ -20,7 +22,7 @@ func init() {
 		fmt.Println(err)
 	}
 
-	err := loadCustomDrivers(files, goPluginNewDriver)
+	err = loadCustomDrivers(files, goPluginNewDriver)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -59,19 +61,21 @@ func findCustomDrivers(dir string) (files []string, err error) {
 	}
 
 	return files, nil
+	
 }
 
+type pluginFactory func(string) (interface{}, error)
 
-func loadCustomDrivers(files []string, openPlugin func(string)) error {
+func loadCustomDrivers(files []string, plugin pluginFactory) error {
 	for _, file := range files {
-			plug, err := openPlugin(file)
+			plug, err := plugin(file)
 			if err != nil {
 				fmt.Println(err)
 				return err
 			}
 
 			var factory Factory
-			factory, ok := constructorLookup.(Factory)
+			factory, ok := plug.(Factory)
 			if !ok {
 				fmt.Println("unexpected type from module symbol ", factory)
 				return err
