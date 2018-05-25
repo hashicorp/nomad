@@ -113,7 +113,6 @@ func TestConfig_Parse(t *testing.T) {
 					EncryptKey:             "abc",
 					ServerJoin: &ServerJoin{
 						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
-						StartJoin:        []string{"1.1.1.1", "2.2.2.2"},
 						RetryInterval:    time.Duration(15) * time.Second,
 						RetryMaxAttempts: 3,
 					},

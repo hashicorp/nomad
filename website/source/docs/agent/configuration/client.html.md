@@ -91,7 +91,10 @@ client {
   the port. If the port is omitted, the default port of `4647` is used.
 
 - `server_join` <code>([server_join](#server-join): nil)</code> - Specifies
-  configuration which is specific to retry joining Nomad servers.
+  how the Nomad client will connect to Nomad servers. The `start_join` field
+  is not supported on the client. The retry_join fields may directly specify
+  the server address or use go-discover syntax for auto-discovery. See the
+  documentation for more detail.
 
 - `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
  to store client state. By default, this is - the top-level

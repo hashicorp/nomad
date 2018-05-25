@@ -70,7 +70,7 @@ func (r *retryJoiner) Validate(config *Config) error {
 			return fmt.Errorf("server_join and retry_max cannot both be defined; try defining only server_join")
 		}
 		if config.Server.RetryInterval != "0" {
-			return fmt.Errorf("server_join and retry_interval cannot both be defined; try defining only server_join")
+			return fmt.Errorf("server_join and retry_interval cannot both be defined; prefer setting the server_join parameter")
 		}
 	}
 

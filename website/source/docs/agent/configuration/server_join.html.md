@@ -107,7 +107,7 @@ nomad-01.company.local => nomad-01.company.local:4648
 
 #### Via the go-discover interface
 
-As of Nomad 0.8.4, `retry-join` accepts a unified interface using the
+As of Nomad 0.8.4, `retry_join` accepts a unified interface using the
 [go-discover](https://github.com/hashicorp/go-discover) library for doing
 automated cluster joining using cloud metadata.
 

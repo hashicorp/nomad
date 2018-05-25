@@ -32,8 +32,8 @@ client {
 	}
   server_join {
     retry_join = [ "1.1.1.1", "2.2.2.2" ]
-      retry_max = 3
-      retry_interval = "15s"
+    retry_max = 3
+    retry_interval = "15s"
   }
 
 	options {
@@ -95,9 +95,8 @@ server {
 	encrypt = "abc"
   server_join {
     retry_join = [ "1.1.1.1", "2.2.2.2" ]
-      start_join = [ "1.1.1.1", "2.2.2.2" ]
-      retry_max = 3
-      retry_interval = "15s"
+    retry_max = 3
+    retry_interval = "15s"
   }
 }
 acl {

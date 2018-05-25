@@ -136,7 +136,9 @@ server {
   rejoin the cluster.
 
 - `server_join` <code>([server_join](#server-join): nil)</code> - Specifies
-  configuration for retry joining Nomad servers if the first attempt fails.
+  how the Nomad client will connect to Nomad servers. The retry_join fields may
+  directly specify the server address or use go-discover syntax for
+  auto-discovery. See the documentation for more detail.
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
