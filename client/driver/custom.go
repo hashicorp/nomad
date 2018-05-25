@@ -1,21 +1,28 @@
 package driver
 
 import (
-	"plugin"
-	"io/ioutil"
-	"strings"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"plugin"
+	"strings"
 )
 
+const customDriversDir = "drivers"
+
 func init() {
-	dirs, err := ioutil.ReadDir("drivers")
+	if _, err := os.Stat(customDriversDir); os.IsNotExist(err) {
+		return
+	}
+
+	dirs, err := ioutil.ReadDir()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	for _, dir := range dirs {
-		if strings.HasSuffix(dir.FileName, ".so")) {
+		if strings.HasSuffix(dir.FileName, ".so") {
 			pluginName := strings.StripSuffix(dir.FileName, ".so")
 
 			plug, err := plugin.Open(mod)
@@ -23,7 +30,7 @@ func init() {
 				fmt.Println(err)
 				continue
 			}
-			
+
 			constructorLookup, err := plug.Lookup("NewDriver")
 			if err != nil {
 				fmt.Println(err)
@@ -38,6 +45,6 @@ func init() {
 			}
 
 			BuiltinDrivers[pluginName] = factory
-		} 
+		}
 	}
 }
