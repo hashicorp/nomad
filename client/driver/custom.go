@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"plugin"
 	"strings"
 )
@@ -15,7 +16,7 @@ func init() {
 		return
 	}
 
-	files, err := ioutil.ReadDir()
+	files, err := ioutil.ReadDir(customDriversDir)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -23,9 +24,9 @@ func init() {
 
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".so") {
-			pluginName := strings.StripSuffix(file.Name(), ".so")
+			pluginName := strings.TrimSuffix(file.Name(), ".so")
 
-			plug, err := plugin.Open(file.Name())
+			plug, err := plugin.Open(path.Join(customDriversDir, file.Name()))
 			if err != nil {
 				fmt.Println(err)
 				continue
