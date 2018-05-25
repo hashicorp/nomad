@@ -1,4 +1,5 @@
-// +build !windows
+// +build linux
+
 package driver
 
 import (
@@ -17,13 +18,13 @@ func TestCustomDriver_noDynamicLinkedDirs(t *testing.T) {
 	if err != nil {
 		t.Error("not expected error - when there is no custom driver", err)
 	}
-	if len(files) == 0 {
+	if len(files) != 0 {
 		t.Error("not expected file found - when there is no custom driver", err)
 	}
 }
 
 func TestCustomDriver_foundNewDriver(t *testing.T) {
-	err := loadCustomDrivers([]string{"plugin01"}, func(file string) (interface{}, error) {
+	err := loadCustomDrivers([]string{"plugin01"}, func(file string) (Factory, error) {
 		return NewRawExecDriver, nil
 	})
 	if err != nil {
@@ -37,7 +38,7 @@ func TestCustomDriver_foundNewDriver(t *testing.T) {
 }
 
 func TestCustomDriver_notfoundNewDriver(t *testing.T) {
-	_ := loadCustomDrivers([]string{"plugin01"}, func(file string) (interface{}, error) {
+	loadCustomDrivers([]string{"plugin01"}, func(file string) (Factory, error) {
 		return nil, nil
 	})
 

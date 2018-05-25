@@ -1,4 +1,4 @@
-// +build !windows
+// +build linux
 
 package driver
 
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	customDriversDir = "drivers"
+	customDriversDir            = "drivers"
 	customDriverConstructorName = "NewDriver"
 )
 
@@ -28,7 +28,7 @@ func init() {
 	}
 }
 
-func goPluginNewDriver(file string) (interface{}, error) {
+func goPluginNewDriver(file string) (Factory, error) {
 	plug, err := plugin.Open(file)
 	if err != nil {
 		return nil, err
@@ -36,10 +36,16 @@ func goPluginNewDriver(file string) (interface{}, error) {
 
 	constructorLookup, err := plug.Lookup(customDriverConstructorName)
 	if err != nil {
-		return constructorLookup, err
+		return nil, err
 	}
 
-	return nil, nil
+	var factory Factory
+	factory, ok := constructorLookup.(Factory)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type from module symbol %v - should be Factory", plug)
+	}
+
+	return factory, nil
 }
 
 func findCustomDrivers(dir string) (files []string, err error) {
@@ -47,42 +53,41 @@ func findCustomDrivers(dir string) (files []string, err error) {
 		return files, nil
 	}
 
-	files, err := ioutil.ReadDir(dir)
+	dirFiles, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return files, err
 	}
 
-	for _, file := range files {
+	for _, file := range dirFiles {
 		if strings.HasSuffix(file.Name(), ".so") {
-			pluginName := strings.TrimSuffix(file.Name(), ".so")
-			files = append(files, path.Join(dir, pluginName))
+			files = append(files, path.Join(dir, file.Name()))
 		}
 	}
 
 	return files, nil
-	
+
 }
 
-type pluginFactory func(string) (interface{}, error)
+type pluginFactory func(string) (Factory, error)
 
 func loadCustomDrivers(files []string, plugin pluginFactory) error {
 	for _, file := range files {
-			plug, err := plugin(file)
-			if err != nil {
-				fmt.Println(err)
-				return err
-			}
-
-			var factory Factory
-			factory, ok := plug.(Factory)
-			if !ok {
-				fmt.Println("unexpected type from module symbol ", factory)
-				return err
-			}
-
-			BuiltinDrivers[pluginName] = factory
+		factory, err := plugin(file)
+		if err != nil {
+			return err
 		}
-	}
+		if err == nil {
+			return fmt.Errorf("Nil plugin factory retured for %s", file)
+		}
 
+		pluginName := file
+		slash := strings.LastIndex(pluginName, "/")
+		if slash >= 0 && slash+1 < len(pluginName) {
+			pluginName = pluginName[slash+1:]
+		}
+		pluginName = strings.TrimSuffix(pluginName, ".so")
+
+		BuiltinDrivers[pluginName] = factory
+	}
 	return nil
 }
