@@ -110,6 +110,9 @@
               <td data-test-client-event-subsystem>{{row.model.subsystem}}</td>
               <td data-test-client-event-message>
                 {{#if row.model.message}}
+                  {{#if row.model.driver}}
+                    <span class="badge is-secondary is-small">{{row.model.driver}}</span>
+                  {{/if}}
                   {{row.model.message}}
                 {{else}}
                   <em>No message</em>
