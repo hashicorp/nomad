@@ -169,11 +169,11 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:            command,
-		Args:           driverConfig.Args,
-		User:           task.User,
-		TaskKillSignal: taskKillSignal,
-		Cgroup:         d.useCgroup,
+		Cmd:                command,
+		Args:               driverConfig.Args,
+		User:               task.User,
+		TaskKillSignal:     taskKillSignal,
+		BasicProcessCgroup: d.useCgroup,
 	}
 	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {

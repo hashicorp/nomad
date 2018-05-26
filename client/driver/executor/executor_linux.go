@@ -35,7 +35,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 		}
 	}
 
-	if e.command.ResourceLimits || e.command.Cgroup {
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
 		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
@@ -45,7 +45,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 
 // applyLimits puts a process in a pre-configured cgroup
 func (e *UniversalExecutor) applyLimits(pid int) error {
-	if !(e.command.ResourceLimits || e.command.Cgroup) {
+	if !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
 		return nil
 	}
 
@@ -294,7 +294,7 @@ func (e *UniversalExecutor) configureChroot() error {
 // isolation and we scan the entire process table if the user is not using any
 // isolation
 func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
-	if e.command.ResourceLimits || e.command.Cgroup {
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
 		manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
 		pids, err := manager.GetAllPids()
 		if err != nil {
