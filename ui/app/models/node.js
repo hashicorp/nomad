@@ -56,4 +56,10 @@ export default Model.extend({
   unhealthyDriverNames: computed('unhealthyDrivers.@each.name', function() {
     return this.get('unhealthyDrivers').mapBy('name');
   }),
+
+  // A status attribute that includes states not included in node status.
+  // Useful for coloring and sorting nodes
+  compositeStatus: computed('status', 'isEligible', function() {
+    return this.get('isEligible') ? this.get('status') : 'ineligible';
+  }),
 });

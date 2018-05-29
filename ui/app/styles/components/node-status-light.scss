@@ -26,4 +26,8 @@ $size: 0.75em;
       darken($grey-lighter, 25%) 6px
     );
   }
+
+  &.ineligible {
+    background: $warning;
+  }
 }
