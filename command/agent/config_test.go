@@ -926,11 +926,11 @@ func TestMergeServerJoin(t *testing.T) {
 		}
 		b := &ServerJoin{}
 
-		a.Merge(b)
-		require.Equal(a.RetryJoin, retryJoin)
-		require.Equal(a.StartJoin, startJoin)
-		require.Equal(a.RetryMaxAttempts, retryMaxAttempts)
-		require.Equal(a.RetryInterval, retryInterval)
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
 	}
 	{
 		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
@@ -946,11 +946,51 @@ func TestMergeServerJoin(t *testing.T) {
 			RetryInterval:    time.Duration(retryInterval),
 		}
 
-		a.Merge(b)
-		require.Equal(a.RetryJoin, retryJoin)
-		require.Equal(a.StartJoin, startJoin)
-		require.Equal(a.RetryMaxAttempts, retryMaxAttempts)
-		require.Equal(a.RetryInterval, retryInterval)
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		var a *ServerJoin
+		b := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+		var b *ServerJoin
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
 	}
 	{
 		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
@@ -967,10 +1007,10 @@ func TestMergeServerJoin(t *testing.T) {
 			RetryInterval:    time.Duration(retryInterval),
 		}
 
-		a.Merge(b)
-		require.Equal(a.RetryJoin, retryJoin)
-		require.Equal(a.StartJoin, startJoin)
-		require.Equal(a.RetryMaxAttempts, retryMaxAttempts)
-		require.Equal(a.RetryInterval, retryInterval)
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
 	}
 }

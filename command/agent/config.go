@@ -381,19 +381,31 @@ type ServerJoin struct {
 	RetryInterval time.Duration `mapstructure:"retry_interval"`
 }
 
-func (s *ServerJoin) Merge(b *ServerJoin) {
+func (s *ServerJoin) Merge(b *ServerJoin) *ServerJoin {
+	if s == nil {
+		return b
+	}
+
+	result := *s
+
+	if b == nil {
+		return &result
+	}
+
 	if len(b.StartJoin) != 0 {
-		s.StartJoin = b.StartJoin
+		result.StartJoin = b.StartJoin
 	}
 	if len(b.RetryJoin) != 0 {
-		s.RetryJoin = b.RetryJoin
+		result.RetryJoin = b.RetryJoin
 	}
 	if b.RetryMaxAttempts != 0 {
-		s.RetryMaxAttempts = b.RetryMaxAttempts
+		result.RetryMaxAttempts = b.RetryMaxAttempts
 	}
 	if b.RetryInterval != 0 {
-		s.RetryInterval = b.RetryInterval
+		result.RetryInterval = b.RetryInterval
 	}
+
+	return &result
 }
 
 // EncryptBytes returns the encryption key configured.
@@ -1104,7 +1116,7 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.EncryptKey = b.EncryptKey
 	}
 	if b.ServerJoin != nil {
-		result.ServerJoin.Merge(b.ServerJoin)
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
 	// Add the schedulers
