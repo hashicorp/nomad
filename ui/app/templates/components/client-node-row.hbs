@@ -8,8 +8,9 @@
 <td data-test-client-id>{{#link-to "clients.client" node.id class="is-primary"}}{{node.shortId}}{{/link-to}}</td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{node.name}}">{{node.name}}</td>
 <td data-test-client-status>{{node.status}}</td>
-<td data-test-client-address>{{node.address}}</td>
-<td data-test-client-port>{{node.port}}</td>
+<td data-test-client-drain>{{if node.isDraining "true" "false"}}</td>
+<td data-test-client-eligibility>{{node.schedulingEligibility}}</td>
+<td data-test-client-address>{{node.httpAddr}}</td>
 <td data-test-client-datacenter>{{node.datacenter}}</td>
 <td data-test-client-allocations>
   {{#if node.allocations.isPending}}
