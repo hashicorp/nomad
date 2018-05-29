@@ -148,6 +148,27 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 	}
 
 	block, rest := pem.Decode(data)
+	if err := validateCertificate(block); err != nil {
+		return err
+	}
+
+	for len(rest) > 0 {
+		block, rest = pem.Decode(rest)
+		if err := validateCertificate(block); err != nil {
+			return err
+		}
+	}
+
+	if !pool.AppendCertsFromPEM(data) {
+		return fmt.Errorf("Failed to add any CA certificates")
+	}
+
+	return nil
+}
+
+// validateCertificate checks to ensure a certificate is valid. If it is not,
+// return a descriptive error of why the certificate is invalid.
+func validateCertificate(block *pem.Block) error {
 	if block == nil {
 		return fmt.Errorf("Failed to decode CA file from pem format")
 	}
@@ -155,31 +176,6 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 	// Parse the certificate to ensure that it is properly formatted
 	if _, err := x509.ParseCertificates(block.Bytes); err != nil {
 		return fmt.Errorf("Failed to parse CA file: %v", err)
-	}
-
-	if !pool.AppendCertsFromPEM(data) {
-		return fmt.Errorf("Failed to add any CA certificates")
-	}
-
-	for len(rest) > 0 {
-		block, rest = pem.Decode(rest)
-
-		if block == nil {
-			return fmt.Errorf("Failed to decode CA file from pem format")
-		}
-
-		// Parse the certificate to ensure that it is properly formatted
-		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
-			return fmt.Errorf("Failed to parse CA file: %v", err)
-		}
-
-		if !pool.AppendCertsFromPEM(data) {
-			return fmt.Errorf("Failed to add any CA certificates")
-		}
-
-		if len(rest) == 0 {
-			break
-		}
 	}
 
 	return nil
