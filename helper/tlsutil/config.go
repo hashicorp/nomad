@@ -147,7 +147,7 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 		return fmt.Errorf("Failed to read CA file: %v", err)
 	}
 
-	block, _ := pem.Decode(data)
+	block, rest := pem.Decode(data)
 	if block == nil {
 		return fmt.Errorf("Failed to decode CA file from pem format")
 	}
@@ -159,6 +159,27 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 
 	if !pool.AppendCertsFromPEM(data) {
 		return fmt.Errorf("Failed to add any CA certificates")
+	}
+
+	for len(rest) > 0 {
+		block, rest = pem.Decode(rest)
+
+		if block == nil {
+			return fmt.Errorf("Failed to decode CA file from pem format")
+		}
+
+		// Parse the certificate to ensure that it is properly formatted
+		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+			return fmt.Errorf("Failed to parse CA file: %v", err)
+		}
+
+		if !pool.AppendCertsFromPEM(data) {
+			return fmt.Errorf("Failed to add any CA certificates")
+		}
+
+		if len(rest) == 0 {
+			break
+		}
 	}
 
 	return nil

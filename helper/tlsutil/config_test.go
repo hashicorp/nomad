@@ -48,6 +48,93 @@ func TestConfig_AppendCA_Valid(t *testing.T) {
 	require.Nil(err)
 }
 
+func TestConfig_AppendCA_Valid_MultipleCerts(t *testing.T) {
+	require := require.New(t)
+
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+	require.Nil(err)
+	defer os.Remove(tmpCAFile.Name())
+
+	certs := `
+-----BEGIN CERTIFICATE-----
+MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
+eDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
+biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
+GDAWBgNVBAMTD25vbWFkLmhhc2hpY29ycDAeFw0xNjExMTAxOTQ4MDBaFw0yMTEx
+MDkxOTQ4MDBaMHgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYw
+FAYDVQQHEw1TYW4gRnJhbmNpc2NvMRIwEAYDVQQKEwlIYXNoaUNvcnAxDjAMBgNV
+BAsTBU5vbWFkMRgwFgYDVQQDEw9ub21hZC5oYXNoaWNvcnAwWTATBgcqhkjOPQIB
+BggqhkjOPQMBBwNCAARfJmTdHzYIMPD8SK+kj5Gc79fmpOcg6wnb4JNVwCqWw9O+
+uNdZJZWSi4Q/4HojM5FTSBqYxNgSrmY/o3oQrCPlo0IwQDAOBgNVHQ8BAf8EBAMC
+AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
+/UAwCgYIKoZIzj0EAwIDRwAwRAIgTemDJGSGtcQPXLWKiQNw4SKO9wAPhn/WoKW4
+Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
+eDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
+biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
+GDAWBgNVBAMTD25vbWFkLmhhc2hpY29ycDAeFw0xNjExMTAxOTQ4MDBaFw0yMTEx
+MDkxOTQ4MDBaMHgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYw
+FAYDVQQHEw1TYW4gRnJhbmNpc2NvMRIwEAYDVQQKEwlIYXNoaUNvcnAxDjAMBgNV
+BAsTBU5vbWFkMRgwFgYDVQQDEw9ub21hZC5oYXNoaWNvcnAwWTATBgcqhkjOPQIB
+BggqhkjOPQMBBwNCAARfJmTdHzYIMPD8SK+kj5Gc79fmpOcg6wnb4JNVwCqWw9O+
+uNdZJZWSi4Q/4HojM5FTSBqYxNgSrmY/o3oQrCPlo0IwQDAOBgNVHQ8BAf8EBAMC
+AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
+/UAwCgYIKoZIzj0EAwIDRwAwRAIgTemDJGSGtcQPXLWKiQNw4SKO9wAPhn/WoKW4
+Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
+-----END CERTIFICATE-----`
+
+	_, err = tmpCAFile.Write([]byte(certs))
+	require.Nil(err)
+
+	conf := &Config{
+		CAFile: tmpCAFile.Name(),
+	}
+	pool := x509.NewCertPool()
+	err = conf.AppendCA(pool)
+
+	require.Nil(err)
+}
+
+func TestConfig_AppendCA_InValid_MultipleCerts(t *testing.T) {
+	require := require.New(t)
+
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+	require.Nil(err)
+	defer os.Remove(tmpCAFile.Name())
+
+	certs := `
+-----BEGIN CERTIFICATE-----
+MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
+eDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
+biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
+GDAWBgNVBAMTD25vbWFkLmhhc2hpY29ycDAeFw0xNjExMTAxOTQ4MDBaFw0yMTEx
+MDkxOTQ4MDBaMHgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYw
+FAYDVQQHEw1TYW4gRnJhbmNpc2NvMRIwEAYDVQQKEwlIYXNoaUNvcnAxDjAMBgNV
+BAsTBU5vbWFkMRgwFgYDVQQDEw9ub21hZC5oYXNoaWNvcnAwWTATBgcqhkjOPQIB
+BggqhkjOPQMBBwNCAARfJmTdHzYIMPD8SK+kj5Gc79fmpOcg6wnb4JNVwCqWw9O+
+uNdZJZWSi4Q/4HojM5FTSBqYxNgSrmY/o3oQrCPlo0IwQDAOBgNVHQ8BAf8EBAMC
+AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
+/UAwCgYIKoZIzj0EAwIDRwAwRAIgTemDJGSGtcQPXLWKiQNw4SKO9wAPhn/WoKW4
+Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+Invalid
+-----END CERTIFICATE-----`
+
+	_, err = tmpCAFile.Write([]byte(certs))
+	require.Nil(err)
+
+	conf := &Config{
+		CAFile: tmpCAFile.Name(),
+	}
+	pool := x509.NewCertPool()
+	err = conf.AppendCA(pool)
+
+	require.NotNil(err)
+}
+
 func TestConfig_AppendCA_Invalid(t *testing.T) {
 	require := require.New(t)
 	{
