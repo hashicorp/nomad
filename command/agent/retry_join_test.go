@@ -358,6 +358,21 @@ func TestRetryJoin_Validate(t *testing.T) {
 			isValid: true,
 			reason:  "server deprecated retry_join configuration should be valid",
 		},
+		{
+			config: &Config{
+				Server: &ServerConfig{
+					RetryInterval: "30s",
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"127.0.0.1"},
+						RetryMaxAttempts: 0,
+						RetryInterval:    time.Duration(20) * time.Second,
+						StartJoin:        []string{},
+					},
+				},
+			},
+			isValid: true,
+			reason:  "ignore default value for retry interval",
+		},
 	}
 
 	joiner := retryJoiner{}
