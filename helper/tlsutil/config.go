@@ -147,7 +147,7 @@ func (c *Config) AppendCA(pool *x509.CertPool) error {
 		return fmt.Errorf("Failed to read CA file: %v", err)
 	}
 
-	block, _ := pem.Decode([]byte(data))
+	block, _ := pem.Decode(data)
 	if block == nil {
 		return fmt.Errorf("Failed to decode CA file from pem format")
 	}
