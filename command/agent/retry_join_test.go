@@ -339,7 +339,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 					},
 					StartJoin:        []string{},
 					RetryMaxAttempts: 0,
-					RetryInterval:    "0",
+					RetryInterval:    "30s",
 					RetryJoin:        []string{},
 				},
 			},

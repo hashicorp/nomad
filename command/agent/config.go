@@ -1116,6 +1116,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.EncryptKey = b.EncryptKey
 	}
 	if b.ServerJoin != nil {
+		// // COMPAT: Remove in 0.10 - ServerJoin is not defined by default on an
+		// agent config, this should be eventually moved to DefaultConfig
+		result.ServerJoin = getDefaultServerJoin()
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
@@ -1133,6 +1136,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
+}
+
+func getDefaultServerJoin() *ServerJoin {
+	return &ServerJoin{
+		RetryInterval: time.Duration(30) * time.Second,
+	}
 }
 
 // Merge is used to merge two client configs together
@@ -1226,7 +1235,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	if b.ServerJoin != nil {
-		result.ServerJoin = b.ServerJoin
+		// // COMPAT: Remove in 0.10 - ServerJoin is not defined by default on an
+		// agent config, this should be eventually moved to DefaultConfig
+		result.ServerJoin = getDefaultServerJoin()
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
 	return &result

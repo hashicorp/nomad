@@ -591,6 +591,10 @@ func (c *Command) Run(args []string) int {
 	}
 
 	if config.Client.Enabled && config.Client.ServerJoin != nil {
+		// COMPAT: Remove in 0.10 set the default RetryInterval value, as the
+		// ServerJoin stanza is not part of a default config for an agent.
+		config.Client.ServerJoin.RetryInterval = time.Duration(30) * time.Second
+
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
