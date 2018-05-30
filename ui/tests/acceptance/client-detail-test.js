@@ -4,13 +4,14 @@ import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helper
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import formatDuration from 'nomad-ui/utils/format-duration';
 import moment from 'moment';
 
 let node;
 
 moduleForAcceptance('Acceptance | client detail', {
   beforeEach() {
-    server.create('node', 'forceIPv4');
+    server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 
     // Related models
@@ -74,6 +75,18 @@ test('/clients/:id should list additional detail for the node below the title', 
         .textContent.trim()
         .includes(node.httpAddr),
       'Address is in additional details'
+    );
+    assert.ok(
+      find('[data-test-draining]')
+        .textContent.trim()
+        .includes(node.drain + ''),
+      'Drain status is in additional details'
+    );
+    assert.ok(
+      find('[data-test-eligibility]')
+        .textContent.trim()
+        .includes(node.schedulingEligibility),
+      'Scheduling eligibility is in additional details'
     );
     assert.ok(
       find('[data-test-datacenter-definition]')
@@ -502,6 +515,142 @@ test('each driver can be opened to see a message and attributes', function(asser
     assert.ok(
       driverBody.find('[data-test-driver-attributes]').length,
       'Driver attributes section is now shown'
+    );
+  });
+});
+
+test('the status light indicates when the node is ineligible for scheduling', function(assert) {
+  node = server.create('node', {
+    schedulingEligibility: 'ineligible',
+  });
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(
+      find('[data-test-node-status="ineligible"]'),
+      'Title status light is in the ineligible state'
+    );
+  });
+});
+
+test('when the node has a drain strategy with a positive deadline, the drain stategy section prints the duration', function(assert) {
+  const deadline = 5400000000000; // 1.5 hours in nanoseconds
+  const forceDeadline = moment().add(1, 'd');
+
+  node = server.create('node', {
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: deadline,
+      ForceDeadline: forceDeadline.toISOString(),
+      IgnoreSystemJobs: false,
+    },
+  });
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(
+      find('[data-test-drain-deadline]')
+        .textContent.trim()
+        .includes(formatDuration(deadline)),
+      'Deadline is shown in a human formatted way'
+    );
+
+    assert.ok(
+      find('[data-test-drain-forced-deadline]')
+        .textContent.trim()
+        .includes(forceDeadline.format('MM/DD/YY HH:mm:ss')),
+      'Force deadline is shown as an absolute date'
+    );
+
+    assert.ok(
+      find('[data-test-drain-forced-deadline]')
+        .textContent.trim()
+        .includes(forceDeadline.fromNow()),
+      'Force deadline is shown as a relative date'
+    );
+
+    assert.ok(
+      find('[data-test-drain-ignore-system-jobs]')
+        .textContent.trim()
+        .endsWith('No'),
+      'Ignore System Jobs state is shown'
+    );
+  });
+});
+
+test('when the node has a drain stategy with no deadline, the drain stategy section mentions that and omits the force deadline', function(assert) {
+  const deadline = 0;
+
+  node = server.create('node', {
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: deadline,
+      ForceDeadline: '0001-01-01T00:00:00Z', // null as a date
+      IgnoreSystemJobs: true,
+    },
+  });
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(
+      find('[data-test-drain-deadline]')
+        .textContent.trim()
+        .includes('No deadline'),
+      'The value for Deadline is "no deadline"'
+    );
+
+    assert.notOk(
+      find('[data-test-drain-forced-deadline]'),
+      'Forced deadline is not shown since there is no forced deadline'
+    );
+
+    assert.ok(
+      find('[data-test-drain-ignore-system-jobs]')
+        .textContent.trim()
+        .endsWith('Yes'),
+      'Ignore System Jobs state is shown'
+    );
+  });
+});
+
+test('when the node has a drain stategy with a negative deadline, the drain strategy section shows the force badge', function(assert) {
+  const deadline = -1;
+
+  node = server.create('node', {
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: deadline,
+      ForceDeadline: '0001-01-01T00:00:00Z', // null as a date
+      IgnoreSystemJobs: false,
+    },
+  });
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.ok(
+      find('[data-test-drain-deadline] .badge.is-danger')
+        .textContent.trim()
+        .includes('Forced Drain'),
+      'Forced Drain is shown in a red badge'
+    );
+
+    assert.notOk(
+      find('[data-test-drain-forced-deadline]'),
+      'Forced deadline is not shown since there is no forced deadline'
+    );
+
+    assert.ok(
+      find('[data-test-drain-ignore-system-jobs]')
+        .textContent.trim()
+        .endsWith('No'),
+      'Ignore System Jobs state is shown'
     );
   });
 });

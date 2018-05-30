@@ -61,7 +61,7 @@
       <div class="boxed-section is-small is-info">
         <div class="boxed-section-body inline-definitions">
           <span class="label">Drain Strategy</span>
-          <span class="pair">
+          <span class="pair" data-test-drain-deadline>
             <span class="term">Deadline</span>
             {{#if model.drainStrategy.isForced}}
               <span class="badge is-danger">Forced Drain</span>
@@ -72,13 +72,13 @@
             {{/if}}
           </span>
           {{#if model.drainStrategy.forceDeadline}}
-            <span class="pair">
+            <span class="pair" data-test-drain-forced-deadline>
               <span class="term">Forced Deadline</span>
               {{moment-format model.drainStrategy.forceDeadline "MM/DD/YY HH:mm:ss"}}
               ({{moment-from-now model.drainStrategy.forceDeadline interval=1000}})
             </span>
           {{/if}}
-          <span class="pair">
+          <span class="pair" data-test-drain-ignore-system-jobs>
             <span class="term">Ignore System Jobs?</span>
             {{if model.drainStrategy.ignoreSystemJobs "Yes" "No"}}
           </span>

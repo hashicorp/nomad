@@ -1,6 +1,7 @@
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS } from '../common';
+import moment from 'moment';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const NODE_STATUSES = ['initializing', 'ready', 'down'];
@@ -11,9 +12,10 @@ export default Factory.extend({
   name: i => `nomad@${HOSTS[i % HOSTS.length]}`,
 
   datacenter: faker.list.random(...DATACENTERS),
-  isDraining: faker.random.boolean,
+  drain: faker.random.boolean,
   status: faker.list.random(...NODE_STATUSES),
   tls_enabled: faker.random.boolean,
+  schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
@@ -28,6 +30,18 @@ export default Factory.extend({
       return `nomad@${ipv4Hosts[i % ipv4Hosts.length]}`;
     },
   }),
+
+  draining: trait({
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: faker.random.number({ min: 30 * 1000, max: 5 * 60 * 60 * 1000 }) * 1000000,
+      ForceDeadline: moment(REF_DATE).add(faker.random.number({ min: 1, max: 5 }), 'd'),
+      IgnoreSystemJobs: faker.random.boolean(),
+    },
+  }),
+
+  drainStrategy: null,
 
   drivers: makeDrivers,
 
