@@ -167,6 +167,60 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 	assert.NotNil(cert)
 }
 
+func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
+	require := require.New(t)
+
+	{
+		conf := &Config{
+			VerifyOutgoing: true,
+			CAFile:         cacert,
+		}
+		tlsConfig, err := conf.OutgoingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.PreferServerCipherSuites, false)
+	}
+	{
+		conf := &Config{
+			VerifyOutgoing: true,
+			CAFile:         cacert,
+			PreferServerCipherSuites: true,
+		}
+		tlsConfig, err := conf.OutgoingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.PreferServerCipherSuites, true)
+	}
+}
+
+func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
+	require := require.New(t)
+
+	{
+		defaultCiphers := []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		}
+		conf := &Config{
+			VerifyOutgoing: true,
+			CAFile:         cacert,
+			CipherSuites:   defaultCiphers,
+		}
+		tlsConfig, err := conf.OutgoingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.CipherSuites, defaultCiphers)
+	}
+	{
+		conf := &Config{
+			VerifyOutgoing: true,
+			CAFile:         cacert,
+			CipherSuites:   []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
+		}
+		tlsConfig, err := conf.OutgoingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.CipherSuites, []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305})
+	}
+}
+
 func startTLSServer(config *Config) (net.Conn, chan error) {
 	errc := make(chan error, 1)
 
@@ -413,6 +467,51 @@ func TestConfig_IncomingTLS_NoVerify(t *testing.T) {
 	}
 	if len(tlsC.Certificates) != 0 {
 		t.Fatalf("unexpected client cert")
+	}
+}
+
+func TestConfig_IncomingTLS_PreferServerCipherSuites(t *testing.T) {
+	require := require.New(t)
+
+	{
+		conf := &Config{}
+		tlsConfig, err := conf.IncomingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.PreferServerCipherSuites, false)
+	}
+	{
+		conf := &Config{
+			PreferServerCipherSuites: true,
+		}
+		tlsConfig, err := conf.IncomingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.PreferServerCipherSuites, true)
+	}
+}
+
+func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
+	require := require.New(t)
+
+	{
+		defaultCiphers := []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		}
+		conf := &Config{
+			CipherSuites: defaultCiphers,
+		}
+		tlsConfig, err := conf.IncomingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.CipherSuites, defaultCiphers)
+	}
+	{
+		conf := &Config{
+			CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
+		}
+		tlsConfig, err := conf.IncomingTLSConfig()
+		require.Nil(err)
+		require.Equal(tlsConfig.CipherSuites, []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305})
 	}
 }
 
