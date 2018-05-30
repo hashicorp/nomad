@@ -353,7 +353,7 @@ func TestHTTP_NodeDrain_Compat(t *testing.T) {
 		require.Nil(err)
 		require.False(out.Drain)
 		require.Nil(out.DrainStrategy)
-		require.Equal("eligible", out.SchedulingEligibility)
+		require.Equal(structs.NodeSchedulingEligible, out.SchedulingEligibility)
 	})
 }
 
