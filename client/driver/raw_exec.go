@@ -119,7 +119,7 @@ func (d *RawExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstr
 
 func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
 	// If we are on linux, running as root, cgroups are mounted, and cgroups
-	// aren't disabled by the operate use cgroups for pid management.
+	// aren't disabled by the operator use cgroups for pid management.
 	forceDisable := d.DriverContext.config.ReadBoolDefault(rawExecNoCgroupOption, false)
 	if !forceDisable && runtime.GOOS == "linux" &&
 		syscall.Geteuid() == 0 && cgroupsMounted(d.DriverContext.node) {
