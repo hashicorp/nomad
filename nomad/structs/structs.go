@@ -5425,8 +5425,13 @@ type Deployment struct {
 	// JobVersion is the version of the job at which the deployment is tracking
 	JobVersion uint64
 
-	// JobModifyIndex is the modify index of the job at which the deployment is tracking
+	// JobModifyIndex is the modify index of the job at which the deployment is
+	// tracking. This is the ModifyIndex field on the job.
 	JobModifyIndex uint64
+
+	// JobSpecModifyIndex is the modify index of the job spec at which the
+	// deployment is tracking. This is the JobModifyIndex field on the job.
+	JobSpecModifyIndex uint64
 
 	// JobCreateIndex is the create index of the job which the deployment is
 	// tracking. It is needed so that if the job gets stopped and reran we can
@@ -5451,15 +5456,16 @@ type Deployment struct {
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
-		ID:                uuid.Generate(),
-		Namespace:         job.Namespace,
-		JobID:             job.ID,
-		JobVersion:        job.Version,
-		JobModifyIndex:    job.ModifyIndex,
-		JobCreateIndex:    job.CreateIndex,
-		Status:            DeploymentStatusRunning,
-		StatusDescription: DeploymentStatusDescriptionRunning,
-		TaskGroups:        make(map[string]*DeploymentState, len(job.TaskGroups)),
+		ID:                 uuid.Generate(),
+		Namespace:          job.Namespace,
+		JobID:              job.ID,
+		JobVersion:         job.Version,
+		JobModifyIndex:     job.ModifyIndex,
+		JobSpecModifyIndex: job.JobModifyIndex,
+		JobCreateIndex:     job.CreateIndex,
+		Status:             DeploymentStatusRunning,
+		StatusDescription:  DeploymentStatusDescriptionRunning,
+		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
 	}
 }
 
