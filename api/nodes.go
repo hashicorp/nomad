@@ -68,7 +68,7 @@ type NodeDrainUpdateResponse struct {
 
 // UpdateDrain is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
-// as having its scheduling being elibile
+// as having its scheduling being eligible
 func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*NodeDrainUpdateResponse, error) {
 	req := &NodeUpdateDrainRequest{
 		NodeID:       nodeID,
