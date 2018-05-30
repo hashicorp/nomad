@@ -25,6 +25,7 @@ export default Model.extend({
   meta: fragment('node-attributes'),
   resources: fragment('resources'),
   reserved: fragment('resources'),
+  drainStrategy: fragment('drain-strategy'),
 
   isEligible: equal('schedulingEligibility', 'eligible'),
 
