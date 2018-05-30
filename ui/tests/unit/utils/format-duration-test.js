@@ -21,3 +21,8 @@ test('The units option allows for units coarser than nanoseconds', function(asse
   assert.equal(formatDuration(1200, 's'), expectation2, expectation2);
   assert.equal(formatDuration(32, 'd'), expectation3, expectation3);
 });
+
+test('When duration is 0, 0 is shown in terms of the units provided to the function', function(assert) {
+  assert.equal(formatDuration(0), '0ns', 'formatDuration(0) -> 0ns');
+  assert.equal(formatDuration(0, 'year'), '0 years', 'formatDuration(0, "year") -> 0 years');
+});

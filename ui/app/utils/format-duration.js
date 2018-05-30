@@ -15,6 +15,9 @@ const allUnits = [
 export default function formatDuration(duration = 0, units = 'ns') {
   const durationParts = {};
 
+  // Moment only handles up to millisecond precision.
+  // Microseconds and nanoseconds need to be handled first,
+  // then Moment can take over for all larger units.
   if (units === 'ns') {
     durationParts.nanoseconds = duration % 1000;
     durationParts.microseconds = Math.floor((duration % 1000000) / 1000);
@@ -24,8 +27,13 @@ export default function formatDuration(duration = 0, units = 'ns') {
     duration = Math.floor(duration / 1000);
   }
 
-  const momentDuration = moment.duration(duration, ['ns', 'mms'].includes(units) ? 'ms' : units);
+  let momentUnits = units;
+  if (units === 'ns' || units === 'mms') {
+    momentUnits = 'ms';
+  }
+  const momentDuration = moment.duration(duration, momentUnits);
 
+  // Get the count of each time unit that Moment handles
   allUnits
     .filterBy('inMoment')
     .mapBy('name')
@@ -33,6 +41,8 @@ export default function formatDuration(duration = 0, units = 'ns') {
       durationParts[unit] = momentDuration[unit]();
     });
 
+  // Format each time time bucket as a string
+  // e.g., { years: 5, seconds: 30 } -> [ '5 years', '30s' ]
   const displayParts = allUnits.reduce((parts, unitType) => {
     if (durationParts[unitType.name]) {
       const count = durationParts[unitType.name];
@@ -43,5 +53,12 @@ export default function formatDuration(duration = 0, units = 'ns') {
     return parts;
   }, []);
 
-  return displayParts.join(' ');
+  if (displayParts.length) {
+    return displayParts.join(' ');
+  }
+
+  // When the duration is 0, show 0 in terms of `units`
+  const unitTypeForUnits = allUnits.findBy('suffix', units);
+  const suffix = unitTypeForUnits.pluralizable ? units.pluralize() : units;
+  return `0${unitTypeForUnits.pluralizable ? ' ' : ''}${suffix}`;
 }
