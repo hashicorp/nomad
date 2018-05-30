@@ -30,6 +30,7 @@ IMPROVEMENTS:
    an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
 
 BUG FIXES:
+ * core: Clean up leaked deployments on restoration [[GH-4329](https://github.com/hashicorp/nomad/issues/4329)]
  * core: Fix bug where older failed allocations of jobs that have been updated to a newer version were
    not being garbage collected [[GH-4313](https://github.com/hashicorp/nomad/issues/4313)]
  * api/client: Fix potentially out of order logs and streamed file contents
