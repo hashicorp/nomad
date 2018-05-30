@@ -1261,6 +1261,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
+	// COMPAT Remove in 0.10
+	// Clean up active deployments that do not have a job
+	if err := n.failLeakedDeployments(newState); err != nil {
+		return err
+	}
+
 	// External code might be calling State(), so we need to synchronize
 	// here to make sure we swap in the new state store atomically.
 	n.stateLock.Lock()
@@ -1272,6 +1278,59 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// because we don't operate on it any more, we just throw it away, so
 	// blocking queries won't see any changes and need to be woken up.
 	stateOld.Abandon()
+
+	return nil
+}
+
+// failLeakedDeployments is used to fail deployments that do not have a job.
+// This state is a broken invariant that should not occur since 0.8.X.
+func (n *nomadFSM) failLeakedDeployments(state *state.StateStore) error {
+	// Scan for deployments that are referencing a job that no longer exists.
+	// This could happen if multiple deployments were created for a given job
+	// and thus the older deployment leaks and then the job is removed.
+	iter, err := state.Deployments(nil)
+	if err != nil {
+		return fmt.Errorf("failed to query deployments: %v", err)
+	}
+
+	dindex, err := state.Index("deployment")
+	if err != nil {
+		return fmt.Errorf("couldn't fetch index of deployments table: %v", err)
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		d := raw.(*structs.Deployment)
+
+		// We are only looking for active deployments where the job no longer
+		// exists
+		if !d.Active() {
+			continue
+		}
+
+		// Find the job
+		job, err := state.JobByID(nil, d.Namespace, d.JobID)
+		if err != nil {
+			return fmt.Errorf("failed to lookup job %s from deployment %q: %v", d.JobID, d.ID, err)
+		}
+
+		// Job exists.
+		if job != nil {
+			continue
+		}
+
+		// Update the deployment to be terminal
+		failed := d.Copy()
+		failed.Status = structs.DeploymentStatusCancelled
+		failed.StatusDescription = structs.DeploymentStatusDescriptionStoppedJob
+		if err := state.UpsertDeployment(dindex, failed); err != nil {
+			return fmt.Errorf("failed to mark leaked deployment %q as failed: %v", failed.ID, err)
+		}
+	}
 
 	return nil
 }
