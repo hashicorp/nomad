@@ -104,7 +104,7 @@ func TestConfig_Parse(t *testing.T) {
 					MaxHeartbeatsPerSecond: 11.0,
 					RetryJoin:              []string{"1.1.1.1", "2.2.2.2"},
 					StartJoin:              []string{"1.1.1.1", "2.2.2.2"},
-					RetryInterval:          "15s",
+					RetryInterval:          15 * time.Second,
 					RejoinAfterLeave:       true,
 					RetryMaxAttempts:       3,
 					NonVotingServer:        true,

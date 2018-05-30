@@ -59,7 +59,7 @@ func (r *retryJoiner) Validate(config *Config) error {
 
 	// If retry_join is defined for the server, ensure that deprecated
 	// fields and the server_join stanza are not both set
-	if config.Server != nil && config.Server.ServerJoin != nil {
+	if config.Server != nil && config.Server.ServerJoin != nil && len(config.Server.ServerJoin.RetryJoin) != 0 {
 		if len(config.Server.RetryJoin) != 0 {
 			return fmt.Errorf("server_join and retry_join cannot both be defined; prefer setting the server_join stanza")
 		}
@@ -69,11 +69,12 @@ func (r *retryJoiner) Validate(config *Config) error {
 		if config.Server.RetryMaxAttempts != 0 {
 			return fmt.Errorf("server_join and retry_max cannot both be defined; prefer setting the server_join stanza")
 		}
-		if config.Server.RetryInterval != "30s" {
+
+		if config.Server.RetryInterval != 0 {
 			return fmt.Errorf("server_join and retry_interval cannot both be defined; prefer setting the server_join stanza")
 		}
 
-		if len(config.Server.ServerJoin.RetryJoin) != 0 && len(config.Server.ServerJoin.StartJoin) != 0 {
+		if len(config.Server.ServerJoin.StartJoin) != 0 {
 			return fmt.Errorf("retry_join and start_join cannot both be defined")
 		}
 	}
@@ -103,6 +104,7 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 
 	for {
 		var addrs []string
+		var n int
 		var err error
 
 		for _, addr := range serverJoin.RetryJoin {
@@ -121,14 +123,14 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 
 		if len(addrs) > 0 {
 			if r.serverEnabled && r.serverJoin != nil {
-				n, err := r.serverJoin(addrs)
+				n, err = r.serverJoin(addrs)
 				if err == nil {
 					r.logger.Printf("[INFO] agent: Join completed. Server synced with %d initial servers", n)
 					return
 				}
 			}
 			if r.clientEnabled && r.clientJoin != nil {
-				n, err := r.clientJoin(addrs)
+				n, err = r.clientJoin(addrs)
 				if err == nil {
 					r.logger.Printf("[INFO] agent: Join completed. Client synced with %d initial servers", n)
 					return
@@ -144,7 +146,7 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 		}
 
 		if err != nil {
-			r.logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
+			r.logger.Printf("[WARN] agent: Join failed: %q, retrying in %v", err,
 				serverJoin.RetryInterval)
 		}
 		time.Sleep(serverJoin.RetryInterval)

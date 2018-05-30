@@ -331,8 +331,7 @@ type ServerConfig struct {
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
 	// Deprecated in Nomad 0.10
-	RetryInterval string        `mapstructure:"retry_interval"`
-	retryInterval time.Duration `mapstructure:"-"`
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
 	// When set to false (default), a leave causes Consul to not rejoin
@@ -661,13 +660,20 @@ func DefaultConfig() *Config {
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		Server: &ServerConfig{
-			Enabled:          false,
-			StartJoin:        []string{},
-			RetryJoin:        []string{},
-			RetryInterval:    "30s",
-			RetryMaxAttempts: 0,
+			Enabled:   false,
+			StartJoin: []string{},
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -1096,9 +1102,8 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts
 	}
-	if b.RetryInterval != "" {
+	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
-		result.retryInterval = b.retryInterval
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
@@ -1116,9 +1121,6 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.EncryptKey = b.EncryptKey
 	}
 	if b.ServerJoin != nil {
-		// // COMPAT: Remove in 0.10 - ServerJoin is not defined by default on an
-		// agent config, this should be eventually moved to DefaultConfig
-		result.ServerJoin = getDefaultServerJoin()
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
@@ -1136,12 +1138,6 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
-}
-
-func getDefaultServerJoin() *ServerJoin {
-	return &ServerJoin{
-		RetryInterval: time.Duration(30) * time.Second,
-	}
 }
 
 // Merge is used to merge two client configs together
@@ -1235,9 +1231,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	if b.ServerJoin != nil {
-		// // COMPAT: Remove in 0.10 - ServerJoin is not defined by default on an
-		// agent config, this should be eventually moved to DefaultConfig
-		result.ServerJoin = getDefaultServerJoin()
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 

@@ -63,9 +63,11 @@ func (c *Command) readConfig() *Config {
 		Client: &ClientConfig{},
 		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
-		Server: &ServerConfig{},
-		Vault:  &config.VaultConfig{},
-		ACL:    &ACLConfig{},
+		Server: &ServerConfig{
+			ServerJoin: &ServerJoin{},
+		},
+		Vault: &config.VaultConfig{},
+		ACL:   &ACLConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -78,13 +80,16 @@ func (c *Command) readConfig() *Config {
 
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
-	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
-	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
-	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 	flags.IntVar(&cmdConfig.Server.RaftProtocol, "raft-protocol", 0, "")
+	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.StartJoin), "join", "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.RetryJoin), "retry-join", "")
+	flags.IntVar(&cmdConfig.Server.ServerJoin.RetryMaxAttempts, "retry-max", 0, "")
+	flags.Var((flaghelper.FuncDurationVar)(func(d time.Duration) error {
+		cmdConfig.Server.ServerJoin.RetryInterval = d
+		return nil
+	}), "retry-interval", "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -266,14 +271,6 @@ func (c *Command) readConfig() *Config {
 			c.Ui.Warn("WARNING: keyring exists but -encrypt given, using keyring")
 		}
 	}
-
-	// COMPAT: Remove in 0.10.  Parse the RetryInterval
-	dur, err := time.ParseDuration(config.Server.RetryInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
-		return nil
-	}
-	config.Server.retryInterval = dur
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
@@ -547,6 +544,17 @@ func (c *Command) Run(args []string) int {
 	logGate.Flush()
 
 	// Start retry join process
+	if err := c.handleRetryJoin(config); err != nil {
+		c.Ui.Error(err.Error())
+		return 1
+	}
+
+	// Wait for exit
+	return c.handleSignals()
+}
+
+// handleRetryJoin is used to start retry joining if it is configured.
+func (c *Command) handleRetryJoin(config *Config) error {
 	c.retryJoinErrCh = make(chan struct{})
 
 	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
@@ -559,21 +567,30 @@ func (c *Command) Run(args []string) int {
 		}
 
 		if err := joiner.Validate(config); err != nil {
-			c.Ui.Error(err.Error())
-			return 1
+			return err
 		}
 
-		// COMPAT: Remove in 0.10 and only use ServerJoin
-		serverJoinInfo := &ServerJoin{
-			RetryJoin:        config.Server.RetryJoin,
-			StartJoin:        config.Server.StartJoin,
-			RetryMaxAttempts: config.Server.RetryMaxAttempts,
-			RetryInterval:    config.Server.retryInterval,
+		// Remove the duplicate fields
+		if len(config.Server.RetryJoin) != 0 {
+			config.Server.ServerJoin.RetryJoin = config.Server.RetryJoin
+			config.Server.RetryJoin = nil
 		}
-		go joiner.RetryJoin(serverJoinInfo)
+		if config.Server.RetryMaxAttempts != 0 {
+			config.Server.ServerJoin.RetryMaxAttempts = config.Server.RetryMaxAttempts
+			config.Server.RetryMaxAttempts = 0
+		}
+		if config.Server.RetryInterval != 0 {
+			config.Server.ServerJoin.RetryInterval = config.Server.RetryInterval
+			config.Server.RetryInterval = 0
+		}
+
+		c.agent.logger.Printf("[WARN] agent: Using deprecated retry_join fields. Upgrade configuration to use server_join")
 	}
 
-	if config.Server.Enabled && config.Server.ServerJoin != nil {
+	if config.Server.Enabled &&
+		config.Server.ServerJoin != nil &&
+		len(config.Server.ServerJoin.RetryJoin) != 0 {
+
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
@@ -583,18 +600,15 @@ func (c *Command) Run(args []string) int {
 		}
 
 		if err := joiner.Validate(config); err != nil {
-			c.Ui.Error(err.Error())
-			return 1
+			return err
 		}
 
 		go joiner.RetryJoin(config.Server.ServerJoin)
 	}
 
-	if config.Client.Enabled && config.Client.ServerJoin != nil {
-		// COMPAT: Remove in 0.10 set the default RetryInterval value, as the
-		// ServerJoin stanza is not part of a default config for an agent.
-		config.Client.ServerJoin.RetryInterval = time.Duration(30) * time.Second
-
+	if config.Client.Enabled &&
+		config.Client.ServerJoin != nil &&
+		len(config.Client.ServerJoin.RetryJoin) != 0 {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
@@ -604,15 +618,13 @@ func (c *Command) Run(args []string) int {
 		}
 
 		if err := joiner.Validate(config); err != nil {
-			c.Ui.Error(err.Error())
-			return 1
+			return err
 		}
 
 		go joiner.RetryJoin(config.Client.ServerJoin)
 	}
 
-	// Wait for exit
-	return c.handleSignals()
+	return nil
 }
 
 // handleSignals blocks until we get an exit-causing signal
@@ -885,12 +897,34 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 }
 
 func (c *Command) startupJoin(config *Config) error {
-	if len(config.Server.StartJoin) == 0 || !config.Server.Enabled {
+	// Nothing to do
+	if !config.Server.Enabled {
 		return nil
 	}
 
+	// Validate both old and new aren't being set
+	old := len(config.Server.StartJoin)
+	var new int
+	if config.Server.ServerJoin != nil {
+		new = len(config.Server.ServerJoin.StartJoin)
+	}
+	if old != 0 && new != 0 {
+		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+	}
+
+	// Nothing to do
+	if old+new == 0 {
+		return nil
+	}
+
+	// Combine the lists and join
+	joining := config.Server.StartJoin
+	if new != 0 {
+		joining = append(joining, config.Server.ServerJoin.StartJoin...)
+	}
+
 	c.Ui.Output("Joining cluster...")
-	n, err := c.agent.server.Join(config.Server.StartJoin)
+	n, err := c.agent.server.Join(joining)
 	if err != nil {
 		return err
 	}
