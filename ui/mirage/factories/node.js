@@ -41,6 +41,26 @@ export default Factory.extend({
     },
   }),
 
+  forcedDraining: trait({
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: -1,
+      ForceDeadline: '0001-01-01T00:00:00Z',
+      IgnoreSystemJobs: faker.random.boolean(),
+    },
+  }),
+
+  noDeadlineDraining: trait({
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: 0,
+      ForceDeadline: '0001-01-01T00:00:00Z',
+      IgnoreSystemJobs: faker.random.boolean(),
+    },
+  }),
+
   drainStrategy: null,
 
   drivers: makeDrivers,
