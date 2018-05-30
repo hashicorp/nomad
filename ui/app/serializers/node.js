@@ -7,6 +7,7 @@ export default ApplicationSerializer.extend({
   config: service(),
 
   attrs: {
+    isDraining: 'Drain',
     httpAddr: 'HTTPAddr',
   },
 

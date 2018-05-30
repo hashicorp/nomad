@@ -1,4 +1,5 @@
 import { computed } from '@ember/object';
+import { equal } from '@ember/object/computed';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
@@ -11,6 +12,7 @@ export default Model.extend({
   name: attr('string'),
   datacenter: attr('string'),
   isDraining: attr('boolean'),
+  schedulingEligibility: attr('string'),
   status: attr('string'),
   statusDescription: attr('string'),
   shortId: shortUUIDProperty('id'),
@@ -23,6 +25,9 @@ export default Model.extend({
   meta: fragment('node-attributes'),
   resources: fragment('resources'),
   reserved: fragment('resources'),
+  drainStrategy: fragment('drain-strategy'),
+
+  isEligible: equal('schedulingEligibility', 'eligible'),
 
   address: computed('httpAddr', function() {
     return ipParts(this.get('httpAddr')).address;
@@ -51,5 +56,11 @@ export default Model.extend({
 
   unhealthyDriverNames: computed('unhealthyDrivers.@each.name', function() {
     return this.get('unhealthyDrivers').mapBy('name');
+  }),
+
+  // A status attribute that includes states not included in node status.
+  // Useful for coloring and sorting nodes
+  compositeStatus: computed('status', 'isEligible', function() {
+    return this.get('isEligible') ? this.get('status') : 'ineligible';
   }),
 });

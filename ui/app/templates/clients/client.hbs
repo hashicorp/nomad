@@ -9,7 +9,7 @@
 {{#gutter-menu class="page-body"}}
   <section class="section">
     <h1 data-test-title class="title">
-      <span data-test-node-status="{{model.status}}" class="node-status-light {{model.status}}"></span>
+      <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
       {{or model.name model.shortId}}
       <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
     </h1>
@@ -24,6 +24,22 @@
         <span class="pair" data-test-address-definition>
           <span class="term">Address</span>
           {{model.httpAddr}}
+        </span>
+        <span class="pair" data-test-draining>
+          <span class="term">Draining</span>
+          {{#if model.isDraining}}
+            <span class="status-text is-info">true</span>
+          {{else}}
+            false
+          {{/if}}
+        </span>
+        <span class="pair" data-test-eligibility>
+          <span class="term">Eligibility</span>
+          {{#if model.isEligible}}
+            {{model.schedulingEligibility}}
+          {{else}}
+            <span class="status-text is-warning">{{model.schedulingEligibility}}</span>
+          {{/if}}
         </span>
         <span class="pair" data-test-datacenter-definition>
           <span class="term">Datacenter</span>
@@ -40,6 +56,35 @@
         </span>
       </div>
     </div>
+
+    {{#if model.drainStrategy}}
+      <div class="boxed-section is-small is-info">
+        <div class="boxed-section-body inline-definitions">
+          <span class="label">Drain Strategy</span>
+          <span class="pair" data-test-drain-deadline>
+            <span class="term">Deadline</span>
+            {{#if model.drainStrategy.isForced}}
+              <span class="badge is-danger">Forced Drain</span>
+            {{else if model.drainStrategy.hasNoDeadline}}
+              No deadline
+            {{else}}
+              {{format-duration model.drainStrategy.deadline}}
+            {{/if}}
+          </span>
+          {{#if model.drainStrategy.forceDeadline}}
+            <span class="pair" data-test-drain-forced-deadline>
+              <span class="term">Forced Deadline</span>
+              {{moment-format model.drainStrategy.forceDeadline "MM/DD/YY HH:mm:ss"}}
+              ({{moment-from-now model.drainStrategy.forceDeadline interval=1000}})
+            </span>
+          {{/if}}
+          <span class="pair" data-test-drain-ignore-system-jobs>
+            <span class="term">Ignore System Jobs?</span>
+            {{if model.drainStrategy.ignoreSystemJobs "Yes" "No"}}
+          </span>
+        </div>
+      </div>
+    {{/if}}
 
     <div class="boxed-section">
       <div class="boxed-section-head">
