@@ -498,9 +498,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 
 	// Construct the node event
 	args.NodeEvent = structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemDrain)
-	if node.DrainStrategy == nil && args.DrainStrategy == nil {
-		return nil // Nothing to do
-	} else if node.DrainStrategy == nil && args.DrainStrategy != nil {
+	if node.DrainStrategy == nil && args.DrainStrategy != nil {
 		args.NodeEvent.SetMessage(NodeDrainEventDrainSet)
 	} else if node.DrainStrategy != nil && args.DrainStrategy != nil {
 		args.NodeEvent.SetMessage(NodeDrainEventDrainUpdated)
