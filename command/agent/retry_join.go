@@ -61,20 +61,20 @@ func (r *retryJoiner) Validate(config *Config) error {
 	// fields and the server_join stanza are not both set
 	if config.Server != nil && config.Server.ServerJoin != nil {
 		if len(config.Server.RetryJoin) != 0 {
-			return fmt.Errorf("server_join and retry_join cannot both be defined; try defining only server_join")
+			return fmt.Errorf("server_join and retry_join cannot both be defined; prefer setting the server_join stanza")
 		}
 		if len(config.Server.StartJoin) != 0 {
-			return fmt.Errorf("server_join and start_join cannot both be defined; try defining only server_join")
+			return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
 		}
 		if config.Server.RetryMaxAttempts != 0 {
-			return fmt.Errorf("server_join and retry_max cannot both be defined; try defining only server_join")
+			return fmt.Errorf("server_join and retry_max cannot both be defined; prefer setting the server_join stanza")
 		}
 		if config.Server.RetryInterval != "30s" {
-			return fmt.Errorf("server_join and retry_interval cannot both be defined; prefer setting the server_join parameter")
+			return fmt.Errorf("server_join and retry_interval cannot both be defined; prefer setting the server_join stanza")
 		}
 
 		if len(config.Server.ServerJoin.RetryJoin) != 0 && len(config.Server.ServerJoin.StartJoin) != 0 {
-			return fmt.Errorf("server_join and start_join cannot both be defined in the same stanza")
+			return fmt.Errorf("retry_join and start_join cannot both be defined")
 		}
 	}
 
