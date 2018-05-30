@@ -105,14 +105,14 @@ type Config struct {
 	// these values for acceptable safe alternatives.
 	CipherSuites []uint16
 
-	// MinVersion contains the minimum SSL/TLS version that is accepted.
-	MinVersion uint16
-
 	// PreferServerCipherSuites controls whether the server selects the
 	// client's most preferred ciphersuite, or the server's most preferred
 	// ciphersuite. If true then the server's preference, as expressed in
 	// the order of elements in CipherSuites, is used.
 	PreferServerCipherSuites bool
+
+	// MinVersion contains the minimum SSL/TLS version that is accepted.
+	MinVersion uint16
 }
 
 func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoing bool) (*Config, error) {
