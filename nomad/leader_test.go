@@ -1115,7 +1115,9 @@ func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
 	require.Nil(t, s1.revokeLeadership())
 }
 
-// Test reconciling a member that's already in the config on a older raft protocol version
+// Test doing an inplace upgrade on a server from raft protocol 2 to 3
+// This verifies that removing the server and adding it back with a uuid works
+// even if the server's address stays the same.
 func TestServer_ReconcileMember(t *testing.T) {
 	// Create a three node cluster
 	t.Parallel()
