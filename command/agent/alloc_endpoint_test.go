@@ -697,7 +697,7 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 			s.server = srv
 		}
 
-		// no client, server resp
+		// client GC from server, should not error
 		{
 			c := s.client
 			s.client = nil
@@ -717,10 +717,7 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientGCRequest(respW, req)
-			require.NotNil(err)
-
-			// The dev agent uses in-mem RPC so just assert the no route error
-			require.Contains(err.Error(), structs.ErrNoNodeConn.Error())
+			require.Nil(err)
 
 			s.client = c
 		}
