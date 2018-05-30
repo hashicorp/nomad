@@ -124,6 +124,9 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 			drainRequest.DrainSpec = &api.DrainSpec{
 				Deadline: -1 * time.Second,
 			}
+		} else {
+			// If drain is disabled on an old client, mark the node as eligible for backwards compatibility
+			drainRequest.MarkEligible = true
 		}
 	} else {
 		if err := decodeBody(req, &drainRequest); err != nil {
