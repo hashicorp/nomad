@@ -86,6 +86,11 @@
 
     &.is-narrow {
       padding: 1.25em 0 1.25em 0.5em;
+
+      & + th,
+      & + td {
+        padding-left: 0.5em;
+      }
     }
 
     // Only use px modifiers when text needs to be truncated.

@@ -1,3 +1,4 @@
+import EmberObject from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { test } from 'ember-qunit';
@@ -10,8 +11,12 @@ moduleForAdapter('job', 'Unit | Adapter | Job', {
     'adapter:job',
     'service:token',
     'service:system',
-    'model:namespace',
+    'model:allocation',
+    'model:deployment',
+    'model:evaluation',
     'model:job-summary',
+    'model:job-version',
+    'model:namespace',
     'adapter:application',
     'service:watchList',
   ],
@@ -289,6 +294,36 @@ test('requests can be canceled even if multiple requests for the same URL were m
 
   return wait().then(() => {
     assert.ok(xhr.aborted, 'Request was aborted');
+  });
+});
+
+test('canceling a find record request will never cancel a request with the same url but different method', function(assert) {
+  const { pretender } = this.server;
+  const jobId = JSON.stringify(['job-1', 'default']);
+
+  pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
+  pretender.delete('/v1/job/:id', () => [204, {}, ''], 200);
+
+  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+    reload: true,
+    adapterOptions: { watch: true },
+  });
+
+  this.subject().stop(EmberObject.create({ id: jobId }));
+
+  const { request: getXHR } = pretender.requestReferences[0];
+  const { request: deleteXHR } = pretender.requestReferences[1];
+  assert.equal(getXHR.status, 0, 'Get request is still pending');
+  assert.equal(deleteXHR.status, 0, 'Delete request is still pending');
+
+  // Schedule the cancelation before waiting
+  run.next(() => {
+    this.subject().cancelFindRecord('job', jobId);
+  });
+
+  return wait().then(() => {
+    assert.ok(getXHR.aborted, 'Get request was aborted');
+    assert.notOk(deleteXHR.aborted, 'Delete request was aborted');
   });
 });
 

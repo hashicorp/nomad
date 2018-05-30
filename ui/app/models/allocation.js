@@ -4,6 +4,7 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
+import intersection from 'npm:lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import AllocationStats from '../utils/classes/allocation-stats';
 
@@ -59,6 +60,17 @@ export default Model.extend({
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
+  }),
+
+  unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
+    const taskGroupUnhealthyDrivers = this.get('taskGroup.drivers');
+    const nodeUnhealthyDrivers = this.get('node.unhealthyDriverNames');
+
+    if (taskGroupUnhealthyDrivers && nodeUnhealthyDrivers) {
+      return intersection(taskGroupUnhealthyDrivers, nodeUnhealthyDrivers);
+    }
+
+    return [];
   }),
 
   fetchStats() {
