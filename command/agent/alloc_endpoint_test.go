@@ -697,7 +697,7 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 			s.server = srv
 		}
 
-		// client GC from server, should not error
+		// client stats from server, should not error
 		{
 			c := s.client
 			s.client = nil
