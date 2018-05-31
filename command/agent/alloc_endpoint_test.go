@@ -435,7 +435,10 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 // snapshotting a valid tar is not returned.
 func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpTest(t, func(c *Config) {
+		// Disable the schedulers
+		c.Server.NumSchedulers = 0
+	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()
 		alloc := mock.Alloc()
