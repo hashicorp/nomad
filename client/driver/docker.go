@@ -234,6 +234,7 @@ type DockerDriverConfig struct {
 	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
 	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
 	CPUHardLimit         bool                `mapstructure:"cpu_hard_limit"`         // Enforce CPU hard limit.
+	PidsLimit            int64               `mapstructure:"pids_limit"`             // Enforce Docker Pids limit
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -736,6 +737,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"cpu_hard_limit": {
 				Type: fields.TypeBool,
 			},
+			"pids_limit": {
+				Type: fields.TypeInt,
+			},
 		},
 	}
 
@@ -1216,6 +1220,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		Binds: binds,
 
 		VolumeDriver: driverConfig.VolumeDriver,
+
+		PidsLimit: driverConfig.PidsLimit,
 	}
 
 	// Calculate CPU Quota
