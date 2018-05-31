@@ -24,6 +24,7 @@ IMPROVEMENTS:
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
  * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
+ * driver/docker: Support Docker pid limits [[GH-4341](https://github.com/hashicorp/nomad/issues/4341)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
    image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
  * env: Default interpolation of optional meta fields of parameterized jobs to
