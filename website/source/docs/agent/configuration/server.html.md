@@ -135,10 +135,10 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
-- `server_join` <code>([server_join](#server-join): nil)</code> - Specifies
-  how the Nomad client will connect to Nomad servers. The retry_join fields may
-  directly specify the server address or use go-discover syntax for
-  auto-discovery. See the documentation for more detail.
+- `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
+  how the Nomad server will connect to other Nomad servers. The `retry_join`
+  fields may directly specify the server address or use go-discover syntax for
+  auto-discovery. See the [server_join documentation][server-join] for more detail.
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
@@ -153,25 +153,25 @@ server {
   succeeds. After one succeeds, no further addresses will be contacted. This is
   useful for cases where we know the address will become available eventually.
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
-  both options**. See the [server_join](#server-join)
+  both options**. See the [server_join][server-join]
   section for more information on the format of the string. This field is
-  deprecated in favor of [server_join](#server-join).
+  deprecated in favor of the [server_join stanza][server-join].
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
-  join attempts. This field is  deprecated in favor of
-  [server_join](#server-join).
+  join attempts. This field is deprecated in favor of the [server_join
+  stanza][server-join].
 
 - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
   made before exiting with a return code of 1. By default, this is set to 0
-  which is interpreted as infinite retries. This field is  deprecated in favor
-  of [server_join](#server-join).
+  which is interpreted as infinite retries. This field is deprecated in favor of
+  the [server_join stanza][server-join].
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
-  addresses, agent startup will fail. See the
-  [server address format](#server-address-format) section for more information
-  on the format of the string. This field is  deprecated in favor of
-  [server_join](#server-join).
+  addresses, agent startup will fail. See the [server address
+  format](/docs/agent/configuration/server_join.html#server-address-format)
+  section for more information on the format of the string. This field is
+  deprecated in favor of the [server_join stanza][server-join].
 
 ## `server` Examples
 
@@ -219,4 +219,4 @@ server {
 ```
 
 [encryption]: /docs/agent/encryption.html "Nomad Agent Encryption"
-[server-join]: /docs/agent/configuration/server_join.html.md "Server Join"
+[server-join]: /docs/agent/configuration/server_join.html "Server Join"

@@ -8,7 +8,9 @@ description: |-
 
 # Cloud Auto-joining
 
-As of Nomad 0.8.4, `retry-join` accepts a unified interface using the
+As of Nomad 0.8.4,
+[`retry_join`](/docs/agent/configuration/server_join.html#retry_join) accepts a
+unified interface using the
 [go-discover](https://github.com/hashicorp/go-discover) library for doing
 automatic cluster joining using cloud metadata. To use retry-join with a
 supported cloud provider, specify the configuration on the command line or
