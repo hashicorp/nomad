@@ -84,9 +84,20 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	if ps.Pid == 0 {
 		t.Fatalf("expected process to start and have non zero pid")
 	}
-	_, err = executor.Wait()
+	state, err = executor.Wait()
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
+	}
+	if state.ExitCode != 0 {
+		t.Error("exited with non-zero code: %v", state.ExitCode)
+
+		// Log the stderr
+		file := filepath.Join(ctx.LogDir, "web.stderr.0")
+		output, err := ioutil.ReadFile(file)
+		if err != nil {
+			t.Fatalf("Couldn't read file %v", file)
+		}
+		t.Fatalf("ls failed with stderr: %q", string(output))
 	}
 
 	// Check if the resource constraints were applied
@@ -135,8 +146,16 @@ ld.so.conf.d/`
 
 	act := strings.TrimSpace(string(output))
 	if act != expected {
-		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
+		t.Errorf("Command output incorrectly: want %v; got %v", expected, act)
 	}
+
+	// Log the stderr
+	file2 := filepath.Join(ctx.LogDir, "web.stderr.0")
+	output, err = ioutil.ReadFile(file2)
+	if err != nil {
+		t.Fatalf("Couldn't read file %v", file2)
+	}
+	t.Fatalf("ls failed with stderr: %q", string(output))
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
