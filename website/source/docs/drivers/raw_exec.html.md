@@ -109,3 +109,10 @@ The `raw_exec` driver will set the following client attributes:
 ## Resource Isolation
 
 The `raw_exec` driver provides no isolation.
+
+If the launched process creates a new process group, it is possible that Nomad
+will leak processes on shutdown unless the application forwards signals
+properly. Nomad will not leak any processes if cgroups are being used to manage
+the process tree. Cgroups are used on Linux when Nomad is being run with
+appropriate priviledges, the cgroup system is mounted and the operator hasn't
+disabled cgroups for the driver.

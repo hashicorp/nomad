@@ -120,7 +120,7 @@ type ExecCommand struct {
 	ResourceLimits bool
 
 	// Cgroup marks whether we put the process in a cgroup. Setting this field
-	// doesn't enforce resource limits. To enforce limits, set ResoruceLimits.
+	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
 	// Using the cgroup does allow more precise cleanup of processes.
 	BasicProcessCgroup bool
 }

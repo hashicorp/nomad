@@ -265,6 +265,9 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
+// This test creates a process tree such that without cgroups tracking the
+// processes cleanup of the children would not be possible. Thus the test
+// asserts that the processes get killed properly when using cgroups.
 func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	tu.ExecCompatible(t)
 	t.Parallel()
