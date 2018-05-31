@@ -43,7 +43,7 @@ const (
 
 	// processOutputCloseTolerance is the length of time we will wait for the
 	// launched process to close its stdout/stderr before we force close it. If
-	// data is writen after this tolerance, we will not capture it.
+	// data is written after this tolerance, we will not capture it.
 	processOutputCloseTolerance = 2 * time.Second
 )
 
