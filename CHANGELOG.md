@@ -26,28 +26,36 @@ IMPROVEMENTS:
  * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
  * driver/docker: Support Docker pid limits [[GH-4341](https://github.com/hashicorp/nomad/issues/4341)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
-   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
+   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)]
  * env: Default interpolation of optional meta fields of parameterized jobs to
    an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
+ * ui: Show node drain, node eligibility, and node drain strategy information in the Client list and Client detail pages [[GH-4353](https://github.com/hashicorp/nomad/issues/4353)]
+ * ui: Show reschedule-event information for allocations that were server-side rescheduled [[GH-4254](https://github.com/hashicorp/nomad/issues/4254)]
+ * ui: Show driver health status and node events on the Client Detail Page [[GH-4294](https://github.com/hashicorp/nomad/issues/4294)]
+ * ui: Fuzzy and tokenized search on the Jobs List Page [[GH-4201](https://github.com/hashicorp/nomad/issues/4201)]
+ * ui: The stop job button looks more dangerous [[GH-4339](https://github.com/hashicorp/nomad/issues/4339)]
 
 BUG FIXES:
  * core: Clean up leaked deployments on restoration [[GH-4329](https://github.com/hashicorp/nomad/issues/4329)]
  * core: Fix bug where older failed allocations of jobs that have been updated to a newer version were
    not being garbage collected [[GH-4313](https://github.com/hashicorp/nomad/issues/4313)]
- * core: Fix bug when upgrading an existing server to Raft protocol 3 that 
+ * core: Fix bug when upgrading an existing server to Raft protocol 3 that
    caused servers to never change their ID in the Raft configuration. [[GH-4349](https://github.com/hashicorp/nomad/issues/4349)]
  * api/client: Fix potentially out of order logs and streamed file contents
    [[GH-4234](https://github.com/hashicorp/nomad/issues/4234)]
  * driver/docker: Fix docker credential helper support [[GH-4266](https://github.com/hashicorp/nomad/issues/4266)]
  * driver/docker: Fix panic when docker client configuration options are invalid [[GH-4303](https://github.com/hashicorp/nomad/issues/4303)]
  * rpc: Fix RPC tunneling when running both client/server on one machine [[GH-4317](https://github.com/hashicorp/nomad/issues/4317)]
+ * ui: Track the method in XHR tracking to prevent errant ACL error dialogs when stopping a job [[GH-4319](https://github.com/hashicorp/nomad/issues/4319)]
+ * ui: Use Polling instead of Streaming for logs in Safari [[GH-4335](https://github.com/hashicorp/nomad/issues/4335)]
+ * ui: Track PlaceCanaries in deployment metrics [[GH-4325](https://github.com/hashicorp/nomad/issues/4325)]
 
 ## 0.8.3 (April 27, 2018)
 
 BUG FIXES:
  * core: Fix panic proxying node connections when the server does not have a
    connection to the node [[GH-4231](https://github.com/hashicorp/nomad/issues/4231)]
- * core: Fix bug with not updating ModifyIndex of allocations after updates to 
+ * core: Fix bug with not updating ModifyIndex of allocations after updates to
    the `NextAllocation` field [[GH-4250](https://github.com/hashicorp/nomad/issues/4250)]
 
 ## 0.8.2 (April 26, 2018)
