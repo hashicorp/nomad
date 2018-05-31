@@ -15,6 +15,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -437,7 +438,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	t.Parallel()
 	httpTest(t, func(c *Config) {
 		// Disable the schedulers
-		c.Server.NumSchedulers = 0
+		c.Server.NumSchedulers = helper.IntToPtr(0)
 	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()

@@ -88,7 +88,7 @@ func TestConfig_Parse(t *testing.T) {
 					DataDir:                "/tmp/data",
 					ProtocolVersion:        3,
 					RaftProtocol:           3,
-					NumSchedulers:          2,
+					NumSchedulers:          helper.IntToPtr(2),
 					EnabledSchedulers:      []string{"test"},
 					NodeGCThreshold:        "12h",
 					EvalGCThreshold:        "12h",

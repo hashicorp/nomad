@@ -144,8 +144,8 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
-	if agentConfig.Server.NumSchedulers != 0 {
-		conf.NumSchedulers = agentConfig.Server.NumSchedulers
+	if agentConfig.Server.NumSchedulers != nil {
+		conf.NumSchedulers = *agentConfig.Server.NumSchedulers
 	}
 	if len(agentConfig.Server.EnabledSchedulers) != 0 {
 		// Convert to a set and require the core scheduler
