@@ -40,6 +40,11 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
+
+	// processOutputCloseTolerance is the length of time we will wait for the
+	// launched process to close its stdout/stderr before we force close it. If
+	// data is writen after this tolerance, we will not capture it.
+	processOutputCloseTolerance = 2 * time.Second
 )
 
 var (
@@ -285,6 +290,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
 	}
+
+	// Close the files. This is copied from the os/exec package.
+	e.lro.processOutWriter.Close()
+	e.lre.processOutWriter.Close()
+
 	go e.collectPids()
 	go e.wait()
 	ic := e.resConCtx.getIsolationConfig()
@@ -832,9 +842,10 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 // log rotator data. The processOutWriter should be attached to the process and
 // data will be copied from the reader to the rotator.
 type logRotatorWrapper struct {
-	processOutWriter *os.File
-	processOutReader *os.File
-	rotatorWriter    *logging.FileRotator
+	processOutWriter  *os.File
+	processOutReader  *os.File
+	rotatorWriter     *logging.FileRotator
+	hasFinishedCopied chan struct{}
 }
 
 // NewLogRotatorWrapper takes a rotator and returns a wrapper that has the
@@ -846,9 +857,10 @@ func NewLogRotatorWrapper(rotator *logging.FileRotator) (*logRotatorWrapper, err
 	}
 
 	wrap := &logRotatorWrapper{
-		processOutWriter: w,
-		processOutReader: r,
-		rotatorWriter:    rotator,
+		processOutWriter:  w,
+		processOutReader:  r,
+		rotatorWriter:     rotator,
+		hasFinishedCopied: make(chan struct{}, 1),
 	}
 	wrap.start()
 	return wrap, nil
@@ -860,6 +872,7 @@ func (l *logRotatorWrapper) start() {
 	go func() {
 		io.Copy(l.rotatorWriter, l.processOutReader)
 		l.processOutReader.Close() // in case io.Copy stopped due to write error
+		close(l.hasFinishedCopied)
 	}()
 	return
 }
@@ -867,6 +880,12 @@ func (l *logRotatorWrapper) start() {
 // Close closes the rotator and the process writer to ensure that the Wait
 // command exits.
 func (l *logRotatorWrapper) Close() error {
+	// Wait up to the close tolerance before we force close
+	select {
+	case <-l.hasFinishedCopied:
+	case <-time.After(processOutputCloseTolerance):
+	}
+	err := l.processOutReader.Close()
 	l.rotatorWriter.Close()
-	return l.processOutWriter.Close()
+	return err
 }
