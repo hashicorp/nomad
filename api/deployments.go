@@ -137,12 +137,12 @@ type Deployment struct {
 	// JobVersion is the version of the job at which the deployment is tracking
 	JobVersion uint64
 
-	// JobModifyIndex is the modify index of the job at which the deployment is
-	// tracking. This is the ModifyIndex field on the job.
+	// JobModifyIndex is the ModifyIndex of the job which the deployment is
+	// tracking.
 	JobModifyIndex uint64
 
-	// JobSpecModifyIndex is the modify index of the job spec at which the
-	// deployment is tracking. This is the JobModifyIndex field on the job.
+	// JobSpecModifyIndex is the JobModifyIndex of the job which the
+	// deployment is tracking.
 	JobSpecModifyIndex uint64
 
 	// JobCreateIndex is the create index of the job which the deployment is
