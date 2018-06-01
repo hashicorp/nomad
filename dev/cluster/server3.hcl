@@ -10,7 +10,9 @@ name = "server3"
 server {
   enabled = true
 
-  retry_join = ["127.0.0.1:4648", "127.0.0.1:5648"]
+  server_join {
+    retry_join = ["127.0.0.1:4648", "127.0.0.1:5648"]
+  }
 
   # Self-elect, should be 3 or 5 for production
   bootstrap_expect = 3
