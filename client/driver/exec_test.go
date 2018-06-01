@@ -41,7 +41,7 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 	}
 
 	if response.Detected {
-		t.Fatalf("expected response to be applicable")
+		t.Fatalf("Should not be detected on non-linux platforms")
 	}
 }
 
