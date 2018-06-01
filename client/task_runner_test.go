@@ -143,7 +143,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := consul.NewMockAgent()
-	serviceClient := consul.NewServiceClient(cclient, logger)
+	serviceClient := consul.NewServiceClient(cclient, logger, true)
 	go serviceClient.Run()
 	tr := NewTaskRunner(logger, conf, db, upd.Update, taskDir, alloc, task, vclient, serviceClient)
 	if !restarts {
@@ -1860,7 +1860,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	// backed by a mock consul whose checks are always unhealthy.
 	consulAgent := consul.NewMockAgent()
 	consulAgent.SetStatus("critical")
-	consulClient := consul.NewServiceClient(consulAgent, ctx.tr.logger)
+	consulClient := consul.NewServiceClient(consulAgent, ctx.tr.logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 

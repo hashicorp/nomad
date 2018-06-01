@@ -142,7 +142,7 @@ func TestConsul_Integration(t *testing.T) {
 	consulClient, err := consulapi.NewClient(consulConfig)
 	assert.Nil(err)
 
-	serviceClient := consul.NewServiceClient(consulClient.Agent(), logger)
+	serviceClient := consul.NewServiceClient(consulClient.Agent(), logger, true)
 	defer serviceClient.Shutdown() // just-in-case cleanup
 	consulRan := make(chan struct{})
 	go func() {

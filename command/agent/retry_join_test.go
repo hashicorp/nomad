@@ -60,7 +60,7 @@ func TestRetryJoin_Integration(t *testing.T) {
 		t.Fatalf("handleRetryJoin failed: %v", err)
 	}
 
-	// Ensure the retry join occured.
+	// Ensure the retry join occurred.
 	testutil.WaitForResult(func() (bool, error) {
 		mem := agent.server.Members()
 		if len(mem) != 2 {
