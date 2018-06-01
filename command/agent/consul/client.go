@@ -233,14 +233,16 @@ type ServiceClient struct {
 	// checkWatcher restarts checks that are unhealthy.
 	checkWatcher *checkWatcher
 
-	// agentRoleLock guards state about whether this agent is a client
-	agentRoleLock sync.Mutex
+	// isClientAgent specifies whether this Consul client is being used
+	// by a Nomad client.
 	isClientAgent bool
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
-// Client and logger.
-func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient {
+// Client, logger and takes whether the client is being used by a Nomad Client agent.
+// When being used by a Nomad client, this Consul client reconciles all services and
+// checks created by Nomad on behalf of running tasks.
+func NewServiceClient(consulClient AgentAPI, logger *log.Logger, isNomadClient bool) *ServiceClient {
 	return &ServiceClient{
 		client:             consulClient,
 		logger:             logger,
@@ -259,6 +261,7 @@ func NewServiceClient(consulClient AgentAPI, logger *log.Logger) *ServiceClient 
 		agentServices:      make(map[string]struct{}),
 		agentChecks:        make(map[string]struct{}),
 		checkWatcher:       newCheckWatcher(logger, consulClient),
+		isClientAgent:      isNomadClient,
 	}
 }
 
@@ -437,7 +440,12 @@ func (c *ServiceClient) sync() error {
 			// Known service, skip
 			continue
 		}
-		if !isNomadService(id) || !c.IsClient() {
+
+		// Ignore if this is not a Nomad managed service. Also ignore
+		// Nomad managed services if this is not a client agent.
+		// This is to prevent server agents from removing services
+		// registered by client agents
+		if !isNomadService(id) || !c.isClientAgent {
 			// Not managed by Nomad, skip
 			continue
 		}
@@ -474,7 +482,12 @@ func (c *ServiceClient) sync() error {
 			// Known check, leave it
 			continue
 		}
-		if !isNomadService(check.ServiceID) || !c.IsClient() {
+
+		// Ignore if this is not a Nomad managed check. Also ignore
+		// Nomad managed checks if this is not a client agent.
+		// This is to prevent server agents from removing checks
+		// registered by client agents
+		if !isNomadService(check.ServiceID) || !c.isClientAgent {
 			// Service not managed by Nomad, skip
 			continue
 		}
@@ -523,12 +536,6 @@ func (c *ServiceClient) sync() error {
 	return nil
 }
 
-func (c *ServiceClient) IsClient() bool {
-	c.agentRoleLock.Lock()
-	defer c.agentRoleLock.Unlock()
-	return c.isClientAgent
-}
-
 // RegisterAgent registers Nomad agents (client or server). The
 // Service.PortLabel should be a literal port to be parsed with SplitHostPort.
 // Script checks are not supported and will return an error. Registration is
@@ -537,12 +544,6 @@ func (c *ServiceClient) IsClient() bool {
 // Agents will be deregistered when Shutdown is called.
 func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) error {
 	ops := operations{}
-
-	if role == "client" {
-		c.agentRoleLock.Lock()
-		c.isClientAgent = true
-		c.agentRoleLock.Unlock()
-	}
 
 	for _, service := range services {
 		id := makeAgentServiceID(role, service)
