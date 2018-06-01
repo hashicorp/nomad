@@ -9,6 +9,10 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
+const (
+	cgroupAvailable = "available"
+)
+
 // FindCgroupMountpointDir is used to find the cgroup mount point on a Linux
 // system.
 func FindCgroupMountpointDir() (string, error) {
