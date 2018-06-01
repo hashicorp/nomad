@@ -349,9 +349,15 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if err := process.Signal(syscall.Signal(0)); err == nil {
-		t.Fatalf("process should not exist: %v", pid)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		if err := process.Signal(syscall.Signal(0)); err == nil {
+			return false, fmt.Errorf("process should not exist: %v", pid)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestRawExecDriver_HandlerExec(t *testing.T) {
