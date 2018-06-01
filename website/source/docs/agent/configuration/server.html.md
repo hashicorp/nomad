@@ -28,7 +28,11 @@ join failures, and more.
 server {
   enabled          = true
   bootstrap_expect = 3
-  retry_join       = ["1.2.3.4", "5.6.7.8"]
+  server_join {
+    retry_join = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max = 3
+    retry_interval = "15s"
+  }
 }
 ```
 
@@ -102,9 +106,9 @@ server {
   second is a tradeoff as it lowers failure detection time of nodes at the
   tradeoff of false positives and increased load on the leader.
 
-- `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether 
-  this server will act as a non-voting member of the cluster to help provide 
-  read scalability. 
+- `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
+  this server will act as a non-voting member of the cluster to help provide
+  read scalability.
 
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to
@@ -131,6 +135,17 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
+- `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
+  how the Nomad server will connect to other Nomad servers. The `retry_join`
+  fields may directly specify the server address or use go-discover syntax for
+  auto-discovery. See the [server_join documentation][server-join] for more detail.
+
+- `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
+  in place of the Nomad version when custom upgrades are enabled in Autopilot.
+  For more information, see the [Autopilot Guide](/guides/cluster/autopilot.html).
+
+### Deprecated Parameters
+
 - `retry_join` `(array<string>: [])` - Specifies a list of server addresses to
   retry joining if the first attempt fails. This is similar to
   [`start_join`](#start_join), but only invokes if the initial join attempt
@@ -138,63 +153,25 @@ server {
   succeeds. After one succeeds, no further addresses will be contacted. This is
   useful for cases where we know the address will become available eventually.
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
-  both options**. See the [server address format](#server-address-format)
-  section for more information on the format of the string.
+  both options**. See the [server_join][server-join]
+  section for more information on the format of the string. This field is
+  deprecated in favor of the [server_join stanza][server-join].
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
-  join attempts.
+  join attempts. This field is deprecated in favor of the [server_join
+  stanza][server-join].
 
 - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
   made before exiting with a return code of 1. By default, this is set to 0
-  which is interpreted as infinite retries.
+  which is interpreted as infinite retries. This field is deprecated in favor of
+  the [server_join stanza][server-join].
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
-  addresses, agent startup will fail. See the
-  [server address format](#server-address-format) section for more information
-  on the format of the string.
-
-- `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
-  in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](/guides/cluster/autopilot.html).
-
-### Server Address Format
-
-This section describes the acceptable syntax and format for describing the
-location of a Nomad server. There are many ways to reference a Nomad server,
-including directly by IP address and resolving through DNS.
-
-#### Directly via IP Address
-
-It is possible to address another Nomad server using its IP address. This is
-done in the `ip:port` format, such as:
-
-```
-1.2.3.4:5678
-```
-
-If the port option is omitted, it defaults to the Serf port, which is 4648
-unless configured otherwise:
-
-```
-1.2.3.4 => 1.2.3.4:4648
-```
-
-#### Via Domains or DNS
-
-It is possible to address another Nomad server using its DNS address. This is
-done in the `address:port` format, such as:
-
-```
-nomad-01.company.local:5678
-```
-
-If the port option is omitted, it defaults to the Serf port, which is 4648
-unless configured otherwise:
-
-```
-nomad-01.company.local => nomad-01.company.local:4648
-```
+  addresses, agent startup will fail. See the [server address
+  format](/docs/agent/configuration/server_join.html#server-address-format)
+  section for more information on the format of the string. This field is
+  deprecated in favor of the [server_join stanza][server-join].
 
 ## `server` Examples
 
@@ -242,3 +219,4 @@ server {
 ```
 
 [encryption]: /docs/agent/encryption.html "Nomad Agent Encryption"
+[server-join]: /docs/agent/configuration/server_join.html "Server Join"

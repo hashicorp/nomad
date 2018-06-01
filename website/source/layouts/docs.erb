@@ -396,6 +396,9 @@
         <a href="/docs/agent/index.html">Nomad Agent</a>
 
         <ul class="nav">
+          <li <%= sidebar_current("docs-agent-cloud-auto-join") %>>
+            <a href="/docs/agent/cloud_auto_join.html">Cloud Auto-join</a>
+          </li>
           <li<%= sidebar_current("docs-agent-configuration") %>>
             <a href="/docs/agent/configuration/index.html">Configuration</a>
             <ul class="nav">
@@ -417,6 +420,9 @@
               <li <%= sidebar_current("docs-agent-configuration-server") %>>
                 <a href="/docs/agent/configuration/server.html">server</a>
               </li>
+              <li <%= sidebar_current("docs-agent-configuration--server-join") %>>
+                <a href="/docs/agent/configuration/server_join.html">server_join</a>
+              </li>
               <li <%= sidebar_current("docs-agent-configuration-telemetry") %>>
                 <a href="/docs/agent/configuration/telemetry.html">telemetry</a>
               </li>
@@ -428,6 +434,7 @@
               </li>
             </ul>
           </li>
+
           <li<%= sidebar_current("docs-agent-encryption") %>>
             <a href="/docs/agent/encryption.html">Encryption</a>
           </li>
