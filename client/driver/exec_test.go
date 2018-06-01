@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,30 @@ import (
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
+
+// Test that we do not enable exec on non-linux machines
+func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if runtime.GOOS == "linux" {
+		t.Skip("Test only available not on Linux")
+	}
+
+	d := NewExecDriver(&DriverContext{})
+	node := &structs.Node{}
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if response.Detected {
+		t.Fatalf("expected response to be applicable")
+	}
+}
 
 func TestExecDriver_Fingerprint(t *testing.T) {
 	if !testutil.IsTravis() {
