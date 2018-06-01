@@ -763,6 +763,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	task2, _, _ := dockerTask(t)
 	task2.Config["image"] = "busybox:musl"
 	task2.Config["load"] = "busybox_musl.tar"
+	task2.Config["args"] = []string{"-l", "-p", "0"}
 
 	task3, _, _ := dockerTask(t)
 	task3.Config["image"] = "busybox:glibc"
@@ -773,6 +774,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	handles := make([]DriverHandle, len(taskList))
 
 	t.Logf("Starting %d tasks", len(taskList))
+	client := newTestDockerClient(t)
 
 	// Let's spin up a bunch of things
 	for idx, task := range taskList {
@@ -794,6 +796,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 			continue
 		}
 		handles[idx] = resp.Handle
+		waitForExist(t, client, resp.Handle.(*DockerHandle))
 	}
 
 	t.Log("All tasks are started. Terminating...")

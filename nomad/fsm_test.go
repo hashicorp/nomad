@@ -2570,6 +2570,12 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	state := fsm.State()
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
+
+	j := mock.Job()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+
+	state.UpsertJob(999, j)
 	state.UpsertDeployment(1000, d1)
 	state.UpsertDeployment(1001, d2)
 
