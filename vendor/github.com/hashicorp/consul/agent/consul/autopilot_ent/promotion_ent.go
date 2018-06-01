@@ -150,8 +150,10 @@ func (a *AdvancedPromoter) PromoteNonVoters(conf *autopilot.Config, health autop
 			}
 
 			// If this server's version doesn't match desiredVersion, don't promote it
-			if !conf.DisableUpgradeMigration && !server.version.Equal(migrationInfo.desiredVersion) {
-				continue
+			if !conf.DisableUpgradeMigration {
+				if migrationInfo.desiredVersion != nil && !server.version.Equal(migrationInfo.desiredVersion) {
+					continue
+				}
 			}
 
 			// If stable and not a designated non-voter, add it to the eligible list
