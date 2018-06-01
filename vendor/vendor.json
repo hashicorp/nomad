@@ -181,8 +181,6 @@
 		{"path":"github.com/hashicorp/net-rpc-msgpackrpc","revision":"a14192a58a694c123d8fe5481d4a4727d6ae82f3"},
 		{"path":"github.com/hashicorp/raft","checksumSHA1":"zkA9uvbj1BdlveyqXpVTh1N6ers=","revision":"077966dbc90f342107eb723ec52fdb0463ec789b","revisionTime":"2018-01-17T20:29:25Z","version":"master","versionExact":"master"},
 		{"path":"github.com/hashicorp/raft-boltdb","checksumSHA1":"QAxukkv54/iIvLfsUP6IK4R0m/A=","revision":"d1e82c1ec3f15ee991f7cc7ffd5b67ff6f5bbaee","revisionTime":"2015-02-01T20:08:39Z"},
-		{"path":"github.com/hashicorp/scada-client","checksumSHA1":"u9qHbpIgMZ7/fjO0gFfds2m/1ck=","revision":"6e896784f66f82cdc6f17e00052db91699dc277d","revisionTime":"2016-06-01T22:40:23Z"},
-		{"path":"github.com/hashicorp/scada-client/scada","checksumSHA1":"fv3nX1vDZViW0tA7Aa5Va2lBUtM=","revision":"6e896784f66f82cdc6f17e00052db91699dc277d","revisionTime":"2016-06-01T22:40:23Z"},
 		{"path":"github.com/hashicorp/sentinel-sdk","checksumSHA1":"1+L6zlGQ8kIzk6PmUtNxKCtHHs0=","revision":"d579c0961f4412083bc45b103cb0947b0aa641b4","revisionTime":"2017-08-30T01:44:40Z"},
 		{"path":"github.com/hashicorp/sentinel-sdk/encoding","checksumSHA1":"zX4SBUNXzdaj2eWTf1JWNguG9Co=","revision":"d579c0961f4412083bc45b103cb0947b0aa641b4","revisionTime":"2017-08-30T01:44:40Z"},
 		{"path":"github.com/hashicorp/sentinel-sdk/framework","checksumSHA1":"ERuiHEoZqa47FzKRwzgeiGYt6bI=","revision":"d579c0961f4412083bc45b103cb0947b0aa641b4","revisionTime":"2017-08-30T01:44:40Z"},
