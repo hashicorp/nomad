@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	cgroupAvailable   = "available"
 	cgroupUnavailable = "unavailable"
 	interval          = 15
 )
