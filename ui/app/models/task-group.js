@@ -14,6 +14,12 @@ export default Fragment.extend({
 
   tasks: fragmentArray('task'),
 
+  drivers: computed('tasks.@each.driver', function() {
+    return this.get('tasks')
+      .mapBy('driver')
+      .uniq();
+  }),
+
   allocations: computed('job.allocations.@each.taskGroup', function() {
     return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.get('name'));
   }),

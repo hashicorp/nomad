@@ -383,6 +383,11 @@ The `Task` object supports the following keys:
      - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
 
+     - `CanaryTags`: A list of string tags associated with this Service while it
+       is a canary. Once the canary is promoted, the registered tags will be
+       updated to the set defined in the `Tags` field. String interpolation is
+       supported in tags.
+
      - `PortLabel`: `PortLabel` is an optional string and is used to associate
        a port with the service.  If specified, the port label must match one
        defined in the resources block.  This could be a label of either a
@@ -620,12 +625,19 @@ determined. The potential values are:
 
 - `MinHealthyTime` - Specifies the minimum time the allocation must be in the
   healthy state before it is marked as healthy and unblocks further allocations
-  from being updated. This is specified using a label suffix like "30s" or
-  "15m".
+  from being updated.
 
 - `HealthyDeadline` - Specifies the deadline in which the allocation must be
   marked as healthy after which the allocation is automatically transitioned to
-  unhealthy. This is specified using a label suffix like "2m" or "1h".
+  unhealthy.
+
+- `ProgressDeadline` - Specifies the deadline in which an allocation must be
+  marked as healthy. The deadline begins when the first allocation for the
+  deployment is created and is reset whenever an allocation as part of the
+  deployment transitions to a healthy state. If no allocation transitions to the
+  healthy state before the progress deadline, the deployment is marked as
+  failed. If the `progress_deadline` is set to `0`, the first allocation to be
+  marked as unhealthy causes the deployment to fail.
 
 - `AutoRevert` - Specifies if the job should auto-revert to the last stable job
   on deployment failure. A job is marked as stable if all the allocations as
@@ -638,7 +650,7 @@ determined. The potential values are:
   allocations at a rate of `max_parallel`.
 
 - `Stagger` - Specifies the delay between migrating allocations off nodes marked
-  for draining. This is specified using a label suffix like "30s" or "1h".
+  for draining.
 
 An example `Update` block:
 
@@ -697,7 +709,7 @@ The `Constraint` object supports the following keys:
         Placing the constraint at both the job level and at the task group level is
         redundant since when placed at the job level, the constraint will be applied
         to all task groups. When specified, `LTarget` should be the property
-        that should be distinct and and `RTarget` should be omitted.
+        that should be distinct and `RTarget` should be omitted.
 
   - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.

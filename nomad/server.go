@@ -273,7 +273,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	}
 
 	// Configure TLS
-	tlsConf := config.tlsConfig()
+	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
+	if err != nil {
+		return nil, err
+	}
 	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		return nil, err
@@ -450,7 +453,12 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		return fmt.Errorf("can't reload uninitialized RPC listener")
 	}
 
-	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
+	tlsConf, err := tlsutil.NewTLSConfiguration(newTLSConfig, true, true)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: unable to create TLS configuration %s", err)
+		return err
+	}
+
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)
@@ -893,7 +901,7 @@ func (s *Server) setupDeploymentWatcher() error {
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
 		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.CrossDeploymentEvalBatchDuration)
+		deploymentwatcher.CrossDeploymentUpdateBatchDuration)
 
 	return nil
 }
@@ -1245,6 +1253,10 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	}
 	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = true
+	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
+	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
+	// allow for convergence in 99.9% of nodes in a 10 node cluster
+	conf.LeavePropagateDelay = 1 * time.Second
 	conf.Merge = &serfMergeDelegate{}
 
 	// Until Nomad supports this fully, we disable automatic resolution.

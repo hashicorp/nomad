@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
@@ -508,6 +509,56 @@ func TestClientEndpoint_UpdateStatus_Vault(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_UpdateStatus_HeartbeatRecovery(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Check that we have no client connections
+	require.Empty(s1.connectedNodes())
+
+	// Create the register request but make the node down
+	node := mock.Node()
+	node.Status = structs.NodeStatusDown
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the status
+	dereg := &structs.NodeUpdateStatusRequest{
+		NodeID:       node.ID,
+		Status:       structs.NodeStatusInit,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeUpdateResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for heartbeat interval
+	ttl := resp2.HeartbeatTTL
+	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
+		t.Fatalf("bad: %#v", ttl)
+	}
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.EqualValues(resp2.Index, out.ModifyIndex)
+	require.Len(out.Events, 2)
+	require.Equal(NodeHeartbeatEventReregistered, out.Events[1].Message)
+}
+
 func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)
@@ -845,6 +896,8 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(out.Drain)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
+	require.Len(out.Events, 2)
+	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
 
 	// before+deadline should be before the forced deadline
 	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
@@ -1093,6 +1146,8 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 	out, err := state.NodeByID(nil, node.ID)
 	require.Nil(err)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	require.Len(out.Events, 2)
+	require.Equal(NodeEligibilityEventIneligible, out.Events[1].Message)
 
 	// Register a system job
 	job := mock.SystemJob()
@@ -1105,6 +1160,11 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 	require.NotZero(resp3.Index)
 	require.NotZero(resp3.EvalCreateIndex)
 	require.Len(resp3.EvalIDs, 1)
+
+	out, err = state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Len(out.Events, 3)
+	require.Equal(NodeEligibilityEventEligible, out.Events[2].Message)
 }
 
 func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
@@ -1213,7 +1273,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 	if len(resp2.Node.Events) != 1 {
 		t.Fatalf("Did not set node events: %#v", resp2.Node)
 	}
-	if resp2.Node.Events[0].Message != "Node Registered" {
+	if resp2.Node.Events[0].Message != state.NodeRegisterEventRegistered {
 		t.Fatalf("Did not set node register event correctly: %#v", resp2.Node)
 	}
 
@@ -2587,7 +2647,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 				Deadline: 10 * time.Second,
 			},
 		}
-		errCh <- state.UpdateNodeDrain(3, node.ID, s, false)
+		errCh <- state.UpdateNodeDrain(3, node.ID, s, false, nil)
 	})
 
 	req.MinQueryIndex = 2
@@ -2613,7 +2673,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node status update triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown)
+		errCh <- state.UpdateNodeStatus(40, node.ID, structs.NodeStatusDown, nil)
 	})
 
 	req.MinQueryIndex = 38

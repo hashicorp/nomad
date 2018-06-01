@@ -31,6 +31,9 @@ func (s *Server) getNodeConn(nodeID string) (*nodeConnState, bool) {
 	s.nodeConnsLock.RLock()
 	defer s.nodeConnsLock.RUnlock()
 	conns, ok := s.nodeConns[nodeID]
+	if !ok {
+		return nil, false
+	}
 
 	// Return the latest conn
 	var state *nodeConnState

@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import moment from 'moment';
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, pickOne } from '../utils';
 
@@ -53,6 +54,63 @@ export default Factory.extend({
       );
 
       allocation.update({ taskResourcesIds: resources.mapBy('id') });
+    },
+  }),
+
+  rescheduleAttempts: 0,
+  rescheduleSuccess: false,
+
+  rescheduled: trait({
+    // Create another allocation carrying the events of this as well as the reschduleSuccess state.
+    // Pass along rescheduleAttempts after decrementing.
+    // After rescheduleAttempts hits zero, a final allocation is made with no nextAllocation and
+    // a clientStatus of failed or running, depending on rescheduleSuccess
+    afterCreate(allocation, server) {
+      const attempts = allocation.rescheduleAttempts - 1;
+      const previousEvents =
+        (allocation.rescheduleTracker && allocation.rescheduleTracker.Events) || [];
+
+      let rescheduleTime;
+      if (previousEvents.length) {
+        const lastEvent = previousEvents[previousEvents.length - 1];
+        rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(5, 'minutes');
+      } else {
+        rescheduleTime = faker.date.past(2 / 365, REF_TIME);
+      }
+
+      rescheduleTime *= 1000000;
+
+      const rescheduleTracker = {
+        Events: previousEvents.concat([
+          {
+            PrevAllocID: allocation.id,
+            PrevNodeID: null, //allocation.node.id,
+            RescheduleTime: rescheduleTime,
+          },
+        ]),
+      };
+
+      let nextAllocation;
+      if (attempts > 0) {
+        nextAllocation = server.create('allocation', 'rescheduled', {
+          rescheduleAttempts: Math.max(attempts, 0),
+          rescheduleSuccess: allocation.rescheduleSuccess,
+          previousAllocation: allocation.id,
+          clientStatus: 'failed',
+          rescheduleTracker,
+          followupEvalId: server.create('evaluation', {
+            waitUntil: rescheduleTime,
+          }).id,
+        });
+      } else {
+        nextAllocation = server.create('allocation', {
+          previousAllocation: allocation.id,
+          clientStatus: allocation.rescheduleSuccess ? 'running' : 'failed',
+          rescheduleTracker,
+        });
+      }
+
+      allocation.update({ nextAllocation: nextAllocation.id, clientStatus: 'failed' });
     },
   }),
 

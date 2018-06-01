@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 // This test checks, that even if the frame size has not been hit, a flush will
@@ -132,8 +133,8 @@ func TestStreamFramer_Batch(t *testing.T) {
 		t.Fatalf("exit channel should close")
 	}
 
-	if _, ok := <-frames; ok {
-		t.Fatal("out channel should be closed")
+	if f, ok := <-frames; ok {
+		t.Fatalf("out channel should be closed. recv: %s", pretty.Sprint(f))
 	}
 }
 

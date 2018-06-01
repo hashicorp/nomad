@@ -1361,7 +1361,9 @@ $ curl \
 ## Create Job Evaluation
 
 This endpoint creates a new evaluation for the given job. This can be used to
-force run the scheduling logic if necessary.
+force run the scheduling logic if necessary. Since Nomad 0.8.4, this endpoint
+supports a JSON payload with additional options. Support for calling this end point
+without a JSON payload will be removed in Nomad 0.9.
 
 | Method  | Path                       | Produces                   |
 | ------- | -------------------------- | -------------------------- |
@@ -1380,11 +1382,30 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
+- `JobID` `(string: <required>)` - Specify the ID of the job in the JSON payload
+
+- `EvalOptions` `(<optional>)` - Specify additional options to be used during the forced evaluation.
+    - `ForceReschedule` `(bool: false)` - If set, failed allocations of the job are rescheduled
+    immediately. This is useful for operators to force immediate placement even if the failed allocations are past
+    their reschedule limit, or are delayed by several hours because the allocation's reschedule policy has exponential delay.
+
+### Sample Payload
+
+```json
+{
+  "JobID": "my-job",
+  "EvalOptions": {
+     "ForceReschedule":true
+  }
+}
+```
+
 ### Sample Request
 
 ```text
 $ curl \
     --request POST \
+    -d @sample.json \
     https://localhost:4646/v1/job/my-job/evaluate
 ```
 

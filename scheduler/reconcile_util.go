@@ -234,7 +234,7 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 // untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
 // at a future time are also returned so that we can create follow up evaluations for them. Allocs are
 // skipped or considered untainted according to logic defined in shouldFilter method.
-func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
+func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string, deployment *structs.Deployment) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
 	untainted = make(map[string]*structs.Allocation)
 	rescheduleNow = make(map[string]*structs.Allocation)
 
@@ -257,7 +257,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 
 		// Only failed allocs with desired state run get to this point
 		// If the failed alloc is not eligible for rescheduling now we add it to the untainted set
-		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID)
+		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment)
 		if !eligibleNow {
 			untainted[alloc.ID] = alloc
 			if eligibleLater {
@@ -320,9 +320,20 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 
 // updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
 // should be rescheduled now, later or left in the untainted set
-func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
-	rescheduleTime, eligible := alloc.NextRescheduleTime()
+func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
+	// if it has been marked eligible
+	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+		return
+	}
+
+	// Check if the allocation is marked as it should be force rescheduled
+	if alloc.DesiredTransition.ShouldForceReschedule() {
+		rescheduleNow = true
+	}
+
 	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
+	rescheduleTime, eligible := alloc.NextRescheduleTime()
 	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
 		rescheduleNow = true
 		return
@@ -470,7 +481,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 	// First select indexes from the allocations that are undergoing destructive
 	// updates. This way we avoid duplicate names as they will get replaced.
 	dmap := bitmapFrom(destructive, uint(a.count))
-	var remainder uint
+	remainder := n
 	for _, idx := range dmap.IndexesInRange(true, uint(0), uint(a.count)-1) {
 		name := structs.AllocName(a.job, a.taskGroup, uint(idx))
 		if _, used := existingNames[name]; !used {
@@ -478,7 +489,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 			a.b.Set(uint(idx))
 
 			// If we have enough, return
-			remainder := n - uint(len(next))
+			remainder = n - uint(len(next))
 			if remainder == 0 {
 				return next
 			}
@@ -500,21 +511,15 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 		}
 	}
 
-	// We have exhausted the preferred and free set, now just pick overlapping
-	// indexes
-	var i uint
-	for i = 0; i < remainder; i++ {
+	// We have exhausted the preferred and free set. Pick starting from n to
+	// n+remainder, to avoid overlapping where possible. An example is the
+	// desired count is 3 and we want 5 canaries. The first 3 canaries can use
+	// index [0, 1, 2] but after that we prefer picking indexes [4, 5] so that
+	// we do not overlap. Once the canaries are promoted, these would be the
+	// allocations that would be shut down as well.
+	for i := uint(a.count); i < uint(a.count)+remainder; i++ {
 		name := structs.AllocName(a.job, a.taskGroup, i)
-		if _, used := existingNames[name]; !used {
-			next = append(next, name)
-			a.b.Set(i)
-
-			// If we have enough, return
-			remainder = n - uint(len(next))
-			if remainder == 0 {
-				return next
-			}
-		}
+		next = append(next, name)
 	}
 
 	return next

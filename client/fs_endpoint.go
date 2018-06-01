@@ -253,7 +253,8 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	go func() {
 		for {
 			if _, err := conn.Read(nil); err != nil {
-				if err == io.EOF {
+				if err == io.EOF || err == io.ErrClosedPipe {
+					// One end of the pipe was explicitly closed, exit cleanly
 					cancel()
 					return
 				}
@@ -294,6 +295,7 @@ OUTER:
 				streamErr = err
 				break OUTER
 			}
+			encoder.Reset(conn)
 		case <-ctx.Done():
 			break OUTER
 		}
@@ -405,8 +407,6 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
-	var buf bytes.Buffer
-	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
 
 	// Start streaming
 	go func() {
@@ -423,20 +423,23 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	go func() {
 		for {
 			if _, err := conn.Read(nil); err != nil {
-				if err == io.EOF {
+				if err == io.EOF || err == io.ErrClosedPipe {
+					// One end of the pipe was explicitly closed, exit cleanly
 					cancel()
 					return
 				}
 				select {
 				case errCh <- err:
 				case <-ctx.Done():
-					return
 				}
+				return
 			}
 		}
 	}()
 
 	var streamErr error
+	buf := new(bytes.Buffer)
+	frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
 OUTER:
 	for {
 		select {
@@ -455,6 +458,7 @@ OUTER:
 					streamErr = err
 					break OUTER
 				}
+				frameCodec.Reset(buf)
 
 				resp.Payload = buf.Bytes()
 				buf.Reset()
@@ -464,6 +468,7 @@ OUTER:
 				streamErr = err
 				break OUTER
 			}
+			encoder.Reset(conn)
 		}
 	}
 
@@ -576,12 +581,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 		// #3342
 		select {
 		case <-framer.ExitCh():
-			err := parseFramerErr(framer.Err())
-			if err == syscall.EPIPE {
-				// EPIPE just means the connection was closed
-				return nil
-			}
-			return err
+			return nil
 		default:
 		}
 
@@ -705,7 +705,7 @@ OUTER:
 				lastEvent = truncateEvent
 				continue OUTER
 			case <-framer.ExitCh():
-				return parseFramerErr(framer.Err())
+				return nil
 			case <-ctx.Done():
 				return nil
 			case err, ok := <-eofCancelCh:

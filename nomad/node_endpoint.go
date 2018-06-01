@@ -27,6 +27,23 @@ const (
 	// maxParallelRequestsPerDerive  is the maximum number of parallel Vault
 	// create token requests that may be outstanding per derive request
 	maxParallelRequestsPerDerive = 16
+
+	// NodeDrainEvents are the various drain messages
+	NodeDrainEventDrainSet      = "Node drain strategy set"
+	NodeDrainEventDrainDisabled = "Node drain disabled"
+	NodeDrainEventDrainUpdated  = "Node drain stategy updated"
+
+	// NodeEligibilityEventEligible is used when the nodes eligiblity is marked
+	// eligible
+	NodeEligibilityEventEligible = "Node marked as eligible for scheduling"
+
+	// NodeEligibilityEventIneligible is used when the nodes eligiblity is marked
+	// ineligible
+	NodeEligibilityEventIneligible = "Node marked as ineligible for scheduling"
+
+	// NodeHeartbeatEventReregistered is the message used when the node becomes
+	// reregistered by the heartbeat.
+	NodeHeartbeatEventReregistered = "Node reregistered by heartbeat"
 )
 
 // Node endpoint is used for client interactions
@@ -354,6 +371,14 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// Commit this update via Raft
 	var index uint64
 	if node.Status != args.Status {
+		// Attach an event if we are updating the node status to ready when it
+		// is down via a heartbeat
+		if node.Status == structs.NodeStatusDown && args.NodeEvent == nil {
+			args.NodeEvent = structs.NewNodeEvent().
+				SetSubsystem(structs.NodeEventSubsystemCluster).
+				SetMessage(NodeHeartbeatEventReregistered)
+		}
+
 		_, index, err = n.srv.raftApply(structs.NodeUpdateStatusRequestType, args)
 		if err != nil {
 			n.srv.logger.Printf("[ERR] nomad.client: status update failed: %v", err)
@@ -439,6 +464,9 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for drain update")
 	}
+	if args.NodeEvent != nil {
+		return fmt.Errorf("node event must not be set")
+	}
 
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()
@@ -468,6 +496,16 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline)
 	}
 
+	// Construct the node event
+	args.NodeEvent = structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemDrain)
+	if node.DrainStrategy == nil && args.DrainStrategy != nil {
+		args.NodeEvent.SetMessage(NodeDrainEventDrainSet)
+	} else if node.DrainStrategy != nil && args.DrainStrategy != nil {
+		args.NodeEvent.SetMessage(NodeDrainEventDrainUpdated)
+	} else if node.DrainStrategy != nil && args.DrainStrategy == nil {
+		args.NodeEvent.SetMessage(NodeDrainEventDrainDisabled)
+	}
+
 	// Commit this update via Raft
 	_, index, err := n.srv.raftApply(structs.NodeUpdateDrainRequestType, args)
 	if err != nil {
@@ -476,7 +514,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	}
 	reply.NodeModifyIndex = index
 
-	// If the node is transistioning to be eligible, create Node evaluations
+	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.MarkEligible && args.DrainStrategy == nil {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
@@ -512,6 +550,9 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for setting scheduling eligibility")
 	}
+	if args.NodeEvent != nil {
+		return fmt.Errorf("node event must not be set")
+	}
 
 	// Check that only allowed types are set
 	switch args.Eligibility {
@@ -543,6 +584,16 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		return fmt.Errorf("invalid scheduling eligibility %q", args.Eligibility)
 	}
 
+	// Construct the node event
+	args.NodeEvent = structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster)
+	if node.SchedulingEligibility == args.Eligibility {
+		return nil // Nothing to do
+	} else if args.Eligibility == structs.NodeSchedulingEligible {
+		args.NodeEvent.SetMessage(NodeEligibilityEventEligible)
+	} else {
+		args.NodeEvent.SetMessage(NodeEligibilityEventIneligible)
+	}
+
 	// Commit this update via Raft
 	outErr, index, err := n.srv.raftApply(structs.NodeUpdateEligibilityRequestType, args)
 	if err != nil {
@@ -556,7 +607,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		}
 	}
 
-	// If the node is transistioning to be eligible, create Node evaluations
+	// If the node is transitioning to be eligible, create Node evaluations
 	// because there may be a System job registered that should be evaluated.
 	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && args.Eligibility == structs.NodeSchedulingEligible {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)

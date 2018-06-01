@@ -130,8 +130,8 @@ type AllocationListStub struct {
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
-	RescheduleTracker  *RescheduleTracker
 	FollowupEvalID     string
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
@@ -143,6 +143,8 @@ type AllocationListStub struct {
 // healthy.
 type AllocDeploymentStatus struct {
 	Healthy     *bool
+	Timestamp   time.Time
+	Canary      bool
 	ModifyIndex uint64
 }
 
@@ -214,6 +216,10 @@ type DesiredTransition struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
 	Migrate *bool
+
+	// Reschedule is used to indicate that this allocation is eligible to be
+	// rescheduled.
+	Reschedule *bool
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.

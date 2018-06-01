@@ -89,6 +89,17 @@ client {
 }
 ```
 
+## Client Options
+
+* `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
+  disabled.
+
+* `driver.raw_exec.no_cgroups` - Specifies whether the driver should not use
+  cgroups to manage the process group launched by the driver. By default,
+  cgroups are used to manage the process tree to ensure full cleanup of all
+  processes started by the task. The driver only uses cgroups when Nomad is
+  launched as root, on Linux and when cgroups are detected.
+
 ## Client Attributes
 
 The `raw_exec` driver will set the following client attributes:
@@ -98,3 +109,10 @@ The `raw_exec` driver will set the following client attributes:
 ## Resource Isolation
 
 The `raw_exec` driver provides no isolation.
+
+If the launched process creates a new process group, it is possible that Nomad
+will leak processes on shutdown unless the application forwards signals
+properly. Nomad will not leak any processes if cgroups are being used to manage
+the process tree. Cgroups are used on Linux when Nomad is being run with
+appropriate priviledges, the cgroup system is mounted and the operator hasn't
+disabled cgroups for the driver.

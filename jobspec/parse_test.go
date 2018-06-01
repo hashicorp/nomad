@@ -47,13 +47,14 @@ func TestParse(t *testing.T) {
 				},
 
 				Update: &api.UpdateStrategy{
-					Stagger:         helper.TimeToPtr(60 * time.Second),
-					MaxParallel:     helper.IntToPtr(2),
-					HealthCheck:     helper.StringToPtr("manual"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(10 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(true),
-					Canary:          helper.IntToPtr(1),
+					Stagger:          helper.TimeToPtr(60 * time.Second),
+					MaxParallel:      helper.IntToPtr(2),
+					HealthCheck:      helper.StringToPtr("manual"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(10 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(true),
+					Canary:           helper.IntToPtr(1),
 				},
 
 				TaskGroups: []*api.TaskGroup{
@@ -103,12 +104,13 @@ func TestParse(t *testing.T) {
 							SizeMB: helper.IntToPtr(150),
 						},
 						Update: &api.UpdateStrategy{
-							MaxParallel:     helper.IntToPtr(3),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(false),
-							Canary:          helper.IntToPtr(2),
+							MaxParallel:      helper.IntToPtr(3),
+							HealthCheck:      helper.StringToPtr("checks"),
+							MinHealthyTime:   helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(1 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(1 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(false),
+							Canary:           helper.IntToPtr(2),
 						},
 						Migrate: &api.MigrateStrategy{
 							MaxParallel:     helper.IntToPtr(2),
@@ -131,15 +133,18 @@ func TestParse(t *testing.T) {
 								},
 								Services: []*api.Service{
 									{
-										Tags:      []string{"foo", "bar"},
-										PortLabel: "http",
+										Tags:       []string{"foo", "bar"},
+										CanaryTags: []string{"canary", "bam"},
+										PortLabel:  "http",
 										Checks: []api.ServiceCheck{
 											{
-												Name:      "check-name",
-												Type:      "tcp",
-												PortLabel: "admin",
-												Interval:  10 * time.Second,
-												Timeout:   2 * time.Second,
+												Name:        "check-name",
+												Type:        "tcp",
+												PortLabel:   "admin",
+												Interval:    10 * time.Second,
+												Timeout:     2 * time.Second,
+												GRPCService: "foo.Bar",
+												GRPCUseTLS:  true,
 												CheckRestart: &api.CheckRestart{
 													Limit:          3,
 													Grace:          helper.TimeToPtr(10 * time.Second),

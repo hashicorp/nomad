@@ -67,10 +67,12 @@
     "ember-welcome-page": "^3.0.0",
     "eslint": "^4.13.1",
     "flat": "^4.0.0",
+    "fuse.js": "~3.2.0",
     "husky": "^0.14.3",
     "json-formatter-js": "^2.2.0",
     "lint-staged": "^6.0.0",
     "loader.js": "^4.2.3",
+    "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
     "query-string": "^5.0.0"
   },

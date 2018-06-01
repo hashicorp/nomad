@@ -1980,6 +1980,27 @@ func TestAllocation_GCEligible(t *testing.T) {
 			JobStatus: structs.JobStatusDead,
 			ShouldGC:  true,
 		},
+		{
+			Desc:             "GC when desired status is stop, unlimited reschedule policy, no previous reschedule events",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusStop,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{Unlimited: true, Delay: 5 * time.Second, DelayFunction: "constant"},
+			ShouldGC:         true,
+		},
+		{
+			Desc:             "GC when desired status is stop, limited reschedule policy, some previous reschedule events",
+			ClientStatus:     structs.AllocClientStatusFailed,
+			DesiredStatus:    structs.AllocDesiredStatusStop,
+			GCTime:           fail,
+			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
+			RescheduleTrackers: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldGC: true,
+		},
 	}
 
 	for _, tc := range harness {

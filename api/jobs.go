@@ -233,6 +233,22 @@ func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
+// EvaluateWithOpts is used to force-evaluate an existing job and takes additional options
+// for whether to force reschedule failed allocations
+func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions) (string, *WriteMeta, error) {
+	req := &JobEvaluateRequest{
+		JobID:       jobID,
+		EvalOptions: opts,
+	}
+
+	var resp JobRegisterResponse
+	wm, err := j.client.write("/v1/job/"+jobID+"/evaluate", req, &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
 // PeriodicForce spawns a new instance of the periodic job and returns the eval ID
 func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp periodicForceResponse
@@ -343,26 +359,28 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger         *time.Duration `mapstructure:"stagger"`
-	MaxParallel     *int           `mapstructure:"max_parallel"`
-	HealthCheck     *string        `mapstructure:"health_check"`
-	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
-	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
-	AutoRevert      *bool          `mapstructure:"auto_revert"`
-	Canary          *int           `mapstructure:"canary"`
+	Stagger          *time.Duration `mapstructure:"stagger"`
+	MaxParallel      *int           `mapstructure:"max_parallel"`
+	HealthCheck      *string        `mapstructure:"health_check"`
+	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time"`
+	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline"`
+	ProgressDeadline *time.Duration `mapstructure:"progress_deadline"`
+	AutoRevert       *bool          `mapstructure:"auto_revert"`
+	Canary           *int           `mapstructure:"canary"`
 }
 
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
 	return &UpdateStrategy{
-		Stagger:         helper.TimeToPtr(30 * time.Second),
-		MaxParallel:     helper.IntToPtr(1),
-		HealthCheck:     helper.StringToPtr("checks"),
-		MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-		HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-		AutoRevert:      helper.BoolToPtr(false),
-		Canary:          helper.IntToPtr(0),
+		Stagger:          helper.TimeToPtr(30 * time.Second),
+		MaxParallel:      helper.IntToPtr(1),
+		HealthCheck:      helper.StringToPtr("checks"),
+		MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+		HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+		ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+		AutoRevert:       helper.BoolToPtr(false),
+		Canary:           helper.IntToPtr(0),
 	}
 }
 
@@ -391,6 +409,10 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 
 	if u.HealthyDeadline != nil {
 		copy.HealthyDeadline = helper.TimeToPtr(*u.HealthyDeadline)
+	}
+
+	if u.ProgressDeadline != nil {
+		copy.ProgressDeadline = helper.TimeToPtr(*u.ProgressDeadline)
 	}
 
 	if u.AutoRevert != nil {
@@ -429,6 +451,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 		u.HealthyDeadline = helper.TimeToPtr(*o.HealthyDeadline)
 	}
 
+	if o.ProgressDeadline != nil {
+		u.ProgressDeadline = helper.TimeToPtr(*o.ProgressDeadline)
+	}
+
 	if o.AutoRevert != nil {
 		u.AutoRevert = helper.BoolToPtr(*o.AutoRevert)
 	}
@@ -455,6 +481,10 @@ func (u *UpdateStrategy) Canonicalize() {
 
 	if u.HealthyDeadline == nil {
 		u.HealthyDeadline = d.HealthyDeadline
+	}
+
+	if u.ProgressDeadline == nil {
+		u.ProgressDeadline = d.ProgressDeadline
 	}
 
 	if u.MinHealthyTime == nil {
@@ -493,6 +523,10 @@ func (u *UpdateStrategy) Empty() bool {
 	}
 
 	if u.HealthyDeadline != nil && *u.HealthyDeadline != 0 {
+		return false
+	}
+
+	if u.ProgressDeadline != nil && *u.ProgressDeadline != 0 {
 		return false
 	}
 
@@ -1013,4 +1047,16 @@ type JobStabilityRequest struct {
 type JobStabilityResponse struct {
 	JobModifyIndex uint64
 	WriteMeta
+}
+
+// JobEvaluateRequest is used when we just need to re-evaluate a target job
+type JobEvaluateRequest struct {
+	JobID       string
+	EvalOptions EvalOptions
+	WriteRequest
+}
+
+// EvalOptions is used to encapsulate options when forcing a job evaluation
+type EvalOptions struct {
+	ForceReschedule bool
 }

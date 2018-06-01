@@ -1267,7 +1267,34 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
+	t.Parallel()
+	// Bad (no port)
+	invalidGRPC := &ServiceCheck{
+		Type:     ServiceCheckGRPC,
+		Interval: time.Second,
+		Timeout:  time.Second,
+	}
+	service := &Service{
+		Name:   "test",
+		Checks: []*ServiceCheck{invalidGRPC},
+	}
+
+	assert.Error(t, service.Validate())
+
+	// Good
+	service.Checks[0] = &ServiceCheck{
+		Type:      ServiceCheckGRPC,
+		Interval:  time.Second,
+		Timeout:   time.Second,
+		PortLabel: "some-port-label",
+	}
+
+	assert.NoError(t, service.Validate())
+}
+
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
+	t.Parallel()
 	invalidCheckRestart := &CheckRestart{
 		Limit: -1,
 		Grace: -1,
@@ -1538,12 +1565,13 @@ func TestConstraint_Validate(t *testing.T) {
 
 func TestUpdateStrategy_Validate(t *testing.T) {
 	u := &UpdateStrategy{
-		MaxParallel:     0,
-		HealthCheck:     "foo",
-		MinHealthyTime:  -10,
-		HealthyDeadline: -15,
-		AutoRevert:      false,
-		Canary:          -1,
+		MaxParallel:      0,
+		HealthCheck:      "foo",
+		MinHealthyTime:   -10,
+		HealthyDeadline:  -15,
+		ProgressDeadline: -25,
+		AutoRevert:       false,
+		Canary:           -1,
 	}
 
 	err := u.Validate()
@@ -1563,7 +1591,13 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[5].Error(), "Minimum healthy time must be less than healthy deadline") {
+	if !strings.Contains(mErr.Errors[5].Error(), "Progress deadline must be zero or greater") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[6].Error(), "Minimum healthy time must be less than healthy deadline") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[7].Error(), "Healthy deadline must be less than progress deadline") {
 		t.Fatalf("err: %s", err)
 	}
 }

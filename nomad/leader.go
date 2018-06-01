@@ -727,11 +727,6 @@ func (s *Server) reconcileMember(member serf.Member) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "leader", "reconcileMember"}, time.Now())
 
-	// Do not reconcile ourself
-	if member.Name == fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Region) {
-		return nil
-	}
-
 	var err error
 	switch member.Status {
 	case serf.StatusAlive:
@@ -768,12 +763,6 @@ func (s *Server) reconcileJobSummaries() error {
 
 // addRaftPeer is used to add a new Raft peer when a Nomad server joins
 func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
-	// Do not join ourselfs
-	if m.Name == s.config.NodeName {
-		s.logger.Printf("[DEBUG] nomad: adding self (%q) as raft peer skipped", m.Name)
-		return nil
-	}
-
 	// Check for possibility of multiple bootstrap nodes
 	members := s.serf.Members()
 	if parts.Bootstrap {
@@ -786,17 +775,19 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 		}
 	}
 
-	// See if it's already in the configuration. It's harmless to re-add it
-	// but we want to avoid doing that if possible to prevent useless Raft
-	// log entries.
+	// Processing ourselves could result in trying to remove ourselves to
+	// fix up our address, which would make us step down. This is only
+	// safe to attempt if there are multiple servers available.
 	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
 		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
 		return err
 	}
-	for _, server := range configFuture.Configuration().Servers {
-		if server.Address == raft.ServerAddress(addr) {
+
+	if m.Name == s.config.NodeName {
+		if l := len(configFuture.Configuration().Servers); l < 3 {
+			s.logger.Printf("[DEBUG] consul: Skipping self join check for %q since the cluster is too small", m.Name)
 			return nil
 		}
 	}
@@ -817,7 +808,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 
 		// If the address or ID matches an existing server, see if we need to remove the old one first
 		if server.Address == raft.ServerAddress(addr) || server.ID == raft.ServerID(parts.ID) {
-			// Exit with no-op if this is being called on an existing server
+			// Exit with no-op if this is being called on an existing server and both the ID and address match
 			if server.Address == raft.ServerAddress(addr) && server.ID == raft.ServerID(parts.ID) {
 				return nil
 			}

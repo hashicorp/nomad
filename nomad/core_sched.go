@@ -610,6 +610,12 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 		return true
 	}
 
+	// If the allocation's desired state is Stop, it can be GCed even if it
+	// has failed and hasn't been rescheduled. This can happen during job updates
+	if a.DesiredStatus == structs.AllocDesiredStatusStop {
+		return true
+	}
+
 	// If the alloc hasn't failed then we don't need to consider it for rescheduling
 	// Rescheduling needs to copy over information from the previous alloc so that it
 	// can enforce the reschedule policy

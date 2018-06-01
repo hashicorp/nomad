@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -369,6 +370,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_parallel_destroys",
 		"gc_max_allocs",
 		"no_host_uuid",
+		"server_join",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -384,6 +386,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	delete(m, "chroot_env")
 	delete(m, "reserved")
 	delete(m, "stats")
+	delete(m, "server_join")
 
 	var config ClientConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -444,6 +447,13 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	if o := listVal.Filter("reserved"); len(o.Items) > 0 {
 		if err := parseReserved(&config.Reserved, o); err != nil {
 			return multierror.Prefix(err, "reserved ->")
+		}
+	}
+
+	// Parse ServerJoin config
+	if o := listVal.Filter("server_join"); len(o.Items) > 0 {
+		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
+			return multierror.Prefix(err, "server_join->")
 		}
 	}
 
@@ -530,16 +540,20 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"heartbeat_grace",
 		"min_heartbeat_ttl",
 		"max_heartbeats_per_second",
-		"start_join",
-		"retry_join",
-		"retry_max",
-		"retry_interval",
 		"rejoin_after_leave",
 		"encrypt",
 		"authoritative_region",
 		"non_voting_server",
 		"redundancy_zone",
 		"upgrade_version",
+
+		"server_join",
+
+		// For backwards compatibility
+		"start_join",
+		"retry_join",
+		"retry_max",
+		"retry_interval",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -549,6 +563,8 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 	if err := hcl.DecodeObject(&m, listVal); err != nil {
 		return err
 	}
+
+	delete(m, "server_join")
 
 	var config ServerConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -569,7 +585,56 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		}
 	}
 
+	// Parse ServerJoin config
+	if o := listVal.Filter("server_join"); len(o.Items) > 0 {
+		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
+			return multierror.Prefix(err, "server_join->")
+		}
+	}
+
 	*result = &config
+	return nil
+}
+
+func parseServerJoin(result **ServerJoin, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'server_join' block allowed")
+	}
+
+	// Get our object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"start_join",
+		"retry_join",
+		"retry_max",
+		"retry_interval",
+	}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var serverJoinInfo ServerJoin
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &serverJoinInfo,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = &serverJoinInfo
 	return nil
 }
 
@@ -760,6 +825,9 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"cert_file",
 		"key_file",
 		"verify_https_client",
+		"tls_cipher_suites",
+		"tls_min_version",
+		"tls_prefer_server_cipher_suites",
 	}
 
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
@@ -773,6 +841,14 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 
 	var tlsConfig config.TLSConfig
 	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseCiphers(tlsConfig.TLSCipherSuites); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseMinVersion(tlsConfig.TLSMinVersion); err != nil {
 		return err
 	}
 

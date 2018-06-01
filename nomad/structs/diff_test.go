@@ -1787,6 +1787,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "0",
 								New:  "",
 							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ProgressDeadline",
+								Old:  "0",
+								New:  "",
+							},
 						},
 					},
 				},
@@ -1837,6 +1843,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "0",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ProgressDeadline",
+								Old:  "",
+								New:  "0",
+							},
 						},
 					},
 				},
@@ -1846,22 +1858,24 @@ func TestTaskGroupDiff(t *testing.T) {
 			// Update strategy edited
 			Old: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     5,
-					HealthCheck:     "foo",
-					MinHealthyTime:  1 * time.Second,
-					HealthyDeadline: 30 * time.Second,
-					AutoRevert:      true,
-					Canary:          2,
+					MaxParallel:      5,
+					HealthCheck:      "foo",
+					MinHealthyTime:   1 * time.Second,
+					HealthyDeadline:  30 * time.Second,
+					ProgressDeadline: 29 * time.Second,
+					AutoRevert:       true,
+					Canary:           2,
 				},
 			},
 			New: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     7,
-					HealthCheck:     "bar",
-					MinHealthyTime:  2 * time.Second,
-					HealthyDeadline: 31 * time.Second,
-					AutoRevert:      false,
-					Canary:          1,
+					MaxParallel:      7,
+					HealthCheck:      "bar",
+					MinHealthyTime:   2 * time.Second,
+					HealthyDeadline:  31 * time.Second,
+					ProgressDeadline: 32 * time.Second,
+					AutoRevert:       false,
+					Canary:           1,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1907,6 +1921,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "1000000000",
 								New:  "2000000000",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ProgressDeadline",
+								Old:  "29000000000",
+								New:  "32000000000",
+							},
 						},
 					},
 				},
@@ -1917,22 +1937,24 @@ func TestTaskGroupDiff(t *testing.T) {
 			Contextual: true,
 			Old: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     5,
-					HealthCheck:     "foo",
-					MinHealthyTime:  1 * time.Second,
-					HealthyDeadline: 30 * time.Second,
-					AutoRevert:      true,
-					Canary:          2,
+					MaxParallel:      5,
+					HealthCheck:      "foo",
+					MinHealthyTime:   1 * time.Second,
+					HealthyDeadline:  30 * time.Second,
+					ProgressDeadline: 30 * time.Second,
+					AutoRevert:       true,
+					Canary:           2,
 				},
 			},
 			New: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     7,
-					HealthCheck:     "foo",
-					MinHealthyTime:  1 * time.Second,
-					HealthyDeadline: 30 * time.Second,
-					AutoRevert:      true,
-					Canary:          2,
+					MaxParallel:      7,
+					HealthCheck:      "foo",
+					MinHealthyTime:   1 * time.Second,
+					HealthyDeadline:  30 * time.Second,
+					ProgressDeadline: 30 * time.Second,
+					AutoRevert:       true,
+					Canary:           2,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1977,6 +1999,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "MinHealthyTime",
 								Old:  "1000000000",
 								New:  "1000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "ProgressDeadline",
+								Old:  "30000000000",
+								New:  "30000000000",
 							},
 						},
 					},
@@ -3429,6 +3457,99 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
+			Name:       "Services tags edited (no checks) with context",
+			Contextual: true,
+			Old: &Task{
+				Services: []*Service{
+					{
+						Tags:       []string{"foo", "bar"},
+						CanaryTags: []string{"foo", "bar"},
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Tags:       []string{"bar", "bam"},
+						CanaryTags: []string{"bar", "bam"},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "CanaryTags",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "CanaryTags",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "CanaryTags",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "CanaryTags",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Tags",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Tags",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Tags",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Tags",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "PortLabel",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name: "Service Checks edited",
 			Old: &Task{
 				Services: []*Service{
@@ -3559,6 +3680,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "GRPCUseTLS",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Interval",
 										Old:  "",
 										New:  "1000000000",
@@ -3609,6 +3736,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Command",
 										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "GRPCUseTLS",
+										Old:  "false",
 										New:  "",
 									},
 									{
@@ -3766,6 +3899,18 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Command",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCService",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCUseTLS",
+										Old:  "false",
+										New:  "false",
 									},
 									{
 										Type: DiffTypeEdited,

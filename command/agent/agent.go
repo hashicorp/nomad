@@ -144,8 +144,8 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
-	if agentConfig.Server.NumSchedulers != 0 {
-		conf.NumSchedulers = agentConfig.Server.NumSchedulers
+	if agentConfig.Server.NumSchedulers != nil {
+		conf.NumSchedulers = *agentConfig.Server.NumSchedulers
 	}
 	if len(agentConfig.Server.EnabledSchedulers) != 0 {
 		// Convert to a set and require the core scheduler
@@ -314,9 +314,24 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
 	}
+
+	// If we are running a server, append both its bind and advertise address so
+	// we are able to at least talk to the local server even if that isn't
+	// configured explicitly. This handles both running server and client on one
+	// host and -dev mode.
+	conf.Servers = a.config.Client.Servers
 	if a.server != nil {
-		conf.RPCHandler = a.server
+		if a.config.AdvertiseAddrs == nil || a.config.AdvertiseAddrs.RPC == "" {
+			return nil, fmt.Errorf("AdvertiseAddrs is nil or empty")
+		} else if a.config.normalizedAddrs == nil || a.config.normalizedAddrs.RPC == "" {
+			return nil, fmt.Errorf("normalizedAddrs is nil or empty")
+		}
+
+		conf.Servers = append(conf.Servers,
+			a.config.normalizedAddrs.RPC,
+			a.config.AdvertiseAddrs.RPC)
 	}
+
 	conf.LogOutput = a.logOutput
 	conf.LogLevel = a.config.LogLevel
 	conf.DevMode = a.config.DevMode
@@ -333,7 +348,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.Client.AllocDir != "" {
 		conf.AllocDir = a.config.Client.AllocDir
 	}
-	conf.Servers = a.config.Client.Servers
 	if a.config.Client.NetworkInterface != "" {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}

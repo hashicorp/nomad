@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1055,5 +1057,26 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 		require.False(shouldReloadAgent)
 		require.False(shouldReloadHTTP)
 		require.False(shouldReloadRPC)
+	}
+}
+
+func TestAgent_ProxyRPC_Dev(t *testing.T) {
+	t.Parallel()
+	agent := NewTestAgent(t, t.Name(), nil)
+	defer agent.Shutdown()
+
+	id := agent.client.NodeID()
+	req := &structs.NodeSpecificRequest{
+		NodeID: id,
+		QueryOptions: structs.QueryOptions{
+			Region: agent.server.Region(),
+		},
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	var resp cstructs.ClientStatsResponse
+	if err := agent.RPC("ClientStats.Stats", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
 	}
 }

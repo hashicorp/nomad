@@ -23,11 +23,13 @@
           sortDescending=sortDescending
           class="with-foot" as |t|}}
           {{#t.head}}
+            <th class="is-narrow"></th>
             {{#t.sort-by prop="id"}}ID{{/t.sort-by}}
             {{#t.sort-by class="is-200px is-truncatable" prop="name"}}Name{{/t.sort-by}}
             {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
+            {{#t.sort-by prop="isDraining"}}Drain{{/t.sort-by}}
+            {{#t.sort-by prop="schedulingEligibility"}}Eligibility{{/t.sort-by}}
             <th>Address</th>
-            <th>Port</th>
             {{#t.sort-by prop="datacenter"}}Datacenter{{/t.sort-by}}
             <th># Allocs</th>
           {{/t.head}}

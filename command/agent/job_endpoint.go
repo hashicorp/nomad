@@ -90,8 +90,25 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	args := structs.JobEvaluateRequest{
-		JobID: jobName,
+	var args structs.JobEvaluateRequest
+
+	// TODO(preetha): remove in 0.9
+	// COMPAT: For backwards compatibility allow using this endpoint without a payload
+	if req.ContentLength == 0 {
+		args = structs.JobEvaluateRequest{
+			JobID: jobName,
+		}
+	} else {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(400, err.Error())
+		}
+		if args.JobID == "" {
+			return nil, CodedError(400, "Job ID must be specified")
+		}
+
+		if jobName != "" && args.JobID != jobName {
+			return nil, CodedError(400, "JobID not same as job name")
+		}
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -693,13 +710,14 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 
 	if taskGroup.Update != nil {
 		tg.Update = &structs.UpdateStrategy{
-			Stagger:         *taskGroup.Update.Stagger,
-			MaxParallel:     *taskGroup.Update.MaxParallel,
-			HealthCheck:     *taskGroup.Update.HealthCheck,
-			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,
-			HealthyDeadline: *taskGroup.Update.HealthyDeadline,
-			AutoRevert:      *taskGroup.Update.AutoRevert,
-			Canary:          *taskGroup.Update.Canary,
+			Stagger:          *taskGroup.Update.Stagger,
+			MaxParallel:      *taskGroup.Update.MaxParallel,
+			HealthCheck:      *taskGroup.Update.HealthCheck,
+			MinHealthyTime:   *taskGroup.Update.MinHealthyTime,
+			HealthyDeadline:  *taskGroup.Update.HealthyDeadline,
+			ProgressDeadline: *taskGroup.Update.ProgressDeadline,
+			AutoRevert:       *taskGroup.Update.AutoRevert,
+			Canary:           *taskGroup.Update.Canary,
 		}
 	}
 
@@ -743,6 +761,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Name:        service.Name,
 				PortLabel:   service.PortLabel,
 				Tags:        service.Tags,
+				CanaryTags:  service.CanaryTags,
 				AddressMode: service.AddressMode,
 			}
 
@@ -764,6 +783,8 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						TLSSkipVerify: check.TLSSkipVerify,
 						Header:        check.Header,
 						Method:        check.Method,
+						GRPCService:   check.GRPCService,
+						GRPCUseTLS:    check.GRPCUseTLS,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{

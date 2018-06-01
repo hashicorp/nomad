@@ -73,5 +73,16 @@ export default EmberObject.extend(AbstractLogger, {
     }
   }),
 }).reopenClass({
-  isSupported: !!window.ReadableStream,
+  isSupported: !!window.ReadableStream && !isSafari(),
 });
+
+// Fetch streaming doesn't work in Safari yet despite all the primitives being in place.
+// Bug: https://bugs.webkit.org/show_bug.cgi?id=185924
+// Until this is fixed, Safari needs to be explicitly targeted for poll-based logging.
+function isSafari() {
+  const oldSafariTest = /constructor/i.test(window.HTMLElement);
+  const newSafariTest = (function(p) {
+    return p.toString() === '[object SafariRemoteNotification]';
+  })(!window['safari'] || (typeof window.safari !== 'undefined' && window.safari.pushNotification));
+  return oldSafariTest || newSafariTest;
+}

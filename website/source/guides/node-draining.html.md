@@ -298,7 +298,7 @@ f7476465  dc1  nomad-1  <none>  false  ineligible   ready
 ```
 
 Then drain each node in `dc1`. For this example we will only monitor the final
-ode that is draining. Watching `nomad node status -allocs` is also a good way
+node that is draining. Watching `nomad node status -allocs` is also a good way
 to monitor the status of drains.
 
 ```text

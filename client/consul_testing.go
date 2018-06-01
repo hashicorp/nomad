@@ -5,11 +5,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/hashicorp/nomad/client/driver"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-testing-interface"
 )
 
@@ -17,12 +14,10 @@ import (
 type mockConsulOp struct {
 	op      string // add, remove, or update
 	allocID string
-	task    *structs.Task
-	exec    driver.ScriptExecutor
-	net     *cstructs.DriverNetwork
+	task    string
 }
 
-func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) mockConsulOp {
+func newMockConsulOp(op, allocID, task string) mockConsulOp {
 	if op != "add" && op != "remove" && op != "update" && op != "alloc_registrations" {
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
@@ -30,8 +25,6 @@ func newMockConsulOp(op, allocID string, task *structs.Task, exec driver.ScriptE
 		op:      op,
 		allocID: allocID,
 		task:    task,
-		exec:    exec,
-		net:     net,
 	}
 }
 
@@ -56,34 +49,34 @@ func newMockConsulServiceClient(t testing.T) *mockConsulServiceClient {
 	return &m
 }
 
-func (m *mockConsulServiceClient) UpdateTask(allocID string, old, new *structs.Task, restarter consul.TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+func (m *mockConsulServiceClient) UpdateTask(old, new *consul.TaskServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: UpdateTask(%q, %v, %v, %T, %x)", allocID, old, new, exec, net.Hash())
-	m.ops = append(m.ops, newMockConsulOp("update", allocID, new, exec, net))
+	m.logger.Printf("[TEST] mock_consul: UpdateTask(alloc: %s, task: %s)", new.AllocID[:6], new.Name)
+	m.ops = append(m.ops, newMockConsulOp("update", new.AllocID, new.Name))
 	return nil
 }
 
-func (m *mockConsulServiceClient) RegisterTask(allocID string, task *structs.Task, restarter consul.TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+func (m *mockConsulServiceClient) RegisterTask(task *consul.TaskServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: RegisterTask(%q, %q, %T, %x)", allocID, task.Name, exec, net.Hash())
-	m.ops = append(m.ops, newMockConsulOp("add", allocID, task, exec, net))
+	m.logger.Printf("[TEST] mock_consul: RegisterTask(alloc: %s, task: %s)", task.AllocID, task.Name)
+	m.ops = append(m.ops, newMockConsulOp("add", task.AllocID, task.Name))
 	return nil
 }
 
-func (m *mockConsulServiceClient) RemoveTask(allocID string, task *structs.Task) {
+func (m *mockConsulServiceClient) RemoveTask(task *consul.TaskServices) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Printf("[TEST] mock_consul: RemoveTask(%q, %q)", allocID, task.Name)
-	m.ops = append(m.ops, newMockConsulOp("remove", allocID, task, nil, nil))
+	m.logger.Printf("[TEST] mock_consul: RemoveTask(%q, %q)", task.AllocID, task.Name)
+	m.ops = append(m.ops, newMockConsulOp("remove", task.AllocID, task.Name))
 }
 
 func (m *mockConsulServiceClient) AllocRegistrations(allocID string) (*consul.AllocRegistration, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Printf("[TEST] mock_consul: AllocRegistrations(%q)", allocID)
-	m.ops = append(m.ops, newMockConsulOp("alloc_registrations", allocID, nil, nil, nil))
+	m.ops = append(m.ops, newMockConsulOp("alloc_registrations", allocID, ""))
 
 	if m.allocRegistrationsFn != nil {
 		return m.allocRegistrationsFn(allocID)

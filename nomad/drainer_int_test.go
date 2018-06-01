@@ -12,6 +12,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -38,6 +39,7 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 
 		// For each alloc that doesn't have its deployment status set, set it
 		var updates []*structs.Allocation
+		now := time.Now()
 		for _, alloc := range allocs {
 			if alloc.Job.Type != structs.JobTypeService {
 				continue
@@ -48,7 +50,8 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 			}
 			newAlloc := alloc.Copy()
 			newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: helper.BoolToPtr(true),
+				Healthy:   helper.BoolToPtr(true),
+				Timestamp: now,
 			}
 			updates = append(updates, newAlloc)
 			logger.Printf("Marked deployment health for alloc %q", alloc.ID)
@@ -210,6 +213,12 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Check we got the right events
+	node, err := state.NodeByID(nil, n1.ID)
+	require.NoError(err)
+	require.Len(node.Events, 3)
+	require.Equal(drainer.NodeDrainEventComplete, node.Events[2].Message)
 }
 
 func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
@@ -298,6 +307,13 @@ func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Check we got the right events
+	node, err := state.NodeByID(nil, n1.ID)
+	require.NoError(err)
+	require.Len(node.Events, 3)
+	require.Equal(drainer.NodeDrainEventComplete, node.Events[2].Message)
+	require.Contains(node.Events[2].Details, drainer.NodeDrainEventDetailDeadlined)
 }
 
 func TestDrainer_DrainEmptyNode(t *testing.T) {
@@ -341,6 +357,12 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Check we got the right events
+	node, err := state.NodeByID(nil, n1.ID)
+	require.NoError(err)
+	require.Len(node.Events, 3)
+	require.Equal(drainer.NodeDrainEventComplete, node.Events[2].Message)
 }
 
 func TestDrainer_AllTypes_Deadline(t *testing.T) {
@@ -498,6 +520,13 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 		}
 	}
 	require.True(serviceMax < batchMax)
+
+	// Check we got the right events
+	node, err := state.NodeByID(nil, n1.ID)
+	require.NoError(err)
+	require.Len(node.Events, 3)
+	require.Equal(drainer.NodeDrainEventComplete, node.Events[2].Message)
+	require.Contains(node.Events[2].Details, drainer.NodeDrainEventDetailDeadlined)
 }
 
 // Test that drain is unset when batch jobs naturally finish
@@ -657,6 +686,12 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Check we got the right events
+	node, err := state.NodeByID(nil, n1.ID)
+	require.NoError(err)
+	require.Len(node.Events, 3)
+	require.Equal(drainer.NodeDrainEventComplete, node.Events[2].Message)
 }
 
 func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
@@ -822,9 +857,16 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
+
+	// Check we got the right events
+	node, err := state.NodeByID(nil, n1.ID)
+	require.NoError(err)
+	require.Len(node.Events, 3)
+	require.Equal(drainer.NodeDrainEventComplete, node.Events[2].Message)
+	require.Contains(node.Events[2].Details, drainer.NodeDrainEventDetailDeadlined)
 }
 
-// Test that transistions to force drain work.
+// Test that transitions to force drain work.
 func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -960,6 +1002,13 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 			}, func(err error) {
 				t.Fatalf("err: %v", err)
 			})
+
+			// Check we got the right events
+			node, err := state.NodeByID(nil, n1.ID)
+			require.NoError(err)
+			require.Len(node.Events, 4)
+			require.Equal(drainer.NodeDrainEventComplete, node.Events[3].Message)
+			require.Contains(node.Events[3].Details, drainer.NodeDrainEventDetailDeadlined)
 		})
 	}
 }
