@@ -47,6 +47,8 @@ BUG FIXES:
    caused servers to never change their ID in the Raft configuration. [[GH-4349](https://github.com/hashicorp/nomad/issues/4349)]
  * api/client: Fix potentially out of order logs and streamed file contents
    [[GH-4234](https://github.com/hashicorp/nomad/issues/4234)]
+ * discovery: Fix flapping services when Nomad Server and Client point to the same
+   Consul agent [GH-4365]
  * driver/docker: Fix docker credential helper support [[GH-4266](https://github.com/hashicorp/nomad/issues/4266)]
  * driver/docker: Fix panic when docker client configuration options are invalid [[GH-4303](https://github.com/hashicorp/nomad/issues/4303)]
  * rpc: Fix RPC tunneling when running both client/server on one machine [[GH-4317](https://github.com/hashicorp/nomad/issues/4317)]
