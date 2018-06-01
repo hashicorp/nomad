@@ -232,6 +232,10 @@ type ServiceClient struct {
 
 	// checkWatcher restarts checks that are unhealthy.
 	checkWatcher *checkWatcher
+
+	// agentRoleLock guards state about whether this agent is a client
+	agentRoleLock sync.Mutex
+	isClientAgent bool
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
@@ -433,7 +437,7 @@ func (c *ServiceClient) sync() error {
 			// Known service, skip
 			continue
 		}
-		if !isNomadService(id) {
+		if !isNomadService(id) || !c.IsClient() {
 			// Not managed by Nomad, skip
 			continue
 		}
@@ -470,7 +474,7 @@ func (c *ServiceClient) sync() error {
 			// Known check, leave it
 			continue
 		}
-		if !isNomadService(check.ServiceID) {
+		if !isNomadService(check.ServiceID) || !c.IsClient() {
 			// Service not managed by Nomad, skip
 			continue
 		}
@@ -519,6 +523,12 @@ func (c *ServiceClient) sync() error {
 	return nil
 }
 
+func (c *ServiceClient) IsClient() bool {
+	c.agentRoleLock.Lock()
+	defer c.agentRoleLock.Unlock()
+	return c.isClientAgent
+}
+
 // RegisterAgent registers Nomad agents (client or server). The
 // Service.PortLabel should be a literal port to be parsed with SplitHostPort.
 // Script checks are not supported and will return an error. Registration is
@@ -527,6 +537,12 @@ func (c *ServiceClient) sync() error {
 // Agents will be deregistered when Shutdown is called.
 func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) error {
 	ops := operations{}
+
+	if role == "client" {
+		c.agentRoleLock.Lock()
+		c.isClientAgent = true
+		c.agentRoleLock.Unlock()
+	}
 
 	for _, service := range services {
 		id := makeAgentServiceID(role, service)
