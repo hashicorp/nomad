@@ -72,26 +72,20 @@
               <td data-test-time>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
               <td data-test-ports>
                 <ul>
-                  {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
-                    <li data-test-port>
-                      <strong>{{port.Label}}:</strong>
-                      {{#if row.model.allocation.node.address}}
-                        <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
-                      {{else}}
-                        ...
-                      {{/if}}
-                    </li>
-                  {{/each}}
-                  {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
-                    <li>
-                      <strong>{{port.Label}}:</strong>
-                      {{#if row.model.allocation.node.address}}
-                        <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
-                      {{else}}
-                        ...
-                      {{/if}}
-                    </li>
-                  {{/each}}
+                  {{#with row.model.resources.networks.firstObject as |network|}}
+                    {{#each network.reservedPorts as |port|}}
+                      <li data-test-port>
+                        <strong>{{port.Label}}:</strong>
+                        <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+                      </li>
+                    {{/each}}
+                    {{#each network.dynamicPorts as |port|}}
+                      <li>
+                        <strong>{{port.Label}}:</strong>
+                        <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+                      </li>
+                    {{/each}}
+                  {{/with}}
                 </ul>
               </td>
             </tr>
