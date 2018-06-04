@@ -25,6 +25,7 @@ IMPROVEMENTS:
  * command: Add -short option to init command that emits a minimal
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
+ * driver/docker: OOM kill metric [[GH-4185](https://github.com/hashicorp/nomad/issues/4185)]
  * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
  * driver/docker: Support Docker pid limits [[GH-4341](https://github.com/hashicorp/nomad/issues/4341)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
@@ -48,10 +49,10 @@ BUG FIXES:
  * api/client: Fix potentially out of order logs and streamed file contents
    [[GH-4234](https://github.com/hashicorp/nomad/issues/4234)]
  * discovery: Fix flapping services when Nomad Server and Client point to the same
-   Consul agent [GH-4365]
+   Consul agent [[GH-4365](https://github.com/hashicorp/nomad/issues/4365)]
  * driver/docker: Fix docker credential helper support [[GH-4266](https://github.com/hashicorp/nomad/issues/4266)]
  * driver/docker: Fix panic when docker client configuration options are invalid [[GH-4303](https://github.com/hashicorp/nomad/issues/4303)]
- * driver/exec: Disable exec on non-linux platforms [GH-4366]
+ * driver/exec: Disable exec on non-linux platforms [[GH-4366](https://github.com/hashicorp/nomad/issues/4366)]
  * rpc: Fix RPC tunneling when running both client/server on one machine [[GH-4317](https://github.com/hashicorp/nomad/issues/4317)]
  * ui: Track the method in XHR tracking to prevent errant ACL error dialogs when stopping a job [[GH-4319](https://github.com/hashicorp/nomad/issues/4319)]
  * ui: Use Polling instead of Streaming for logs in Safari [[GH-4335](https://github.com/hashicorp/nomad/issues/4335)]
