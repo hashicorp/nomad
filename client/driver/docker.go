@@ -17,12 +17,13 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -479,6 +480,9 @@ type DockerHandle struct {
 	client            *docker.Client
 	waitClient        *docker.Client
 	logger            *log.Logger
+	jobName           string
+	taskGroupName     string
+	taskName          string
 	Image             string
 	ImageID           string
 	containerID       string
@@ -902,6 +906,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		executor:       exec,
 		pluginClient:   pluginClient,
 		logger:         d.logger,
+		jobName:        d.DriverContext.jobName,
+		taskGroupName:  d.DriverContext.taskGroupName,
+		taskName:       d.DriverContext.taskName,
 		Image:          d.driverConfig.ImageName,
 		ImageID:        d.imageID,
 		containerID:    container.ID,
@@ -1775,6 +1782,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		executor:       exec,
 		pluginClient:   pluginClient,
 		logger:         d.logger,
+		jobName:        d.DriverContext.jobName,
+		taskGroupName:  d.DriverContext.taskGroupName,
+		taskName:       d.DriverContext.taskName,
 		Image:          pid.Image,
 		ImageID:        pid.ImageID,
 		containerID:    pid.ContainerID,
@@ -1928,6 +1938,21 @@ func (h *DockerHandle) run() {
 		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
 	} else if container.State.OOMKilled {
 		werr = fmt.Errorf("OOM Killed")
+		labels := []metrics.Label{
+			{
+				Name:  "job",
+				Value: h.jobName,
+			},
+			{
+				Name:  "task_group",
+				Value: h.taskGroupName,
+			},
+			{
+				Name:  "task",
+				Value: h.taskName,
+			},
+		}
+		metrics.IncrCounterWithLabels([]string{"driver", "docker", "oom"}, 1, labels)
 	}
 
 	close(h.doneCh)
