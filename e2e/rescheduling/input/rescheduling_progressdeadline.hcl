@@ -10,7 +10,7 @@ job "demo2" {
 
       config {
         command = "bash"
-        args    = ["-c", "sleep 170000"]
+        args    = ["-c", "if (($RANDOM%2)); then sleep 200000 ; else exit -1 ; fi"]
       }
     }
 
@@ -19,7 +19,7 @@ job "demo2" {
       min_healthy_time = "1s"
       auto_revert      = false
       healthy_deadline = "2s"
-      progress_deadline = "10s"
+      progress_deadline = "30s"
     }
 
     restart {
@@ -29,6 +29,7 @@ job "demo2" {
 
     reschedule {
       unlimited = "true"
+      delay_function = "constant"
       delay = "5s"
     }
   }
