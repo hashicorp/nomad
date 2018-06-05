@@ -256,14 +256,13 @@ var _ = Describe("Server Side Restart Tests", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 3*time.Second, time.Second).ShouldNot(BeEmpty())
+					Eventually(allocStatusesRescheduled, 6*time.Second, time.Second).ShouldNot(BeEmpty())
 
-					// Should have 1 failed from max_parallel
-					Eventually(allocStatuses, 3*time.Second, time.Second).Should(
-						ConsistOf([]string{"complete", "failed", "running", "running"}))
+					// Should have failed allocs including rescheduled failed allocs
+					Eventually(allocStatuses, 6*time.Second, time.Second).Should(
+						ConsistOf([]string{"complete", "failed", "failed", "running", "running"}))
 
 					// Verify new deployment and its status
-					time.Sleep(2 * time.Second)
 					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
 						ContainElement(structs.DeploymentStatusRunning))
 				})
@@ -298,6 +297,23 @@ var _ = Describe("Server Side Restart Tests", func() {
 				time.Sleep(5 * time.Second)
 				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
 					ConsistOf(structs.DeploymentStatusSuccessful, structs.DeploymentStatusFailed, structs.DeploymentStatusSuccessful))
+			})
+
+		})
+
+		Context("Reschedule with progress deadline", func() {
+			BeforeEach(func() {
+				specFile = "input/rescheduling_progressdeadline.hcl"
+			})
+			It("Should have running allocs and successful deployment", func() {
+				if !*slow {
+					Skip("Skipping slow test")
+				}
+				// Deployment should succeed eventually
+				time.Sleep(20 * time.Second)
+				Eventually(deploymentStatus(), 5*time.Second, time.Second).Should(
+					ContainElement(structs.DeploymentStatusSuccessful))
+
 			})
 
 		})
