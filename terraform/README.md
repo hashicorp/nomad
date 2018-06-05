@@ -46,7 +46,7 @@ $ nomad node-status
 To initialize and unseal Vault, run:
 
 ```bash
-$ vault init -key-shares=1 -key-threshold=1
+$ vault operator init -key-shares=1 -key-threshold=1
 $ vault unseal
 $ export VAULT_TOKEN=[INITIAL_ROOT_TOKEN]
 ```
