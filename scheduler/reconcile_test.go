@@ -2542,7 +2542,7 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 	jobOld := mock.Job()
 	job := jobOld.Copy()
 	job.TaskGroups[0].Update = noCanaryUpdate
-	job.CreateIndex = 100
+	job.CreateIndex += 100
 
 	// Create 5 allocations from the old job
 	var allocs []*structs.Allocation
