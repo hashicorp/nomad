@@ -16,7 +16,7 @@ to bootstrap a local staging environment:
 
 ```bash
 $ git clone git@github.com:hashicorp/nomad.git
-$ cd terraform
+$ cd nomad/terraform
 $ vagrant up && vagrant ssh
 ```
 
