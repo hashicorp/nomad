@@ -500,7 +500,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	updatingSpec := len(destructive) != 0 || len(a.result.inplaceUpdate) != 0
 	hadRunning := false
 	for _, alloc := range all {
-		if alloc.Job.Version == a.job.Version {
+		if alloc.Job.Version == a.job.Version && alloc.Job.CreateIndex == a.job.CreateIndex {
 			hadRunning = true
 			break
 		}
