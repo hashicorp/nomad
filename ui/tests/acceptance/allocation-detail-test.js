@@ -137,6 +137,36 @@ test('each task row should list high-level information for the task', function(a
   });
 });
 
+test('each task row should link to the task detail page', function(assert) {
+  const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
+
+  click('[data-test-task-row] [data-test-name] a');
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}/${task.name}`,
+      'Task name in task row links to task detail'
+    );
+  });
+
+  andThen(() => {
+    visit(`/allocations/${allocation.id}`);
+  });
+
+  andThen(() => {
+    click('[data-test-task-row]');
+  });
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}/${task.name}`,
+      'Task row links to task detail'
+    );
+  });
+});
+
 test('tasks with an unhealthy driver have a warning icon', function(assert) {
   assert.ok(find('[data-test-task-row] [data-test-icon="unhealthy-driver"]'), 'Warning is shown');
 });

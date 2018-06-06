@@ -48,7 +48,10 @@
             <th>Addresses</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr data-test-task-row={{row.model.task.name}}>
+            <tr
+              data-test-task-row={{row.model.task.name}}
+              onclick={{action "taskClick" row.model.allocation row.model}}
+              class="is-interactive">
               <td class="is-narrow">
                 {{#if (not row.model.driverStatus.healthy)}}
                   <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="{{row.model.driver}} is unhealthy">
