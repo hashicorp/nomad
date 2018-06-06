@@ -81,6 +81,9 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 		InmemSink:  inmem,
 	}
 
+	// Global logger should match internal logger as much as possible
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
