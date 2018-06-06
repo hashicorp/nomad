@@ -267,7 +267,6 @@ func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 	defer server.Shutdown()
 
 	// Wait for a node to appear
-	var nodeID string
 	testutil.WaitForResult(func() (bool, error) {
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -276,7 +275,6 @@ func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 		if len(nodes) == 0 {
 			return false, fmt.Errorf("missing node")
 		}
-		nodeID = nodes[0].ID
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %s", err)

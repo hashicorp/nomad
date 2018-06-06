@@ -179,7 +179,7 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 		case <-ctx.Done():
 
 			// If we are exiting but we have a message, attempt to send it
-			// so we don't loose a message but do not block.
+			// so we don't lose a message but do not block.
 			select {
 			case outCh <- msg:
 			default:
