@@ -958,7 +958,11 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	a.consulCatalog = client.Catalog()
 
 	// Create Consul Service client for service advertisement and checks.
-	a.consulService = consul.NewServiceClient(client.Agent(), a.logger, a.Client() != nil)
+	isClient := false
+	if a.config.Client != nil && a.config.Client.Enabled {
+		isClient = true
+	}
+	a.consulService = consul.NewServiceClient(client.Agent(), a.logger, isClient)
 
 	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()
