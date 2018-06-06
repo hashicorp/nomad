@@ -504,6 +504,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		args.NodeEvent.SetMessage(NodeDrainEventDrainUpdated)
 	} else if node.DrainStrategy != nil && args.DrainStrategy == nil {
 		args.NodeEvent.SetMessage(NodeDrainEventDrainDisabled)
+	} else {
+		args.NodeEvent = nil
 	}
 
 	// Commit this update via Raft
