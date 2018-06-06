@@ -59,6 +59,7 @@ BUG FIXES:
  * ui: Track the method in XHR tracking to prevent errant ACL error dialogs when stopping a job [[GH-4319](https://github.com/hashicorp/nomad/issues/4319)]
  * ui: Use Polling instead of Streaming for logs in Safari [[GH-4335](https://github.com/hashicorp/nomad/issues/4335)]
  * ui: Track PlaceCanaries in deployment metrics [[GH-4325](https://github.com/hashicorp/nomad/issues/4325)]
+ * ui: Use the Network IP, not the Node IP, for task addresses [[GH-4369](https://github.com/hashicorp/nomad/issues/4369)]
 
 ## 0.8.3 (April 27, 2018)
 
