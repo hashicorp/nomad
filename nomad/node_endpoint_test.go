@@ -921,6 +921,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	// Check for updated node in the FSM
 	ws = memdb.NewWatchSet()
 	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
 	require.Len(out.Events, 3)
 	require.Equal(NodeDrainEventDrainDisabled, out.Events[2].Message)
 
@@ -929,6 +930,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp3))
 	ws = memdb.NewWatchSet()
 	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
 	require.Len(out.Events, 3)
 }
 
