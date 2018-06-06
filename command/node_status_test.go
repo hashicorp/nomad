@@ -262,16 +262,17 @@ func TestNodeStatusCommand_FormatDrain(t *testing.T) {
 	assert.Equal("false", formatDrain(node))
 
 	node.DrainStrategy = &api.DrainStrategy{}
-
 	assert.Equal("true; no deadline", formatDrain(node))
 
-	// formatTime special cases Unix(0, 0), so increment by 1
-	node.DrainStrategy.ForceDeadline = time.Unix(1, 0)
-	t.Logf(node.DrainStrategy.ForceDeadline.String())
+	node.DrainStrategy = &api.DrainStrategy{}
+	node.DrainStrategy.Deadline = -1 * time.Second
+	assert.Equal("true; force drain", formatDrain(node))
 
+	// formatTime special cases Unix(0, 0), so increment by 1
+	node.DrainStrategy = &api.DrainStrategy{}
+	node.DrainStrategy.ForceDeadline = time.Unix(1, 0).UTC()
 	assert.Equal("true; 1970-01-01T00:00:01Z deadline", formatDrain(node))
 
 	node.DrainStrategy.IgnoreSystemJobs = true
-
 	assert.Equal("true; 1970-01-01T00:00:01Z deadline; ignoring system jobs", formatDrain(node))
 }
