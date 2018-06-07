@@ -32,8 +32,6 @@ IMPROVEMENTS:
    image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)]
  * driver/raw_exec: Use cgroups to manage process tree for precise cleanup of
    launched processes [[GH-4350](https://github.com/hashicorp/nomad/issues/4350)]
- * env: Default interpolation of optional meta fields of parameterized jobs to
-   an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
  * ui: Show node drain, node eligibility, and node drain strategy information in the Client list and Client detail pages [[GH-4353](https://github.com/hashicorp/nomad/issues/4353)]
  * ui: Show reschedule-event information for allocations that were server-side rescheduled [[GH-4254](https://github.com/hashicorp/nomad/issues/4254)]
  * ui: Show the running deployment Progress Deadlines on the Job Detail Page [[GH-4388](https://github.com/hashicorp/nomad/issues/4388)]
