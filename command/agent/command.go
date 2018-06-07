@@ -740,8 +740,8 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
 	if s := c.agent.Server(); s != nil {
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
 		sconf, err := convertServerConfig(newConf, c.logOutput)
 		if err != nil {
 			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
