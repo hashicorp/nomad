@@ -237,11 +237,11 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 			require.Contains(out, fmt.Sprintf("Alloc %q marked for migration", a.ID))
 			require.Contains(out, fmt.Sprintf("Alloc %q draining", a.ID))
 		}
-	}
 
-	expected := fmt.Sprintf("All allocations on node %q have stopped.\n", nodeID)
-	if !strings.HasSuffix(out, expected) {
-		t.Fatalf("expected output to end with:\n%s", expected)
+		expected := fmt.Sprintf("All allocations on node %q have stopped.\n", nodeID)
+		if !strings.HasSuffix(out, expected) {
+			t.Fatalf("expected output to end with:\n%s", expected)
+		}
 	}
 
 	// Test -monitor flag
@@ -254,7 +254,6 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 
 	out = outBuf.String()
 	t.Logf("Output:\n%s", out)
-
 	require.Contains(out, "No drain strategy set")
 }
 
@@ -262,7 +261,7 @@ func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	server, client, url := testServer(t, true, func(c *agent.Config) {
-		c.NodeName = "drain_monitor_node"
+		c.NodeName = "drain_monitor_node2"
 	})
 	defer server.Shutdown()
 
