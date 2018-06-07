@@ -42,6 +42,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: Clean up leaked deployments on restoration [[GH-4329](https://github.com/hashicorp/nomad/issues/4329)]
+ * core: Fix regression to allow for dynamic Vault configuration reload [[GH-4395](https://github.com/hashicorp/nomad/issues/4395)]
  * core: Fix bug where older failed allocations of jobs that have been updated to a newer version were
    not being garbage collected [[GH-4313](https://github.com/hashicorp/nomad/issues/4313)]
  * core: Fix bug when upgrading an existing server to Raft protocol 3 that
