@@ -291,6 +291,26 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		},
 	}
 
+	if tc.alloc.Job.ParentID != "" {
+		tc.baseLabels = append(tc.baseLabels, metrics.Label{
+			Name:  "parent_id",
+			Value: tc.alloc.Job.ParentID,
+		})
+		if strings.Contains(tc.alloc.Job.Name, "/dispatch-") {
+			tc.baseLabels = append(tc.baseLabels, metrics.Label{
+				Name:  "dispatch_id",
+				Value: strings.Split(tc.alloc.Job.Name, "/dispatch-")[1],
+			})
+		}
+		if strings.Contains(tc.alloc.Job.Name, "/periodic-") {
+			tc.baseLabels = append(tc.baseLabels, metrics.Label{
+				Name:  "periodic_id",
+				Value: strings.Split(tc.alloc.Job.Name, "/periodic-")[1],
+			})
+		}
+		return tc
+	}
+
 	return tc
 }
 
