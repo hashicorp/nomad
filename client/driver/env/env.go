@@ -59,6 +59,10 @@ const (
 	// Region is the environment variable for passing the region in which the alloc is running.
 	Region = "NOMAD_REGION"
 
+	// NomadAdvertiseAddr is the environment variable for passing the client HTTP
+	// advertise address. GH-4381.
+	NomadAdvertiseAddr = "NOMAD_ADVERTISE_ADDR"
+
 	// AddrPrefix is the prefix for passing both dynamic and static port
 	// allocations to tasks.
 	// E.g $NOMAD_ADDR_http=127.0.0.1:80
@@ -207,18 +211,19 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
-	cpuLimit         int
-	memLimit         int
-	taskName         string
-	allocIndex       int
-	datacenter       string
-	region           string
-	allocId          string
-	allocName        string
-	groupName        string
-	vaultToken       string
-	injectVaultToken bool
-	jobName          string
+	cpuLimit           int
+	memLimit           int
+	taskName           string
+	allocIndex         int
+	datacenter         string
+	region             string
+	nomadAdvertiseAddr string
+	allocId            string
+	allocName          string
+	groupName          string
+	vaultToken         string
+	injectVaultToken   bool
+	jobName            string
 
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
@@ -305,6 +310,9 @@ func (b *Builder) Build() *TaskEnv {
 
 		// Copy region over to node attrs
 		nodeAttrs[nodeRegionKey] = b.region
+	}
+	if b.nomadAdvertiseAddr != "" {
+		envMap[NomadAdvertiseAddr] = b.nomadAdvertiseAddr
 	}
 
 	// Build the network related env vars
@@ -445,6 +453,7 @@ func (b *Builder) setNode(n *structs.Node) *Builder {
 	b.nodeAttrs[nodeClassKey] = n.NodeClass
 	b.nodeAttrs[nodeDcKey] = n.Datacenter
 	b.datacenter = n.Datacenter
+	b.nomadAdvertiseAddr = n.HTTPAddr
 
 	// Set up the attributes.
 	for k, v := range n.Attributes {
