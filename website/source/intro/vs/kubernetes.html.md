@@ -35,6 +35,6 @@ into a single system. By default, Nomad is distributed, highly available,
 and operationally simple.
 
 Kubernetes documentation states they can support clusters greater than 5,000 nodes
-and they support a multi-AZ/multi-region configuration. Nomad has been tested
-on clusters up to 5,000 nodes, but is expected to work on much larger clusters as
-well. Nomad also supports multi-datacenter and multi-region configurations.
+and they support a multi-AZ/multi-region configuration. Nomad has been proven to scale 
+to cluster sizes that exceed 10,000 nodes in real-world production environments. Nomad 
+also natively supports multi-datacenter and multi-region configurations.

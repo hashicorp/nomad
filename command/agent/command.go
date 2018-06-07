@@ -740,20 +740,21 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	if shouldReloadRPC {
-		if s := c.agent.Server(); s != nil {
-			sconf, err := convertServerConfig(newConf, c.logOutput)
-			c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
-			if err != nil {
-				c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+	if s := c.agent.Server(); s != nil {
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
+		sconf, err := convertServerConfig(newConf, c.logOutput)
+		if err != nil {
+			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+			return
+		} else {
+			if err := s.Reload(sconf); err != nil {
+				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
 				return
-			} else {
-				if err := s.Reload(sconf); err != nil {
-					c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
-					return
-				}
 			}
 		}
+	}
+
+	if shouldReloadRPC {
 
 		if s := c.agent.Client(); s != nil {
 			clientConfig, err := c.agent.clientConfig()

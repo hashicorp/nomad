@@ -2537,6 +2537,52 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 	})
 }
 
+// Tests the reconciler creates a deployment when the job has a newer create index
+func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
+	jobOld := mock.Job()
+	job := jobOld.Copy()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	job.CreateIndex += 100
+
+	// Create 5 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = jobOld
+		alloc.JobID = jobOld.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 5,
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  d,
+		deploymentUpdates: nil,
+		place:             5,
+		destructive:       0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				InPlaceUpdate:     0,
+				Ignore:            5,
+				Place:             5,
+				DestructiveUpdate: 0,
+			},
+		},
+	})
+}
+
 // Tests the reconciler doesn't creates a deployment if there are no changes
 func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 	job := mock.Job()

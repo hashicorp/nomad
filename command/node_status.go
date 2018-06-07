@@ -304,8 +304,9 @@ func formatDrain(n *api.Node) string {
 	if n.DrainStrategy != nil {
 		b := new(strings.Builder)
 		b.WriteString("true")
-
-		if n.DrainStrategy.ForceDeadline.IsZero() {
+		if n.DrainStrategy.DrainSpec.Deadline.Nanoseconds() < 0 {
+			b.WriteString("; force drain")
+		} else if n.DrainStrategy.ForceDeadline.IsZero() {
 			b.WriteString("; no deadline")
 		} else {
 			fmt.Fprintf(b, "; %s deadline", formatTime(n.DrainStrategy.ForceDeadline))

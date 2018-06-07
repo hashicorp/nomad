@@ -258,6 +258,49 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	require.Contains(out, "No drain strategy set")
 }
 
+func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.NodeName = "drain_monitor_node"
+	})
+	defer server.Shutdown()
+
+	// Wait for a node to appear
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Test -monitor flag
+	outBuf := bytes.NewBuffer(nil)
+	ui := &cli.BasicUi{
+		Reader:      bytes.NewReader(nil),
+		Writer:      outBuf,
+		ErrorWriter: outBuf,
+	}
+	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
+	args := []string{"-address=" + url, "-self", "-monitor", "-ignore-system"}
+	t.Logf("Running: %v", args)
+	if code := cmd.Run(args); code != 0 {
+		t.Fatalf("expected exit 0, got: %d\n%s", code, outBuf.String())
+	}
+
+	out := outBuf.String()
+	t.Logf("Output:\n%s", out)
+
+	require.Contains(out, "Monitoring node")
+	require.Contains(out, "No drain strategy set")
+}
+
 func TestNodeDrainCommand_Fails(t *testing.T) {
 	t.Parallel()
 	srv, _, url := testServer(t, false, nil)

@@ -1,6 +1,6 @@
 import $ from 'jquery';
 import { assign } from '@ember/polyfills';
-import { click, findAll, currentURL, find, visit, waitFor } from 'ember-native-dom-helpers';
+import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
@@ -137,6 +137,36 @@ test('each task row should list high-level information for the task', function(a
   });
 });
 
+test('each task row should link to the task detail page', function(assert) {
+  const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
+
+  click('[data-test-task-row] [data-test-name] a');
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}/${task.name}`,
+      'Task name in task row links to task detail'
+    );
+  });
+
+  andThen(() => {
+    visit(`/allocations/${allocation.id}`);
+  });
+
+  andThen(() => {
+    click('[data-test-task-row]');
+  });
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}/${task.name}`,
+      'Task row links to task detail'
+    );
+  });
+});
+
 test('tasks with an unhealthy driver have a warning icon', function(assert) {
   assert.ok(find('[data-test-task-row] [data-test-icon="unhealthy-driver"]'), 'Warning is shown');
 });
@@ -161,52 +191,6 @@ test('when the allocation is not found, an error message is shown, but the URL p
       'Not Found',
       'Error message is for 404'
     );
-  });
-});
-
-moduleForAcceptance('Acceptance | allocation detail (loading states)', {
-  beforeEach() {
-    server.create('agent');
-
-    node = server.create('node');
-    job = server.create('job', { groupCount: 0 });
-    allocation = server.create('allocation', 'withTaskWithPorts');
-  },
-});
-
-test('when the node the allocation is on has yet to load, address links are in a loading state', function(assert) {
-  server.get('/node/:id', { timing: true });
-
-  visit(`/allocations/${allocation.id}`);
-
-  waitFor('[data-test-port]').then(() => {
-    assert.ok(
-      find('[data-test-port]')
-        .textContent.trim()
-        .endsWith('...'),
-      'The address is in a loading state'
-    );
-    assert.notOk(
-      find('[data-test-port]').querySelector('a'),
-      'While in the loading state, there is no link to the address'
-    );
-
-    server.pretender.requestReferences.forEach(({ request }) => {
-      server.pretender.resolve(request);
-    });
-
-    andThen(() => {
-      const taskResources = allocation.taskResourcesIds
-        .map(id => server.db.taskResources.find(id))
-        .sortBy('name')[0];
-      const port = taskResources.resources.Networks[0].ReservedPorts[0];
-      const addressText = find('[data-test-port]').textContent.trim();
-
-      assert.ok(addressText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressText.includes(port.Value), `Found value ${port.Value}`);
-      assert.ok(addressText.includes(node.httpAddr.match(/(.+):.+$/)[1]), 'Found the node address');
-      assert.ok(find('[data-test-port]').querySelector('a'), 'Link to address found');
-    });
   });
 });
 
