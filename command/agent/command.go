@@ -740,28 +740,16 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	var shouldReloadVault bool
-	switch {
-	case c.agent.config.Vault == nil && newConf.Vault != nil:
-		fallthrough
-	case c.agent.config.Vault != nil && newConf.Vault == nil:
-		fallthrough
-	case c.agent.config.Vault != nil && !c.agent.config.Vault.IsEqual(newConf.Vault):
-		shouldReloadVault = true
-	}
-
-	if shouldReloadRPC || shouldReloadVault {
-		if s := c.agent.Server(); s != nil {
-			sconf, err := convertServerConfig(newConf, c.logOutput)
-			c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
-			if err != nil {
-				c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+	if s := c.agent.Server(); s != nil {
+		sconf, err := convertServerConfig(newConf, c.logOutput)
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
+		if err != nil {
+			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+			return
+		} else {
+			if err := s.Reload(sconf); err != nil {
+				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
 				return
-			} else {
-				if err := s.Reload(sconf); err != nil {
-					c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
-					return
-				}
 			}
 		}
 	}
