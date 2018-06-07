@@ -740,7 +740,17 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	if shouldReloadRPC {
+	var shouldReloadVault bool
+	switch {
+	case c.agent.config.Vault == nil && newConf.Vault != nil:
+		fallthrough
+	case c.agent.config.Vault != nil && newConf.Vault == nil:
+		fallthrough
+	case c.agent.config.Vault != nil && !c.agent.config.Vault.IsEqual(newConf.Vault):
+		shouldReloadVault = true
+	}
+
+	if shouldReloadRPC || shouldReloadVault {
 		if s := c.agent.Server(); s != nil {
 			sconf, err := convertServerConfig(newConf, c.logOutput)
 			c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
@@ -754,6 +764,9 @@ func (c *Command) handleReload() {
 				}
 			}
 		}
+	}
+
+	if shouldReloadRPC {
 
 		if s := c.agent.Client(); s != nil {
 			clientConfig, err := c.agent.clientConfig()
