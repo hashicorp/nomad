@@ -316,6 +316,11 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	v.l.Lock()
 	defer v.l.Unlock()
 
+	// If reloading the same config, no-op
+	if v.config.IsEqual(config) {
+		return nil
+	}
+
 	// Kill any background routines
 	if v.running {
 		// Stop accepting any new request

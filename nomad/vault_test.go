@@ -437,6 +437,31 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	if client.tokenData == nil || len(client.tokenData.Policies) != 3 {
 		t.Fatalf("unexpected token: %v", client.tokenData)
 	}
+
+	// Test that when SetConfig is called with the same configuration, it is a
+	// no-op
+	failCh := make(chan struct{}, 1)
+	go func() {
+		tomb := client.tomb
+		select {
+		case <-tomb.Dying():
+			close(failCh)
+		case <-time.After(1 * time.Second):
+			return
+		}
+	}()
+
+	// Update the config
+	if err := client.SetConfig(v2.Config); err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	select {
+	case <-failCh:
+		t.Fatalf("Tomb shouldn't have exited")
+	case <-time.After(1 * time.Second):
+		return
+	}
 }
 
 // Test that we can disable vault
