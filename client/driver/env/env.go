@@ -397,23 +397,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 	// Set meta
 	combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, b.taskName)
-	// taskMetaSize is double to total meta keys to account for given and upper
-	// cased values
-	taskMetaSize := len(combined) * 2
-
-	// if job is parameterized initialize optional meta to empty strings
-	if alloc.Job.IsParameterized() {
-		b.taskMeta = make(map[string]string,
-			taskMetaSize+(len(alloc.Job.ParameterizedJob.MetaOptional)*2))
-
-		for _, k := range alloc.Job.ParameterizedJob.MetaOptional {
-			b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = ""
-			b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = ""
-		}
-	} else {
-		b.taskMeta = make(map[string]string, taskMetaSize)
-	}
-
+	b.taskMeta = make(map[string]string, len(combined)*2)
 	for k, v := range combined {
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = v
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
