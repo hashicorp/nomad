@@ -438,7 +438,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 		t.Fatalf("unexpected token: %v", client.tokenData)
 	}
 
-	// test that when SetConfig is called with the same configuration, it is a
+	// Test that when SetConfig is called with the same configuration, it is a
 	// no-op
 	failCh := make(chan struct{}, 1)
 	go func() {
