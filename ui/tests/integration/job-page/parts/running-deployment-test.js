@@ -139,3 +139,34 @@ test('the active deployment section can be expanded to show task groups and allo
     });
   });
 });
+
+test('each task group in the expanded task group section shows task group details', function(assert) {
+  this.server.create('node');
+  this.server.create('job', { type: 'service', activeDeployment: true });
+
+  this.store.findAll('job');
+
+  return wait().then(() => {
+    const job = this.store.peekAll('job').get('firstObject');
+
+    this.set('job', job);
+    this.render(hbs`
+      {{job-page/parts/running-deployment job=job}}
+    `);
+
+    return wait()
+      .then(() => {
+        click('[data-test-deployment-toggle-details]');
+        return wait();
+      })
+      .then(() => {
+        const task = job.get('runningDeployment.taskGroupSummaries.firstObject');
+        const findForTaskGroup = selector => find(`[data-test-deployment-task-group-${selector}]`);
+        assert.equal(findForTaskGroup('name').textContent.trim(), task.get('name'));
+        assert.equal(
+          findForTaskGroup('progress-deadline').textContent.trim(),
+          moment(task.get('requireProgressBy')).format('MM/DD/YY HH:mm:ss')
+        );
+      });
+  });
+});

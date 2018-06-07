@@ -22,4 +22,6 @@ export default Fragment.extend({
   placedAllocs: attr('number'),
   healthyAllocs: attr('number'),
   unhealthyAllocs: attr('number'),
+
+  requireProgressBy: attr('date'),
 });
