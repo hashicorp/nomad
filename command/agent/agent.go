@@ -870,6 +870,16 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http, rpc bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
+	switch {
+	case a.config.Vault == nil && newConfig.Vault != nil:
+		fallthrough
+	case a.config.Vault != nil && newConfig.Vault == nil:
+		fallthrough
+	case a.config.Vault != nil && !a.config.Vault.IsEqual(newConfig.Vault):
+		rpc = true
+		agent = true
+	}
+
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
 		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)

@@ -673,6 +673,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
+		s.logger.Printf("[INFO] nomad: Reloading Vault Configuration")
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
