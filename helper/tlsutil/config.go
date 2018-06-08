@@ -421,3 +421,25 @@ func ParseMinVersion(version string) (uint16, error) {
 
 	return vers, nil
 }
+
+func ShouldReloadRPCConnections(old, new *config.TLSConfig) (bool, error) {
+	var tlsInfoEqual bool
+
+	// If already configured with TLS, compare with the new TLS configuration
+	if new != nil {
+		var err error
+		tlsInfoEqual, err = new.CertificateInfoIsEqual(old)
+		if err != nil {
+			return false, err
+		}
+	} else {
+		// If not configured with TLS, compare with the new TLS configuration
+		tlsInfoEqual = new == nil && old == nil
+	}
+
+	if new != nil && old != nil {
+		tlsInfoEqual = new.EnableRPC == old.EnableRPC
+	}
+
+	return tlsInfoEqual, nil
+}
