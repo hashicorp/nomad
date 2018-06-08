@@ -866,16 +866,16 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // ShouldReload determines if we should reload the configuration and agent
 // connections. If the TLS Configuration has not changed, we shouldn't reload.
-func (a *Agent) ShouldReload(newConfig *Config) (agent, http, rpc bool) {
+func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
 		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)
-		return false, false, false
+		return false, false
 	} else if !isEqual {
-		return true, true, true
+		return true, true
 	}
 
 	// Allow the ability to only reload HTTP connections
@@ -886,11 +886,10 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http, rpc bool) {
 
 	// Allow the ability to only reload HTTP connections
 	if a.config.TLSConfig.EnableRPC != newConfig.TLSConfig.EnableRPC {
-		rpc = true
 		agent = true
 	}
 
-	return agent, http, rpc
+	return agent, http
 }
 
 // Reload handles configuration changes for the agent. Provides a method that
