@@ -38,5 +38,5 @@ completely lost, only one voter will be lost, so the cluster remains available.
 If a voter is lost in an availability zone, Autopilot will promote the non-voter 
 to voter automatically, putting the hot standby server into service quickly.
 
-See the [Nomad Autopilot Guide](https://www.nomadproject.io/guides/cluster/autopilot.html)
+See the [Nomad Autopilot Guide](/guides/autopilot.html)
 for a comprehensive overview of Nomad's open source and enterprise Autopilot features.

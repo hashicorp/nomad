@@ -220,5 +220,5 @@ Nomad server in the cluster, like this:
   server's RPC port used for cluster communications.
 
 - `non_voter` `(bool: <false>)` - This controls whether the server is a non-voter, which is used
-  in some advanced [Autopilot](/guides/cluster/autopilot.html) configurations. If omitted, it will
+  in some advanced [Autopilot](/guides/autopilot.html) configurations. If omitted, it will
   default to false, which is typical for most clusters.

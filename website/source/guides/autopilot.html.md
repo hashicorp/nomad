@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Autopilot"
-sidebar_current: "guides-cluster-autopilot"
+sidebar_current: "guides-autopilot"
 description: |-
   This guide covers how to configure and use Autopilot features.
 ---

@@ -50,7 +50,7 @@ Raft Protocol versions supported by each Nomad version:
   </tr>
 </table>
 
-In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
+In order to enable all [Autopilot](/guides/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
