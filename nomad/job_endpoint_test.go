@@ -460,6 +460,7 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 
 func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -481,9 +482,8 @@ func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), "'Dispatched' is read-only") {
-		t.Fatalf("expected dispatch read-only error: %v", err)
-	}
+	require.Error(err)
+	require.Contains(err.Error(), "job can't be submitted with 'Dispatched'")
 }
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	t.Parallel()

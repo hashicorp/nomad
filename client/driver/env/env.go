@@ -403,8 +403,8 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 	// if job is parameterized initialize optional meta to empty strings
 	if alloc.Job.Dispatched {
-		b.taskMeta = make(map[string]string,
-			taskMetaSize+(len(alloc.Job.ParameterizedJob.MetaOptional)*2))
+		optionalMetaCount := len(alloc.Job.ParameterizedJob.MetaOptional)
+		b.taskMeta = make(map[string]string, taskMetaSize+optionalMetaCount*2)
 
 		for _, k := range alloc.Job.ParameterizedJob.MetaOptional {
 			b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, strings.ToUpper(k))] = ""
