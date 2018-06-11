@@ -1,4 +1,4 @@
-## 0.8.4 (Unreleased)
+## 0.8.4 (June 11, 2018)
 
 IMPROVEMENTS:
  * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
