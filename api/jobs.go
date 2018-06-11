@@ -614,6 +614,7 @@ type Job struct {
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
 	ParameterizedJob  *ParameterizedJobConfig
+	Dispatched        bool
 	Payload           []byte
 	Reschedule        *ReschedulePolicy
 	Migrate           *MigrateStrategy
@@ -636,7 +637,7 @@ func (j *Job) IsPeriodic() bool {
 
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
-	return j.ParameterizedJob != nil
+	return j.ParameterizedJob != nil && !j.Dispatched
 }
 
 func (j *Job) Canonicalize() {

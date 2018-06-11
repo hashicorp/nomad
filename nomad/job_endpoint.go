@@ -124,10 +124,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Validate job transitions if its an update
-	if existingJob != nil {
-		if err := validateJobUpdate(existingJob, args.Job); err != nil {
-			return err
-		}
+	if err := validateJobUpdate(existingJob, args.Job); err != nil {
+		return err
 	}
 
 	// Ensure that the job has permissions for the requested Vault tokens
@@ -1327,6 +1325,13 @@ func validateJob(job *structs.Job) (invalid, warnings error) {
 
 // validateJobUpdate ensures updates to a job are valid.
 func validateJobUpdate(old, new *structs.Job) error {
+	if old == nil {
+		if new.Dispatched {
+			return fmt.Errorf("job can't be submitted with 'Dispatched' set")
+		}
+		return nil
+	}
+
 	// Type transitions are disallowed
 	if old.Type != new.Type {
 		return fmt.Errorf("cannot update job from type %q to %q", old.Type, new.Type)
@@ -1346,6 +1351,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 	}
 	if new.IsParameterized() && !old.IsParameterized() {
 		return fmt.Errorf("cannot update parameterized job to being non-parameterized")
+	}
+
+	if old.Dispatched != new.Dispatched {
+		return fmt.Errorf("field 'Dispatched' is read-only")
 	}
 
 	return nil
@@ -1403,6 +1412,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
 	dispatchJob.SetSubmitTime()
+	dispatchJob.Dispatched = true
 
 	// Merge in the meta data
 	for k, v := range args.Meta {
