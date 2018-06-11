@@ -364,7 +364,7 @@ func (e *UniversalExecutor) configureLoggers() error {
 			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
 		}
 
-		r, err := NewLogRotatorWrapper(lro)
+		r, err := newLogRotatorWrapper(e.logger, lro)
 		if err != nil {
 			return err
 		}
@@ -378,7 +378,7 @@ func (e *UniversalExecutor) configureLoggers() error {
 			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
 		}
 
-		r, err := NewLogRotatorWrapper(lre)
+		r, err := newLogRotatorWrapper(e.logger, lre)
 		if err != nil {
 			return err
 		}
@@ -851,11 +851,12 @@ type logRotatorWrapper struct {
 	processOutReader  *os.File
 	rotatorWriter     *logging.FileRotator
 	hasFinishedCopied chan struct{}
+	logger            *log.Logger
 }
 
-// NewLogRotatorWrapper takes a rotator and returns a wrapper that has the
+// newLogRotatorWrapper takes a rotator and returns a wrapper that has the
 // processOutWriter to attach to the processes stdout or stderr.
-func NewLogRotatorWrapper(rotator *logging.FileRotator) (*logRotatorWrapper, error) {
+func newLogRotatorWrapper(logger *log.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create os.Pipe for extracting logs: %v", err)
@@ -865,7 +866,8 @@ func NewLogRotatorWrapper(rotator *logging.FileRotator) (*logRotatorWrapper, err
 		processOutWriter:  w,
 		processOutReader:  r,
 		rotatorWriter:     rotator,
-		hasFinishedCopied: make(chan struct{}, 1),
+		hasFinishedCopied: make(chan struct{}),
+		logger:            logger,
 	}
 	wrap.start()
 	return wrap, nil
@@ -875,22 +877,51 @@ func NewLogRotatorWrapper(rotator *logging.FileRotator) (*logRotatorWrapper, err
 // called by the constructor and not the user of the wrapper.
 func (l *logRotatorWrapper) start() {
 	go func() {
-		io.Copy(l.rotatorWriter, l.processOutReader)
-		l.processOutReader.Close() // in case io.Copy stopped due to write error
-		close(l.hasFinishedCopied)
+		defer close(l.hasFinishedCopied)
+		_, err := io.Copy(l.rotatorWriter, l.processOutReader)
+		if err != nil {
+			// Close reader to propagate io error across pipe.
+			// Note that this may block until the process exits on
+			// Windows due to
+			// https://github.com/PowerShell/PowerShell/issues/4254
+			// or similar issues. Since this is already running in
+			// a goroutine its safe to block until the process is
+			// force-killed.
+			l.processOutReader.Close()
+		}
 	}()
 	return
 }
 
 // Close closes the rotator and the process writer to ensure that the Wait
 // command exits.
-func (l *logRotatorWrapper) Close() error {
+func (l *logRotatorWrapper) Close() {
 	// Wait up to the close tolerance before we force close
 	select {
 	case <-l.hasFinishedCopied:
 	case <-time.After(processOutputCloseTolerance):
 	}
-	err := l.processOutReader.Close()
+
+	// Closing the read side of a pipe may block on Windows if the process
+	// is being debugged as in:
+	// https://github.com/PowerShell/PowerShell/issues/4254
+	// The pipe will be closed and cleaned up when the process exits.
+	closeDone := make(chan struct{})
+	go func() {
+		defer close(closeDone)
+		err := l.processOutReader.Close()
+		if err != nil && !strings.Contains(err.Error(), "file already closed") {
+			l.logger.Printf("[WARN] executor: error closing read-side of process output pipe: %v", err)
+		}
+
+	}()
+
+	select {
+	case <-closeDone:
+	case <-time.After(processOutputCloseTolerance):
+		l.logger.Printf("[WARN] executor: timed out waiting for read-side of process output pipe to close")
+	}
+
 	l.rotatorWriter.Close()
-	return err
+	return
 }
