@@ -2018,6 +2018,10 @@ type Job struct {
 	// for dispatching.
 	ParameterizedJob *ParameterizedJobConfig
 
+	// Dispatched is used to identify if the Job has been dispatched from a
+	// parameterized job.
+	Dispatched bool
+
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte
 
@@ -2328,7 +2332,7 @@ func (j *Job) IsPeriodicActive() bool {
 
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
-	return j.ParameterizedJob != nil
+	return j.ParameterizedJob != nil && !j.Dispatched
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task

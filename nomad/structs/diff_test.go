@@ -152,6 +152,12 @@ func TestJobDiff(t *testing.T) {
 					},
 					{
 						Type: DiffTypeDeleted,
+						Name: "Dispatched",
+						Old:  "false",
+						New:  "",
+					},
+					{
+						Type: DiffTypeDeleted,
 						Name: "Meta[foo]",
 						Old:  "bar",
 						New:  "",
@@ -212,6 +218,12 @@ func TestJobDiff(t *testing.T) {
 						Name: "AllAtOnce",
 						Old:  "",
 						New:  "true",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Dispatched",
+						Old:  "",
+						New:  "false",
 					},
 					{
 						Type: DiffTypeAdded,
