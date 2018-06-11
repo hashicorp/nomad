@@ -18,7 +18,7 @@ description: |-
 </table>
 
 The `autopilot` stanza configures the Nomad agent to configure Autopilot behavior.
-For more information about Autopilot, see the [Autopilot Guide](/guides/cluster/autopilot.html).
+For more information about Autopilot, see the [Autopilot Guide](/guides/autopilot.html).
 
 ```hcl
 autopilot {
