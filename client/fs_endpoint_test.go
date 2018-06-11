@@ -92,7 +92,17 @@ func TestFS_Stat(t *testing.T) {
 			return false, fmt.Errorf("alloc doesn't exist")
 		}
 
-		return len(ar.tasks) != 0, fmt.Errorf("tasks not running")
+		alloc := ar.Alloc()
+		running := false
+		for _, s := range alloc.TaskStates {
+			if s.State == structs.TaskStateRunning {
+				running = true
+			} else {
+				running = false
+			}
+		}
+
+		return running, fmt.Errorf("tasks not running")
 	}, func(err error) {
 		t.Fatal(err)
 	})
@@ -217,7 +227,17 @@ func TestFS_List(t *testing.T) {
 			return false, fmt.Errorf("alloc doesn't exist")
 		}
 
-		return len(ar.tasks) != 0, fmt.Errorf("tasks not running")
+		alloc := ar.Alloc()
+		running := false
+		for _, s := range alloc.TaskStates {
+			if s.State == structs.TaskStateRunning {
+				running = true
+			} else {
+				running = false
+			}
+		}
+
+		return running, fmt.Errorf("tasks not running")
 	}, func(err error) {
 		t.Fatal(err)
 	})

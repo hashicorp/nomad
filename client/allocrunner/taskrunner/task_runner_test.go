@@ -1,4 +1,4 @@
-package client
+package taskrunner
 
 import (
 	"fmt"
@@ -17,7 +17,9 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -40,9 +42,9 @@ func prefixedTestLogger(prefix string) *log.Logger {
 }
 
 // Returns a tracker that never restarts.
-func noRestartsTracker() *RestartTracker {
+func noRestartsTracker() *restarts.RestartTracker {
 	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
-	return newRestartTracker(policy, structs.JobTypeBatch)
+	return restarts.NewRestartTracker(policy, structs.JobTypeBatch)
 }
 
 type MockTaskStateUpdater struct {
@@ -387,8 +389,8 @@ func TestTaskRunner_Update(t *testing.T) {
 		if ctx.tr.task.Driver != newTask.Driver {
 			return false, fmt.Errorf("Task not copied")
 		}
-		if ctx.tr.restartTracker.policy.Mode != newMode {
-			return false, fmt.Errorf("expected restart policy %q but found %q", newMode, ctx.tr.restartTracker.policy.Mode)
+		if ctx.tr.restartTracker.GetPolicy().Mode != newMode {
+			return false, fmt.Errorf("expected restart policy %q but found %q", newMode, ctx.tr.restartTracker.GetPolicy().Mode)
 		}
 		if ctx.tr.handle.ID() == oldHandle {
 			return false, fmt.Errorf("handle not ctx.updated")
@@ -642,7 +644,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 
 	// Use mockConsulServiceClient
-	consul := newMockConsulServiceClient(t)
+	consul := consulApi.NewMockConsulServiceClient(t)
 	ctx.tr.consul = consul
 
 	ctx.tr.MarkReceived()
@@ -650,26 +652,26 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Assert it is properly registered and unregistered
-	if expected := 6; len(consul.ops) != expected {
-		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.ops))
+	if expected := 6; len(consul.Ops) != expected {
+		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.Ops))
 	}
-	if consul.ops[0].op != "add" {
-		t.Errorf("expected first op to be add but found: %q", consul.ops[0].op)
+	if consul.Ops[0].Op != "add" {
+		t.Errorf("expected first Op to be add but found: %q", consul.Ops[0].Op)
 	}
-	if consul.ops[1].op != "remove" {
-		t.Errorf("expected second op to be remove but found: %q", consul.ops[1].op)
+	if consul.Ops[1].Op != "remove" {
+		t.Errorf("expected second op to be remove but found: %q", consul.Ops[1].Op)
 	}
-	if consul.ops[2].op != "remove" {
-		t.Errorf("expected third op to be remove but found: %q", consul.ops[2].op)
+	if consul.Ops[2].Op != "remove" {
+		t.Errorf("expected third op to be remove but found: %q", consul.Ops[2].Op)
 	}
-	if consul.ops[3].op != "add" {
-		t.Errorf("expected fourth op to be add but found: %q", consul.ops[3].op)
+	if consul.Ops[3].Op != "add" {
+		t.Errorf("expected fourth op to be add but found: %q", consul.Ops[3].Op)
 	}
-	if consul.ops[4].op != "remove" {
-		t.Errorf("expected fifth op to be remove but found: %q", consul.ops[4].op)
+	if consul.Ops[4].Op != "remove" {
+		t.Errorf("expected fifth op to be remove but found: %q", consul.Ops[4].Op)
 	}
-	if consul.ops[5].op != "remove" {
-		t.Errorf("expected sixth op to be remove but found: %q", consul.ops[5].op)
+	if consul.Ops[5].Op != "remove" {
+		t.Errorf("expected sixth op to be remove but found: %q", consul.Ops[5].Op)
 	}
 }
 

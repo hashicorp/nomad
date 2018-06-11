@@ -1,9 +1,7 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -72,17 +70,4 @@ func shuffleStrings(list []string) {
 		j := rand.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
-}
-
-// pre060RestoreState is used to read back in the persisted state for pre v0.6.0
-// state
-func pre060RestoreState(path string, data interface{}) error {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(buf, data); err != nil {
-		return fmt.Errorf("failed to decode state: %v", err)
-	}
-	return nil
 }

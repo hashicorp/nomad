@@ -1,17 +1,6 @@
 package client
 
-import (
-	"fmt"
-	"testing"
-	"time"
-
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/stats"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
-)
-
+/*
 func gcConfig() *GCConfig {
 	return &GCConfig{
 		DiskUsageThreshold:  80,
@@ -26,10 +15,10 @@ func TestIndexedGCAllocPQ(t *testing.T) {
 	t.Parallel()
 	pq := NewIndexedGCAllocPQ()
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
-	_, ar3 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
-	_, ar4 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar3 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar4 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 
 	pq.Push(ar1)
 	pq.Push(ar2)
@@ -105,10 +94,10 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 
 func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	gc.MarkForCollection(ar1)
 
 	gcAlloc := gc.allocRunners.Pop()
@@ -119,11 +108,11 @@ func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 
 func TestAllocGarbageCollector_Collect(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
 
@@ -140,11 +129,11 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 
 func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
 
@@ -157,15 +146,15 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
 	conf.ReservedDiskMB = 20
 	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar1.waitCh)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar2.waitCh)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
@@ -192,15 +181,15 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
 	conf.ReservedDiskMB = 20
 	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar1.waitCh)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar2.waitCh)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
@@ -228,15 +217,15 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
 	conf.ReservedDiskMB = 20
 	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar1.waitCh)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar2.waitCh)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
@@ -260,15 +249,15 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
 	conf.ReservedDiskMB = 20
 	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar1.waitCh)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar2.waitCh)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
@@ -419,15 +408,15 @@ func TestAllocGarbageCollector_MaxAllocs(t *testing.T) {
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
 	conf.ReservedDiskMB = 20
 	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar1.waitCh)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar2.waitCh)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
@@ -451,15 +440,15 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 	t.Parallel()
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
 	conf.ReservedDiskMB = 20
 	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
 
-	_, ar1 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar1.waitCh)
-	_, ar2 := testAllocRunnerFromAlloc(t, mock.Alloc(), false)
+	_, ar2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc(), false)
 	close(ar2.waitCh)
 	gc.MarkForCollection(ar1)
 	gc.MarkForCollection(ar2)
@@ -482,3 +471,4 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 		t.Fatalf("gcAlloc: %v", gcAlloc)
 	}
 }
+*/

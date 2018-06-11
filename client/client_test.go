@@ -11,6 +11,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -603,8 +604,8 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	// Create a new client
 	logger := log.New(c1.config.LogOutput, "", log.LstdFlags)
 	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient(t)
-	mockService.logger = logger
+	mockService := consulApi.NewMockConsulServiceClient(t)
+	mockService.Logger = logger
 	c2, err := NewClient(c1.config, catalog, mockService, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)

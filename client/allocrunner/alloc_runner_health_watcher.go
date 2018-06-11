@@ -1,4 +1,4 @@
-package client
+package allocrunner
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -160,7 +161,7 @@ type allocHealthTracker struct {
 	allocUpdates *cstructs.AllocListener
 
 	// consulClient is used to look up the state of the task's checks
-	consulClient ConsulServiceAPI
+	consulClient consulApi.ConsulServiceAPI
 
 	// healthy is used to signal whether we have determined the allocation to be
 	// healthy or unhealthy
@@ -191,7 +192,7 @@ type allocHealthTracker struct {
 // alloc listener and consul API object are given so that the watcher can detect
 // health changes.
 func newAllocHealthTracker(parentCtx context.Context, logger *log.Logger, alloc *structs.Allocation,
-	allocUpdates *cstructs.AllocListener, consulClient ConsulServiceAPI,
+	allocUpdates *cstructs.AllocListener, consulClient consulApi.ConsulServiceAPI,
 	minHealthyTime time.Duration, useChecks bool) *allocHealthTracker {
 
 	a := &allocHealthTracker{

@@ -1,4 +1,4 @@
-package client
+package allocrunner
 
 import (
 	"archive/tar"
@@ -18,6 +18,12 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// getRemoteRetryIntv is minimum interval on which we retry
+	// to fetch remote objects. We pick a value between this and 2x this.
+	getRemoteRetryIntv = 30 * time.Second
 )
 
 // rpcer is the interface needed by a prevAllocWatcher to make RPC calls.
@@ -49,13 +55,13 @@ type prevAllocWatcher interface {
 	IsMigrating() bool
 }
 
-// newAllocWatcher creates a prevAllocWatcher appropriate for whether this
+// NewAllocWatcher creates a prevAllocWatcher appropriate for whether this
 // alloc's previous allocation was local or remote. If this alloc has no
 // previous alloc then a noop implementation is returned.
-func newAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) prevAllocWatcher {
+func NewAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) prevAllocWatcher {
 	if alloc.PreviousAllocation == "" {
 		// No previous allocation, use noop transitioner
-		return noopPrevAlloc{}
+		return NoopPrevAlloc{}
 	}
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
@@ -295,7 +301,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		err := p.rpc.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
 			p.logger.Printf("[ERR] client: failed to query previous alloc %q: %v", p.prevAllocID, err)
-			retry := getAllocRetryIntv + lib.RandomStagger(getAllocRetryIntv)
+			retry := getRemoteRetryIntv + lib.RandomStagger(getRemoteRetryIntv)
 			select {
 			case <-time.After(retry):
 				continue
@@ -386,7 +392,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 		err := p.rpc.RPC("Node.GetNode", &req, &resp)
 		if err != nil {
 			p.logger.Printf("[ERR] client: failed to query node info %q: %v", nodeID, err)
-			retry := getAllocRetryIntv + lib.RandomStagger(getAllocRetryIntv)
+			retry := getRemoteRetryIntv + lib.RandomStagger(getRemoteRetryIntv)
 			select {
 			case <-time.After(retry):
 				continue
@@ -568,15 +574,15 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 	return nil
 }
 
-// noopPrevAlloc does not block or migrate on a previous allocation and never
+// NoopPrevAlloc does not block or migrate on a previous allocation and never
 // returns an error.
-type noopPrevAlloc struct{}
+type NoopPrevAlloc struct{}
 
 // Wait returns nil immediately.
-func (noopPrevAlloc) Wait(context.Context) error { return nil }
+func (NoopPrevAlloc) Wait(context.Context) error { return nil }
 
 // Migrate returns nil immediately.
-func (noopPrevAlloc) Migrate(context.Context, *allocdir.AllocDir) error { return nil }
+func (NoopPrevAlloc) Migrate(context.Context, *allocdir.AllocDir) error { return nil }
 
-func (noopPrevAlloc) IsWaiting() bool   { return false }
-func (noopPrevAlloc) IsMigrating() bool { return false }
+func (NoopPrevAlloc) IsWaiting() bool   { return false }
+func (NoopPrevAlloc) IsMigrating() bool { return false }

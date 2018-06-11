@@ -1,4 +1,4 @@
-package client
+package consul
 
 import (
 	"github.com/hashicorp/nomad/command/agent/consul"
