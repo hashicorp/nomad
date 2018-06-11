@@ -382,6 +382,7 @@ func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
 	a.Job.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaOptional: []string{"metaopt1", "metaopt2"},
 	}
+	a.Job.Dispatched = true
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Meta = map[string]string{"metaopt1": "metaopt1val"}
 	env := NewBuilder(mock.Node(), a, task, "global").Build()
