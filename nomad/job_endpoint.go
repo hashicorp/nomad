@@ -1325,6 +1325,7 @@ func validateJob(job *structs.Job) (invalid, warnings error) {
 
 // validateJobUpdate ensures updates to a job are valid.
 func validateJobUpdate(old, new *structs.Job) error {
+	// Validate Dispatch not set on new Jobs
 	if old == nil {
 		if new.Dispatched {
 			return fmt.Errorf("job can't be submitted with 'Dispatched' set")
@@ -1407,7 +1408,6 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 	// Derive the child job and commit it via Raft
 	dispatchJob := parameterizedJob.Copy()
-	dispatchJob.ParameterizedJob = nil
 	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID

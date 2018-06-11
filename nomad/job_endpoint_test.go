@@ -4384,6 +4384,12 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				if !out.Dispatched {
 					t.Fatal("expected dispatched job")
 				}
+				if out.IsParameterized() {
+					t.Fatal("dispatched job should not be parameterized")
+				}
+				if out.ParameterizedJob == nil {
+					t.Fatal("parameter job config should exist")
+				}
 
 				if tc.noEval {
 					return
