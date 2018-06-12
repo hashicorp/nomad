@@ -302,6 +302,11 @@ func (r *AllocRunner) RestoreState() error {
 				tr.Restart("upgrade", restartReason, failure)
 			}
 		} else {
+			// XXX This does nothing and is broken since the task runner is not
+			// running yet, and there is nothing listening to the destroy ch.
+			// XXX When a single task is dead in the allocation we should kill
+			// all the task. This currently does NOT happen. Re-enable test:
+			// TestAllocRunner_TaskLeader_StopRestoredTG
 			tr.Destroy(taskDestroyEvent)
 		}
 	}
@@ -719,6 +724,7 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 				metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "complete"}, 1)
 			}
 		}
+
 		// If the task failed, we should kill all the other tasks in the task group.
 		if taskState.Failed {
 			for _, tr := range otherTaskRunners {

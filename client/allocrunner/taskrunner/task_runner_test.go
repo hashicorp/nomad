@@ -1201,7 +1201,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, ".."))))
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, "../../.."))))
 	defer ts.Close()
 
 	alloc := mock.Alloc()

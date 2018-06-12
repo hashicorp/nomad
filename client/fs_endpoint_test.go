@@ -83,6 +83,9 @@ func TestFS_Stat(t *testing.T) {
 
 	// Create and add an alloc
 	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
 	c.addAlloc(a, "")
 
 	// Wait for the client to start it
@@ -218,6 +221,9 @@ func TestFS_List(t *testing.T) {
 
 	// Create and add an alloc
 	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
 	c.addAlloc(a, "")
 
 	// Wait for the client to start it
@@ -1756,6 +1762,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 
 	// Start the reader
 	truncateCh := make(chan struct{})
+	truncateClosed := false
 	dataPostTruncCh := make(chan struct{})
 	frames := make(chan *sframer.StreamFrame, 4)
 	go func() {
@@ -1766,8 +1773,9 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 				continue
 			}
 
-			if frame.FileEvent == truncateEvent {
+			if frame.FileEvent == truncateEvent && !truncateClosed {
 				close(truncateCh)
+				truncateClosed = true
 			}
 
 			collected = append(collected, frame.Data...)

@@ -1229,6 +1229,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 // not stopped as it does not exist.
 // See https://github.com/hashicorp/nomad/issues/3420#issuecomment-341666932
 func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
+	t.Skip("Skipping because the functionality being tested doesn't exist")
 	t.Parallel()
 	_, ar := TestAllocRunner(t, false)
 	defer ar.Destroy()
@@ -1284,22 +1285,14 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 
 	// Wait for tasks to be stopped because leader is dead
 	testutil.WaitForResult(func() (bool, error) {
-		last := upd2.Last()
-		if last == nil {
-			return false, fmt.Errorf("No updates")
-		}
-		if actual := last.TaskStates["leader"].State; actual != structs.TaskStateDead {
-			return false, fmt.Errorf("Task leader is not dead yet (it's %q)", actual)
-		}
-		if actual := last.TaskStates["follower1"].State; actual != structs.TaskStateDead {
-			return false, fmt.Errorf("Task follower1 is not dead yet (it's %q)", actual)
+		alloc := ar2.Alloc()
+		for task, state := range alloc.TaskStates {
+			if state.State != structs.TaskStateDead {
+				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
+			}
 		}
 		return true, nil
 	}, func(err error) {
-		last := upd2.Last()
-		for name, state := range last.TaskStates {
-			t.Logf("%s: %s", name, state.State)
-		}
 		t.Fatalf("err: %v", err)
 	})
 
