@@ -11,8 +11,8 @@ import (
 	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -149,7 +149,7 @@ func TestConsul_Integration(t *testing.T) {
 		serviceClient.Run()
 		close(consulRan)
 	}()
-	tr := client.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
+	tr := taskrunner.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
 	tr.MarkReceived()
 	go tr.Run()
 	defer func() {

@@ -510,10 +510,16 @@ func (c *Client) Shutdown() error {
 
 	// Destroy all the running allocations.
 	if c.config.DevMode {
+		var wg sync.WaitGroup
 		for _, ar := range c.getAllocRunners() {
-			ar.Destroy()
-			<-ar.WaitCh()
+			wg.Add(1)
+			go func(ar *allocrunner.AllocRunner) {
+				ar.Destroy()
+				<-ar.WaitCh()
+				wg.Done()
+			}(ar)
 		}
+		wg.Wait()
 	}
 
 	c.shutdown = true

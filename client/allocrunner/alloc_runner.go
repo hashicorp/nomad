@@ -111,29 +111,6 @@ type AllocRunner struct {
 	baseLabels []metrics.Label
 }
 
-// COMPAT: Remove in 0.7.0
-// allocRunnerState is used to snapshot the state of the alloc runner
-type allocRunnerState struct {
-	Version                string
-	Alloc                  *structs.Allocation
-	AllocDir               *allocdir.AllocDir
-	AllocClientStatus      string
-	AllocClientDescription string
-
-	// COMPAT: Remove in 0.7.0: removing will break upgrading directly from
-	//         0.5.2, so don't remove in the 0.6 series.
-	// Context is deprecated and only used to migrate from older releases.
-	// It will be removed in the future.
-	Context *struct {
-		AllocID  string // unused; included for completeness
-		AllocDir struct {
-			AllocDir  string
-			SharedDir string // unused; included for completeness
-			TaskDirs  map[string]string
-		}
-	} `json:"Context,omitempty"`
-}
-
 // allocRunnerAllocState is state that only has to be written when the alloc
 // changes.
 type allocRunnerAllocState struct {
