@@ -432,7 +432,17 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 
 // Reload allows a client to reload its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
-	return c.reloadTLSConnections(newConfig.TLSConfig)
+	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(c.config.TLSConfig, newConfig.TLSConfig)
+	if err != nil {
+		c.logger.Printf("[ERR] nomad: error parsing server TLS configuration: %s", err)
+		return err
+	}
+
+	if shouldReloadTLS {
+		return c.reloadTLSConnections(newConfig.TLSConfig)
+	}
+
+	return nil
 }
 
 // Leave is used to prepare the client to leave the cluster

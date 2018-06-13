@@ -769,10 +769,9 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	})
 	defer agent.Shutdown()
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
 	assert.False(shouldReloadAgent)
 	assert.False(shouldReloadHTTP)
-	assert.False(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
@@ -810,10 +809,9 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	})
 	defer agent.Shutdown()
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
 	require.True(shouldReloadAgent)
 	require.True(shouldReloadHTTP)
-	require.False(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
@@ -851,10 +849,9 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 	})
 	defer agent.Shutdown()
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
 	assert.True(shouldReloadAgent)
 	assert.False(shouldReloadHTTP)
-	assert.True(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
@@ -894,10 +891,9 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		},
 	}
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(newConfig)
 	assert.True(shouldReloadAgent)
 	assert.True(shouldReloadHTTP)
-	assert.True(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
@@ -959,10 +955,9 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	}
 	agent.config.TLSConfig.SetChecksum()
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(agentConfig)
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(agentConfig)
 	require.False(shouldReloadAgent)
 	require.False(shouldReloadHTTP)
-	require.False(shouldReloadRPC)
 
 	newCertificate := `
 	-----BEGIN CERTIFICATE-----
@@ -999,10 +994,9 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 		},
 	}
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC = agent.ShouldReload(newAgentConfig)
+	shouldReloadAgent, shouldReloadHTTP = agent.ShouldReload(newAgentConfig)
 	require.True(shouldReloadAgent)
 	require.True(shouldReloadHTTP)
-	require.True(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
@@ -1043,20 +1037,18 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	defer agent.Shutdown()
 
 	{
-		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+		shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
 		require.True(shouldReloadAgent)
 		require.True(shouldReloadHTTP)
-		require.True(shouldReloadRPC)
 	}
 
 	err := agent.Reload(sameAgentConfig)
 	require.Nil(err)
 
 	{
-		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+		shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
 		require.False(shouldReloadAgent)
 		require.False(shouldReloadHTTP)
-		require.False(shouldReloadRPC)
 	}
 }
 

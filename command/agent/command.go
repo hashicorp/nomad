@@ -730,7 +730,7 @@ func (c *Command) handleReload() {
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := c.agent.ShouldReload(newConf)
+	shouldReloadAgent, shouldReloadHTTP := c.agent.ShouldReload(newConf)
 	if shouldReloadAgent {
 		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
 		err := c.agent.Reload(newConf)
@@ -754,19 +754,16 @@ func (c *Command) handleReload() {
 		}
 	}
 
-	if shouldReloadRPC {
-
-		if s := c.agent.Client(); s != nil {
-			clientConfig, err := c.agent.clientConfig()
-			c.agent.logger.Printf("[DEBUG] agent: starting reload of client config")
-			if err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
-				return
-			}
-			if err := c.agent.Client().Reload(clientConfig); err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
-				return
-			}
+	if s := c.agent.Client(); s != nil {
+		clientConfig, err := c.agent.clientConfig()
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of client config")
+		if err != nil {
+			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			return
+		}
+		if err := c.agent.Client().Reload(clientConfig); err != nil {
+			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			return
 		}
 	}
 

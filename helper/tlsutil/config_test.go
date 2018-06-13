@@ -783,3 +783,89 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 	}
 	require.Equal(tlsConf.CipherSuites, expectedCiphers)
 }
+
+func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
+	require := require.New(t)
+
+	type shouldReloadTestInput struct {
+		old          *config.TLSConfig
+		new          *config.TLSConfig
+		shouldReload bool
+		errorStr     string
+	}
+
+	testInput := []*shouldReloadTestInput{
+		{
+			old: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			new: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			shouldReload: false,
+			errorStr:     "Same TLS Configuration should not reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			new: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: foocert,
+				KeyFile:  fookey,
+			},
+			shouldReload: true,
+			errorStr:     "Different TLS Configuration should reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			new: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: false,
+			},
+			shouldReload: true,
+			errorStr:     "Downgrading RPC connections should force reload",
+		},
+		{
+			old: nil,
+			new: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			shouldReload: true,
+			errorStr:     "Upgrading RPC connections should force reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			new:          nil,
+			shouldReload: true,
+			errorStr:     "Downgrading RPC connections should force reload",
+		},
+	}
+
+	for _, testCase := range testInput {
+		shouldReload, err := ShouldReloadRPCConnections(testCase.old, testCase.new)
+		require.NoError(err)
+		require.Equal(shouldReload, testCase.shouldReload, testCase.errorStr)
+	}
+}
