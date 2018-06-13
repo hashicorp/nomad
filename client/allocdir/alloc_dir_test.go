@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -415,9 +415,9 @@ func TestAllocDir_Copy(t *testing.T) {
 	a.NewTaskDir("baz")
 
 	b := a.Copy()
-	if diff := pretty.Diff(a, b); len(diff) > 0 {
-		t.Errorf("differences between copies: %# v", pretty.Formatter(diff))
-	}
+
+	// Clear the logger
+	require.Equal(t, a, b)
 
 	// Make sure TaskDirs map is copied
 	a.NewTaskDir("new")
