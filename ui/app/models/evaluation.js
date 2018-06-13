@@ -17,9 +17,6 @@ export default Model.extend({
   hasPlacementFailures: bool('failedTGAllocs.length'),
   isBlocked: equal('status', 'blocked'),
 
-  // TEMPORARY: https://github.com/emberjs/data/issues/5209
-  originalJobId: attr('string'),
-
   job: belongsTo('job'),
 
   modifyIndex: attr('number'),

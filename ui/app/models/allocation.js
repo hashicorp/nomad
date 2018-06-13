@@ -29,9 +29,6 @@ export default Model.extend({
   modifyTime: attr('date'),
   jobVersion: attr('number'),
 
-  // TEMPORARY: https://github.com/emberjs/data/issues/5209
-  originalJobId: attr('string'),
-
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
   statusIndex: computed('clientStatus', function() {
