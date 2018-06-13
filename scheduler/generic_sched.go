@@ -381,7 +381,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Nothing remaining to do if placement is not required
 	if len(results.place)+len(results.destructiveUpdate) == 0 {
-		if !s.job.Stopped() {
+		// If the job has been purged we don't have access to the job. Otherwise
+		// set the queued allocs to zero. This is true if the job is being
+		// stopped as well.
+		if s.job != nil {
 			for _, tg := range s.job.TaskGroups {
 				s.queuedAllocs[tg.Name] = 0
 			}
