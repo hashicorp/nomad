@@ -2,7 +2,6 @@ package agent
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
@@ -333,10 +333,7 @@ func TestAget_Client_TelemetryConfiguration(t *testing.T) {
 // API health check depending on configuration.
 func TestAgent_HTTPCheck(t *testing.T) {
 	t.Parallel()
-	logger := log.New(ioutil.Discard, "", 0)
-	if testing.Verbose() {
-		logger = log.New(os.Stdout, "[TestAgent_HTTPCheck] ", log.Lshortfile)
-	}
+	logger := testlog.Logger(t)
 	agent := func() *Agent {
 		return &Agent{
 			logger: logger,
@@ -417,13 +414,10 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
 		config: DevConfig(),
-		logger: log.New(ioutil.Discard, "", 0),
+		logger: testlog.Logger(t),
 	}
 	if err := a.config.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
-	}
-	if testing.Verbose() {
-		a.logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
 	// Assert server check uses /v1/agent/health?type=server
@@ -638,7 +632,7 @@ func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	logger := log.New(ioutil.Discard, "", 0)
+	logger := testlog.Logger(t)
 
 	agent := &Agent{
 		logger: logger,
@@ -662,7 +656,7 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	logger := log.New(ioutil.Discard, "", 0)
+	logger := testlog.Logger(t)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{},
@@ -704,7 +698,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	logger := log.New(ioutil.Discard, "", 0)
+	logger := testlog.Logger(t)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
@@ -927,7 +921,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	content := []byte(oldCertificate)
 	dir, err := ioutil.TempDir("", "certificate")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir) // clean up
 
@@ -940,7 +934,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 		key    = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	logger := log.New(ioutil.Discard, "", 0)
+	logger := testlog.Logger(t)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{

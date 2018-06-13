@@ -135,7 +135,7 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		evalBroker:          config.EvalBroker,
 		periodicDispatcher:  config.Periodic,
 		blockedEvals:        config.Blocked,
-		logger:              log.New(config.LogOutput, "", log.LstdFlags),
+		logger:              log.New(config.LogOutput, "", log.LstdFlags|log.Lmicroseconds),
 		config:              config,
 		state:               state,
 		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),

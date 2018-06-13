@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -65,7 +66,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -143,7 +144,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	}
 	ctestutils.QemuCompatible(t)
 
-	logger := testLogger()
+	logger := testlog.Logger(t)
 
 	// Graceful shutdown may be really slow unfortunately
 	killTimeout := 3 * time.Minute

@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,22 +23,12 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 )
-
-func testLogger() *log.Logger {
-	return prefixedTestLogger("")
-}
-
-func prefixedTestLogger(prefix string) *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, prefix, log.LstdFlags|log.Lmicroseconds)
-	}
-	return log.New(ioutil.Discard, "", 0)
-}
 
 // Returns a tracker that never restarts.
 func noRestartsTracker() *restarts.RestartTracker {
@@ -104,7 +93,7 @@ func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
 //
 // Callers should defer Cleanup() to cleanup after completion
 func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocation) *taskRunnerTestCtx {
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
@@ -122,7 +111,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	upd := &MockTaskStateUpdater{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(conf.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 		return nil

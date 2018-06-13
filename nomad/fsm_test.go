@@ -47,7 +47,7 @@ func testStateStore(t *testing.T) *state.StateStore {
 
 func testFSM(t *testing.T) *nomadFSM {
 	broker := testBroker(t, 0)
-	dispatcher, _ := testPeriodicDispatcher()
+	dispatcher, _ := testPeriodicDispatcher(t)
 	fsmConfig := &FSMConfig{
 		EvalBroker: broker,
 		Periodic:   dispatcher,

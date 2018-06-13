@@ -3,7 +3,6 @@ package driver
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -58,10 +58,6 @@ func copyFile(src, dst string, t *testing.T) {
 	if err := out.Sync(); err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
-}
-
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
 func testConfig(t *testing.T) *config.Config {
@@ -116,7 +112,7 @@ type testContext struct {
 func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	cfg := testConfig(t)
 	cfg.Node = mock.Node()
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, uuid.Generate()))
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(cfg.AllocDir, uuid.Generate()))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -141,7 +137,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	SetEnvvars(eb, tmpdrv.FSIsolation(), td, cfg)
 	execCtx := NewExecContext(td, eb.Build())
 
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
@@ -182,7 +178,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	alloc.Name = "Bar"
 	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
 	conf := testConfig(t)
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(conf.AllocDir, alloc.ID))
 	taskDir := allocDir.NewTaskDir(task.Name)
 	eb := env.NewBuilder(conf.Node, alloc, task, conf.Region)
 	tmpDriver, err := NewDriver(driver, NewEmptyDriverContext())

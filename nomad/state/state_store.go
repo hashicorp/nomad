@@ -69,7 +69,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(config.LogOutput, "", log.LstdFlags),
+		logger:    log.New(config.LogOutput, "", log.LstdFlags|log.Lmicroseconds),
 		db:        db,
 		config:    config,
 		abandonCh: make(chan struct{}),

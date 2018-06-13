@@ -2,8 +2,6 @@ package client
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -17,7 +15,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 	require := require.New(t)
 	testClient := TestClient(t, nil)
 
-	testClient.logger = log.New(os.Stderr, "", log.LstdFlags)
+	testClient.logger = testlog.Logger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
