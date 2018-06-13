@@ -33,6 +33,7 @@ ALL_TARGETS += linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
+	linux_ppc64le \
 	windows_386 \
 	windows_amd64
 
@@ -94,6 +95,19 @@ pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
 pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
+
+# https://www.ibm.com/developerworks/community/wikis/home?lang=en#!/wiki/26579cc3-66fe-42b8-baf9-1fcc88445848/page/8a4e61fc-18a9-4c51-9fab-a79977cdd085
+pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/ppc64le
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
+	  GCCGO=powerpc64le-linux-gnu-gccgo \
+	  CC=powerpc64le-linux-gnu-gcc \
+	  CXX=powerpc64le-linux-gnu-g++ \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \

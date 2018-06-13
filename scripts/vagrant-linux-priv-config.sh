@@ -18,6 +18,12 @@ add-apt-repository \
 	$(lsb_release -cs) \
 	stable"
 
+# Add the PowerPC build utilities
+wget ftp://ftp.unicamp.br/pub/linuxpatch/toolchain/at/ubuntu/dists/trusty/6976a827.gpg.key
+apt-key add 6976a827.gpg.key
+rm 6976a827.gpg.key
+add-apt-repository "deb ftp://ftp.unicamp.br/pub/linuxpatch/toolchain/at/ubuntu xenial at11.0"
+
 # Update with i386, Go and Docker
 apt-get update
 
@@ -59,6 +65,11 @@ apt-get install -y \
 apt-get install -y \
 	binutils-mingw-w64 \
 	gcc-mingw-w64
+
+# Install PowerPC build utilities
+apt-get install -y \
+    advance-toolchain-at11.0-cross-ppc64le
+export PATH="/opt/at11.0/bin/:$PATH"
 
 # Ensure everything is up to date
 apt-get upgrade -y
