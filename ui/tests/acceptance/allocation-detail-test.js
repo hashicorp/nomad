@@ -14,7 +14,7 @@ moduleForAcceptance('Acceptance | allocation detail', {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupCount: 0, createAllocations: false });
+    job = server.create('job', { groupsCount: 1, createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts');
 
     // Make sure the node has an unhealthy driver
