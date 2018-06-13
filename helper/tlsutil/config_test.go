@@ -865,7 +865,7 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 
 	for _, testCase := range testInput {
 		shouldReload, err := ShouldReloadRPCConnections(testCase.old, testCase.new)
-		require.Nil(err)
+		require.NoError(err)
 		require.Equal(shouldReload, testCase.shouldReload, testCase.errorStr)
 	}
 }
