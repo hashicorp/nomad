@@ -2144,11 +2144,12 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 
 func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 	h := NewHarness(t)
+	require := require.New(t)
 
 	// Generate a fake job with allocations
 	job := mock.Job()
 	job.Stop = true
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2157,10 +2158,14 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 		alloc.JobID = job.ID
 		allocs = append(allocs, alloc)
 	}
-	for _, alloc := range allocs {
-		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
-	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create a summary where the queued allocs are set as we want to assert
+	// they get zeroed out.
+	summary := mock.JobSummary(job.ID)
+	web := summary.Summary["web"]
+	web.Queued = 2
+	require.NoError(h.State.UpsertJobSummary(h.NextIndex(), summary))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -2171,42 +2176,39 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(h.Process(NewServiceScheduler, eval))
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
+	require.Len(h.Plans, 1)
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all nodes
-	if len(plan.NodeUpdate["12345678-abcd-efab-cdef-123456789abc"]) != len(allocs) {
-		t.Fatalf("bad: %#v", plan)
-	}
+	require.Len(plan.NodeUpdate["12345678-abcd-efab-cdef-123456789abc"], len(allocs))
 
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(err)
 
 	// Ensure that the job field on the allocation is still populated
 	for _, alloc := range out {
-		if alloc.Job == nil {
-			t.Fatalf("bad: %#v", alloc)
-		}
+		require.NotNil(alloc.Job)
 	}
 
 	// Ensure no remaining allocations
 	out, _ = structs.FilterTerminalAllocs(out)
-	if len(out) != 0 {
-		t.Fatalf("bad: %#v", out)
-	}
+	require.Empty(out)
+
+	// Assert the job summary is cleared out
+	sout, err := h.State.JobSummaryByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(sout)
+	require.Contains(sout.Summary, "web")
+	webOut := sout.Summary["web"]
+	require.Zero(webOut.Queued)
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
