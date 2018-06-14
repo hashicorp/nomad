@@ -2,7 +2,6 @@ package consul_test
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,22 +10,16 @@ import (
 	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
-
-func testLogger() *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, "", log.LstdFlags)
-	}
-	return log.New(ioutil.Discard, "", 0)
-}
 
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
@@ -129,7 +122,7 @@ func TestConsul_Integration(t *testing.T) {
 		},
 	}
 
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	logUpdate := func(name, state string, event *structs.TaskEvent, lazySync bool) {
 		logger.Printf("[TEST] test.updater: name=%q state=%q event=%v", name, state, event)
 	}
@@ -149,7 +142,7 @@ func TestConsul_Integration(t *testing.T) {
 		serviceClient.Run()
 		close(consulRan)
 	}()
-	tr := client.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
+	tr := taskrunner.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
 	tr.MarkReceived()
 	go tr.Run()
 	defer func() {

@@ -1,4 +1,4 @@
-package client
+package allocrunner
 
 import (
 	"archive/tar"
@@ -15,15 +15,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 )
 
 // TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
 // set a localPrevAlloc will block on it.
 func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
-	_, prevAR := testAllocRunner(t, false)
+	_, prevAR := TestAllocRunner(t, false)
 	prevAR.alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "10s"
 
 	newAlloc := mock.Alloc()
@@ -33,7 +33,7 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config["run_for"] = "500ms"
 
-	waiter := newAllocWatcher(newAlloc, prevAR, nil, nil, testLogger(), "")
+	waiter := NewAllocWatcher(newAlloc, prevAR, nil, nil, testlog.Logger(t), "")
 
 	// Wait in a goroutine with a context to make sure it exits at the right time
 	ctx, cancel := context.WithCancel(context.Background())
@@ -177,14 +177,8 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	}
 	defer os.RemoveAll(dir1)
 
-	c1 := TestClient(t, func(c *config.Config) {
-		c.RPCHandler = nil
-	})
-	defer c1.Shutdown()
-
 	rc := ioutil.NopCloser(buf)
-
-	prevAlloc := &remotePrevAlloc{logger: testLogger()}
+	prevAlloc := &remotePrevAlloc{logger: testlog.Logger(t)}
 	if err := prevAlloc.streamAllocDir(context.Background(), rc, dir1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -234,7 +228,7 @@ func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
 	// This test only unit tests streamAllocDir so we only need a partially
 	// complete remotePrevAlloc
 	prevAlloc := &remotePrevAlloc{
-		logger:      testLogger(),
+		logger:      testlog.Logger(t),
 		allocID:     "123",
 		prevAllocID: "abc",
 		migrate:     true,

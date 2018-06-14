@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,8 +10,10 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -601,10 +602,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	logger := log.New(c1.config.LogOutput, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient(t)
-	mockService.logger = logger
+	mockService := consulApi.NewMockConsulServiceClient(t)
+	mockService.Logger = logger
 	c2, err := NewClient(c1.config, catalog, mockService, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -649,7 +650,7 @@ func TestClient_Init(t *testing.T) {
 		config: &config.Config{
 			AllocDir: allocDir,
 		},
-		logger: log.New(os.Stderr, "", log.LstdFlags),
+		logger: testlog.Logger(t),
 	}
 	if err := client.init(); err != nil {
 		t.Fatalf("err: %s", err)

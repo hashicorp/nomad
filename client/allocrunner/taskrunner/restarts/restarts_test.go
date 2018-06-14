@@ -1,4 +1,4 @@
-package client
+package restarts
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ func testWaitResult(exit int) *cstructs.WaitResult {
 func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
-	rt := newRestartTracker(p, structs.JobTypeService)
+	rt := NewRestartTracker(p, structs.JobTypeService)
 	for i := 0; i < p.Attempts; i++ {
 		state, when := rt.SetWaitResult(testWaitResult(127)).GetState()
 		if state != structs.TaskRestarting {
@@ -58,7 +58,7 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 func TestClient_RestartTracker_ModeFail(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
-	rt := newRestartTracker(p, structs.JobTypeSystem)
+	rt := NewRestartTracker(p, structs.JobTypeSystem)
 	for i := 0; i < p.Attempts; i++ {
 		state, when := rt.SetWaitResult(testWaitResult(127)).GetState()
 		if state != structs.TaskRestarting {
@@ -78,7 +78,7 @@ func TestClient_RestartTracker_ModeFail(t *testing.T) {
 func TestClient_RestartTracker_NoRestartOnSuccess(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(false, structs.RestartPolicyModeDelay)
-	rt := newRestartTracker(p, structs.JobTypeBatch)
+	rt := NewRestartTracker(p, structs.JobTypeBatch)
 	if state, _ := rt.SetWaitResult(testWaitResult(0)).GetState(); state != structs.TaskTerminated {
 		t.Fatalf("NextRestart() returned %v, expected: %v", state, structs.TaskTerminated)
 	}
@@ -90,28 +90,28 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 	p.Attempts = 0
 
 	// Test with a non-zero exit code
-	rt := newRestartTracker(p, structs.JobTypeService)
+	rt := NewRestartTracker(p, structs.JobTypeService)
 	if state, when := rt.SetWaitResult(testWaitResult(1)).GetState(); state != structs.TaskNotRestarting {
 		t.Fatalf("expect no restart, got restart/delay: %v/%v", state, when)
 	}
 
 	// Even with a zero (successful) exit code non-batch jobs should exit
 	// with TaskNotRestarting
-	rt = newRestartTracker(p, structs.JobTypeService)
+	rt = NewRestartTracker(p, structs.JobTypeService)
 	if state, when := rt.SetWaitResult(testWaitResult(0)).GetState(); state != structs.TaskNotRestarting {
 		t.Fatalf("expect no restart, got restart/delay: %v/%v", state, when)
 	}
 
 	// Batch jobs with a zero exit code and 0 attempts *do* exit cleanly
 	// with Terminated
-	rt = newRestartTracker(p, structs.JobTypeBatch)
+	rt = NewRestartTracker(p, structs.JobTypeBatch)
 	if state, when := rt.SetWaitResult(testWaitResult(0)).GetState(); state != structs.TaskTerminated {
 		t.Fatalf("expect terminated, got restart/delay: %v/%v", state, when)
 	}
 
 	// Batch jobs with a non-zero exit code and 0 attempts exit with
 	// TaskNotRestarting
-	rt = newRestartTracker(p, structs.JobTypeBatch)
+	rt = NewRestartTracker(p, structs.JobTypeBatch)
 	if state, when := rt.SetWaitResult(testWaitResult(1)).GetState(); state != structs.TaskNotRestarting {
 		t.Fatalf("expect no restart, got restart/delay: %v/%v", state, when)
 	}
@@ -121,7 +121,7 @@ func TestClient_RestartTracker_RestartTriggered(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
-	rt := newRestartTracker(p, structs.JobTypeService)
+	rt := NewRestartTracker(p, structs.JobTypeService)
 	if state, when := rt.SetRestartTriggered(false).GetState(); state != structs.TaskRestarting && when != 0 {
 		t.Fatalf("expect restart immediately, got %v %v", state, when)
 	}
@@ -131,7 +131,7 @@ func TestClient_RestartTracker_RestartTriggered_Failure(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 1
-	rt := newRestartTracker(p, structs.JobTypeService)
+	rt := NewRestartTracker(p, structs.JobTypeService)
 	if state, when := rt.SetRestartTriggered(true).GetState(); state != structs.TaskRestarting || when == 0 {
 		t.Fatalf("expect restart got %v %v", state, when)
 	}
@@ -143,7 +143,7 @@ func TestClient_RestartTracker_RestartTriggered_Failure(t *testing.T) {
 func TestClient_RestartTracker_StartError_Recoverable_Fail(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
-	rt := newRestartTracker(p, structs.JobTypeSystem)
+	rt := NewRestartTracker(p, structs.JobTypeSystem)
 	recErr := structs.NewRecoverableError(fmt.Errorf("foo"), true)
 	for i := 0; i < p.Attempts; i++ {
 		state, when := rt.SetStartError(recErr).GetState()
@@ -164,7 +164,7 @@ func TestClient_RestartTracker_StartError_Recoverable_Fail(t *testing.T) {
 func TestClient_RestartTracker_StartError_Recoverable_Delay(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeDelay)
-	rt := newRestartTracker(p, structs.JobTypeSystem)
+	rt := NewRestartTracker(p, structs.JobTypeSystem)
 	recErr := structs.NewRecoverableError(fmt.Errorf("foo"), true)
 	for i := 0; i < p.Attempts; i++ {
 		state, when := rt.SetStartError(recErr).GetState()

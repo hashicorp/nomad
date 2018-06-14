@@ -2,10 +2,8 @@ package servers_test
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
-	"os"
 	"strings"
 	"testing"
 
@@ -115,7 +113,7 @@ func TestServers_FindServer(t *testing.T) {
 }
 
 func TestServers_New(t *testing.T) {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	shutdownCh := make(chan struct{})
 	m := servers.New(logger, shutdownCh, &fauxConnPool{})
 	if m == nil {

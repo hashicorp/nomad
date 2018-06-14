@@ -1,4 +1,4 @@
-package client
+package taskrunner
 
 import (
 	"bytes"
@@ -21,9 +21,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/getter"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
-	"github.com/hashicorp/nomad/client/getter"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -89,8 +92,8 @@ type TaskRunner struct {
 	config         *config.Config
 	updater        TaskStateUpdater
 	logger         *log.Logger
-	restartTracker *RestartTracker
-	consul         ConsulServiceAPI
+	restartTracker *restarts.RestartTracker
+	consul         consulApi.ConsulServiceAPI
 
 	// running marks whether the task is running
 	running     bool
@@ -230,7 +233,7 @@ type SignalEvent struct {
 func NewTaskRunner(logger *log.Logger, config *config.Config,
 	stateDB *bolt.DB, updater TaskStateUpdater, taskDir *allocdir.TaskDir,
 	alloc *structs.Allocation, task *structs.Task,
-	vaultClient vaultclient.VaultClient, consulClient ConsulServiceAPI) *TaskRunner {
+	vaultClient vaultclient.VaultClient, consulClient consulApi.ConsulServiceAPI) *TaskRunner {
 
 	// Merge in the task resources
 	task.Resources = alloc.TaskResources[task.Name]
@@ -241,7 +244,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		logger.Printf("[ERR] client: alloc %q for missing task group %q", alloc.ID, alloc.TaskGroup)
 		return nil
 	}
-	restartTracker := newRestartTracker(tg.RestartPolicy, alloc.Job.Type)
+	restartTracker := restarts.NewRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
 	// Initialize the environment builder
 	envBuilder := env.NewBuilder(config.Node, alloc, task, config.Region)
@@ -329,40 +332,20 @@ func (r *TaskRunner) pre060StateFilePath() string {
 // backwards incompatible upgrades that need to restart tasks with a new
 // executor.
 func (r *TaskRunner) RestoreState() (string, error) {
-	// COMPAT: Remove in 0.7.0
-	// 0.6.0 transitioned from individual state files to a single bolt-db.
-	// The upgrade path is to:
-	// Check if old state exists
-	//   If so, restore from that and delete old state
-	// Restore using state database
-
 	var snap taskRunnerState
-
-	// Check if the old snapshot is there
-	oldPath := r.pre060StateFilePath()
-	if err := pre060RestoreState(oldPath, &snap); err == nil {
-		// Delete the old state
-		os.RemoveAll(oldPath)
-	} else if !os.IsNotExist(err) {
-		// Something corrupt in the old state file
-		return "", err
-	} else {
-		// We are doing a normal restore
-		err := r.stateDB.View(func(tx *bolt.Tx) error {
-			bkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
-			if err != nil {
-				return fmt.Errorf("failed to get task bucket: %v", err)
-			}
-
-			if err := getObject(bkt, taskRunnerStateAllKey, &snap); err != nil {
-				return fmt.Errorf("failed to read task runner state: %v", err)
-			}
-			return nil
-		})
+	err := r.stateDB.View(func(tx *bolt.Tx) error {
+		bkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
 		if err != nil {
-			return "", err
+			return fmt.Errorf("failed to get task bucket: %v", err)
 		}
 
+		if err := state.GetObject(bkt, taskRunnerStateAllKey, &snap); err != nil {
+			return fmt.Errorf("failed to read task runner state: %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
 
 	// Restore fields from the snapshot
@@ -510,12 +493,12 @@ func (r *TaskRunner) SaveState() error {
 	// Start the transaction.
 	return r.stateDB.Batch(func(tx *bolt.Tx) error {
 		// Grab the task bucket
-		taskBkt, err := getTaskBucket(tx, r.alloc.ID, r.task.Name)
+		taskBkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		if err := putData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
+		if err := state.PutData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
 			return fmt.Errorf("failed to write task_runner state: %v", err)
 		}
 
@@ -534,7 +517,7 @@ func (r *TaskRunner) DestroyState() error {
 	defer r.persistLock.Unlock()
 
 	return r.stateDB.Update(func(tx *bolt.Tx) error {
-		if err := deleteTaskBucket(tx, r.alloc.ID, r.task.Name); err != nil {
+		if err := state.DeleteTaskBucket(tx, r.alloc.ID, r.task.Name); err != nil {
 			return fmt.Errorf("failed to delete task bucket: %v", err)
 		}
 		return nil

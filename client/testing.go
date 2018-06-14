@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -37,8 +38,8 @@ func TestClient(t testing.T, cb func(c *config.Config)) *Client {
 
 	logger := testlog.Logger(t)
 	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient(t)
-	mockService.logger = logger
+	mockService := consulApi.NewMockConsulServiceClient(t)
+	mockService.Logger = logger
 	client, err := NewClient(conf, catalog, mockService, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)

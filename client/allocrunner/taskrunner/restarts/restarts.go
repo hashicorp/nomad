@@ -1,4 +1,4 @@
-package client
+package restarts
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ const (
 	ReasonDelay               = "Exceeded allowed attempts, applying a delay"
 )
 
-func newRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTracker {
+func NewRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTracker {
 	onSuccess := true
 	if jobType == structs.JobTypeBatch {
 		onSuccess = false
@@ -52,6 +52,13 @@ func (r *RestartTracker) SetPolicy(policy *structs.RestartPolicy) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.policy = policy
+}
+
+// GetPolicy returns a copy of the policy used to determine restarts.
+func (r *RestartTracker) GetPolicy() *structs.RestartPolicy {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.policy.Copy()
 }
 
 // SetStartError is used to mark the most recent start error. If starting was
