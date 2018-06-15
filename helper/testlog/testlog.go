@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"os"
+
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // UseStdout returns true if NOMAD_TEST_STDOUT=1 and sends logs to stdout.
@@ -52,7 +54,18 @@ func WithPrefix(t LogPrinter, prefix string) *log.Logger {
 	return New(t, prefix, log.Lmicroseconds)
 }
 
-// NewLog logger with "TEST" prefix and the Lmicroseconds flag.
+// Logger returns a new test logger with the Lmicroseconds flag set and no
+// prefix.
 func Logger(t LogPrinter) *log.Logger {
 	return WithPrefix(t, "")
+}
+
+//HCLogger returns a new test hc-logger.
+func HCLogger(t LogPrinter) hclog.Logger {
+	opts := &hclog.LoggerOptions{
+		Level:           hclog.Trace,
+		Output:          NewWriter(t),
+		IncludeLocation: true,
+	}
+	return hclog.New(opts)
 }
