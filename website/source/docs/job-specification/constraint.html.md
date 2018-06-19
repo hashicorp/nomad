@@ -28,6 +28,11 @@ filter on [attributes][interpolation] or [client metadata][client-meta].
 Additionally constraints may be specified at the [job][job], [group][group], or
 [task][task] levels for ultimate flexibility.
 
+~> **It is possible to define irreconcilable constraints in a job.**
+For example, because all [tasks within a group are scheduled on the same client node][group],
+specifying different [`${attr.unique.hostname}`][node-variables] constraints at
+the task level will cause a job to be unplaceable.
+
 ```hcl
 job "docs" {
   # All tasks in this job must run on linux.
@@ -58,6 +63,7 @@ job "docs" {
 Placing constraints at both the job level and at the group level is redundant
 since constraints are applied hierarchically. The job constraints will affect
 all groups (and tasks) in the job.
+
 
 ## `constraint` Parameters
 
@@ -273,3 +279,4 @@ constraint {
 [client-meta]: /docs/agent/configuration/client.html#meta "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
+[node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"
