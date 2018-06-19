@@ -64,7 +64,6 @@ Placing constraints at both the job level and at the group level is redundant
 since constraints are applied hierarchically. The job constraints will affect
 all groups (and tasks) in the job.
 
-
 ## `constraint` Parameters
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute
