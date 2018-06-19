@@ -42,9 +42,17 @@ var supportedTLSCiphers = map[string]uint16{
 }
 
 // defaultTLSCiphers are the TLS Ciphers that are supported by default
-var defaultTLSCiphers = []string{"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+var defaultTLSCiphers = []string{
 	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
 }
 
 // RegionSpecificWrapper is used to invoke a static Region and turns a
@@ -412,4 +420,28 @@ func ParseMinVersion(version string) (uint16, error) {
 	}
 
 	return vers, nil
+}
+
+// ShouldReloadRPCConnections compares two TLS Configurations and determines
+// whether they differ such that RPC connections should be reloaded
+func ShouldReloadRPCConnections(old, new *config.TLSConfig) (bool, error) {
+	var certificateInfoEqual bool
+	var rpcInfoEqual bool
+
+	// If already configured with TLS, compare with the new TLS configuration
+	if new != nil {
+		var err error
+		certificateInfoEqual, err = new.CertificateInfoIsEqual(old)
+		if err != nil {
+			return false, err
+		}
+	} else if new == nil && old == nil {
+		certificateInfoEqual = true
+	}
+
+	if new != nil && old != nil && new.EnableRPC == old.EnableRPC {
+		rpcInfoEqual = true
+	}
+
+	return (!rpcInfoEqual || !certificateInfoEqual), nil
 }

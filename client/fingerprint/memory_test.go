@@ -5,13 +5,14 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestMemoryFingerprint(t *testing.T) {
-	f := NewMemoryFingerprint(testLogger())
+	f := NewMemoryFingerprint(testlog.Logger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -34,7 +35,7 @@ func TestMemoryFingerprint(t *testing.T) {
 }
 
 func TestMemoryFingerprint_Override(t *testing.T) {
-	f := NewMemoryFingerprint(testLogger())
+	f := NewMemoryFingerprint(testlog.Logger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

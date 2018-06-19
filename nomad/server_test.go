@@ -219,7 +219,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	}
 
 	tr := true
-	config := s1.config
+	config := DefaultConfig()
 	config.VaultConfig.Enabled = &tr
 	config.VaultConfig.Token = uuid.Generate()
 

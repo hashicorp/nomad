@@ -15,7 +15,7 @@ Additionally, a prefix can be searched for within every context.
 
 | Method  | Path                         | Produces                   |
 | ------- | ---------------------------- | -------------------------- |
-| `POST`  | `/v1/search                  | `application/json`         |
+| `POST`  | `/v1/search`                 | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and

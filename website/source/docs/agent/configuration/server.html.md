@@ -127,7 +127,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](/guides/cluster/autopilot.html).
+  information, see the [Autopilot Guide](/guides/autopilot.html).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -142,7 +142,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](/guides/cluster/autopilot.html).
+  For more information, see the [Autopilot Guide](/guides/autopilot.html).
 
 ### Deprecated Parameters
 

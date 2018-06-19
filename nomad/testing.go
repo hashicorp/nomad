@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"sync/atomic"
@@ -77,7 +76,7 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Enable raft as leader if we have bootstrap on
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
-	logger := log.New(config.LogOutput, fmt.Sprintf("[%s] ", config.NodeName), log.LstdFlags)
+	logger := testlog.WithPrefix(t, fmt.Sprintf("[%s] ", config.NodeName))
 	catalog := consul.NewMockCatalog(logger)
 
 	for i := 10; i >= 0; i-- {

@@ -19,7 +19,7 @@
       {{#job-deployment-details deployment=job.runningDeployment as |d|}}
         {{d.metrics}}
         {{#if isShowingDeploymentDetails}}
-          {{d.taskGroups}}
+          {{d.taskGroups inProgress=true}}
           {{d.allocations}}
         {{/if}}
       {{/job-deployment-details}}

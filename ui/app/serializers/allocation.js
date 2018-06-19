@@ -31,9 +31,6 @@ export default ApplicationSerializer.extend({
       'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
-    // TEMPORARY: https://github.com/emberjs/data/issues/5209
-    hash.OriginalJobId = hash.JobID;
-
     hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
     hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
 

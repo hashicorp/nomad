@@ -1,9 +1,8 @@
-package client
+package taskrunner
 
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,32 +16,24 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 )
 
-func testLogger() *log.Logger {
-	return prefixedTestLogger("")
-}
-
-func prefixedTestLogger(prefix string) *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, prefix, log.LstdFlags|log.Lmicroseconds)
-	}
-	return log.New(ioutil.Discard, "", 0)
-}
-
 // Returns a tracker that never restarts.
-func noRestartsTracker() *RestartTracker {
+func noRestartsTracker() *restarts.RestartTracker {
 	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
-	return newRestartTracker(policy, structs.JobTypeBatch)
+	return restarts.NewRestartTracker(policy, structs.JobTypeBatch)
 }
 
 type MockTaskStateUpdater struct {
@@ -102,7 +93,7 @@ func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
 //
 // Callers should defer Cleanup() to cleanup after completion
 func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocation) *taskRunnerTestCtx {
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
 	conf.StateDir = os.TempDir()
@@ -120,7 +111,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	upd := &MockTaskStateUpdater{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(conf.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 		return nil
@@ -387,8 +378,8 @@ func TestTaskRunner_Update(t *testing.T) {
 		if ctx.tr.task.Driver != newTask.Driver {
 			return false, fmt.Errorf("Task not copied")
 		}
-		if ctx.tr.restartTracker.policy.Mode != newMode {
-			return false, fmt.Errorf("expected restart policy %q but found %q", newMode, ctx.tr.restartTracker.policy.Mode)
+		if ctx.tr.restartTracker.GetPolicy().Mode != newMode {
+			return false, fmt.Errorf("expected restart policy %q but found %q", newMode, ctx.tr.restartTracker.GetPolicy().Mode)
 		}
 		if ctx.tr.handle.ID() == oldHandle {
 			return false, fmt.Errorf("handle not ctx.updated")
@@ -642,7 +633,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 
 	// Use mockConsulServiceClient
-	consul := newMockConsulServiceClient(t)
+	consul := consulApi.NewMockConsulServiceClient(t)
 	ctx.tr.consul = consul
 
 	ctx.tr.MarkReceived()
@@ -650,26 +641,26 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Assert it is properly registered and unregistered
-	if expected := 6; len(consul.ops) != expected {
-		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.ops))
+	if expected := 6; len(consul.Ops) != expected {
+		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.Ops))
 	}
-	if consul.ops[0].op != "add" {
-		t.Errorf("expected first op to be add but found: %q", consul.ops[0].op)
+	if consul.Ops[0].Op != "add" {
+		t.Errorf("expected first Op to be add but found: %q", consul.Ops[0].Op)
 	}
-	if consul.ops[1].op != "remove" {
-		t.Errorf("expected second op to be remove but found: %q", consul.ops[1].op)
+	if consul.Ops[1].Op != "remove" {
+		t.Errorf("expected second op to be remove but found: %q", consul.Ops[1].Op)
 	}
-	if consul.ops[2].op != "remove" {
-		t.Errorf("expected third op to be remove but found: %q", consul.ops[2].op)
+	if consul.Ops[2].Op != "remove" {
+		t.Errorf("expected third op to be remove but found: %q", consul.Ops[2].Op)
 	}
-	if consul.ops[3].op != "add" {
-		t.Errorf("expected fourth op to be add but found: %q", consul.ops[3].op)
+	if consul.Ops[3].Op != "add" {
+		t.Errorf("expected fourth op to be add but found: %q", consul.Ops[3].Op)
 	}
-	if consul.ops[4].op != "remove" {
-		t.Errorf("expected fifth op to be remove but found: %q", consul.ops[4].op)
+	if consul.Ops[4].Op != "remove" {
+		t.Errorf("expected fifth op to be remove but found: %q", consul.Ops[4].Op)
 	}
-	if consul.ops[5].op != "remove" {
-		t.Errorf("expected sixth op to be remove but found: %q", consul.ops[5].op)
+	if consul.Ops[5].Op != "remove" {
+		t.Errorf("expected sixth op to be remove but found: %q", consul.Ops[5].Op)
 	}
 }
 
@@ -1199,7 +1190,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, ".."))))
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(dir, "../../.."))))
 	defer ts.Close()
 
 	alloc := mock.Alloc()

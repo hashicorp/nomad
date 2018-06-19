@@ -378,13 +378,15 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 // job, if an optional meta field is not set, it will get interpolated as an
 // empty string.
 func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
+	require := require.New(t)
 	a := mock.Alloc()
 	a.Job.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaOptional: []string{"metaopt1", "metaopt2"},
 	}
+	a.Job.Dispatched = true
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Meta = map[string]string{"metaopt1": "metaopt1val"}
 	env := NewBuilder(mock.Node(), a, task, "global").Build()
-	require.Equal(t, "metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
-	require.Empty(t, env.ReplaceEnv("${NOMAD_META_metaopt2}"))
+	require.Equal("metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
+	require.Empty(env.ReplaceEnv("${NOMAD_META_metaopt2}"))
 }

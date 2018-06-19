@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -114,9 +115,15 @@ func (p *imageProgress) get() (string, time.Time) {
 		est = (elapsed.Nanoseconds() / cur * total) - elapsed.Nanoseconds()
 	}
 
-	return fmt.Sprintf("Pulled %d/%d (%s/%s) layers: %d waiting/%d pulling - est %.1fs remaining",
+	var msg strings.Builder
+	fmt.Fprintf(&msg, "Pulled %d/%d (%s/%s) layers: %d waiting/%d pulling",
 		pulled, len(p.layers), units.BytesSize(float64(cur)), units.BytesSize(float64(total)),
-		waiting, pulling, time.Duration(est).Seconds()), p.timestamp
+		waiting, pulling)
+
+	if est > 0 {
+		fmt.Fprintf(&msg, " - est %.1fs remaining", time.Duration(est).Seconds())
+	}
+	return msg.String(), p.timestamp
 }
 
 // set takes a status message received from the docker engine api during an image

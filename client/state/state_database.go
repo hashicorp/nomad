@@ -1,4 +1,4 @@
-package client
+package state
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ var (
 	allocationsBucket = []byte("allocations")
 )
 
-func putObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
+func PutObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
 	if !bkt.Writable() {
 		return fmt.Errorf("bucket must be writable")
 	}
@@ -43,7 +43,7 @@ func putObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
 	return nil
 }
 
-func putData(bkt *bolt.Bucket, key, value []byte) error {
+func PutData(bkt *bolt.Bucket, key, value []byte) error {
 	if !bkt.Writable() {
 		return fmt.Errorf("bucket must be writable")
 	}
@@ -55,7 +55,7 @@ func putData(bkt *bolt.Bucket, key, value []byte) error {
 	return nil
 }
 
-func getObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
+func GetObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
 	// Get the data
 	data := bkt.Get(key)
 	if data == nil {
@@ -70,11 +70,11 @@ func getObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
 	return nil
 }
 
-// getAllocationBucket returns the bucket used to persist state about a
+// GetAllocationBucket returns the bucket used to persist state about a
 // particular allocation. If the root allocation bucket or the specific
 // allocation bucket doesn't exist, it will be created as long as the
 // transaction is writable.
-func getAllocationBucket(tx *bolt.Tx, allocID string) (*bolt.Bucket, error) {
+func GetAllocationBucket(tx *bolt.Tx, allocID string) (*bolt.Bucket, error) {
 	var err error
 	w := tx.Writable()
 
@@ -108,12 +108,12 @@ func getAllocationBucket(tx *bolt.Tx, allocID string) (*bolt.Bucket, error) {
 	return alloc, nil
 }
 
-// getTaskBucket returns the bucket used to persist state about a
+// GetTaskBucket returns the bucket used to persist state about a
 // particular task. If the root allocation bucket, the specific
 // allocation or task bucket doesn't exist, they will be created as long as the
 // transaction is writable.
-func getTaskBucket(tx *bolt.Tx, allocID, taskName string) (*bolt.Bucket, error) {
-	alloc, err := getAllocationBucket(tx, allocID)
+func GetTaskBucket(tx *bolt.Tx, allocID, taskName string) (*bolt.Bucket, error) {
+	alloc, err := GetAllocationBucket(tx, allocID)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +136,8 @@ func getTaskBucket(tx *bolt.Tx, allocID, taskName string) (*bolt.Bucket, error) 
 	return task, nil
 }
 
-// deleteAllocationBucket is used to delete an allocation bucket if it exists.
-func deleteAllocationBucket(tx *bolt.Tx, allocID string) error {
+// DeleteAllocationBucket is used to delete an allocation bucket if it exists.
+func DeleteAllocationBucket(tx *bolt.Tx, allocID string) error {
 	if !tx.Writable() {
 		return fmt.Errorf("transaction must be writable")
 	}
@@ -157,8 +157,8 @@ func deleteAllocationBucket(tx *bolt.Tx, allocID string) error {
 	return allocations.DeleteBucket(key)
 }
 
-// deleteTaskBucket is used to delete a task bucket if it exists.
-func deleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
+// DeleteTaskBucket is used to delete a task bucket if it exists.
+func DeleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
 	if !tx.Writable() {
 		return fmt.Errorf("transaction must be writable")
 	}
@@ -184,7 +184,7 @@ func deleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
 	return alloc.DeleteBucket(key)
 }
 
-func getAllAllocationIDs(tx *bolt.Tx) ([]string, error) {
+func GetAllAllocationIDs(tx *bolt.Tx) ([]string, error) {
 	allocationsBkt := tx.Bucket(allocationsBucket)
 	if allocationsBkt == nil {
 		return nil, nil

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"net"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -41,7 +41,7 @@ func tempAllocDir(t testing.TB) *allocdir.AllocDir {
 		t.Fatalf("failed to chmod dir: %v", err)
 	}
 
-	return allocdir.NewAllocDir(log.New(os.Stderr, "", log.LstdFlags), dir)
+	return allocdir.NewAllocDir(testlog.Logger(t), dir)
 }
 
 type nopWriteCloser struct {
@@ -83,6 +83,9 @@ func TestFS_Stat(t *testing.T) {
 
 	// Create and add an alloc
 	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
 	c.addAlloc(a, "")
 
 	// Wait for the client to start it
@@ -92,7 +95,17 @@ func TestFS_Stat(t *testing.T) {
 			return false, fmt.Errorf("alloc doesn't exist")
 		}
 
-		return len(ar.tasks) != 0, fmt.Errorf("tasks not running")
+		alloc := ar.Alloc()
+		running := false
+		for _, s := range alloc.TaskStates {
+			if s.State == structs.TaskStateRunning {
+				running = true
+			} else {
+				running = false
+			}
+		}
+
+		return running, fmt.Errorf("tasks not running")
 	}, func(err error) {
 		t.Fatal(err)
 	})
@@ -208,6 +221,9 @@ func TestFS_List(t *testing.T) {
 
 	// Create and add an alloc
 	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
 	c.addAlloc(a, "")
 
 	// Wait for the client to start it
@@ -217,7 +233,17 @@ func TestFS_List(t *testing.T) {
 			return false, fmt.Errorf("alloc doesn't exist")
 		}
 
-		return len(ar.tasks) != 0, fmt.Errorf("tasks not running")
+		alloc := ar.Alloc()
+		running := false
+		for _, s := range alloc.TaskStates {
+			if s.State == structs.TaskStateRunning {
+				running = true
+			} else {
+				running = false
+			}
+		}
+
+		return running, fmt.Errorf("tasks not running")
 	}, func(err error) {
 		t.Fatal(err)
 	})
@@ -1736,6 +1762,7 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 
 	// Start the reader
 	truncateCh := make(chan struct{})
+	truncateClosed := false
 	dataPostTruncCh := make(chan struct{})
 	frames := make(chan *sframer.StreamFrame, 4)
 	go func() {
@@ -1746,8 +1773,9 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 				continue
 			}
 
-			if frame.FileEvent == truncateEvent {
+			if frame.FileEvent == truncateEvent && !truncateClosed {
 				close(truncateCh)
+				truncateClosed = true
 			}
 
 			collected = append(collected, frame.Data...)

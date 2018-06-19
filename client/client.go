@@ -21,8 +21,11 @@ import (
 	"github.com/hashicorp/consul/lib"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/servers"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -88,7 +91,7 @@ const (
 type ClientStatsReporter interface {
 	// GetAllocStats returns the AllocStatsReporter for the passed allocation.
 	// If it does not exist an error is reported.
-	GetAllocStats(allocID string) (AllocStatsReporter, error)
+	GetAllocStats(allocID string) (allocrunner.AllocStatsReporter, error)
 
 	// LatestHostStats returns the latest resource usage stats for the host
 	LatestHostStats() *stats.HostStats
@@ -145,7 +148,7 @@ type Client struct {
 
 	// allocs maps alloc IDs to their AllocRunner. This map includes all
 	// AllocRunners - running and GC'd - until the server GCs them.
-	allocs    map[string]*AllocRunner
+	allocs    map[string]*allocrunner.AllocRunner
 	allocLock sync.RWMutex
 
 	// allocUpdates stores allocations that need to be synced to the server.
@@ -153,7 +156,7 @@ type Client struct {
 
 	// consulService is Nomad's custom Consul client for managing services
 	// and checks.
-	consulService ConsulServiceAPI
+	consulService consulApi.ConsulServiceAPI
 
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
@@ -193,7 +196,7 @@ var (
 )
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService ConsulServiceAPI, logger *log.Logger) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI, logger *log.Logger) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -217,7 +220,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		tlsWrap:              tlsWrap,
 		streamingRpcs:        structs.NewStreamingRpcRegistry(),
 		logger:               logger,
-		allocs:               make(map[string]*AllocRunner),
+		allocs:               make(map[string]*allocrunner.AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
 		shutdownCh:           make(chan struct{}),
 		triggerDiscoveryCh:   make(chan struct{}),
@@ -432,7 +435,17 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 
 // Reload allows a client to reload its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
-	return c.reloadTLSConnections(newConfig.TLSConfig)
+	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(c.config.TLSConfig, newConfig.TLSConfig)
+	if err != nil {
+		c.logger.Printf("[ERR] nomad: error parsing server TLS configuration: %s", err)
+		return err
+	}
+
+	if shouldReloadTLS {
+		return c.reloadTLSConnections(newConfig.TLSConfig)
+	}
+
+	return nil
 }
 
 // Leave is used to prepare the client to leave the cluster
@@ -507,10 +520,16 @@ func (c *Client) Shutdown() error {
 
 	// Destroy all the running allocations.
 	if c.config.DevMode {
+		var wg sync.WaitGroup
 		for _, ar := range c.getAllocRunners() {
-			ar.Destroy()
-			<-ar.WaitCh()
+			wg.Add(1)
+			go func(ar *allocrunner.AllocRunner) {
+				ar.Destroy()
+				<-ar.WaitCh()
+				wg.Done()
+			}(ar)
 		}
+		wg.Wait()
 	}
 
 	c.shutdown = true
@@ -562,7 +581,7 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 	return c
 }
 
-func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
+func (c *Client) GetAllocStats(allocID string) (allocrunner.AllocStatsReporter, error) {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
@@ -714,7 +733,7 @@ func (c *Client) restoreState() error {
 	} else {
 		// Normal path
 		err := c.stateDB.View(func(tx *bolt.Tx) error {
-			allocs, err = getAllAllocationIDs(tx)
+			allocs, err = state.GetAllAllocationIDs(tx)
 			if err != nil {
 				return fmt.Errorf("failed to list allocations: %v", err)
 			}
@@ -731,10 +750,10 @@ func (c *Client) restoreState() error {
 		alloc := &structs.Allocation{ID: id}
 
 		// don't worry about blocking/migrating when restoring
-		watcher := noopPrevAlloc{}
+		watcher := allocrunner.NoopPrevAlloc{}
 
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
+		ar := allocrunner.NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
 		c.configLock.RUnlock()
 
 		c.allocLock.Lock()
@@ -778,7 +797,7 @@ func (c *Client) saveState() error {
 	wg.Add(len(runners))
 
 	for id, ar := range runners {
-		go func(id string, ar *AllocRunner) {
+		go func(id string, ar *allocrunner.AllocRunner) {
 			err := ar.SaveState()
 			if err != nil {
 				c.logger.Printf("[ERR] client: failed to save state for alloc %q: %v", id, err)
@@ -795,10 +814,10 @@ func (c *Client) saveState() error {
 }
 
 // getAllocRunners returns a snapshot of the current set of alloc runners.
-func (c *Client) getAllocRunners() map[string]*AllocRunner {
+func (c *Client) getAllocRunners() map[string]*allocrunner.AllocRunner {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
-	runners := make(map[string]*AllocRunner, len(c.allocs))
+	runners := make(map[string]*allocrunner.AllocRunner, len(c.allocs))
 	for id, ar := range c.allocs {
 		runners[id] = ar
 	}
@@ -1677,7 +1696,7 @@ OUTER:
 			// allocation or if the alloc runner requires an updated allocation.
 			runner, ok := runners[allocID]
 
-			if !ok || runner.shouldUpdate(modifyIndex) {
+			if !ok || runner.ShouldUpdate(modifyIndex) {
 				// Only pull allocs that are required. Filtered
 				// allocs might be at a higher index, so ignore
 				// it.
@@ -1810,7 +1829,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	c.allocLock.RLock()
 	exist := make([]*structs.Allocation, 0, len(c.allocs))
 	for _, ar := range c.allocs {
-		exist = append(exist, ar.alloc)
+		exist = append(exist, ar.Alloc())
 	}
 	c.allocLock.RUnlock()
 
@@ -1899,18 +1918,18 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// get the previous alloc runner - if one exists - for the
 	// blocking/migrating watcher
-	var prevAR *AllocRunner
+	var prevAR *allocrunner.AllocRunner
 	if alloc.PreviousAllocation != "" {
 		prevAR = c.allocs[alloc.PreviousAllocation]
 	}
 
 	c.configLock.RLock()
-	prevAlloc := newAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
+	prevAlloc := allocrunner.NewAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
-	ar := NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
+	ar := allocrunner.NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
 	c.configLock.RUnlock()
 
 	// Store the alloc runner.

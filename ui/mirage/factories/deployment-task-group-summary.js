@@ -1,10 +1,14 @@
 import { Factory, faker } from 'ember-cli-mirage';
 
+const REF_TIME = new Date();
+
 export default Factory.extend({
   name: '',
 
   autoRevert: () => Math.random() > 0.5,
   promoted: () => Math.random() > 0.5,
+
+  requireProgressBy: () => faker.date.past(0.5 / 365, REF_TIME),
 
   desiredTotal: faker.random.number({ min: 1, max: 10 }),
 

@@ -288,7 +288,6 @@ test-ui: ## Run Nomad UI test suite
 	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
 	@echo "--> Running ember tests"
-	@cd ui && phantomjs --version
 	@cd ui && npm test
 
 .PHONY: ember-dist

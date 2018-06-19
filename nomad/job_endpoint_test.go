@@ -458,6 +458,33 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Dispatched(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job with 'Dispatch' set to true
+	job := mock.Job()
+	job.Dispatched = true
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "job can't be submitted with 'Dispatched'")
+}
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -3959,6 +3986,7 @@ func TestJobEndpoint_ValidateJob_KillSignal(t *testing.T) {
 
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	old := mock.Job()
 	new := mock.Job()
 
@@ -3988,6 +4016,16 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 	} else {
 		t.Log(err)
 	}
+
+	new = mock.Job()
+	new.Dispatched = true
+	require.Error(validateJobUpdate(old, new),
+		"expected err when setting new job to dispatched")
+	require.Error(validateJobUpdate(nil, new),
+		"expected err when setting new job to dispatched")
+	require.Error(validateJobUpdate(new, old),
+		"expected err when setting dispatched to false")
+	require.NoError(validateJobUpdate(nil, old))
 }
 
 func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
@@ -4342,6 +4380,15 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 				if out.ParentID != tc.parameterizedJob.ID {
 					t.Fatalf("bad parent ID")
+				}
+				if !out.Dispatched {
+					t.Fatal("expected dispatched job")
+				}
+				if out.IsParameterized() {
+					t.Fatal("dispatched job should not be parameterized")
+				}
+				if out.ParameterizedJob == nil {
+					t.Fatal("parameter job config should exist")
 				}
 
 				if tc.noEval {

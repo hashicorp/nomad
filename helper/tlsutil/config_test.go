@@ -696,9 +696,16 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 	require := require.New(t)
 
 	expectedCiphers := []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
 
 	parsedCiphers, err := ParseCiphers("")
@@ -709,11 +716,9 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	require := require.New(t)
 
-	invalidCiphers := []string{"TLS_RSA_WITH_3DES_EDE_CBC_SHA",
-		"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
-		"TLS_RSA_WITH_RC4_128_SHA",
-		"TLS_ECDHE_RSA_WITH_RC4_128_SHA",
-		"TLS_ECDHE_ECDSA_WITH_RC4_128_SHA",
+	invalidCiphers := []string{
+		"TLS_RSA_RSA_WITH_RC4_128_SHA",
+		"INVALID_CIPHER",
 	}
 
 	for _, cipher := range invalidCiphers {
@@ -777,4 +782,90 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
 	require.Equal(tlsConf.CipherSuites, expectedCiphers)
+}
+
+func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
+	require := require.New(t)
+
+	type shouldReloadTestInput struct {
+		old          *config.TLSConfig
+		new          *config.TLSConfig
+		shouldReload bool
+		errorStr     string
+	}
+
+	testInput := []*shouldReloadTestInput{
+		{
+			old: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			new: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			shouldReload: false,
+			errorStr:     "Same TLS Configuration should not reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			new: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: foocert,
+				KeyFile:  fookey,
+			},
+			shouldReload: true,
+			errorStr:     "Different TLS Configuration should reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			new: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: false,
+			},
+			shouldReload: true,
+			errorStr:     "Downgrading RPC connections should force reload",
+		},
+		{
+			old: nil,
+			new: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			shouldReload: true,
+			errorStr:     "Upgrading RPC connections should force reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			new:          nil,
+			shouldReload: true,
+			errorStr:     "Downgrading RPC connections should force reload",
+		},
+	}
+
+	for _, testCase := range testInput {
+		shouldReload, err := ShouldReloadRPCConnections(testCase.old, testCase.new)
+		require.NoError(err)
+		require.Equal(shouldReload, testCase.shouldReload, testCase.errorStr)
+	}
 }

@@ -50,7 +50,7 @@ Raft Protocol versions supported by each Nomad version:
   </tr>
 </table>
 
-In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
+In order to enable all [Autopilot](/guides/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
@@ -61,7 +61,7 @@ Please note that the Raft protocol is different from Nomad's internal protocol a
 
 The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
 
-When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/docs/guides/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
+When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/guides/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
 
 
 ### Node Draining Improvements

@@ -61,9 +61,16 @@ the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
 - `tls_cipher_suites` `(array<string>: [])` - Specifies the TLS cipher suites
   that will be used by the agent. Known insecure ciphers are disabled (3DES and
   RC4). By default, an agent is configured to use
+  TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+  TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
   TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-  TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, and
-  TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.
+  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+  TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+  TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+  TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+  TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 and
+  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.
 
 - `tls_min_version` `(string: "tls12")`- Specifies the minimum supported version
   of TLS. Accepted values are "tls10", "tls11", "tls12".

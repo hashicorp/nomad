@@ -19,9 +19,6 @@ export default ApplicationSerializer.extend({
       'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
-    // TEMPORARY: https://github.com/emberjs/data/issues/5209
-    hash.OriginalJobId = hash.JobID;
-
     return this._super(typeHash, hash);
   },
 });

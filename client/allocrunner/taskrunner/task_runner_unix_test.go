@@ -1,6 +1,6 @@
 // +build !windows
 
-package client
+package taskrunner
 
 import (
 	"syscall"

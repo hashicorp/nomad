@@ -4,11 +4,12 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestStorageFingerprint(t *testing.T) {
-	fp := NewStorageFingerprint(testLogger())
+	fp := NewStorageFingerprint(testlog.Logger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

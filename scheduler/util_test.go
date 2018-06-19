@@ -2,12 +2,11 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -623,7 +622,7 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 
 func TestSetStatus(t *testing.T) {
 	h := NewHarness(t)
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
@@ -1080,7 +1079,7 @@ func TestDesiredUpdates(t *testing.T) {
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.CreateIndex = 4

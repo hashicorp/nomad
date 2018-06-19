@@ -5,12 +5,13 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
 )
 
 func TestNomadFingerprint(t *testing.T) {
-	f := NewNomadFingerprint(testLogger())
+	f := NewNomadFingerprint(testlog.Logger(t))
 
 	v := "foo"
 	r := "123"
