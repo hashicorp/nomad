@@ -134,11 +134,11 @@ replication continues to be attempted until the node recovers. Nomad will
 automatically try to reconnect to _failed_ nodes, allowing it to recover from
 certain network conditions, while _left_ nodes are no longer contacted.
 
-If an agent is operating as a server, [leave_on_terminate](/docs/agent/configuration/index.html#leave_on_terminate) should only
-be set if the server will never rejoin the cluster again. The default value of `false` for 'leave_on_terminate` and `leave_on_interrupt`
+If an agent is operating as a server, [`leave_on_terminate`](/docs/agent/configuration/index.html#leave_on_terminate) should only
+be set if the server will never rejoin the cluster again. The default value of `false` for `leave_on_terminate` and `leave_on_interrupt`
 work well for most scenarios. If Nomad servers are part of an auto scaling group where new servers are brought up to replace
 failed servers, using graceful leave avoids causing a potential availability outage affecting the [consensus protocol](/docs/internals/consensus.html).
-As of of Nomad 0.8, Nomad includes Autopilot which automatically removes failed or dead servers. This allows the operator to skip setting leave_on_terminate
+As of Nomad 0.8, Nomad includes Autopilot which automatically removes failed or dead servers. This allows the operator to skip setting `leave_on_terminate`
 
 If a server does forcefully exit and will not be returning into service, the
 [`server force-leave` command](/docs/commands/server/force-leave.html) should
