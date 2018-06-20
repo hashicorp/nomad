@@ -1,3 +1,9 @@
+## UNRELEASED
+
+IMPROVEMENTS:
+* core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
+
+
 ## 0.8.4 (June 11, 2018)
 
 IMPROVEMENTS:
