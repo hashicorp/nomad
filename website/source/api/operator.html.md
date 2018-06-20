@@ -115,9 +115,6 @@ The table below shows this endpoint's support for
 - `id` `(string: <optional>)` - Specifies the server to remove as
   `id`. This cannot be provided along with the `address` parameter.
 
-- `stale` - Specifies if the cluster should respond without an active leader.
-  This is specified as a querystring parameter.
-
 ### Sample Request
 
 ```text
