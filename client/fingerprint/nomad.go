@@ -19,6 +19,7 @@ func NewNomadFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *NomadFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	resp.AddAttribute("nomad.advertise.address", req.Node.HTTPAddr)
 	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
 	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
 	resp.Detected = true

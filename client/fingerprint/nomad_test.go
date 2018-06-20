@@ -12,16 +12,19 @@ import (
 
 func TestNomadFingerprint(t *testing.T) {
 	f := NewNomadFingerprint(testlog.Logger(t))
-	node := &structs.Node{
-		Attributes: make(map[string]string),
-	}
+
 	v := "foo"
 	r := "123"
+	h := "8.8.8.8:4646"
 	c := &config.Config{
 		Version: &version.VersionInfo{
 			Revision: r,
 			Version:  v,
 		},
+	}
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+		HTTPAddr:   h,
 	}
 
 	request := &cstructs.FingerprintRequest{Config: c, Node: node}
@@ -45,5 +48,9 @@ func TestNomadFingerprint(t *testing.T) {
 
 	if response.Attributes["nomad.revision"] != r {
 		t.Fatalf("incorrect revision")
+	}
+
+	if response.Attributes["nomad.advertise.address"] != h {
+		t.Fatalf("incorrect advertise address")
 	}
 }
