@@ -8,6 +8,13 @@ export default Route.extend(WithForbiddenState, {
   store: service(),
   system: service(),
 
+  breadcrumbs: [
+    {
+      label: 'Servers',
+      args: ['servers.index'],
+    },
+  ],
+
   beforeModel() {
     return this.get('system.leader');
   },

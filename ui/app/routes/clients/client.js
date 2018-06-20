@@ -12,6 +12,16 @@ export default Route.extend(WithWatchers, {
     return this._super(...arguments).catch(notifyError(this));
   },
 
+  breadcrumbs(model) {
+    if (!model) return [];
+    return [
+      {
+        label: model.get('shortId'),
+        args: ['clients.client', model.get('id')],
+      },
+    ];
+  },
+
   afterModel(model) {
     if (model && model.get('isPartial')) {
       return model.reload().then(node => node.get('allocations'));
