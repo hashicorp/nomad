@@ -489,6 +489,9 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
   </tr>
 </table>
 
+Nomad 0.9 adds an additional "node_class" label from the client's
+`NodeClass` attribute. This label is set to the string "none" if empty.
+
 ## Host Metrics (deprecated post Nomad 0.7)
 
 The below are metrics emitted by Nomad in versions prior to 0.7. These metrics
