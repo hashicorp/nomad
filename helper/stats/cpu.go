@@ -15,7 +15,7 @@ const (
 	// cpuInfoTimeout is the timeout used when gathering CPU info. This is used
 	// to override the default timeout in gopsutil which has a tendency to
 	// timeout on Windows.
-	cpuInfoTimeout = 10 * time.Second
+	cpuInfoTimeout = 60 * time.Second
 )
 
 var (
