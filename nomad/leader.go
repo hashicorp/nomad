@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/time/rate"
 
+	"strings"
+
 	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
@@ -625,6 +627,29 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 								Value: name,
 							},
 						}
+
+						if strings.Contains(summary.JobID, "/dispatch-") {
+							jobInfo := strings.Split(summary.JobID, "/dispatch-")
+							labels = append(labels, metrics.Label{
+								Name:  "parent_id",
+								Value: jobInfo[0],
+							}, metrics.Label{
+								Name:  "dispatch_id",
+								Value: jobInfo[1],
+							})
+						}
+
+						if strings.Contains(summary.JobID, "/periodic-") {
+							jobInfo := strings.Split(summary.JobID, "/periodic-")
+							labels = append(labels, metrics.Label{
+								Name:  "parent_id",
+								Value: jobInfo[0],
+							}, metrics.Label{
+								Name:  "periodic_id",
+								Value: jobInfo[1],
+							})
+						}
+
 						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
 							float32(tgSummary.Queued), labels)
 						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
