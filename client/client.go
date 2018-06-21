@@ -2201,9 +2201,19 @@ DISCOLOOP:
 
 // emitStats collects host resource usage stats periodically
 func (c *Client) emitStats() {
+	// Determining NodeClass to be emitted
+	var emittedNodeClass string
+	if emittedNodeClass = c.Node().NodeClass; emittedNodeClass == "" {
+		emittedNodeClass = "none"
+	}
+
 	// Assign labels directly before emitting stats so the information expected
 	// is ready
-	c.baseLabels = []metrics.Label{{Name: "node_id", Value: c.NodeID()}, {Name: "datacenter", Value: c.Datacenter()}}
+	c.baseLabels = []metrics.Label{
+		{Name: "node_id", Value: c.NodeID()},
+		{Name: "datacenter", Value: c.Datacenter()},
+		{Name: "node_class", Value: emittedNodeClass},
+	}
 
 	// Start collecting host stats right away and then keep collecting every
 	// collection interval
