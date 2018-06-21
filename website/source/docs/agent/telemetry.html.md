@@ -236,6 +236,32 @@ configuration block.
 Please see the [agent configuration](/docs/agent/configuration/telemetry.html)
 page for more details.
 
+As of Nomad 0.9, Nomad will emit additional labels for [parameterized](/docs/job-specification/parameterized.html) and
+[periodic](/docs/job-specification/parameterized.html) jobs. Nomad
+emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
+and `periodic_id` are emitted, containing the ID of the specific invocation of the
+parameterized or periodic job respectively. For example, a dispatch job with the id
+`myjob/dispatch-1312323423423`, will have the following labels.
+
+<table class="table table-bordered table-striped">
+<tr>
+    <th>Label</th>
+    <th>Value</th>
+</tr>
+<tr>
+<td>job</td>
+<td>`myjob/dispatch-1312323423423`</td>
+</tr>
+<tr>
+<td>parent_id</td>
+<td>myjob</td>
+</tr>
+<tr>
+<td>dispatch_id</td>
+<td>1312323423423</td>
+</tr>
+</table>
+
 ## Host Metrics (post Nomad version 0.7)
 
 Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
