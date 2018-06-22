@@ -362,6 +362,16 @@ func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Bui
 	return b.setTask(task).setAlloc(alloc)
 }
 
+func (b *Builder) SetGenericEnv(envs map[string]string) *Builder {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for k, v := range envs {
+		b.envvars[k] = v
+	}
+
+	return b
+}
+
 // setTask is called from NewBuilder to populate task related environment
 // variables.
 func (b *Builder) setTask(task *structs.Task) *Builder {
