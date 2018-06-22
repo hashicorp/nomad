@@ -117,7 +117,7 @@ DataNodes to generically reference the NameNode:
 ```
 
 Another viable option for DataNode task group is to use a dedicated 
-[system](https://www.nomadproject.io/docs/runtime/schedulers.html#system) job. 
+[system](/docs/schedulers.html#system) job. 
 This will deploy a DataNode to every client node in the system, which may or may 
 not be desirable depending on your use case. 
 
