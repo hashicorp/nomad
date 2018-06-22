@@ -15,14 +15,17 @@ to use to improve your environment.
 We've covered the basics of all the core features of Nomad in this guide.
 We recommend exploring the following resources as next steps.
 
-  * [Documentation](/docs/index.html) - The documentation is an in-depth
-    reference guide to all the features of Nomad.
+  * [Guides](/guides/index.html) - The Guides provide best practices and 
+    guidance for using and operating Nomad in a real-world production setting. 
 
-  * [Creating a Cluster](/guides/cluster/bootstrapping.html) - Additional details on
-    creating a production worthy Nomad Cluster.
+  * [Docs](/docs/index.html) - The Docs provide detailed reference information 
+    all available features and options of Nomad.
 
-  * [Operating a Job](/guides/operating-a-job/index.html) - Additional details on how to
-    run a job in production.
+  * [Job Lifecycle](/guides/operating-a-job/index.html) - Additional details 
+    specific to runnning a job in production.
+
+  * [Creating a Cluster](/guides/operations/cluster/bootstrapping.html) - Additional 
+    details on creating a production worthy Nomad Cluster.
 
   * [Example Terraform configuration](https://github.com/hashicorp/nomad/tree/master/terraform) - 
     Use Terraform to automatically provision a cluster in AWS.
