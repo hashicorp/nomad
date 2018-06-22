@@ -9,13 +9,13 @@ description: |-
 # ACL Tokens HTTP API
 
 The `/acl/bootstrap`, `/acl/tokens`, and `/acl/token/` endpoints are used to manage ACL tokens.
-For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ## Bootstrap Token
 
 This endpoint is used to bootstrap the ACL system and provide the initial management token.
 This request is always forwarded to the authoritative region. It can only be invoked once
-until a [bootstrap reset](/guides/acl.html#reseting-acl-bootstrap) is performed.
+until a [bootstrap reset](/guides/security/acl.html#reseting-acl-bootstrap) is performed.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
