@@ -1,12 +1,12 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Upgrading"
-sidebar_current: "docs-upgrade-upgrading"
+sidebar_current: "guides-operations-upgrade"
 description: |-
   Learn how to upgrade Nomad.
 ---
 
-# Upgrading Nomad
+# Upgrading
 
 This page documents how to upgrade Nomad when a new version is released.
 
@@ -23,7 +23,7 @@ For upgrades we strive to ensure backwards compatibility. For most upgrades, the
 process is as simple as upgrading the binary and restarting the service.
 
 Prior to starting the upgrade please check the
-[specific version details](/docs/upgrade/upgrade-specific.html) page as some
+[specific version details](/guides/operations/upgrade/upgrade-specific.html) page as some
 version differences may require specific steps.
 
 At a high level we complete the following steps to upgrade Nomad:
@@ -102,8 +102,8 @@ Use the same actions in step #2 above to confirm cluster health.
 
 Following the successful upgrade of the servers you can now update your
 clients using a similar process as the servers.  You may either upgrade clients
-in-place or start new nodes on the new version. See the [Decommissioning Nodes
-guide](/guides/node-draining.html) for instructions on how to migrate running
+in-place or start new nodes on the new version. See the [Workload Migration 
+Guide](/guides/operations/node-draining.html) for instructions on how to migrate running
 allocations from the old nodes to the new nodes with the [`nomad node
 drain`](/docs/commands/node/drain.html) command.
 
@@ -118,5 +118,5 @@ are in a `ready` state.
 The process of upgrading to a Nomad Enterprise version is identical to upgrading
 between versions of open source Nomad. The same guidance above should be
 followed and as always, prior to starting the upgrade please check the [specific
-version details](/docs/upgrade/upgrade-specific.html) page as some version
+version details](/guides/operations/upgrade/upgrade-specific.html) page as some version
 differences may require specific steps.

@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Installing Nomad"
-sidebar_current: "docs-installing"
+sidebar_current: "guides-operations-installing"
 description: |-
   Learn how to install Nomad.
 ---

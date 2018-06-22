@@ -1,13 +1,13 @@
 ---
 layout: "guides"
-page_title: "Nomad Client and Server Requirements"
-sidebar_current: "guides-cluster-requirements"
+page_title: "Hardware Requirements"
+sidebar_current: "guides-operations-requirements"
 description: |-
   Learn about Nomad client and server requirements such as memory and CPU
   recommendations, network topologies, and more.
 ---
 
-# Cluster Requirements
+# Hardware Requirements
 
 ## Resources (RAM, CPU, etc.)
 
@@ -29,7 +29,7 @@ used by Nomad. This should be used to target a specific resource utilization per
 node and to reserve resources for applications running outside of Nomad's
 supervision such as Consul and the operating system itself.
 
-Please see the [reservation configuration](/docs/agent/configuration/client.html#reserved) for
+Please see the [reservation configuration](/docs/configuration/client.html#reserved) for
 more detail.
 
 ## Network Topology
