@@ -1,13 +1,13 @@
 ---
 layout: "guides"
-page_title: "Federating a Nomad Cluster"
-sidebar_current: "guides-cluster-federation"
+page_title: "Multi-region Federation"
+sidebar_current: "guides-operations-federation"
 description: |-
   Learn how to join Nomad servers across multiple regions so users can submit
   jobs to any server in any region using global federation.
 ---
 
-# Federating a Cluster
+# Multi-region Federation
 
 Because Nomad operates at a regional level, federation is part of Nomad core.
 Federation enables users to submit jobs or interact with the HTTP API targeting
@@ -33,4 +33,4 @@ enough to join just one known server.
 If bootstrapped via Consul and the Consul clusters in the Nomad regions are
 federated, then federation occurs automatically.
 
-[ports]: /guides/cluster/requirements.html#ports-used
+[ports]: /guides/operations/requirements.html#ports-used

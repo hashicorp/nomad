@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Outage Recovery"
-sidebar_current: "guides-outage-recovery"
+sidebar_current: "guides-operations-outage-recovery"
 description: |-
   Don't panic! This is a critical first step. Depending on your deployment
   configuration, it may take only a single server failure for cluster
@@ -20,15 +20,15 @@ requires an operator to intervene, but the process is straightforward.
 
 ~> This guide is for recovery from a Nomad outage due to a majority of server
 nodes in a datacenter being lost. If you are looking to add or remove servers,
-see the [bootstrapping guide](/guides/cluster/bootstrapping.html).
+see the [bootstrapping guide](/guides/operations/cluster/bootstrapping.html).
 
 ## Failure of a Single Server Cluster
 
 If you had only a single server and it has failed, simply restart it. A
 single server configuration requires the
-[`-bootstrap-expect=1`](/docs/agent/configuration/server.html#bootstrap_expect)
+[`-bootstrap-expect=1`](/docs/configuration/server.html#bootstrap_expect)
 flag. If the server cannot be recovered, you need to bring up a new
-server. See the [bootstrapping guide](/guides/cluster/bootstrapping.html)
+server. See the [bootstrapping guide](/guides/operations/cluster/bootstrapping.html)
 for more detail.
 
 In the case of an unrecoverable server failure in a single server cluster, data
@@ -126,7 +126,7 @@ any automated processes that will put the peers file in place on a
 periodic basis.
 
 The next step is to go to the
-[`-data-dir`](/docs/agent/configuration/index.html#data_dir) of each Nomad
+[`-data-dir`](/docs/configuration/index.html#data_dir) of each Nomad
 server. Inside that directory, there will be a `raft/` sub-directory. We need to
 create a `raft/peers.json` file. It should look something like:
 
@@ -220,5 +220,5 @@ Nomad server in the cluster, like this:
   server's RPC port used for cluster communications.
 
 - `non_voter` `(bool: <false>)` - This controls whether the server is a non-voter, which is used
-  in some advanced [Autopilot](/guides/autopilot.html) configurations. If omitted, it will
+  in some advanced [Autopilot](/guides/operations/autopilot.html) configurations. If omitted, it will
   default to false, which is typical for most clusters.

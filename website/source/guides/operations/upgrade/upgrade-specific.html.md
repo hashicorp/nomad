@@ -1,15 +1,15 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Upgrade Guides"
-sidebar_current: "docs-upgrade-specific"
+sidebar_current: "guides-operations-upgrade-specific"
 description: |-
   Specific versions of Nomad may have additional information about the upgrade
   process beyond the standard flow.
 ---
 
-# Upgrading Specific Versions
+# Upgrade Guides
 
-The [upgrading page](/docs/upgrade/index.html) covers the details of doing
+The [upgrading page](/guides/operations/upgrade/index.html) covers the details of doing
 a standard upgrade. However, specific versions of Nomad may have more
 details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
@@ -21,7 +21,7 @@ standard upgrade flow.
 
 When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need
 to set the
-[`raft_protocol`](/docs/agent/configuration/server.html#raft_protocol) option
+[`raft_protocol`](/docs/configuration/server.html#raft_protocol) option
 in their `server` stanza to 1 in order to maintain backwards compatibility with
 the old servers during the upgrade.  After the servers have been migrated to
 version 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted
@@ -50,18 +50,18 @@ Raft Protocol versions supported by each Nomad version:
   </tr>
 </table>
 
-In order to enable all [Autopilot](/guides/autopilot.html) features, all servers
+In order to enable all [Autopilot](/guides/operations/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
 
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/outage.html#manual-recovery-using-peers-json) for a description of the required format.
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/guides/operations/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/operations/outage.html#manual-recovery-using-peers-json) for a description of the required format.
 
 Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
 
 The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
 
-When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/guides/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
+When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/guides/operations/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
 
 
 ### Node Draining Improvements
@@ -78,7 +78,7 @@ The `drain` command now blocks until the drain completes. To get the Nomad
 -force -detach <node-id>`
 
 See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
-guide](/guides/node-draining.html) for details.
+guide](/guides/operations/node-draining.html) for details.
 
 ### Periods in Environment Variable Names No Longer Escaped
 
@@ -124,7 +124,7 @@ as the old style will be deprecated in future versions of Nomad.
 ### RPC Advertise Address
 
 The behavior of the [advertised RPC
-address](/docs/agent/configuration/index.html#rpc-1) has changed to be only used
+address](/docs/configuration/index.html#rpc-1) has changed to be only used
 to advertise the RPC address of servers to client nodes. Server to server
 communication is done using the advertised Serf address. Existing cluster's
 should not be effected but the advertised RPC address may need to be updated to
@@ -149,7 +149,7 @@ If you manually configure `advertise` addresses no changes are necessary.
 The change to the default, advertised IP also effect clients that do not specify
 which network_interface to use. If you have several routable IPs, it is advised
 to configure the client's [network
-interface](https://www.nomadproject.io/docs/agent/configuration/client.html#network_interface)
+interface](/docs/configuration/client.html#network_interface)
 such that tasks bind to the correct address.
 
 ## Nomad 0.5.5

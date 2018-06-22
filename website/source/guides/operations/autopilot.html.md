@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Autopilot"
-sidebar_current: "guides-autopilot"
+sidebar_current: "guides-operations-autopilot"
 description: |-
   This guide covers how to configure and use Autopilot features.
 ---
@@ -13,15 +13,15 @@ operator-friendly management of Nomad servers. It includes cleanup of dead
 servers, monitoring the state of the Raft cluster, and stable server introduction.
 
 To enable Autopilot features (with the exception of dead server cleanup),
-the `raft_protocol` setting in the [server stanza](/docs/agent/configuration/server.html)
+the `raft_protocol` setting in the [server stanza](/docs/configuration/server.html)
 must be set to 3 on all servers. In Nomad 0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3.
-For more information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
+For more information, see the [Version Upgrade section](/guides/operations/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
 on Raft Protocol versions.
 
 ## Configuration
 
 The configuration of Autopilot is loaded by the leader from the agent's
-[Autopilot settings](/docs/agent/configuration/autopilot.html) when initially
+[Autopilot settings](/docs/configuration/autopilot.html) when initially
 bootstrapping the cluster:
 
 ```
@@ -149,7 +149,7 @@ setting.
 
 ## Server Read and Scheduling Scaling
 
-With the [`non_voting_server`](/docs/agent/configuration/server.html#non_voting_server) option, a
+With the [`non_voting_server`](/docs/configuration/server.html#non_voting_server) option, a
 server can be explicitly marked as a non-voter and will never be promoted to a voting
 member. This can be useful when more read scaling is needed; being a non-voter means
 that the server will still have data replicated to it, but it will not be part of the
@@ -164,7 +164,7 @@ have an overly-large quorum (2-3 nodes per AZ) or give up redundancy within an A
 deploying just one server in each.
 
 If the `EnableRedundancyZones` setting is set, Nomad will use its value to look for a
-zone in each server's specified [`redundancy_zone`](/docs/agent/configuration/server.html#redundancy_zone)
+zone in each server's specified [`redundancy_zone`](/docs/configuration/server.html#redundancy_zone)
 field.
 
 Here's an example showing how to configure this:
@@ -216,6 +216,6 @@ a migration, so that the migration logic can be used for updating the cluster wh
 changing configuration.
 
 If the `EnableCustomUpgrades` setting is set to `true`, Nomad will use its value to look for a
-version in each server's specified [`upgrade_version`](/docs/agent/configuration/server.html#upgrade_version)
+version in each server's specified [`upgrade_version`](/docs/configuration/server.html#upgrade_version)
 tag. The upgrade logic will follow semantic versioning and the `upgrade_version`
 must be in the form of either `X`, `X.Y`, or `X.Y.Z`.

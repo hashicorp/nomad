@@ -1,20 +1,20 @@
 ---
 layout: "guides"
-page_title: "Decommissioning Nodes"
-sidebar_current: "guides-decommissioning-nodes"
+page_title: "Workload Migration"
+sidebar_current: "guides-operations-decommissioning-nodes"
 description: |-
-  Decommissioning nodes is a normal part of cluster operations for a variety of
+  Workload migration is a normal part of cluster operations for a variety of
   reasons: server maintenance, operating system upgrades, etc. Nomad offers a
   number of parameters for controlling how running jobs are migrated off of
   draining nodes.
 ---
 
-# Decommissioning Nomad Client Nodes
+# Workload Migration
 
-Decommissioning nodes is a normal part of cluster operations for a variety of
-reasons: server maintenance, operating system upgrades, etc. Nomad offers a
-number of parameters for controlling how running jobs are migrated off of
-draining nodes.
+Migrating workloads and decommissioning nodes are a normal part of cluster 
+operations for a variety of reasons: server maintenance, operating system 
+upgrades, etc. Nomad offers a number of parameters for controlling how running 
+jobs are migrated off of draining nodes.
 
 ## Configuring How Jobs are Migrated
 

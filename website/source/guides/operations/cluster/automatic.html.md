@@ -1,14 +1,14 @@
 ---
 layout: "guides"
-page_title: "Automatically Bootstrapping a Nomad Cluster"
-sidebar_current: "guides-cluster-automatic"
+page_title: "Automatic Clustering with Consul"
+sidebar_current: "guides-operations-cluster-automatic"
 description: |-
   Learn how to automatically bootstrap a Nomad cluster using Consul. By having
   a Consul agent installed on each host, Nomad can automatically discover other
   clients and servers to bootstrap the cluster without operator involvement.
 ---
 
-# Automatic Bootstrapping
+# Automatic Clustering with Consul
 
 To automatically bootstrap a Nomad cluster, we must leverage another HashiCorp
 open source tool, [Consul](https://www.consul.io/). Bootstrapping Nomad is
@@ -115,5 +115,5 @@ consul {
 ```
 
 Please refer to the [Consul
-documentation](/docs/agent/configuration/consul.html) for the complete set of
+documentation](/docs/configuration/consul.html) for the complete set of
 configuration options.

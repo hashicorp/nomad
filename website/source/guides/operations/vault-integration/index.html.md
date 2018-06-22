@@ -1,9 +1,9 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Vault Integration"
-sidebar_current: "docs-vault-integration"
+sidebar_current: "guides-operations-vault-integration"
 description: |-
-  Learn how to integrate with HashiCorp Vault and retrieve Vault tokens for
+  Learn how to integrate Nomad with HashiCorp Vault and retrieve Vault tokens for
   tasks.
 ---
 
@@ -341,8 +341,8 @@ You can see examples of `v1` and `v2` syntax in the
 
 
 [auth]: https://www.vaultproject.io/docs/auth/token.html "Vault Authentication Backend"
-[config]: /docs/agent/configuration/vault.html "Nomad Vault Configuration Block"
-[createfromrole]: /docs/agent/configuration/vault.html#create_from_role "Nomad vault create_from_role Configuration Flag"
+[config]: /docs/configuration/vault.html "Nomad Vault Configuration Block"
+[createfromrole]: /docs/configuration/vault.html#create_from_role "Nomad vault create_from_role Configuration Flag"
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
 [vault-spec]: /docs/job-specification/vault.html "Nomad Vault Job Specification"

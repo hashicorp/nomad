@@ -1,34 +1,57 @@
 ---
-layout: "docs"
-page_title: "Service Discovery"
-sidebar_current: "docs-service-discovery"
+layout: "guides"
+page_title: "Consul Integration"
+sidebar_current: "guides-operations-consul-integration"
 description: |-
-  Learn how to add service discovery to jobs
+  Learn how to integrate Nomad with Consul and add service discovery to jobs
 ---
 
-# Service Discovery
+# Consul Integration
+
+[Consul][] is a tool for discovering and configuring services in your 
+infrastructure. Consul's key features include service discover, health checking, 
+a KV store, and robust support for multi-datacenter deployments. Nomad's integration 
+with Consul enables automatic clustering, built-in service registration, and 
+dynamic rendering of configuration files and environment variables. The sections 
+below describe the integration in more detail.
+
+## Configuration
+
+In order to use Consul with Nomad, you will need to configure and
+install Consul on your nodes alongside Nomad, or schedule it as a system job.
+Nomad does not currently run Consul for you.
+
+To enable Consul integration, please see the
+[Nomad agent Consul integration](/docs/configuration/consul.html)
+configuration.
+
+## Automatic Clustering with Consul
+
+Nomad servers and clients will be automatically informed of each other's 
+existence when a running Consul cluster already exists and the Consul agent is 
+installed and configured on each host. Please see the [Automatic Clustering with 
+Consul](/guides/operations/cluster/automatic.html) guide for more information.
+
+## Service Discovery
 
 Nomad schedules workloads of various types across a cluster of generic hosts.
 Because of this, placement is not known in advance and you will need to use
 service discovery to connect tasks to other services deployed across your
-cluster. Nomad integrates with [Consul][] to provide service discovery and
+cluster. Nomad integrates with Consul to provide service discovery and
 monitoring.
-
-Note that in order to use Consul with Nomad, you will need to configure and
-install Consul on your nodes alongside Nomad, or schedule it as a system job.
-Nomad does not currently run Consul for you.
-
-## Configuration
-
-To enable Consul integration, please see the
-[Nomad agent Consul integration](/docs/agent/configuration/consul.html)
-configuration.
-
-
-## Service Definition Syntax
 
 To configure a job to register with service discovery, please see the
 [`service` job specification documentation][service].
+
+## Dynamic Configuration
+
+Nomad's job specification includes a [`template` stanza](/docs/job-specification/template.html) 
+that utilizes a Consul ecosystem tool called [Consul Template](https://github.com/hashicorp/consul-template). This mechanism creates a convenient way to ship configuration files 
+that are populated from environment variables, Consul data, Vault secrets, or just 
+general configurations within a Nomad task.
+
+For more information on Nomad's template stanza and how it leverages Consul Template, 
+please see the [`template` job specification documentation](/docs/job-specification/template.html).
 
 ## Assumptions
 

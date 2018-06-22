@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Setting up Nomad with Grafana and Prometheus Metrics"
-sidebar_current: "guides-nomad-metrics"
+sidebar_current: "guides-operations-monitoring-grafana"
 description: |-
   It is possible to collect metrics on Nomad and create dashboards with Grafana
   and Prometheus. Nomad has default configurations for these, but it is
