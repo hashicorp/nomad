@@ -48,7 +48,7 @@ stanza for allocations on that node. The `migrate` stanza is for job authors to
 define how their services should be migrated, while the node drain deadline is
 for system operators to put hard limits on how long a drain may take.
 
-See the [Decommissioning Nodes guide](/guides/node-draining.html) for details
+See the [Workload Migration Guide](/guides/operations/node-draining.html) for details
 on node draining.
 
 ## `migrate` Parameters
