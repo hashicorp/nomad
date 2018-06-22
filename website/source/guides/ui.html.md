@@ -12,7 +12,7 @@ description: |-
 The Nomad Web UI offers an easy to use web experience for inspecting a Nomad cluster.
 Jobs, Deployments, Evaluations, Task Groups, Allocations, Logs, Clients, and Servers can all be
 monitored from the Web UI. The Web UI also supports the use of ACL tokens for
-clusters that are using the [ACL system](/guides/acl.html).
+clusters that are using the [ACL system](/guides/security/acl.html).
 
 ## Accessing the Web UI
 
