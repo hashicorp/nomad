@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
 * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
+* client: Extend timeout to 60 seconds for Windows CPU fingerprinting [[GH-4441](https://github.com/hashicorp/nomad/pull/4441)]
 * telemetry: All client metrics include a new `node_class` tag [[GH-3882](https://github.com/hashicorp/nomad/issues/3882)]
 * telemetry: Added new tags with value of child job id and parent job id for
   parameterized and periodic jobs [[GH-4392](https://github.com/hashicorp/nomad/issues/4392)]
