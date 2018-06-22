@@ -16,8 +16,8 @@ Only anonymous information, which cannot be used to identify the user or host, i
 sent to Checkpoint. An anonymous ID is sent which helps de-duplicate warning messages.
 This anonymous ID can be disabled. Using the Checkpoint service is optional and can be disabled.
 
-See [`disable_anonymous_signature`](/docs/agent/configuration/index.html#disable_anonymous_signature)
-and [`disable_update_check`](/docs/agent/configuration/index.html#disable_update_check).
+See [`disable_anonymous_signature`](/docs/configuration/index.html#disable_anonymous_signature)
+and [`disable_update_check`](/docs/configuration/index.html#disable_update_check).
 
 ## Q: Is Nomad eventually or strongly consistent?
 
@@ -40,4 +40,4 @@ clusters][consul_fed].
 
 [consul_dc]: https://www.consul.io/docs/agent/options.html#_datacenter
 [consul_fed]: https://www.consul.io/docs/guides/datacenters.html
-[nomad_region]: /docs/agent/configuration/index.html#datacenter
+[nomad_region]: /docs/configuration/index.html#datacenter
