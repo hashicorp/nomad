@@ -197,7 +197,7 @@ The `Job` object supports the following keys:
 - `Type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`. To learn more about each scheduler type visit
-  [here](/docs/runtime/schedulers.html)
+  [here](/docs/schedulers.html)
 
 - `Update` - Specifies an update strategy to be applied to all task groups
   within the job. When specified both at the job level and the task group level,
@@ -366,7 +366,7 @@ The `Task` object supports the following keys:
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
   is started and de-registers it when the task transitions to the dead state.
-  [Click here](/docs/service-discovery/index.html) to learn more about
+  [Click here](/guides/operations/consul-integration/index.html#service-discovery) to learn more about
   services. Below is the fields in the `Service` object:
 
      - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,

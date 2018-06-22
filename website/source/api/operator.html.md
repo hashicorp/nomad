@@ -14,7 +14,7 @@ as interacting with the Raft subsystem.
 ~> Use this interface with extreme caution, as improper use could lead to a
 Nomad outage and even loss of data.
 
-See the [Outage Recovery](/guides/outage.html) guide for some examples of how
+See the [Outage Recovery](/guides/operations/outage.html) guide for some examples of how
 these capabilities are used. For a CLI to perform these operations manually,
 please see the documentation for the
 [`nomad operator`](/docs/commands/operator.html) command.
@@ -164,7 +164,7 @@ $ curl \
 ```
 
 For more information about the Autopilot configuration options, see the
-[agent configuration section](/docs/agent/configuration/autopilot.html).
+[agent configuration section](/docs/configuration/autopilot.html).
 
 ## Update Autopilot Configuration
 

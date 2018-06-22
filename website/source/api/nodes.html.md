@@ -759,8 +759,8 @@ $ curl \
 
 This endpoint toggles the drain mode of the node. When draining is enabled, no
 further allocations will be assigned to this node, and existing allocations will
-be migrated to new nodes. See the [Decommissioning Nodes
-guide](/guides/node-draining.html) for suggested usage.
+be migrated to new nodes. See the [Workload Migration 
+Guide](/guides/operations/node-draining.html) for suggested usage.
 
 | Method  | Path                      | Produces                   |
 | ------- | ------------------------- | -------------------------- |
