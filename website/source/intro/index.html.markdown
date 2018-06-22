@@ -13,16 +13,37 @@ place to start with Nomad. We cover what Nomad is, what
 problems it can solve, how it compares to existing software,
 and contains a quick start for using Nomad.
 
-If you are already familiar with the basics of Nomad, the
-[documentation](/docs/index.html) provides a better reference
-guide for all available features as well as internals.
+If you are already familiar with the basics of Nomad, the [Guides](/guides/index.html) 
+and the [reference documentation](/docs/index.html) will provide a more comprehensive 
+resource.
 
 ## What is Nomad?
 
-Nomad is a tool for managing a cluster of machines and running applications
+Nomad is a flexible container orchestration tool that enables an organization to 
+easily deploy and manage any containerized or legacy application using a single, 
+unified workflow. Nomad can run a diverse workload of Docker, non-containerized, 
+microservice, and batch applications, and generally offers the following benefits 
+to developers and operators:
+
+* **API-driven Automation**: Workload placement, scaling, and upgrades can be 
+  automated, simplifying operations and eliminating the need for homegrown tooling.
+* **Self-service Deployments**: Developers are empowered to service application 
+  lifecycles directly, allowing operators to focus on higher value tasks.
+* **Workload Reliability**: Application, node, and driver failures are handled 
+  automatically, reducing the need for manual operator intervention
+* **Increased Efficiency and Reduced Cost**: Higher application densities allow 
+  operators to reduce fleet sizes and save money.
+
+Nomad is trusted by enterprises from a range of sectors including financial, 
+retail, software, and others to run production workloads at scale across private 
+infrastructure and the public cloud.
+
+## How it Works
+
+At its core, Nomad is a tool for managing a cluster of machines and running applications
 on them. Nomad abstracts away machines and the location of applications,
-and instead enables users to declare what they want to run and Nomad handles
-where they should run and how to run them.
+and instead enables users to declare what they want to run while Nomad handles
+where and how to run them. 
 
 The key features of Nomad are:
 
@@ -56,6 +77,15 @@ The key features of Nomad are:
   in scheduling decisions which increases the total throughput and reduces latency
   to support demanding workloads. Nomad has been proven to scale to cluster sizes that 
   exceed 10k nodes in real-world production environments.
+
+## How Nomad Compares to Other Tools
+
+Nomad differentiates from related tools by virtue of its **simplicity**, **flexibility**, 
+**scalability**, and **high performance**. Nomad's synergy and integration points with 
+HashiCorp Terrform, Consul, and Vault make it uniquely suited for easy integration into 
+an organization's existing workflows, minimizing the time-to-market for critical initiatives. 
+See the [Nomad vs. Other Software](/intro/vs/index.html) page for additional details and 
+comparisons.
 
 ## Next Steps
 
