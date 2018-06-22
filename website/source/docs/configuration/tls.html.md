@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "tls Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-tls"
+sidebar_current: "docs-configuration-tls"
 description: |-
   The "tls" stanza configures Nomad's TLS communication via HTTP and RPC to
   enforce secure cluster communication between servers, clients, and between.
@@ -33,7 +33,7 @@ start the Nomad agent.
 
 This section of the documentation only covers the configuration options for
 `tls` stanza. To understand how to setup the certificates themselves, please see
-the [Agent's Gossip and RPC Encryption](/docs/agent/encryption.html).
+the [Encryption Overview Guide](/guides/security/encryption.html).
 
 ## `tls` Parameters
 
