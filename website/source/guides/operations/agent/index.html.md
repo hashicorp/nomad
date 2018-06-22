@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Nomad Agent"
-sidebar_current: "docs-agent"
+sidebar_current: "guides-operations-agent"
 description: |-
   The Nomad agent is a long running process which can be used either in
   a client or server mode.

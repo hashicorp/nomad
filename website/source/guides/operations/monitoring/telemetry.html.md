@@ -1,7 +1,7 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Telemetry"
-sidebar_current: "docs-agent-telemetry"
+sidebar_current: "guides-operations-monitoring-telemetry"
 description: |-
   Learn about the telemetry data available in Nomad.
 ---
@@ -30,7 +30,7 @@ Telemetry information can be streamed to both [statsite](https://github.com/armo
 as well as statsd based on providing the appropriate configuration options.
 
 To configure the telemetry output please see the [agent
-configuration](/docs/agent/configuration/telemetry.html).
+configuration](/docs/configuration/telemetry.html).
 
 Below is sample output of a telemetry dump:
 
@@ -233,7 +233,7 @@ By default the collection interval is 1 second but it can be changed by the
 changing the value of the `collection_interval` key in the `telemetry`
 configuration block.
 
-Please see the [agent configuration](/docs/agent/configuration/telemetry.html)
+Please see the [agent configuration](/docs/configuration/telemetry.html)
 page for more details.
 
 As of Nomad 0.9, Nomad will emit additional labels for [parameterized](/docs/job-specification/parameterized.html) and

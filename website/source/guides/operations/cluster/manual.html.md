@@ -1,14 +1,14 @@
 ---
 layout: "guides"
-page_title: "Manually Bootstrapping a Nomad Cluster"
-sidebar_current: "guides-cluster-manual"
+page_title: "Manually Clustering"
+sidebar_current: "guides-operations-cluster-manual"
 description: |-
   Learn how to manually bootstrap a Nomad cluster using the server join
   command. This section also discusses Nomad federation across multiple
   datacenters and regions.
 ---
 
-# Manual Bootstrapping
+# Manual Clustering
 
 Manually bootstrapping a Nomad cluster does not rely on additional tooling, but
 does require operator participation in the cluster formation process. When
