@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "acl Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-acl"
+sidebar_current: "docs-configuration-acl"
 description: |-
   The "acl" stanza configures the Nomad agent to enable ACLs and tune various parameters.
 ---

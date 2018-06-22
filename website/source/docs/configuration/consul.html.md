@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "consul Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-consul"
+sidebar_current: "docs-configuration-consul"
 description: |-
   The "consul" stanza configures the Nomad agent's communication with
   Consul for service discovery and key-value integration. When
@@ -168,4 +168,4 @@ consul {
 ```
 
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
-[bootstrap]: /guides/cluster/automatic.html "Automatic Bootstrapping"
+[bootstrap]: /guides/operations/cluster/automatic.html "Automatic Bootstrapping"

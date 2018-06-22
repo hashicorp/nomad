@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "client Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-client"
+sidebar_current: "docs-configuration-client"
 description: |-
   The "client" stanza configures the Nomad agent to accept jobs as assigned by
   the Nomad server, join the cluster, and specify driver-specific configuration.
@@ -32,7 +32,7 @@ client {
 
 - `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
   for allocation data. By default, this is the top-level
-  [data_dir](/docs/agent/configuration/index.html#data_dir) suffixed with
+  [data_dir](/docs/configuration/index.html#data_dir) suffixed with
   "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
@@ -98,7 +98,7 @@ client {
 
 - `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
  to store client state. By default, this is - the top-level
- [data_dir](/docs/agent/configuration/index.html#data_dir) suffixed with
+ [data_dir](/docs/configuration/index.html#data_dir) suffixed with
  "client", like `"/opt/nomad/client"`. This must be an absolute path.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
@@ -356,4 +356,4 @@ client {
   }
 }
 ```
-[server-join]: /docs/agent/configuration/server_join.html "Server Join"
+[server-join]: /docs/configuration/server_join.html "Server Join"

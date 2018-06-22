@@ -1,12 +1,12 @@
 ---
 layout: "docs"
 page_title: "Agent Configuration"
-sidebar_current: "docs-agent-configuration"
+sidebar_current: "docs-configuration"
 description: |-
   Learn about the configuration options available for the Nomad agent.
 ---
 
-# Agent Configuration
+# Nomad Configuration
 
 Nomad agents have a variety of parameters that can be specified via
 configuration files or command-line flags. Configuration files are written in
@@ -236,10 +236,10 @@ http_api_response_headers {
 
 [hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
-[consul]: /docs/agent/configuration/consul.html "Nomad Agent consul Configuration"
-[vault]: /docs/agent/configuration/vault.html "Nomad Agent vault Configuration"
-[tls]: /docs/agent/configuration/tls.html "Nomad Agent tls Configuration"
-[client]: /docs/agent/configuration/client.html "Nomad Agent client Configuration"
-[sentinel]: /docs/agent/configuration/sentinel.html "Nomad Agent sentinel Configuration"
-[server]: /docs/agent/configuration/server.html "Nomad Agent server Configuration"
-[acl]: /docs/agent/configuration/acl.html "Nomad Agent ACL Configuration"
+[consul]: /docs/configuration/consul.html "Nomad Agent consul Configuration"
+[vault]: /docs/configuration/vault.html "Nomad Agent vault Configuration"
+[tls]: /docs/configuration/tls.html "Nomad Agent tls Configuration"
+[client]: /docs/configuration/client.html "Nomad Agent client Configuration"
+[sentinel]: /docs/configuration/sentinel.html "Nomad Agent sentinel Configuration"
+[server]: /docs/configuration/server.html "Nomad Agent server Configuration"
+[acl]: /docs/configuration/acl.html "Nomad Agent ACL Configuration"

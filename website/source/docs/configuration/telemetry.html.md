@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "telemetry Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-telemetry"
+sidebar_current: "docs-configuration-telemetry"
 description: |-
   The "telemetry" stanza configures Nomad's publication of metrics and telemetry
   to third-party systems.
@@ -31,7 +31,7 @@ telemetry {
 
 This section of the documentation only covers the configuration options for
 `telemetry` stanza. To understand the architecture and metrics themselves,
-please see the [Nomad telemetry documentation](/docs/agent/telemetry.html).
+please see the [Telemetry guide](/guides/operations/monitoring/telemetry.html).
 
 ## `telemetry` Parameters
 

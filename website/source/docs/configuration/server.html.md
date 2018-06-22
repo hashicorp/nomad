@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "server Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-server"
+sidebar_current: "docs-configuration-server"
 description: |-
   The "server" stanza configures the Nomad agent to operate in server mode to
   participate in scheduling decisions, register with service discovery, handle
@@ -51,7 +51,7 @@ server {
 
 - `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use -
   for server-specific data, including the replicated log. By default, this is -
-  the top-level [data_dir](/docs/agent/configuration/index.html#data_dir)
+  the top-level [data_dir](/docs/configuration/index.html#data_dir)
   suffixed with "server", like `"/opt/nomad/server"`. This must be an absolute
   path.
 
@@ -70,7 +70,7 @@ server {
   provided once on each agent's initial startup sequence. If it is provided
   after Nomad has been initialized with an encryption key, then the provided key
   is ignored and a warning will be displayed. See the
-  [Nomad encryption documentation][encryption] for more details on this option
+  [encryption documentation][encryption] for more details on this option
   and its impact on the cluster.
 
 - `node_gc_threshold` `(string: "24h")` - Specifies how long a node must be in a
@@ -127,7 +127,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](/guides/autopilot.html).
+  information, see the [Autopilot Guide](/guides/operations/autopilot.html).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -142,7 +142,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](/guides/autopilot.html).
+  For more information, see the [Autopilot Guide](/guides/operations/autopilot.html).
 
 ### Deprecated Parameters
 
@@ -169,7 +169,7 @@ server {
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
   addresses, agent startup will fail. See the [server address
-  format](/docs/agent/configuration/server_join.html#server-address-format)
+  format](/docs/configuration/server_join.html#server-address-format)
   section for more information on the format of the string. This field is
   deprecated in favor of the [server_join stanza][server-join].
 
@@ -203,7 +203,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](/guides/cluster/automatic.html).
+[automatic Nomad bootstrapping documentation](/guides/operations/cluster/automatic.html).
 
 ### Restricting Schedulers
 
@@ -218,5 +218,5 @@ server {
 }
 ```
 
-[encryption]: /docs/agent/encryption.html "Nomad Agent Encryption"
-[server-join]: /docs/agent/configuration/server_join.html "Server Join"
+[encryption]: /guides/security/encryption.html "Nomad Encryption Overview"
+[server-join]: /docs/configuration/server_join.html "Server Join"
