@@ -223,4 +223,4 @@ $ VAULT_TOKEN="..." nomad job run example.nomad
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
-[scheduler]: /docs/runtime/schedulers.html "Nomad Scheduler Types"
+[scheduler]: /docs/schedulers.html "Nomad Scheduler Types"

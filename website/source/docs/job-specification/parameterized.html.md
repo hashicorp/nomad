@@ -157,7 +157,7 @@ job "email-blast" {
 ```
 
 [batch-type]: /docs/job-specification/job.html#type "Batch scheduler type"
-[dispatch command]: /docs/commands/job-dispatch.html "Nomad Job Dispatch Command"
+[dispatch command]: /docs/commands/job/dispatch.html "Nomad Job Dispatch Command"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [dispatch_payload]: /docs/job-specification/dispatch_payload.html "Nomad dispatch_payload Job Specification"
