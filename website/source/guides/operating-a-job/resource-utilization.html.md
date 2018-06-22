@@ -83,8 +83,7 @@ While single point in time resource usage measurements are useful, it is often
 more useful to graph resource usage over time to better understand and estimate
 resource usage. Nomad supports outputting resource data to statsite and statsd
 and is the recommended way of monitoring resources. For more information about
-outputting telemetry see the [telemetry
-documentation](/docs/agent/telemetry.html).
+outputting telemetry see the [Telemetry Guide](/guides/operations/monitoring/telemetry.html).
 
 For more advanced use cases, the resource usage data is also accessible via the
 client's HTTP API. See the documentation of the Client's [allocation HTTP
