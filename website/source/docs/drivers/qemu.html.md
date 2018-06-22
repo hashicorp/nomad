@@ -58,9 +58,9 @@ The `qemu` driver supports the following configuration in the job spec:
   the monitor socket path is limited to 108 characters. Graceful shutdown will
   be disabled if qemu is < 2.10.1 and the generated monitor path exceeds this
   length. You may encounter this issue if you set long
-  [data_dir](https://www.nomadproject.io/docs/agent/configuration/index.html#data_dir)
+  [data_dir](/docs/configuration/index.html#data_dir)
   or
-  [alloc_dir](https://www.nomadproject.io/docs/agent/configuration/client.html#alloc_dir)
+  [alloc_dir](/docs/configuration/client.html#alloc_dir)
   paths.) This feature is currently not supported on Windows.
 
 * `port_map` - (Optional) A key-value map of port labels.
