@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Sentinel Job Object"
-sidebar_current: "guides-sentinel-job"
+sidebar_current: "guides-security-sentinel-job"
 description: |-
   Job objects can be introspected to apply fine grained Sentinel policies.
 ---
