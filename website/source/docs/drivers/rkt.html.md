@@ -167,7 +167,7 @@ over HTTP.
 ## Client Configuration
 
 The `rkt` driver has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `rkt.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container. Binding relative paths is always allowed
