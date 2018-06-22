@@ -1,14 +1,14 @@
 ---
 layout: "guides"
 page_title: "Sentinel Policies"
-sidebar_current: "guides-sentinel"
+sidebar_current: "guides-security-sentinel"
 description: |-
  Nomad integrates with Sentinel for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the ACL System.
 ---
 
 # Sentinel Policies
 
-[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) integrates with [HashiCorp Sentinel](https://docs.hashicorp.com/sentinel) for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
+[Nomad Enterprise](/docs/enterprise/index.html) integrates with [HashiCorp Sentinel](https://docs.hashicorp.com/sentinel) for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/security/acl.html).
 
 ~> **Enterprise Only!** This functionality only exists in Nomad Enterprise.
 This is not present in the open source version of Nomad.
@@ -55,23 +55,23 @@ The following table summarizes the enforcement levels that are available:
 | soft-mandatory    | Prevents operation when a policy fails, issues a warning if overridden |
 | hard-mandatory    | Prevents operation when a policy fails                                 |
 
-The [`sentinel-override` capability](/guides/acl.html#sentinel-override) is required to override a `soft-mandatory` policy. This allows a restricted set of users to have override capability when necessary.
+The [`sentinel-override` capability](/guides/security/acl.html#sentinel-override) is required to override a `soft-mandatory` policy. This allows a restricted set of users to have override capability when necessary.
 
 ## Multi-Region Configuration
 
 Nomad supports multi-datacenter and multi-region configurations. A single region is able to service multiple datacenters, and all servers in a region replicate their state between each other. In a multi-region configuration, there is a set of servers per region. Each region operates independently and is loosely coupled to allow jobs to be scheduled in any region and requests to flow transparently to the correct region.
 
-When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies, global ACL tokens, and Sentinel policies. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single authoritative source. Any Sentinel policies are created in the authoritative region first. All other regions replicate Sentinel policies, ACL policies, and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
+When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies, global ACL tokens, and Sentinel policies. The authoritative region is configured in the [`server` stanza](/docs/configuration/server.html) of agents, and all regions must share a single authoritative source. Any Sentinel policies are created in the authoritative region first. All other regions replicate Sentinel policies, ACL policies, and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
 
 ## Configuring Sentinel Policies
 
 Sentinel policies are tied to the ACL system, which is not enabled by default.
-See the [ACL guide](/guides/acl.html) for details on how to configure ACLs.
+See the [ACL guide](/guides/security/acl.html) for details on how to configure ACLs.
 
 ## Example: Installing Sentinel Policies
 
 This example shows how to install a Sentinel policy. It assumes that ACLs have already
-been bootstrapped (see the [ACL guide](/guides/acl.html)), and that a `NOMAD_TOKEN` environment variable
+been bootstrapped (see the [ACL guide](/guides/security/acl.html)), and that a `NOMAD_TOKEN` environment variable
 is set to a management token.
 
 First, create a Sentinel policy, named `test.sentinel`:
@@ -205,5 +205,5 @@ The following objects are made available in the `submit-job` scope:
 | ------ | ------------------------- |
 | `job`  | The job being submitted   |
 
-See the [Sentinel Job Object](/guides/sentinel/job.html) for details on the fields that are available.
+See the [Sentinel Job Object](/guides/security/sentinel/job.html) for details on the fields that are available.
 

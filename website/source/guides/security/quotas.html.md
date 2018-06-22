@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Resource Quotas"
-sidebar_current: "guides-quotas"
+sidebar_current: "guides-security-quotas"
 description: |-
   Nomad Enterprise provides support for resource quotas, which allow operators
   to restrict the aggregate resource usage of namespaces.
@@ -21,7 +21,7 @@ This is not present in the open source version of Nomad.
 When many teams or users are sharing Nomad clusters, there is the concern that a
 single user could use more than their fair share of resources. Resource quotas
 provide a mechanism for cluster administrators to restrict the resources that a
-[namespace](/guides/namespaces.html) has access to.
+[namespace](/guides/security/namespaces.html) has access to.
 
 ## Quotas Objects
 
@@ -172,7 +172,7 @@ allocation since that would cause the quota to be oversubscribed on memory.
 
 ### ACLs
 
-Access to quotas can be restricted using [ACLs](/guides/acl.html). As an
+Access to quotas can be restricted using [ACLs](/guides/security/acl.html). As an
 example we could create an ACL policy that allows read-only access to quotas.
 
 ```
@@ -201,7 +201,7 @@ When specifying resource limits the following enforcement behaviors are defined:
 
 Nomad makes working with quotas in a federated cluster simple by replicating
 quota specifications from the [authoritative Nomad
-region](/docs/agent/configuration/server.html#authoritative_region). This allows
+region](/docs/configuration/server.html#authoritative_region). This allows
 operators to interact with a single cluster but create quota specifications that
 apply to all Nomad clusters.
 
