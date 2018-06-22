@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "sentinel Stanza - Agent Configuration"
-sidebar_current: "docs-agent-configuration-sentinel"
+sidebar_current: "docs-configuration-sentinel"
 description: |-
   The "sentinel" stanza configures the Nomad agent for Sentinel policies and tune various parameters.
 ---
