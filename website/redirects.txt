@@ -40,7 +40,7 @@
 /community.html                               /resources.html
 
 # Docs
-/docs/agent/config.html                       /docs/agent/configuration/index.html
+/docs/agent/config.html                       /docs/configuration/index.html
 /docs/jobops                                  /guides/operating-a-job/index.html
 /docs/jobops/                                 /guides/operating-a-job/index.html
 /docs/jobops/index.html                       /guides/operating-a-job/index.html
@@ -49,20 +49,20 @@
 /docs/jobops/resources.html                   /guides/operating-a-job/resource-utilization.html
 /docs/jobops/logs.html                        /guides/operating-a-job/accessing-logs.html
 /docs/jobops/updating.html                    /guides/operating-a-job/update-strategies/index.html
-/docs/jobops/servicediscovery.html            /docs/service-discovery/index.html
+/docs/jobops/servicediscovery.html            /guides/operations/consul-integration/index.html
 /docs/jobspec                                 /docs/job-specification/index.html
 /docs/jobspec/                                /docs/job-specification/index.html
 /docs/jobspec/index.html                      /docs/job-specification/index.html
 /docs/jobspec/interpreted.html                /docs/runtime/interpolation.html
 /docs/jobspec/json.html                       /api/json-jobs.html
 /docs/jobspec/environment.html                /docs/runtime/environment.html
-/docs/jobspec/schedulers.html                 /docs/runtime/schedulers.html
+/docs/jobspec/schedulers.html                 /docs/schedulers.html
 /docs/jobspec/servicediscovery.html           /docs/job-specification/service.html
 /docs/jobspec/networking.html                 /docs/job-specification/network.html
-/docs/cluster/automatic.html                  /guides/cluster/automatic.html
-/docs/cluster/manual.html                     /guides/cluster/manual.html
-/docs/cluster/federation.html                 /guides/cluster/federation.html
-/docs/cluster/requirements.html               /guides/cluster/requirements.html
+/docs/cluster/automatic.html                  /guides/operations/cluster/automatic.html
+/docs/cluster/manual.html                     /guides/operations/cluster/manual.html
+/docs/cluster/federation.html                 /guides/operations/federation.html
+/docs/cluster/requirements.html               /guides/operations/requirements.html
 /docs/commands/operator-index.html            /docs/commands/operator.html
 /docs/commands/operator-raft-list-peers.html  /docs/commands/operator/raft-list-peers.html
 /docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer.html
@@ -84,6 +84,7 @@
 /docs/commands/server-force-leave.html        /docs/commands/server/force-leave.html
 /docs/commands/server-join.html               /docs/commands/server/join.html
 /docs/commands/server-members.html            /docs/commands/server/members.html
+/docs/runtime/schedulers.html                 /docs/schedulers.html
 
 # Moved /docs/operating-a-job/ -> /guides/operating-a-job/
 /docs/operating-a-job                           /guides/operating-a-job/index.html
@@ -109,6 +110,42 @@
 /docs/operating-a-job/update-strategies/handling-signals.html                  /guides/operating-a-job/update-strategies/handling-signals.html
 /docs/operating-a-job/update-strategies/rolling-upgrades.html                  /guides/operating-a-job/update-strategies/rolling-upgrades.html
 
+# Moved /docs/agent/configuration/ -> /docs/configuration/
+
+/docs/agent/configuration                  /docs/configuration/index.html
+/docs/agent/configuration/                 /docs/configuration/index.html
+/docs/agent/configuration/index.html       /docs/configuration/index.html
+/docs/agent/configuration/acl.html         /docs/configuration/acl.html
+/docs/agent/configuration/autopilot.html   /docs/configuration/autopilot.html
+/docs/agent/configuration/client.html      /docs/configuration/client.html
+/docs/agent/configuration/consul.html      /docs/configuration/consul.html
+/docs/agent/configuration/sentinel.html    /docs/configuration/sentinel.html
+/docs/agent/configuration/server.html      /docs/configuration/server.html
+/docs/agent/configuration/server_join.html /docs/configuration/server_join.html
+/docs/agent/configuration/telemetry.html   /docs/configuration/telemetry.html
+/docs/agent/configuration/tls.html         /docs/configuration/tls.html
+/docs/agent/configuration/vault.html       /docs/configuration/vault.html
+
+# Moved guide-like docs to /guides
+/docs/agent                                   /guides/operations/agent/index.html
+/docs/agent/                                  /guides/operations/agent/index.html
+/docs/agent/index.html                        /guides/operations/agent/index.html
+/docs/agent/cloud_auto_join.html              /guides/operations/cluster/cloud_auto_join.html
+/docs/agent/telemetry.html                    /guides/operations/monitoring/telemetry.html
+/docs/agent/encryption.html                   /guides/security/encryption.html
+/docs/install                                 /guides/operations/install/index.html
+/docs/install/                                /guides/operations/install/index.html
+/docs/install/index.html                      /guides/operations/install/index.html
+/docs/upgrade                                 /guides/operations/upgrade/index.html
+/docs/upgrade/                                /guides/operations/upgrade/index.html
+/docs/upgrade/index.html                      /guides/operations/upgrade/index.html
+/docs/upgrade/upgrade-specific.html           /guides/operations/upgrade/upgrade-specific.html
+/docs/service-discovery                       /guides/operations/consul-integration/index.html
+/docs/service-discovery/                      /guides/operations/consul-integration/index.html
+/docs/service-discovery/index.html            /guides/operations/consul-integration/index.html
+/docs/vault-integration                       /guides/operations/vault-integration/index.html
+/docs/vault-integration/                      /guides/operations/vault-integration/index.html
+/docs/vault-integration/index.html            /guides/operations/vault-integration/index.html
 
 # API
 /docs/http/index.html                   /api/index.html
@@ -133,3 +170,24 @@
 /docs/http/status.html                  /api/status.html
 /docs/http/operator.html                /api/operator.html
 /docs/http/system.html                  /api/system.html
+
+# Guides
+
+# Reorganized Guides by Persona
+/guides/autopilot.html             /guides/operations/autopilot.html
+/guides/cluster/automatic.html     /guides/operations/cluster/automatic.html
+/guides/cluster/bootstrapping.html /guides/operations/cluster/bootstrapping.html
+/guides/cluster/manual.html        /guides/operations/cluster/manual.html
+/guides/cluster/federation         /guides/operations/federation
+/guides/cluster/requirements.html  /guides/operations/requirements.html  
+/guides/nomad-metrics.html         /guides/operations/monitoring/nomad-metrics.html
+/guides/node-draining.html         /guides/operations/node-draining.html
+/guides/outage.html                /guides/operations/outage.html
+/guides/acl.html                   /guides/security/acl.html
+/guides/namespaces.html            /guides/security/namespaces.html
+/guides/quotas.html                /guides/security/quotas.html
+/guides/securing-nomad.html        /guides/security/securing-nomad.html
+/guides/sentinel-policy.html       /guides/security/sentinel-policy.html
+/guides/sentinel/job.html          /guides/security/sentinel/job.html
+
+
