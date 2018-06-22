@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Namespaces"
-sidebar_current: "guides-namespaces"
+sidebar_current: "guides-security-namespaces"
 description: |-
   Nomad Enterprise provides support for namespaces, which allow jobs and their
   associated objects to be segmented from each other and other users of the
@@ -27,7 +27,7 @@ When combined with ACLs, the isolation of namespaces can be enforced, only
 allowing designated users access to read or modify the jobs and associated
 objects in a namespace.
 
-When [resource quotas](/guides/quotas.html) are applied to a namespace they
+When [resource quotas](/guides/security/quotas.html) are applied to a namespace they
 provide a means to limit resource consumption by the jobs in the namespace. This
 can prevent a single actor from consuming excessive cluster resources and
 negatively impacting other teams and applications sharing the cluster.
@@ -38,9 +38,9 @@ Nomad places all jobs and their derived objects into namespaces. These include
 jobs, allocations, deployments, and evaluations. 
 
 Nomad does not namespace objects that are shared across multiple namespaces.
-This includes nodes, [ACL policies](/guides/acl.html), [Sentinel
-policies](/guides/sentinel-policy.html), and [quota
-specifications](/guides/quotas.html).
+This includes nodes, [ACL policies](/guides/security/acl.html), [Sentinel
+policies](/guides/security/sentinel-policy.html), and [quota
+specifications](/guides/security/quotas.html).
 
 ## Working with Namespaces
 
@@ -104,7 +104,7 @@ rails-www  service  50        running  09/17/17 19:17:46 UTC
 
 ### ACLs
 
-Access to namespaces can be restricted using [ACLs](/guides/acl.html). As an
+Access to namespaces can be restricted using [ACLs](/guides/security/acl.html). As an
 example we could create an ACL policy that allows full access to the QA
 environment for our web namespaces but restrict the production access by
 creating the following policy:

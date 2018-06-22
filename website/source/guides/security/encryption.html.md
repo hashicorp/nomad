@@ -1,12 +1,12 @@
 ---
-layout: "docs"
-page_title: "Gossip and RPC Encryption"
-sidebar_current: "docs-agent-encryption"
+layout: "guides"
+page_title: "Encryption Overview"
+sidebar_current: "guides-security-encryption"
 description: |-
   Learn how to configure Nomad to encrypt HTTP, RPC, and Serf traffic.
 ---
 
-# Encryption
+# Encryption Overview
 
 The Nomad agent supports encrypting all of its network traffic. There are
 two separate encryption systems, one for gossip traffic, and one for HTTP and
@@ -16,7 +16,7 @@ RPC.
 
 Enabling gossip encryption only requires that you set an encryption key when
 starting the Nomad server. The key can be set via the
-[`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter: the value
+[`encrypt`](/docs/configuration/server.html#encrypt) parameter: the value
 of this setting is a server configuration file containing the encryption key.
 
 The key must be 16 bytes, base64 encoded. As a convenience, Nomad provides the
@@ -88,5 +88,5 @@ as it is unable to use client certificates.
 Read the [Securing Nomad with TLS Guide][guide] for details on how to configure
 encryption for Nomad.
 
-[guide]: /guides/securing-nomad.html "Securing Nomad with TLS"
-[tls]: /docs/agent/configuration/tls.html "Nomad TLS Configuration"
+[guide]: /guides/security/securing-nomad.html "Securing Nomad with TLS"
+[tls]: /docs/configuration/tls.html "Nomad TLS Configuration"

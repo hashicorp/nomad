@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Securing Nomad with TLS"
-sidebar_current: "guides-securing-nomad"
+sidebar_current: "guides-security-tls"
 description: |-
   Securing Nomad's cluster communication with TLS is important for both
   security and easing operations. Nomad can use mutual TLS (mTLS) for
@@ -352,7 +352,7 @@ not use TLS:
 
 Nomad server's gossip protocol use a shared key instead of TLS for encryption.
 This encryption key must be added to every server's configuration using the
-[`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter or with
+[`encrypt`](/docs/configuration/server.html#encrypt) parameter or with
 the [`-encrypt` command line option](/docs/commands/agent.html).
 
 The Nomad CLI includes a `operator keygen` command for generating a new secure gossip
@@ -499,16 +499,16 @@ connections) once the entire cluster has been migrated.
 
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
-[guide-install]: https://www.nomadproject.io/intro/getting-started/install.html
-[guide-cluster]: https://www.nomadproject.io/intro/getting-started/cluster.html
+[guide-install]: /intro/getting-started/install.html
+[guide-cluster]: /intro/getting-started/cluster.html
 [guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
-[heartbeat_grace]: /docs/agent/configuration/server.html#heartbeat_grace
+[heartbeat_grace]: /docs/configuration/server.html#heartbeat_grace
 [letsencrypt]: https://letsencrypt.org/
-[rpc_upgrade_mode]: https://www.nomadproject.io/docs/agent/configuration/tls.html#rpc_upgrade_mode/
+[rpc_upgrade_mode]: /docs/configuration/tls.html#rpc_upgrade_mode/
 [tls]: https://en.wikipedia.org/wiki/Transport_Layer_Security
-[tls_block]: /docs/agent/configuration/tls.html
+[tls_block]: /docs/configuration/tls.html
 [vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile
 [vault]: https://www.vaultproject.io/
 [vault-pki]: https://www.vaultproject.io/docs/secrets/pki/index.html
-[verify_https_client]: /docs/agent/configuration/tls.html#verify_https_client
-[verify_server_hostname]: /docs/agent/configuration/tls.html#verify_server_hostname
+[verify_https_client]: /docs/configuration/tls.html#verify_https_client
+[verify_server_hostname]: /docs/configuration/tls.html#verify_server_hostname
