@@ -1,12 +1,12 @@
 ---
 layout: "guides"
-page_title: "Operating a Job"
+page_title: "Job Lifecycle"
 sidebar_current: "guides-operating-a-job"
 description: |-
-  Learn how to operate a Nomad Job.
+  Learn how to deploy and manage a Nomad Job.
 ---
 
-# Operating a Job
+# Job Lifecycle
 
 The general flow for operating a job in Nomad is:
 
