@@ -10,12 +10,14 @@ description: |-
 
 # Nomad Enterprise Resource Quotas
 
-In [Nomad Enterprise](https://www.hashicorp.com/products/nomad/), operators can
-define [quota specifications](/guides/quotas.html) and apply them to namespaces.
+In [Nomad Enterprise](https://www.hashicorp.com/go/nomad-enterprise), operators can
+define [quota specifications](/guides/security/quotas.html) and apply them to namespaces.
 When a quota is attached to a namespace, the jobs within the namespace may not
 consume more resources than the quota specification allows.
 
 This allows operators to partition a shared cluster and ensure that no single
-actor can consume the whole resources of the cluster.
+actor can consume the whole resources of the cluster. See the 
+[Resource Quotas Guide](/guides/security/quotas.html) for more details.
 
-See the [Resource Quotas Guide](/guides/quotas.html) for more details.
+Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or 
+request a trial of Nomad Enterprise.
