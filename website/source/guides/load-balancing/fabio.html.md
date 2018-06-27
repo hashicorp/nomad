@@ -10,9 +10,8 @@ description: |-
 
 # Load Balancing with Fabio
 
-There are multiple approaches to set up load balancing across a Nomad cluster.
-One approach uses [fabio][fabio] which integrates natively with Consul and
-provides an optional Web UI to visualize routing.
+[Fabio][fabio] integrates natively with Consul and provides an optional Web UI
+to visualize routing.
 
 The main use case for fabio is to distribute incoming HTTP(S) and TCP requests
 from the internet to frontend services that can handle these requests. This
