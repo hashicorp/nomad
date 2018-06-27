@@ -8,6 +8,13 @@ export default Route.extend(WithForbiddenState, {
   system: service(),
   store: service(),
 
+  breadcrumbs: [
+    {
+      label: 'Jobs',
+      args: ['jobs.index'],
+    },
+  ],
+
   beforeModel() {
     return this.get('system.namespaces');
   },
