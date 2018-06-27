@@ -11,8 +11,9 @@ export default Service.extend({
   // model occurs.
   breadcrumbs: computed('router.currentURL', 'router.currentRouteName', function() {
     const owner = getOwner(this);
-    const allRoutes = this.get('router.currentRouteName')
+    const allRoutes = (this.get('router.currentRouteName') || '')
       .split('.')
+      .without('')
       .map((segment, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
 
     let crumbs = [];

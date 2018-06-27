@@ -37,32 +37,32 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
   const shortId = allocation.id.split('-')[0];
 
   assert.equal(
-    find('[data-test-breadcrumb="Jobs"]').textContent.trim(),
+    find('[data-test-breadcrumb="jobs.index"]').textContent.trim(),
     'Jobs',
     'Jobs is the first breadcrumb'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${job.name}"]`).textContent.trim(),
+    find('[data-test-breadcrumb="jobs.job.index"]').textContent.trim(),
     job.name,
     'Job is the second breadcrumb'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${taskGroup}`).textContent.trim(),
+    find('[data-test-breadcrumb="jobs.job.task-group"]').textContent.trim(),
     taskGroup,
     'Task Group is the third breadcrumb'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${shortId}"]`).textContent.trim(),
+    find('[data-test-breadcrumb="allocations.allocation"]').textContent.trim(),
     shortId,
     'Allocation short id is the fourth breadcrumb'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${task.name}"]`).textContent.trim(),
+    find('[data-test-breadcrumb="allocations.allocation.task"]').textContent.trim(),
     task.name,
     'Task name is the fifth breadcrumb'
   );
 
-  click('[data-test-breadcrumb="Jobs"]');
+  click('[data-test-breadcrumb="jobs.index"]');
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
   });
@@ -70,7 +70,7 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
     visit(`/allocations/${allocation.id}/${task.name}`);
   });
   andThen(() => {
-    click(`[data-test-breadcrumb="${job.name}"]`);
+    click('[data-test-breadcrumb="jobs.job.index"]');
   });
   andThen(() => {
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job breadcrumb links correctly');
@@ -79,7 +79,7 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
     visit(`/allocations/${allocation.id}/${task.name}`);
   });
   andThen(() => {
-    click(`[data-test-breadcrumb="${taskGroup}"]`);
+    click('[data-test-breadcrumb="jobs.job.task-group"]');
   });
   andThen(() => {
     assert.equal(
@@ -92,7 +92,7 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
     visit(`/allocations/${allocation.id}/${task.name}`);
   });
   andThen(() => {
-    click(`[data-test-breadcrumb="${shortId}"]`);
+    click('[data-test-breadcrumb="allocations.allocation"]');
   });
   andThen(() => {
     assert.equal(
