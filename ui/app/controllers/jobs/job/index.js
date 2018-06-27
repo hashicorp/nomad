@@ -1,12 +1,9 @@
 import { inject as service } from '@ember/service';
-import { alias } from '@ember/object/computed';
-import Controller, { inject as controller } from '@ember/controller';
+import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
 export default Controller.extend(WithNamespaceResetting, {
   system: service(),
-
-  jobController: controller('jobs.job'),
 
   queryParams: {
     currentPage: 'page',
@@ -18,9 +15,6 @@ export default Controller.extend(WithNamespaceResetting, {
 
   sortProperty: 'name',
   sortDescending: false,
-
-  breadcrumbs: alias('jobController.breadcrumbs'),
-  job: alias('model'),
 
   actions: {
     gotoTaskGroup(taskGroup) {

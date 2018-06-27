@@ -4,6 +4,6 @@
 {{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
   {{partial "jobs/job/subnav"}}
   <section class="section">
-    {{job-versions-stream versions=versions verbose=true}}
+    {{job-versions-stream versions=model.versions verbose=true}}
   </section>
 {{/gutter-menu}}
