@@ -6,6 +6,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/client/allocrunner/getter"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	cconfig "github.com/hashicorp/nomad/client/config"
@@ -20,7 +21,11 @@ func (tr *TaskRunner) initHooks() {
 
 	// Create the task directory hook. This is run first to ensure the
 	// directoy path exists for other hooks.
-	tr.runnerHooks = append(tr.runnerHooks, newTaskDirHook(tr, hookLogger))
+	tr.runnerHooks = []interfaces.TaskHook{
+		tr.runnerHooks,
+		newTaskDirHook(tr, hookLogger),
+		newArtifactHook(tr, hookLogger),
+	}
 }
 
 // prerun is used to run the runners prerun hooks.
@@ -59,6 +64,7 @@ func (tr *TaskRunner) prerun() error {
 		req := interfaces.TaskPrerunRequest{
 			Task:    tr.Task(),
 			TaskDir: tr.taskDir.Dir,
+			TaskEnv: tr.envBuilder.Build(),
 		}
 
 		tr.state.RLock()
@@ -70,6 +76,9 @@ func (tr *TaskRunner) prerun() error {
 		req.VaultToken = tr.state.VaultToken
 		tr.state.RUnlock()
 
+		//XXX Can we assume everything only wants to be run until
+		//successful and simply keep track of which hooks have yet to
+		//run on failures+retries?
 		if hookState.SuccessfulOnce {
 			tr.logger.Trace("skipping hook since it was successfully run once", "name", name)
 			continue
@@ -225,7 +234,7 @@ func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces
 	}
 
 	// Emit the event that we are going to be building the task directory
-	h.runner.setState("", structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
+	h.runner.SetState("", structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
 
 	// Build the task directory structure
 	fsi := h.runner.driver.FSIsolation()
@@ -236,6 +245,47 @@ func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces
 
 	// Update the environment variables based on the built task directory
 	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.allocRunner.Config().ClientConfig)
+	return nil
+}
+
+type EventEmitter interface {
+	SetState(state string, event *structs.TaskEvent)
+}
+
+// artifactHook downloads artifacts for a task.
+type artifactHook struct {
+	eventEmitter EventEmitter
+	logger       log.Logger
+}
+
+func newArtifactHook(e EventEmitter, logger log.Logger) *artifactHook {
+	h := &artifactHook{
+		eventEmitter: e,
+	}
+	h.logger = logger.Named(h.Name())
+	return h
+}
+
+func (*artifactHook) Name() string {
+	return "artifacts"
+}
+
+func (h *artifactHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
+	h.eventEmitter.SetState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
+
+	for _, artifact := range req.Task.Artifacts {
+		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir); err != nil {
+			wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
+			h.logger.Debug(wrapped.Error())
+			h.eventEmitter.SetState(structs.TaskStatePending,
+				structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
+			return wrapped
+		}
+	}
+
+	//XXX Should this be managed by task runner directly? Seems silly to
+	//make every hook specify it
+	resp.DoOnce = true
 	return nil
 }
 
