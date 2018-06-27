@@ -3,10 +3,17 @@ import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 const jobCrumb = job => ({
   label: job.get('trimmedName'),
-  args: ['jobs.job.index', job],
+  args: [
+    'jobs.job.index',
+    job.get('plainId'),
+    qpBuilder({
+      jobNamespace: job.get('namespace.name') || 'default',
+    }),
+  ],
 });
 
 export default Route.extend({
