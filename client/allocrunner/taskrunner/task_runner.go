@@ -647,6 +647,8 @@ func (r *TaskRunner) validateTask() error {
 		}
 	}
 
+	//XXX Is this the right place for this? Seems like it could be done on
+	//    the server when the job is submitted. Is this defense in depth?
 	// Validate the artifacts
 	for i, artifact := range r.task.Artifacts {
 		// Verify the artifact doesn't escape the task directory.
