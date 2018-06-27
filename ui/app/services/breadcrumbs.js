@@ -5,7 +5,11 @@ import { computed } from '@ember/object';
 export default Service.extend({
   router: service(),
 
-  breadcrumbs: computed('router.currentRouteName', function() {
+  // currentURL is only used to listen to all transitions.
+  // currentRouteName has all information necessary to compute breadcrumbs,
+  // but it doesn't change when a transition to the same route with a different
+  // model occurs.
+  breadcrumbs: computed('router.currentURL', 'router.currentRouteName', function() {
     const owner = getOwner(this);
     const allRoutes = this.get('router.currentRouteName')
       .split('.')
@@ -26,7 +30,7 @@ export default Service.extend({
       // model for the route's controller.
       let breadcrumbs = route.get('breadcrumbs') || [];
       if (typeof breadcrumbs === 'function') {
-        breadcrumbs = breadcrumbs(route.get('controller.model'));
+        breadcrumbs = breadcrumbs(route.get('controller.model')) || [];
       }
 
       crumbs.push(...breadcrumbs);
