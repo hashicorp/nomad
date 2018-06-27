@@ -15,7 +15,7 @@ export default Route.extend(WithWatchers, {
   // even though the route structure does not.
   breadcrumbs(model) {
     return [
-      { label: 'Jobs', args: ['jobs'] },
+      { label: 'Jobs', args: ['jobs.index'] },
       ...jobCrumbs(model.get('job')),
       {
         label: model.get('taskGroupName'),
