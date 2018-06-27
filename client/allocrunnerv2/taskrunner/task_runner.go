@@ -254,12 +254,12 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	case structs.TaskNotRestarting, structs.TaskTerminated:
 		tr.logger.Info("not restarting task", "reason", reason)
 		if state == structs.TaskNotRestarting {
-			tr.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskNotRestarting).SetRestartReason(reason).SetFailsTask())
+			tr.SetState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskNotRestarting).SetRestartReason(reason).SetFailsTask())
 		}
 		return false, 0
 	case structs.TaskRestarting:
 		tr.logger.Info("restarting task", "reason", reason, "delay", when)
-		tr.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskRestarting).SetRestartDelay(when).SetRestartReason(reason))
+		tr.SetState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskRestarting).SetRestartDelay(when).SetRestartReason(reason))
 		return true, 0
 	default:
 		tr.logger.Error("restart tracker returned unknown state", "state", state)
@@ -294,7 +294,7 @@ func (tr *TaskRunner) runDriver() (*dstructs.WaitResult, error) {
 	tr.handleLock.Unlock()
 
 	// Emit an event that we started
-	tr.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+	tr.SetState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 
 	// Wait for the task to exit
 	waitRes := <-handle.WaitCh()
@@ -308,7 +308,7 @@ func (tr *TaskRunner) initDriver() error {
 	eventEmitter := func(m string, args ...interface{}) {
 		msg := fmt.Sprintf(m, args...)
 		tr.logger.Debug("driver event", "event", msg)
-		tr.setState("", structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
+		tr.SetState("", structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
 	alloc := tr.allocRunner.Alloc()
@@ -331,7 +331,8 @@ func (tr *TaskRunner) initDriver() error {
 	return nil
 }
 
-func (tr *TaskRunner) setState(state string, event *structs.TaskEvent) {
+// SetState sets the task runners state.
+func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	// Ensure the event is populated with human readable strings
 	event.PopulateEventDisplayMessage()
 

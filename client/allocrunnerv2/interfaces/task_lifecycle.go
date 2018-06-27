@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -29,6 +30,9 @@ type TaskPrerunRequest struct {
 
 	// TaskDir is the task's directory on the host
 	TaskDir string
+
+	// TaskEnv is the task's environment
+	TaskEnv *env.TaskEnv
 }
 
 type TaskPrerunResponse struct {
@@ -44,7 +48,7 @@ type TaskPrerunResponse struct {
 }
 
 type TaskPrerunHook interface {
-	RunnerHook
+	TaskHook
 	Prerun(*TaskPrerunRequest, *TaskPrerunResponse) error
 }
 
@@ -56,7 +60,7 @@ type TaskPostrunRequest struct {
 type TaskPostrunResponse struct{}
 
 type TaskPostrunHook interface {
-	RunnerHook
+	TaskHook
 	Postrun() error
 	//Postrun(*TaskPostrunRequest, *TaskPostrunResponse) error
 }
@@ -65,7 +69,7 @@ type TaskPoststopRequest struct{}
 type TaskPoststopResponse struct{}
 
 type TaskPoststopHook interface {
-	RunnerHook
+	TaskHook
 	Postrun() error
 	//Postrun(*TaskPostrunRequest, *TaskPostrunResponse) error
 }
@@ -74,7 +78,7 @@ type TaskDestroyRequest struct{}
 type TaskDestroyResponse struct{}
 
 type TaskDestroyHook interface {
-	RunnerHook
+	TaskHook
 	Destroy() error
 	//Destroy(*TaskDestroyRequest, *TaskDestroyResponse) error
 }
@@ -86,7 +90,7 @@ type TaskUpdateRequest struct {
 type TaskUpdateResponse struct{}
 
 type TaskUpdateHook interface {
-	RunnerHook
+	TaskHook
 	Update() error
 	//Update(*TaskUpdateRequest, *TaskUpdateResponse) error
 }
