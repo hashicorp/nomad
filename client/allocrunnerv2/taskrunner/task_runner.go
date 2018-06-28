@@ -177,11 +177,16 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
+// WaitCh is closed when TaskRunner.Run exits.
 func (tr *TaskRunner) WaitCh() <-chan struct{} {
 	return tr.waitCh
 }
 
-func (tr *TaskRunner) Update() {
+// Update the running allocation with a new version received from the server.
+//
+// This method is safe for calling concurrently with Run() and does not modify
+// the passed in allocation.
+func (tr *TaskRunner) Update(update *structs.Allocation) {
 	// XXX
 }
 
