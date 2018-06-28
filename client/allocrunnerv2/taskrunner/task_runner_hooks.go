@@ -17,12 +17,10 @@ import (
 // initHooks intializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
-	tr.runnerHooks = make([]interfaces.TaskHook, 0, 3)
 
 	// Create the task directory hook. This is run first to ensure the
 	// directoy path exists for other hooks.
 	tr.runnerHooks = []interfaces.TaskHook{
-		tr.runnerHooks,
 		newTaskDirHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 	}
