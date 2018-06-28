@@ -9,26 +9,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestSuite defines a set of test cases and under what conditions to run them
 type TestSuite struct {
-	Component string
+	Component string // Name of the component/system/feature tested
 
-	CanRunLocal bool
-	Cases       []TestCase
-	Constraints Constraints
-	Parallel    bool
-	Slow        bool
+	CanRunLocal bool        // Flags if the cases are safe to run on a local nomad cluster
+	Cases       []TestCase  // Cases to run
+	Constraints Constraints // Environment constraints to follow
+	Parallel    bool        // If true, will run test cases in parallel
+	Slow        bool        // Slow test suites don't run by default
 }
 
 type Constraints struct {
-	CloudProvider string
-	OS            string
-	Arch          string
-	Environment   string
-	Tags          []string
+	Provider    string   // Cloud provider ex. 'aws', 'azure', 'gcp'
+	OS          string   // Operating system ex. 'windows', 'linux'
+	Arch        string   // CPU architecture ex. 'amd64', 'arm64'
+	Environment string   // Environment name ex. 'simple'
+	Tags        []string // Generic tags that must all exist in the environment
 }
 
 func (c Constraints) matches(env Environment) error {
-	if len(c.CloudProvider) != 0 && c.CloudProvider != env.Provider {
+	if len(c.Provider) != 0 && c.Provider != env.Provider {
 		return fmt.Errorf("provider constraint does not match environment")
 	}
 
@@ -52,6 +53,7 @@ func (c Constraints) matches(env Environment) error {
 	return nil
 }
 
+// TC is the base test case which should be embedded in TestCase implementations
 type TC struct {
 	*assert.Assertions
 	require *require.Assertions
@@ -62,22 +64,28 @@ type TC struct {
 	name    string
 }
 
+// Nomad returns a configured nomad api client
 func (tc *TC) Nomad() *api.Client {
 	return tc.cluster.NomadClient
 }
 
+// Prefix will return a test case unique prefix which can be used to scope resources
+// during parallel tests.
 func (tc *TC) Prefix() string {
 	return fmt.Sprintf("%s-", tc.cluster.ID)
 }
 
+// Name is the Name of the test cluster.
 func (tc *TC) Name() string {
 	return tc.cluster.Name
 }
 
+// T retrieves the current *testing.T context
 func (tc *TC) T() *testing.T {
 	return tc.t
 }
 
+// SetT sets the current *testing.T context
 func (tc *TC) SetT(t *testing.T) {
 	tc.t = t
 	tc.Assertions = assert.New(t)

@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-var fProvider = flag.String("nomad.env.provider", "", "cloud provider for which environment is executing against")
 var fEnv = flag.String("nomad.env", "", "name of the environment executing against")
-var fOS = flag.String("nomad.os", "", "operating system for which the environment is executing against")
-var fArch = flag.String("nomad.arch", "", "cpu architecture for which the environment is executing against")
-var fTags = flag.String("nomad.tags", "", "comma delimited list of tags associated with the environment")
+var fProvider = flag.String("nomad.env.provider", "", "cloud provider for which environment is executing against")
+var fOS = flag.String("nomad.env.os", "", "operating system for which the environment is executing against")
+var fArch = flag.String("nomad.env.arch", "", "cpu architecture for which the environment is executing against")
+var fTags = flag.String("nomad.env.tags", "", "comma delimited list of tags associated with the environment")
 var fLocal = flag.Bool("nomad.local", false, "denotes execution is against a local environment")
 var fSlow = flag.Bool("nomad.slow", false, "toggles execution of slow test suites")
 var fForceAll = flag.Bool("nomad.force", false, "if set, skips all environment checks when filtering test suites")
@@ -29,6 +29,17 @@ type Framework struct {
 	force      bool
 }
 
+// Environment includes information about the target environment the test
+// framework is targeting. During 'go run', these fields are populated by
+// the following flags:
+//
+//		-nomad.env <string>		"name of the environment executing against"
+//		-nomad.env.provider <string>	"cloud provider for which the environment is executing against"
+//		-nomad.env.os <string>		"operating system of environment"
+//		-nomad.env.arch <string>	"cpu architecture of environment"
+//		-nomad.env.tags <string>	"comma delimited list of environment tags"
+//
+// These flags are not needed when executing locally
 type Environment struct {
 	Name     string
 	Provider string
@@ -37,6 +48,7 @@ type Environment struct {
 	Tags     map[string]struct{}
 }
 
+// New creates a Framework
 func New() *Framework {
 	env := Environment{
 		Name:     *fEnv,
@@ -57,17 +69,19 @@ func New() *Framework {
 	}
 }
 
+// AddSuites adds a set of test suites to a Framework
 func (f *Framework) AddSuites(s ...*TestSuite) *Framework {
 	f.suites = append(f.suites, s...)
 	return f
 }
 
+// AddSuites adds a set of test suites to the package scoped Framework
 func AddSuites(s ...*TestSuite) *Framework {
 	pkgFramework.AddSuites(s...)
 	return pkgFramework
 }
 
-// Run starts the test framework and runs each TestSuite
+// Run starts the test framework, running each TestSuite
 func (f *Framework) Run(t *testing.T) {
 	for _, s := range f.suites {
 		t.Run(s.Component, func(t *testing.T) {
@@ -84,13 +98,18 @@ func (f *Framework) Run(t *testing.T) {
 
 }
 
+// Run starts the package scoped Framework, running each TestSuite
 func Run(t *testing.T) {
 	pkgFramework.Run(t)
 }
 
-// runSuite is called from Framework.Run inside of a sub test for each TestSuite
+// runSuite is called from Framework.Run inside of a sub test for each TestSuite.
+// If skip is returned as true, the test suite is skipped with the error text added
+// to the Skip reason
+// If skip is false and an error is returned, the test suite is failed.
 func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) {
 
+	// If -nomad.force is set, skip all constraint checks
 	if !f.force {
 		// If this is a local run, check that the suite supports running locally
 		if !s.CanRunLocal && f.isLocalRun {
@@ -109,15 +128,17 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 	}
 
 	for _, c := range s.Cases {
+		// The test name is set to the name of the implementing type, including package
 		name := fmt.Sprintf("%T", c)
+
 		// Each TestCase is provisioned a nomad cluster
 		info, err := f.provisioner.ProvisionCluster(ProvisionerOptions{Name: name})
 		if err != nil {
 			return false, fmt.Errorf("could not provision cluster for case: %v", err)
 		}
 		defer f.provisioner.DestroyCluster(info.ID)
-
 		c.setClusterInfo(info)
+
 		// Each TestCase runs as a subtest of the TestSuite
 		t.Run(c.Name(), func(t *testing.T) {
 			c.SetT(t)
@@ -139,14 +160,15 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 			}()
 
 			// Here we need to iterate through the methods of the case to find
-			// ones that at test functions
+			// ones that are test functions
 			reflectC := reflect.TypeOf(c)
 			for i := 0; i < reflectC.NumMethod(); i++ {
 				method := reflectC.Method(i)
-				if ok, _ := isTestMethod(method.Name); !ok {
+				if ok := isTestMethod(method.Name); !ok {
 					continue
 				}
 				// Each step is run as its own sub test of the case
+				// Test cases are never parallel
 				t.Run(method.Name, func(t *testing.T) {
 
 					// Since the test function interacts with testing.T through
@@ -163,6 +185,7 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 						}
 						c.SetT(parentT)
 					}()
+
 					//Call the method
 					method.Func.Call([]reflect.Value{reflect.ValueOf(c)})
 				})
@@ -174,10 +197,10 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 	return false, nil
 }
 
-func isTestMethod(m string) (bool, error) {
+func isTestMethod(m string) bool {
 	if !strings.HasPrefix(m, "Test") {
-		return false, nil
+		return false
 	}
-
-	return true, nil
+	// THINKING: adding flag to target a specific step or step regex?
+	return true
 }
