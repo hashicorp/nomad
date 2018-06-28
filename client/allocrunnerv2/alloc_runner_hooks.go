@@ -143,7 +143,7 @@ type allocHealthWatcherHook struct {
 }
 
 func newAllocHealthWatcherHook(runner *allocRunner, logger log.Logger) *allocHealthWatcherHook {
-	ctx, cancelFn := context.WithCancel(runner.ctx)
+	ctx, cancelFn := context.WithCancel(context.Background())
 	ad := &allocHealthWatcherHook{
 		runner:   runner,
 		ctx:      ctx,
