@@ -54,12 +54,6 @@ func (tr *TaskRunner) prerun() error {
 		}
 
 		name := pre.Name()
-		var start time.Time
-		if tr.logger.IsTrace() {
-			start = time.Now()
-			tr.logger.Trace("running pre-run hook", "name", name, "start", start)
-		}
-
 		// Build the request
 		req := interfaces.TaskPrerunRequest{
 			Task:    tr.Task(),
@@ -77,6 +71,13 @@ func (tr *TaskRunner) prerun() error {
 
 		req.VaultToken = tr.state.VaultToken
 		tr.state.RUnlock()
+
+		// Time the prerun hook
+		var start time.Time
+		if tr.logger.IsTrace() {
+			start = time.Now()
+			tr.logger.Trace("running pre-run hook", "name", name, "start", start)
+		}
 
 		// Run the pre-run hook
 		var resp interfaces.TaskPrerunResponse
@@ -159,15 +160,14 @@ func (tr *TaskRunner) postrun() error {
 	return nil
 }
 
-// destroy is used to run the runners destroy hooks.
-// XXX Naming change
-func (tr *TaskRunner) destroy() error {
+// shutdown is used to run the shutdown hooks.
+func (tr *TaskRunner) shutdown() error {
 	if tr.logger.IsTrace() {
 		start := time.Now()
-		tr.logger.Trace("running destroy hooks", "start", start)
+		tr.logger.Trace("running poststop hooks", "start", start)
 		defer func() {
 			end := time.Now()
-			tr.logger.Trace("finished destroy hooks", "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished poststop hooks", "end", end, "duration", end.Sub(start))
 		}()
 	}
 
