@@ -34,9 +34,7 @@ func (s *State) Copy() *State {
 }
 
 type HookState struct {
-	SuccessfulOnce bool
-	Data           map[string]string
-	LastError      error
+	Data map[string]string
 }
 
 func (h *HookState) Copy() *HookState {
