@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
-	arstate "github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
@@ -20,18 +19,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type allocRunner interface {
-	State() *arstate.State // XXX Do we need it
-	Alloc() *structs.Allocation
-	ID() string
-	Config() *config.Config
-	GetAllocDir() *allocdir.AllocDir
-	StateUpdated(*state.State) error
-}
-
 type TaskRunner struct {
-	// config is the task runners configuration.
-	config *Config
+	// allocID is immutable so store a copy to access without locks
+	allocID string
+
+	alloc     *structs.Allocation
+	allocLock sync.Mutex
+
+	clientConfig *config.Config
 
 	// state captures the state of the task runner
 	state *state.State
@@ -102,14 +97,16 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		config.ClientConfig.Region)
 
 	tr := &TaskRunner{
-		config:     config,
-		state:      config.State,
-		ctx:        trCtx,
-		ctxCancel:  trCancel,
-		task:       config.Task,
-		taskDir:    config.TaskDir,
-		envBuilder: envBuilder,
-		waitCh:     make(chan struct{}),
+		alloc:        config.Alloc,
+		allocID:      config.Alloc.ID,
+		clientConfig: config.ClientConfig,
+		task:         config.Task,
+		taskDir:      config.TaskDir,
+		envBuilder:   envBuilder,
+		state:        config.State,
+		ctx:          trCtx,
+		ctxCancel:    trCancel,
+		waitCh:       make(chan struct{}),
 	}
 
 	// Create the logger based on the allocation ID
@@ -154,7 +151,7 @@ func (tr *TaskRunner) initState() {
 }
 
 func (tr *TaskRunner) initLabels() {
-	alloc := tr.config.Alloc
+	alloc := tr.Alloc()
 	tr.baseLabels = []metrics.Label{
 		{
 			Name:  "job",
@@ -166,7 +163,7 @@ func (tr *TaskRunner) initLabels() {
 		},
 		{
 			Name:  "alloc_id",
-			Value: alloc.ID,
+			Value: tr.allocID,
 		},
 		{
 			Name:  "task",
@@ -314,14 +311,14 @@ func (tr *TaskRunner) initDriver() error {
 		tr.SetState("", structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	alloc := tr.config.Alloc
+	alloc := tr.Alloc()
 	driverCtx := driver.NewDriverContext(
 		alloc.Job.Name,
 		alloc.TaskGroup,
 		tr.Name(),
-		alloc.ID,
-		tr.config.ClientConfig,        // XXX Why does it need this
-		tr.config.ClientConfig.Node,   // XXX THIS I NEED TO FIX
+		tr.allocID,
+		tr.clientConfig,               // XXX Why does it need this
+		tr.clientConfig.Node,          // XXX THIS I NEED TO FIX
 		tr.logger.StandardLogger(nil), // XXX Should pass this through
 		eventEmitter)
 
@@ -356,7 +353,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 		}
 
 		if event.Type == structs.TaskRestarting {
-			if !tr.config.ClientConfig.DisableTaggedMetrics {
+			if !tr.clientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
@@ -374,7 +371,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 		// Capture the start time if it is just starting
 		if task.State != structs.TaskStateRunning {
 			task.StartedAt = time.Now().UTC()
-			if !tr.config.ClientConfig.DisableTaggedMetrics {
+			if !tr.clientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
@@ -389,14 +386,14 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 
 		// Emitting metrics to indicate task complete and failures
 		if task.Failed {
-			if !tr.config.ClientConfig.DisableTaggedMetrics {
+			if !tr.clientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
 			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "failed"}, 1)
 			//}
 		} else {
-			if !tr.config.ClientConfig.DisableTaggedMetrics {
+			if !tr.clientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
@@ -410,6 +407,12 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	//if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
 	//tr.logger.Error("failed to save state", "error", err)
 	//}
+}
+
+func (tr *TaskRunner) Alloc() *structs.Allocation {
+	tr.allocLock.Lock()
+	defer tr.allocLock.Unlock()
+	return tr.alloc
 }
 
 // appendTaskEvent updates the task status by appending the new event.
