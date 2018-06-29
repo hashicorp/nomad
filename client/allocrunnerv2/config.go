@@ -1,4 +1,4 @@
-package config
+package allocrunnerv2
 
 import (
 	"github.com/boltdb/bolt"
@@ -15,8 +15,8 @@ type Config struct {
 	// ClientConfig is the clients configuration.
 	ClientConfig *clientconfig.Config
 
-	// Allocation captures the allocation that should be run.
-	Allocation *structs.Allocation
+	// Alloc captures the allocation that should be run.
+	Alloc *structs.Allocation
 
 	// StateDB is used to store and restore state.
 	StateDB *bolt.DB
