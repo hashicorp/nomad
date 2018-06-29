@@ -43,19 +43,32 @@ func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*C
 		ID:   hex.EncodeToString(h.Sum(nil))[:8],
 		Name: opts.Name,
 	}
-	nomadAddr := os.Getenv("NOMAD_ADDR")
-	if len(nomadAddr) == 0 {
+
+	if len(os.Getenv("NOMAD_ADDR")) == 0 {
 		return nil, fmt.Errorf("environment variable NOMAD_ADDR not set")
 	}
 
-	nomadConfig := napi.DefaultConfig()
-	nomadConfig.Address = nomadAddr
-	nomadClient, err := napi.NewClient(nomadConfig)
+	nomadClient, err := napi.NewClient(napi.DefaultConfig())
 	if err != nil {
 		return nil, err
 	}
-
 	info.NomadClient = nomadClient
+
+	if len(os.Getenv(capi.HTTPAddrEnvName)) != 0 {
+		consulClient, err := capi.NewClient(capi.DefaultConfig())
+		if err != nil {
+			return nil, err
+		}
+		info.ConsulClient = consulClient
+	}
+
+	if len(os.Getenv(vapi.EnvVaultAddress)) != 0 {
+		vaultClient, err := vapi.NewClient(vapi.DefaultConfig())
+		if err != nil {
+			return nil, err
+		}
+		info.VaultClient = vaultClient
+	}
 
 	return info, err
 }
