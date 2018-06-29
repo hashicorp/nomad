@@ -20,8 +20,10 @@ import (
 )
 
 type TaskRunner struct {
-	// allocID is immutable so store a copy to access without locks
-	allocID string
+	// allocID and taskName are immutable so store a copy to access without
+	// locks
+	allocID  string
+	taskName string
 
 	alloc     *structs.Allocation
 	allocLock sync.Mutex
@@ -108,6 +110,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		clientConfig: config.ClientConfig,
 		task:         config.Task,
 		taskDir:      config.TaskDir,
+		taskName:     config.Task.Name,
 		envBuilder:   envBuilder,
 		state:        config.State,
 		ctx:          trCtx,
@@ -173,7 +176,7 @@ func (tr *TaskRunner) initLabels() {
 		},
 		{
 			Name:  "task",
-			Value: tr.Name(),
+			Value: tr.taskName,
 		},
 	}
 }
@@ -303,7 +306,7 @@ func (tr *TaskRunner) initDriver() error {
 	driverCtx := driver.NewDriverContext(
 		alloc.Job.Name,
 		alloc.TaskGroup,
-		tr.Name(),
+		tr.taskName,
 		tr.allocID,
 		tr.clientConfig,               // XXX Why does it need this
 		tr.clientConfig.Node,          // XXX THIS I NEED TO FIX
