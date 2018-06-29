@@ -19,9 +19,11 @@ import (
 	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
+	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
+	"github.com/hashicorp/nomad/client/allocrunnerv2"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/servers"
@@ -97,6 +99,18 @@ type ClientStatsReporter interface {
 	LatestHostStats() *stats.HostStats
 }
 
+type AllocRunner interface {
+	StatsReporter() allocrunner.AllocStatsReporter
+	Destroy()
+	IsDestroyed() bool
+	IsWaiting() bool
+	IsMigrating() bool
+	WaitCh() <-chan struct{}
+	SaveState() error
+	Update(*structs.Allocation)
+	Alloc() *structs.Allocation
+}
+
 // Client is used to implement the client interaction with Nomad. Clients
 // are expected to register as a schedulable node to the servers, and to
 // run allocations as determined by the servers.
@@ -148,7 +162,7 @@ type Client struct {
 
 	// allocs maps alloc IDs to their AllocRunner. This map includes all
 	// AllocRunners - running and GC'd - until the server GCs them.
-	allocs    map[string]*allocrunner.AllocRunner
+	allocs    map[string]AllocRunner
 	allocLock sync.RWMutex
 
 	// allocUpdates stores allocations that need to be synced to the server.
@@ -220,7 +234,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		tlsWrap:              tlsWrap,
 		streamingRpcs:        structs.NewStreamingRpcRegistry(),
 		logger:               logger,
-		allocs:               make(map[string]*allocrunner.AllocRunner),
+		allocs:               make(map[string]AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
 		shutdownCh:           make(chan struct{}),
 		triggerDiscoveryCh:   make(chan struct{}),
@@ -520,16 +534,12 @@ func (c *Client) Shutdown() error {
 
 	// Destroy all the running allocations.
 	if c.config.DevMode {
-		var wg sync.WaitGroup
 		for _, ar := range c.getAllocRunners() {
-			wg.Add(1)
-			go func(ar *allocrunner.AllocRunner) {
-				ar.Destroy()
-				<-ar.WaitCh()
-				wg.Done()
-			}(ar)
+			ar.Destroy()
 		}
-		wg.Wait()
+		for _, ar := range c.getAllocRunners() {
+			<-ar.WaitCh()
+		}
 	}
 
 	c.shutdown = true
@@ -612,11 +622,15 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
 
-	ar, ok := c.allocs[allocID]
+	_, ok := c.allocs[allocID]
 	if !ok {
 		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
-	return ar.GetAllocDir(), nil
+
+	//XXX Experiment in splitting AllocDir and TaskDir structs as the FS
+	//API only needs the immutable AllocDir struct
+	//FIXME needs a better logger though -- good reason to still get it from alloc runner?
+	return allocdir.NewAllocDir(c.logger, filepath.Join(c.config.AllocDir, allocID)), nil
 }
 
 // GetClientAlloc returns the allocation from the client
@@ -797,7 +811,7 @@ func (c *Client) saveState() error {
 	wg.Add(len(runners))
 
 	for id, ar := range runners {
-		go func(id string, ar *allocrunner.AllocRunner) {
+		go func(id string, ar AllocRunner) {
 			err := ar.SaveState()
 			if err != nil {
 				c.logger.Printf("[ERR] client: failed to save state for alloc %q: %v", id, err)
@@ -814,10 +828,10 @@ func (c *Client) saveState() error {
 }
 
 // getAllocRunners returns a snapshot of the current set of alloc runners.
-func (c *Client) getAllocRunners() map[string]*allocrunner.AllocRunner {
+func (c *Client) getAllocRunners() map[string]AllocRunner {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
-	runners := make(map[string]*allocrunner.AllocRunner, len(c.allocs))
+	runners := make(map[string]AllocRunner, len(c.allocs))
 	for id, ar := range c.allocs {
 		runners[id] = ar
 	}
@@ -1527,7 +1541,7 @@ func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 		c.allocLock.RUnlock()
 
 		if ok {
-			c.garbageCollector.MarkForCollection(ar)
+			c.garbageCollector.MarkForCollection(alloc.ID, ar)
 
 			// Trigger a GC in case we're over thresholds and just
 			// waiting for eligible allocs.
@@ -1689,14 +1703,16 @@ OUTER:
 		// need to pull all the allocations.
 		var pull []string
 		filtered := make(map[string]struct{})
-		runners := c.getAllocRunners()
 		var pullIndex uint64
 		for allocID, modifyIndex := range resp.Allocs {
 			// Pull the allocation if we don't have an alloc runner for the
 			// allocation or if the alloc runner requires an updated allocation.
-			runner, ok := runners[allocID]
+			//XXX Part of Client alloc index tracking exp
+			c.allocLock.RLock()
+			currentAR, ok := c.allocs[allocID]
+			c.allocLock.RUnlock()
 
-			if !ok || runner.ShouldUpdate(modifyIndex) {
+			if !ok || modifyIndex > currentAR.Alloc().AllocModifyIndex {
 				// Only pull allocs that are required. Filtered
 				// allocs might be at a higher index, so ignore
 				// it.
@@ -1827,14 +1843,14 @@ func (c *Client) watchNodeUpdates() {
 func (c *Client) runAllocs(update *allocUpdates) {
 	// Get the existing allocs
 	c.allocLock.RLock()
-	exist := make([]*structs.Allocation, 0, len(c.allocs))
-	for _, ar := range c.allocs {
-		exist = append(exist, ar.Alloc())
+	existing := make(map[string]uint64, len(c.allocs))
+	for id, ar := range c.allocs {
+		existing[id] = ar.Alloc().AllocModifyIndex
 	}
 	c.allocLock.RUnlock()
 
 	// Diff the existing and updated allocations
-	diff := diffAllocs(exist, update)
+	diff := diffAllocs(existing, update)
 	c.logger.Printf("[DEBUG] client: %#v", diff)
 
 	// Remove the old allocations
@@ -1844,9 +1860,9 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Update the existing allocations
 	for _, update := range diff.updated {
-		if err := c.updateAlloc(update.exist, update.updated); err != nil {
+		if err := c.updateAlloc(update); err != nil {
 			c.logger.Printf("[ERR] client: failed to update alloc %q: %v",
-				update.exist.ID, err)
+				update.ID, err)
 		}
 	}
 
@@ -1871,34 +1887,33 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 // removeAlloc is invoked when we should remove an allocation because it has
 // been removed by the server.
-func (c *Client) removeAlloc(alloc *structs.Allocation) {
+func (c *Client) removeAlloc(allocID string) {
 	c.allocLock.Lock()
-	ar, ok := c.allocs[alloc.ID]
+	defer c.allocLock.Unlock()
+	ar, ok := c.allocs[allocID]
 	if !ok {
-		c.allocLock.Unlock()
-		c.logger.Printf("[WARN] client: missing context for alloc '%s'", alloc.ID)
+		c.logger.Printf("[WARN] client: missing context for alloc '%s'", allocID)
 		return
 	}
 
 	// Stop tracking alloc runner as it's been GC'd by the server
-	delete(c.allocs, alloc.ID)
-	c.allocLock.Unlock()
+	delete(c.allocs, allocID)
 
 	// Ensure the GC has a reference and then collect. Collecting through the GC
 	// applies rate limiting
-	c.garbageCollector.MarkForCollection(ar)
+	c.garbageCollector.MarkForCollection(allocID, ar)
 
 	// GC immediately since the server has GC'd it
-	go c.garbageCollector.Collect(alloc.ID)
+	go c.garbageCollector.Collect(allocID)
 }
 
 // updateAlloc is invoked when we should update an allocation
-func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
-	c.allocLock.RLock()
-	ar, ok := c.allocs[exist.ID]
-	c.allocLock.RUnlock()
+func (c *Client) updateAlloc(update *structs.Allocation) error {
+	c.allocLock.Lock()
+	defer c.allocLock.Unlock()
+	ar, ok := c.allocs[update.ID]
 	if !ok {
-		c.logger.Printf("[WARN] client: missing context for alloc '%s'", exist.ID)
+		c.logger.Printf("[WARN] client: missing context for alloc %q", update.ID)
 		return nil
 	}
 
@@ -1908,33 +1923,53 @@ func (c *Client) updateAlloc(exist, update *structs.Allocation) error {
 
 // addAlloc is invoked when we should add an allocation
 func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error {
-	// Check if we already have an alloc runner
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
+
+	// Check if we already have an alloc runner
 	if _, ok := c.allocs[alloc.ID]; ok {
 		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
 		return nil
 	}
 
+	//FIXME disabled previous alloc waiting/migrating
 	// get the previous alloc runner - if one exists - for the
 	// blocking/migrating watcher
-	var prevAR *allocrunner.AllocRunner
-	if alloc.PreviousAllocation != "" {
-		prevAR = c.allocs[alloc.PreviousAllocation]
-	}
+	/*
+		var prevAR *allocrunner.AllocRunner
+		if alloc.PreviousAllocation != "" {
+			prevAR = c.allocs[alloc.PreviousAllocation]
+		}
 
-	c.configLock.RLock()
-	prevAlloc := allocrunner.NewAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
+		c.configLock.RLock()
+		prevAlloc := allocrunner.NewAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
+	*/
 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
-	ar := allocrunner.NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
+	//ar := allocrunner.NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
+	//XXX FIXME
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:  "nomad",
+		Level: hclog.LevelFromString("DEBUG"),
+	})
+
+	c.configLock.RLock()
+	arConf := &allocrunnerv2.Config{
+		Logger:       logger,
+		ClientConfig: c.config,
+		Alloc:        alloc,
+		StateDB:      nil, //FIXME ?
+	}
 	c.configLock.RUnlock()
+
+	ar := allocrunnerv2.NewAllocRunner(arConf)
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
 
+	//XXX(schmichael) Why do we do this?
 	if err := ar.SaveState(); err != nil {
 		c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", alloc.ID, err)
 	}
