@@ -31,15 +31,20 @@ type TaskRunner struct {
 	// state captures the state of the task runner
 	state *state.State
 
-	// ctx is the alloc runners context. It is cancelled when all related
-	// activity for this allocation should be terminated.
+	// ctx is the task runner's context and is done whe the task runner
+	// should exit. If a task runner is destroyed it will exit regardless
+	// of whether the context is done.
 	ctx context.Context
 
-	// ctxCancel is used to cancel the alloc runners cancel
+	// ctxCancel is used to exit the task runner's Run loop (without
+	// stopping or destroying the task)
 	ctxCancel context.CancelFunc
 
 	// Logger is the logger for the task runner.
 	logger log.Logger
+
+	// updateCh receives Alloc updates
+	updateCh chan *structs.Allocation
 
 	// waitCh is closed when the task runner has transitioned to a terminal
 	// state
@@ -94,7 +99,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		config.ClientConfig.Node,
 		config.Alloc,
 		config.Task,
-		config.ClientConfig.Region)
+		config.ClientConfig.Region,
+	)
 
 	tr := &TaskRunner{
 		alloc:        config.Alloc,
@@ -106,6 +112,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		state:        config.State,
 		ctx:          trCtx,
 		ctxCancel:    trCancel,
+		updateCh:     make(chan *structs.Allocation),
 		waitCh:       make(chan struct{}),
 	}
 
@@ -113,13 +120,12 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
 
 	// Build the restart tracker.
-	alloc := config.Alloc
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
 	if tg == nil {
 		tr.logger.Error("alloc missing task group")
 		return nil, fmt.Errorf("alloc missing task group")
 	}
-	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, alloc.Job.Type)
+	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
 
 	// Initialize the task state
 	tr.initState()
@@ -172,24 +178,6 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
-// WaitCh is closed when TaskRunner.Run exits.
-func (tr *TaskRunner) WaitCh() <-chan struct{} {
-	return tr.waitCh
-}
-
-// Update the running allocation with a new version received from the server.
-//
-// This method is safe for calling concurrently with Run() and does not modify
-// the passed in allocation.
-func (tr *TaskRunner) Update(update *structs.Allocation) {
-	// XXX
-}
-
-func (tr *TaskRunner) Stop() {
-	// XXX
-	tr.ctxCancel()
-}
-
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 
@@ -205,7 +193,7 @@ func (tr *TaskRunner) Run() {
 			goto RESTART
 		}
 
-		// Run and wait
+		// Run the task
 		waitRes, err = tr.runDriver()
 		if err != nil {
 			tr.logger.Error("running driver failed", "error", err)
@@ -407,6 +395,34 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	//if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
 	//tr.logger.Error("failed to save state", "error", err)
 	//}
+}
+
+// WaitCh is closed when TaskRunner.Run exits.
+func (tr *TaskRunner) WaitCh() <-chan struct{} {
+	return tr.waitCh
+}
+
+// Update the running allocation with a new version received from the server.
+//
+// This method is safe for calling concurrently with Run() and does not modify
+// the passed in allocation.
+func (tr *TaskRunner) Update(update *structs.Allocation) {
+	select {
+	case tr.updateCh <- update:
+	case <-tr.WaitCh():
+		//XXX Do we log here like we used to? If we're just
+		//shutting down it's not an error to drop the update as
+		//it will be applied on startup
+	}
+}
+
+// Shutdown the task runner. Does not stop the task or garbage collect a
+// stopped task.
+//
+// This method is safe for calling concurently with Run(). Callers must
+// receive on WaitCh() to block until Run() has exited.
+func (tr *TaskRunner) Shutdown() {
+	tr.ctxCancel()
 }
 
 func (tr *TaskRunner) Alloc() *structs.Allocation {
