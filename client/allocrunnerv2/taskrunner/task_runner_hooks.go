@@ -30,7 +30,7 @@ func (tr *TaskRunner) initHooks() {
 func (tr *TaskRunner) prerun() error {
 	// Determine if the allocation is terminaland we should avoid running
 	// pre-run hooks.
-	alloc := tr.config.Alloc
+	alloc := tr.Alloc()
 	if alloc.TerminalStatus() {
 		tr.logger.Trace("skipping pre-run hooks since allocation is terminal")
 		return nil
@@ -227,7 +227,7 @@ func (h *taskDirHook) Name() string {
 }
 
 func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
-	cc := h.runner.config.ClientConfig
+	cc := h.runner.clientConfig
 	chroot := cconfig.DefaultChrootEnv
 	if len(cc.ChrootEnv) > 0 {
 		chroot = cc.ChrootEnv
@@ -244,7 +244,7 @@ func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces
 	}
 
 	// Update the environment variables based on the built task directory
-	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.config.ClientConfig)
+	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
 	return nil
 }
 
