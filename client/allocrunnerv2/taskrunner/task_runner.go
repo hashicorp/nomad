@@ -10,10 +10,10 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/config"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -45,9 +45,6 @@ type TaskRunner struct {
 
 	// Logger is the logger for the task runner.
 	logger log.Logger
-
-	// allocRunner is the parent allocRunner
-	allocRunner allocRunner
 
 	// waitCh is closed when the task runner has transitioned to a terminal
 	// state
@@ -83,9 +80,11 @@ type TaskRunner struct {
 }
 
 type Config struct {
-	Parent allocRunner
-	Task   *structs.Task
-	Logger log.Logger
+	Alloc        *structs.Allocation
+	ClientConfig *config.Config
+	Task         *structs.Task
+	TaskDir      *allocdir.TaskDir
+	Logger       log.Logger
 
 	// State is optionally restored task state
 	State *state.State
@@ -97,28 +96,27 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Initialize the environment builder
 	envBuilder := env.NewBuilder(
-		config.Parent.Config().ClientConfig.Node,
-		config.Parent.Alloc(),
+		config.ClientConfig.Node,
+		config.Alloc,
 		config.Task,
-		config.Parent.Config().ClientConfig.Region)
+		config.ClientConfig.Region)
 
 	tr := &TaskRunner{
-		config:      config,
-		allocRunner: config.Parent,
-		state:       config.State,
-		ctx:         trCtx,
-		ctxCancel:   trCancel,
-		task:        config.Task,
-		taskDir:     config.Parent.GetAllocDir().NewTaskDir(config.Task.Name),
-		envBuilder:  envBuilder,
-		waitCh:      make(chan struct{}),
+		config:     config,
+		state:      config.State,
+		ctx:        trCtx,
+		ctxCancel:  trCancel,
+		task:       config.Task,
+		taskDir:    config.TaskDir,
+		envBuilder: envBuilder,
+		waitCh:     make(chan struct{}),
 	}
 
 	// Create the logger based on the allocation ID
 	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
 
 	// Build the restart tracker.
-	alloc := tr.allocRunner.Alloc()
+	alloc := config.Alloc
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		tr.logger.Error("alloc missing task group")
@@ -156,7 +154,7 @@ func (tr *TaskRunner) initState() {
 }
 
 func (tr *TaskRunner) initLabels() {
-	alloc := tr.allocRunner.Alloc()
+	alloc := tr.config.Alloc
 	tr.baseLabels = []metrics.Label{
 		{
 			Name:  "job",
@@ -316,15 +314,15 @@ func (tr *TaskRunner) initDriver() error {
 		tr.SetState("", structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
 	}
 
-	alloc := tr.allocRunner.Alloc()
+	alloc := tr.config.Alloc
 	driverCtx := driver.NewDriverContext(
 		alloc.Job.Name,
 		alloc.TaskGroup,
 		tr.Name(),
-		tr.allocRunner.ID(),
-		tr.allocRunner.Config().ClientConfig,      // XXX Why does it need this
-		tr.allocRunner.Config().ClientConfig.Node, // XXX THIS I NEED TO FIX
-		tr.logger.StandardLogger(nil),             // XXX Should pass this through
+		alloc.ID,
+		tr.config.ClientConfig,        // XXX Why does it need this
+		tr.config.ClientConfig.Node,   // XXX THIS I NEED TO FIX
+		tr.logger.StandardLogger(nil), // XXX Should pass this through
 		eventEmitter)
 
 	driver, err := driver.NewDriver(tr.task.Driver, driverCtx)
@@ -358,7 +356,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 		}
 
 		if event.Type == structs.TaskRestarting {
-			if !tr.allocRunner.Config().ClientConfig.DisableTaggedMetrics {
+			if !tr.config.ClientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
@@ -376,7 +374,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 		// Capture the start time if it is just starting
 		if task.State != structs.TaskStateRunning {
 			task.StartedAt = time.Now().UTC()
-			if !tr.allocRunner.Config().ClientConfig.DisableTaggedMetrics {
+			if !tr.config.ClientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
@@ -391,14 +389,14 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 
 		// Emitting metrics to indicate task complete and failures
 		if task.Failed {
-			if !tr.allocRunner.Config().ClientConfig.DisableTaggedMetrics {
+			if !tr.config.ClientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
 			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "failed"}, 1)
 			//}
 		} else {
-			if !tr.allocRunner.Config().ClientConfig.DisableTaggedMetrics {
+			if !tr.config.ClientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"}, 1, tr.baseLabels)
 			}
 			//if r.config.BackwardsCompatibleMetrics {
@@ -408,9 +406,10 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	}
 
 	// Create a copy and notify the alloc runner of the transition
-	if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
-		tr.logger.Error("failed to save state", "error", err)
-	}
+	//FIXME
+	//if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
+	//tr.logger.Error("failed to save state", "error", err)
+	//}
 }
 
 // appendTaskEvent updates the task status by appending the new event.
