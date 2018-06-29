@@ -2,14 +2,17 @@ package allocrunnerv2
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/config"
+	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner"
+	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,8 +21,7 @@ type allocRunner struct {
 	// Logger is the logger for the alloc runner.
 	logger log.Logger
 
-	// Config is the configuration for the alloc runner.
-	config *config.Config
+	clientConfig *config.Config
 
 	// waitCh is closed when the alloc runner has transitioned to a terminal
 	// state
@@ -27,7 +29,7 @@ type allocRunner struct {
 
 	// Alloc captures the allocation being run.
 	alloc     *structs.Allocation
-	allocLock sync.Mutex
+	allocLock sync.RWMutex
 
 	// state captures the state of the alloc runner
 	state *state.State
@@ -42,26 +44,31 @@ type allocRunner struct {
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
-	// updateCh receives allocation updates
+	// updateCh receives allocation updates via the Update method
 	updateCh chan *structs.Allocation
 }
 
 // NewAllocRunner returns a new allocation runner.
-func NewAllocRunner(config *config.Config) (*allocRunner, error) {
+func NewAllocRunner(config *Config) *allocRunner {
 	ar := &allocRunner{
-		config:   config,
-		alloc:    config.Allocation,
-		waitCh:   make(chan struct{}),
-		updateCh: make(chan *structs.Allocation),
+		alloc:        config.Alloc,
+		clientConfig: config.ClientConfig,
+		tasks:        make(map[string]*taskrunner.TaskRunner),
+		waitCh:       make(chan struct{}),
+		updateCh:     make(chan *structs.Allocation),
 	}
 
+	// Create alloc dir
+	//XXX update AllocDir to hc log
+	ar.allocDir = allocdir.NewAllocDir(nil, filepath.Join(config.ClientConfig.AllocDir, config.Alloc.ID))
+
 	// Create the logger based on the allocation ID
-	ar.logger = config.Logger.With("alloc_id", ar.ID())
+	ar.logger = config.Logger.With("alloc_id", config.Alloc.ID)
 
 	// Initialize the runners hooks.
 	ar.initRunnerHooks()
 
-	return ar, nil
+	return ar
 }
 
 func (ar *allocRunner) WaitCh() <-chan struct{} {
@@ -115,15 +122,16 @@ POST:
 // runImpl is used to run the runners.
 func (ar *allocRunner) runImpl() (<-chan struct{}, error) {
 	// Grab the task group
-	tg := ar.alloc.Job.LookupTaskGroup(ar.alloc.TaskGroup)
+	alloc := ar.Alloc()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		// XXX Fail and exit
-		ar.logger.Error("failed to lookup task group", "task_group", ar.alloc.TaskGroup)
-		return nil, fmt.Errorf("failed to lookup task group %q", ar.alloc.TaskGroup)
+		ar.logger.Error("failed to lookup task group", "task_group", alloc.TaskGroup)
+		return nil, fmt.Errorf("failed to lookup task group %q", alloc.TaskGroup)
 	}
 
 	for _, task := range tg.Tasks {
-		if err := ar.runTask(task); err != nil {
+		if err := ar.runTask(alloc, task); err != nil {
 			return nil, err
 		}
 	}
@@ -142,12 +150,14 @@ func (ar *allocRunner) runImpl() (<-chan struct{}, error) {
 }
 
 // runTask is used to run a task.
-func (ar *allocRunner) runTask(task *structs.Task) error {
+func (ar *allocRunner) runTask(alloc *structs.Allocation, task *structs.Task) error {
 	// Create the runner
 	config := &taskrunner.Config{
-		Parent: &allocRunnerShim{ar},
-		Task:   task,
-		Logger: ar.logger,
+		Alloc:        alloc,
+		ClientConfig: ar.clientConfig,
+		Task:         task,
+		TaskDir:      ar.allocDir.NewTaskDir(task.Name),
+		Logger:       ar.logger,
 	}
 	tr, err := taskrunner.NewTaskRunner(config)
 	if err != nil {
@@ -162,10 +172,77 @@ func (ar *allocRunner) runTask(task *structs.Task) error {
 	return nil
 }
 
+// Alloc returns the current allocation being run by this runner.
+//XXX how do we handle mutate the state saving stuff
+func (ar *allocRunner) Alloc() *structs.Allocation {
+	ar.allocLock.RLock()
+	defer ar.allocLock.RUnlock()
+	return ar.alloc
+}
+
+// SaveState does all the state related stuff. Who knows. FIXME
+//XXX
+func (ar *allocRunner) SaveState() error {
+	return nil
+}
+
 // Update the running allocation with a new version received from the server.
 //
 // This method is safe for calling concurrently with Run() and does not modify
 // the passed in allocation.
 func (ar *allocRunner) Update(update *structs.Allocation) {
 	ar.updateCh <- update
+}
+
+// Destroy the alloc runner by stopping it if it is still running and cleaning
+// up all of its resources.
+//
+// This method is safe for calling concurrently with Run(). Callers must
+// receive on WaitCh() to block until alloc runner has stopped and been
+// destroyed.
+//XXX TODO
+func (ar *allocRunner) Destroy() {
+	//TODO
+}
+
+// IsDestroyed returns true if the alloc runner has been destroyed (stopped and
+// garbage collected).
+//
+// This method is safe for calling concurrently with Run(). Callers must
+// receive on WaitCh() to block until alloc runner has stopped and been
+// destroyed.
+//XXX TODO
+func (ar *allocRunner) IsDestroyed() bool {
+	return false
+}
+
+// IsWaiting returns true if the alloc runner is waiting for its previous
+// allocation to terminate.
+//
+// This method is safe for calling concurrently with Run().
+//XXX TODO
+func (ar *allocRunner) IsWaiting() bool {
+	return false
+}
+
+// IsMigrating returns true if the alloc runner is migrating data from its
+// previous allocation.
+//
+// This method is safe for calling concurrently with Run().
+//XXX TODO
+func (ar *allocRunner) IsMigrating() bool {
+	return false
+}
+
+// StatsReporter needs implementing
+//XXX
+func (ar *allocRunner) StatsReporter() allocrunner.AllocStatsReporter {
+	return noopStatsReporter{}
+}
+
+//FIXME implement
+type noopStatsReporter struct{}
+
+func (noopStatsReporter) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
+	return nil, fmt.Errorf("not implemented")
 }

@@ -30,7 +30,7 @@ func (tr *TaskRunner) initHooks() {
 func (tr *TaskRunner) prerun() error {
 	// Determine if the allocation is terminaland we should avoid running
 	// pre-run hooks.
-	alloc := tr.allocRunner.Alloc()
+	alloc := tr.config.Alloc
 	if alloc.TerminalStatus() {
 		tr.logger.Trace("skipping pre-run hooks since allocation is terminal")
 		return nil
@@ -77,7 +77,7 @@ func (tr *TaskRunner) prerun() error {
 		//XXX Can we assume everything only wants to be run until
 		//successful and simply keep track of which hooks have yet to
 		//run on failures+retries?
-		if hookState.SuccessfulOnce {
+		if hookState != nil && hookState.SuccessfulOnce {
 			tr.logger.Trace("skipping hook since it was successfully run once", "name", name)
 			continue
 		}
@@ -106,9 +106,11 @@ func (tr *TaskRunner) prerun() error {
 
 			// XXX Detect if state has changed so that we can signal to the
 			// alloc runner precisly
-			if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
-				tr.logger.Error("failed to save state", "error", err)
-			}
+			/*
+				if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
+					tr.logger.Error("failed to save state", "error", err)
+				}
+			*/
 			tr.state.Unlock()
 		}
 
@@ -225,7 +227,7 @@ func (h *taskDirHook) Name() string {
 }
 
 func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
-	cc := h.runner.allocRunner.Config().ClientConfig
+	cc := h.runner.config.ClientConfig
 	chroot := cconfig.DefaultChrootEnv
 	if len(cc.ChrootEnv) > 0 {
 		chroot = cc.ChrootEnv
@@ -242,7 +244,7 @@ func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces
 	}
 
 	// Update the environment variables based on the built task directory
-	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.allocRunner.Config().ClientConfig)
+	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.config.ClientConfig)
 	return nil
 }
 

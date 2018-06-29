@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -162,7 +161,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 		}
 
 		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(gcAlloc.allocRunner, reason)
+		a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, reason)
 	}
 	return nil
 }
@@ -170,12 +169,8 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 // destroyAllocRunner is used to destroy an allocation runner. It will acquire a
 // lock to restrict parallelism and then destroy the alloc runner, returning
 // once the allocation has been destroyed.
-func (a *AllocGarbageCollector) destroyAllocRunner(ar *allocrunner.AllocRunner, reason string) {
-	id := "<nil>"
-	if alloc := ar.Alloc(); alloc != nil {
-		id = alloc.ID
-	}
-	a.logger.Printf("[INFO] client.gc: garbage collecting allocation %s due to %s", id, reason)
+func (a *AllocGarbageCollector) destroyAllocRunner(allocID string, ar AllocRunner, reason string) {
+	a.logger.Printf("[INFO] client.gc: garbage collecting allocation %s due to %s", allocID, reason)
 
 	// Acquire the destroy lock
 	select {
@@ -191,7 +186,7 @@ func (a *AllocGarbageCollector) destroyAllocRunner(ar *allocrunner.AllocRunner, 
 	case <-a.shutdownCh:
 	}
 
-	a.logger.Printf("[DEBUG] client.gc: garbage collected %q", ar.Alloc().ID)
+	a.logger.Printf("[DEBUG] client.gc: garbage collected %s", allocID)
 
 	// Release the lock
 	<-a.destroyCh
@@ -205,7 +200,7 @@ func (a *AllocGarbageCollector) Stop() {
 // alloc was found and garbage collected; otherwise false.
 func (a *AllocGarbageCollector) Collect(allocID string) bool {
 	if gcAlloc := a.allocRunners.Remove(allocID); gcAlloc != nil {
-		a.destroyAllocRunner(gcAlloc.allocRunner, "forced collection")
+		a.destroyAllocRunner(allocID, gcAlloc.allocRunner, "forced collection")
 		return true
 	}
 
@@ -227,7 +222,7 @@ func (a *AllocGarbageCollector) CollectAll() {
 			return
 		}
 
-		go a.destroyAllocRunner(gcAlloc.allocRunner, "forced full node collection")
+		go a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, "forced full node collection")
 	}
 }
 
@@ -257,7 +252,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 
 		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(gcAlloc.allocRunner, fmt.Sprintf("new allocations and over max (%d)", a.config.MaxAllocs))
+		a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, fmt.Sprintf("new allocations and over max (%d)", a.config.MaxAllocs))
 	}
 
 	totalResource := &structs.Resources{}
@@ -319,7 +314,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		alloc := ar.Alloc()
 
 		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(ar, fmt.Sprintf("freeing %d MB for new allocations", alloc.Resources.DiskMB))
+		a.destroyAllocRunner(gcAlloc.allocID, ar, fmt.Sprintf("freeing %d MB for new allocations", alloc.Resources.DiskMB))
 
 		// Call stats collect again
 		diskCleared += alloc.Resources.DiskMB
@@ -328,13 +323,8 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 }
 
 // MarkForCollection starts tracking an allocation for Garbage Collection
-func (a *AllocGarbageCollector) MarkForCollection(ar *allocrunner.AllocRunner) {
-	if ar.Alloc() == nil {
-		a.destroyAllocRunner(ar, "alloc is nil")
-		return
-	}
-
-	if a.allocRunners.Push(ar) {
+func (a *AllocGarbageCollector) MarkForCollection(allocID string, ar AllocRunner) {
+	if a.allocRunners.Push(allocID, ar) {
 		a.logger.Printf("[INFO] client.gc: marking allocation %v for GC", ar.Alloc().ID)
 	}
 }
@@ -343,7 +333,8 @@ func (a *AllocGarbageCollector) MarkForCollection(ar *allocrunner.AllocRunner) {
 // a PQ
 type GCAlloc struct {
 	timeStamp   time.Time
-	allocRunner *allocrunner.AllocRunner
+	allocID     string
+	allocRunner AllocRunner
 	index       int
 }
 
@@ -397,20 +388,20 @@ func NewIndexedGCAllocPQ() *IndexedGCAllocPQ {
 
 // Push an alloc runner into the GC queue. Returns true if alloc was added,
 // false if the alloc already existed.
-func (i *IndexedGCAllocPQ) Push(ar *allocrunner.AllocRunner) bool {
+func (i *IndexedGCAllocPQ) Push(allocID string, ar AllocRunner) bool {
 	i.pqLock.Lock()
 	defer i.pqLock.Unlock()
 
-	alloc := ar.Alloc()
-	if _, ok := i.index[alloc.ID]; ok {
+	if _, ok := i.index[allocID]; ok {
 		// No work to do
 		return false
 	}
 	gcAlloc := &GCAlloc{
 		timeStamp:   time.Now(),
+		allocID:     allocID,
 		allocRunner: ar,
 	}
-	i.index[alloc.ID] = gcAlloc
+	i.index[allocID] = gcAlloc
 	heap.Push(&i.heap, gcAlloc)
 	return true
 }
