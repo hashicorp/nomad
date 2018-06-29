@@ -28,6 +28,8 @@ func (tr *TaskRunner) initHooks() {
 
 // prerun is used to run the runners prerun hooks.
 func (tr *TaskRunner) prerun() error {
+	//XXX is this necessary? maybe we should have a generic cancelletion
+	//    method instead of peeking into the alloc
 	// Determine if the allocation is terminaland we should avoid running
 	// pre-run hooks.
 	alloc := tr.Alloc()
@@ -68,23 +70,19 @@ func (tr *TaskRunner) prerun() error {
 		tr.state.RLock()
 		hookState := tr.state.Hooks[name]
 		if hookState != nil {
-			req.HookData = hookState.Data
+			// Hook already ran, skip
+			tr.state.RUnlock()
+			continue
 		}
 
 		req.VaultToken = tr.state.VaultToken
 		tr.state.RUnlock()
 
-		//XXX Can we assume everything only wants to be run until
-		//successful and simply keep track of which hooks have yet to
-		//run on failures+retries?
-		if hookState != nil && hookState.SuccessfulOnce {
-			tr.logger.Trace("skipping hook since it was successfully run once", "name", name)
-			continue
-		}
-
 		// Run the pre-run hook
 		var resp interfaces.TaskPrerunResponse
-		err := pre.Prerun(&req, &resp)
+		if err := pre.Prerun(&req, &resp); err != nil {
+			return structs.WrapRecoverable(fmt.Sprintf("pre-run hook %q failed: %v", name, err), err)
+		}
 
 		// Store the hook state
 		{
@@ -95,13 +93,8 @@ func (tr *TaskRunner) prerun() error {
 				tr.state.Hooks[name] = hookState
 			}
 
-			hookState.LastError = err
 			if resp.HookData != nil {
 				hookState.Data = resp.HookData
-			}
-
-			if resp.DoOnce && err != nil {
-				hookState.SuccessfulOnce = true
 			}
 
 			// XXX Detect if state has changed so that we can signal to the
@@ -112,10 +105,6 @@ func (tr *TaskRunner) prerun() error {
 				}
 			*/
 			tr.state.Unlock()
-		}
-
-		if err != nil {
-			return structs.WrapRecoverable(fmt.Sprintf("pre-run hook %q failed: %v", name, err), err)
 		}
 
 		// Store the environment variables returned by the hook
@@ -283,9 +272,6 @@ func (h *artifactHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interface
 		}
 	}
 
-	//XXX Should this be managed by task runner directly? Seems silly to
-	//make every hook specify it
-	resp.DoOnce = true
 	return nil
 }
 
