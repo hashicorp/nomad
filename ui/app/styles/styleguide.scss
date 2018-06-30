@@ -1,7 +1,8 @@
 #styleguide {
   .mock-content {
     display: flex;
-    height: 250px;
+    min-height: 250px;
+    height: 100%;
 
     .mock-image,
     .mock-copy {
@@ -39,6 +40,12 @@
         transparent 5px,
         transparent 14px
       );
+    }
+
+    .mock-vague {
+      background: lighten($grey-blue, 15%);
+      width: 100%;
+      height: 100%;
     }
   }
 }
