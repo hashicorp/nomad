@@ -18,6 +18,10 @@ type TestSuite struct {
 	Constraints Constraints // Environment constraints to follow
 	Parallel    bool        // If true, will run test cases in parallel
 	Slow        bool        // Slow test suites don't run by default
+
+	// API Clients
+	Consul bool
+	Vault  bool
 }
 
 // Constraints that must be satisfied for a TestSuite to run

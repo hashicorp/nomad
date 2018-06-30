@@ -132,7 +132,11 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 		name := fmt.Sprintf("%T", c)
 
 		// Each TestCase is provisioned a nomad cluster
-		info, err := f.provisioner.ProvisionCluster(ProvisionerOptions{Name: name})
+		info, err := f.provisioner.ProvisionCluster(ProvisionerOptions{
+			Name:         name,
+			ExpectConsul: s.Consul,
+			ExpectVault:  s.Vault,
+		})
 		if err != nil {
 			return false, fmt.Errorf("could not provision cluster for case: %v", err)
 		}
