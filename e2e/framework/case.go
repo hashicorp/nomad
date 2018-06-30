@@ -20,6 +20,7 @@ type TestSuite struct {
 	Slow        bool        // Slow test suites don't run by default
 }
 
+// Constraints that must be satisfied for a TestSuite to run
 type Constraints struct {
 	Provider    string   // Cloud provider ex. 'aws', 'azure', 'gcp'
 	OS          string   // Operating system ex. 'windows', 'linux'
@@ -53,7 +54,10 @@ func (c Constraints) matches(env Environment) error {
 	return nil
 }
 
-// TC is the base test case which should be embedded in TestCase implementations
+// TC is the base test case which should be embedded in TestCase implementations.
+// It also embeds testify assertions configured with the current *testing.T
+// context. For more information on assertions:
+// https://godoc.org/github.com/stretchr/testify/assert#Assertions
 type TC struct {
 	*assert.Assertions
 	require *require.Assertions
@@ -75,7 +79,8 @@ func (tc *TC) Prefix() string {
 	return fmt.Sprintf("%s-", tc.cluster.ID)
 }
 
-// Name is the Name of the test cluster.
+// Name returns the name of the test case which is set to the name of the
+// implementing type.
 func (tc *TC) Name() string {
 	return tc.cluster.Name
 }
@@ -90,6 +95,12 @@ func (tc *TC) SetT(t *testing.T) {
 	tc.t = t
 	tc.Assertions = assert.New(t)
 	tc.require = require.New(t)
+}
+
+// Require fetches a require flavor of testify assertions
+// https://godoc.org/github.com/stretchr/testify/require
+func (tc *TC) Require() *require.Assertions {
+	return tc.require
 }
 
 func (tc *TC) setClusterInfo(info *ClusterInfo) {
