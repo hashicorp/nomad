@@ -52,7 +52,7 @@ func (c Constraints) matches(env Environment) error {
 
 	for _, t := range c.Tags {
 		if _, ok := env.Tags[t]; !ok {
-			return fmt.Errorf("tags constraint failed, tag '%s' is not included in environment")
+			return fmt.Errorf("tags constraint failed, tag '%s' is not included in environment", t)
 		}
 	}
 	return nil
