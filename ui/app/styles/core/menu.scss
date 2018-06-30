@@ -13,6 +13,15 @@
         background: transparent;
         box-shadow: inset -3px 0 0 $blue;
         color: $blue;
+
+        .icon {
+          fill: $blue;
+        }
+      }
+
+      .icon {
+        margin-right: 0.5em;
+        fill: lighten($text, 30%);
       }
     }
 
