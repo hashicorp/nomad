@@ -1,0 +1,31 @@
+{{#freestyle-usage "json-viewer" title="JSON Viewer"}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{json-viewer json=jsonSmall}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "json-viewer-full" title="JSON Viewer for Full Document"}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{json-viewer json=jsonLarge}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-collection defaultKey=0 as |collection|}}
+  {{#each (array 0 1 2 3 4 5) as |depth|}}
+    {{#collection.variant key=depth}}
+      {{#freestyle-usage
+        (concat "json-viewer-truncated-" depth)
+        title=(concat "JSON Viewer Expand Depth " depth)}}
+        <div class="boxed-section">
+          <div class="boxed-section-body is-dark">
+            {{json-viewer json=jsonLarge expandDepth=depth}}
+          </div>
+        </div>
+      {{/freestyle-usage}}
+    {{/collection.variant}}
+  {{/each}}
+{{/freestyle-collection}}
