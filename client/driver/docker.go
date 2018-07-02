@@ -1245,7 +1245,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		if driverConfig.CPUCFSPeriod == 0 {
 			driverConfig.CPUCFSPeriod = defaultCFSPeriodUS
 		}
-		hostConfig.CPUPeriod = int64(driverConfig.CPUCFSPeriod)
+		hostConfig.CPUPeriod = driverConfig.CPUCFSPeriod
 		hostConfig.CPUQuota = int64(percentTicks*float64(driverConfig.CPUCFSPeriod)) * int64(numCores)
 	}
 
