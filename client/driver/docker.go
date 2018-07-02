@@ -1242,6 +1242,9 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	if driverConfig.CPUHardLimit {
 		numCores := runtime.NumCPU()
 		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
+		if driverConfig.CPUCFSPeriod < 0 || driverConfig.CPUCFSPeriod > 1000000 {
+			return c, fmt.Errorf("invalid value for cpu_cfs_period")
+		}
 		if driverConfig.CPUCFSPeriod == 0 {
 			driverConfig.CPUCFSPeriod = defaultCFSPeriodUS
 		}
