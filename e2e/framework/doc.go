@@ -37,10 +37,10 @@ type, which in the above example would be "MyTestCase"
 Test cases may also optionally implement additional interfaces to define setup
 and teardown logic:
 
-	BeforeEachStep
-	AfterEachStep
-	BeforeAllSteps
-	AfterAllSteps
+	BeforeEachTest
+	AfterEachTest
+	BeforeAllTests
+	AfterAllTests
 
 The test case struct allows you to setup and teardown state in the struct that
 can be consumed by the tests. For example:
@@ -50,7 +50,7 @@ can be consumed by the tests. For example:
 		jobID string
 	}
 
-	func (tc *ComplexNomadTC) BeforeEachStep(){
+	func (tc *ComplexNomadTC) BeforeEach(){
 		// Do some complex job setup with a unique prefix string
 		jobID, err := doSomeComplexSetup(tc.Nomad(), tc.Prefix())
 		tc.NoError(err)
@@ -65,7 +65,7 @@ can be consumed by the tests. For example:
 		doOtherTestThingWithJob(tc.T(), tc.Nomad(), tc.jobID)
 	}
 
-	func (tc *ComplexNomadTC) AfterEachStep(){
+	func (tc *ComplexNomadTC) AfterEach(){
 		_, _, err := tc.Nomad().Jobs().Deregister(jobID, true, nil)
 		tc.Require().NoError(err)
 	}
@@ -95,7 +95,7 @@ The test framework honors go test's parallel feature under certain conditions.
 A TestSuite can be created with the Parallel field set to true to enable
 parallel execution of the test cases of the suite. Tests within a test case
 will always be executed sequentially. TC.T() is NOT safe to call from multiple
-gorouties, therefore TC.T().Parallel() should NEVER be called from a test of a
+goroutines, therefore TC.T().Parallel() should NEVER be called from a test of a
 TestCase
 
 Since test cases have the potential to work with a shared Nomad cluster in parallel

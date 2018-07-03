@@ -19,24 +19,24 @@ type internalTestCase interface {
 	setClusterInfo(*ClusterInfo)
 }
 
-// BeforeAllSteps is used to define a method to be called before the execution
-// of all test steps.
-type BeforeAllSteps interface {
-	BeforeAllSteps()
+// BeforeAllTests is used to define a method to be called before the execution
+// of all tests.
+type BeforeAllTests interface {
+	BeforeAll()
 }
 
-// AfterAllSteps is used to define a method to be called after the execution of
-// all test steps.
-type AfterAllSteps interface {
-	AfterAllSteps()
+// AfterAllTests is used to define a method to be called after the execution of
+// all tests.
+type AfterAllTests interface {
+	AfterAll()
 }
 
-// BeforeEachStep is used to define a method to be called before each test step.
-type BeforeEachStep interface {
-	BeforeEachStep()
+// BeforeEachTest is used to define a method to be called before each test.
+type BeforeEachTest interface {
+	BeforeEach()
 }
 
-// AfterEachStep is used to degine a method to be called after each test step.
-type AfterEachStep interface {
-	AfterEachStep()
+// AfterEachTest is used to degine a method to be called after each test.
+type AfterEachTest interface {
+	AfterEach()
 }

@@ -152,14 +152,14 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 			}
 
 			// Check if the case includes a before all function
-			if beforeAllSteps, ok := c.(BeforeAllSteps); ok {
-				beforeAllSteps.BeforeAllSteps()
+			if beforeAllTests, ok := c.(BeforeAllTests); ok {
+				beforeAllTests.BeforeAll()
 			}
 
 			// Check if the case includes an after all function at the end
 			defer func() {
-				if afterAllSteps, ok := c.(AfterAllSteps); ok {
-					afterAllSteps.AfterAllSteps()
+				if afterAllTests, ok := c.(AfterAllTests); ok {
+					afterAllTests.AfterAll()
 				}
 			}()
 
@@ -171,21 +171,21 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 				if ok := isTestMethod(method.Name); !ok {
 					continue
 				}
-				// Each step is run as its own sub test of the case
+				// Each test is run as its own sub test of the case
 				// Test cases are never parallel
 				t.Run(method.Name, func(t *testing.T) {
 
 					// Since the test function interacts with testing.T through
 					// the test case struct, we need to swap the test context for
-					// the duration of the step.
+					// the duration of the test.
 					parentT := c.T()
 					c.SetT(t)
-					if BeforeEachStep, ok := c.(BeforeEachStep); ok {
-						BeforeEachStep.BeforeEachStep()
+					if BeforeEachTest, ok := c.(BeforeEachTest); ok {
+						BeforeEachTest.BeforeEach()
 					}
 					defer func() {
-						if afterEachStep, ok := c.(AfterEachStep); ok {
-							afterEachStep.AfterEachStep()
+						if afterEachTest, ok := c.(AfterEachTest); ok {
+							afterEachTest.AfterEach()
 						}
 						c.SetT(parentT)
 					}()
@@ -205,6 +205,6 @@ func isTestMethod(m string) bool {
 	if !strings.HasPrefix(m, "Test") {
 		return false
 	}
-	// THINKING: adding flag to target a specific step or step regex?
+	// THINKING: adding flag to target a specific test or test regex?
 	return true
 }
