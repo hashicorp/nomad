@@ -1,0 +1,257 @@
+{{#freestyle-usage "table-simple" title="Table"}}
+  {{#list-table source=shortList as |t|}}
+    {{#t.head}}
+      <th>Name</th>
+      <th>Language</th>
+      <th>Description</th>
+    {{/t.head}}
+    {{#t.body key="model.name" as |row|}}
+      <tr>
+        <td>{{row.model.name}}</td>
+        <td>{{row.model.lang}}</td>
+        <td>{{row.model.desc}}</td>
+      </tr>
+    {{/t.body}}
+  {{/list-table}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Tables have airy designs with a minimal amount of borders. This maximizes their utility.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-search" title="Table Search"}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Table Name
+      {{search-box
+        searchTerm=(mut searchTerm)
+        placeholder="Search..."
+        class="is-inline pull-right"
+        inputClass="is-compact"}}
+    </div>
+    <div class="boxed-section-body {{if filteredShortList.length "is-full-bleed"}}">
+      {{#if filteredShortList.length}}
+        {{#list-table source=filteredShortList as |t|}}
+          {{#t.head}}
+            <th>Name</th>
+            <th>Language</th>
+            <th>Description</th>
+          {{/t.head}}
+          {{#t.body key="model.name" as |row|}}
+            <tr>
+              <td>{{row.model.name}}</td>
+              <td>{{row.model.lang}}</td>
+              <td>{{row.model.desc}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message">
+          <h3 class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">No products match your query.</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Tables compose with boxed-section and boxed-section composes with search box.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-sortable-columns" title="Table Sortable Columns"}}
+  {{#list-table
+    source=sortedShortList
+    sortProperty=sortProperty
+    sortDescending=sortDescending as |t|}}
+    {{#t.head}}
+      {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+      {{#t.sort-by prop="lang" class="is-2"}}Language{{/t.sort-by}}
+      <th>Description</th>
+    {{/t.head}}
+    {{#t.body key="model.name" as |row|}}
+      <tr>
+        <td>{{row.model.name}}</td>
+        <td>{{row.model.lang}}</td>
+        <td>{{row.model.desc}}</td>
+      </tr>
+    {{/t.body}}
+  {{/list-table}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>The list-table component provides a <code>sort-by</code> contextual component for building <code>link-to</code> components with the appropriate query params.</p>
+  <p>This leaves the component stateless, relying on data to be passed down and sending actions back up via the router (via link-to).</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-multi-row" title="Table Multi-row"}}
+  {{#list-table
+    source=sortedShortList
+    sortProperty=sortProperty
+    sortDescending=sortDescending
+    class="is-striped" as |t|}}
+    {{#t.head}}
+      {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+      {{#t.sort-by prop="lang"}}Language{{/t.sort-by}}
+    {{/t.head}}
+    {{#t.body key="model.name" as |row|}}
+      <tr>
+        <td>{{row.model.name}}</td>
+        <td>{{row.model.lang}}</td>
+      </tr>
+      <tr>
+        <td colspan="2">{{row.model.desc}}</td>
+      </tr>
+    {{/t.body}}
+  {{/list-table}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>THe list-table component attempts to be as flexible as possible. For this reason, <code>t.body</code> does not provide the typical <code>tr</code> element. It's sometimes desired to have multiple elements per record.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-pagination" title="Table Pagination"}}
+  {{#list-pagination source=longList size=5 page=currentPage as |p|}}
+    {{#list-table source=p.list class="with-foot" as |t|}}
+      {{#t.head}}
+        <th class="is-1">Rank</th>
+        <th>City</th>
+        <th>State</th>
+        <th>Population</th>
+        <th>Growth</th>
+      {{/t.head}}
+      {{#t.body key="model.rank" as |row|}}
+        <tr>
+          <td>{{row.model.rank}}</td>
+          <td>{{row.model.city}}</td>
+          <td>{{row.model.state}}</td>
+          <td>{{row.model.population}}</td>
+          <td>{{format-percentage row.model.growth total=1}}</td>
+        </tr>
+      {{/t.body}}
+    {{/list-table}}
+    <div class="table-foot">
+      <nav class="pagination">
+        <span class="bumper-left">U.S. City population and growth from 2000-2013</span>
+        <div class="pagination-numbers">
+          {{p.startsAt}}&ndash;{{p.endsAt}} of {{longList.length}}
+        </div>
+          {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+          {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+          <ul class="pagination-list"></ul>
+      </nav>
+    </div>
+  {{/list-pagination}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Pagination works like sorting: using <code>link-to</code>s to set a query param.</p>
+  <p>Pagination, like Table, is a minimal design. Only a next and previous button are available. The current place in the set of pages is tracked by showing which slice of items is currently shown.</p>
+  <p>The pagination component exposes first and last components (for jumping to the beginning and end of a list) as well as pageLinks for generating links around the current page.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-row-links" title="Table Row Links"}}
+  {{#list-table source=shortList as |t|}}
+    {{#t.head}}
+      <th>Name</th>
+      <th>Language</th>
+      <th>Description</th>
+    {{/t.head}}
+    {{#t.body key="model.name" as |row|}}
+      <tr class="is-interactive">
+        <td><a href="#" class="is-primary">{{row.model.name}}</a></td>
+        <td>{{row.model.lang}}</td>
+        <td>{{row.model.desc}}</td>
+      </tr>
+    {{/t.body}}
+  {{/list-table}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>It is common for tables to act as lists of links, (e.g., clients list all allocations, each row links to the allocation detail). The helper class <code>is-interactive</code> on the <code>tr</code> makes table rows have a pointer cursor. The helper class <code>is-primary</code> on the <code>a</code> element in a table row makes the link bold and black instead of blue. This makes the link stand out less, since the entire row is a link.</p>
+  <p>A few rules for using table row links:</p>
+  <ol>
+    <li>The <code>is-primary</code> cell should always be the first cell</li>
+    <li>The <code>is-primary</code> cell should always contain a link to the destination in the form of an <code>a</code> element. This is to support opening a link in a new tab.</li>
+    <li>The full row should transition to the destination on click. This is to improve the usability of a table by creating a larger click area.</li>
+  </ol>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-cell-links" title="Table Cell Links"}}
+  {{#list-table source=shortList as |t|}}
+    {{#t.head}}
+      <th>Name</th>
+      <th>Language</th>
+      <th>Description</th>
+    {{/t.head}}
+    {{#t.body key="model.name" as |row|}}
+      <tr>
+        <td><a href={{row.model.link}}>{{row.model.name}}</a></td>
+        <td>{{row.model.lang}}</td>
+        <td>{{row.model.desc}}</td>
+      </tr>
+    {{/t.body}}
+  {{/list-table}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Links in table cells are just links.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-cell-decorations" title="Table Cell Decorations"}}
+  {{#list-table source=shortList as |t|}}
+    {{#t.head}}
+      <th>Name</th>
+      <th>Language</th>
+      <th>Description</th>
+    {{/t.head}}
+    {{#t.body key="model.name" as |row|}}
+      <tr>
+        <td><a href={{row.model.link}}>{{row.model.name}}</a></td>
+        <td class="nowrap">
+          <span class="color-swatch
+            {{if (eq row.model.lang "ruby") "swatch-6"}}
+            {{if (eq row.model.lang "golang") "swatch-5"}}" />
+          {{row.model.lang}}
+        </td>
+        <td>{{row.model.desc}}</td>
+      </tr>
+    {{/t.body}}
+  {{/list-table}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Small icons and accents of color make tables easier to scan.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "table-cell-icons" title="Table Cell Icons"}}
+  {{#list-pagination source=longList size=5 page=currentPage as |p|}}
+    {{#list-table source=p.list class="with-foot" as |t|}}
+      {{#t.head}}
+        <th class="is-narrow"></th>
+        <th class="is-1">Rank</th>
+        <th>City</th>
+        <th>State</th>
+        <th>Population</th>
+        <th>Growth</th>
+      {{/t.head}}
+      {{#t.body key="model.rank" as |row|}}
+        <tr>
+          <td class="is-narrow">
+            {{#if (lt row.model.growth 0)}}
+              {{x-icon "warning" class="is-warning"}}
+            {{/if}}
+          </td>
+          <td>{{row.model.rank}}</td>
+          <td>{{row.model.city}}</td>
+          <td>{{row.model.state}}</td>
+          <td>{{row.model.population}}</td>
+          <td>{{format-percentage row.model.growth total=1}}</td>
+        </tr>
+      {{/t.body}}
+    {{/list-table}}
+    <div class="table-foot">
+      <nav class="pagination">
+        <span class="bumper-left">U.S. City population and growth from 2000-2013. Cities with negative growth denoted.</span>
+        <div class="pagination-numbers">
+          {{p.startsAt}}&ndash;{{p.endsAt}} of {{longList.length}}
+        </div>
+          {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+          {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+          <ul class="pagination-list"></ul>
+      </nav>
+    </div>
+  {{/list-pagination}}
+{{/freestyle-usage}}

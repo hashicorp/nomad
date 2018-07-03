@@ -71,8 +71,14 @@
       {{#section.subsection name="Search box"}}
         {{freestyle/sg-search-box}}
       {{/section.subsection}}
+
       {{#section.subsection name="Table"}}
+        {{freestyle/sg-table
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          currentPage=currentPage}}
       {{/section.subsection}}
+
       {{#section.subsection name="Table, Configuration"}}
       {{/section.subsection}}
 
