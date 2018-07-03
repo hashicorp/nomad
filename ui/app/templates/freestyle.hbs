@@ -15,6 +15,12 @@
     {{/freestyle-section}}
 
     {{#freestyle-section name="Components" as |section|}}
+      {{#section.subsection name="Accordion"}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Alert"}}
+      {{/section.subsection}}
+
       {{#section.subsection name="Boxed section"}}
         {{freestyle/sg-boxed-section}}
       {{/section.subsection}}
@@ -30,7 +36,6 @@
       {{#section.subsection name="Diff Viewer"}}
         {{freestyle/sg-diff-viewer}}
       {{/section.subsection}}
-
 
       {{#section.subsection name="Dropdown"}}
         {{freestyle/sg-dropdown}}
@@ -85,6 +90,9 @@
 
       {{#section.subsection name="Timeline"}}
         {{freestyle/sg-timeline}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Two-step Button"}}
       {{/section.subsection}}
     {{/freestyle-section}}
 
