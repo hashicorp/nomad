@@ -2812,6 +2812,12 @@ ember-cli-eslint@^4.2.3:
     rsvp "^4.6.1"
     walk-sync "^0.3.0"
 
+ember-cli-funnel@^0.6.0:
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/ember-cli-funnel/-/ember-cli-funnel-0.6.0.tgz#ee0c14c216991f7f62f91de62a52268590216b2f"
+  dependencies:
+    broccoli-funnel "^2.0.0"
+
 ember-cli-get-component-path-option@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/ember-cli-get-component-path-option/-/ember-cli-get-component-path-option-1.0.0.tgz#0d7b595559e2f9050abed804f1d8eff1b08bc771"
