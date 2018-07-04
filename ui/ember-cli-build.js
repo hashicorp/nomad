@@ -12,6 +12,13 @@ module.exports = function(defaults) {
     svg: {
       paths: ['public/images/icons'],
     },
+    funnel: {
+      enabled: isProd,
+      exclude: [
+        `${defaults.project.pkg.name}/components/freestyle/**/*`,
+        `${defaults.project.pkg.name}/templates/components/freestyle/**/*`,
+      ],
+    },
   });
 
   // Use `app.import` to add additional libraries to the generated
