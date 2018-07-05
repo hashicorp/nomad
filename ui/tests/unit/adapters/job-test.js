@@ -22,6 +22,7 @@ moduleForAdapter('job', 'Unit | Adapter | Job', {
   ],
   beforeEach() {
     window.sessionStorage.clear();
+    window.localStorage.clear();
 
     this.server = startMirage();
     this.server.create('node');
@@ -33,7 +34,7 @@ moduleForAdapter('job', 'Unit | Adapter | Job', {
   },
 });
 
-test('The job summary is stitched into the job request', function(assert) {
+test('The job endpoint is the only required endpoint for fetching a job', function(assert) {
   const { pretender } = this.server;
   const jobName = 'job-1';
   const jobNamespace = 'default';
@@ -43,8 +44,25 @@ test('The job summary is stitched into the job request', function(assert) {
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    ['/v1/namespaces', `/v1/job/${jobName}`],
-    'The two requests made are /namespaces and /job/:id'
+    [`/v1/job/${jobName}`],
+    'The only request made is /job/:id'
+  );
+});
+
+test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', function(assert) {
+  window.localStorage.nomadActiveNamespace = 'red-herring';
+
+  const { pretender } = this.server;
+  const jobName = 'job-1';
+  const jobNamespace = 'default';
+  const jobId = JSON.stringify([jobName, jobNamespace]);
+
+  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+
+  assert.deepEqual(
+    pretender.handledRequests.mapBy('url'),
+    [`/v1/job/${jobName}`],
+    'The request made is /job/:id with no namespace query param'
   );
 });
 
@@ -58,8 +76,8 @@ test('When the job has a namespace other than default, it is in the URL', functi
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    ['/v1/namespaces', `/v1/job/${jobName}?namespace=${jobNamespace}`],
-    'The two requests made are /namespaces and /job/:id?namespace=:namespace'
+    [`/v1/job/${jobName}?namespace=${jobNamespace}`],
+    'The only request made is /job/:id?namespace=:namespace'
   );
 });
 
@@ -137,11 +155,6 @@ test('findRecord can be watched', function(assert) {
   request();
   assert.equal(
     pretender.handledRequests[0].url,
-    '/v1/namespaces',
-    'First request is for namespaces'
-  );
-  assert.equal(
-    pretender.handledRequests[1].url,
     '/v1/job/job-1?index=1',
     'Second request is a blocking request for job-1'
   );
@@ -149,7 +162,7 @@ test('findRecord can be watched', function(assert) {
   return wait().then(() => {
     request();
     assert.equal(
-      pretender.handledRequests[2].url,
+      pretender.handledRequests[1].url,
       '/v1/job/job-1?index=2',
       'Third request is a blocking request with an incremented index param'
     );

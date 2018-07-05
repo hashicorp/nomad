@@ -4,15 +4,6 @@ import Watchable from './watchable';
 export default Watchable.extend({
   system: service(),
 
-  buildQuery() {
-    const namespace = this.get('system.activeNamespace.id');
-
-    if (namespace && namespace !== 'default') {
-      return { namespace };
-    }
-    return {};
-  },
-
   findAll() {
     const namespace = this.get('system.activeNamespace');
     return this._super(...arguments).then(data => {
@@ -30,22 +21,22 @@ export default Watchable.extend({
     return this._super(store, type, id, snapshot, namespaceQuery);
   },
 
+  urlForFindAll() {
+    const url = this._super(...arguments);
+    const namespace = this.get('system.activeNamespace.id');
+    return associateNamespace(url, namespace);
+  },
+
   urlForFindRecord(id, type, hash) {
     const [name, namespace] = JSON.parse(id);
     let url = this._super(name, type, hash);
-    if (namespace && namespace !== 'default') {
-      url += `?namespace=${namespace}`;
-    }
-    return url;
+    return associateNamespace(url, namespace);
   },
 
   xhrKey(url, method, options = {}) {
     const plainKey = this._super(...arguments);
     const namespace = options.data && options.data.namespace;
-    if (namespace) {
-      return `${plainKey}?namespace=${namespace}`;
-    }
-    return plainKey;
+    return associateNamespace(plainKey, namespace);
   },
 
   relationshipFallbackLinks: {
@@ -53,7 +44,7 @@ export default Watchable.extend({
   },
 
   fetchRawDefinition(job) {
-    const url = this.buildURL('job', job.get('id'), job, 'findRecord');
+    const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'GET');
   },
 
@@ -69,6 +60,13 @@ export default Watchable.extend({
     return this.ajax(url, 'DELETE');
   },
 });
+
+function associateNamespace(url, namespace) {
+  if (namespace && namespace !== 'default') {
+    url += `?namespace=${namespace}`;
+  }
+  return url;
+}
 
 function addToPath(url, extension = '') {
   const [path, params] = url.split('?');
