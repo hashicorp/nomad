@@ -3,13 +3,16 @@ import { get } from '@ember/object';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
 import wait from 'nomad-ui/utils/wait';
+import config from 'nomad-ui/config/environment';
+
+const isEnabled = config.APP.blockingQueries !== false;
 
 export function watchRecord(modelName) {
   return task(function*(id, throttle = 2000) {
     if (typeof id === 'object') {
       id = get(id, 'id');
     }
-    while (!Ember.testing) {
+    while (isEnabled && !Ember.testing) {
       try {
         yield RSVP.all([
           this.get('store').findRecord(modelName, id, {
@@ -32,7 +35,7 @@ export function watchRecord(modelName) {
 
 export function watchRelationship(relationshipName) {
   return task(function*(model, throttle = 2000) {
-    while (!Ember.testing) {
+    while (isEnabled && !Ember.testing) {
       try {
         yield RSVP.all([
           this.get('store')
@@ -54,7 +57,7 @@ export function watchRelationship(relationshipName) {
 
 export function watchAll(modelName) {
   return task(function*(throttle = 2000) {
-    while (!Ember.testing) {
+    while (isEnabled && !Ember.testing) {
       try {
         yield RSVP.all([
           this.get('store').findAll(modelName, { reload: true, adapterOptions: { watch: true } }),
