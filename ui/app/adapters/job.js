@@ -52,18 +52,9 @@ export default Watchable.extend({
     summary: '/summary',
   },
 
-  findAllocations(job) {
-    const url = `${this.buildURL('job', job.get('id'), job, 'findRecord')}/allocations`;
-    return this.ajax(url, 'GET', { data: this.buildQuery() }).then(allocs => {
-      return this.store.pushPayload('allocation', {
-        allocations: allocs,
-      });
-    });
-  },
-
   fetchRawDefinition(job) {
     const url = this.buildURL('job', job.get('id'), job, 'findRecord');
-    return this.ajax(url, 'GET', { data: this.buildQuery() });
+    return this.ajax(url, 'GET');
   },
 
   forcePeriodic(job) {
