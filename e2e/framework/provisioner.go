@@ -49,11 +49,6 @@ func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*C
 		Name: opts.Name,
 	}
 
-	// Nomad client is required
-	if len(os.Getenv("NOMAD_ADDR")) == 0 {
-		return nil, fmt.Errorf("environment variable NOMAD_ADDR not set")
-	}
-
 	// Build Nomad api client
 	nomadClient, err := napi.NewClient(napi.DefaultConfig())
 	if err != nil {
