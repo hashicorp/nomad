@@ -61,11 +61,11 @@ func (c Constraints) matches(env Environment) error {
 // TC is the base test case which should be embedded in TestCase implementations.
 // It also embeds testify assertions configured with the current *testing.T
 // context. For more information on assertions:
-// https://godoc.org/github.com/stretchr/testify/assert#Assertions
+// https://godoc.org/github.com/stretchr/testify/require#Assertions
 type TC struct {
-	*assert.Assertions
-	require *require.Assertions
-	t       *testing.T
+	*require.Assertions
+	assert *assert.Assertions
+	t      *testing.T
 
 	cluster *ClusterInfo
 	prefix  string
@@ -97,14 +97,14 @@ func (tc *TC) T() *testing.T {
 // SetT sets the current *testing.T context
 func (tc *TC) SetT(t *testing.T) {
 	tc.t = t
-	tc.Assertions = assert.New(t)
-	tc.require = require.New(t)
+	tc.Assertions = require.New(t)
+	tc.assert = assert.New(t)
 }
 
-// Require fetches a require flavor of testify assertions
-// https://godoc.org/github.com/stretchr/testify/require
-func (tc *TC) Require() *require.Assertions {
-	return tc.require
+// Require fetches an assert flavor of testify assertions
+// https://godoc.org/github.com/stretchr/testify/assert
+func (tc *TC) Assert() *assert.Assertions {
+	return tc.assert
 }
 
 func (tc *TC) setClusterInfo(info *ClusterInfo) {

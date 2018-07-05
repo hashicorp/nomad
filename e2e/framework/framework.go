@@ -8,14 +8,14 @@ import (
 	"testing"
 )
 
-var fEnv = flag.String("nomad.env", "", "name of the environment executing against")
-var fProvider = flag.String("nomad.env.provider", "", "cloud provider for which environment is executing against")
-var fOS = flag.String("nomad.env.os", "", "operating system for which the environment is executing against")
-var fArch = flag.String("nomad.env.arch", "", "cpu architecture for which the environment is executing against")
-var fTags = flag.String("nomad.env.tags", "", "comma delimited list of tags associated with the environment")
-var fLocal = flag.Bool("nomad.local", false, "denotes execution is against a local environment")
-var fSlow = flag.Bool("nomad.slow", false, "toggles execution of slow test suites")
-var fForceAll = flag.Bool("nomad.force", false, "if set, skips all environment checks when filtering test suites")
+var fEnv = flag.String("env", "", "name of the environment executing against")
+var fProvider = flag.String("env.provider", "", "cloud provider for which environment is executing against")
+var fOS = flag.String("env.os", "", "operating system for which the environment is executing against")
+var fArch = flag.String("env.arch", "", "cpu architecture for which the environment is executing against")
+var fTags = flag.String("env.tags", "", "comma delimited list of tags associated with the environment")
+var fLocal = flag.Bool("local", false, "denotes execution is against a local environment")
+var fSlow = flag.Bool("slow", false, "toggles execution of slow test suites")
+var fForceRun = flag.Bool("forceRun", false, "if set, skips all environment checks when filtering test suites")
 
 var pkgFramework = New()
 
@@ -33,11 +33,11 @@ type Framework struct {
 // framework is targeting. During 'go run', these fields are populated by
 // the following flags:
 //
-//		-nomad.env <string>		"name of the environment executing against"
-//		-nomad.env.provider <string>	"cloud provider for which the environment is executing against"
-//		-nomad.env.os <string>		"operating system of environment"
-//		-nomad.env.arch <string>	"cpu architecture of environment"
-//		-nomad.env.tags <string>	"comma delimited list of environment tags"
+//		-env <string>		"name of the environment executing against"
+//		-env.provider <string>	"cloud provider for which the environment is executing against"
+//		-env.os <string>		"operating system of environment"
+//		-env.arch <string>	"cpu architecture of environment"
+//		-env.tags <string>	"comma delimited list of environment tags"
 //
 // These flags are not needed when executing locally
 type Environment struct {
@@ -65,7 +65,7 @@ func New() *Framework {
 		env:         env,
 		isLocalRun:  *fLocal,
 		slow:        *fSlow,
-		force:       *fForceAll,
+		force:       *fForceRun,
 	}
 }
 
@@ -109,7 +109,7 @@ func Run(t *testing.T) {
 // If skip is false and an error is returned, the test suite is failed.
 func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) {
 
-	// If -nomad.force is set, skip all constraint checks
+	// If -forceRun is set, skip all constraint checks
 	if !f.force {
 		// If this is a local run, check that the suite supports running locally
 		if !s.CanRunLocal && f.isLocalRun {
