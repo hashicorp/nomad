@@ -256,6 +256,15 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
+	// Set up the TLS configuration properly if we have one.
+	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
+	// constructor-type actions like this.
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
+		if err := config.TLSConfig.SetChecksum(); err != nil {
+			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
+		}
+	}
+
 	if dev {
 		// Skip validation for dev mode
 		return config
@@ -317,15 +326,6 @@ func (c *Command) readConfig() *Config {
 	}
 	if config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
-	}
-
-	// Set up the TLS configuration properly if we have one.
-	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
-	// constructor-type actions like this.
-	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
-		if err := config.TLSConfig.SetChecksum(); err != nil {
-			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
-		}
 	}
 
 	return config
