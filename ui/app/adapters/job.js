@@ -1,5 +1,4 @@
 import { inject as service } from '@ember/service';
-import { assign } from '@ember/polyfills';
 import Watchable from './watchable';
 
 export default Watchable.extend({
@@ -21,12 +20,6 @@ export default Watchable.extend({
         job.Namespace = namespace ? namespace.get('id') : 'default';
       });
       return data;
-    });
-  },
-
-  findRecordSummary(modelName, name, snapshot, namespaceQuery) {
-    return this.ajax(`${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`, 'GET', {
-      data: assign(this.buildQuery() || {}, namespaceQuery),
     });
   },
 
