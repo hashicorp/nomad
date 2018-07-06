@@ -1,6 +1,6 @@
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
-import queryString from 'npm:query-string';
+import queryString from 'query-string';
 
 export default ApplicationSerializer.extend({
   attrs: {

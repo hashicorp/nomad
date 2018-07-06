@@ -3,8 +3,8 @@ import { computed, observer } from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { guidFor, copy } from '@ember/object/internals';
-import d3 from 'npm:d3-selection';
-import 'npm:d3-transition';
+import d3 from 'd3-selection';
+import 'd3-transition';
 import WindowResizable from '../mixins/window-resizable';
 import styleStringProperty from '../utils/properties/style-string';
 
