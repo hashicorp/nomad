@@ -1,4 +1,5 @@
 import EmberObject from '@ember/object';
+import { getOwner } from '@ember/application';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { test } from 'ember-qunit';
@@ -8,32 +9,50 @@ import moduleForAdapter from '../../helpers/module-for-adapter';
 
 moduleForAdapter('job', 'Unit | Adapter | Job', {
   needs: [
+    'adapter:application',
     'adapter:job',
-    'service:token',
-    'service:system',
+    'adapter:namespace',
+    'model:task-group',
     'model:allocation',
     'model:deployment',
     'model:evaluation',
     'model:job-summary',
     'model:job-version',
     'model:namespace',
-    'adapter:application',
+    'model:task-group-summary',
+    'serializer:namespace',
+    'serializer:job',
+    'serializer:job-summary',
+    'service:token',
+    'service:system',
     'service:watchList',
+    'transform:fragment',
+    'transform:fragment-array',
   ],
   beforeEach() {
     window.sessionStorage.clear();
+    window.localStorage.clear();
 
     this.server = startMirage();
+    this.server.create('namespace');
+    this.server.create('namespace', { id: 'some-namespace' });
     this.server.create('node');
-    this.server.create('job', { id: 'job-1' });
+    this.server.create('job', { id: 'job-1', namespaceId: 'default' });
     this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
+
+    this.system = getOwner(this).lookup('service:system');
+    this.system.get('namespaces');
+
+    // Reset the handledRequests array to avoid accounting for this
+    // namespaces request everywhere.
+    this.server.pretender.handledRequests.length = 0;
   },
   afterEach() {
     this.server.shutdown();
   },
 });
 
-test('The job summary is stitched into the job request', function(assert) {
+test('The job endpoint is the only required endpoint for fetching a job', function(assert) {
   const { pretender } = this.server;
   const jobName = 'job-1';
   const jobNamespace = 'default';
@@ -43,8 +62,45 @@ test('The job summary is stitched into the job request', function(assert) {
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    ['/v1/namespaces', `/v1/job/${jobName}`],
-    'The two requests made are /namespaces and /job/:id'
+    [`/v1/job/${jobName}`],
+    'The only request made is /job/:id'
+  );
+});
+
+test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', function(assert) {
+  window.localStorage.nomadActiveNamespace = 'some-namespace';
+
+  const { pretender } = this.server;
+  const jobName = 'job-1';
+  const jobNamespace = 'default';
+  const jobId = JSON.stringify([jobName, jobNamespace]);
+
+  this.system.get('namespaces');
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
+
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}`],
+      'The one request made is /job/:id with no namespace query param'
+    );
+  });
+});
+
+test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', function(assert) {
+  window.localStorage.nomadActiveNamespace = 'red-herring';
+
+  const { pretender } = this.server;
+  const jobName = 'job-1';
+  const jobNamespace = 'default';
+  const jobId = JSON.stringify([jobName, jobNamespace]);
+
+  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+
+  assert.deepEqual(
+    pretender.handledRequests.mapBy('url'),
+    [`/v1/job/${jobName}`],
+    'The request made is /job/:id with no namespace query param'
   );
 });
 
@@ -58,8 +114,8 @@ test('When the job has a namespace other than default, it is in the URL', functi
 
   assert.deepEqual(
     pretender.handledRequests.mapBy('url'),
-    ['/v1/namespaces', `/v1/job/${jobName}?namespace=${jobNamespace}`],
-    'The two requests made are /namespaces and /job/:id?namespace=:namespace'
+    [`/v1/job/${jobName}?namespace=${jobNamespace}`],
+    'The only request made is /job/:id?namespace=:namespace'
   );
 });
 
@@ -103,11 +159,6 @@ test('findAll can be watched', function(assert) {
   request();
   assert.equal(
     pretender.handledRequests[0].url,
-    '/v1/namespaces',
-    'First request is for namespaces'
-  );
-  assert.equal(
-    pretender.handledRequests[1].url,
     '/v1/jobs?index=1',
     'Second request is a blocking request for jobs'
   );
@@ -115,7 +166,7 @@ test('findAll can be watched', function(assert) {
   return wait().then(() => {
     request();
     assert.equal(
-      pretender.handledRequests[2].url,
+      pretender.handledRequests[1].url,
       '/v1/jobs?index=2',
       'Third request is a blocking request with an incremented index param'
     );
@@ -137,11 +188,6 @@ test('findRecord can be watched', function(assert) {
   request();
   assert.equal(
     pretender.handledRequests[0].url,
-    '/v1/namespaces',
-    'First request is for namespaces'
-  );
-  assert.equal(
-    pretender.handledRequests[1].url,
     '/v1/job/job-1?index=1',
     'Second request is a blocking request for job-1'
   );
@@ -149,7 +195,7 @@ test('findRecord can be watched', function(assert) {
   return wait().then(() => {
     request();
     assert.equal(
-      pretender.handledRequests[2].url,
+      pretender.handledRequests[1].url,
       '/v1/job/job-1?index=2',
       'Third request is a blocking request with an incremented index param'
     );
@@ -164,11 +210,13 @@ test('relationships can be reloaded', function(assert) {
   const mockModel = makeMockModel(plainId);
 
   this.subject().reloadRelationship(mockModel, 'summary');
-  assert.equal(
-    pretender.handledRequests[0].url,
-    `/v1/job/${plainId}/summary`,
-    'Relationship was reloaded'
-  );
+  return wait().then(() => {
+    assert.equal(
+      pretender.handledRequests[0].url,
+      `/v1/job/${plainId}/summary`,
+      'Relationship was reloaded'
+    );
+  });
 });
 
 test('relationship reloads can be watched', function(assert) {

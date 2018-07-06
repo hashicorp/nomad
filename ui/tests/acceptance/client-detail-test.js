@@ -654,3 +654,45 @@ test('when the node has a drain stategy with a negative deadline, the drain stra
     );
   });
 });
+
+moduleForAcceptance('Acceptance | client detail (multi-namespace)', {
+  beforeEach() {
+    server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
+    node = server.db.nodes[0];
+
+    // Related models
+    server.create('namespace');
+    server.create('namespace', { id: 'other-namespace' });
+
+    server.create('agent');
+
+    // Make a job for each namespace, but have both scheduled on the same node
+    server.create('job', { id: 'job-1', namespaceId: 'default', createAllocations: false });
+    server.createList('allocation', 3, { nodeId: node.id });
+
+    server.create('job', { id: 'job-2', namespaceId: 'other-namespace', createAllocations: false });
+    server.createList('allocation', 3, { nodeId: node.id, jobId: 'job-2' });
+  },
+});
+
+test('when the node has allocations on different namespaces, the associated jobs are fetched correctly', function(assert) {
+  window.localStorage.nomadActiveNamespace = 'other-namespace';
+
+  visit(`/clients/${node.id}`);
+
+  andThen(() => {
+    assert.equal(
+      findAll('[data-test-allocation]').length,
+      server.db.allocations.length,
+      'All allocations are scheduled on this node'
+    );
+    assert.ok(
+      server.pretender.handledRequests.findBy('url', '/v1/job/job-1'),
+      'Job One fetched correctly'
+    );
+    assert.ok(
+      server.pretender.handledRequests.findBy('url', '/v1/job/job-2?namespace=other-namespace'),
+      'Job Two fetched correctly'
+    );
+  });
+});

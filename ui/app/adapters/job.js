@@ -1,18 +1,8 @@
 import { inject as service } from '@ember/service';
-import { assign } from '@ember/polyfills';
 import Watchable from './watchable';
 
 export default Watchable.extend({
   system: service(),
-
-  buildQuery() {
-    const namespace = this.get('system.activeNamespace.id');
-
-    if (namespace && namespace !== 'default') {
-      return { namespace };
-    }
-    return {};
-  },
 
   findAll() {
     const namespace = this.get('system.activeNamespace');
@@ -24,12 +14,6 @@ export default Watchable.extend({
     });
   },
 
-  findRecordSummary(modelName, name, snapshot, namespaceQuery) {
-    return this.ajax(`${this.buildURL(modelName, name, snapshot, 'findRecord')}/summary`, 'GET', {
-      data: assign(this.buildQuery() || {}, namespaceQuery),
-    });
-  },
-
   findRecord(store, type, id, snapshot) {
     const [, namespace] = JSON.parse(id);
     const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
@@ -37,40 +21,31 @@ export default Watchable.extend({
     return this._super(store, type, id, snapshot, namespaceQuery);
   },
 
+  urlForFindAll() {
+    const url = this._super(...arguments);
+    const namespace = this.get('system.activeNamespace.id');
+    return associateNamespace(url, namespace);
+  },
+
   urlForFindRecord(id, type, hash) {
     const [name, namespace] = JSON.parse(id);
     let url = this._super(name, type, hash);
-    if (namespace && namespace !== 'default') {
-      url += `?namespace=${namespace}`;
-    }
-    return url;
+    return associateNamespace(url, namespace);
   },
 
   xhrKey(url, method, options = {}) {
     const plainKey = this._super(...arguments);
     const namespace = options.data && options.data.namespace;
-    if (namespace) {
-      return `${plainKey}?namespace=${namespace}`;
-    }
-    return plainKey;
+    return associateNamespace(plainKey, namespace);
   },
 
   relationshipFallbackLinks: {
     summary: '/summary',
   },
 
-  findAllocations(job) {
-    const url = `${this.buildURL('job', job.get('id'), job, 'findRecord')}/allocations`;
-    return this.ajax(url, 'GET', { data: this.buildQuery() }).then(allocs => {
-      return this.store.pushPayload('allocation', {
-        allocations: allocs,
-      });
-    });
-  },
-
   fetchRawDefinition(job) {
-    const url = this.buildURL('job', job.get('id'), job, 'findRecord');
-    return this.ajax(url, 'GET', { data: this.buildQuery() });
+    const url = this.urlForFindRecord(job.get('id'), 'job');
+    return this.ajax(url, 'GET');
   },
 
   forcePeriodic(job) {
@@ -85,6 +60,13 @@ export default Watchable.extend({
     return this.ajax(url, 'DELETE');
   },
 });
+
+function associateNamespace(url, namespace) {
+  if (namespace && namespace !== 'default') {
+    url += `?namespace=${namespace}`;
+  }
+  return url;
+}
 
 function addToPath(url, extension = '') {
   const [path, params] = url.split('?');
