@@ -1,0 +1,55 @@
+{{#freestyle-usage "dropdown" title="Simple Dropdown"}}
+  {{#power-select
+    options=options
+    selected=selectedOption
+    searchField="name"
+    searchEnabled=(gt options.length 10)
+    onchange=(action (mut selectedOption))
+    as |option|}}
+    {{option.name}}
+  {{/power-select}}
+{{/freestyle-usage}}
+
+{{#freestyle-annotation}}
+  Power Select currently fulfills all of Nomad's dropdown needs out of the box.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "dropdown-sized" title="Dropdown Resized"}}
+  <div class="columns">
+    <div class="column is-3">
+      {{#power-select
+        options=options
+        selected=selectedOption2
+        searchField="name"
+        searchEnabled=(gt options.length 10)
+        onchange=(action (mut selectedOption2))
+        as |option|}}
+        {{option.name}}
+      {{/power-select}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-annotation}}
+  Dropdowns are always 100% wide. To control the width of a dropdown, adjust the dimensions of its container. One way to achieve this is using columns.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "dropdown-search" title="Dropdown with Search"}}
+  <div class="columns">
+    <div class="column is-3">
+      {{#power-select
+        options=manyOptions
+        selected=selectedOption3
+        searchField="name"
+        searchEnabled=(gt manyOptions.length 10)
+        onchange=(action (mut selectedOption3))
+        as |option|}}
+        {{option.name}}
+      {{/power-select}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-annotation}}
+  Whether or not the dropdown has a search box is configurable. Typically the default is to show a search once a dropdown has more than 10 options.
+{{/freestyle-annotation}}

@@ -1,0 +1,156 @@
+{{#freestyle-usage "gutter-nav" title="Gutter Menu"}}
+  <div class="columns">
+    <div class="column is-4">
+      <div class="gutter">
+        <aside class="menu">
+          <p class="menu-label">Places</p>
+          <ul class="menu-list">
+            <li><a href="#" class="is-active">Place One</a></li>
+            <li><a href="#">Place Two</a></li>
+          </ul>
+
+          <p class="menu-label">Features</p>
+          <ul class="menu-list">
+            <li><a href="#">Feature One</a></li>
+            <li><a href="#">Feature Two</a></li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+    <div class="column">
+      <div class="mock-content">
+        <div class="mock-vague"></div>
+      </div>
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "gutter-nav-rich-components" title="Gutter Navigation with Rich Components"}}
+  <div class="columns">
+    <div class="column is-4">
+      <div class="gutter">
+        <aside class="menu">
+          <p class="menu-label">Places</p>
+          <ul class="menu-list">
+            <li>
+              <div class="menu-item">
+                {{#power-select
+                  selected=(or selection "One")
+                  options=(array "One" "Two" "Three")
+                  onchange=(action (mut selection))
+                  as |option|}}
+                  {{option}}
+                {{/power-select}}
+              </div>
+            </li>
+            <li><a href="#" class="is-active">Place One</a></li>
+            <li><a href="#">Place Two</a></li>
+          </ul>
+
+          <p class="menu-label">Features</p>
+          <ul class="menu-list">
+            <li><a href="#">Feature One</a></li>
+            <li><a href="#">Feature Two</a></li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+    <div class="column">
+      <div class="mock-content">
+        <div class="mock-vague"></div>
+      </div>
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  In order to keep the gutter navigation streamlined and easy to navigation, rich components should be avoided when possible. When not possible, they should be kept near the top.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "gutter-nav-many-items" title="Hypothetical Gutter Navigation with Many Items"}}
+  <div class="columns">
+    <div class="column is-4">
+      <div class="gutter">
+        <aside class="menu">
+          <p class="menu-label">Places</p>
+          <ul class="menu-list">
+            {{#each (array "One Two" "Three" "Four" "Five" "Six" "Seven") as |item|}}
+              <li><a href="#">Place {{item}}</a></li>
+            {{/each}}
+          </ul>
+
+          <p class="menu-label">Features</p>
+          <ul class="menu-list">
+            {{#each (array "One Two" "Three" "Four" "Five" "Six" "Seven") as |item|}}
+              <li><a href="#">Feature {{item}}</a></li>
+            {{/each}}
+          </ul>
+
+          <p class="menu-label">Other</p>
+          <ul class="menu-list">
+            <li><a href="#" class="is-active">The one that didn't fit in</a></li>
+          </ul>
+
+          <p class="menu-label">Things</p>
+          <ul class="menu-list">
+            {{#each (array "One Two" "Three" "Four" "Five" "Six" "Seven") as |item|}}
+              <li><a href="#">Thing {{item}}</a></li>
+            {{/each}}
+          </ul>
+        </aside>
+      </div>
+    </div>
+    <div class="column">
+      <div class="mock-content">
+        <div class="mock-vague"></div>
+      </div>
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  There will only ever be one gutter menu in the Nomad UI, but it helps to imagine a situation where there are many navigation items in the gutter.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "gutter-nav-icon-items" title="Hypothetical Gutter Navigation with Icon Items"}}
+  <div class="columns">
+    <div class="column is-4">
+      <div class="gutter">
+        <aside class="menu">
+          <p class="menu-label">Places</p>
+          <ul class="menu-list">
+            <li><a href="#">{{x-icon "clock"}} Place One</a></li>
+            <li><a href="#" class="is-active">{{x-icon "history"}} Place Two</a></li>
+          </ul>
+
+          <p class="menu-label">Features</p>
+          <ul class="menu-list">
+            <li><a href="#">{{x-icon "warning"}} Feature One</a></li>
+            <li><a href="#">{{x-icon "media-pause"}} Feature Two</a></li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+    <div class="column">
+      <div class="mock-content">
+        <div class="mock-vague"></div>
+      </div>
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  In the future, the gutter menu may have icons.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "gutter-nav-global" title="Global Gutter Navigation"}}
+  <div class="columns">
+    <div class="column is-4">
+      {{#gutter-menu}}
+        {{!-- Page content here --}}
+      {{/gutter-menu}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Since there will only ever be one gutter menu in the UI, it makes sense to express the menu as a singleton component. This is what that singleton component looks like.</p>
+
+  <p><strong>Note:</strong> Normally the gutter menu is rendered within a page layout and is fixed position. The columns shown in this example are only to imitate the actual width without applying fixed positioning.</p>
+{{/freestyle-annotation}}
