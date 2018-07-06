@@ -2,11 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { run } from '@ember/runloop';
 import { copy } from '@ember/object/internals';
-import JSONFormatterPkg from 'npm:json-formatter-js';
-
-// json-formatter-js is packaged in a funny way that ember-cli-browserify
-// doesn't unwrap properly.
-const { default: JSONFormatter } = JSONFormatterPkg;
+import JSONFormatter from 'json-formatter-js';
 
 export default Component.extend({
   classNames: ['json-viewer'],

@@ -4,7 +4,7 @@ import { assert } from '@ember/debug';
 import Evented from '@ember/object/evented';
 import EmberObject, { computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
-import queryString from 'npm:query-string';
+import queryString from 'query-string';
 import { task } from 'ember-concurrency';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';

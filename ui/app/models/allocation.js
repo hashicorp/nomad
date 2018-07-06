@@ -4,7 +4,7 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import intersection from 'npm:lodash.intersection';
+import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import AllocationStats from '../utils/classes/allocation-stats';
 
