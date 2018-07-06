@@ -1,7 +1,7 @@
 import { find, findAll } from 'ember-native-dom-helpers';
 import { test, moduleForComponent } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
-import flat from 'npm:flat';
+import flat from 'flat';
 
 const { flatten } = flat;
 
@@ -59,9 +59,7 @@ test('should render the full path of key/value pair from the root of the object'
   assert.equal(deepRow.querySelector('[data-test-value]').textContent.trim(), 'properties');
 });
 
-test('should render a row for key/value pairs even when the value is another object', function(
-  assert
-) {
+test('should render a row for key/value pairs even when the value is another object', function(assert) {
   this.set('attributes', commonAttributes);
   this.render(hbs`{{attributes-table attributes=attributes}}`);
 
