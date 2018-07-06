@@ -125,6 +125,7 @@ export default Factory.extend({
     );
 
     const job = allocation.jobId ? server.db.jobs.find(allocation.jobId) : pickOne(server.db.jobs);
+    const namespace = allocation.namespace || job.namespace;
     const node = allocation.nodeId
       ? server.db.nodes.find(allocation.nodeId)
       : pickOne(server.db.nodes);
@@ -147,6 +148,7 @@ export default Factory.extend({
     );
 
     allocation.update({
+      namespace,
       jobId: job.id,
       nodeId: node.id,
       taskStateIds: states.mapBy('id'),
