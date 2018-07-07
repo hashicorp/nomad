@@ -13,6 +13,7 @@ Router.map(function() {
       this.route('definition');
       this.route('versions');
       this.route('deployments');
+      this.route('evaluations');
     });
   });
 
