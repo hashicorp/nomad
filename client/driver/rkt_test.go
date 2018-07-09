@@ -335,11 +335,11 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	require := assert.New(t)
 
 	task := &structs.Task{
-		Name:   "etcd",
+		Name:   "redis",
 		Driver: "rkt",
 		User:   "nobody",
 		Config: map[string]interface{}{
-			"image": "docker://redis:3.2",
+			"image": "docker://redis:4-alpine",
 			"group": "nogroup",
 		},
 		LogConfig: &structs.LogConfig{
@@ -357,9 +357,9 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	d := NewRktDriver(tctx.DriverCtx)
 
 	_, err := d.Prestart(tctx.ExecCtx, task)
-	require.Nil(err)
+	require.NoError(err)
 	resp, err := d.Start(tctx.ExecCtx, task)
-	require.Nil(err)
+	require.NoError(err)
 	defer resp.Handle.Kill()
 
 	timeout := time.Duration(testutil.TestMultiplier()*15) * time.Second
@@ -368,10 +368,11 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	defer cancel()
 
 	// WaitUntil we can determine the user/group redis is running as
-	expected := []byte("redis-server *:6379         nobody   nogroup\n")
+	expected := []byte("nobody   nogroup  redis-server\n")
 	testutil.WaitForResult(func() (bool, error) {
-		raw, code, err := resp.Handle.Exec(ctx, "/bin/bash", []string{"-c", "ps -eo args,user,group | grep ^redis"})
+		raw, code, err := resp.Handle.Exec(ctx, "/bin/sh", []string{"-c", "ps -o user,group,args | grep 'redis-server$'"})
 		if err != nil {
+			err = fmt.Errorf("original error: %v; code: %d; raw output: %s", err, code, string(raw))
 			return false, err
 		}
 		if code != 0 {
@@ -382,7 +383,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	require.Nil(resp.Handle.Kill())
+	require.NoError(resp.Handle.Kill())
 }
 
 func TestRktTrustPrefix(t *testing.T) {
@@ -460,10 +461,10 @@ func TestRktDriver_PortMapping(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name:   "etcd",
+		Name:   "redis",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:3.2",
+			"image": "docker://redis:4-alpine",
 			"port_map": []map[string]string{
 				{
 					"main": "6379-tcp",
@@ -529,10 +530,10 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name:   "etcd",
+		Name:   "redis",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:latest",
+			"image": "docker://redis:4-alpine",
 			"net":   []string{"host"},
 		},
 		LogConfig: &structs.LogConfig{
