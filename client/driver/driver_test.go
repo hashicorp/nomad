@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -116,11 +116,13 @@ type testContext struct {
 func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	cfg := testConfig(t)
 	cfg.Node = mock.Node()
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, uuid.Generate()))
+	alloc := mock.Alloc()
+	alloc.NodeID = cfg.Node.ID
+
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(cfg.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	alloc := mock.Alloc()
 
 	// Build a temp driver so we can call FSIsolation and build the task dir
 	tmpdrv, err := NewDriver(task.Driver, NewEmptyDriverContext())
