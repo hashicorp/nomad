@@ -277,7 +277,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 		Name:   "rkttest_alpine",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image":   "docker://redis:4-alpine",
+			"image":   "docker://redis:3.2-alpine",
 			"command": "/bin/sh",
 			"args": []string{
 				"-c",
@@ -343,7 +343,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 		Driver: "rkt",
 		User:   "nobody",
 		Config: map[string]interface{}{
-			"image":   "docker://redis:4-alpine",
+			"image":   "docker://redis:3.2-alpine",
 			"group":   "nogroup",
 			"command": "sleep",
 			"args":    []string{"9000"},
@@ -467,7 +467,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 		Name:   "redis",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:4-alpine",
+			"image": "docker://redis:3.2-alpine",
 			"port_map": []map[string]string{
 				{
 					"main": "6379-tcp",
@@ -536,7 +536,7 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 		Name:   "redis",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:4-alpine",
+			"image": "docker://redis:3.2-alpine",
 			"net":   []string{"host"},
 		},
 		LogConfig: &structs.LogConfig{
