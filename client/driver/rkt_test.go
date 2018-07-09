@@ -144,6 +144,8 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
 			"args":         []string{"--version"},
+			// Disable networking to speed up test as it's not needed
+			"net": []string{"none"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -214,6 +216,8 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 			"image":   "coreos.com/etcd:v2.0.4",
 			"command": "/etcd",
 			"args":    []string{"--version"},
+			// Disable networking to speed up test as it's not needed
+			"net": []string{"none"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -273,11 +277,11 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 		Name:   "rkttest_alpine",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image":   "docker://alpine",
+			"image":   "docker://redis:4-alpine",
 			"command": "/bin/sh",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`echo -n %s > foo/%s`, string(exp), file),
+				fmt.Sprintf("echo -n %s > /foo/%s", string(exp), file),
 			},
 			"net":     []string{"none"},
 			"volumes": []string{fmt.Sprintf("%s:/foo", tmpvol)},
@@ -335,12 +339,14 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	require := assert.New(t)
 
 	task := &structs.Task{
-		Name:   "redis",
+		Name:   "sleepy",
 		Driver: "rkt",
 		User:   "nobody",
 		Config: map[string]interface{}{
-			"image": "docker://redis:4-alpine",
-			"group": "nogroup",
+			"image":   "docker://redis:4-alpine",
+			"group":   "nogroup",
+			"command": "sleep",
+			"args":    []string{"9000"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -362,15 +368,12 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	require.NoError(err)
 	defer resp.Handle.Kill()
 
-	timeout := time.Duration(testutil.TestMultiplier()*15) * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	ctx := context.Background()
 
 	// WaitUntil we can determine the user/group redis is running as
-	expected := []byte("nobody   nogroup  redis-server\n")
+	expected := []byte("\nnobody   nogroup  /bin/sleep 9000\n")
 	testutil.WaitForResult(func() (bool, error) {
-		raw, code, err := resp.Handle.Exec(ctx, "/bin/sh", []string{"-c", "ps -o user,group,args | grep 'redis-server$'"})
+		raw, code, err := resp.Handle.Exec(ctx, "ps", []string{"-o", "user,group,args"})
 		if err != nil {
 			err = fmt.Errorf("original error: %v; code: %d; raw output: %s", err, code, string(raw))
 			return false, err
@@ -378,7 +381,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 		if code != 0 {
 			return false, fmt.Errorf("unexpected exit code: %d", code)
 		}
-		return bytes.Equal(expected, raw), fmt.Errorf("expected %q but found %q", expected, raw)
+		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
