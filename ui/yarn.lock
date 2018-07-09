@@ -2019,6 +2019,10 @@ caseless@~0.12.0:
   version "0.12.0"
   resolved "https://registry.yarnpkg.com/caseless/-/caseless-0.12.0.tgz#1b681c21ff84033c826543090689420d187151dc"
 
+ceibo@~2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/ceibo/-/ceibo-2.0.0.tgz#9a61eb054a91c09934588d4e45d9dd2c3bf04eee"
+
 center-align@^0.1.1:
   version "0.1.3"
   resolved "https://registry.yarnpkg.com/center-align/-/center-align-0.1.3.tgz#aa0d32629b6ee972200411cbd4461c907bc2b7ad"
@@ -3119,11 +3123,33 @@ ember-cli-node-assets@^0.1.4:
     lodash "^4.5.1"
     resolve "^1.1.7"
 
+ember-cli-node-assets@^0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/ember-cli-node-assets/-/ember-cli-node-assets-0.2.2.tgz#d2d55626e7cc6619f882d7fe55751f9266022708"
+  dependencies:
+    broccoli-funnel "^1.0.1"
+    broccoli-merge-trees "^1.1.1"
+    broccoli-source "^1.1.0"
+    debug "^2.2.0"
+    lodash "^4.5.1"
+    resolve "^1.1.7"
+
 ember-cli-normalize-entity-name@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/ember-cli-normalize-entity-name/-/ember-cli-normalize-entity-name-1.0.0.tgz#0b14f7bcbc599aa117b5fddc81e4fd03c4bad5b7"
   dependencies:
     silent-error "^1.0.0"
+
+ember-cli-page-object@^1.14.1:
+  version "1.14.1"
+  resolved "https://registry.yarnpkg.com/ember-cli-page-object/-/ember-cli-page-object-1.14.1.tgz#2e3599c204c56440c6c8154fc686c603816f877a"
+  dependencies:
+    ceibo "~2.0.0"
+    ember-cli-babel "^6.6.0"
+    ember-cli-node-assets "^0.2.2"
+    ember-native-dom-helpers "^0.5.3"
+    jquery "^3.2.1"
+    rsvp "^4.7.0"
 
 ember-cli-path-utils@^1.0.0:
   version "1.0.0"
@@ -3522,7 +3548,7 @@ ember-moment@^7.5.0:
     ember-getowner-polyfill "^2.0.1"
     ember-macro-helpers "^0.17.0"
 
-ember-native-dom-helpers@^0.5.4:
+ember-native-dom-helpers@^0.5.3, ember-native-dom-helpers@^0.5.4:
   version "0.5.10"
   resolved "https://registry.yarnpkg.com/ember-native-dom-helpers/-/ember-native-dom-helpers-0.5.10.tgz#9c7172e4ddfa5dd86830c46a936e2f8eca3e5896"
   dependencies:
