@@ -699,9 +699,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 	go h.run()
 
-	// Only return a driver network if *not* using host networking
+	// Do not attempt to retrieve driver network if one won't exist:
+	//  - "host" means the container itself has no networking metadata
+	//  - "none" means no network is configured
+	// https://coreos.com/rkt/docs/latest/networking/overview.html#no-loopback-only-networking
 	var driverNetwork *cstructs.DriverNetwork
-	if network != "host" {
+	if network != "host" && network != "none" {
 		d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID: %s) for task %q", img, uuid, d.taskName)
 		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap, d.logger)
 		if err != nil && !pluginClient.Exited() {
