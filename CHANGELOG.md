@@ -6,6 +6,7 @@ IMPROVEMENTS:
 * telemetry: All client metrics include a new `node_class` tag [[GH-3882](https://github.com/hashicorp/nomad/issues/3882)]
 * telemetry: Added new tags with value of child job id and parent job id for
   parameterized and periodic jobs [[GH-4392](https://github.com/hashicorp/nomad/issues/4392)]
+* vendor: Removed library obsoleted by go 1.8 [[GH-4469](https://github.com/hashicorp/nomad/issues/4469)]
 
 ## 0.8.4 (June 11, 2018)
 

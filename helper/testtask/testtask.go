@@ -12,12 +12,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kardianos/osext"
 )
 
 // Path returns the path to the currently running executable.
 func Path() string {
-	path, err := osext.Executable()
+	path, err := os.Executable()
 	if err != nil {
 		panic(err)
 	}
