@@ -1,6 +1,7 @@
-import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
 function minimumSetup() {
   server.createList('node', 1);
@@ -17,22 +18,17 @@ test('/clients should list one page of clients', function(assert) {
   server.createList('node', nodesCount);
   server.createList('agent', 1);
 
-  visit('/clients');
+  ClientsList.visit();
 
   andThen(() => {
-    assert.equal(findAll('[data-test-client-node-row]').length, pageSize);
-    assert.ok(find('[data-test-pagination]'), 'Pagination found on the page');
+    assert.equal(ClientsList.nodes.length, pageSize);
+    assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
 
-    for (var nodeNumber = 0; nodeNumber < pageSize; nodeNumber++) {
-      const nodeRow = findAll('[data-test-client-node-row]')[nodeNumber];
-      assert.equal(
-        nodeRow.querySelector('[data-test-client-id]').textContent.trim(),
-        sortedNodes[nodeNumber].id.split('-')[0],
-        'Clients are ordered'
-      );
-    }
+    ClientsList.nodes.forEach((node, index) => {
+      assert.equal(node.id, sortedNodes[index].id.split('-')[0], 'Clients are ordered');
+    });
   });
 });
 
@@ -40,51 +36,20 @@ test('each client record should show high-level info of the client', function(as
   minimumSetup();
   const node = server.db.nodes[0];
 
-  visit('/clients');
+  ClientsList.visit();
 
   andThen(() => {
-    const nodeRow = find('[data-test-client-node-row]');
+    const nodeRow = ClientsList.nodes.objectAt(0);
     const allocations = server.db.allocations.where({ nodeId: node.id });
 
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-id]').textContent.trim(),
-      node.id.split('-')[0],
-      'ID'
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-name]').textContent.trim(),
-      node.name,
-      'Name'
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-status]').textContent.trim(),
-      node.status,
-      'Status'
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-drain]').textContent.trim(),
-      node.drain + '',
-      'Draining'
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-eligibility]').textContent.trim(),
-      node.schedulingEligibility,
-      'Eligibility'
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-address]').textContent.trim(),
-      node.httpAddr
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-datacenter]').textContent.trim(),
-      node.datacenter,
-      'Datacenter'
-    );
-    assert.equal(
-      nodeRow.querySelector('[data-test-client-allocations]').textContent.trim(),
-      allocations.length,
-      '# Allocations'
-    );
+    assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
+    assert.equal(nodeRow.name, node.name, 'Name');
+    assert.equal(nodeRow.status, node.status, 'Status');
+    assert.equal(nodeRow.drain, node.drain + '', 'Draining');
+    assert.equal(nodeRow.eligibility, node.schedulingEligibility, 'Eligibility');
+    assert.equal(nodeRow.address, node.httpAddr);
+    assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
+    assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 });
 
@@ -92,9 +57,10 @@ test('each client should link to the client detail page', function(assert) {
   minimumSetup();
   const node = server.db.nodes[0];
 
-  visit('/clients');
+  ClientsList.visit();
+
   andThen(() => {
-    click('[data-test-client-node-row]');
+    ClientsList.nodes.objectAt(0).clickRow();
   });
 
   andThen(() => {
@@ -105,11 +71,11 @@ test('each client should link to the client detail page', function(assert) {
 test('when there are no clients, there is an empty message', function(assert) {
   server.createList('agent', 1);
 
-  visit('/clients');
+  ClientsList.visit();
 
   andThen(() => {
-    assert.ok(find('[data-test-empty-clients-list]'));
-    assert.equal(find('[data-test-empty-clients-list-headline]').textContent, 'No Clients');
+    assert.ok(ClientsList.isEmpty);
+    assert.equal(ClientsList.empty.headline, 'No Clients');
   });
 });
 
@@ -117,15 +83,15 @@ test('when there are clients, but no matches for a search term, there is an empt
   server.createList('agent', 1);
   server.create('node', { name: 'node' });
 
-  visit('/clients');
+  ClientsList.visit();
 
   andThen(() => {
-    fillIn('.search-box input', 'client');
+    ClientsList.search('client');
   });
 
   andThen(() => {
-    assert.ok(find('[data-test-empty-clients-list]'));
-    assert.equal(find('[data-test-empty-clients-list-headline]').textContent, 'No Matches');
+    assert.ok(ClientsList.isEmpty);
+    assert.equal(ClientsList.empty.headline, 'No Matches');
   });
 });
 
@@ -134,14 +100,14 @@ test('when accessing clients is forbidden, show a message with a link to the tok
   server.create('node', { name: 'node' });
   server.pretender.get('/v1/nodes', () => [403, {}, null]);
 
-  visit('/clients');
+  ClientsList.visit();
 
   andThen(() => {
-    assert.equal(find('[data-test-error-title]').textContent, 'Not Authorized');
+    assert.equal(ClientsList.error.title, 'Not Authorized');
   });
 
   andThen(() => {
-    click('[data-test-error-message] a');
+    ClientsList.error.seekHelp();
   });
 
   andThen(() => {
