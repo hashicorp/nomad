@@ -1,48 +1,40 @@
-import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
+import ServersList from 'nomad-ui/tests/pages/servers/list';
 
-function minimumSetup() {
+const minimumSetup = () => {
   server.createList('node', 1);
   server.createList('agent', 1);
-}
+};
+
+const agentSort = leader => (a, b) => {
+  if (`${a.address}:${a.tags.port}` === leader) {
+    return 1;
+  } else if (`${b.address}:${b.tags.port}` === leader) {
+    return -1;
+  }
+  return 0;
+};
 
 moduleForAcceptance('Acceptance | servers list');
 
 test('/servers should list all servers', function(assert) {
-  const agentsCount = 10;
-  const pageSize = 8;
-
   server.createList('node', 1);
-  server.createList('agent', agentsCount);
+  server.createList('agent', 10);
 
   const leader = findLeader(server.schema);
+  const sortedAgents = server.db.agents.sort(agentSort(leader)).reverse();
 
-  visit('/servers');
+  ServersList.visit();
 
   andThen(() => {
-    assert.equal(findAll('[data-test-server-agent-row]').length, pageSize);
+    assert.equal(ServersList.servers.length, ServersList.pageSize, 'List is stopped at pageSize');
 
-    const sortedAgents = server.db.agents
-      .sort((a, b) => {
-        if (`${a.address}:${a.tags.port}` === leader) {
-          return 1;
-        } else if (`${b.address}:${b.tags.port}` === leader) {
-          return -1;
-        }
-        return 0;
-      })
-      .reverse();
-
-    for (var agentNumber = 0; agentNumber < 8; agentNumber++) {
-      const serverRow = findAll('[data-test-server-agent-row]')[agentNumber];
-      assert.equal(
-        serverRow.querySelector('[data-test-server-name]').textContent.trim(),
-        sortedAgents[agentNumber].name,
-        'Servers are ordered'
-      );
-    }
+    ServersList.servers.forEach((server, index) => {
+      assert.equal(server.name, sortedAgents[index].name, 'Servers are ordered');
+    });
   });
 });
 
@@ -50,37 +42,17 @@ test('each server should show high-level info of the server', function(assert) {
   minimumSetup();
   const agent = server.db.agents[0];
 
-  visit('/servers');
+  ServersList.visit();
 
   andThen(() => {
-    const agentRow = find('[data-test-server-agent-row]');
+    const agentRow = ServersList.servers.objectAt(0);
 
-    assert.equal(agentRow.querySelector('[data-test-server-name]').textContent, agent.name, 'Name');
-    assert.equal(
-      agentRow.querySelector('[data-test-server-status]').textContent,
-      agent.status,
-      'Status'
-    );
-    assert.equal(
-      agentRow.querySelector('[data-test-server-is-leader]').textContent,
-      'True',
-      'Leader?'
-    );
-    assert.equal(
-      agentRow.querySelector('[data-test-server-address]').textContent,
-      agent.address,
-      'Address'
-    );
-    assert.equal(
-      agentRow.querySelector('[data-test-server-port]').textContent,
-      agent.serf_port,
-      'Serf Port'
-    );
-    assert.equal(
-      agentRow.querySelector('[data-test-server-datacenter]').textContent,
-      agent.tags.dc,
-      'Datacenter'
-    );
+    assert.equal(agentRow.name, agent.name, 'Name');
+    assert.equal(agentRow.status, agent.status, 'Status');
+    assert.equal(agentRow.leader, 'True', 'Leader?');
+    assert.equal(agentRow.address, agent.address, 'Address');
+    assert.equal(agentRow.serfPort, agent.serf_port, 'Serf Port');
+    assert.equal(agentRow.datacenter, agent.tags.dc, 'Datacenter');
   });
 });
 
@@ -88,13 +60,14 @@ test('each server should link to the server detail page', function(assert) {
   minimumSetup();
   const agent = server.db.agents[0];
 
-  visit('/servers');
+  ServersList.visit();
+
   andThen(() => {
-    click('[data-test-server-agent-row]');
+    ServersList.servers.objectAt(0).clickRow();
   });
 
   andThen(() => {
-    assert.equal(currentURL(), `/servers/${agent.name}`);
+    assert.equal(currentURL(), `/servers/${agent.name}`, 'Now at the server detail page');
   });
 });
 
@@ -102,14 +75,14 @@ test('when accessing servers is forbidden, show a message with a link to the tok
   server.create('agent');
   server.pretender.get('/v1/agent/members', () => [403, {}, null]);
 
-  visit('/servers');
+  ServersList.visit();
 
   andThen(() => {
-    assert.equal(find('[data-test-error-title]').textContent, 'Not Authorized');
+    assert.equal(ServersList.error.title, 'Not Authorized');
   });
 
   andThen(() => {
-    click('[data-test-error-message] a');
+    ServersList.error.seekHelp();
   });
 
   andThen(() => {
