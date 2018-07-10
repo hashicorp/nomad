@@ -106,16 +106,13 @@
             <a href="/guides/operations/outage.html">Outage Recovery</a>
           </li>
 
-          <li<%= sidebar_current("guides-operations-monitoring") %>>
-            <a href="/guides/operations/monitoring/telemetry.html">Monitoring</a>
-            <ul class="nav">
-              <li<%= sidebar_current("guides-operations-monitoring-telemetry") %>>
-                <a href="/guides/operations/monitoring/telemetry.html">Telemetry</a>
-              </li>
-              <li<%= sidebar_current("guides-operations-monitoring-grafana") %>>
-                <a href="/guides/operations/monitoring/nomad-metrics.html">Grafana and Prometheus</a>
-              </li>
-            </ul>
+          <li<%= sidebar_current("guides-monitoring") %>>
+            <a href="/guides/monitoring/monitoring.html">Monitoring and Alerting</a>
+          <ul class="nav">
+            <li<%= sidebar_current("guides-prometheus-metrics") %>>
+              <a href="/guides/monitoring/prometheus-metrics.html">Prometheus</a>
+            </li>
+          </ul>
           </li>
 
           <li<%= sidebar_current("guides-operations-upgrade") %>>
