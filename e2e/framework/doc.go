@@ -8,16 +8,17 @@ before/after each and all tests.
 Writing Tests
 
 Tests follow a similar patterns as go tests. They are functions that must start
-with 'Test' and instead of a *testing.T argument, they must have a receiver that
-implements the TestCase interface. A crude example as follows:
+with 'Test' and instead of a *testing.T argument, a *framework.F is passed and
+they must have a receiver that implements the TestCase interface.
+A crude example as follows:
 
 	// foo_test.go
 	type MyTestCase struct {
 		framework.TC
 	}
 
-	func (tc *MyTestCase) TestMyFoo() {
-		tc.T().Log("bar")
+	func (tc *MyTestCase) TestMyFoo(f *framework.F) {
+		f.T().Log("bar")
 	}
 
 	func TestCalledFromGoTest(t *testing.T){
@@ -30,7 +31,7 @@ implements the TestCase interface. A crude example as follows:
 	}
 
 Test cases should embed the TC struct which satisfies the TestCase interface.
-Optionally a TestCase can also override the Name() function of TC which returns
+Optionally a TestCase can also implement the Name() function which returns
 a string to name the test case. By default the name is the name of the struct
 type, which in the above example would be "MyTestCase"
 
@@ -50,24 +51,27 @@ can be consumed by the tests. For example:
 		jobID string
 	}
 
-	func (tc *ComplexNomadTC) BeforeEach(){
+	func (tc *ComplexNomadTC) BeforeEach(f *framework.F){
 		// Do some complex job setup with a unique prefix string
-		jobID, err := doSomeComplexSetup(tc.Nomad(), tc.Prefix())
-		tc.NoError(err)
-		tc.jobID = jobID
+		jobID, err := doSomeComplexSetup(tc.Nomad(), f.ID())
+		f.NoError(err)
+		f.Set("jobID", jobID)
 	}
 
-	func (tc *ComplexNomadTC) TestSomeScenario(){
-		doTestThingWithJob(tc.T(), tc.Nomad(), tc.jobID)
+	func (tc *ComplexNomadTC) TestSomeScenario(f *framework.F){
+		jobID := f.Value("jobID").(string)
+		doTestThingWithJob(f, tc.Nomad(), jobID)
 	}
 
-	func (tc *ComplexNomadTC) TestOtherScenario(){
-		doOtherTestThingWithJob(tc.T(), tc.Nomad(), tc.jobID)
+	func (tc *ComplexNomadTC) TestOtherScenario(f *framework.F){
+		jobID := f.Value("jobID").(string)
+		doOtherTestThingWithJob(f, tc.Nomad(), jobID)
 	}
 
-	func (tc *ComplexNomadTC) AfterEach(){
+	func (tc *ComplexNomadTC) AfterEach(f *framework.F){
+		jobID := f.Value("jobID").(string)
 		_, _, err := tc.Nomad().Jobs().Deregister(jobID, true, nil)
-		tc.Require().NoError(err)
+		f.NoError(err)
 	}
 
 As demonstrated in the previous example, TC also exposes functions that return
@@ -94,16 +98,27 @@ Parallelism
 The test framework honors go test's parallel feature under certain conditions.
 A TestSuite can be created with the Parallel field set to true to enable
 parallel execution of the test cases of the suite. Tests within a test case
-will always be executed sequentially. TC.T() is NOT safe to call from multiple
-goroutines, therefore TC.T().Parallel() should NEVER be called from a test of a
-TestCase
+will be executed sequentially unless f.T().Parallel() is called. Note that if
+multiple tests are to be executed in parallel, access to TC is note syncronized.
+The *framework.F offers a way to store state between before/after each method if
+desired.
+
+	func (tc *MyTestCase) BeforeEach(f *framework.F){
+		jobID, _ := doSomeComplexSetup(tc.Nomad(), f.ID())
+		f.Set("jobID", jobID)
+	}
+
+	func (tc *MyTestCase) TestParallel(f *framework.F){
+		f.T().Parallel()
+		jobID := f.Value("jobID").(string)
+	}
 
 Since test cases have the potential to work with a shared Nomad cluster in parallel
 any resources created or destroyed must be prefixed with a unique identifier for
-each test case. The TC struct exposes a Parallel() function that will return a
-string that is unique with in a test cases, so multiple tests with in the case
+each test case. The framework.F struct exposes an ID() function that will return a
+string that is unique with in a test. Therefore, multiple tests with in the case
 can reliably create unique IDs between tests and setup/teardown. The string
-returned is 8 alpha numeric characters with a '-' appended.
+returned is 8 alpha numeric characters.
 
 */
 package framework

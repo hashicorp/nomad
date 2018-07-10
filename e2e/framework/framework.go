@@ -145,21 +145,22 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 
 		// Each TestCase runs as a subtest of the TestSuite
 		t.Run(c.Name(), func(t *testing.T) {
-			c.SetT(t)
 			// If the TestSuite has Parallel set, all cases run in parallel
 			if s.Parallel {
 				t.Parallel()
 			}
 
+			f := newF(t)
+
 			// Check if the case includes a before all function
 			if beforeAllTests, ok := c.(BeforeAllTests); ok {
-				beforeAllTests.BeforeAll()
+				beforeAllTests.BeforeAll(f)
 			}
 
 			// Check if the case includes an after all function at the end
 			defer func() {
 				if afterAllTests, ok := c.(AfterAllTests); ok {
-					afterAllTests.AfterAll()
+					afterAllTests.AfterAll(f)
 				}
 			}()
 
@@ -175,23 +176,18 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 				// Test cases are never parallel
 				t.Run(method.Name, func(t *testing.T) {
 
-					// Since the test function interacts with testing.T through
-					// the test case struct, we need to swap the test context for
-					// the duration of the test.
-					parentT := c.T()
-					c.SetT(t)
+					cF := newF(t)
 					if BeforeEachTest, ok := c.(BeforeEachTest); ok {
-						BeforeEachTest.BeforeEach()
+						BeforeEachTest.BeforeEach(cF)
 					}
 					defer func() {
 						if afterEachTest, ok := c.(AfterEachTest); ok {
-							afterEachTest.AfterEach()
+							afterEachTest.AfterEach(cF)
 						}
-						c.SetT(parentT)
 					}()
 
 					//Call the method
-					method.Func.Call([]reflect.Value{reflect.ValueOf(c)})
+					method.Func.Call([]reflect.Value{reflect.ValueOf(c), reflect.ValueOf(cF)})
 				})
 			}
 		})

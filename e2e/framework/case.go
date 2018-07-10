@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestSuite defines a set of test cases and under what conditions to run them
@@ -59,17 +57,10 @@ func (c Constraints) matches(env Environment) error {
 }
 
 // TC is the base test case which should be embedded in TestCase implementations.
-// It also embeds testify assertions configured with the current *testing.T
-// context. For more information on assertions:
-// https://godoc.org/github.com/stretchr/testify/require#Assertions
 type TC struct {
-	*require.Assertions
-	assert *assert.Assertions
-	t      *testing.T
+	t *testing.T
 
 	cluster *ClusterInfo
-	prefix  string
-	name    string
 }
 
 // Nomad returns a configured nomad api client
@@ -77,34 +68,10 @@ func (tc *TC) Nomad() *api.Client {
 	return tc.cluster.NomadClient
 }
 
-// Prefix will return a test case unique prefix which can be used to scope resources
-// during parallel tests.
-func (tc *TC) Prefix() string {
-	return fmt.Sprintf("%s-", tc.cluster.ID)
-}
-
 // Name returns the name of the test case which is set to the name of the
 // implementing type.
 func (tc *TC) Name() string {
 	return tc.cluster.Name
-}
-
-// T retrieves the current *testing.T context
-func (tc *TC) T() *testing.T {
-	return tc.t
-}
-
-// SetT sets the current *testing.T context
-func (tc *TC) SetT(t *testing.T) {
-	tc.t = t
-	tc.Assertions = require.New(t)
-	tc.assert = assert.New(t)
-}
-
-// Require fetches an assert flavor of testify assertions
-// https://godoc.org/github.com/stretchr/testify/assert
-func (tc *TC) Assert() *assert.Assertions {
-	return tc.assert
 }
 
 func (tc *TC) setClusterInfo(info *ClusterInfo) {

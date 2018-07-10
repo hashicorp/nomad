@@ -18,8 +18,8 @@ type SimpleExampleTestCase struct {
 	framework.TC
 }
 
-func (tc *SimpleExampleTestCase) TestExample() {
+func (tc *SimpleExampleTestCase) TestExample(f *framework.F) {
 	jobs, _, err := tc.Nomad().Jobs().List(nil)
-	tc.NoError(err)
-	tc.Empty(jobs)
+	f.NoError(err)
+	f.Empty(jobs)
 }
