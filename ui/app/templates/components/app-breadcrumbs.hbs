@@ -1,0 +1,13 @@
+{{#each breadcrumbs as |breadcrumb index|}}
+  <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+    {{#if breadcrumb.isPending}}
+      <a href="#" aria-label="loading" data-test-breadcrumb="loading">&hellip;</a>
+    {{else}}
+      {{#link-to
+        params=breadcrumb.args
+        data-test-breadcrumb=breadcrumb.args.firstObject}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    {{/if}}
+  </li>
+{{/each}}

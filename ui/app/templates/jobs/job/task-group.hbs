@@ -1,14 +1,3 @@
-{{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb index|}}
-    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
-      {{#link-to
-        data-test-breadcrumb=breadcrumb.label
-        params=breadcrumb.args}}
-        {{breadcrumb.label}}
-      {{/link-to}}
-    </li>
-  {{/each}}
-{{/global-header}}
 {{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
   <div class="tabs is-subnav">
     <ul>
