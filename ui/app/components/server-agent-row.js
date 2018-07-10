@@ -24,11 +24,12 @@ export default Component.extend({
 
     const router = this.get('router');
     const targetURL = router.generate('servers.server', this.get('agent'));
-    const currentURL = `${router.get('rootURL').slice(0, -1)}${router
-      .get('currentURL')
-      .split('?')[0]}`;
+    const currentURL = `${router.get('rootURL').slice(0, -1)}${
+      router.get('currentURL').split('?')[0]
+    }`;
 
-    return currentURL === targetURL;
+    // Account for potential URI encoding
+    return currentURL.replace(/%40/g, '@') === targetURL.replace(/%40/g, '@');
   }),
 
   click() {
