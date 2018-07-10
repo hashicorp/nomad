@@ -20,6 +20,9 @@ module.exports = function(environment) {
 
     APP: {
       blockingQueries: true,
+      mirageScenario: 'smallCluster',
+      mirageWithNamespaces: false,
+      mirageWithTokens: true,
     },
   };
 
