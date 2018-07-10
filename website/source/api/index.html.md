@@ -196,3 +196,14 @@ GET /v1/jobs
 
 Even though these share a path, the `PUT` operation creates a new job whereas
 the `GET` operation reads all jobs.
+
+## HTTP Response Codes
+
+Individual API's will contain further documentation in the case that more
+specific response codes are returned but all clients should handle the following:
+
+* 200 and 204 as success codes.
+* 4xx codes indicate that if a parameter was modified in the request, it could
+  potentially succeed.
+* 403 marks that the client isn't authenticated for the request.
+* 5xx means that the client should not expect the request to succeed if retried.
