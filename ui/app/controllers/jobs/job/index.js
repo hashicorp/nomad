@@ -1,4 +1,5 @@
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
@@ -12,6 +13,8 @@ export default Controller.extend(WithNamespaceResetting, {
   },
 
   currentPage: 1,
+
+  job: alias('model'),
 
   sortProperty: 'name',
   sortDescending: false,
