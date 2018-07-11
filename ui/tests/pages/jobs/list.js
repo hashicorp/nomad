@@ -29,12 +29,12 @@ export default create({
   }),
 
   isEmpty: isPresent('[data-test-empty-jobs-list]'),
-
   emptyState: {
     headline: text('[data-test-empty-jobs-list-headline]'),
   },
 
   error: {
+    isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
