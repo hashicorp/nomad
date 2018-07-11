@@ -361,7 +361,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
   soft limiting is used and containers are able to burst above their CPU limit
   when there is idle capacity.
 
-* `cpu_cfs_period` - (Optional) An integer value that specifies the duration in microseconds of the period during which the CPU usage quota is measured. The default is 100000 (0.1 second) and the maximum allowed value is 1000000 (1 second). See [here](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu#sect-cfs) for more details.
+* `cpu_cfs_period` - (Optional) An integer value that specifies the duration in microseconds of the period
+  during which the CPU usage quota is measured. The default is 100000 (0.1 second) and the maximum allowed
+  value is 1000000 (1 second). See [here](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu#sect-cfs)
+  for more details.
 
 * `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's
    IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
