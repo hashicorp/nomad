@@ -51,7 +51,7 @@ func (tr *TaskRunner) prerun() error {
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrerunHook)
 		if !ok {
-			tr.logger.Trace("skipping: not a prerun hook", "name", hook.Name())
+			tr.logger.Trace("skipping non-prerun hook", "name", hook.Name())
 			continue
 		}
 
@@ -65,7 +65,7 @@ func (tr *TaskRunner) prerun() error {
 
 		origHookState := tr.localState.Hooks[name]
 		if origHookState != nil && origHookState.PrerunDone {
-			tr.logger.Trace("skipping: prerun hook already done", "name", pre.Name())
+			tr.logger.Trace("skipping done prerun hook", "name", pre.Name())
 			continue
 		}
 
