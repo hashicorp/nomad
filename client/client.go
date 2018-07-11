@@ -1961,10 +1961,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	c.configLock.RLock()
 	arConf := &allocrunnerv2.Config{
+		Alloc:        alloc,
 		Logger:       logger,
 		ClientConfig: c.config,
-		Alloc:        alloc,
-		StateDB:      nil, //FIXME ?
+		StateDB:      c.stateDB,
 	}
 	c.configLock.RUnlock()
 
