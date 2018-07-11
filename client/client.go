@@ -1952,7 +1952,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	//XXX FIXME
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:  "nomad",
-		Level: hclog.LevelFromString("DEBUG"),
+		Level: hclog.LevelFromString(c.configCopy.LogLevel),
 	})
 
 	c.configLock.RLock()
