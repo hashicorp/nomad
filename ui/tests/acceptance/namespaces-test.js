@@ -1,6 +1,6 @@
-import { visit, find, findAll, click } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 moduleForAcceptance('Acceptance | namespaces (disabled)', {
   beforeEach() {
@@ -11,15 +11,15 @@ moduleForAcceptance('Acceptance | namespaces (disabled)', {
 });
 
 test('the namespace switcher is not in the gutter menu', function(assert) {
-  visit('/jobs');
+  JobsList.visit();
 
   andThen(() => {
-    assert.notOk(find('.gutter .menu .namespace-switcher'), 'No namespace switcher found');
+    assert.notOk(JobsList.namespaceSwitcher.isPresent, 'No namespace switcher found');
   });
 });
 
 test('the jobs request is made with no query params', function(assert) {
-  visit('/jobs');
+  JobsList.visit();
 
   andThen(() => {
     const request = server.pretender.handledRequests.findBy('url', '/v1/jobs');
@@ -39,47 +39,45 @@ moduleForAcceptance('Acceptance | namespaces (enabled)', {
 test('the namespace switcher lists all namespaces', function(assert) {
   const namespaces = server.db.namespaces;
 
-  visit('/jobs');
+  JobsList.visit();
 
   andThen(() => {
-    assert.ok(find('[data-test-namespace-switcher]'), 'Namespace switcher found');
+    assert.ok(JobsList.namespaceSwitcher.isPresent, 'Namespace switcher found');
   });
 
   andThen(() => {
-    click('[data-test-namespace-switcher] .ember-power-select-trigger');
+    JobsList.namespaceSwitcher.open();
   });
 
   andThen(() => {
     // TODO this selector should be scoped to only the namespace switcher options,
     // but ember-wormhole makes that difficult.
     assert.equal(
-      findAll('.ember-power-select-option').length,
+      JobsList.namespaceSwitcher.options.length,
       namespaces.length,
       'All namespaces are in the switcher'
     );
     assert.equal(
-      find('.ember-power-select-option').textContent.trim(),
+      JobsList.namespaceSwitcher.options.objectAt(0).label,
       'Default Namespace',
       'The first namespace is always the default one'
     );
 
-    namespaces
-      .slice(1)
-      .sortBy('name')
-      .forEach((namespace, index) => {
-        assert.equal(
-          findAll('.ember-power-select-option')[index + 1].textContent.trim(),
-          namespace.name,
-          `index ${index + 1}: ${namespace.name}`
-        );
-      });
+    const sortedNamespaces = namespaces.slice(1).sortBy('name');
+    JobsList.namespaceSwitcher.options.forEach((option, index) => {
+      // Default Namespace handled separately
+      if (index === 0) return;
+
+      const namespace = sortedNamespaces[index - 1];
+      assert.equal(option.label, namespace.name, `index ${index}: ${namespace.name}`);
+    });
   });
 });
 
 test('changing the namespace sets the namespace in localStorage', function(assert) {
   const namespace = server.db.namespaces[1];
 
-  visit('/jobs');
+  JobsList.visit();
 
   selectChoose('[data-test-namespace-switcher]', namespace.name);
   andThen(() => {
@@ -94,7 +92,7 @@ test('changing the namespace sets the namespace in localStorage', function(asser
 test('changing the namespace refreshes the jobs list when on the jobs page', function(assert) {
   const namespace = server.db.namespaces[1];
 
-  visit('/jobs');
+  JobsList.visit();
 
   andThen(() => {
     const requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
@@ -106,6 +104,7 @@ test('changing the namespace refreshes the jobs list when on the jobs page', fun
     );
   });
 
+  // TODO: handle this with Page Objects
   selectChoose('[data-test-namespace-switcher]', namespace.name);
 
   andThen(() => {
