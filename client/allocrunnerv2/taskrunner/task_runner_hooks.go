@@ -61,16 +61,13 @@ func (tr *TaskRunner) prerun() error {
 			TaskEnv: tr.envBuilder.Build(),
 		}
 
-		tr.state.RLock()
-		hookState := tr.state.Hooks[name]
-		if hookState != nil {
+		origHookState := tr.localState.Hooks[name]
+		if origHookState != nil && origHookState.PrerunDone {
 			// Hook already ran, skip
-			tr.state.RUnlock()
 			continue
 		}
 
-		req.VaultToken = tr.state.VaultToken
-		tr.state.RUnlock()
+		req.VaultToken = tr.localState.VaultToken
 
 		// Time the prerun hook
 		var start time.Time
@@ -87,25 +84,23 @@ func (tr *TaskRunner) prerun() error {
 
 		// Store the hook state
 		{
-			tr.state.Lock()
-			hookState, ok := tr.state.Hooks[name]
+			hookState, ok := tr.localState.Hooks[name]
 			if !ok {
 				hookState = &state.HookState{}
-				tr.state.Hooks[name] = hookState
+				tr.localState.Hooks[name] = hookState
 			}
 
 			if resp.HookData != nil {
 				hookState.Data = resp.HookData
+				hookState.PrerunDone = resp.Done
 			}
 
-			// XXX Detect if state has changed so that we can signal to the
-			// alloc runner precisly
-			/*
-				if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
-					tr.logger.Error("failed to save state", "error", err)
+			// Persist local state if the hook state has changed
+			if !hookState.Equal(origHookState) {
+				if err := tr.persistLocalState(); err != nil {
+					return err
 				}
-			*/
-			tr.state.Unlock()
+			}
 		}
 
 		// Store the environment variables returned by the hook
