@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
@@ -31,8 +32,11 @@ type allocRunner struct {
 	alloc     *structs.Allocation
 	allocLock sync.RWMutex
 
+	//XXX implement for local state
 	// state captures the state of the alloc runner
 	state *state.State
+
+	stateDB *bolt.DB
 
 	// allocDir is used to build the allocations directory structure.
 	allocDir *allocdir.AllocDir
@@ -56,6 +60,7 @@ func NewAllocRunner(config *Config) *allocRunner {
 		tasks:        make(map[string]*taskrunner.TaskRunner),
 		waitCh:       make(chan struct{}),
 		updateCh:     make(chan *structs.Allocation),
+		stateDB:      config.StateDB,
 	}
 
 	// Create alloc dir
@@ -158,6 +163,7 @@ func (ar *allocRunner) runTask(alloc *structs.Allocation, task *structs.Task) er
 		Task:         task,
 		TaskDir:      ar.allocDir.NewTaskDir(task.Name),
 		Logger:       ar.logger,
+		StateDB:      ar.stateDB,
 	}
 	tr, err := taskrunner.NewTaskRunner(config)
 	if err != nil {
