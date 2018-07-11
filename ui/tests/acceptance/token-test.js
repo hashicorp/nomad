@@ -1,7 +1,10 @@
-import { find, visit } from 'ember-native-dom-helpers';
+import { find } from 'ember-native-dom-helpers';
 import { test, skip } from 'ember-qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
+import Jobs from 'nomad-ui/tests/pages/jobs/list';
+import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
+import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 
 let job;
 let node;
@@ -39,8 +42,8 @@ skip('the X-Nomad-Token header gets sent with requests once it is set', function
   const { secretId } = managementToken;
   let requestPosition = 0;
 
-  visit(`/jobs/${job.id}`);
-  visit(`/clients/${node.id}`);
+  JobDetail.visit({ id: job.id });
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
@@ -58,8 +61,8 @@ skip('the X-Nomad-Token header gets sent with requests once it is set', function
     Tokens.secret(secretId).submit();
   });
 
-  visit(`/jobs/${job.id}`);
-  visit(`/clients/${node.id}`);
+  JobDetail.visit({ id: job.id });
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     const newRequests = server.pretender.handledRequests.slice(requestPosition);
@@ -147,7 +150,7 @@ test('a success message and associated policies are shown when authenticating su
 test('setting a token clears the store', function(assert) {
   const { secretId } = clientToken;
 
-  visit('/jobs');
+  Jobs.visit();
 
   andThen(() => {
     assert.ok(find('.job-row'), 'Jobs found');
@@ -166,7 +169,7 @@ test('setting a token clears the store', function(assert) {
     });
   });
 
-  visit('/jobs');
+  Jobs.visit();
 
   // If jobs are lingering in the store, they would show up
   assert.notOk(find('[data-test-job-row]'), 'No jobs found');
