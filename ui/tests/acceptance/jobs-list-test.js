@@ -1,4 +1,4 @@
-import { click, find, findAll, currentURL, visit, fillIn } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -11,7 +11,7 @@ moduleForAcceptance('Acceptance | jobs list', {
 });
 
 test('visiting /jobs', function(assert) {
-  visit('/jobs');
+  JobsList.visit();
 
   andThen(() => {
     assert.equal(currentURL(), '/jobs');
@@ -118,7 +118,6 @@ test('when the namespace query param is set, only matching jobs are shown and th
 test('when accessing jobs is forbidden, show a message with a link to the tokens page', function(assert) {
   server.pretender.get('/v1/jobs', () => [403, {}, null]);
 
-  visit('/jobs');
   JobsList.visit();
 
   andThen(() => {
