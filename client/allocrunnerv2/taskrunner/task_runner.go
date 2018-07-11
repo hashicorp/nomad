@@ -1,12 +1,15 @@
 package taskrunner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -15,7 +18,16 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
+	oldstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/ugorji/go/codec"
+	"golang.org/x/crypto/blake2b"
+)
+
+var (
+	// taskRunnerStateAllKey holds all the task runners state. At the moment
+	// there is no need to split it
+	taskRunnerStateAllKey = []byte("simple-all")
 )
 
 type TaskRunner struct {
@@ -29,8 +41,19 @@ type TaskRunner struct {
 
 	clientConfig *config.Config
 
-	// state captures the state of the task runner
-	state *state.State
+	// state captures the state of the task for updating the allocation
+	state *structs.TaskState
+
+	// localState captures the node-local state of the task for when the
+	// Nomad agent restarts
+	localState *state.LocalState
+
+	// stateDB is for persisting localState
+	stateDB *bolt.DB
+
+	// persistedHash is the hash of the last persisted state for skipping
+	// unnecessary writes
+	persistedHash []byte
 
 	// ctx is the task runner's context and is done whe the task runner
 	// should exit. Shutdown hooks are run.
@@ -59,7 +82,7 @@ type TaskRunner struct {
 	//                and Run loops, so there's never concurrent access.
 	//handleLock sync.Mutex
 
-	// task is the task beign run
+	// task is the task being run
 	task     *structs.Task
 	taskLock sync.RWMutex
 
@@ -88,8 +111,11 @@ type Config struct {
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
 
-	// State is optionally restored task state
-	State *state.State
+	// LocalState is optionally restored task state
+	LocalState *state.LocalState
+
+	// StateDB is used to store and restore state.
+	StateDB *bolt.DB
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -112,11 +138,14 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskDir:      config.TaskDir,
 		taskName:     config.Task.Name,
 		envBuilder:   envBuilder,
-		state:        config.State,
-		ctx:          trCtx,
-		ctxCancel:    trCancel,
-		updateCh:     make(chan *structs.Allocation),
-		waitCh:       make(chan struct{}),
+		//XXX Make a Copy to avoid races?
+		state:      config.Alloc.TaskStates[config.Task.Name],
+		localState: config.LocalState,
+		stateDB:    config.StateDB,
+		ctx:        trCtx,
+		ctxCancel:  trCancel,
+		updateCh:   make(chan *structs.Allocation),
+		waitCh:     make(chan struct{}),
 	}
 
 	// Create the logger based on the allocation ID
@@ -150,12 +179,12 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 func (tr *TaskRunner) initState() {
 	if tr.state == nil {
-		tr.state = &state.State{
-			Task: &structs.TaskState{
-				State: structs.TaskStatePending,
-			},
-			Hooks: make(map[string]*state.HookState),
+		tr.state = &structs.TaskState{
+			State: structs.TaskStatePending,
 		}
+	}
+	if tr.localState == nil {
+		tr.localState = state.NewLocalState()
 	}
 }
 
@@ -329,15 +358,60 @@ func (tr *TaskRunner) initDriver() error {
 	return nil
 }
 
-// SetState sets the task runners state.
+// persistLocalState persists local state to disk synchronously.
+func (tr *TaskRunner) persistLocalState() error {
+	// buffer for writing to boltdb
+	var buf bytes.Buffer
+
+	// Hash for skipping unnecessary writes
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		// Programming error that should never happen!
+		return err
+	}
+
+	// Multiplex writes to both
+	w := io.MultiWriter(h, &buf)
+
+	// Encode as msgpack value
+	if err := codec.NewEncoder(w, structs.MsgpackHandle).Encode(&tr.localState); err != nil {
+		return fmt.Errorf("failed to serialize snapshot: %v", err)
+	}
+
+	// If the hashes are equal, skip the write
+	hashVal := h.Sum(nil)
+	if bytes.Equal(hashVal, tr.persistedHash) {
+		return nil
+	}
+
+	// Start the transaction.
+	return tr.stateDB.Batch(func(tx *bolt.Tx) error {
+		// Grab the task bucket
+		//XXX move into new state pkg
+		taskBkt, err := oldstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+		}
+
+		if err := oldstate.PutData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
+			return fmt.Errorf("failed to write task_runner state: %v", err)
+		}
+
+		// Store the hash that was persisted
+		tx.OnCommit(func() {
+			tr.persistedHash = hashVal
+		})
+
+		return nil
+	})
+}
+
+// SetState sets the task runners allocation state.
 func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	// Ensure the event is populated with human readable strings
 	event.PopulateEventDisplayMessage()
 
-	// Lock our state
-	tr.state.Lock()
-	defer tr.state.Unlock()
-	task := tr.state.Task
+	task := tr.state
 
 	// Update the state of the task
 	if state != "" {
