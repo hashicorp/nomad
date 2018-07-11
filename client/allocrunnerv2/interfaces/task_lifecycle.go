@@ -43,8 +43,8 @@ type TaskPrerunResponse struct {
 	// run
 	HookData map[string]string
 
-	// DoOnce lets the hook indicate that it should only be run once
-	DoOnce bool
+	// Done lets the hook indicate that it should only be run once
+	Done bool
 }
 
 type TaskPrerunHook interface {
