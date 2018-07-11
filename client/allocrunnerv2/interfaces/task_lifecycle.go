@@ -1,6 +1,8 @@
 package interfaces
 
 import (
+	"context"
+
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -49,7 +51,7 @@ type TaskPrerunResponse struct {
 
 type TaskPrerunHook interface {
 	TaskHook
-	Prerun(*TaskPrerunRequest, *TaskPrerunResponse) error
+	Prerun(context.Context, *TaskPrerunRequest, *TaskPrerunResponse) error
 }
 
 // XXX If we want consul style hooks, need to have something that runs after the
@@ -62,7 +64,7 @@ type TaskPostrunResponse struct{}
 type TaskPostrunHook interface {
 	TaskHook
 	Postrun() error
-	//Postrun(*TaskPostrunRequest, *TaskPostrunResponse) error
+	//Postrun(context.Context, *TaskPostrunRequest, *TaskPostrunResponse) error
 }
 
 type TaskPoststopRequest struct{}
@@ -71,7 +73,7 @@ type TaskPoststopResponse struct{}
 type TaskPoststopHook interface {
 	TaskHook
 	Postrun() error
-	//Postrun(*TaskPostrunRequest, *TaskPostrunResponse) error
+	//Postrun(context.Context, *TaskPostrunRequest, *TaskPostrunResponse) error
 }
 
 type TaskDestroyRequest struct{}
@@ -80,7 +82,7 @@ type TaskDestroyResponse struct{}
 type TaskDestroyHook interface {
 	TaskHook
 	Destroy() error
-	//Destroy(*TaskDestroyRequest, *TaskDestroyResponse) error
+	//Destroy(context.Context, *TaskDestroyRequest, *TaskDestroyResponse) error
 }
 
 type TaskUpdateRequest struct {
@@ -92,5 +94,5 @@ type TaskUpdateResponse struct{}
 type TaskUpdateHook interface {
 	TaskHook
 	Update() error
-	//Update(*TaskUpdateRequest, *TaskUpdateResponse) error
+	//Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
 }
