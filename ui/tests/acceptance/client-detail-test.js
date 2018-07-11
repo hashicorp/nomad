@@ -1,6 +1,5 @@
 import { assign } from '@ember/polyfills';
-import $ from 'jquery';
-import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
@@ -8,6 +7,7 @@ import formatDuration from 'nomad-ui/utils/format-duration';
 import moment from 'moment';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Clients from 'nomad-ui/tests/pages/clients/list';
+import Jobs from 'nomad-ui/tests/pages/jobs/list';
 
 let node;
 
@@ -171,7 +171,7 @@ test('each allocation should show job information even if the job is incomplete 
   // Then, visit jobs to load all jobs, which should implicitly fulfill
   // the job belongsTo of each allocation pointed at each job.
 
-  visit('/jobs');
+  Jobs.visit();
 
   // Finally, visit a node to assert that the job name and task group name are
   // present. This will require reloading the job, since task groups aren't a
@@ -429,7 +429,6 @@ test('when the node has a drain strategy with a positive deadline, the drain sta
     },
   });
 
-  visit(`/clients/${node.id}`);
   ClientDetail.visit({ id: node.id });
 
   andThen(() => {
@@ -468,7 +467,6 @@ test('when the node has a drain stategy with no deadline, the drain stategy sect
     },
   });
 
-  visit(`/clients/${node.id}`);
   ClientDetail.visit({ id: node.id });
 
   andThen(() => {
@@ -543,11 +541,11 @@ moduleForAcceptance('Acceptance | client detail (multi-namespace)', {
 test('when the node has allocations on different namespaces, the associated jobs are fetched correctly', function(assert) {
   window.localStorage.nomadActiveNamespace = 'other-namespace';
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.equal(
-      findAll('[data-test-allocation]').length,
+      ClientDetail.allocations.length,
       server.db.allocations.length,
       'All allocations are scheduled on this node'
     );
