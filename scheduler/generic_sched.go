@@ -592,14 +592,18 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 }
 
 // findPreferredNode finds the preferred node for an allocation
-func (s *GenericScheduler) findPreferredNode(place placementResult) (node *structs.Node, err error) {
+func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.Node, error) {
 	if prev := place.PreviousAllocation(); prev != nil && place.TaskGroup().EphemeralDisk.Sticky == true {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
 		preferredNode, err = s.state.NodeByID(ws, prev.NodeID)
-		if preferredNode.Ready() {
-			node = preferredNode
+		if err != nil {
+			return nil, err
+		}
+
+		if preferredNode != nil && preferredNode.Ready() {
+			return preferredNode, nil
 		}
 	}
-	return
+	return nil, nil
 }
