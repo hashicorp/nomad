@@ -50,6 +50,7 @@ func (tr *TaskRunner) prerun() error {
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrerunHook)
 		if !ok {
+			tr.logger.Trace("skipping: not a prerun hook", "name", hook.Name())
 			continue
 		}
 
@@ -63,7 +64,7 @@ func (tr *TaskRunner) prerun() error {
 
 		origHookState := tr.localState.Hooks[name]
 		if origHookState != nil && origHookState.PrerunDone {
-			// Hook already ran, skip
+			tr.logger.Trace("skipping: prerun hook already done", "name", pre.Name())
 			continue
 		}
 
@@ -229,6 +230,7 @@ func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces
 
 	// Update the environment variables based on the built task directory
 	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
+	resp.Done = true
 	return nil
 }
 
@@ -267,6 +269,7 @@ func (h *artifactHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interface
 		}
 	}
 
+	resp.Done = true
 	return nil
 }
 
