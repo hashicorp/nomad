@@ -162,6 +162,38 @@ func SliceSetDisjoint(first, second []string) (bool, []string) {
 	return false, flattened
 }
 
+// CompareMapStringString returns true if the maps are equivalent. A nil and
+// empty map are considered not equal.
+func CompareMapStringString(a, b map[string]string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for k, v := range a {
+		v2, ok := b[k]
+		if !ok {
+			return false
+		}
+		if v != v2 {
+			return false
+		}
+	}
+
+	// Already compared all known values in a so only test that keys from b
+	// exist in a
+	for k := range b {
+		if _, ok := a[k]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Helpers for copying generic structures.
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)

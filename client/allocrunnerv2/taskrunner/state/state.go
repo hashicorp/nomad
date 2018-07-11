@@ -1,28 +1,36 @@
 package state
 
 import (
-	"sync"
-
+	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type State struct {
-	sync.RWMutex
-	Task  *structs.TaskState
+// LocalState is Task state which is persisted for use when restarting Nomad
+// agents.
+type LocalState struct {
 	Hooks map[string]*HookState
 
 	// VaultToken is the current Vault token for the task
 	VaultToken string
+
+	// DriverNetwork is the network information returned by the task
+	// driver's Start method
+	DriverNetwork *structs.DriverNetwork
+}
+
+func NewLocalState() *LocalState {
+	return &LocalState{
+		Hooks: make(map[string]*HookState),
+	}
 }
 
 // Copy should be called with the lock held
-func (s *State) Copy() *State {
+func (s *LocalState) Copy() *LocalState {
 	// Create a copy
-	c := &State{
-		Task:       s.Task.Copy(),
-		Hooks:      make(map[string]*HookState, len(s.Hooks)),
-		VaultToken: s.VaultToken,
+	c := &LocalState{
+		Hooks:         make(map[string]*HookState, len(s.Hooks)),
+		VaultToken:    s.VaultToken,
+		DriverNetwork: s.DriverNetwork,
 	}
 
 	// Copy the hooks
@@ -34,7 +42,10 @@ func (s *State) Copy() *State {
 }
 
 type HookState struct {
-	Data map[string]string
+	// PrerunDone is true if the hook has run Prerun successfully and does
+	// not need to run again
+	PrerunDone bool
+	Data       map[string]string
 }
 
 func (h *HookState) Copy() *HookState {
@@ -42,4 +53,16 @@ func (h *HookState) Copy() *HookState {
 	*c = *h
 	c.Data = helper.CopyMapStringString(c.Data)
 	return c
+}
+
+func (h *HookState) Equal(o *HookState) bool {
+	if h == nil || o == nil {
+		return h == o
+	}
+
+	if h.PrerunDone != o.PrerunDone {
+		return false
+	}
+
+	return helper.CompareMapStringString(h.Data, o.Data)
 }

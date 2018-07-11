@@ -3,7 +3,6 @@ package state
 import (
 	"sync"
 
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -17,9 +16,6 @@ type State struct {
 	// ClientDesc is an optional human readable description of the
 	// allocations client state
 	ClientDesc string
-
-	// TaskStates captures the state of individual tasks.
-	TaskStates map[string]*state.State
 
 	// DeploymentStatus captures the status of the deployment
 	DeploymentStatus *structs.AllocDeploymentStatus
