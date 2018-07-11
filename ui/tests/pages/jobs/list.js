@@ -39,4 +39,12 @@ export default create({
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
   },
+
+  namespaceSwitcher: {
+    isPresent: isPresent('[data-test-namespace-switcher]'),
+    open: clickable('[data-test-namespace-switcher] .ember-power-select-trigger'),
+    options: collection('.ember-power-select-option', {
+      label: text(),
+    }),
+  },
 });
