@@ -3,8 +3,8 @@ import {
   collection,
   clickable,
   fillable,
+  isPresent,
   text,
-  isVisible,
   visitable,
 } from 'ember-cli-page-object';
 
@@ -27,14 +27,15 @@ export default create({
     clickName: clickable('[data-test-client-name] a'),
   }),
 
-  hasPagination: isVisible('[data-test-pagination]'),
+  hasPagination: isPresent('[data-test-pagination]'),
 
-  isEmpty: isVisible('[data-test-empty-clients-list]'),
+  isEmpty: isPresent('[data-test-empty-clients-list]'),
   empty: {
     headline: text('[data-test-empty-clients-list-headline]'),
   },
 
   error: {
+    isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
