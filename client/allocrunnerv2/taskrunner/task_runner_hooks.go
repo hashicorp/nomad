@@ -1,6 +1,7 @@
 package taskrunner
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -79,7 +80,7 @@ func (tr *TaskRunner) prerun() error {
 
 		// Run the pre-run hook
 		var resp interfaces.TaskPrerunResponse
-		if err := pre.Prerun(&req, &resp); err != nil {
+		if err := pre.Prerun(tr.ctx, &req, &resp); err != nil {
 			return structs.WrapRecoverable(fmt.Sprintf("pre-run hook %q failed: %v", name, err), err)
 		}
 
@@ -211,7 +212,7 @@ func (h *taskDirHook) Name() string {
 	return "task_dir"
 }
 
-func (h *taskDirHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
+func (h *taskDirHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
 	cc := h.runner.clientConfig
 	chroot := cconfig.DefaultChrootEnv
 	if len(cc.ChrootEnv) > 0 {
@@ -256,10 +257,11 @@ func (*artifactHook) Name() string {
 	return "artifacts"
 }
 
-func (h *artifactHook) Prerun(req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
+func (h *artifactHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
 	h.eventEmitter.SetState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
 	for _, artifact := range req.Task.Artifacts {
+		//XXX add ctx to GetArtifact to allow cancelling long downloads
 		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir); err != nil {
 			wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
 			h.logger.Debug(wrapped.Error())
