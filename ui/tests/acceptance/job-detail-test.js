@@ -1,4 +1,4 @@
-import { currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
@@ -35,7 +35,6 @@ moduleForJob('Acceptance | job detail (service)', () => server.create('job', { t
 let job;
 
 test('when the job is not found, an error message is shown, but the URL persists', function(assert) {
-  visit('/jobs/not-a-real-job');
   JobDetail.visit({ id: 'not-a-real-job' });
 
   andThen(() => {

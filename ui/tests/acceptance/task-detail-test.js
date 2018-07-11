@@ -1,4 +1,4 @@
-import { currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
@@ -189,7 +189,6 @@ moduleForAcceptance('Acceptance | task detail (no addresses)', {
     allocation = server.create('allocation', 'withoutTaskWithPorts');
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
-    visit(`/allocations/${allocation.id}/${task.name}`);
     Task.visit({ id: allocation.id, name: task.name });
   },
 });
