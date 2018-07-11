@@ -38,6 +38,13 @@ export default function moduleForJob(title, jobFactory, additionalTests) {
     });
   });
 
+  test('the subnav links to evaluations', function(assert) {
+    JobDetail.tabFor('evaluations').visit();
+    andThen(() => {
+      assert.equal(currentURL(), `/jobs/${job.id}/evaluations`);
+    });
+  });
+
   for (var testName in additionalTests) {
     test(testName, function(assert) {
       additionalTests[testName](job, assert);
