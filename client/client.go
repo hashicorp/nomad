@@ -1930,6 +1930,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		Logger:       logger,
 		ClientConfig: c.config,
 		StateDB:      c.stateDB,
+		Vault:        c.vaultClient,
 	}
 	c.configLock.RUnlock()
 
