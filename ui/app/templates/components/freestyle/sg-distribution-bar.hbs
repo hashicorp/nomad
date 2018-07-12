@@ -67,4 +67,11 @@
       </div>
     {{/freestyle-annotation}}
   {{/collection.variant}}
+  {{#collection.variant key="single bar"}}
+    {{#freestyle-usage 'distribution-bar-single'}}
+      <div class="block" style="height:50px; width:600px;">
+        {{distribution-bar data=distributionBarDatum}}
+      </div>
+    {{/freestyle-usage}}
+  {{/collection.variant}}
 {{/freestyle-collection}}
