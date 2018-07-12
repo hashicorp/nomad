@@ -72,8 +72,7 @@ type TaskPoststopResponse struct{}
 
 type TaskPoststopHook interface {
 	TaskHook
-	Postrun() error
-	//Postrun(context.Context, *TaskPostrunRequest, *TaskPostrunResponse) error
+	Postrun(context.Context, *TaskPostrunRequest, *TaskPostrunResponse) error
 }
 
 type TaskDestroyRequest struct{}
@@ -86,13 +85,11 @@ type TaskDestroyHook interface {
 }
 
 type TaskUpdateRequest struct {
-	Alloc string
-	Vault string // Don't need message bus then
+	VaultToken string
 }
 type TaskUpdateResponse struct{}
 
 type TaskUpdateHook interface {
 	TaskHook
-	Update() error
-	//Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
+	Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
 }
