@@ -117,7 +117,14 @@ export default Component.extend(WindowResizable, {
 
     this.set('slices', slices);
 
-    const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`;
+    const setWidth = d => {
+      // Remove a pixel from either side of the slice
+      let modifier = 2;
+      if (d.index === 0) modifier--; // But not the left side
+      if (d.index === sliceCount - 1) modifier--; // But not the right side
+
+      return `${width * d.percent - modifier}px`;
+    };
     const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`;
 
     let hoverTargets = slices.selectAll('.target').data(d => [d]);
