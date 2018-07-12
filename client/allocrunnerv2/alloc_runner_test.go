@@ -1,10 +1,8 @@
 package allocrunnerv2
 
 import (
-	"context"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/allocrunnerv2/config"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -15,19 +13,14 @@ import (
 
 func testAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation) *allocRunner {
 	cconf := clientconfig.DefaultConfig()
-	config := &config.Config{
+	config := &Config{
 		ClientConfig: cconf,
 		Logger:       testlog.HCLogger(t).With("unit_test", t.Name()),
-		Allocation:   alloc,
+		Alloc:        alloc,
 	}
 
-	ar, err := NewAllocRunner(context.Background(), config)
-	if err != nil {
-		t.Fatalf("Failed to create test alloc runner: %v", err)
-	}
-
+	ar := NewAllocRunner(config)
 	return ar
-
 }
 
 func testAllocRunner(t *testing.T) *allocRunner {
