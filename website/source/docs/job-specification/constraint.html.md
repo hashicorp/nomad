@@ -219,7 +219,7 @@ constraint {
 A potential use case of the `distinct_property` constraint is to spread a
 service with `count > 1` across racks to minimize correlated failure. Nodes can
 be annotated with which rack they are on using [client
-metadata][client-metadata] with values such as "rack-12-1", "rack-12-2", etc.
+metadata][client-meta] with values such as "rack-12-1", "rack-12-2", etc.
 The following constraint would assure that an individual rack is not running
 more than 2 instances of the task group.
 
