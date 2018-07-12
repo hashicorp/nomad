@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner"
-	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,7 +21,7 @@ type allocRunner struct {
 	// Logger is the logger for the alloc runner.
 	logger log.Logger
 
-	clientConfig *config.Config
+	config *Config
 
 	// waitCh is closed when the alloc runner has transitioned to a terminal
 	// state
@@ -55,12 +54,12 @@ type allocRunner struct {
 // NewAllocRunner returns a new allocation runner.
 func NewAllocRunner(config *Config) *allocRunner {
 	ar := &allocRunner{
-		alloc:        config.Alloc,
-		clientConfig: config.ClientConfig,
-		tasks:        make(map[string]*taskrunner.TaskRunner),
-		waitCh:       make(chan struct{}),
-		updateCh:     make(chan *structs.Allocation),
-		stateDB:      config.StateDB,
+		config:   config,
+		alloc:    config.Alloc,
+		tasks:    make(map[string]*taskrunner.TaskRunner),
+		waitCh:   make(chan struct{}),
+		updateCh: make(chan *structs.Allocation),
+		stateDB:  config.StateDB,
 	}
 
 	// Create alloc dir
@@ -159,11 +158,12 @@ func (ar *allocRunner) runTask(alloc *structs.Allocation, task *structs.Task) er
 	// Create the runner
 	config := &taskrunner.Config{
 		Alloc:        alloc,
-		ClientConfig: ar.clientConfig,
+		ClientConfig: ar.config.ClientConfig,
 		Task:         task,
 		TaskDir:      ar.allocDir.NewTaskDir(task.Name),
 		Logger:       ar.logger,
 		StateDB:      ar.stateDB,
+		VaultClient:  ar.config.Vault,
 	}
 	tr, err := taskrunner.NewTaskRunner(config)
 	if err != nil {
