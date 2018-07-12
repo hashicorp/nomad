@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	oldstate "github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 	"golang.org/x/crypto/blake2b"
@@ -46,7 +47,8 @@ type TaskRunner struct {
 
 	// localState captures the node-local state of the task for when the
 	// Nomad agent restarts
-	localState *state.LocalState
+	localState     *state.LocalState
+	localStateLock sync.RWMutex
 
 	// stateDB is for persisting localState
 	stateDB *bolt.DB
@@ -99,6 +101,14 @@ type TaskRunner struct {
 	// transistions.
 	runnerHooks []interfaces.TaskHook
 
+	// vaultClient is the client to use to derive and renew Vault tokens
+	vaultClient vaultclient.VaultClient
+
+	// vaultToken is the current Vault token. It should be accessed with the
+	// getter.
+	vaultToken     string
+	vaultTokenLock sync.Mutex
+
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -110,6 +120,9 @@ type Config struct {
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
+
+	// VaultClient is the client to use to derive and renew Vault tokens
+	VaultClient vaultclient.VaultClient
 
 	// LocalState is optionally restored task state
 	LocalState *state.LocalState
@@ -138,6 +151,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskDir:      config.TaskDir,
 		taskName:     config.Task.Name,
 		envBuilder:   envBuilder,
+		vaultClient:  config.VaultClient,
 		//XXX Make a Copy to avoid races?
 		state:      config.Alloc.TaskStates[config.Task.Name],
 		localState: config.LocalState,
@@ -374,7 +388,10 @@ func (tr *TaskRunner) persistLocalState() error {
 	w := io.MultiWriter(h, &buf)
 
 	// Encode as msgpack value
-	if err := codec.NewEncoder(w, structs.MsgpackHandle).Encode(&tr.localState); err != nil {
+	tr.localStateLock.Lock()
+	err = codec.NewEncoder(w, structs.MsgpackHandle).Encode(&tr.localState)
+	tr.localStateLock.Unlock()
+	if err != nil {
 		return fmt.Errorf("failed to serialize snapshot: %v", err)
 	}
 
@@ -507,12 +524,6 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 // receive on WaitCh() to block until Run() has exited.
 func (tr *TaskRunner) Shutdown() {
 	tr.ctxCancel()
-}
-
-func (tr *TaskRunner) Alloc() *structs.Allocation {
-	tr.allocLock.Lock()
-	defer tr.allocLock.Unlock()
-	return tr.alloc
 }
 
 // appendTaskEvent updates the task status by appending the new event.
