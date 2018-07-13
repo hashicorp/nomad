@@ -124,8 +124,9 @@ func (tr *TaskRunner) prestart() error {
 			}
 			tr.localStateLock.Unlock()
 
-			// Persist local state if the hook state has changed
+			// Store and persist local state if the hook state has changed
 			if !hookState.Equal(origHookState) {
+				tr.localState.Hooks[name] = hookState
 				if err := tr.persistLocalState(); err != nil {
 					return err
 				}
