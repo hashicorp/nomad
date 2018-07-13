@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
+	ti "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -50,8 +51,8 @@ func (tr *TaskRunner) updatedVaultToken(token string) {
 type vaultHookConfig struct {
 	vaultStanza *structs.Vault
 	client      vaultclient.VaultClient
-	events      EventEmitter
-	lifecycle   TaskLifecycle
+	events      ti.EventEmitter
+	lifecycle   ti.TaskLifecycle
 	updater     vaultTokenUpdateHandler
 	logger      log.Logger
 	alloc       *structs.Allocation
@@ -63,10 +64,10 @@ type vaultHook struct {
 	vaultStanza *structs.Vault
 
 	// eventEmitter is used to emit events to the task
-	eventEmitter EventEmitter
+	eventEmitter ti.EventEmitter
 
 	// lifecycle is used to signal, restart and kill a task
-	lifecycle TaskLifecycle
+	lifecycle ti.TaskLifecycle
 
 	// updater is used to update the Vault token
 	updater vaultTokenUpdateHandler
