@@ -15,6 +15,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type EventEmitter interface {
+	SetState(state string, event *structs.TaskEvent)
+}
+
 // initHooks intializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
@@ -24,6 +28,20 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = []interfaces.TaskHook{
 		newTaskDirHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
+	}
+
+	// If Vault is enabled, add the hook
+	if task := tr.Task(); task.Vault != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
+			vaultStanza: task.Vault,
+			client:      tr.vaultClient,
+			events:      tr,
+			lifecycle:   tr,
+			updater:     tr,
+			logger:      hookLogger,
+			alloc:       tr.Alloc(),
+			task:        tr.taskName,
+		}))
 	}
 }
 
@@ -63,13 +81,15 @@ func (tr *TaskRunner) prerun() error {
 			TaskEnv: tr.envBuilder.Build(),
 		}
 
+		tr.localStateLock.RLock()
 		origHookState := tr.localState.Hooks[name]
+		tr.localStateLock.RUnlock()
 		if origHookState != nil && origHookState.PrerunDone {
 			tr.logger.Trace("skipping done prerun hook", "name", pre.Name())
 			continue
 		}
 
-		req.VaultToken = tr.localState.VaultToken
+		req.VaultToken = tr.getVaultToken()
 
 		// Time the prerun hook
 		var start time.Time
@@ -86,6 +106,7 @@ func (tr *TaskRunner) prerun() error {
 
 		// Store the hook state
 		{
+			tr.localStateLock.Lock()
 			hookState, ok := tr.localState.Hooks[name]
 			if !ok {
 				hookState = &state.HookState{}
@@ -96,6 +117,7 @@ func (tr *TaskRunner) prerun() error {
 				hookState.Data = resp.HookData
 				hookState.PrerunDone = resp.Done
 			}
+			tr.localStateLock.Unlock()
 
 			// Persist local state if the hook state has changed
 			if !hookState.Equal(origHookState) {
@@ -195,6 +217,51 @@ func (tr *TaskRunner) shutdown() error {
 	return nil
 }
 
+// update is used to run the runners update hooks.
+func (tr *TaskRunner) updateHooks() {
+	if tr.logger.IsTrace() {
+		start := time.Now()
+		tr.logger.Trace("running update hooks", "start", start)
+		defer func() {
+			end := time.Now()
+			tr.logger.Trace("finished update hooks", "end", end, "duration", end.Sub(start))
+		}()
+	}
+
+	for _, hook := range tr.runnerHooks {
+		upd, ok := hook.(interfaces.TaskUpdateHook)
+		if !ok {
+			tr.logger.Trace("skipping non-update hook", "name", hook.Name())
+			continue
+		}
+
+		name := upd.Name()
+
+		// Build the request
+		req := interfaces.TaskUpdateRequest{
+			VaultToken: tr.getVaultToken(),
+		}
+
+		// Time the prerun hook
+		var start time.Time
+		if tr.logger.IsTrace() {
+			start = time.Now()
+			tr.logger.Trace("running update hook", "name", name, "start", start)
+		}
+
+		// Run the update hook
+		var resp interfaces.TaskUpdateResponse
+		if err := upd.Update(tr.ctx, &req, &resp); err != nil {
+			tr.logger.Error("update hook failed", "name", name, "error", err)
+		}
+
+		if tr.logger.IsTrace() {
+			end := time.Now()
+			tr.logger.Trace("finished update hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
 type taskDirHook struct {
 	runner *TaskRunner
 	logger log.Logger
@@ -233,10 +300,6 @@ func (h *taskDirHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequ
 	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
 	resp.Done = true
 	return nil
-}
-
-type EventEmitter interface {
-	SetState(state string, event *structs.TaskEvent)
 }
 
 // artifactHook downloads artifacts for a task.

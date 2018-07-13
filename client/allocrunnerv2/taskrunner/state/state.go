@@ -10,9 +10,6 @@ import (
 type LocalState struct {
 	Hooks map[string]*HookState
 
-	// VaultToken is the current Vault token for the task
-	VaultToken string
-
 	// DriverNetwork is the network information returned by the task
 	// driver's Start method
 	DriverNetwork *structs.DriverNetwork
@@ -29,7 +26,6 @@ func (s *LocalState) Copy() *LocalState {
 	// Create a copy
 	c := &LocalState{
 		Hooks:         make(map[string]*HookState, len(s.Hooks)),
-		VaultToken:    s.VaultToken,
 		DriverNetwork: s.DriverNetwork,
 	}
 
