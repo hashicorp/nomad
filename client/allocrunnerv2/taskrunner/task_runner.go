@@ -498,6 +498,11 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	//}
 }
 
+func (tr *TaskRunner) EmitEvent(source, message string) {
+	event := structs.NewTaskEvent(source).SetMessage(message)
+	tr.SetState("", event)
+}
+
 // WaitCh is closed when TaskRunner.Run exits.
 func (tr *TaskRunner) WaitCh() <-chan struct{} {
 	return tr.waitCh
