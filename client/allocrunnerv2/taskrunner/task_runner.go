@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
-	oldstate "github.com/hashicorp/nomad/client/state"
+	clientstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -42,6 +42,7 @@ const (
 var (
 	// taskRunnerStateAllKey holds all the task runners state. At the moment
 	// there is no need to split it
+	//XXX refactor out of clientstate and new state
 	taskRunnerStateAllKey = []byte("simple-all")
 )
 
@@ -446,16 +447,15 @@ func (tr *TaskRunner) persistLocalState() error {
 		return nil
 	}
 
-	// Start the transaction.
-	return tr.stateDB.Batch(func(tx *bolt.Tx) error {
+	return tr.stateDB.Update(func(tx *bolt.Tx) error {
 		// Grab the task bucket
 		//XXX move into new state pkg
-		taskBkt, err := oldstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
+		taskBkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		if err := oldstate.PutData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
+		if err := clientstate.PutData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
 			return fmt.Errorf("failed to write task_runner state: %v", err)
 		}
 
@@ -466,6 +466,24 @@ func (tr *TaskRunner) persistLocalState() error {
 
 		return nil
 	})
+}
+
+// Restore task runner state. Called by AllocRunner.Restore after NewTaskRunner
+// but before Run.
+func (tr *TaskRunner) Restore(tx *bolt.Tx) error {
+	bkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
+	if err != nil {
+		return fmt.Errorf("failed to get task %q bucket: %v", tr.taskName, err)
+	}
+
+	//XXX set persisted hash to avoid immediate write on first use?
+	var ls state.LocalState
+	if err := clientstate.GetObject(bkt, taskRunnerStateAllKey, &ls); err != nil {
+		return fmt.Errorf("failed to read task runner state: %v", err)
+	}
+	tr.localState = &ls
+
+	return nil
 }
 
 // SetState sets the task runners allocation state.

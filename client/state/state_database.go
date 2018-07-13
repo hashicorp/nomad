@@ -184,20 +184,65 @@ func DeleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
 	return alloc.DeleteBucket(key)
 }
 
-func GetAllAllocationIDs(tx *bolt.Tx) ([]string, error) {
+//XXX duplicated in arv2?!
+var (
+	// The following are the key paths written to the state database
+	allocRunnerStateAllocKey = []byte("alloc")
+)
+
+type allocRunnerAllocState struct {
+	Alloc *structs.Allocation
+}
+
+func GetAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, error) {
 	allocationsBkt := tx.Bucket(allocationsBucket)
 	if allocationsBkt == nil {
+		// No allocs
 		return nil, nil
 	}
 
+	var allocs []*structs.Allocation
+
 	// Create a cursor for iteration.
-	var allocIDs []string
 	c := allocationsBkt.Cursor()
 
-	// Iterate over all the buckets
+	// Iterate over all the allocation buckets
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
-		allocIDs = append(allocIDs, string(k))
+		allocID := string(k)
+		allocBkt := allocationsBkt.Bucket(k)
+		if allocBkt == nil {
+			//XXX merr?
+			return nil, fmt.Errorf("alloc %q missing", allocID)
+		}
+
+		var allocState allocRunnerAllocState
+		if err := GetObject(allocBkt, allocRunnerStateAllocKey, &allocState); err != nil {
+			//XXX merr?
+			return nil, fmt.Errorf("failed to restore alloc %q: %v", allocID, err)
+		}
+		allocs = append(allocs, allocState.Alloc)
 	}
 
-	return allocIDs, nil
+	return allocs, nil
+}
+
+// PutAllocation stores an allocation given a writable transaction.
+func PutAllocation(tx *bolt.Tx, alloc *structs.Allocation) error {
+	// Retrieve the root allocations bucket
+	allocsBkt, err := tx.CreateBucketIfNotExists(allocationsBucket)
+	if err != nil {
+		return err
+	}
+
+	// Retrieve the specific allocations bucket
+	key := []byte(alloc.ID)
+	allocBkt, err := allocsBkt.CreateBucketIfNotExists(key)
+	if err != nil {
+		return err
+	}
+
+	allocState := allocRunnerAllocState{
+		Alloc: alloc,
+	}
+	return PutObject(allocBkt, allocRunnerStateAllocKey, &allocState)
 }
