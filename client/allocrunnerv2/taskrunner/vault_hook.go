@@ -184,11 +184,9 @@ func (h *vaultHook) run(token string) {
 OUTER:
 	for {
 		// Check if we should exit
-		select {
-		case <-h.ctx.Done():
+		if h.ctx.Err() != nil {
 			stopRenewal()
 			return
-		default:
 		}
 
 		// Clear the token
@@ -321,7 +319,7 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 
 // writeToken writes the given token to disk
 func (h *vaultHook) writeToken(token string) error {
-	if err := ioutil.WriteFile(h.tokenPath, []byte(token), 0777); err != nil {
+	if err := ioutil.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
 		return fmt.Errorf("failed to write vault token: %v", err)
 	}
 
