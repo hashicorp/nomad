@@ -103,6 +103,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		return err
 	}
 	delete(m, "constraint")
+	delete(m, "affinity")
 	delete(m, "meta")
 	delete(m, "migrate")
 	delete(m, "parameterized")
@@ -132,6 +133,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	valid := []string{
 		"all_at_once",
 		"constraint",
+		"affinity",
 		"datacenters",
 		"group",
 		"id",
@@ -158,6 +160,13 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("constraint"); len(o.Items) > 0 {
 		if err := parseConstraints(&result.Constraints, o); err != nil {
 			return multierror.Prefix(err, "constraint ->")
+		}
+	}
+
+	// Parse affinities
+	if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+		if err := parseAffinities(&result.Affinities, o); err != nil {
+			return multierror.Prefix(err, "affinity ->")
 		}
 	}
 
@@ -287,6 +296,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		valid := []string{
 			"count",
 			"constraint",
+			"affinity",
 			"restart",
 			"meta",
 			"task",
@@ -305,6 +315,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			return err
 		}
 		delete(m, "constraint")
+		delete(m, "affinity")
 		delete(m, "meta")
 		delete(m, "task")
 		delete(m, "restart")
@@ -324,6 +335,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("constraint"); len(o.Items) > 0 {
 			if err := parseConstraints(&g.Constraints, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', constraint ->", n))
+			}
+		}
+
+		// Parse affinities
+		if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+			if err := parseAffinities(&g.Affinities, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', affinity ->", n))
 			}
 		}
 
@@ -576,6 +594,75 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 	return nil
 }
 
+func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"attribute",
+			"operator",
+			"regexp",
+			"set_contains_any",
+			"set_contains_all",
+			"value",
+			"version",
+			"weight",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		m["LTarget"] = m["attribute"]
+		m["RTarget"] = m["value"]
+		m["Operand"] = m["operator"]
+
+		// If "version" is provided, set the operand
+		// to "version" and the value to the "RTarget"
+		if affinity, ok := m[structs.ConstraintVersion]; ok {
+			m["Operand"] = structs.ConstraintVersion
+			m["RTarget"] = affinity
+		}
+
+		// If "regexp" is provided, set the operand
+		// to "regexp" and the value to the "RTarget"
+		if affinity, ok := m[structs.ConstraintRegex]; ok {
+			m["Operand"] = structs.ConstraintRegex
+			m["RTarget"] = affinity
+		}
+
+		// If "set_contains_any" is provided, set the operand
+		// to "set_contains_any" and the value to the "RTarget"
+		if affinity, ok := m[structs.AffinitySetContainsAny]; ok {
+			m["Operand"] = structs.AffinitySetContainsAny
+			m["RTarget"] = affinity
+		}
+
+		// If "set_contains_all" is provided, set the operand
+		// to "set_contains_all" and the value to the "RTarget"
+		if affinity, ok := m[structs.AffinitySetContainsAll]; ok {
+			m["Operand"] = structs.AffinitySetContainsAll
+			m["RTarget"] = affinity
+		}
+
+		// Build the affinity
+		var a api.Affinity
+		if err := mapstructure.WeakDecode(m, &a); err != nil {
+			return err
+		}
+		if a.Operand == "" {
+			a.Operand = "="
+		}
+
+		*result = append(*result, &a)
+	}
+
+	return nil
+}
+
 func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
@@ -656,6 +743,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"artifact",
 			"config",
 			"constraint",
+			"affinity",
 			"dispatch_payload",
 			"driver",
 			"env",
@@ -682,6 +770,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		delete(m, "artifact")
 		delete(m, "config")
 		delete(m, "constraint")
+		delete(m, "affinity")
 		delete(m, "dispatch_payload")
 		delete(m, "env")
 		delete(m, "logs")
@@ -748,6 +837,13 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			if err := parseConstraints(&t.Constraints, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf(
 					"'%s', constraint ->", n))
+			}
+		}
+
+		// Parse affinities
+		if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+			if err := parseAffinities(&t.Affinities, o); err != nil {
+				return multierror.Prefix(err, "affinity ->")
 			}
 		}
 

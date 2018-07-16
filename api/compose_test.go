@@ -31,6 +31,7 @@ func TestCompose(t *testing.T) {
 	// Compose a task group
 	grp := NewTaskGroup("grp1", 2).
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
+		AddAffinity(NewAffinity("${node.class}", "=", "large", 50)).
 		SetMeta("foo", "bar").
 		AddTask(task)
 
@@ -70,6 +71,14 @@ func TestCompose(t *testing.T) {
 						LTarget: "kernel.name",
 						RTarget: "linux",
 						Operand: "=",
+					},
+				},
+				Affinities: []*Affinity{
+					{
+						LTarget: "${node.class}",
+						RTarget: "large",
+						Operand: "=",
+						Weight:  50,
 					},
 				},
 				Tasks: []*Task{
