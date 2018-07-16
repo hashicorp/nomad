@@ -34,8 +34,8 @@ type Context interface {
 	// RegexpCache is a cache of regular expressions
 	RegexpCache() map[string]*regexp.Regexp
 
-	// ConstraintCache is a cache of version constraints
-	ConstraintCache() map[string]version.Constraints
+	// VersionConstraintCache is a cache of version constraints
+	VersionConstraintCache() map[string]version.Constraints
 
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
@@ -54,7 +54,8 @@ func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
 	}
 	return e.reCache
 }
-func (e *EvalCache) ConstraintCache() map[string]version.Constraints {
+
+func (e *EvalCache) VersionConstraintCache() map[string]version.Constraints {
 	if e.constraintCache == nil {
 		e.constraintCache = make(map[string]version.Constraints)
 	}
