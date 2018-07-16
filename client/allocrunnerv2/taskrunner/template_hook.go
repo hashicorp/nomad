@@ -148,8 +148,6 @@ func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateReq
 	if _, err := h.newManager(); err != nil {
 		err := fmt.Errorf("failed to build template manager: %v", err)
 		h.logger.Error("failed to build template manager", "error", err)
-		// XXX I think we can skip this
-		// r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(), false)
 		h.config.lifecycle.Kill(h.Name(), err.Error(), true)
 	}
 
