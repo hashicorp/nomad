@@ -4976,6 +4976,12 @@ func (te *TaskEvent) GoString() string {
 	return fmt.Sprintf("%v - %v", te.Time, te.Type)
 }
 
+// SetDisplayMessage sets the display message of TaskEvent
+func (te *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
+	te.DisplayMessage = msg
+	return te
+}
+
 // SetMessage sets the message of TaskEvent
 func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
 	te.Message = msg
