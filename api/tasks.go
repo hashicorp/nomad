@@ -154,7 +154,6 @@ type Affinity struct {
 	RTarget string  // Right-hand target
 	Operand string  // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
 	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
-	str     string  // Memoized string
 }
 
 func NewAffinity(LTarget string, Operand string, RTarget string, Weight float64) *Affinity {
