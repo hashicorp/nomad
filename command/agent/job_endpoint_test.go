@@ -1211,6 +1211,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Operand: "c",
 			},
 		},
+		Affinities: []*api.Affinity{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+				Weight:  50,
+			},
+		},
 		Update: &api.UpdateStrategy{
 			Stagger:          helper.TimeToPtr(1 * time.Second),
 			MaxParallel:      helper.IntToPtr(5),
@@ -1246,6 +1254,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LTarget: "x",
 						RTarget: "y",
 						Operand: "z",
+					},
+				},
+				Affinities: []*api.Affinity{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+						Weight:  100,
 					},
 				},
 				RestartPolicy: &api.RestartPolicy{
@@ -1301,6 +1317,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LTarget: "x",
 								RTarget: "y",
 								Operand: "z",
+							},
+						},
+						Affinities: []*api.Affinity{
+							{
+								LTarget: "a",
+								RTarget: "b",
+								Operand: "c",
+								Weight:  50,
 							},
 						},
 
@@ -1443,6 +1467,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Operand: "c",
 			},
 		},
+		Affinities: []*structs.Affinity{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+				Weight:  50,
+			},
+		},
 		Update: structs.UpdateStrategy{
 			Stagger:     1 * time.Second,
 			MaxParallel: 5,
@@ -1472,6 +1504,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LTarget: "x",
 						RTarget: "y",
 						Operand: "z",
+					},
+				},
+				Affinities: []*structs.Affinity{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+						Weight:  100,
 					},
 				},
 				RestartPolicy: &structs.RestartPolicy{
@@ -1526,6 +1566,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LTarget: "x",
 								RTarget: "y",
 								Operand: "z",
+							},
+						},
+						Affinities: []*structs.Affinity{
+							{
+								LTarget: "a",
+								RTarget: "b",
+								Operand: "c",
+								Weight:  50,
 							},
 						},
 						Env: map[string]string{

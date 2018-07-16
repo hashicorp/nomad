@@ -1332,6 +1332,42 @@ func TestJobs_Constrain(t *testing.T) {
 	}
 }
 
+func TestJobs_AddAffinity(t *testing.T) {
+	t.Parallel()
+	job := &Job{Affinities: nil}
+
+	// Create and add an affinity
+	out := job.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
+	if n := len(job.Affinities); n != 1 {
+		t.Fatalf("expected 1 affinity, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another affinity preserves the original
+	job.AddAffinity(NewAffinity("${node.datacenter}", "=", "dc2", 50))
+	expect := []*Affinity{
+		{
+			LTarget: "kernel.version",
+			RTarget: "4.6",
+			Operand: "=",
+			Weight:  100,
+		},
+		{
+			LTarget: "${node.datacenter}",
+			RTarget: "dc2",
+			Operand: "=",
+			Weight:  50,
+		},
+	}
+	if !reflect.DeepEqual(job.Affinities, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Affinities)
+	}
+}
+
 func TestJobs_Sort(t *testing.T) {
 	t.Parallel()
 	jobs := []*JobListStub{

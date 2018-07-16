@@ -610,6 +610,7 @@ type Job struct {
 	AllAtOnce         *bool `mapstructure:"all_at_once"`
 	Datacenters       []string
 	Constraints       []*Constraint
+	Affinities        []*Affinity
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
 	Periodic          *PeriodicConfig
@@ -833,6 +834,12 @@ func (j *Job) AddDatacenter(dc string) *Job {
 // Constrain is used to add a constraint to a job.
 func (j *Job) Constrain(c *Constraint) *Job {
 	j.Constraints = append(j.Constraints, c)
+	return j
+}
+
+// AddAffinity is used to add an affinity to a job.
+func (j *Job) AddAffinity(a *Affinity) *Job {
+	j.Affinities = append(j.Affinities, a)
 	return j
 }
 

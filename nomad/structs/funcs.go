@@ -208,6 +208,19 @@ func CopySliceConstraints(s []*Constraint) []*Constraint {
 	return c
 }
 
+func CopySliceAffinities(s []*Affinity) []*Affinity {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*Affinity, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {

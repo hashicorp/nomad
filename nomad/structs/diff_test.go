@@ -1304,6 +1304,110 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			// Affinities edited
+			Old: &TaskGroup{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "bar",
+						RTarget: "bar",
+						Operand: "bar",
+						Weight:  20,
+						str:     "bar",
+					},
+				},
+			},
+			New: &TaskGroup{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "baz",
+						RTarget: "baz",
+						Operand: "baz",
+						Weight:  20,
+						str:     "baz",
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Operand",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Weight",
+								Old:  "",
+								New:  "20",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Operand",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Weight",
+								Old:  "20",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// RestartPolicy added
 			Old: &TaskGroup{},
 			New: &TaskGroup{

@@ -228,6 +228,17 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, conDiff...)
 	}
 
+	// Affinities diff
+	affinitiesDiff := primitiveObjectSetDiff(
+		interfaceSlice(tg.Affinities),
+		interfaceSlice(other.Affinities),
+		[]string{"str"},
+		"Affinity",
+		contextual)
+	if affinitiesDiff != nil {
+		diff.Objects = append(diff.Objects, affinitiesDiff...)
+	}
+
 	// Restart policy diff
 	rDiff := primitiveObjectDiff(tg.RestartPolicy, other.RestartPolicy, nil, "RestartPolicy", contextual)
 	if rDiff != nil {

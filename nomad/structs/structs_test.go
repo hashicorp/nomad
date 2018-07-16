@@ -1563,6 +1563,94 @@ func TestConstraint_Validate(t *testing.T) {
 	}
 }
 
+func TestAffinity_Validate(t *testing.T) {
+
+	type tc struct {
+		affinity *Affinity
+		err      error
+		name     string
+	}
+
+	testCases := []tc{
+		{
+			affinity: &Affinity{},
+			err:      fmt.Errorf("Missing affinity operand"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "foo",
+				LTarget: "${meta.node_class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Unknown affinity operator \"foo\""),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Operator \"=\" requires an RTarget"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				RTarget: "c4",
+				Weight:  0,
+			},
+			err: fmt.Errorf("Affinity weight cannot be zero"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				RTarget: "c4",
+				Weight:  500,
+			},
+			err: fmt.Errorf("Affinity weight must be within the range [-100,100]"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${node.class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Operator \"=\" requires an RTarget"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "version",
+				LTarget: "${meta.os}",
+				RTarget: ">>2.0",
+				Weight:  500,
+			},
+			err: fmt.Errorf("Version affinity is invalid"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "regexp",
+				LTarget: "${meta.os}",
+				RTarget: "\\K2.0",
+				Weight:  100,
+			},
+			err: fmt.Errorf("Regular expression failed to compile"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.affinity.Validate()
+			if tc.err != nil {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}
+
 func TestUpdateStrategy_Validate(t *testing.T) {
 	u := &UpdateStrategy{
 		MaxParallel:      0,
