@@ -403,11 +403,11 @@ func (c *ConstraintChecker) Feasible(option *structs.Node) bool {
 
 func (c *ConstraintChecker) meetsConstraint(constraint *structs.Constraint, option *structs.Node) bool {
 	// Resolve the targets
-	lVal, ok := resolveConstraintTarget(constraint.LTarget, option)
+	lVal, ok := resolveTarget(constraint.LTarget, option)
 	if !ok {
 		return false
 	}
-	rVal, ok := resolveConstraintTarget(constraint.RTarget, option)
+	rVal, ok := resolveTarget(constraint.RTarget, option)
 	if !ok {
 		return false
 	}
@@ -416,8 +416,8 @@ func (c *ConstraintChecker) meetsConstraint(constraint *structs.Constraint, opti
 	return checkConstraint(c.ctx, constraint.Operand, lVal, rVal)
 }
 
-// resolveConstraintTarget is used to resolve the LTarget and RTarget of a Constraint
-func resolveConstraintTarget(target string, node *structs.Node) (interface{}, bool) {
+// resolveTarget is used to resolve the LTarget and RTarget of a Constraint
+func resolveTarget(target string, node *structs.Node) (interface{}, bool) {
 	// If no prefix, this must be a literal value
 	if !strings.HasPrefix(target, "${") {
 		return target, true
@@ -470,13 +470,25 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	case "<", "<=", ">", ">=":
 		return checkLexicalOrder(operand, lVal, rVal)
 	case structs.ConstraintVersion:
-		return checkVersionConstraint(ctx, lVal, rVal)
+		return checkVersionMatch(ctx, lVal, rVal)
 	case structs.ConstraintRegex:
-		return checkRegexpConstraint(ctx, lVal, rVal)
+		return checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains:
-		return checkSetContainsConstraint(ctx, lVal, rVal)
+		return checkSetContainsAll(ctx, lVal, rVal)
 	default:
 		return false
+	}
+}
+
+// checkAffinity checks if a specific affinity is satisfied
+func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
+	switch operand {
+	case structs.AffinitySetContainsAny:
+		return checkSetContainsAny(ctx, lVal, rVal)
+	case structs.AffinitySetContainsAll:
+		return checkSetContainsAll(ctx, lVal, rVal)
+	default:
+		return checkConstraint(ctx, operand, lVal, rVal)
 	}
 }
 
@@ -506,9 +518,9 @@ func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
 	}
 }
 
-// checkVersionConstraint is used to compare a version on the
+// checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionConstraint(ctx Context, lVal, rVal interface{}) bool {
+func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -533,7 +545,7 @@ func checkVersionConstraint(ctx Context, lVal, rVal interface{}) bool {
 	}
 
 	// Check the cache for a match
-	cache := ctx.ConstraintCache()
+	cache := ctx.VersionConstraintCache()
 	constraints := cache[constraintStr]
 
 	// Parse the constraints
@@ -549,9 +561,9 @@ func checkVersionConstraint(ctx Context, lVal, rVal interface{}) bool {
 	return constraints.Check(vers)
 }
 
-// checkRegexpConstraint is used to compare a value on the
+// checkRegexpMatch is used to compare a value on the
 // left hand side with a regexp on the right hand side
-func checkRegexpConstraint(ctx Context, lVal, rVal interface{}) bool {
+func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -582,9 +594,9 @@ func checkRegexpConstraint(ctx Context, lVal, rVal interface{}) bool {
 	return re.MatchString(lStr)
 }
 
-// checkSetContainsConstraint is used to see if the left hand side contains the
+// checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsConstraint(ctx Context, lVal, rVal interface{}) bool {
+func checkSetContainsAll(ctx Context, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -612,6 +624,38 @@ func checkSetContainsConstraint(ctx Context, lVal, rVal interface{}) bool {
 	}
 
 	return true
+}
+
+// checkSetContainsAny is used to see if the left hand side contains any
+// values on the right hand side
+func checkSetContainsAny(ctx Context, lVal, rVal interface{}) bool {
+	// Ensure left-hand is string
+	lStr, ok := lVal.(string)
+	if !ok {
+		return false
+	}
+
+	// RHS must be a string
+	rStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	input := strings.Split(lStr, ",")
+	lookup := make(map[string]struct{}, len(input))
+	for _, in := range input {
+		cleaned := strings.TrimSpace(in)
+		lookup[cleaned] = struct{}{}
+	}
+
+	for _, r := range strings.Split(rStr, ",") {
+		cleaned := strings.TrimSpace(r)
+		if _, ok := lookup[cleaned]; ok {
+			return true
+		}
+	}
+
+	return false
 }
 
 // FeasibilityWrapper is a FeasibleIterator which wraps both job and task group
