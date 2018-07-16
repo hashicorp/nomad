@@ -46,6 +46,15 @@ func TestParse(t *testing.T) {
 					},
 				},
 
+				Affinities: []*api.Affinity{
+					{
+						LTarget: "${meta.team}",
+						RTarget: "mobile",
+						Operand: "=",
+						Weight:  50,
+					},
+				},
+
 				Update: &api.UpdateStrategy{
 					Stagger:          helper.TimeToPtr(60 * time.Second),
 					MaxParallel:      helper.IntToPtr(2),
@@ -82,6 +91,14 @@ func TestParse(t *testing.T) {
 								LTarget: "kernel.os",
 								RTarget: "linux",
 								Operand: "=",
+							},
+						},
+						Affinities: []*api.Affinity{
+							{
+								LTarget: "${node.datacenter}",
+								RTarget: "dc2",
+								Operand: "=",
+								Weight:  100,
 							},
 						},
 						Meta: map[string]string{

@@ -16,6 +16,13 @@ job "binstore-storagelocker" {
     value     = "windows"
   }
 
+  affinity {
+    attribute = "${meta.team}"
+    value = "mobile"
+    operator = "="
+    weight = 50
+  }
+
   update {
     stagger      = "60s"
     max_parallel = 2
@@ -75,6 +82,14 @@ job "binstore-storagelocker" {
         min_healthy_time = "11s"
         healthy_deadline = "11m"
     }
+
+    affinity {
+      attribute = "${node.datacenter}"
+      value = "dc2"
+      operator = "="
+      weight = 100
+    }
+
 
     task "binstore" {
       driver = "docker"
