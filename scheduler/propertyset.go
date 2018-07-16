@@ -121,10 +121,10 @@ func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 	}
 
 	// Filter to the correct set of allocs
-	allocs = filterAllocs(allocs, true, p.taskGroup)
+	allocs = p.filterAllocs(allocs, true)
 
 	// Get all the nodes that have been used by the allocs
-	nodes, err := buildNodeMap(p.ctx.State(), allocs)
+	nodes, err := p.buildNodeMap(allocs)
 	if err != nil {
 		p.errorBuilding = err
 		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", err)
@@ -132,7 +132,7 @@ func (p *propertySet) populateExisting(constraint *structs.Constraint) {
 	}
 
 	// Build existing properties map
-	populateProperties(p.constraint.LTarget, allocs, nodes, p.existingValues)
+	p.populateProperties(allocs, nodes, p.existingValues)
 }
 
 // PopulateProposed populates the proposed values and recomputes any cleared
@@ -149,20 +149,20 @@ func (p *propertySet) PopulateProposed() {
 	for _, updates := range p.ctx.Plan().NodeUpdate {
 		stopping = append(stopping, updates...)
 	}
-	stopping = filterAllocs(stopping, false, p.taskGroup)
+	stopping = p.filterAllocs(stopping, false)
 
 	// Gather the proposed allocations
 	var proposed []*structs.Allocation
 	for _, pallocs := range p.ctx.Plan().NodeAllocation {
 		proposed = append(proposed, pallocs...)
 	}
-	proposed = filterAllocs(proposed, true, p.taskGroup)
+	proposed = p.filterAllocs(proposed, true)
 
 	// Get the used nodes
 	both := make([]*structs.Allocation, 0, len(stopping)+len(proposed))
 	both = append(both, stopping...)
 	both = append(both, proposed...)
-	nodes, err := buildNodeMap(p.ctx.State(), both)
+	nodes, err := p.buildNodeMap(both)
 	if err != nil {
 		p.errorBuilding = err
 		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", err)
@@ -170,10 +170,10 @@ func (p *propertySet) PopulateProposed() {
 	}
 
 	// Populate the cleared values
-	populateProperties(p.constraint.LTarget, stopping, nodes, p.clearedValues)
+	p.populateProperties(stopping, nodes, p.clearedValues)
 
 	// Populate the proposed values
-	populateProperties(p.constraint.LTarget, proposed, nodes, p.proposedValues)
+	p.populateProperties(proposed, nodes, p.proposedValues)
 
 	// Remove any cleared value that is now being used by the proposed allocs
 	for value := range p.proposedValues {
@@ -247,7 +247,7 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 // filterAllocs filters a set of allocations to just be those that are running
 // and if the property set is operation at a task group level, for allocations
 // for that task group
-func filterAllocs(allocs []*structs.Allocation, filterTerminal bool, taskGroup string) []*structs.Allocation {
+func (p *propertySet) filterAllocs(allocs []*structs.Allocation, filterTerminal bool) []*structs.Allocation {
 	n := len(allocs)
 	for i := 0; i < n; i++ {
 		remove := false
@@ -257,8 +257,8 @@ func filterAllocs(allocs []*structs.Allocation, filterTerminal bool, taskGroup s
 
 		// If the constraint is on the task group filter the allocations to just
 		// those on the task group
-		if taskGroup != "" {
-			remove = remove || allocs[i].TaskGroup != taskGroup
+		if p.taskGroup != "" {
+			remove = remove || allocs[i].TaskGroup != p.taskGroup
 		}
 
 		if remove {
@@ -272,7 +272,7 @@ func filterAllocs(allocs []*structs.Allocation, filterTerminal bool, taskGroup s
 
 // buildNodeMap takes a list of allocations and returns a map of the nodes used
 // by those allocations
-func buildNodeMap(state State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
+func (p *propertySet) buildNodeMap(allocs []*structs.Allocation) (map[string]*structs.Node, error) {
 	// Get all the nodes that have been used by the allocs
 	nodes := make(map[string]*structs.Node)
 	ws := memdb.NewWatchSet()
@@ -281,7 +281,7 @@ func buildNodeMap(state State, allocs []*structs.Allocation) (map[string]*struct
 			continue
 		}
 
-		node, err := state.NodeByID(ws, alloc.NodeID)
+		node, err := p.ctx.State().NodeByID(ws, alloc.NodeID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lookup node ID %q: %v", alloc.NodeID, err)
 		}
@@ -294,11 +294,11 @@ func buildNodeMap(state State, allocs []*structs.Allocation) (map[string]*struct
 
 // populateProperties goes through all allocations and builds up the used
 // properties from the nodes storing the results in the passed properties map.
-func populateProperties(lTarget string, allocs []*structs.Allocation, nodes map[string]*structs.Node,
+func (p *propertySet) populateProperties(allocs []*structs.Allocation, nodes map[string]*structs.Node,
 	properties map[string]uint64) {
 
 	for _, alloc := range allocs {
-		nProperty, ok := getProperty(nodes[alloc.NodeID], lTarget)
+		nProperty, ok := getProperty(nodes[alloc.NodeID], p.constraint.LTarget)
 		if !ok {
 			continue
 		}
