@@ -148,7 +148,10 @@ func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateReq
 	if _, err := h.newManager(); err != nil {
 		err := fmt.Errorf("failed to build template manager: %v", err)
 		h.logger.Error("failed to build template manager", "error", err)
-		h.config.lifecycle.Kill(h.Name(), err.Error(), true)
+		h.config.lifecycle.Kill(context.Background(),
+			structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(fmt.Sprintf("Template update %v", err)))
 	}
 
 	return nil
