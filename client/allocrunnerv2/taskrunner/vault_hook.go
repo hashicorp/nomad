@@ -208,7 +208,10 @@ OUTER:
 			if err := h.writeToken(token); err != nil {
 				errorString := "failed to write Vault token to disk"
 				h.logger.Error(errorString, "error", err)
-				h.lifecycle.Kill("vault", errorString, true)
+				h.lifecycle.Kill(h.ctx,
+					structs.NewTaskEvent(structs.TaskKilling).
+						SetFailsTask().
+						SetDisplayMessage(fmt.Sprintf("Vault %v", errorString)))
 				return
 			}
 		}
@@ -232,18 +235,27 @@ OUTER:
 				s, err := signals.Parse(h.vaultStanza.ChangeSignal)
 				if err != nil {
 					h.logger.Error("failed to parse signal", "error", err)
-					h.lifecycle.Kill("vault", fmt.Sprintf("failed to parse signal: %v", err), true)
+					h.lifecycle.Kill(h.ctx,
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(fmt.Sprintf("Vault: failed to parse signal: %v", err)))
 					return
 				}
 
-				if err := h.lifecycle.Signal("vault", "new Vault token acquired", s); err != nil {
+				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
+				if err := h.lifecycle.Signal(event, s); err != nil {
 					h.logger.Error("failed to send signal", "error", err)
-					h.lifecycle.Kill("vault", fmt.Sprintf("failed to send signal: %v", err), true)
+					h.lifecycle.Kill(h.ctx,
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(fmt.Sprintf("Vault: failed to send signal: %v", err)))
 					return
 				}
 			case structs.VaultChangeModeRestart:
 				const noFailure = false
-				h.lifecycle.Restart("vault", "new Vault token acquired", noFailure)
+				h.lifecycle.Restart(h.ctx,
+					structs.NewTaskEvent(structs.TaskRestarting).
+						SetDisplayMessage("Vault: new Vault token acquired"), false)
 			case structs.VaultChangeModeNoop:
 				fallthrough
 			default:
@@ -289,14 +301,20 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		// Check if this is a server side error
 		if structs.IsServerSide(err) {
 			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
-			h.lifecycle.Kill("vault", fmt.Sprintf("server error deriving vault token: %v", err), true)
+			h.lifecycle.Kill(h.ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
 			return "", true
 		}
 
 		// Check if we can't recover from the error
 		if !structs.IsRecoverable(err) {
 			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
-			h.lifecycle.Kill("vault", fmt.Sprintf("failed to derive token: %v", err), true)
+			h.lifecycle.Kill(h.ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
 			return "", true
 		}
 
