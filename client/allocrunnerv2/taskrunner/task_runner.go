@@ -25,6 +25,20 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+const (
+	// killBackoffBaseline is the baseline time for exponential backoff while
+	// killing a task.
+	killBackoffBaseline = 5 * time.Second
+
+	// killBackoffLimit is the limit of the exponential backoff for killing
+	// the task.
+	killBackoffLimit = 2 * time.Minute
+
+	// killFailureLimit is how many times we will attempt to kill a task before
+	// giving up and potentially leaking resources.
+	killFailureLimit = 5
+)
+
 var (
 	// taskRunnerStateAllKey holds all the task runners state. At the moment
 	// there is no need to split it
@@ -79,10 +93,8 @@ type TaskRunner struct {
 	driver driver.Driver
 
 	// handle is the handle to the currently running driver
-	handle driver.DriverHandle
-	//XXX(schmichael) I think the handle is only manipulated in the Restore
-	//                and Run loops, so there's never concurrent access.
-	//handleLock sync.Mutex
+	handle     driver.DriverHandle
+	handleLock sync.Mutex
 
 	// task is the task being run
 	task     *structs.Task
@@ -226,14 +238,19 @@ func (tr *TaskRunner) initLabels() {
 
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
+	var handle driver.DriverHandle
 
 MAIN:
-	for {
+	for tr.ctx.Err() == nil {
 		// Run the prestart hooks
 		if err := tr.prestart(); err != nil {
 			tr.logger.Error("prestart failed", "error", err)
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
+		}
+
+		if tr.ctx.Err() != nil {
+			break MAIN
 		}
 
 		// Run the task
@@ -248,24 +265,27 @@ MAIN:
 			tr.logger.Error("poststart failed", "error", err)
 		}
 
-	WAIT:
+		// Grab the handle
+		handle = tr.getDriverHandle()
+
 		select {
-		case waitRes := <-tr.handle.WaitCh():
+		case waitRes := <-handle.WaitCh():
+			// Clear the handle
+			tr.setDriverHandle(nil)
+
+			// Store the wait result on the restart tracker
 			tr.restartTracker.SetWaitResult(waitRes)
-		case _ = <-tr.updateCh:
-			//XXX Need to copy handleUpdate over
-			tr.logger.Warn("update not handled")
-			goto WAIT
 		case <-tr.ctx.Done():
-			tr.logger.Debug("task runner cancelled")
-			break MAIN
+			tr.logger.Debug("task killed")
 		}
+
+		// TODO Need to run exited hooks
 
 	RESTART:
 		// Actually restart by sleeping and also watching for destroy events
 		restart, restartWait := tr.shouldRestart()
 		if !restart {
-			break
+			break MAIN
 		}
 
 		deadline := time.Now().Add(restartWait)
@@ -273,9 +293,6 @@ MAIN:
 		for time.Now().Before(deadline) {
 			select {
 			case <-timer.C:
-			case _ = <-tr.updateCh:
-				//XXX Need to copy handleUpdate over
-				tr.logger.Warn("update not handled")
 			case <-tr.ctx.Done():
 				tr.logger.Debug("task runner cancelled")
 				break MAIN
@@ -297,6 +314,9 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	state, when := tr.restartTracker.GetState()
 	reason := tr.restartTracker.GetReason()
 	switch state {
+	case structs.TaskKilled:
+		// The task was killed. Nothing to do
+		return false, 0
 	case structs.TaskNotRestarting, structs.TaskTerminated:
 		tr.logger.Info("not restarting task", "reason", reason)
 		if state == structs.TaskNotRestarting {
@@ -333,8 +353,9 @@ func (tr *TaskRunner) runDriver() error {
 		return err
 	}
 
-	// Wait on the handle
-	tr.handle = sresp.Handle
+	// Grab the handle
+	tr.setDriverHandle(sresp.Handle)
+
 	//XXX need to capture the driver network
 
 	// Emit an event that we started
@@ -370,6 +391,30 @@ func (tr *TaskRunner) initDriver() error {
 
 	tr.driver = driver
 	return nil
+}
+
+// handleDestroy kills the task handle. In the case that killing fails,
+// handleDestroy will retry with an exponential backoff and will give up at a
+// given limit. It returns whether the task was destroyed and the error
+// associated with the last kill attempt.
+func (tr *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, err error) {
+	// Cap the number of times we attempt to kill the task.
+	for i := 0; i < killFailureLimit; i++ {
+		if err = handle.Kill(); err != nil {
+			// Calculate the new backoff
+			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
+			if backoff > killBackoffLimit {
+				backoff = killBackoffLimit
+			}
+
+			tr.logger.Error("failed to kill task", "backoff", backoff, "error", err)
+			time.Sleep(backoff)
+		} else {
+			// Kill was successful
+			return true, nil
+		}
+	}
+	return
 }
 
 // persistLocalState persists local state to disk synchronously.
@@ -498,8 +543,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	//}
 }
 
-func (tr *TaskRunner) EmitEvent(source, message string) {
-	event := structs.NewTaskEvent(source).SetMessage(message)
+func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 	tr.SetState("", event)
 }
 
@@ -520,15 +564,6 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 		//shutting down it's not an error to drop the update as
 		//it will be applied on startup
 	}
-}
-
-// Shutdown the task runner. Does not stop the task or garbage collect a
-// stopped task.
-//
-// This method is safe for calling concurently with Run(). Callers must
-// receive on WaitCh() to block until Run() has exited.
-func (tr *TaskRunner) Shutdown() {
-	tr.ctxCancel()
 }
 
 // appendTaskEvent updates the task status by appending the new event.
