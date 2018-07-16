@@ -148,6 +148,24 @@ func (r *ReschedulePolicy) Canonicalize(jobType string) {
 	}
 }
 
+// Affinity is used to serialize task group affinities
+type Affinity struct {
+	LTarget string  // Left-hand target
+	RTarget string  // Right-hand target
+	Operand string  // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
+	str     string  // Memoized string
+}
+
+func NewAffinity(LTarget string, Operand string, RTarget string, Weight float64) *Affinity {
+	return &Affinity{
+		LTarget: LTarget,
+		RTarget: RTarget,
+		Operand: Operand,
+		Weight:  Weight,
+	}
+}
+
 func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 	var dp *ReschedulePolicy
 	switch jobType {
@@ -413,6 +431,7 @@ type TaskGroup struct {
 	Name             *string
 	Count            *int
 	Constraints      []*Constraint
+	Affinities       []*Affinity
 	Tasks            []*Task
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
@@ -543,6 +562,12 @@ func (g *TaskGroup) AddTask(t *Task) *TaskGroup {
 	return g
 }
 
+// AddAffinity is used to add a new affinity to a task group.
+func (g *TaskGroup) AddAffinity(a *Affinity) *TaskGroup {
+	g.Affinities = append(g.Affinities, a)
+	return g
+}
+
 // RequireDisk adds a ephemeral disk to the task group
 func (g *TaskGroup) RequireDisk(disk *EphemeralDisk) *TaskGroup {
 	g.EphemeralDisk = disk
@@ -583,6 +608,7 @@ type Task struct {
 	User            string
 	Config          map[string]interface{}
 	Constraints     []*Constraint
+	Affinities      []*Affinity
 	Env             map[string]string
 	Services        []*Service
 	Resources       *Resources
@@ -768,6 +794,12 @@ func (t *Task) Require(r *Resources) *Task {
 // Constraint adds a new constraints to a single task.
 func (t *Task) Constrain(c *Constraint) *Task {
 	t.Constraints = append(t.Constraints, c)
+	return t
+}
+
+// AddAffinity adds a new affinity to a single task.
+func (t *Task) AddAffinity(a *Affinity) *Task {
+	t.Affinities = append(t.Affinities, a)
 	return t
 }
 

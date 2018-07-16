@@ -2004,6 +2004,10 @@ type Job struct {
 	// all the task groups and tasks.
 	Constraints []*Constraint
 
+	// Affinities can be specified at the job level to express
+	// scheduling preferences that apply to all groups and tasks
+	Affinities []*Affinity
+
 	// TaskGroups are the collections of task groups that this job needs
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
@@ -2164,6 +2168,13 @@ func (j *Job) Validate() error {
 	for idx, constr := range j.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	for idx, affinity := range j.Affinities {
+		if err := affinity.Validate(); err != nil {
+			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -3315,6 +3326,10 @@ type TaskGroup struct {
 	// ReschedulePolicy is used to configure how the scheduler should
 	// retry failed allocations.
 	ReschedulePolicy *ReschedulePolicy
+
+	// Affinities can be specified at the task group level to express
+	// scheduling preferences.
+	Affinities []*Affinity
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -3327,6 +3342,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
+	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))
@@ -3404,6 +3420,13 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	for idx, constr := range tg.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	for idx, affinity := range tg.Affinities {
+		if err := affinity.Validate(); err != nil {
+			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -4007,6 +4030,10 @@ type Task struct {
 	// the particular task.
 	Constraints []*Constraint
 
+	// Affinities can be specified at the task level to express
+	// scheduling preferences
+	Affinities []*Affinity
+
 	// Resources is the resources needed by this task
 	Resources *Resources
 
@@ -4185,6 +4212,13 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		switch constr.Operand {
 		case ConstraintDistinctHosts, ConstraintDistinctProperty:
 			outer := fmt.Errorf("Constraint %d has disallowed Operand at task level: %s", idx+1, constr.Operand)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
+	for idx, affinity := range t.Affinities {
+		if err := affinity.Validate(); err != nil {
+			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
@@ -5246,6 +5280,89 @@ func (c *Constraint) Validate() error {
 	// Ensure we have an LTarget for the constraints that need one
 	if requireLtarget && c.LTarget == "" {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+const (
+	AffinitySetContainsAll = "set_contains_all"
+	AffinitySetContainsAny = "set_contains_any"
+)
+
+// Affinity is used to score placement options based on a weight
+type Affinity struct {
+	LTarget string  // Left-hand target
+	RTarget string  // Right-hand target
+	Operand string  // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
+	str     string  // Memoized string
+}
+
+// Equal checks if two affinities are equal
+func (a *Affinity) Equal(o *Affinity) bool {
+	return a.LTarget == o.LTarget &&
+		a.RTarget == o.RTarget &&
+		a.Operand == o.Operand
+}
+
+func (a *Affinity) Copy() *Affinity {
+	if a == nil {
+		return nil
+	}
+	na := new(Affinity)
+	*na = *a
+	return na
+}
+
+func (a *Affinity) String() string {
+	if a.str != "" {
+		return a.str
+	}
+	a.str = fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
+	return a.str
+}
+
+func (a *Affinity) Validate() error {
+	var mErr multierror.Error
+	if a.Operand == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing affinity operand"))
+	}
+
+	// Perform additional validation based on operand
+	switch a.Operand {
+	case AffinitySetContainsAll, AffinitySetContainsAny:
+		if a.RTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains operators require an RTarget"))
+		}
+	case ConstraintRegex:
+		if _, err := regexp.Compile(a.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Regular expression failed to compile: %v", err))
+		}
+	case ConstraintVersion:
+		if _, err := version.NewConstraint(a.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version affinity is invalid: %v", err))
+		}
+	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
+		if a.RTarget == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Operator %q requires an RTarget", a.Operand))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Unknown affinity operator %q", a.Operand))
+	}
+
+	// Ensure we have an LTarget
+	if a.LTarget == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required"))
+	}
+
+	// Ensure that weight is between -100 and 100, and not zero
+	if a.Weight == 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Affinity weight cannot be zero"))
+	}
+
+	if a.Weight > 100 || a.Weight < -100 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Affinity weight must be within the range [-100,100]"))
 	}
 
 	return mErr.ErrorOrNil()
