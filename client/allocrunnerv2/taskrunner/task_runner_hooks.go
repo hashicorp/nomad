@@ -9,15 +9,12 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocrunner/getter"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
+	ti "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	cconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-type EventEmitter interface {
-	SetState(state string, event *structs.TaskEvent)
-}
 
 // initHooks intializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
@@ -41,6 +38,18 @@ func (tr *TaskRunner) initHooks() {
 			logger:      hookLogger,
 			alloc:       tr.Alloc(),
 			task:        tr.taskName,
+		}))
+	}
+
+	// If there are templates is enabled, add the hook
+	if task := tr.Task(); len(task.Templates) != 0 {
+		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
+			logger:       hookLogger,
+			lifecycle:    tr,
+			events:       tr,
+			templates:    task.Templates,
+			clientConfig: tr.clientConfig,
+			envBuilder:   tr.envBuilder,
 		}))
 	}
 }
@@ -304,11 +313,11 @@ func (h *taskDirHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequ
 
 // artifactHook downloads artifacts for a task.
 type artifactHook struct {
-	eventEmitter EventEmitter
+	eventEmitter ti.EventEmitter
 	logger       log.Logger
 }
 
-func newArtifactHook(e EventEmitter, logger log.Logger) *artifactHook {
+func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
 	h := &artifactHook{
 		eventEmitter: e,
 	}
