@@ -310,7 +310,8 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	if met.ClassExhausted["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if len(met.Scores) != 1 {
+	// Expect two metrics, one with bin packing score and one with normalized score
+	if len(met.Scores) != 2 {
 		t.Fatalf("bad: %#v", met)
 	}
 }
@@ -531,7 +532,8 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	if met.ClassExhausted["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if len(met.Scores) != 1 {
+	// Should have two scores, one from bin packing and one from normalization
+	if len(met.Scores) != 2 {
 		t.Fatalf("bad: %#v", met)
 	}
 }

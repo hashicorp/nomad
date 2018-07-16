@@ -12,16 +12,16 @@ func TestLimitIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
-			Node:  mock.Node(),
-			Score: 1,
+			Node:       mock.Node(),
+			FinalScore: 1,
 		},
 		{
-			Node:  mock.Node(),
-			Score: 2,
+			Node:       mock.Node(),
+			FinalScore: 2,
 		},
 		{
-			Node:  mock.Node(),
-			Score: 3,
+			Node:       mock.Node(),
+			FinalScore: 3,
 		},
 	}
 	static := NewStaticRankIterator(ctx, nodes)
@@ -73,26 +73,26 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "Skips one low scoring node",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: 2,
+					Node:       nodes[1],
+					FinalScore: 2,
 				},
 				{
-					Node:  nodes[2],
-					Score: 3,
+					Node:       nodes[2],
+					FinalScore: 3,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[1],
-					Score: 2,
+					Node:       nodes[1],
+					FinalScore: 2,
 				},
 				{
-					Node:  nodes[2],
-					Score: 3,
+					Node:       nodes[2],
+					FinalScore: 3,
 				},
 			},
 			threshold: -1,
@@ -103,30 +103,30 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "Skips maxSkip scoring nodes",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: -2,
+					Node:       nodes[1],
+					FinalScore: -2,
 				},
 				{
-					Node:  nodes[2],
-					Score: 3,
+					Node:       nodes[2],
+					FinalScore: 3,
 				},
 				{
-					Node:  nodes[3],
-					Score: 4,
+					Node:       nodes[3],
+					FinalScore: 4,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[2],
-					Score: 3,
+					Node:       nodes[2],
+					FinalScore: 3,
 				},
 				{
-					Node:  nodes[3],
-					Score: 4,
+					Node:       nodes[3],
+					FinalScore: 4,
 				},
 			},
 			threshold: -1,
@@ -137,30 +137,30 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "maxSkip limit reached",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: -6,
+					Node:       nodes[1],
+					FinalScore: -6,
 				},
 				{
-					Node:  nodes[2],
-					Score: -3,
+					Node:       nodes[2],
+					FinalScore: -3,
 				},
 				{
-					Node:  nodes[3],
-					Score: -4,
+					Node:       nodes[3],
+					FinalScore: -4,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[2],
-					Score: -3,
+					Node:       nodes[2],
+					FinalScore: -3,
 				},
 				{
-					Node:  nodes[3],
-					Score: -4,
+					Node:       nodes[3],
+					FinalScore: -4,
 				},
 			},
 			threshold: -1,
@@ -171,22 +171,22 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "draw both from skipped nodes",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: -6,
+					Node:       nodes[1],
+					FinalScore: -6,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: -6,
+					Node:       nodes[1],
+					FinalScore: -6,
 				},
 			},
 			threshold: -1,
@@ -196,22 +196,22 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "one node above threshold, one skipped node",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: 5,
+					Node:       nodes[1],
+					FinalScore: 5,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[1],
-					Score: 5,
+					Node:       nodes[1],
+					FinalScore: 5,
 				},
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 			},
 			threshold: -1,
@@ -222,30 +222,30 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "low scoring nodes interspersed",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 				{
-					Node:  nodes[1],
-					Score: 5,
+					Node:       nodes[1],
+					FinalScore: 5,
 				},
 				{
-					Node:  nodes[2],
-					Score: -2,
+					Node:       nodes[2],
+					FinalScore: -2,
 				},
 				{
-					Node:  nodes[3],
-					Score: 2,
+					Node:       nodes[3],
+					FinalScore: 2,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[1],
-					Score: 5,
+					Node:       nodes[1],
+					FinalScore: 5,
 				},
 				{
-					Node:  nodes[3],
-					Score: 2,
+					Node:       nodes[3],
+					FinalScore: 2,
 				},
 			},
 			threshold: -1,
@@ -256,14 +256,14 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "only one node, score below threshold",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -1,
+					Node:       nodes[0],
+					FinalScore: -1,
 				},
 			},
 			threshold: -1,
@@ -274,22 +274,22 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			desc: "maxSkip is more than available nodes",
 			nodes: []*RankedNode{
 				{
-					Node:  nodes[0],
-					Score: -2,
+					Node:       nodes[0],
+					FinalScore: -2,
 				},
 				{
-					Node:  nodes[1],
-					Score: 1,
+					Node:       nodes[1],
+					FinalScore: 1,
 				},
 			},
 			expectedOut: []*RankedNode{
 				{
-					Node:  nodes[1],
-					Score: 1,
+					Node:       nodes[1],
+					FinalScore: 1,
 				},
 				{
-					Node:  nodes[0],
-					Score: -2,
+					Node:       nodes[0],
+					FinalScore: -2,
 				},
 			},
 			threshold: -1,
@@ -320,16 +320,16 @@ func TestMaxScoreIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{
-			Node:  mock.Node(),
-			Score: 1,
+			Node:       mock.Node(),
+			FinalScore: 1,
 		},
 		{
-			Node:  mock.Node(),
-			Score: 2,
+			Node:       mock.Node(),
+			FinalScore: 2,
 		},
 		{
-			Node:  mock.Node(),
-			Score: 3,
+			Node:       mock.Node(),
+			FinalScore: 3,
 		},
 	}
 	static := NewStaticRankIterator(ctx, nodes)
