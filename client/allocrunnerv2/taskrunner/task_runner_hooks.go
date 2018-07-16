@@ -1,6 +1,7 @@
 package taskrunner
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -12,16 +13,18 @@ import (
 // initHooks intializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
+	task := tr.Task()
 
 	// Create the task directory hook. This is run first to ensure the
 	// directoy path exists for other hooks.
 	tr.runnerHooks = []interfaces.TaskHook{
 		newTaskDirHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
+		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
-	if task := tr.Task(); task.Vault != nil {
+	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
 			vaultStanza: task.Vault,
 			client:      tr.vaultClient,
@@ -35,7 +38,7 @@ func (tr *TaskRunner) initHooks() {
 	}
 
 	// If there are templates is enabled, add the hook
-	if task := tr.Task(); len(task.Templates) != 0 {
+	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
 			logger:       hookLogger,
 			lifecycle:    tr,
@@ -264,6 +267,47 @@ func (tr *TaskRunner) updateHooks() {
 		if tr.logger.IsTrace() {
 			end := time.Now()
 			tr.logger.Trace("finished update hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
+// kill is used to run the runners kill hooks.
+func (tr *TaskRunner) kill() {
+	if tr.logger.IsTrace() {
+		start := time.Now()
+		tr.logger.Trace("running kill hooks", "start", start)
+		defer func() {
+			end := time.Now()
+			tr.logger.Trace("finished kill hooks", "end", end, "duration", end.Sub(start))
+		}()
+	}
+
+	for _, hook := range tr.runnerHooks {
+		upd, ok := hook.(interfaces.TaskKillHook)
+		if !ok {
+			tr.logger.Trace("skipping non-kill hook", "name", hook.Name())
+			continue
+		}
+
+		name := upd.Name()
+
+		// Time the update hook
+		var start time.Time
+		if tr.logger.IsTrace() {
+			start = time.Now()
+			tr.logger.Trace("running kill hook", "name", name, "start", start)
+		}
+
+		// Run the update hook
+		req := interfaces.TaskKillRequest{}
+		var resp interfaces.TaskKillResponse
+		if err := upd.Kill(context.Background(), &req, &resp); err != nil {
+			tr.logger.Error("kill hook failed", "name", name, "error", err)
+		}
+
+		if tr.logger.IsTrace() {
+			end := time.Now()
+			tr.logger.Trace("finished kill hooks", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }
