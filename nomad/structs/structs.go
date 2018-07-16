@@ -2008,6 +2008,10 @@ type Job struct {
 	// scheduling preferences that apply to all groups and tasks
 	Affinities []*Affinity
 
+	// Spread can be specified at the job level to express spreading
+	// allocations across a desired attribute, such as datacenter
+	Spreads []*Spread
+
 	// TaskGroups are the collections of task groups that this job needs
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
@@ -3336,6 +3340,10 @@ type TaskGroup struct {
 	// Affinities can be specified at the task group level to express
 	// scheduling preferences.
 	Affinities []*Affinity
+
+	// Spread can be specified at the task group level to express spreading
+	// allocations across a desired attribute, such as datacenter
+	Spreads []*Spread
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -3349,6 +3357,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
+	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))
@@ -5382,6 +5391,56 @@ func (a *Affinity) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+type Spread struct {
+	Attribute    string
+	Weight       int
+	SpreadTarget []*SpreadTarget
+	str          string
+}
+
+type SpreadTarget struct {
+	Value string
+	Ratio uint32
+	str   string
+}
+
+func (s *Spread) Copy() *Spread {
+	if s == nil {
+		return nil
+	}
+	ns := new(Spread)
+	*ns = *s
+
+	ns.SpreadTarget = CopySliceSpreadTarget(s.SpreadTarget)
+	return ns
+}
+
+func (s *SpreadTarget) Copy() *SpreadTarget {
+	if s == nil {
+		return nil
+	}
+
+	ns := new(SpreadTarget)
+	*ns = *s
+	return ns
+}
+
+func (s *Spread) String() string {
+	if s.str != "" {
+		return s.str
+	}
+	s.str = fmt.Sprintf("%s %s %v", s.Attribute, s.Weight, s.SpreadTarget)
+	return s.str
+}
+
+func (s *SpreadTarget) String() string {
+	if s.str != "" {
+		return s.str
+	}
+	s.str = fmt.Sprintf("%s %v", s.Value, s.Ratio)
+	return s.str
 }
 
 // EphemeralDisk is an ephemeral disk object
