@@ -2116,6 +2116,7 @@ func (j *Job) Copy() *Job {
 	*nj = *j
 	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
+	nj.Affinities = CopySliceAffinities(nj.Affinities)
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(nj.TaskGroups))
@@ -4087,6 +4088,7 @@ func (t *Task) Copy() *Task {
 	}
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
+	nt.Affinities = CopySliceAffinities(nt.Affinities)
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
