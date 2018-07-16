@@ -36,6 +36,7 @@ func NewRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTr
 type RestartTracker struct {
 	waitRes          *dstructs.WaitResult
 	startErr         error
+	killed           bool      // Whether the task has been killed
 	restartTriggered bool      // Whether the task has been signalled to be restarted
 	failure          bool      // Whether a failure triggered the restart
 	count            int       // Current number of attempts.
@@ -95,6 +96,14 @@ func (r *RestartTracker) SetRestartTriggered(failure bool) *RestartTracker {
 	return r
 }
 
+// SetKilled is used to mark that the task has been killed.
+func (r *RestartTracker) SetKilled() *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.killed = true
+	return r
+}
+
 // GetReason returns a human-readable description for the last state returned by
 // GetState.
 func (r *RestartTracker) GetReason() string {
@@ -123,7 +132,14 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		r.waitRes = nil
 		r.restartTriggered = false
 		r.failure = false
+		r.killed = false
 	}()
+
+	// Hot path if task was killed
+	if r.killed {
+		r.reason = ""
+		return structs.TaskKilled, 0
+	}
 
 	// Hot path if a restart was triggered
 	if r.restartTriggered {

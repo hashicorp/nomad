@@ -1,6 +1,7 @@
 package template
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -41,10 +42,10 @@ type MockTaskHooks struct {
 
 	UnblockCh chan struct{}
 
-	KillReason string
-	KillCh     chan struct{}
+	KillEvent *structs.TaskEvent
+	KillCh    chan struct{}
 
-	Events      []string
+	Events      []*structs.TaskEvent
 	EmitEventCh chan struct{}
 }
 
@@ -57,15 +58,16 @@ func NewMockTaskHooks() *MockTaskHooks {
 		EmitEventCh: make(chan struct{}, 1),
 	}
 }
-func (m *MockTaskHooks) Restart(source, reason string, failure bool) {
+func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	m.Restarts++
 	select {
 	case m.RestartCh <- struct{}{}:
 	default:
 	}
+	return nil
 }
 
-func (m *MockTaskHooks) Signal(source, reason string, s os.Signal) error {
+func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s os.Signal) error {
 	m.Signals = append(m.Signals, s)
 	select {
 	case m.SignalCh <- struct{}{}:
@@ -75,16 +77,17 @@ func (m *MockTaskHooks) Signal(source, reason string, s os.Signal) error {
 	return m.SignalError
 }
 
-func (m *MockTaskHooks) Kill(source, reason string, fail bool) {
-	m.KillReason = reason
+func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
+	m.KillEvent = event
 	select {
 	case m.KillCh <- struct{}{}:
 	default:
 	}
+	return nil
 }
 
-func (m *MockTaskHooks) EmitEvent(source, message string) {
-	m.Events = append(m.Events, message)
+func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
+	m.Events = append(m.Events, event)
 	select {
 	case m.EmitEventCh <- struct{}{}:
 	default:
@@ -966,6 +969,8 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 
 func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	// Make a template that renders based on a key in Consul and sends SIGALRM
 	key1 := "foo"
 	content1 := "bar"
@@ -1006,9 +1011,8 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
 	}
 
-	if !strings.Contains(harness.mockHooks.KillReason, "Sending signals") {
-		t.Fatalf("Unexpected error: %v", harness.mockHooks.KillReason)
-	}
+	require.NotNil(harness.mockHooks.KillEvent)
+	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
 }
 
 // TestTaskTemplateManager_Env asserts templates with the env flag set are read
@@ -1287,6 +1291,8 @@ func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	// Make a template that will render based on a key in Consul
 	var embedded string
 	for i := 0; i < 5; i++ {
@@ -1315,10 +1321,8 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	}
 
 	// Check to see we got a correct message
-	event := harness.mockHooks.Events[0]
-	if !strings.Contains(event, "and 2 more") {
-		t.Fatalf("bad event: %q", event)
-	}
+	require.Len(harness.mockHooks.Events, 1)
+	require.Contains(harness.mockHooks.Events[0].DisplayMessage, "and 2 more")
 
 	// Write 3 keys to Consul
 	for i := 0; i < 3; i++ {
@@ -1334,9 +1338,10 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
+	// TODO
 	// Check to see we got a correct message
-	event = harness.mockHooks.Events[len(harness.mockHooks.Events)-1]
-	if !strings.Contains(event, "Missing") || strings.Contains(event, "more") {
-		t.Fatalf("bad event: %q", event)
+	eventMsg := harness.mockHooks.Events[len(harness.mockHooks.Events)-1].DisplayMessage
+	if !strings.Contains(eventMsg, "Missing") || strings.Contains(eventMsg, "more") {
+		t.Fatalf("bad event: %q", eventMsg)
 	}
 }

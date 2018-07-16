@@ -1,6 +1,7 @@
 package template
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -206,7 +207,10 @@ func (tm *TaskTemplateManager) run() {
 	// Read environment variables from env templates before we unblock
 	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir)
 	if err != nil {
-		tm.config.Lifecycle.Kill(consulTemplateSourceName, err.Error(), true)
+		tm.config.Lifecycle.Kill(context.Background(),
+			structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
 		return
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
@@ -250,7 +254,10 @@ WAIT:
 				continue
 			}
 
-			tm.config.Lifecycle.Kill(consulTemplateSourceName, err.Error(), true)
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			events := tm.runner.RenderEvents()
@@ -328,7 +335,7 @@ WAIT:
 			}
 
 			missingStr := strings.Join(missingSlice, ", ")
-			tm.config.Events.EmitEvent(consulTemplateSourceName, fmt.Sprintf("Missing: %s", missingStr))
+			tm.config.Events.EmitEvent(structs.NewTaskEvent(consulTemplateSourceName).SetDisplayMessage(fmt.Sprintf("Missing: %s", missingStr)))
 		}
 	}
 }
@@ -350,7 +357,10 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				continue
 			}
 
-			tm.config.Lifecycle.Kill(consulTemplateSourceName, err.Error(), true)
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
 			var handling []string
@@ -375,14 +385,20 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				// Lookup the template and determine what to do
 				tmpls, ok := tm.lookup[id]
 				if !ok {
-					tm.config.Lifecycle.Kill(consulTemplateSourceName, fmt.Sprintf("template runner returned unknown template id %q", id), true)
+					tm.config.Lifecycle.Kill(context.Background(),
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(fmt.Sprintf("Template runner returned unknown template id %q", id)))
 					return
 				}
 
 				// Read environment variables from templates
 				envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir)
 				if err != nil {
-					tm.config.Lifecycle.Kill(consulTemplateSourceName, err.Error(), true)
+					tm.config.Lifecycle.Kill(context.Background(),
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
 					return
 				}
 				tm.config.EnvBuilder.SetTemplateEnv(envMap)
@@ -424,13 +440,15 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				}
 
 				if restart {
-					const failure = false
-					tm.config.Lifecycle.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered", failure)
+					tm.config.Lifecycle.Restart(context.Background(),
+						structs.NewTaskEvent(structs.TaskRestarting).
+							SetDisplayMessage("Template with change_mode restart re-rendered"), false)
 				} else if len(signals) != 0 {
 					var mErr multierror.Error
 					for signal := range signals {
-						err := tm.config.Lifecycle.Signal(consulTemplateSourceName, "template re-rendered", tm.signals[signal])
-						if err != nil {
+						s := tm.signals[signal]
+						event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
+						if err := tm.config.Lifecycle.Signal(event, s); err != nil {
 							multierror.Append(&mErr, err)
 						}
 					}
@@ -440,7 +458,11 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 						for signal := range signals {
 							flat = append(flat, tm.signals[signal])
 						}
-						tm.config.Lifecycle.Kill(consulTemplateSourceName, fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
+
+						tm.config.Lifecycle.Kill(context.Background(),
+							structs.NewTaskEvent(structs.TaskKilling).
+								SetFailsTask().
+								SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
 					}
 				}
 			}
