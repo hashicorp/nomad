@@ -14,7 +14,7 @@ Nomad makes use of a HashiCorp service called [Checkpoint](https://checkpoint.ha
 which is used to check for updates and critical security bulletins.
 Only anonymous information, which cannot be used to identify the user or host, is
 sent to Checkpoint. An anonymous ID is sent which helps de-duplicate warning messages.
-This anonymous ID can can be disabled. Using the Checkpoint service is optional and can be disabled.
+This anonymous ID can be disabled. Using the Checkpoint service is optional and can be disabled.
 
 See [`disable_anonymous_signature`](/docs/agent/configuration/index.html#disable_anonymous_signature)
 and [`disable_update_check`](/docs/agent/configuration/index.html#disable_update_check).
