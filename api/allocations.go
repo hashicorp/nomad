@@ -72,6 +72,7 @@ type Allocation struct {
 	EvalID             string
 	Name               string
 	NodeID             string
+	NodeName           string
 	JobID              string
 	Job                *Job
 	TaskGroup          string
@@ -121,6 +122,7 @@ type AllocationListStub struct {
 	EvalID             string
 	Name               string
 	NodeID             string
+	NodeName           string
 	JobID              string
 	JobVersion         uint64
 	TaskGroup          string

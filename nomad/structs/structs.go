@@ -5751,6 +5751,9 @@ type Allocation struct {
 	// NodeID is the node this is being placed on
 	NodeID string
 
+	// NodeName is the name of the node this is being placed on.
+	NodeName string
+
 	// Job is the parent job of the task group being allocated.
 	// This is copied at allocation time to avoid issues if the job
 	// definition is updated.
@@ -6132,6 +6135,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		EvalID:             a.EvalID,
 		Name:               a.Name,
 		NodeID:             a.NodeID,
+		NodeName:           a.NodeName,
 		JobID:              a.JobID,
 		JobVersion:         a.Job.Version,
 		TaskGroup:          a.TaskGroup,
@@ -6157,6 +6161,7 @@ type AllocListStub struct {
 	EvalID             string
 	Name               string
 	NodeID             string
+	NodeName           string
 	JobID              string
 	JobVersion         uint64
 	TaskGroup          string
