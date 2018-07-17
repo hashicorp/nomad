@@ -54,6 +54,8 @@ type TaskPrestartResponse struct {
 
 type TaskPrestartHook interface {
 	TaskHook
+
+	// Prestart is called before the task is started.
 	Prestart(context.Context, *TaskPrestartRequest, *TaskPrestartResponse) error
 }
 
@@ -64,6 +66,8 @@ type TaskPoststartResponse struct{}
 
 type TaskPoststartHook interface {
 	TaskHook
+
+	// Poststart is called after the task has started.
 	Poststart(context.Context, *TaskPoststartRequest, *TaskPoststartResponse) error
 }
 
@@ -72,6 +76,8 @@ type TaskKillResponse struct{}
 
 type TaskKillHook interface {
 	TaskHook
+
+	// Kill is called when a task is going to be killed.
 	Kill(context.Context, *TaskKillRequest, *TaskKillResponse) error
 }
 
@@ -80,6 +86,8 @@ type TaskExitedResponse struct{}
 
 type TaskExitedHook interface {
 	TaskHook
+
+	// Exited is called when a task exits and may or may not be restarted.
 	Exited(context.Context, *TaskExitedRequest, *TaskExitedResponse) error
 }
 
@@ -98,5 +106,7 @@ type TaskStopResponse struct{}
 
 type TaskStopHook interface {
 	TaskHook
+
+	// Stop is called after the task has exited and will not be started again.
 	Stop(context.Context, *TaskStopRequest, *TaskStopResponse) error
 }
