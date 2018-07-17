@@ -3926,3 +3926,91 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.DrainStrategy, node2.DrainStrategy)
 	require.Equal(node.Drivers, node2.Drivers)
 }
+
+func TestSpread_Validate(t *testing.T) {
+	type tc struct {
+		spread *Spread
+		err    error
+		name   string
+	}
+
+	testCases := []tc{
+		{
+			spread: &Spread{},
+			err:    fmt.Errorf("Missing spread attribute"),
+			name:   "empty spread",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    -1,
+			},
+			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
+			name: "Invalid weight",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    200,
+			},
+			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
+			name: "Invalid weight",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+			},
+			err:  fmt.Errorf("Atleast one spread target value must be specified"),
+			name: "No spread targets",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+				},
+			},
+			err:  fmt.Errorf("Spread target value \"dc1\" already defined"),
+			name: "No spread targets",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc2",
+						Percent: 50,
+					},
+				},
+			},
+			err:  nil,
+			name: "Valid spread",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spread.Validate()
+			if tc.err != nil {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}
