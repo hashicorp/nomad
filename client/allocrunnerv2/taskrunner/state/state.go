@@ -38,9 +38,9 @@ func (s *LocalState) Copy() *LocalState {
 }
 
 type HookState struct {
-	// PrerunDone is true if the hook has run Prerun successfully and does
+	// Prestart is true if the hook has run Prestart successfully and does
 	// not need to run again
-	PrerunDone bool
+	PrestartDone bool
 	Data       map[string]string
 }
 
@@ -56,7 +56,7 @@ func (h *HookState) Equal(o *HookState) bool {
 		return h == o
 	}
 
-	if h.PrerunDone != o.PrerunDone {
+	if h.PrestartDone != o.PrestartDone {
 		return false
 	}
 

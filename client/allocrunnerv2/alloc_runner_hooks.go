@@ -40,7 +40,7 @@ func (ar *allocRunner) prerun() error {
 		var start time.Time
 		if ar.logger.IsTrace() {
 			start = time.Now()
-			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
+			ar.logger.Trace("running prestart hook", "name", name, "start", start)
 		}
 
 		if err := pre.Prerun(); err != nil {

@@ -94,8 +94,8 @@ func (ar *allocRunner) Run() {
 	var err error
 	var taskWaitCh <-chan struct{}
 
-	// Run the prerun hooks
-	// XXX Equivalent to TR.Prerun hook
+	// Run the prestart hooks
+	// XXX Equivalent to TR.Prestart hook
 	if err := ar.prerun(); err != nil {
 		ar.logger.Error("prerun failed", "error", err)
 		goto POST
