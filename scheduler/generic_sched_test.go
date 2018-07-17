@@ -602,6 +602,89 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+// Test job registration with spread configured
+func TestServiceSched_Spread(t *testing.T) {
+	h := NewHarness(t)
+	assert := assert.New(t)
+
+	// Create a job that uses spread over data center
+	job := mock.Job()
+	job.Datacenters = []string{"dc1", "dc2"}
+	job.TaskGroups[0].Count = 10
+	job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
+		&structs.Spread{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "dc1",
+					Percent: 70,
+				},
+				{
+					Value:   "dc2",
+					Percent: 30,
+				},
+			},
+		})
+	assert.Nil(h.State.UpsertJob(h.NextIndex(), job), "UpsertJob")
+
+	// Create some nodes, half in dc2
+	var nodes []*structs.Node
+	nodeMap := make(map[string]*structs.Node)
+	for i := 0; i < 6; i++ {
+		node := mock.Node()
+		if i%2 == 0 {
+			node.Datacenter = "dc2"
+		}
+		nodes = append(nodes, node)
+		assert.Nil(h.State.UpsertNode(h.NextIndex(), node), "UpsertNode")
+		nodeMap[node.ID] = node
+	}
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
+
+	// Ensure a single plan
+	assert.Len(h.Plans, 1, "Number of plans")
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	assert.Nil(plan.Annotations, "Plan.Annotations")
+
+	// Ensure the eval hasn't spawned blocked eval
+	assert.Len(h.CreateEvals, 0, "Created Evals")
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	dcAllocsMap := make(map[string]int)
+	for nodeId, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+		dc := nodeMap[nodeId].Datacenter
+		c := dcAllocsMap[dc]
+		c += len(allocList)
+		dcAllocsMap[dc] = c
+	}
+	assert.Len(planned, 10, "Planned Allocations")
+
+	expectedCounts := make(map[string]int)
+	expectedCounts["dc1"] = 7
+	expectedCounts["dc2"] = 3
+	require.Equal(t, expectedCounts, dcAllocsMap)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	h := NewHarness(t)
 
