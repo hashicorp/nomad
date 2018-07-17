@@ -117,6 +117,16 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 	}
 }
 
+func TestClient_RestartTracker_TaskKilled(t *testing.T) {
+	t.Parallel()
+	p := testPolicy(true, structs.RestartPolicyModeFail)
+	p.Attempts = 0
+	rt := NewRestartTracker(p, structs.JobTypeService)
+	if state, when := rt.SetKilled().GetState(); state != structs.TaskKilled && when != 0 {
+		t.Fatalf("expect no restart; got %v %v", state, when)
+	}
+}
+
 func TestClient_RestartTracker_RestartTriggered(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)

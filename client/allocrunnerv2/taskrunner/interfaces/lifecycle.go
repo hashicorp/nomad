@@ -1,11 +1,14 @@
 package interfaces
 
-import "os"
+import (
+	"context"
+	"os"
 
-// XXX These should probably all return an error and we should have predefined
-// error types for the task not currently running
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
 type TaskLifecycle interface {
-	Restart(source, reason string, failure bool)
-	Signal(source, reason string, s os.Signal) error
-	Kill(source, reason string, fail bool)
+	Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error
+	Signal(event *structs.TaskEvent, s os.Signal) error
+	Kill(ctx context.Context, event *structs.TaskEvent) error
 }

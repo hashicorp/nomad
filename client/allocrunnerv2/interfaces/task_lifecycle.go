@@ -8,14 +8,28 @@ import (
 )
 
 /*
-     prestart   poststart     exited                 stop
-        |        |              |                     |
-        |        |              |                     |
- --------> run ------> exited ----------> not restart ---------> garbage collect
-            |
-            |
-           kill -> exited -> stop
 
+                            Restart
+      +--------------------------------------------------------+
+      |                                                        |
+      |                      *Update                           |
+      |                     +-------+                          |
+      |                     |       |                          |
+      |                     |       |                          |
+      |                  +---v-------+----+                    |
+ +----v----+             |    Running     |               +----+-----+           +--------------+
+ |         | *Prestart   |----------------|      *Exited  |          |  *Stop    |              |
+ | Pending +-------------> *Poststart run +---^-----------> Exited   +----------->  Terminal    |
+ |         |             |  upon entering |   |           |          | NoRestart |              |
+ +---------+             |  running       |   |           +----------+           +--------------+
+                         |                |   |
+                         +--------+-------+   |
+                                  |           |
+                                  +-----------+
+                                     *Kill
+                                (forces terminal)
+
+Link: http://stable.ascii-flow.appspot.com/#Draw4489375405966393064/1824429135
 */
 
 // TaskHook is a lifecycle hook into the life cycle of a task runner.
