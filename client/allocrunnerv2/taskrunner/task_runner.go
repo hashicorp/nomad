@@ -494,7 +494,7 @@ func (tr *TaskRunner) Restore(tx *bolt.Tx) error {
 	if err := clientstate.GetObject(bkt, taskStateKey, &ts); err != nil {
 		return fmt.Errorf("failed to read task state: %v", err)
 	}
-	tr.state = &tr
+	tr.state = &ts
 
 	return nil
 }
@@ -512,7 +512,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	}
 
 	// Append the event
-	tr.emitEventImpl(tx, event)
+	tr.emitEventImpl(event)
 
 	// Handle the state transition.
 	switch state {
@@ -558,7 +558,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 			return err
 		}
 
-		return bkt.PutObject(bkt, taskStateKey, tr.state)
+		return clientstate.PutObject(bkt, taskStateKey, tr.state)
 	})
 	if err != nil {
 		// Only a warning because the next event/state-transition will
@@ -591,8 +591,9 @@ func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 			return err
 		}
 
-		return bkt.PutObject(bkt, taskStateKey, tr.state)
+		return clientstate.PutObject(bkt, taskStateKey, tr.state)
 	})
+
 	if err != nil {
 		// Only a warning because the next event/state-transition will
 		// try to persist it again.
@@ -625,6 +626,8 @@ func (tr *TaskRunner) emitEventImpl(event *structs.TaskEvent) error {
 
 	// Append event to slice
 	appendTaskEvent(tr.state, event)
+
+	return nil
 }
 
 // WaitCh is closed when TaskRunner.Run exits.
