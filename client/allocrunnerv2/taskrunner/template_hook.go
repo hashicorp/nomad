@@ -63,7 +63,7 @@ func (*templateHook) Name() string {
 	return "template"
 }
 
-func (h *templateHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
+func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
@@ -111,7 +111,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	return unblock, nil
 }
 
-func (h *templateHook) Poststop(ctx context.Context, req *interfaces.TaskPoststopRequest, resp *interfaces.TaskPoststopResponse) error {
+func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
