@@ -1,18 +1,11 @@
 package taskrunner
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
-
-	"github.com/hashicorp/nomad/client/allocrunner/getter"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
-	ti "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
-	cconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -54,37 +47,37 @@ func (tr *TaskRunner) initHooks() {
 	}
 }
 
-// prerun is used to run the runners prerun hooks.
-func (tr *TaskRunner) prerun() error {
+// prestart is used to run the runners prestart hooks.
+func (tr *TaskRunner) prestart() error {
 	//XXX is this necessary? maybe we should have a generic cancelletion
 	//    method instead of peeking into the alloc
 	// Determine if the allocation is terminaland we should avoid running
-	// pre-run hooks.
+	// prestart hooks.
 	alloc := tr.Alloc()
 	if alloc.TerminalStatus() {
-		tr.logger.Trace("skipping pre-run hooks since allocation is terminal")
+		tr.logger.Trace("skipping prestart hooks since allocation is terminal")
 		return nil
 	}
 
 	if tr.logger.IsTrace() {
 		start := time.Now()
-		tr.logger.Trace("running pre-run hooks", "start", start)
+		tr.logger.Trace("running prestart hooks", "start", start)
 		defer func() {
 			end := time.Now()
-			tr.logger.Trace("finished pre-run hooks", "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished prestart hooks", "end", end, "duration", end.Sub(start))
 		}()
 	}
 
 	for _, hook := range tr.runnerHooks {
-		pre, ok := hook.(interfaces.TaskPrerunHook)
+		pre, ok := hook.(interfaces.TaskPrestartHook)
 		if !ok {
-			tr.logger.Trace("skipping non-prerun hook", "name", hook.Name())
+			tr.logger.Trace("skipping non-prestart hook", "name", hook.Name())
 			continue
 		}
 
 		name := pre.Name()
 		// Build the request
-		req := interfaces.TaskPrerunRequest{
+		req := interfaces.TaskPrestartRequest{
 			Task:    tr.Task(),
 			TaskDir: tr.taskDir.Dir,
 			TaskEnv: tr.envBuilder.Build(),
@@ -93,24 +86,24 @@ func (tr *TaskRunner) prerun() error {
 		tr.localStateLock.RLock()
 		origHookState := tr.localState.Hooks[name]
 		tr.localStateLock.RUnlock()
-		if origHookState != nil && origHookState.PrerunDone {
-			tr.logger.Trace("skipping done prerun hook", "name", pre.Name())
+		if origHookState != nil && origHookState.PrestartDone {
+			tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
 			continue
 		}
 
 		req.VaultToken = tr.getVaultToken()
 
-		// Time the prerun hook
+		// Time the prestart hook
 		var start time.Time
 		if tr.logger.IsTrace() {
 			start = time.Now()
-			tr.logger.Trace("running pre-run hook", "name", name, "start", start)
+			tr.logger.Trace("running prestart hook", "name", name, "start", start)
 		}
 
-		// Run the pre-run hook
-		var resp interfaces.TaskPrerunResponse
-		if err := pre.Prerun(tr.ctx, &req, &resp); err != nil {
-			return structs.WrapRecoverable(fmt.Sprintf("pre-run hook %q failed: %v", name, err), err)
+		// Run the prestart hook
+		var resp interfaces.TaskPrestartResponse
+		if err := pre.Prestart(tr.ctx, &req, &resp); err != nil {
+			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}
 
 		// Store the hook state
@@ -124,7 +117,7 @@ func (tr *TaskRunner) prerun() error {
 
 			if resp.HookData != nil {
 				hookState.Data = resp.HookData
-				hookState.PrerunDone = resp.Done
+				hookState.PrestartDone = resp.Done
 			}
 			tr.localStateLock.Unlock()
 
@@ -143,26 +136,26 @@ func (tr *TaskRunner) prerun() error {
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished pre-run hooks", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished prestart hooks", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 
 	return nil
 }
 
-// postrun is used to run the runners postrun hooks.
-func (tr *TaskRunner) postrun() error {
+// poststart is used to run the runners poststart hooks.
+func (tr *TaskRunner) poststart() error {
 	if tr.logger.IsTrace() {
 		start := time.Now()
-		tr.logger.Trace("running post-run hooks", "start", start)
+		tr.logger.Trace("running poststart hooks", "start", start)
 		defer func() {
 			end := time.Now()
-			tr.logger.Trace("finished post-run hooks", "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished poststart hooks", "end", end, "duration", end.Sub(start))
 		}()
 	}
 
 	for _, hook := range tr.runnerHooks {
-		post, ok := hook.(interfaces.TaskPostrunHook)
+		post, ok := hook.(interfaces.TaskPoststartHook)
 		if !ok {
 			continue
 		}
@@ -171,36 +164,38 @@ func (tr *TaskRunner) postrun() error {
 		var start time.Time
 		if tr.logger.IsTrace() {
 			start = time.Now()
-			tr.logger.Trace("running post-run hook", "name", name, "start", start)
+			tr.logger.Trace("running poststart hook", "name", name, "start", start)
 		}
 
+		req := interfaces.TaskPoststartRequest{}
+		var resp interfaces.TaskPoststartResponse
 		// XXX We shouldn't exit on the first one
-		if err := post.Postrun(); err != nil {
-			return fmt.Errorf("post-run hook %q failed: %v", name, err)
+		if err := post.Poststart(tr.ctx, &req, &resp); err != nil {
+			return fmt.Errorf("poststart hook %q failed: %v", name, err)
 		}
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished post-run hooks", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished poststart hooks", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 
 	return nil
 }
 
-// shutdown is used to run the shutdown hooks.
-func (tr *TaskRunner) shutdown() error {
+// stop is used to run the stop hooks.
+func (tr *TaskRunner) stop() error {
 	if tr.logger.IsTrace() {
 		start := time.Now()
-		tr.logger.Trace("running poststop hooks", "start", start)
+		tr.logger.Trace("running stop hooks", "start", start)
 		defer func() {
 			end := time.Now()
-			tr.logger.Trace("finished poststop hooks", "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished stop hooks", "end", end, "duration", end.Sub(start))
 		}()
 	}
 
 	for _, hook := range tr.runnerHooks {
-		post, ok := hook.(interfaces.TaskDestroyHook)
+		post, ok := hook.(interfaces.TaskStopHook)
 		if !ok {
 			continue
 		}
@@ -209,17 +204,19 @@ func (tr *TaskRunner) shutdown() error {
 		var start time.Time
 		if tr.logger.IsTrace() {
 			start = time.Now()
-			tr.logger.Trace("running destroy hook", "name", name, "start", start)
+			tr.logger.Trace("running stop hook", "name", name, "start", start)
 		}
 
+		req := interfaces.TaskStopRequest{}
+		var resp interfaces.TaskStopResponse
 		// XXX We shouldn't exit on the first one
-		if err := post.Destroy(); err != nil {
-			return fmt.Errorf("destroy hook %q failed: %v", name, err)
+		if err := post.Stop(tr.ctx, &req, &resp); err != nil {
+			return fmt.Errorf("stop hook %q failed: %v", name, err)
 		}
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished destroy hooks", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished stop hooks", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 
@@ -251,7 +248,7 @@ func (tr *TaskRunner) updateHooks() {
 			VaultToken: tr.getVaultToken(),
 		}
 
-		// Time the prerun hook
+		// Time the update hook
 		var start time.Time
 		if tr.logger.IsTrace() {
 			start = time.Now()
@@ -269,82 +266,6 @@ func (tr *TaskRunner) updateHooks() {
 			tr.logger.Trace("finished update hooks", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
-}
-
-type taskDirHook struct {
-	runner *TaskRunner
-	logger log.Logger
-}
-
-func newTaskDirHook(runner *TaskRunner, logger log.Logger) *taskDirHook {
-	td := &taskDirHook{
-		runner: runner,
-	}
-	td.logger = logger.Named(td.Name())
-	return td
-}
-
-func (h *taskDirHook) Name() string {
-	return "task_dir"
-}
-
-func (h *taskDirHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
-	cc := h.runner.clientConfig
-	chroot := cconfig.DefaultChrootEnv
-	if len(cc.ChrootEnv) > 0 {
-		chroot = cc.ChrootEnv
-	}
-
-	// Emit the event that we are going to be building the task directory
-	h.runner.SetState("", structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
-
-	// Build the task directory structure
-	fsi := h.runner.driver.FSIsolation()
-	err := h.runner.taskDir.Build(false, chroot, fsi)
-	if err != nil {
-		return err
-	}
-
-	// Update the environment variables based on the built task directory
-	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
-	resp.Done = true
-	return nil
-}
-
-// artifactHook downloads artifacts for a task.
-type artifactHook struct {
-	eventEmitter ti.EventEmitter
-	logger       log.Logger
-}
-
-func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
-	h := &artifactHook{
-		eventEmitter: e,
-	}
-	h.logger = logger.Named(h.Name())
-	return h
-}
-
-func (*artifactHook) Name() string {
-	return "artifacts"
-}
-
-func (h *artifactHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
-	h.eventEmitter.SetState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
-
-	for _, artifact := range req.Task.Artifacts {
-		//XXX add ctx to GetArtifact to allow cancelling long downloads
-		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir); err != nil {
-			wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
-			h.logger.Debug(wrapped.Error())
-			h.eventEmitter.SetState(structs.TaskStatePending,
-				structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
-			return wrapped
-		}
-	}
-
-	resp.Done = true
-	return nil
 }
 
 /*
@@ -377,17 +298,17 @@ Implement: Prestart and Update (for new Vault token) and Destroy
 Consul Service Reg:
 Require: Task, interpolation/ENV
 Return: error
-Implement: Postrun, Update, Prestop
+Implement: Poststart, Update, Kill, Exited
 
 > @alex
 Dispatch Payload:
 Require: Alloc
 Return error
-Implement: Prerun
+Implement: Prestart
 
 > @schmichael
 Artifacts:
 Require: Folder structure, task, interpolation/ENV
 Return: error
-Implement: Prerun and Destroy
+Implement: Prestart
 */
