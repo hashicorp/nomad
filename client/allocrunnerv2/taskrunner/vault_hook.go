@@ -121,9 +121,9 @@ func (*vaultHook) Name() string {
 	return "vault"
 }
 
-func (h *vaultHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunRequest, resp *interfaces.TaskPrerunResponse) error {
-	// If we have already run prerun before exit early. We do not use the
-	// PrerunDone value because we want to recover the token on restoration.
+func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	// If we have already run prestart before exit early. We do not use the
+	// PrestartDone value because we want to recover the token on restoration.
 	first := h.firstRun
 	h.firstRun = false
 	if !first {
@@ -160,7 +160,7 @@ func (h *vaultHook) Prerun(ctx context.Context, req *interfaces.TaskPrerunReques
 	return nil
 }
 
-func (h *vaultHook) Poststop(ctx context.Context, req *interfaces.TaskPoststopRequest, resp *interfaces.TaskPoststopResponse) error {
+func (h *vaultHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	// Shutdown any created manager
 	h.cancel()
 	return nil
