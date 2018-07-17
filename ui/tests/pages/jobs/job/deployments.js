@@ -43,6 +43,7 @@ export default create({
       allocs: text('[data-test-deployment-task-group-allocs]'),
       healthy: text('[data-test-deployment-task-group-healthy]'),
       unhealthy: text('[data-test-deployment-task-group-unhealthy]'),
+      progress: text('[data-test-deployment-task-group-progress-deadline]'),
     }),
 
     hasAllocations: isPresent('[data-test-deployment-allocations]'),
