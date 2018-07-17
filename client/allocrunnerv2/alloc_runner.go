@@ -1,6 +1,7 @@
 package allocrunnerv2
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -139,10 +140,12 @@ func (ar *allocRunner) Run() {
 	// Run the runners
 	taskWaitCh = ar.runImpl()
 
+MAIN:
 	for {
 		select {
 		case <-taskWaitCh:
 			// TaskRunners have all exited
+			break MAIN
 		case updated := <-ar.updateCh:
 			// Updated alloc received
 			//XXX Update hooks
@@ -231,6 +234,10 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 //XXX TODO
 func (ar *allocRunner) Destroy() {
 	//TODO
+
+	for _, tr := range ar.tasks {
+		tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskKilled))
+	}
 }
 
 // IsDestroyed returns true if the alloc runner has been destroyed (stopped and
