@@ -23,8 +23,8 @@ type propertySet struct {
 	// taskGroup is optionally set if the constraint is for a task group
 	taskGroup string
 
-	// constraint is the constraint this property set is checking
-	constraint *structs.Constraint
+	// targetAttribute is the attribute this property set is checking
+	targetAttribute string
 
 	// allowedCount is the allowed number of allocations that can have the
 	// distinct property
@@ -60,7 +60,7 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 	return p
 }
 
-// SetJobConstraint is used to parameterize the property set for a
+// SetJobConstraintAttribute is used to parameterize the property set for a
 // distinct_property constraint set at the job level.
 func (p *propertySet) SetJobConstraint(constraint *structs.Constraint) {
 	p.setConstraint(constraint, "")
@@ -75,14 +75,7 @@ func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup 
 
 // setConstraint is a shared helper for setting a job or task group constraint.
 func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup string) {
-	// Store that this is for a task group
-	if taskGroup != "" {
-		p.taskGroup = taskGroup
-	}
-
-	// Store the constraint
-	p.constraint = constraint
-
+	allowedCount := uint64(0)
 	// Determine the number of allowed allocations with the property.
 	if v := constraint.RTarget; v != "" {
 		c, err := strconv.ParseUint(v, 10, 64)
@@ -92,14 +85,35 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 			return
 		}
 
-		p.allowedCount = c
+		allowedCount = c
 	} else {
-		p.allowedCount = 1
+		allowedCount = 1
 	}
+	p.setPropertySetInner(constraint.LTarget, allowedCount, taskGroup)
+}
+
+// SetTargetAttribute is used to populate this property set without also storing allowed count
+// This is used when evaluating spread stanzas
+func (p *propertySet) SetTargetAttribute(targetAttribute string, taskGroup string) {
+	p.setPropertySetInner(targetAttribute, 0, taskGroup)
+}
+
+// setConstraint is a shared helper for setting a job or task group attribute and allowedCount
+// allowedCount can be zero when this is used in evaluating spread stanzas
+func (p *propertySet) setPropertySetInner(targetAttribute string, allowedCount uint64, taskGroup string) {
+	// Store that this is for a task group
+	if taskGroup != "" {
+		p.taskGroup = taskGroup
+	}
+
+	// Store the constraint
+	p.targetAttribute = targetAttribute
+
+	p.allowedCount = allowedCount
 
 	// Determine the number of existing allocations that are using a property
 	// value
-	p.populateExisting(constraint)
+	p.populateExisting(targetAttribute)
 
 	// Populate the proposed when setting the constraint. We do this because
 	// when detecting if we can inplace update an allocation we stage an
@@ -110,7 +124,7 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 
 // populateExisting is a helper shared when setting the constraint to populate
 // the existing values.
-func (p *propertySet) populateExisting(constraint *structs.Constraint) {
+func (p *propertySet) populateExisting(targetAttribute string) {
 	// Retrieve all previously placed allocations
 	ws := memdb.NewWatchSet()
 	allocs, err := p.ctx.State().AllocsByJob(ws, p.namespace, p.jobID, false)
@@ -193,15 +207,32 @@ func (p *propertySet) PopulateProposed() {
 // placements. If the option does not satisfy the constraints an explanation is
 // given.
 func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg string) (bool, string) {
+	nValue, errorMsg, usedCount := p.UsedCount(option, tg)
+	if errorMsg != "" {
+		return false, errorMsg
+	}
+	// The property value has been used but within the number of allowed
+	// allocations.
+	if usedCount < p.allowedCount {
+		return true, ""
+	}
+
+	return false, fmt.Sprintf("distinct_property: %s=%s used by %d allocs", p.targetAttribute, nValue, usedCount)
+}
+
+// UsedCount returns the number of times the value of the attribute being tracked by this
+// property set is used across current and proposed allocations. It also returns the resolved
+// attribute value for the node, and an error message if it couldn't be resolved correctly
+func (p *propertySet) UsedCount(option *structs.Node, tg string) (string, string, uint64) {
 	// Check if there was an error building
 	if p.errorBuilding != nil {
-		return false, p.errorBuilding.Error()
+		return "", p.errorBuilding.Error(), 0
 	}
 
 	// Get the nodes property value
-	nValue, ok := getProperty(option, p.constraint.LTarget)
+	nValue, ok := getProperty(option, p.targetAttribute)
 	if !ok {
-		return false, fmt.Sprintf("missing property %q", p.constraint.LTarget)
+		return nValue, fmt.Sprintf("missing property %q", p.targetAttribute), 0
 	}
 
 	// combine the counts of how many times the property has been used by
@@ -229,19 +260,8 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 		}
 	}
 
-	usedCount, used := combinedUse[nValue]
-	if !used {
-		// The property value has never been used so we can use it.
-		return true, ""
-	}
-
-	// The property value has been used but within the number of allowed
-	// allocations.
-	if usedCount < p.allowedCount {
-		return true, ""
-	}
-
-	return false, fmt.Sprintf("distinct_property: %s=%s used by %d allocs", p.constraint.LTarget, nValue, usedCount)
+	usedCount := combinedUse[nValue]
+	return nValue, "", usedCount
 }
 
 // filterAllocs filters a set of allocations to just be those that are running
@@ -298,7 +318,7 @@ func (p *propertySet) populateProperties(allocs []*structs.Allocation, nodes map
 	properties map[string]uint64) {
 
 	for _, alloc := range allocs {
-		nProperty, ok := getProperty(nodes[alloc.NodeID], p.constraint.LTarget)
+		nProperty, ok := getProperty(nodes[alloc.NodeID], p.targetAttribute)
 		if !ok {
 			continue
 		}
