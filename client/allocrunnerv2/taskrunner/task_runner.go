@@ -229,9 +229,9 @@ func (tr *TaskRunner) Run() {
 
 MAIN:
 	for {
-		// Run the prerun hooks
-		if err := tr.prerun(); err != nil {
-			tr.logger.Error("prerun failed", "error", err)
+		// Run the prestart hooks
+		if err := tr.prestart(); err != nil {
+			tr.logger.Error("prestart failed", "error", err)
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
@@ -243,9 +243,9 @@ MAIN:
 			goto RESTART
 		}
 
-		// Run the postrun hooks
-		if err := tr.postrun(); err != nil {
-			tr.logger.Error("postrun failed", "error", err)
+		// Run the poststart hooks
+		if err := tr.poststart(); err != nil {
+			tr.logger.Error("poststart failed", "error", err)
 		}
 
 	WAIT:
@@ -284,9 +284,9 @@ MAIN:
 		timer.Stop()
 	}
 
-	// Run the shutdown hooks
-	if err := tr.shutdown(); err != nil {
-		tr.logger.Error("postrun failed", "error", err)
+	// Run the stop hooks
+	if err := tr.stop(); err != nil {
+		tr.logger.Error("stop failed", "error", err)
 	}
 
 	tr.logger.Debug("task run loop exiting")

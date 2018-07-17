@@ -8,10 +8,13 @@ import (
 )
 
 /*
-     pre-run   post-run      pre-stop               post-stop
+     prestart   poststart     exited                 stop
         |        |              |                     |
         |        |              |                     |
  --------> run ------> exited ----------> not restart ---------> garbage collect
+            |
+            |
+           kill -> exited -> stop
 
 */
 
@@ -20,7 +23,7 @@ type TaskHook interface {
 	Name() string
 }
 
-type TaskPrerunRequest struct {
+type TaskPrestartRequest struct {
 	// HookData is previously set data by the hook
 	HookData map[string]string
 
@@ -37,7 +40,7 @@ type TaskPrerunRequest struct {
 	TaskEnv *env.TaskEnv
 }
 
-type TaskPrerunResponse struct {
+type TaskPrestartResponse struct {
 	// Env is the environment variables to set for the task
 	Env map[string]string
 
@@ -49,39 +52,35 @@ type TaskPrerunResponse struct {
 	Done bool
 }
 
-type TaskPrerunHook interface {
+type TaskPrestartHook interface {
 	TaskHook
-	Prerun(context.Context, *TaskPrerunRequest, *TaskPrerunResponse) error
+	Prestart(context.Context, *TaskPrestartRequest, *TaskPrestartResponse) error
 }
 
-// XXX If we want consul style hooks, need to have something that runs after the
-// tasks starts
-type TaskPostrunRequest struct {
+type TaskPoststartRequest struct {
 	// Network info
 }
-type TaskPostrunResponse struct{}
+type TaskPoststartResponse struct{}
 
-type TaskPostrunHook interface {
+type TaskPoststartHook interface {
 	TaskHook
-	Postrun() error
-	//Postrun(context.Context, *TaskPostrunRequest, *TaskPostrunResponse) error
+	Poststart(context.Context, *TaskPoststartRequest, *TaskPoststartResponse) error
 }
 
-type TaskPoststopRequest struct{}
-type TaskPoststopResponse struct{}
+type TaskKillRequest struct{}
+type TaskKillResponse struct{}
 
-type TaskPoststopHook interface {
+type TaskKillHook interface {
 	TaskHook
-	Postrun(context.Context, *TaskPostrunRequest, *TaskPostrunResponse) error
+	Kill(context.Context, *TaskKillRequest, *TaskKillResponse) error
 }
 
-type TaskDestroyRequest struct{}
-type TaskDestroyResponse struct{}
+type TaskExitedRequest struct{}
+type TaskExitedResponse struct{}
 
-type TaskDestroyHook interface {
+type TaskExitedHook interface {
 	TaskHook
-	Destroy() error
-	//Destroy(context.Context, *TaskDestroyRequest, *TaskDestroyResponse) error
+	Exited(context.Context, *TaskExitedRequest, *TaskExitedResponse) error
 }
 
 type TaskUpdateRequest struct {
@@ -92,4 +91,12 @@ type TaskUpdateResponse struct{}
 type TaskUpdateHook interface {
 	TaskHook
 	Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
+}
+
+type TaskStopRequest struct{}
+type TaskStopResponse struct{}
+
+type TaskStopHook interface {
+	TaskHook
+	Stop(context.Context, *TaskStopRequest, *TaskStopResponse) error
 }
