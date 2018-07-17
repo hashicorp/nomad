@@ -202,6 +202,11 @@ test('when open, a deployment shows a list of all task groups and their respecti
       );
       assert.equal(taskGroupRow.healthy, taskGroup.healthyAllocs, 'Healthy Allocs');
       assert.equal(taskGroupRow.unhealthy, taskGroup.unhealthyAllocs, 'Unhealthy Allocs');
+      assert.equal(
+        taskGroupRow.progress,
+        moment(taskGroup.requireProgressBy).format('MM/DD/YY HH:mm:ss'),
+        'Progress By'
+      );
     });
   });
 });
