@@ -14,9 +14,7 @@
         <th>Allocs</th>
         <th>Healthy Allocs</th>
         <th>Unhealthy Allocs</th>
-        {{#if inProgress}}
-          <th>Progress Deadline</th>
-        {{/if}}
+        <th>Progress Deadline</th>
       {{/t.head}}
       {{#t.body as |row|}}
         <tr data-test-deployment-task-group>
@@ -33,11 +31,9 @@
           <td data-test-deployment-task-group-allocs>{{row.model.placedAllocs}} / {{row.model.desiredTotal}}</td>
           <td data-test-deployment-task-group-healthy>{{row.model.healthyAllocs}}</td>
           <td data-test-deployment-task-group-unhealthy>{{row.model.unhealthyAllocs}}</td>
-          {{#if inProgress}}
-            <td data-test-deployment-task-group-progress-deadline>
-              <span class="nowrap">{{moment-format row.model.requireProgressBy "MM/DD/YY HH:mm:ss"}}</span>
-            </td>
-          {{/if}}
+          <td data-test-deployment-task-group-progress-deadline>
+            <span class="nowrap">{{moment-format row.model.requireProgressBy "MM/DD/YY HH:mm:ss"}}</span>
+          </td>
         </tr>
       {{/t.body}}
     {{/list-table}}
