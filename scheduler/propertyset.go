@@ -75,7 +75,7 @@ func (p *propertySet) SetTGConstraint(constraint *structs.Constraint, taskGroup 
 
 // setConstraint is a shared helper for setting a job or task group constraint.
 func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup string) {
-	allowedCount := uint64(0)
+	var allowedCount uint64
 	// Determine the number of allowed allocations with the property.
 	if v := constraint.RTarget; v != "" {
 		c, err := strconv.ParseUint(v, 10, 64)
