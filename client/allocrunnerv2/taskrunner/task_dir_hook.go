@@ -35,7 +35,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 
 	// Emit the event that we are going to be building the task directory
-	h.runner.SetState("", structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
+	h.runner.EmitEvent(structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
 
 	// Build the task directory structure
 	fsi := h.runner.driver.FSIsolation()

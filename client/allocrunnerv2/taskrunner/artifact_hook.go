@@ -30,15 +30,14 @@ func (*artifactHook) Name() string {
 }
 
 func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	h.eventEmitter.SetState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
+	h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
 	for _, artifact := range req.Task.Artifacts {
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
 		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir); err != nil {
 			wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
 			h.logger.Debug(wrapped.Error())
-			h.eventEmitter.SetState(structs.TaskStatePending,
-				structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
+			h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
 			return wrapped
 		}
 	}
