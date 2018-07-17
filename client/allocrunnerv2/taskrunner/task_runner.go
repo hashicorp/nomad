@@ -507,7 +507,7 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	taskState := tr.state
 
 	//XXX REMOVE ME AFTER TESTING
-	if state != "" {
+	if state == "" {
 		panic("SetState must not be called with an empty state")
 	}
 
