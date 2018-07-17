@@ -5431,7 +5431,7 @@ func (s *Spread) String() string {
 	if s.str != "" {
 		return s.str
 	}
-	s.str = fmt.Sprintf("%s %s %v", s.Attribute, s.Weight, s.SpreadTarget)
+	s.str = fmt.Sprintf("%s %s %v", s.Attribute, s.SpreadTarget, s.Weight)
 	return s.str
 }
 
