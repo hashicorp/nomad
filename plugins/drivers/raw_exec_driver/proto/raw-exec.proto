@@ -1,0 +1,131 @@
+syntax = "proto3";
+package proto;
+
+message Port {
+  string label = 1;
+  uint32 value = 2;
+}
+
+message Networks {
+  string device = 1;
+  string cidr = 2;
+  string ip = 3;
+  uint64 mbits = 4;
+  Port reserved_ports = 5;
+  Port dynamic_ports = 6;
+}
+
+message Resources {
+  uint64 cpu = 1;
+  uint64 memory_mb = 2;
+  uint64 disk_mb = 3;
+  uint64 iops = 4;
+  Networks networks = 5;
+}
+
+message LogConfig {
+  uint32 max_files = 1;
+  uint64 max_file_size_mb = 2;
+}
+
+message TaskInfo {
+  Resources resources = 1;
+  LogConfig log_config = 2;
+  Struct config = 3;
+}
+
+message TaskDir {
+  string directory = 1;
+  string shared_alloc_dir = 2;
+  string shared_task_dir = 3;
+  string local_dir = 4;
+  string log_dir = 5;
+  string secrets_dir = 6;
+}
+
+message TaskEnv {
+  map<string, string> node_attrs = 1;
+  map<string, string> env_map = 2;
+}
+
+message ExecContext {
+  TaskDir task_dir = 1;
+  TaskEnv task_env = 2;
+}
+
+message StartRequest {
+  ExecContext exec_context = 1;
+  TaskInfo task_info = 2;
+}
+
+message DriverNetwork {
+  map<string, uint32> port_map = 1;
+  string ip = 2;
+  bool auto_advertise = 3;
+}
+
+message StartResponse {
+  string task_id = 1;
+  DriverNetwork driver_network = 2;
+}
+
+message Empty {}
+
+service RawExec {
+    rpc Start(StartRequest) returns (StartResponse);
+}
+
+// TODO this needs to be resolved and part of a different proto file.
+// `Struct` represents a structured data value, consisting of fields
+// which map to dynamically typed values. In some languages, `Struct`
+// might be supported by a native representation. For example, in
+// scripting languages like JS a struct is represented as an
+// object. The details of that representation are described together
+// with the proto support for the language.
+//
+// The JSON representation for `Struct` is JSON object.
+message Struct {
+  // Unordered map of dynamically typed values.
+  map<string, Value> fields = 1;
+}
+
+// `Value` represents a dynamically typed value which can be either
+// null, a number, a string, a boolean, a recursive struct value, or a
+// list of values. A producer of value is expected to set one of that
+// variants, absence of any variant indicates an error.
+//
+// The JSON representation for `Value` is JSON value.
+message Value {
+  // The kind of value.
+  oneof kind {
+    // Represents a null value.
+    NullValue null_value = 1;
+    // Represents a double value.
+    double number_value = 2;
+    // Represents a string value.
+    string string_value = 3;
+    // Represents a boolean value.
+    bool bool_value = 4;
+    // Represents a structured value.
+    Struct struct_value = 5;
+    // Represents a repeated `Value`.
+    ListValue list_value = 6;
+  }
+}
+
+// `NullValue` is a singleton enumeration to represent the null value for the
+// `Value` type union.
+//
+//  The JSON representation for `NullValue` is JSON `null`.
+enum NullValue {
+  // Null value.
+  NULL_VALUE = 0;
+}
+
+// `ListValue` is a wrapper around a repeated field of values.
+//
+// The JSON representation for `ListValue` is JSON array.
+message ListValue {
+  // Repeated field of dynamically typed values.
+  repeated Value values = 1;
+}
