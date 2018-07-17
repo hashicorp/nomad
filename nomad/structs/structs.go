@@ -5401,9 +5401,9 @@ type Spread struct {
 }
 
 type SpreadTarget struct {
-	Value string
-	Ratio uint32
-	str   string
+	Value   string
+	Percent uint32
+	str     string
 }
 
 func (s *Spread) Copy() *Spread {
@@ -5439,8 +5439,34 @@ func (s *SpreadTarget) String() string {
 	if s.str != "" {
 		return s.str
 	}
-	s.str = fmt.Sprintf("%s %v", s.Value, s.Ratio)
+	s.str = fmt.Sprintf("%s %v", s.Value, s.Percent)
 	return s.str
+}
+
+func (s *Spread) Validate() error {
+	var mErr multierror.Error
+	if s.Attribute == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing spread attribute"))
+	}
+	if s.Weight <= 0 || s.Weight > 100 {
+		mErr.Errors = append(mErr.Errors, errors.New("Spread stanza must have a positive weight from 0 to 100"))
+	}
+	if len(s.SpreadTarget) == 0 {
+		// TODO(preetha): This should go away if we can assume even spread if there are no targets
+		// In that case, the target percentages should be calculated at schedule time
+		mErr.Errors = append(mErr.Errors, errors.New("Atleast one spread target value must be specified"))
+	}
+	seen := make(map[string]struct{})
+	for _, target := range s.SpreadTarget {
+		// Make sure there are no duplicates
+		_, ok := seen[target.Value]
+		if !ok {
+			seen[target.Value] = struct{}{}
+		} else {
+			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target value %q already defined", target.Value)))
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // EphemeralDisk is an ephemeral disk object
