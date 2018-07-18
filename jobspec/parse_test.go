@@ -55,6 +55,23 @@ func TestParse(t *testing.T) {
 					},
 				},
 
+				Spreads: []*api.Spread{
+					{
+						Attribute: "${meta.rack}",
+						Weight:    100,
+						SpreadTarget: []*api.SpreadTarget{
+							{
+								Value:   "r1",
+								Percent: 40,
+							},
+							{
+								Value:   "r2",
+								Percent: 60,
+							},
+						},
+					},
+				},
+
 				Update: &api.UpdateStrategy{
 					Stagger:          helper.TimeToPtr(60 * time.Second),
 					MaxParallel:      helper.IntToPtr(2),
@@ -111,6 +128,26 @@ func TestParse(t *testing.T) {
 							Attempts: helper.IntToPtr(5),
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
+						},
+						Spreads: []*api.Spread{
+							{
+								Attribute: "${node.datacenter}",
+								Weight:    50,
+								SpreadTarget: []*api.SpreadTarget{
+									{
+										Value:   "dc1",
+										Percent: 50,
+									},
+									{
+										Value:   "dc2",
+										Percent: 25,
+									},
+									{
+										Value:   "dc3",
+										Percent: 25,
+									},
+								},
+							},
 						},
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: helper.TimeToPtr(12 * time.Hour),
