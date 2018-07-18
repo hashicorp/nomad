@@ -90,11 +90,17 @@ job "binstore-storagelocker" {
       weight = 100
     }
 
-
     task "binstore" {
       driver = "docker"
       user   = "bob"
       leader = true
+
+      affinity {
+        attribute = "${meta.foo}"
+        value = "bar"
+        operator = "="
+        weight = 25
+      }
 
       config {
         image = "hashicorp/binstore"
