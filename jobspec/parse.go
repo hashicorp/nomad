@@ -601,6 +601,7 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 			"attribute",
 			"operator",
 			"regexp",
+			"set_contains",
 			"set_contains_any",
 			"set_contains_all",
 			"value",
@@ -645,6 +646,12 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 		// to "set_contains_all" and the value to the "RTarget"
 		if affinity, ok := m[structs.AffinitySetContainsAll]; ok {
 			m["Operand"] = structs.AffinitySetContainsAll
+			m["RTarget"] = affinity
+		}
+
+		// set_contains is a synonym of set_contains_all
+		if affinity, ok := m[structs.ConstraintSetContains]; ok {
+			m["Operand"] = structs.ConstraintSetContains
 			m["RTarget"] = affinity
 		}
 
