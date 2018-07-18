@@ -754,6 +754,110 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
+			// Affinities edited
+			Old: &Job{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "bar",
+						RTarget: "bar",
+						Operand: "bar",
+						Weight:  20,
+						str:     "bar",
+					},
+				},
+			},
+			New: &Job{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "baz",
+						RTarget: "baz",
+						Operand: "baz",
+						Weight:  20,
+						str:     "baz",
+					},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Operand",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Weight",
+								Old:  "",
+								New:  "20",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Operand",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Weight",
+								Old:  "20",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Task groups edited
 			Old: &Job{
 				TaskGroups: []*TaskGroup{
@@ -2707,6 +2811,110 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "RTarget",
 								Old:  "bar",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Affinities edited",
+			Old: &Task{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "bar",
+						RTarget: "bar",
+						Operand: "bar",
+						Weight:  20,
+						str:     "bar",
+					},
+				},
+			},
+			New: &Task{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "baz",
+						RTarget: "baz",
+						Operand: "baz",
+						Weight:  20,
+						str:     "baz",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Operand",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Weight",
+								Old:  "",
+								New:  "20",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Operand",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Weight",
+								Old:  "20",
 								New:  "",
 							},
 						},
