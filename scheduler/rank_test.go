@@ -541,24 +541,15 @@ func TestScoreNormalizationIterator(t *testing.T) {
 	scoreNorm := NewScoreNormalizationIterator(ctx, nodeReschedulePenaltyIter)
 
 	out := collectRanked(scoreNorm)
-	if len(out) != 2 {
-		t.Fatalf("Bad: %#v", out)
-	}
-	if out[0] != nodes[0] {
-		t.Fatalf("Bad: %v", out)
-	}
+	require := require.New(t)
+
+	require.Equal(2, len(out))
+	require.Equal(out[0], nodes[0])
 	// Score should be averaged between both scorers
 	// -0.5 from job anti affinity and -1 from node rescheduling penalty
-	if out[0].FinalScore != -0.75 {
-		t.Fatalf("Bad Score: %#v", out[0].FinalScore)
-	}
-
-	if out[1] != nodes[1] {
-		t.Fatalf("Bad Node: %v", out)
-	}
-	if out[1].FinalScore != 0.0 {
-		t.Fatalf("Bad Score: %v", out[1].FinalScore)
-	}
+	require.Equal(out[0].FinalScore, -0.75)
+	require.Equal(out[1], nodes[1])
+	require.Equal(out[1].FinalScore, 0.0)
 }
 
 func TestNodeAffinityIterator(t *testing.T) {
