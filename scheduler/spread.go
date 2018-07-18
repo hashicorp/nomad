@@ -101,8 +101,8 @@ func (iter *SpreadIterator) Next() *RankedNode {
 		totalSpreadScore := 0.0
 		for _, pset := range propertySets {
 			nValue, errorMsg, usedCount := pset.UsedCount(option.Node, tgName)
+			// Skip if there was errors in resolving this attribute to compute used counts
 			if errorMsg != "" {
-				// Skip if there was errors in resolving this attribute to compute used counts
 				continue
 			}
 			spreadAttributeMap := iter.tgSpreadInfo[tgName]
@@ -138,7 +138,12 @@ func (iter *SpreadIterator) Next() *RankedNode {
 func (iter *SpreadIterator) computeSpreadInfo(tg *structs.TaskGroup) {
 	spreadInfos := make(spreadAttributeMap, len(tg.Spreads))
 	totalCount := tg.Count
-	for _, spread := range tg.Spreads {
+
+	// Always combine any spread stanzas defined at the job level here
+	combinedSpreads := make([]*structs.Spread, 0, len(tg.Spreads)+len(iter.jobSpreads))
+	combinedSpreads = append(combinedSpreads, tg.Spreads...)
+	combinedSpreads = append(combinedSpreads, iter.jobSpreads...)
+	for _, spread := range combinedSpreads {
 		sumWeight := uint32(0)
 		for _, st := range spread.SpreadTarget {
 			sumWeight += st.Percent
