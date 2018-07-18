@@ -1229,6 +1229,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			AutoRevert:       helper.BoolToPtr(false),
 			Canary:           helper.IntToPtr(1),
 		},
+		Spreads: []*api.Spread{
+			{
+				Attribute: "${meta.rack}",
+				Weight:    100,
+				SpreadTarget: []*api.SpreadTarget{
+					{
+						Value:   "r1",
+						Percent: 50,
+					},
+				},
+			},
+		},
 		Periodic: &api.PeriodicConfig{
 			Enabled:         helper.BoolToPtr(true),
 			Spec:            helper.StringToPtr("spec"),
@@ -1283,6 +1295,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					HealthCheck:     helper.StringToPtr("task_events"),
 					MinHealthyTime:  helper.TimeToPtr(12 * time.Hour),
 					HealthyDeadline: helper.TimeToPtr(12 * time.Hour),
+				},
+				Spreads: []*api.Spread{
+					{
+						Attribute: "${node.datacenter}",
+						Weight:    100,
+						SpreadTarget: []*api.SpreadTarget{
+							{
+								Value:   "dc1",
+								Percent: 100,
+							},
+						},
+					},
 				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
@@ -1475,6 +1499,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Weight:  50,
 			},
 		},
+		Spreads: []*structs.Spread{
+			{
+				Attribute: "${meta.rack}",
+				Weight:    100,
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "r1",
+						Percent: 50,
+					},
+				},
+			},
+		},
 		Update: structs.UpdateStrategy{
 			Stagger:     1 * time.Second,
 			MaxParallel: 5,
@@ -1519,6 +1555,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Attempts: 5,
 					Delay:    10 * time.Second,
 					Mode:     "delay",
+				},
+				Spreads: []*structs.Spread{
+					{
+						Attribute: "${node.datacenter}",
+						Weight:    100,
+						SpreadTarget: []*structs.SpreadTarget{
+							{
+								Value:   "dc1",
+								Percent: 100,
+							},
+						},
+					},
 				},
 				ReschedulePolicy: &structs.ReschedulePolicy{
 					Interval:      12 * time.Hour,

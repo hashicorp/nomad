@@ -116,6 +116,57 @@ func TestTaskGroup_SetMeta(t *testing.T) {
 	}
 }
 
+func TestTaskGroup_AddSpread(t *testing.T) {
+	t.Parallel()
+	grp := NewTaskGroup("grp1", 1)
+
+	// Create and add spread
+	spreadTarget := NewSpreadTarget("r1", 50)
+	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
+
+	out := grp.AddSpread(spread)
+	if n := len(grp.Spreads); n != 1 {
+		t.Fatalf("expected 1 spread, got: %d", n)
+	}
+
+	// Check that the group was returned
+	if out != grp {
+		t.Fatalf("expected: %#v, got: %#v", grp, out)
+	}
+
+	// Add a second spread
+	spreadTarget2 := NewSpreadTarget("dc1", 100)
+	spread2 := NewSpread("${node.datacenter}", 100, []*SpreadTarget{spreadTarget2})
+
+	grp.AddSpread(spread2)
+
+	expect := []*Spread{
+		{
+			Attribute: "${meta.rack}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+			},
+		},
+		{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "dc1",
+					Percent: 100,
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(grp.Spreads, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, grp.Spreads)
+	}
+}
+
 func TestTaskGroup_AddTask(t *testing.T) {
 	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)

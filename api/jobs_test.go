@@ -1387,6 +1387,57 @@ func TestJobs_Sort(t *testing.T) {
 	}
 }
 
+func TestJobs_AddSpread(t *testing.T) {
+	t.Parallel()
+	job := &Job{Spreads: nil}
+
+	// Create and add a Spread
+	spreadTarget := NewSpreadTarget("r1", 50)
+
+	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
+	out := job.AddSpread(spread)
+	if n := len(job.Spreads); n != 1 {
+		t.Fatalf("expected 1 spread, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another spread preserves the original
+	spreadTarget2 := NewSpreadTarget("dc1", 100)
+
+	spread2 := NewSpread("${node.datacenter}", 100, []*SpreadTarget{spreadTarget2})
+	job.AddSpread(spread2)
+
+	expect := []*Spread{
+		{
+			Attribute: "${meta.rack}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+			},
+		},
+		{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "dc1",
+					Percent: 100,
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(job.Spreads, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Spreads)
+	}
+}
+
 func TestJobs_Summary_WithACL(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
