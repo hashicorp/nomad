@@ -219,6 +219,34 @@ func (p *ReschedulePolicy) String() string {
 	return fmt.Sprintf("%v in %v with %v delay, max_delay = %v", *p.Attempts, *p.Interval, *p.DelayFunction, *p.MaxDelay)
 }
 
+// Spread is used to serialize task group allocation spread preferences
+type Spread struct {
+	Attribute    string
+	Weight       int
+	SpreadTarget []*SpreadTarget
+}
+
+// SpreadTarget is used to serialize target allocation spread percentages
+type SpreadTarget struct {
+	Value   string
+	Percent uint32
+}
+
+func NewSpreadTarget(value string, percent uint32) *SpreadTarget {
+	return &SpreadTarget{
+		Value:   value,
+		Percent: percent,
+	}
+}
+
+func NewSpread(attribute string, weight int, spreadTargets []*SpreadTarget) *Spread {
+	return &Spread{
+		Attribute:    attribute,
+		Weight:       weight,
+		SpreadTarget: spreadTargets,
+	}
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
@@ -432,6 +460,7 @@ type TaskGroup struct {
 	Constraints      []*Constraint
 	Affinities       []*Affinity
 	Tasks            []*Task
+	Spreads          []*Spread
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk
@@ -570,6 +599,12 @@ func (g *TaskGroup) AddAffinity(a *Affinity) *TaskGroup {
 // RequireDisk adds a ephemeral disk to the task group
 func (g *TaskGroup) RequireDisk(disk *EphemeralDisk) *TaskGroup {
 	g.EphemeralDisk = disk
+	return g
+}
+
+// AddSpread is used to add a new spread preference to a task group.
+func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
+	g.Spreads = append(g.Spreads, s)
 	return g
 }
 

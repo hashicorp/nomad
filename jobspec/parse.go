@@ -111,6 +111,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	delete(m, "reschedule")
 	delete(m, "update")
 	delete(m, "vault")
+	delete(m, "spread")
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
@@ -134,6 +135,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"all_at_once",
 		"constraint",
 		"affinity",
+		"spread",
 		"datacenters",
 		"group",
 		"id",
@@ -181,6 +183,13 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("periodic"); len(o.Items) > 0 {
 		if err := parsePeriodic(&result.Periodic, o); err != nil {
 			return multierror.Prefix(err, "periodic ->")
+		}
+	}
+
+	// Parse spread
+	if o := listVal.Filter("spread"); len(o.Items) > 0 {
+		if err := parseSpread(&result.Spreads, o); err != nil {
+			return multierror.Prefix(err, "spread ->")
 		}
 	}
 
@@ -305,6 +314,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"reschedule",
 			"vault",
 			"migrate",
+			"spread",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -323,6 +333,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "update")
 		delete(m, "vault")
 		delete(m, "migrate")
+		delete(m, "spread")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -349,6 +360,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("restart"); len(o.Items) > 0 {
 			if err := parseRestartPolicy(&g.RestartPolicy, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', restart ->", n))
+			}
+		}
+
+		// Parse spread
+		if o := listVal.Filter("spread"); len(o.Items) > 0 {
+			if err := parseSpread(&g.Spreads, o); err != nil {
+				return multierror.Prefix(err, "spread ->")
 			}
 		}
 
@@ -700,6 +718,95 @@ func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error 
 	}
 	*result = &ephemeralDisk
 
+	return nil
+}
+
+func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"attribute",
+			"weight",
+			"target",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		// We need this later
+		var listVal *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("spread should be an object")
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+		delete(m, "target")
+		// Build spread
+		var s api.Spread
+		if err := mapstructure.WeakDecode(m, &s); err != nil {
+			return err
+		}
+
+		// Parse spread target
+		if o := listVal.Filter("target"); len(o.Items) > 0 {
+			if err := parseSpreadTarget(&s.SpreadTarget, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("error parsing spread target"))
+			}
+		}
+
+		*result = append(*result, &s)
+	}
+
+	return nil
+}
+
+func parseSpreadTarget(result *[]*api.SpreadTarget, list *ast.ObjectList) error {
+
+	seen := make(map[string]struct{})
+	for _, item := range list.Items {
+		n := item.Keys[0].Token.Value().(string)
+
+		// Make sure we haven't already found this
+		if _, ok := seen[n]; ok {
+			return fmt.Errorf("target '%s' defined more than once", n)
+		}
+		seen[n] = struct{}{}
+
+		// We need this later
+		var listVal *ast.ObjectList
+		if ot, ok := item.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("target should be an object")
+		}
+
+		// Check for invalid keys
+		valid := []string{
+			"percent",
+			"value",
+		}
+		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, item.Val); err != nil {
+			return err
+		}
+
+		// Decode spread target
+		var g api.SpreadTarget
+		g.Value = n
+		if err := mapstructure.WeakDecode(m, &g); err != nil {
+			return err
+		}
+		*result = append(*result, &g)
+	}
 	return nil
 }
 
