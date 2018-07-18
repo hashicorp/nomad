@@ -619,9 +619,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	if l := len(job.Affinities); l != 0 {
 		j.Affinities = make([]*structs.Affinity, l)
 		for i, a := range job.Affinities {
-			aff := &structs.Affinity{}
-			ApiAffinityToStructs(a, aff)
-			j.Affinities[i] = aff
+			j.Affinities[i] = ApiAffinityToStructs(a)
 		}
 	}
 
@@ -687,9 +685,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	if l := len(taskGroup.Affinities); l != 0 {
 		tg.Affinities = make([]*structs.Affinity, l)
 		for k, affinity := range taskGroup.Affinities {
-			a := &structs.Affinity{}
-			ApiAffinityToStructs(affinity, a)
-			tg.Affinities[k] = a
+			tg.Affinities[k] = ApiAffinityToStructs(affinity)
 		}
 	}
 
@@ -775,9 +771,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	if l := len(apiTask.Affinities); l != 0 {
 		structsTask.Affinities = make([]*structs.Affinity, l)
 		for i, a := range apiTask.Affinities {
-			aff := &structs.Affinity{}
-			ApiAffinityToStructs(a, aff)
-			structsTask.Affinities[i] = aff
+			structsTask.Affinities[i] = ApiAffinityToStructs(a)
 		}
 	}
 
@@ -920,9 +914,11 @@ func ApiConstraintToStructs(c1 *api.Constraint, c2 *structs.Constraint) {
 	c2.Operand = c1.Operand
 }
 
-func ApiAffinityToStructs(a1 *api.Affinity, a2 *structs.Affinity) {
-	a2.LTarget = a1.LTarget
-	a2.Operand = a1.Operand
-	a2.RTarget = a1.RTarget
-	a2.Weight = a1.Weight
+func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
+	return &structs.Affinity{
+		LTarget: a1.LTarget,
+		Operand: a1.Operand,
+		RTarget: a1.RTarget,
+		Weight:  a1.Weight,
+	}
 }
