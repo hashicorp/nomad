@@ -1,5 +1,7 @@
 package allocrunnerv2
 
+/*
+
 import (
 	"testing"
 
@@ -82,3 +84,4 @@ func TestAllocRunner_Postrun_Basic(t *testing.T) {
 	require.True(post.run)
 	require.False(pre.run)
 }
+*/
