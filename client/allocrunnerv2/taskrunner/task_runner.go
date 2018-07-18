@@ -473,6 +473,10 @@ func (tr *TaskRunner) persistLocalState() error {
 	})
 }
 
+// XXX If the objects don't exists since the client shutdown before the task
+// runner ever saved state, then we should treat it as a new task runner and not
+// return an error
+//
 // Restore task runner state. Called by AllocRunner.Restore after NewTaskRunner
 // but before Run so no locks need to be acquired.
 func (tr *TaskRunner) Restore(tx *bolt.Tx) error {
@@ -495,6 +499,10 @@ func (tr *TaskRunner) Restore(tx *bolt.Tx) error {
 		return fmt.Errorf("failed to read task state: %v", err)
 	}
 	tr.state = &ts
+
+	// XXX if driver has task {
+	// tr.restoreDriver()
+	// }
 
 	return nil
 }
