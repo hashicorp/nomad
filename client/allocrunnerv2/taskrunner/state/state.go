@@ -5,13 +5,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
-var (
-	// taskRunnerStateAllKey holds all the task runners state. At the moment
-	// there is no need to split it
-	//XXX refactor out of client/state and taskrunner
-	taskRunnerStateAllKey = []byte("simple-all")
-)
-
 // LocalState is Task state which is persisted for use when restarting Nomad
 // agents.
 type LocalState struct {
@@ -48,7 +41,7 @@ type HookState struct {
 	// Prestart is true if the hook has run Prestart successfully and does
 	// not need to run again
 	PrestartDone bool
-	Data       map[string]string
+	Data         map[string]string
 }
 
 func (h *HookState) Copy() *HookState {
