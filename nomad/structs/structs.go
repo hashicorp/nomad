@@ -2189,6 +2189,13 @@ func (j *Job) Validate() error {
 		}
 	}
 
+	for idx, spread := range j.Spreads {
+		if err := spread.Validate(); err != nil {
+			outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
 	// Check for duplicate task groups
 	taskGroups := make(map[string]int)
 	for idx, tg := range j.TaskGroups {
@@ -3457,6 +3464,13 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	} else {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
+	}
+
+	for idx, spread := range tg.Spreads {
+		if err := spread.Validate(); err != nil {
+			outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
 	}
 
 	if j.Type == JobTypeSystem {
