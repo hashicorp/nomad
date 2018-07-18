@@ -29,9 +29,13 @@ func TestCompose(t *testing.T) {
 		})
 
 	// Compose a task group
+
+	st1 := NewSpreadTarget("dc1", 80)
+	st2 := NewSpreadTarget("dc2", 20)
 	grp := NewTaskGroup("grp1", 2).
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		AddAffinity(NewAffinity("${node.class}", "=", "large", 50)).
+		AddSpread(NewSpread("${node.datacenter}", 30, []*SpreadTarget{st1, st2})).
 		SetMeta("foo", "bar").
 		AddTask(task)
 
@@ -79,6 +83,22 @@ func TestCompose(t *testing.T) {
 						RTarget: "large",
 						Operand: "=",
 						Weight:  50,
+					},
+				},
+				Spreads: []*Spread{
+					{
+						Attribute: "${node.datacenter}",
+						Weight:    30,
+						SpreadTarget: []*SpreadTarget{
+							{
+								Value:   "dc1",
+								Percent: 80,
+							},
+							{
+								Value:   "dc2",
+								Percent: 20,
+							},
+						},
 					},
 				},
 				Tasks: []*Task{
