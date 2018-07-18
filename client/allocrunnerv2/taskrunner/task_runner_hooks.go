@@ -18,6 +18,7 @@ func (tr *TaskRunner) initHooks() {
 	// Create the task directory hook. This is run first to ensure the
 	// directoy path exists for other hooks.
 	tr.runnerHooks = []interfaces.TaskHook{
+		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
