@@ -60,6 +60,9 @@ type TaskRunner struct {
 
 	clientConfig *config.Config
 
+	// stateUpdater is used to emit updated task state
+	stateUpdater interfaces.TaskStateHandler
+
 	// state captures the state of the task for updating the allocation
 	state     *structs.TaskState
 	stateLock sync.Mutex
@@ -146,6 +149,9 @@ type Config struct {
 
 	// StateDB is used to store and restore state.
 	StateDB *bolt.DB
+
+	// StateUpdater is used to emit updated task state
+	StateUpdater interfaces.TaskStateHandler
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -170,13 +176,14 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		envBuilder:   envBuilder,
 		vaultClient:  config.VaultClient,
 		//XXX Make a Copy to avoid races?
-		state:      config.Alloc.TaskStates[config.Task.Name],
-		localState: config.LocalState,
-		stateDB:    config.StateDB,
-		ctx:        trCtx,
-		ctxCancel:  trCancel,
-		updateCh:   make(chan *structs.Allocation),
-		waitCh:     make(chan struct{}),
+		state:        config.Alloc.TaskStates[config.Task.Name],
+		localState:   config.LocalState,
+		stateDB:      config.StateDB,
+		stateUpdater: config.StateUpdater,
+		ctx:          trCtx,
+		ctxCancel:    trCancel,
+		updateCh:     make(chan *structs.Allocation),
+		waitCh:       make(chan struct{}),
 	}
 
 	// Create the logger based on the allocation ID
@@ -575,10 +582,9 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	}
 
 	// Create a copy and notify the alloc runner of the transition
-	//FIXME <-------START HERE
-	//if err := tr.allocRunner.StateUpdated(tr.state.Copy()); err != nil {
-	//tr.logger.Error("failed to save state", "error", err)
-	//}
+	if err := tr.stateUpdater.TaskStateUpdated(tr.taskName, tr.state.Copy()); err != nil {
+		tr.logger.Error("failed to save state", "error", err)
+	}
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -620,6 +626,7 @@ func (tr *TaskRunner) emitEventImpl(event *structs.TaskEvent) error {
 		tr.state.Failed = true
 	}
 
+	// XXX This seems like a super awkward spot for this? Why not shouldRestart?
 	// Update restart metrics
 	if event.Type == structs.TaskRestarting {
 		if !tr.clientConfig.DisableTaggedMetrics {
