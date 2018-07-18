@@ -1,6 +1,9 @@
 package interfaces
 
-import "github.com/hashicorp/nomad/client/allocrunnerv2/state"
+import (
+	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // AllocRunner is the interface for an allocation runner.
 type AllocRunner interface {
@@ -13,8 +16,12 @@ type AllocRunner interface {
 
 	// State returns a copy of the runners state object
 	State() *state.State
+
+	TaskStateHandler
 }
 
-// TaskRunner is the interface for a task runner.
-type TaskRunner interface {
+// TaskStateHandler exposes a handler to be called when a task's state changes
+type TaskStateHandler interface {
+	// TaskStateUpdated is used to emit updated task state
+	TaskStateUpdated(task string, state *structs.TaskState) error
 }

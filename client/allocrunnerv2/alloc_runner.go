@@ -104,6 +104,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			TaskDir:      ar.allocDir.NewTaskDir(task.Name),
 			Logger:       ar.logger,
 			StateDB:      ar.stateDB,
+			StateUpdater: ar,
 			VaultClient:  ar.vaultClient,
 		}
 
@@ -216,6 +217,13 @@ func (ar *allocRunner) Restore() error {
 		}
 		return nil
 	})
+}
+
+// TaskStateUpdated is called when a task's state has been updated. This hook is
+// used to compute changes to the alloc's ClientStatus and to update the server
+// with the new state.
+func (ar *allocRunner) TaskStateUpdated(task string, state *structs.TaskState) error {
+	return nil
 }
 
 // Update the running allocation with a new version received from the server.
