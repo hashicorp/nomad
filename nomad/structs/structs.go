@@ -5305,7 +5305,8 @@ type Affinity struct {
 func (a *Affinity) Equal(o *Affinity) bool {
 	return a.LTarget == o.LTarget &&
 		a.RTarget == o.RTarget &&
-		a.Operand == o.Operand
+		a.Operand == o.Operand &&
+		a.Weight == o.Weight
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -5333,7 +5334,7 @@ func (a *Affinity) Validate() error {
 
 	// Perform additional validation based on operand
 	switch a.Operand {
-	case AffinitySetContainsAll, AffinitySetContainsAny:
+	case AffinitySetContainsAll, AffinitySetContainsAny, ConstraintSetContains:
 		if a.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains operators require an RTarget"))
 		}

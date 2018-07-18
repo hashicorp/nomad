@@ -151,8 +151,8 @@ func TestParse(t *testing.T) {
 								Affinities: []*api.Affinity{
 									{
 										LTarget: "${meta.foo}",
-										RTarget: "bar",
-										Operand: "=",
+										RTarget: "a,b,c",
+										Operand: "set_contains",
 										Weight:  25,
 									},
 								},

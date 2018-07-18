@@ -97,8 +97,8 @@ job "binstore-storagelocker" {
 
       affinity {
         attribute = "${meta.foo}"
-        value = "bar"
-        operator = "="
+        value = "a,b,c"
+        operator = "set_contains"
         weight = 25
       }
 
