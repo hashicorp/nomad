@@ -664,6 +664,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	}
 }
 
+//XXX Ported to allocrunnerv2/task_runner/validate_hook_test.go
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	t.Parallel()
 	ctx := testTaskRunner(t, false)
