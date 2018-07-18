@@ -247,7 +247,8 @@ func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Tas
 // NewEmptyBuilder creates a new environment builder.
 func NewEmptyBuilder() *Builder {
 	return &Builder{
-		mu: &sync.RWMutex{},
+		mu:      &sync.RWMutex{},
+		envvars: make(map[string]string),
 	}
 }
 
