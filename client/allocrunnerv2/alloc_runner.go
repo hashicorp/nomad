@@ -196,8 +196,9 @@ func (ar *allocRunner) Alloc() *structs.Allocation {
 //    *and* within Run -- *and* Updates are applid within Run -- we may be able to
 //    skip quite a bit of locking? maybe?
 func (ar *allocRunner) SaveState() error {
+	// XXX Do we move this to the client
 	return ar.stateDB.Update(func(tx *bolt.Tx) error {
-		//XXX Track EvalID to only write alloc on change?
+		//XXX Track AllocModifyIndex to only write alloc on change?
 		// Write the allocation
 		return clientstate.PutAllocation(tx, ar.Alloc())
 	})
