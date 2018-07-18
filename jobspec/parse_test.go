@@ -148,6 +148,14 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								Affinities: []*api.Affinity{
+									{
+										LTarget: "${meta.foo}",
+										RTarget: "bar",
+										Operand: "=",
+										Weight:  25,
+									},
+								},
 								Services: []*api.Service{
 									{
 										Tags:       []string{"foo", "bar"},
