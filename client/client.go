@@ -796,9 +796,11 @@ func (c *Client) restoreState() error {
 	}
 
 	// All allocs restored successfully, run them!
+	c.allocLock.Lock()
 	for _, ar := range c.allocs {
 		go ar.Run()
 	}
+	c.allocLock.Unlock()
 
 	return nil
 }
