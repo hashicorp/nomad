@@ -233,14 +233,10 @@ func (ar *allocRunner) Restore() error {
 	})
 }
 
-// TaskStateUpdated is called when a task's state has been updated. This hook is
-// used to compute changes to the alloc's ClientStatus and to update the server
-// with the new state.
-func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskState) error {
-	if state == nil {
-		return fmt.Errorf("nil state given to TaskStateUpdated")
-	}
-
+// TaskStateUpdated is called by TaskRunner when a task's state has been
+// updated. This hook is used to compute changes to the alloc's ClientStatus
+// and to update the server with the new state.
+func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskState) {
 	// If a task is dead, we potentially want to kill other tasks in the group
 	if state.State == structs.TaskStateDead {
 		// Find all tasks that are not the one that is dead and check if the one
@@ -293,8 +289,6 @@ func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskStat
 	if err := ar.stateUpdater.AllocStateUpdated(calloc); err != nil {
 		ar.logger.Error("failed to update remote allocation state", "error", err)
 	}
-
-	return nil
 }
 
 // clientAlloc takes in the task states and returns an Allocation populated
