@@ -484,8 +484,8 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
 	switch operand {
 	case structs.AffinitySetContainsAny:
-		return checkSetContainsAny(ctx, lVal, rVal)
-	case structs.AffinitySetContainsAll:
+		return checkSetContainsAny(lVal, rVal)
+	case structs.AffinitySetContainsAll, structs.ConstraintSetContains:
 		return checkSetContainsAll(ctx, lVal, rVal)
 	default:
 		return checkConstraint(ctx, operand, lVal, rVal)
@@ -628,7 +628,7 @@ func checkSetContainsAll(ctx Context, lVal, rVal interface{}) bool {
 
 // checkSetContainsAny is used to see if the left hand side contains any
 // values on the right hand side
-func checkSetContainsAny(ctx Context, lVal, rVal interface{}) bool {
+func checkSetContainsAny(lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
