@@ -4,6 +4,7 @@ import (
 	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -25,6 +26,6 @@ type Config struct {
 	// Vault is the Vault client to use to retrieve Vault tokens
 	Vault vaultclient.VaultClient
 
-	// XXX Can have a OnStateTransistion hook that we can use to update the
-	// server
+	// StateUpdater is used to emit updated task state
+	StateUpdater interfaces.AllocStateHandler
 }

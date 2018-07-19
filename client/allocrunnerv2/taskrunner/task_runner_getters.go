@@ -17,6 +17,12 @@ func (tr *TaskRunner) Task() *structs.Task {
 	return tr.task
 }
 
+func (tr *TaskRunner) TaskState() *structs.TaskState {
+	tr.stateLock.Lock()
+	defer tr.stateLock.Unlock()
+	return tr.state.Copy()
+}
+
 func (tr *TaskRunner) getVaultToken() string {
 	tr.vaultTokenLock.Lock()
 	defer tr.vaultTokenLock.Unlock()
