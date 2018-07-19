@@ -38,8 +38,8 @@ export default create({
 
   allocations: collection('[data-test-allocation]', {
     id: text('[data-test-short-id]'),
+    createTime: text('[data-test-create-time]'),
     modifyTime: text('[data-test-modify-time]'),
-    name: text('[data-test-name]'),
     status: text('[data-test-client-status]'),
     job: text('[data-test-job]'),
     taskGroup: text('[data-test-task-group]'),

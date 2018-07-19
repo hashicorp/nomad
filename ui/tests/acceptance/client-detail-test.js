@@ -130,11 +130,15 @@ test('each allocation should have high-level details for the allocation', functi
 
     assert.equal(allocationRow.id, allocation.id.split('-')[0], 'Allocation short ID');
     assert.equal(
+      allocationRow.createTime,
+      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation create time'
+    );
+    assert.equal(
       allocationRow.modifyTime,
-      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
-    assert.equal(allocationRow.name, allocation.name, 'Allocation name');
     assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
     assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
     assert.ok(allocationRow.taskGroup, 'Task group name');
