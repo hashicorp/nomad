@@ -32,9 +32,9 @@
       <span class="is-faded" data-test-task-group>/ {{allocation.taskGroup.name}}</span>
     {{/if}}
   </td>
-  <td data-test-job-version>{{allocation.jobVersion}}</td>
+  <td data-test-job-version class="is-1">{{allocation.jobVersion}}</td>
 {{/if}}
-<td data-test-cpu class="has-text-centered">
+<td data-test-cpu class="is-1 has-text-centered">
   {{#if (and (not stats) fetchStats.isRunning)}}
     ...
   {{else if (not allocation)}}
@@ -44,7 +44,7 @@
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart tooltip" aria-label="{{stats.cpuUsed}} / {{stats.reservedCPU}} MHz">
+    <div class="inline-chart is-small tooltip" aria-label="{{stats.cpuUsed}} / {{stats.reservedCPU}} MHz">
       <progress
         class="progress is-info is-small"
         value="{{stats.percentCPU}}"
@@ -54,13 +54,13 @@
     </div>
   {{/if}}
 </td>
-<td data-test-mem class="has-text-centered">
+<td data-test-mem class="is-1 has-text-centered">
   {{#if (and (not stats) fetchStats.isRunning)}}
     ...
   {{else if (not allocation)}}
     {{! nothing when there's no allocation}}
   {{else if statsError}}
-    <span class="tooltip text-center" aria-label="Couldn't collect stats">
+    <span class="tooltip is-small text-center" aria-label="Couldn't collect stats">
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
