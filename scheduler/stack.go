@@ -303,7 +303,6 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
 	// Reset the binpack selector and context
 	s.scoreNorm.Reset()
-	s.binPack.Reset()
 	s.ctx.Reset()
 	start := time.Now()
 
