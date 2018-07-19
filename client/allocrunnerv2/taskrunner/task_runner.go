@@ -516,15 +516,29 @@ func (tr *TaskRunner) Restore(tx *bolt.Tx) error {
 
 // SetState sets the task runners allocation state.
 func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
+	// Update the local state
+	stateCopy := tr.setStateLocal(state, event)
+
+	// Create a copy and notify the alloc runner of the transition
+	if err := tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy); err != nil {
+		tr.logger.Error("failed to update remote state", "error", err)
+	}
+}
+
+// setStateLocal updates the local in-memory state, persists a copy to disk and returns a
+// copy of the task's state.
+func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *structs.TaskState {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
-
-	taskState := tr.state
 
 	//XXX REMOVE ME AFTER TESTING
 	if state == "" {
 		panic("SetState must not be called with an empty state")
 	}
+
+	// Update the task state
+	taskState := tr.state
+	taskState.State = state
 
 	// Append the event
 	tr.emitEventImpl(event)
@@ -567,24 +581,20 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	}
 
 	// Persist the state and event
-	err := tr.stateDB.Update(func(tx *bolt.Tx) error {
+	if err := tr.stateDB.Update(func(tx *bolt.Tx) error {
 		bkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
 		if err != nil {
 			return err
 		}
 
 		return clientstate.PutObject(bkt, taskStateKey, tr.state)
-	})
-	if err != nil {
+	}); err != nil {
 		// Only a warning because the next event/state-transition will
 		// try to persist it again.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
 	}
 
-	// Create a copy and notify the alloc runner of the transition
-	if err := tr.stateUpdater.TaskStateUpdated(tr.taskName, tr.state.Copy()); err != nil {
-		tr.logger.Error("failed to save state", "error", err)
-	}
+	return tr.state.Copy()
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual

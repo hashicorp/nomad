@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
@@ -14,18 +15,26 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
+	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	clientstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
 type allocRunner struct {
+	// id is the ID of the allocation. Can be accessed without a lock
+	id string
+
 	// Logger is the logger for the alloc runner.
 	logger log.Logger
 
 	clientConfig *config.Config
+
+	// stateUpdater is used to emit updated task state
+	stateUpdater cinterfaces.AllocStateHandler
 
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
@@ -40,7 +49,8 @@ type allocRunner struct {
 
 	//XXX implement for local state
 	// state captures the state of the alloc runner
-	state *state.State
+	state     *state.State
+	stateLock sync.RWMutex
 
 	stateDB *bolt.DB
 
@@ -52,7 +62,8 @@ type allocRunner struct {
 	runnerHooks []interfaces.RunnerHook
 
 	// tasks are the set of task runners
-	tasks map[string]*taskrunner.TaskRunner
+	tasks     map[string]*taskrunner.TaskRunner
+	tasksLock sync.RWMutex
 
 	// updateCh receives allocation updates via the Update method
 	updateCh chan *structs.Allocation
@@ -67,13 +78,16 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	}
 
 	ar := &allocRunner{
+		id:           alloc.ID,
 		alloc:        alloc,
 		clientConfig: config.ClientConfig,
 		vaultClient:  config.Vault,
 		tasks:        make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:       make(chan struct{}),
 		updateCh:     make(chan *structs.Allocation),
+		state:        &state.State{},
 		stateDB:      config.StateDB,
+		stateUpdater: config.StateUpdater,
 	}
 
 	// Create alloc dir
@@ -222,8 +236,154 @@ func (ar *allocRunner) Restore() error {
 // TaskStateUpdated is called when a task's state has been updated. This hook is
 // used to compute changes to the alloc's ClientStatus and to update the server
 // with the new state.
-func (ar *allocRunner) TaskStateUpdated(task string, state *structs.TaskState) error {
+func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskState) error {
+	if state == nil {
+		return fmt.Errorf("nil state given to TaskStateUpdated")
+	}
+
+	// If a task is dead, we potentially want to kill other tasks in the group
+	if state.State == structs.TaskStateDead {
+		// Find all tasks that are not the one that is dead and check if the one
+		// that is dead is a leader
+		var otherTaskRunners []*taskrunner.TaskRunner
+		var otherTaskNames []string
+		leader := false
+		for name, tr := range ar.tasks {
+			if name != taskName {
+				otherTaskRunners = append(otherTaskRunners, tr)
+				otherTaskNames = append(otherTaskNames, name)
+			} else if tr.Task().Leader {
+				leader = true
+			}
+		}
+
+		// If the task failed, we should kill all the other tasks in the task group.
+		if state.Failed {
+			for _, tr := range otherTaskRunners {
+				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
+			}
+			if len(otherTaskRunners) > 0 {
+				ar.logger.Debug("task failure, destroying all tasks", "failed_task", taskName, "destroying", otherTaskNames)
+			}
+		} else if leader {
+			// If the task was a leader task we should kill all the other tasks.
+			for _, tr := range otherTaskRunners {
+				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskLeaderDead))
+			}
+			if len(otherTaskRunners) > 0 {
+				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", taskName, "destroying", otherTaskNames)
+			}
+		}
+	}
+
+	// Gather the state of the other tasks
+	states := make(map[string]*structs.TaskState, len(ar.tasks))
+	for name, tr := range ar.tasks {
+		if name == taskName {
+			states[name] = state
+		} else {
+			states[name] = tr.TaskState()
+		}
+	}
+
+	// Get the client allocation
+	calloc := ar.clientAlloc(states)
+
+	// Update the server
+	if err := ar.stateUpdater.AllocStateUpdated(calloc); err != nil {
+		ar.logger.Error("failed to update remote allocation state", "error", err)
+	}
+
 	return nil
+}
+
+// clientAlloc takes in the task states and returns an Allocation populated
+// with Client specific fields
+func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *structs.Allocation {
+	ar.stateLock.RLock()
+	defer ar.stateLock.RUnlock()
+
+	a := &structs.Allocation{
+		ID:         ar.id,
+		TaskStates: taskStates,
+	}
+
+	s := ar.state
+	if d := s.DeploymentStatus; d != nil {
+		a.DeploymentStatus = d.Copy()
+	}
+
+	// Compute the ClientStatus
+	if s.ClientStatus != "" {
+		// The client status is being forced
+		a.ClientStatus, a.ClientDescription = s.ClientStatus, s.ClientDescription
+	} else {
+		a.ClientStatus, a.ClientDescription = getClientStatus(taskStates)
+	}
+
+	// If the allocation is terminal, make sure all required fields are properly
+	// set.
+	if a.ClientTerminalStatus() {
+		alloc := ar.Alloc()
+
+		// If we are part of a deployment and the task has failed, mark the
+		// alloc as unhealthy. This guards against the watcher not be started.
+		if a.ClientStatus == structs.AllocClientStatusFailed &&
+			alloc.DeploymentID != "" && !a.DeploymentStatus.IsUnhealthy() {
+			a.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Healthy: helper.BoolToPtr(false),
+			}
+		}
+
+		// Make sure we have marked the finished at for every task. This is used
+		// to calculate the reschedule time for failed allocations.
+		now := time.Now()
+		for _, task := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+			ts, ok := a.TaskStates[task.Name]
+			if !ok {
+				ts = &structs.TaskState{}
+				a.TaskStates[task.Name] = ts
+			}
+			if ts.FinishedAt.IsZero() {
+				ts.FinishedAt = now
+			}
+		}
+	}
+
+	return a
+}
+
+// getClientStatus takes in the task states for a given allocation and computes
+// the client status and description
+func getClientStatus(taskStates map[string]*structs.TaskState) (status, description string) {
+	var pending, running, dead, failed bool
+	for _, state := range taskStates {
+		switch state.State {
+		case structs.TaskStateRunning:
+			running = true
+		case structs.TaskStatePending:
+			pending = true
+		case structs.TaskStateDead:
+			if state.Failed {
+				failed = true
+			} else {
+				dead = true
+			}
+		}
+	}
+
+	// Determine the alloc status
+	if failed {
+		return structs.AllocClientStatusFailed, "Failed tasks"
+	} else if running {
+		return structs.AllocClientStatusRunning, "Tasks are running"
+	} else if pending {
+		return structs.AllocClientStatusPending, "No tasks have started"
+	} else if dead {
+		return structs.AllocClientStatusComplete, "All tasks have completed"
+	}
+
+	return "", ""
 }
 
 // Update the running allocation with a new version received from the server.
