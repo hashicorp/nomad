@@ -25,9 +25,13 @@ export default Model.extend({
   name: attr('string'),
   taskGroupName: attr('string'),
   resources: fragment('resources'),
+  jobVersion: attr('number'),
+
   modifyIndex: attr('number'),
   modifyTime: attr('date'),
-  jobVersion: attr('number'),
+
+  createIndex: attr('number'),
+  createTime: attr('date'),
 
   clientStatus: attr('string'),
   desiredStatus: attr('string'),

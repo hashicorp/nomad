@@ -34,6 +34,9 @@ export default ApplicationSerializer.extend({
     hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
     hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
 
+    hash.CreateTimeNanos = hash.CreateTime % 1000000;
+    hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
+
     hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
 
     // API returns empty strings instead of null
