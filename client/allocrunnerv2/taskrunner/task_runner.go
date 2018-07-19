@@ -519,10 +519,8 @@ func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	// Update the local state
 	stateCopy := tr.setStateLocal(state, event)
 
-	// Create a copy and notify the alloc runner of the transition
-	if err := tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy); err != nil {
-		tr.logger.Error("failed to update remote state", "error", err)
-	}
+	// Notify the alloc runner of the transition
+	tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy)
 }
 
 // setStateLocal updates the local in-memory state, persists a copy to disk and returns a
