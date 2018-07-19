@@ -1611,3 +1611,11 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 		t.Fatalf("bad: %v %v", e, ok)
 	}
 }
+
+func TestSetContainsAny(t *testing.T) {
+	require.True(t, checkSetContainsAny("a", "a"))
+	require.True(t, checkSetContainsAny("a,b", "a"))
+	require.True(t, checkSetContainsAny("  a,b  ", "a "))
+	require.True(t, checkSetContainsAny("a", "a"))
+	require.False(t, checkSetContainsAny("b", "a"))
+}
