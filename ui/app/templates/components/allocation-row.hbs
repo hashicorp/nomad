@@ -15,8 +15,8 @@
     {{allocation.shortId}}
   {{/link-to}}
 </td>
-<td data-test-modify-time>{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}</td>
-<td data-test-name>{{allocation.name}}</td>
+<td data-test-create-time>{{moment-format allocation.createTime "MM/DD HH:mm:ss"}}</td>
+<td data-test-modify-time>{{moment-from-now allocation.modifyTime}}</td>
 <td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>

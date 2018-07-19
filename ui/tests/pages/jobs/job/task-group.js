@@ -34,8 +34,8 @@ export default create({
   allocations: collection('[data-test-allocation]', {
     id: attribute('data-test-allocation'),
     shortId: text('[data-test-short-id]'),
+    createTime: text('[data-test-create-time]'),
     modifyTime: text('[data-test-modify-time]'),
-    name: text('[data-test-name]'),
     status: text('[data-test-client-status]'),
     jobVersion: text('[data-test-job-version]'),
     client: text('[data-test-client]'),
