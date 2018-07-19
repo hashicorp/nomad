@@ -255,19 +255,19 @@ func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskStat
 
 		// If the task failed, we should kill all the other tasks in the task group.
 		if state.Failed {
-			for _, tr := range otherTaskRunners {
-				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
-			}
 			if len(otherTaskRunners) > 0 {
 				ar.logger.Debug("task failure, destroying all tasks", "failed_task", taskName, "destroying", otherTaskNames)
 			}
+			for _, tr := range otherTaskRunners {
+				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
+			}
 		} else if leader {
+			if len(otherTaskRunners) > 0 {
+				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", taskName, "destroying", otherTaskNames)
+			}
 			// If the task was a leader task we should kill all the other tasks.
 			for _, tr := range otherTaskRunners {
 				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskLeaderDead))
-			}
-			if len(otherTaskRunners) > 0 {
-				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", taskName, "destroying", otherTaskNames)
 			}
 		}
 	}
