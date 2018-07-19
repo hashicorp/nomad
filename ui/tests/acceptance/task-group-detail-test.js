@@ -144,11 +144,15 @@ test('each allocation should show basic information about the allocation', funct
   andThen(() => {
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short id');
     assert.equal(
+      allocationRow.createTime,
+      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation create time'
+    );
+    assert.equal(
       allocationRow.modifyTime,
-      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
-    assert.equal(allocationRow.name, allocation.name, 'Allocation name');
     assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
     assert.equal(allocationRow.jobVersion, allocation.jobVersion, 'Job Version');
     assert.equal(
