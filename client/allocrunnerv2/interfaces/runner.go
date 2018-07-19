@@ -23,5 +23,5 @@ type AllocRunner interface {
 // TaskStateHandler exposes a handler to be called when a task's state changes
 type TaskStateHandler interface {
 	// TaskStateUpdated is used to emit updated task state
-	TaskStateUpdated(task string, state *structs.TaskState) error
+	TaskStateUpdated(task string, state *structs.TaskState)
 }
