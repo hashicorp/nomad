@@ -1,5 +1,7 @@
 package client
 
+/*
+TODO(clientv2)
 import (
 	"reflect"
 	"testing"
@@ -73,3 +75,4 @@ func TestShuffleStrings(t *testing.T) {
 		t.Fatalf("shuffle failed")
 	}
 }
+*/
