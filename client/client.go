@@ -765,6 +765,7 @@ func (c *Client) restoreState() error {
 			Logger:       logger,
 			ClientConfig: c.config,
 			StateDB:      c.stateDB,
+			StateUpdater: c,
 		}
 		c.configLock.RUnlock()
 
@@ -1537,6 +1538,16 @@ func (c *Client) updateNodeStatus() error {
 	return nil
 }
 
+// XXX combine with below
+func (c *Client) AllocStateUpdated(alloc *structs.Allocation) error {
+	if alloc == nil {
+		return fmt.Errorf("nil allocation provided to AllocStateUpdated")
+	}
+
+	c.updateAllocStatus(alloc)
+	return nil
+}
+
 // updateAllocStatus is used to update the status of an allocation
 func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
 	if alloc.Terminated() {
@@ -1970,6 +1981,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		ClientConfig: c.config,
 		StateDB:      c.stateDB,
 		Vault:        c.vaultClient,
+		StateUpdater: c,
 	}
 	c.configLock.RUnlock()
 
