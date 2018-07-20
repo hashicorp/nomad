@@ -21,7 +21,7 @@ export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
 
   job: alias('model'),
 
-  searchProps: computed(() => ['shortId', 'name']),
+  searchProps: computed(() => ['shortId', 'name', 'taskGroupName']),
 
   allocations: computed('model.allocations.[]', function() {
     return this.get('model.allocations') || [];
