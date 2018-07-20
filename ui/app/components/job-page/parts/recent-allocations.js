@@ -1,14 +1,19 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import PromiseArray from 'nomad-ui/utils/classes/promise-array';
 
 export default Component.extend({
   sortProperty: 'modifyIndex',
   sortDescending: true,
   sortedAllocations: computed('job.allocations.@each.modifyIndex', function() {
-    return this.get('job.allocations')
-      .sortBy('modifyIndex')
-      .reverse()
-      .slice(0, 5);
+    return new PromiseArray({
+      promise: this.get('job.allocations').then(allocations =>
+        allocations
+          .sortBy('modifyIndex')
+          .reverse()
+          .slice(0, 5)
+      ),
+    });
   }),
 
   actions: {
