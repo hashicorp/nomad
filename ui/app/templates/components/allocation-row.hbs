@@ -15,12 +15,19 @@
     {{allocation.shortId}}
   {{/link-to}}
 </td>
+{{#if (eq context "taskGroup")}}
+  <td data-test-task-group>
+    {{#link-to "jobs.job.task-group" allocation.job allocation.taskGroupName (query-params jobNamespace=allocation.job.namespace.id)}}
+      {{allocation.taskGroupName}}
+    {{/link-to}}
+  </td>
+{{/if}}
 <td data-test-create-time>{{moment-format allocation.createTime "MM/DD HH:mm:ss"}}</td>
 <td data-test-modify-time>{{moment-from-now allocation.modifyTime}}</td>
 <td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
-{{#if (eq context "job")}}
+{{#if (or (eq context "job") (eq context "taskGroup"))}}
   <td data-test-job-version>{{allocation.jobVersion}}</td>
   <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
 {{else if (eq context "node")}}
