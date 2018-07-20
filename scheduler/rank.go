@@ -240,7 +240,7 @@ OUTER:
 
 		// Score the fit normally otherwise
 		fitness := structs.ScoreFit(option.Node, util)
-		normalizedFit := float64(fitness) / float64(binPackingMaxFitScore)
+		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
 		return option
