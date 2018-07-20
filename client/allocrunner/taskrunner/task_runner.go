@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 
@@ -1495,14 +1494,15 @@ func (r *TaskRunner) startTask() error {
 
 // registerServices and checks with Consul.
 func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n *cstructs.DriverNetwork) error {
-	var exec driver.ScriptExecutor
-	if d.Abilities().Exec {
-		// Allow set the script executor if the driver supports it
-		exec = h
-	}
-	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
-	taskServices := consul.NewTaskServices(r.alloc, interpolatedTask, r, exec, n)
-	return r.consul.RegisterTask(taskServices)
+	//var exec driver.ScriptExecutor
+	//if d.Abilities().Exec {
+	//	// Allow set the script executor if the driver supports it
+	//	exec = h
+	//}
+	//interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
+	//taskServices := consul.NewTaskServices(r.alloc, interpolatedTask, r, exec, n)
+	panic("XXX broken during transition to allocrunnerv2")
+	return r.consul.RegisterTask(nil)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1706,31 +1706,34 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor,
 	oldAlloc *structs.Allocation, oldTask *structs.Task,
 	newAlloc *structs.Allocation, newTask *structs.Task) error {
 
-	var exec driver.ScriptExecutor
-	if d.Abilities().Exec {
-		// Allow set the script executor if the driver supports it
-		exec = h
-	}
-	r.driverNetLock.Lock()
-	net := r.driverNet.Copy()
-	r.driverNetLock.Unlock()
-	oldTaskServices := consul.NewTaskServices(oldAlloc, oldTask, r, exec, net)
-	newTaskServices := consul.NewTaskServices(newAlloc, newTask, r, exec, net)
-	return r.consul.UpdateTask(oldTaskServices, newTaskServices)
+	//var exec driver.ScriptExecutor
+	//if d.Abilities().Exec {
+	//	// Allow set the script executor if the driver supports it
+	//	exec = h
+	//}
+	//r.driverNetLock.Lock()
+	//net := r.driverNet.Copy()
+	//r.driverNetLock.Unlock()
+	//oldTaskServices := consul.NewTaskServices(oldAlloc, oldTask, r, exec, net)
+	//newTaskServices := consul.NewTaskServices(newAlloc, newTask, r, exec, net)
+	panic("XXX broken during transition to allocrunnerv2")
+	//return r.consul.UpdateTask(oldTaskServices, newTaskServices)
+	return r.consul.UpdateTask(nil, nil)
 }
 
 // removeServices and checks from Consul. Handles interpolation and deleting
 // Canary=true and Canary=false versions in case Canary=false is set at the
 // same time as the alloc is stopped.
 func (r *TaskRunner) removeServices() {
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
-	r.consul.RemoveTask(taskServices)
+	panic("XXX broken during transition to allocrunnerv2")
+	//interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	//taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
+	//r.consul.RemoveTask(taskServices)
 
 	// Flip Canary and remove again in case canary is getting flipped at
 	// the same time as the alloc is being destroyed
-	taskServices.Canary = !taskServices.Canary
-	r.consul.RemoveTask(taskServices)
+	//taskServices.Canary = !taskServices.Canary
+	//r.consul.RemoveTask(taskServices)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,

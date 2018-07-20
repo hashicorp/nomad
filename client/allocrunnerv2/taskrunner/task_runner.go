@@ -16,9 +16,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	clientstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -100,8 +102,8 @@ type TaskRunner struct {
 	// driver is the driver for the task.
 	driver driver.Driver
 
-	// handle is the handle to the currently running driver
-	handle     driver.DriverHandle
+	handle     driver.DriverHandle     // the handle to the running driver
+	driverNet  *cstructs.DriverNetwork // driver network if one exists
 	handleLock sync.Mutex
 
 	// task is the task being run
@@ -121,6 +123,10 @@ type TaskRunner struct {
 	// transistions.
 	runnerHooks []interfaces.TaskHook
 
+	// consulClient is the client used by the consul service hook for
+	// registering services and checks
+	consulClient consul.ConsulServiceAPI
+
 	// vaultClient is the client to use to derive and renew Vault tokens
 	vaultClient vaultclient.VaultClient
 
@@ -137,6 +143,7 @@ type TaskRunner struct {
 type Config struct {
 	Alloc        *structs.Allocation
 	ClientConfig *config.Config
+	Consul       consul.ConsulServiceAPI
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
@@ -174,6 +181,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskDir:      config.TaskDir,
 		taskName:     config.Task.Name,
 		envBuilder:   envBuilder,
+		consulClient: config.Consul,
 		vaultClient:  config.VaultClient,
 		//XXX Make a Copy to avoid races?
 		state:        config.Alloc.TaskStates[config.Task.Name],
@@ -278,12 +286,12 @@ MAIN:
 		}
 
 		// Grab the handle
-		handle = tr.getDriverHandle()
+		handle, _ = tr.getDriverHandle()
 
 		select {
 		case waitRes := <-handle.WaitCh():
 			// Clear the handle
-			tr.setDriverHandle(nil)
+			tr.clearDriverHandle()
 
 			// Store the wait result on the restart tracker
 			tr.restartTracker.SetWaitResult(waitRes)
@@ -291,7 +299,9 @@ MAIN:
 			tr.logger.Debug("task killed")
 		}
 
-		// TODO Need to run exited hooks
+		if err := tr.exited(); err != nil {
+			tr.logger.Error("exited hooks failed", "error", err)
+		}
 
 	RESTART:
 		// Actually restart by sleeping and also watching for destroy events
@@ -365,10 +375,8 @@ func (tr *TaskRunner) runDriver() error {
 		return err
 	}
 
-	// Grab the handle
-	tr.setDriverHandle(sresp.Handle)
-
-	//XXX need to capture the driver network
+	// Store the driver handle and associated metadata
+	tr.setDriverHandle(sresp.Handle, sresp.Network)
 
 	// Emit an event that we started
 	tr.SetState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))

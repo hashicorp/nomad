@@ -5764,7 +5764,8 @@ type Allocation struct {
 	TaskGroup string
 
 	// Resources is the total set of resources allocated as part
-	// of this allocation of the task group.
+	// of this allocation of the task group. Dynamic ports will be set by
+	// the scheduler.
 	Resources *Resources
 
 	// SharedResources are the resources that are shared by all the tasks in an
@@ -5772,7 +5773,8 @@ type Allocation struct {
 	SharedResources *Resources
 
 	// TaskResources is the set of resources allocated to each
-	// task. These should sum to the total Resources.
+	// task. These should sum to the total Resources. Dynamic ports will be
+	// set by the scheduler.
 	TaskResources map[string]*Resources
 
 	// Metrics associated with this allocation
@@ -6126,6 +6128,21 @@ func (a *Allocation) ShouldMigrate() bool {
 // This method will be removed in a future release.
 func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
+}
+
+// LookupTask by name from the Allocation. Returns nil if the Job is not set, the
+// TaskGroup does not exist, or the task name cannot be found.
+func (a *Allocation) LookupTask(name string) *Task {
+	if a.Job == nil {
+		return nil
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+
+	return tg.LookupTask(name)
 }
 
 // Stub returns a list stub for the allocation
