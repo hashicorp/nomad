@@ -4,6 +4,7 @@ import (
 	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,6 +23,9 @@ type Config struct {
 
 	// StateDB is used to store and restore state.
 	StateDB *bolt.DB
+
+	// Consul is the Consul client used to register task services and checks
+	Consul consul.ConsulServiceAPI
 
 	// Vault is the Vault client to use to retrieve Vault tokens
 	Vault vaultclient.VaultClient

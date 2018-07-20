@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -47,6 +48,17 @@ func (tr *TaskRunner) initHooks() {
 			templates:    task.Templates,
 			clientConfig: tr.clientConfig,
 			envBuilder:   tr.envBuilder,
+		}))
+	}
+
+	// If there are any services, add the hook
+	if len(task.Services) != 0 {
+		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
+			alloc:     tr.Alloc(),
+			task:      tr.Task(),
+			consul:    tr.consulClient,
+			restarter: tr,
+			logger:    hookLogger,
 		}))
 	}
 }
@@ -159,6 +171,9 @@ func (tr *TaskRunner) poststart() error {
 		}()
 	}
 
+	handle, net := tr.getDriverHandle()
+
+	var merr multierror.Error
 	for _, hook := range tr.runnerHooks {
 		post, ok := hook.(interfaces.TaskPoststartHook)
 		if !ok {
@@ -172,11 +187,14 @@ func (tr *TaskRunner) poststart() error {
 			tr.logger.Trace("running poststart hook", "name", name, "start", start)
 		}
 
-		req := interfaces.TaskPoststartRequest{}
+		req := interfaces.TaskPoststartRequest{
+			DriverExec:    handle,
+			DriverNetwork: net,
+			TaskEnv:       tr.envBuilder.Build(),
+		}
 		var resp interfaces.TaskPoststartResponse
-		// XXX We shouldn't exit on the first one
 		if err := post.Poststart(tr.ctx, &req, &resp); err != nil {
-			return fmt.Errorf("poststart hook %q failed: %v", name, err)
+			merr.Errors = append(merr.Errors, fmt.Errorf("poststart hook %q failed: %v", name, err))
 		}
 
 		if tr.logger.IsTrace() {
@@ -185,7 +203,48 @@ func (tr *TaskRunner) poststart() error {
 		}
 	}
 
-	return nil
+	return merr.ErrorOrNil()
+}
+
+// exited is used to run the exited hooks before a task is stopped.
+func (tr *TaskRunner) exited() error {
+	if tr.logger.IsTrace() {
+		start := time.Now()
+		tr.logger.Trace("running exited hooks", "start", start)
+		defer func() {
+			end := time.Now()
+			tr.logger.Trace("finished exited hooks", "end", end, "duration", end.Sub(start))
+		}()
+	}
+
+	var merr multierror.Error
+	for _, hook := range tr.runnerHooks {
+		post, ok := hook.(interfaces.TaskExitedHook)
+		if !ok {
+			continue
+		}
+
+		name := post.Name()
+		var start time.Time
+		if tr.logger.IsTrace() {
+			start = time.Now()
+			tr.logger.Trace("running exited hook", "name", name, "start", start)
+		}
+
+		req := interfaces.TaskExitedRequest{}
+		var resp interfaces.TaskExitedResponse
+		if err := post.Exited(tr.ctx, &req, &resp); err != nil {
+			merr.Errors = append(merr.Errors, fmt.Errorf("exited hook %q failed: %v", name, err))
+		}
+
+		if tr.logger.IsTrace() {
+			end := time.Now()
+			tr.logger.Trace("finished exited hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+
+	return merr.ErrorOrNil()
+
 }
 
 // stop is used to run the stop hooks.
@@ -199,6 +258,7 @@ func (tr *TaskRunner) stop() error {
 		}()
 	}
 
+	var merr multierror.Error
 	for _, hook := range tr.runnerHooks {
 		post, ok := hook.(interfaces.TaskStopHook)
 		if !ok {
@@ -214,9 +274,8 @@ func (tr *TaskRunner) stop() error {
 
 		req := interfaces.TaskStopRequest{}
 		var resp interfaces.TaskStopResponse
-		// XXX We shouldn't exit on the first one
 		if err := post.Stop(tr.ctx, &req, &resp); err != nil {
-			return fmt.Errorf("stop hook %q failed: %v", name, err)
+			merr.Errors = append(merr.Errors, fmt.Errorf("stop hook %q failed: %v", name, err))
 		}
 
 		if tr.logger.IsTrace() {
@@ -225,7 +284,7 @@ func (tr *TaskRunner) stop() error {
 		}
 	}
 
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // update is used to run the runners update hooks.
@@ -239,6 +298,10 @@ func (tr *TaskRunner) updateHooks() {
 		}()
 	}
 
+	// Prepare state needed by Update hooks
+	alloc := tr.Alloc()
+
+	// Execute Update hooks
 	for _, hook := range tr.runnerHooks {
 		upd, ok := hook.(interfaces.TaskUpdateHook)
 		if !ok {
@@ -251,6 +314,8 @@ func (tr *TaskRunner) updateHooks() {
 		// Build the request
 		req := interfaces.TaskUpdateRequest{
 			VaultToken: tr.getVaultToken(),
+			Alloc:      alloc,
+			TaskEnv:    tr.envBuilder.Build(),
 		}
 
 		// Time the update hook
