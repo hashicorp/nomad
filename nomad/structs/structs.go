@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/url"
 	"os"
@@ -22,10 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
+	hcodec "github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
@@ -34,10 +34,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
-
-	"math"
-
-	hcodec "github.com/hashicorp/go-msgpack/codec"
+	"golang.org/x/crypto/blake2b"
 )
 
 var (
