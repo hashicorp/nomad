@@ -767,6 +767,7 @@ func (c *Client) restoreState() error {
 			ClientConfig: c.config,
 			StateDB:      c.stateDB,
 			StateUpdater: c,
+			Consul:       c.consulService,
 			Vault:        c.vaultClient,
 		}
 		c.configLock.RUnlock()
@@ -1982,6 +1983,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		Logger:       logger,
 		ClientConfig: c.config,
 		StateDB:      c.stateDB,
+		Consul:       c.consulService,
 		Vault:        c.vaultClient,
 		StateUpdater: c,
 	}
