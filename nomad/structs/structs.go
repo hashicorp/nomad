@@ -6964,7 +6964,8 @@ type Allocation struct {
 
 	// COMPAT(0.11): Remove in 0.11
 	// Resources is the total set of resources allocated as part
-	// of this allocation of the task group.
+	// of this allocation of the task group. Dynamic ports will be set by
+	// the scheduler.
 	Resources *Resources
 
 	// COMPAT(0.11): Remove in 0.11
@@ -6974,7 +6975,8 @@ type Allocation struct {
 
 	// COMPAT(0.11): Remove in 0.11
 	// TaskResources is the set of resources allocated to each
-	// task. These should sum to the total Resources.
+	// task. These should sum to the total Resources. Dynamic ports will be
+	// set by the scheduler.
 	TaskResources map[string]*Resources
 
 	// AllocatedResources is the total resources allocated for the task group.
@@ -7373,6 +7375,21 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 			DiskMB: int64(resources.DiskMB),
 		},
 	}
+}
+
+// LookupTask by name from the Allocation. Returns nil if the Job is not set, the
+// TaskGroup does not exist, or the task name cannot be found.
+func (a *Allocation) LookupTask(name string) *Task {
+	if a.Job == nil {
+		return nil
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+
+	return tg.LookupTask(name)
 }
 
 // Stub returns a list stub for the allocation

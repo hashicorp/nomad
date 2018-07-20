@@ -9,7 +9,7 @@ import (
 
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	// Grab the handle
-	handle := tr.getDriverHandle()
+	handle, _ := tr.getDriverHandle()
 
 	// Check it is running
 	if handle == nil {
@@ -41,7 +41,7 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 
 func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
 	// Grab the handle
-	handle := tr.getDriverHandle()
+	handle, _ := tr.getDriverHandle()
 
 	// Check it is running
 	if handle == nil {
@@ -57,7 +57,7 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
 
 func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error {
 	// Grab the handle
-	handle := tr.getDriverHandle()
+	handle, _ := tr.getDriverHandle()
 
 	// Check if the handle is running
 	if handle == nil {
