@@ -11,6 +11,7 @@ export default Route.extend(WithWatchers, {
     controller.set('watchers', {
       model: this.get('watch').perform(model),
       summary: this.get('watchSummary').perform(model.get('summary')),
+      allocations: this.get('watchAllocations').perform(model),
       evaluations: this.get('watchEvaluations').perform(model),
       latestDeployment:
         model.get('supportsDeployments') && this.get('watchLatestDeployment').perform(model),
@@ -21,6 +22,7 @@ export default Route.extend(WithWatchers, {
   watch: watchRecord('job'),
   watchAll: watchAll('job'),
   watchSummary: watchRecord('job-summary'),
+  watchAllocations: watchRelationship('allocations'),
   watchEvaluations: watchRelationship('evaluations'),
   watchLatestDeployment: watchRelationship('latestDeployment'),
 
@@ -28,6 +30,7 @@ export default Route.extend(WithWatchers, {
     'watch',
     'watchAll',
     'watchSummary',
+    'watchAllocations',
     'watchEvaluations',
     'watchLatestDeployment'
   ),
