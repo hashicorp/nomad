@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	clientstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -35,6 +36,10 @@ type allocRunner struct {
 
 	// stateUpdater is used to emit updated task state
 	stateUpdater cinterfaces.AllocStateHandler
+
+	// consulClient is the client used by the consul service hook for
+	// registering services and checks
+	consulClient consul.ConsulServiceAPI
 
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
@@ -81,6 +86,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		id:           alloc.ID,
 		alloc:        alloc,
 		clientConfig: config.ClientConfig,
+		consulClient: config.Consul,
 		vaultClient:  config.Vault,
 		tasks:        make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:       make(chan struct{}),
@@ -119,6 +125,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Logger:       ar.logger,
 			StateDB:      ar.stateDB,
 			StateUpdater: ar,
+			Consul:       ar.consulClient,
 			VaultClient:  ar.vaultClient,
 		}
 
