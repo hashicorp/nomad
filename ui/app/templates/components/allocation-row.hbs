@@ -15,7 +15,7 @@
     {{allocation.shortId}}
   {{/link-to}}
 </td>
-{{#if (eq context "taskGroup")}}
+{{#if (eq context "job")}}
   <td data-test-task-group>
     {{#link-to "jobs.job.task-group" allocation.job allocation.taskGroupName (query-params jobNamespace=allocation.job.namespace.id)}}
       {{allocation.taskGroupName}}
@@ -27,7 +27,7 @@
 <td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
-{{#if (or (eq context "job") (eq context "taskGroup"))}}
+{{#if (or (eq context "taskGroup") (eq context "job"))}}
   <td data-test-job-version>{{allocation.jobVersion}}</td>
   <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
 {{else if (eq context "node")}}
