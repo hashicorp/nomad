@@ -767,6 +767,7 @@ func (c *Client) restoreState() error {
 			ClientConfig: c.config,
 			StateDB:      c.stateDB,
 			StateUpdater: c,
+			Vault:        c.vaultClient,
 		}
 		c.configLock.RUnlock()
 
