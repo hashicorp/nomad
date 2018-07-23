@@ -2172,11 +2172,16 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
-
-	for idx, affinity := range j.Affinities {
-		if err := affinity.Validate(); err != nil {
-			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+	if j.Type == JobTypeSystem {
+		if j.Affinities != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have an affinity stanza"))
+		}
+	} else {
+		for idx, affinity := range j.Affinities {
+			if err := affinity.Validate(); err != nil {
+				outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
 		}
 	}
 
@@ -3424,11 +3429,16 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
-
-	for idx, affinity := range tg.Affinities {
-		if err := affinity.Validate(); err != nil {
-			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+	if j.Type == JobTypeSystem {
+		if tg.Affinities != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have an affinity stanza"))
+		}
+	} else {
+		for idx, affinity := range tg.Affinities {
+			if err := affinity.Validate(); err != nil {
+				outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
 		}
 	}
 
@@ -3528,7 +3538,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		if err := task.Validate(tg.EphemeralDisk); err != nil {
+		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -4164,7 +4174,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -4218,10 +4228,16 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk) error {
 		}
 	}
 
-	for idx, affinity := range t.Affinities {
-		if err := affinity.Validate(); err != nil {
-			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+	if jobType == JobTypeSystem {
+		if t.Affinities != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have an affinity stanza"))
+		}
+	} else {
+		for idx, affinity := range t.Affinities {
+			if err := affinity.Validate(); err != nil {
+				outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
 		}
 	}
 

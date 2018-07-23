@@ -384,6 +384,27 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	if err := j.Validate(); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
+
+	// Add affinities at job, task group and task level, that should fail validation
+
+	j.Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${node.datacenter}",
+		RTarget: "dc1",
+	}}
+	j.TaskGroups[0].Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+	}}
+	j.TaskGroups[0].Tasks[0].Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+	}}
+	err = j.Validate()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "System jobs should not have an affinity stanza")
 }
 
 func TestJob_VaultPolicies(t *testing.T) {
@@ -739,7 +760,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeBatch)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -752,7 +773,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -769,7 +790,7 @@ func TestTask_Validate(t *testing.T) {
 		LogConfig: DefaultLogConfig(),
 	}
 	ephemeralDisk.SizeMB = 200
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -783,7 +804,7 @@ func TestTask_Validate(t *testing.T) {
 			LTarget: "${meta.rack}",
 		})
 
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
 		t.Fatalf("err: %s", err)
@@ -866,7 +887,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -887,7 +908,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err = task1.Validate(ephemeralDisk); err != nil {
+	if err = task1.Validate(ephemeralDisk, JobTypeService); err != nil {
 		t.Fatalf("err : %v", err)
 	}
 }
@@ -946,7 +967,7 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			if err := task.Validate(ephemeralDisk); err != nil {
+			if err := task.Validate(ephemeralDisk, JobTypeService); err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
 		})
@@ -999,7 +1020,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk)
+			err := task.Validate(ephemeralDisk, JobTypeService)
 			if err == nil {
 				t.Fatalf("expected an error")
 			}
@@ -1320,7 +1341,7 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
@@ -1337,7 +1358,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService)
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1350,7 +1371,7 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 
 	task.Templates = []*Template{good, good}
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeService)
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1363,7 +1384,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		},
 	}
 
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeService)
 	if err == nil {
 		t.Fatalf("expected error from Template.Validate")
 	}
