@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	getter "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/mitchellh/cli"
 )
 
@@ -127,6 +128,12 @@ func (c *Provision) fetchBinary(bin string) (string, error) {
 		return "", fmt.Errorf("failed to create temp dir: %v", err)
 	}
 
+	if bin == "" {
+		bin, err = discover.NomadExecutable()
+		if err != nil {
+			return "", fmt.Errorf("failed to discover nomad binary: %v", err)
+		}
+	}
 	if err = getter.GetFile(path.Join(nomadBinaryDir, "nomad"), bin); err != nil {
 		return "", fmt.Errorf("failed to get nomad binary: %v", err)
 	}
