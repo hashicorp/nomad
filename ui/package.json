@@ -24,6 +24,7 @@
     ]
   },
   "devDependencies": {
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "broccoli-asset-rev": "^2.4.5",
     "bulma": "0.6.1",
     "core-js": "^2.4.1",
