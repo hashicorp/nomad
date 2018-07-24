@@ -128,7 +128,7 @@ test('each allocation should have high-level details for the allocation', functi
   andThen(() => {
     const allocationRow = ClientDetail.allocations.objectAt(0);
 
-    assert.equal(allocationRow.id, allocation.id.split('-')[0], 'Allocation short ID');
+    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
     assert.equal(
       allocationRow.createTime,
       moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),

@@ -9,6 +9,8 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import allocations from 'nomad-ui/tests/pages/components/allocations';
+
 export default create({
   visit: visitable('/clients/:id'),
 
@@ -36,22 +38,7 @@ export default create({
   eligibilityDefinition: text('[data-test-eligibility]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
 
-  allocations: collection('[data-test-allocation]', {
-    id: text('[data-test-short-id]'),
-    createTime: text('[data-test-create-time]'),
-    modifyTime: text('[data-test-modify-time]'),
-    status: text('[data-test-client-status]'),
-    job: text('[data-test-job]'),
-    taskGroup: text('[data-test-task-group]'),
-    jobVersion: text('[data-test-job-version]'),
-    cpu: text('[data-test-cpu]'),
-    cpuTooltip: attribute('aria-label', '[data-test-cpu] .tooltip'),
-    mem: text('[data-test-mem]'),
-    memTooltip: attribute('aria-label', '[data-test-mem] .tooltip'),
-
-    visit: clickable('[data-test-short-id] a'),
-    visitJob: clickable('[data-test-job]'),
-  }),
+  ...allocations(),
 
   attributesTable: isPresent('[data-test-attributes]'),
   metaTable: isPresent('[data-test-meta]'),
