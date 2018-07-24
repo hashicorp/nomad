@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
@@ -274,9 +275,8 @@ func TestTask_AddAffinity(t *testing.T) {
 
 	// Add an affinity to the task
 	out := task.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
-	if n := len(task.Affinities); n != 1 {
-		t.Fatalf("expected 1 affinity, got: %d", n)
-	}
+	require := require.New(t)
+	require.Len(out, 1)
 
 	// Check that the task was returned
 	if out != task {
