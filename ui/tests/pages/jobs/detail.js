@@ -8,6 +8,8 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import allocations from 'nomad-ui/tests/pages/components/allocations';
+
 export default create({
   visit: visitable('/jobs/:id'),
 
@@ -29,10 +31,18 @@ export default create({
     return this.stats.toArray().findBy('id', id);
   },
 
+  ...allocations(),
+
+  viewAllAllocations: text('[data-test-view-all-allocations]'),
+
   error: {
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
+  },
+
+  recentAllocationsEmptyState: {
+    headline: text('[data-test-empty-recent-allocations-headline]'),
   },
 });
