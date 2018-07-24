@@ -427,8 +427,8 @@ func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	if out[0] != nodes[0] {
 		t.Fatalf("Bad: %v", out)
 	}
-	// Score should be -(#collissions/desired_count) => -(2/4)
-	if out[0].FinalScore != -0.5 {
+	// Score should be -(#collissions+1/desired_count) => -(3/4)
+	if out[0].FinalScore != -0.75 {
 		t.Fatalf("Bad Score: %#v", out[0].FinalScore)
 	}
 
@@ -546,8 +546,8 @@ func TestScoreNormalizationIterator(t *testing.T) {
 	require.Equal(2, len(out))
 	require.Equal(out[0], nodes[0])
 	// Score should be averaged between both scorers
-	// -0.5 from job anti affinity and -1 from node rescheduling penalty
-	require.Equal(out[0].FinalScore, -0.75)
+	// -0.75 from job anti affinity and -1 from node rescheduling penalty
+	require.Equal(-0.875, out[0].FinalScore)
 	require.Equal(out[1], nodes[1])
 	require.Equal(out[1].FinalScore, 0.0)
 }

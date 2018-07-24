@@ -309,7 +309,7 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 		// Calculate the penalty based on number of collisions
 		// TODO(preetha): Figure out if batch jobs need a different scoring penalty where collisions matter less
 		if collisions > 0 {
-			scorePenalty := -1 * float64(collisions) / float64(iter.desiredCount)
+			scorePenalty := -1 * float64(collisions+1) / float64(iter.desiredCount)
 			option.Scores = append(option.Scores, scorePenalty)
 			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
 		}
@@ -432,13 +432,13 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 	totalAffinityScore := 0.0
 	for _, affinity := range iter.affinities {
 		if matchesAffinity(iter.ctx, affinity, option.Node) {
-			normScore := affinity.Weight / sumWeight
-			totalAffinityScore += normScore
+			totalAffinityScore += affinity.Weight
 		}
 	}
+	normScore := totalAffinityScore / sumWeight
 	if totalAffinityScore != 0.0 {
-		option.Scores = append(option.Scores, totalAffinityScore)
-		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", totalAffinityScore)
+		option.Scores = append(option.Scores, normScore)
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", normScore)
 	}
 	return option
 }
