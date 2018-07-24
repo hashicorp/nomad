@@ -46,12 +46,19 @@ After completing the login process, take note of the values for `id` and
 `ARM_SUBSCRIPTION_ID` and `ARM_TENANT_ID` environment variables for Packer 
 and Terraform.
 
+ie.
+```bash
+export ARM_SUBSCRIPTION_ID=SUBSCRIPTION_ID
+export ARM_TENANT_ID=TENANT_ID
+```
+
+
 ## Create an Application Id and Password
 
 Run the following CLI command to create an application Id and password:
 
 ```bash
-$ az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${SUBSCRIPTION_ID}"
+$ az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${ARM_SUBSCRIPTION_ID}"
 
 {
   "appId": "CLIENT_ID",
@@ -65,6 +72,12 @@ $ az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${SUBSC
 The values for `appId` and `password` above will be used for the `ARM_CLIENT_ID` 
 and `ARM_CLIENT_SECRET` environment variables.
 
+ie.
+```bash
+export ARM_CLIENT_ID=CLIENT_ID
+export ARM_CLIENT_SECRET=CLIENT_SECRET
+```
+
 ## Create an Azure Resource Group
 
 Use the following command to create an Azure [resource group](https://docs.microsoft.com/en-us/azure/azure-resource-manager/xplat-cli-azure-resource-manager#create-a-resource-group) for Packer:
@@ -75,11 +88,17 @@ $ az group create --name packer --location "East US"
 
 ## Set the Azure Environment Variables
 
+Upto this point we already have set:
+
 ```bash
 export ARM_SUBSCRIPTION_ID=[ARM_SUBSCRIPTION_ID]  
 export ARM_TENANT_ID=[ARM_TENANT_ID]  
 export ARM_CLIENT_ID=[ARM_CLIENT_ID]  
 export ARM_CLIENT_SECRET=[ARM_CLIENT_SECRET]  
+```
+
+We need to add a new one:
+```bash
 export AZURE_RESOURCE_GROUP=packer  
 ```
 
