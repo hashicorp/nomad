@@ -483,9 +483,9 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 // checkAffinity checks if a specific affinity is satisfied
 func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
 	switch operand {
-	case structs.AffinitySetContainsAny:
+	case structs.ConstraintSetContaintsAny:
 		return checkSetContainsAny(lVal, rVal)
-	case structs.AffinitySetContainsAll, structs.ConstraintSetContains:
+	case structs.ConstraintSetContainsAll, structs.ConstraintSetContains:
 		return checkSetContainsAll(ctx, lVal, rVal)
 	default:
 		return checkConstraint(ctx, operand, lVal, rVal)
