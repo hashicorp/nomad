@@ -276,7 +276,7 @@ func TestTask_AddAffinity(t *testing.T) {
 	// Add an affinity to the task
 	out := task.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
 	require := require.New(t)
-	require.Len(out, 1)
+	require.Len(out.Affinities, 1)
 
 	// Check that the task was returned
 	if out != task {
