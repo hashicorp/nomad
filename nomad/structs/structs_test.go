@@ -404,7 +404,7 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	}}
 	err = j.Validate()
 	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "System jobs should not have an affinity stanza")
+	require.Contains(t, err.Error(), "System jobs may not have an affinity stanza")
 }
 
 func TestJob_VaultPolicies(t *testing.T) {
