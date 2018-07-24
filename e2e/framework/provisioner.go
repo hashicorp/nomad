@@ -1,13 +1,12 @@
 package framework
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"os"
 
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/uuid"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -42,10 +41,8 @@ type singleClusterProvisioner struct{}
 
 func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*ClusterInfo, error) {
 	// Build ID based off given name
-	h := md5.New()
-	h.Write([]byte(opts.Name))
 	info := &ClusterInfo{
-		ID:   hex.EncodeToString(h.Sum(nil))[:8],
+		ID:   uuid.Generate()[:8],
 		Name: opts.Name,
 	}
 

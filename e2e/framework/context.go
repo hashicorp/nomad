@@ -23,6 +23,14 @@ func newF(t *testing.T) *F {
 	return newFWithID(uuid.Generate()[:8], t)
 }
 
+func newFFromParent(f *F, t *testing.T) *F {
+	child := newF(t)
+	for k, v := range f.data {
+		child.Set(k, v)
+	}
+	return child
+}
+
 func newFWithID(id string, t *testing.T) *F {
 	ft := &F{
 		id:         id,

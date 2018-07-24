@@ -131,7 +131,10 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 		// The test name is set to the name of the implementing type, including package
 		name := fmt.Sprintf("%T", c)
 
-		// Each TestCase is provisioned a nomad cluster
+		// Each TestCase is provisioned a Nomad cluster to test against.
+		// This varies by the provisioner implementation used, currently
+		// the default behavior is for every Test case to use a single shared
+		// Nomad cluster.
 		info, err := f.provisioner.ProvisionCluster(ProvisionerOptions{
 			Name:         name,
 			ExpectConsul: s.Consul,
@@ -176,7 +179,7 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 				// Test cases are never parallel
 				t.Run(method.Name, func(t *testing.T) {
 
-					cF := newF(t)
+					cF := newFFromParent(f, t)
 					if BeforeEachTest, ok := c.(BeforeEachTest); ok {
 						BeforeEachTest.BeforeEach(cF)
 					}

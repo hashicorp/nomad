@@ -99,7 +99,7 @@ The test framework honors go test's parallel feature under certain conditions.
 A TestSuite can be created with the Parallel field set to true to enable
 parallel execution of the test cases of the suite. Tests within a test case
 will be executed sequentially unless f.T().Parallel() is called. Note that if
-multiple tests are to be executed in parallel, access to TC is note syncronized.
+multiple tests are to be executed in parallel, access to TC is not syncronized.
 The *framework.F offers a way to store state between before/after each method if
 desired.
 
