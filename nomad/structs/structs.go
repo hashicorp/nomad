@@ -2174,7 +2174,7 @@ func (j *Job) Validate() error {
 	}
 	if j.Type == JobTypeSystem {
 		if j.Affinities != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have an affinity stanza"))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have an affinity stanza"))
 		}
 	} else {
 		for idx, affinity := range j.Affinities {
@@ -3431,7 +3431,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 	if j.Type == JobTypeSystem {
 		if tg.Affinities != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have an affinity stanza"))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have an affinity stanza"))
 		}
 	} else {
 		for idx, affinity := range tg.Affinities {
@@ -4230,7 +4230,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 
 	if jobType == JobTypeSystem {
 		if t.Affinities != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs should not have an affinity stanza"))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have an affinity stanza"))
 		}
 	} else {
 		for idx, affinity := range t.Affinities {
@@ -5217,6 +5217,8 @@ const (
 	ConstraintRegex            = "regexp"
 	ConstraintVersion          = "version"
 	ConstraintSetContains      = "set_contains"
+	ConstraintSetContainsAll   = "set_contains_all"
+	ConstraintSetContaintsAny  = "set_contains_any"
 )
 
 // Constraints are used to restrict placement options.
@@ -5303,11 +5305,6 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-const (
-	AffinitySetContainsAll = "set_contains_all"
-	AffinitySetContainsAny = "set_contains_any"
-)
-
 // Affinity is used to score placement options based on a weight
 type Affinity struct {
 	LTarget string  // Left-hand target
@@ -5350,7 +5347,7 @@ func (a *Affinity) Validate() error {
 
 	// Perform additional validation based on operand
 	switch a.Operand {
-	case AffinitySetContainsAll, AffinitySetContainsAny, ConstraintSetContains:
+	case ConstraintSetContainsAll, ConstraintSetContaintsAny, ConstraintSetContains:
 		if a.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains operators require an RTarget"))
 		}
