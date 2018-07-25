@@ -1,6 +1,11 @@
-<div class="page-column is-left">
+<div class="page-column is-left {{if isOpen "is-open"}}">
   <div class="gutter">
     <aside class="menu">
+      <ul class="menu-list">
+        <li>
+          <div class="menu-item"><a onclick={{action onHamburgerClick}}>Close</a></div>
+        </li>
+      </ul>
       <p class="menu-label">
         Workload
       </p>

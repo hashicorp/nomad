@@ -32,6 +32,8 @@ export default Component.extend({
     });
   }),
 
+  onHamburgerClick() {},
+
   gotoJobsForNamespace(namespace) {
     if (!namespace || !namespace.get('id')) return;
 
