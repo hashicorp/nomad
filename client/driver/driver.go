@@ -335,6 +335,10 @@ type ExecContext struct {
 
 	// TaskEnv contains the task's environment variables.
 	TaskEnv *env.TaskEnv
+
+	LogLevel string
+
+	LogOutput io.Writer
 }
 
 // NewExecContext is used to create a new execution context

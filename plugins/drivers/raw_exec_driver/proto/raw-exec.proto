@@ -72,7 +72,7 @@ message StartResponse {
 message Empty {}
 
 service RawExec {
-    rpc Start(StartRequest) returns (StartResponse);
+    rpc NewStart(StartRequest) returns (StartResponse);
 }
 
 // TODO this needs to be resolved and part of a different proto file.

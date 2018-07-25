@@ -8,9 +8,9 @@ import (
 
 type RPCClient struct{ client *rpc.Client }
 
-func (m *RPCClient) Start(req *proto.StartRequest) (*proto.StartResponse, error) {
+func (m *RPCClient) NewStart(req *proto.StartRequest) (*proto.StartResponse, error) {
 	var resp proto.StartResponse
-	err := m.client.Call("Plugin.Start", req, &resp)
+	err := m.client.Call("Plugin.NewStart", req, &resp)
 	return &resp, err
 }
 
@@ -18,8 +18,8 @@ type RPCServer struct {
 	Impl RawExec
 }
 
-func (m *RPCServer) Start(req *proto.StartRequest, resp *proto.StartResponse) error {
-	v, err := m.Impl.Start(req.ExecContext, req.TaskInfo)
+func (m *RPCServer) NewStart(req *proto.StartRequest, resp *proto.StartResponse) error {
+	v, err := m.Impl.NewStart(req.ExecContext, req.TaskInfo)
 	resp = v
 	return err
 }

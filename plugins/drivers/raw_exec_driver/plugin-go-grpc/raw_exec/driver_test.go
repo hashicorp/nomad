@@ -3,7 +3,6 @@ package raw_exec
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -239,23 +238,4 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, logger, emitter)
 
 	return &testContext{allocDir, driverCtx, execCtx, eb}
-}
-
-// NewDriverContext initializes a new DriverContext with the specified fields.
-// This enables other packages to create DriverContexts but keeps the fields
-// private to the driver. If we want to change this later we can gorename all of
-// the fields in DriverContext.
-func NewDriverContext(jobName, taskGroupName, taskName, allocID string,
-	config *config.Config, node *structs.Node,
-	logger *log.Logger, eventEmitter LogEventFn) *DriverContext {
-	return &DriverContext{
-		jobName:       jobName,
-		taskGroupName: taskGroupName,
-		taskName:      taskName,
-		allocID:       allocID,
-		Config:        config,
-		node:          node,
-		logger:        logger,
-		emitEvent:     eventEmitter,
-	}
 }

@@ -8,10 +8,11 @@ import (
 )
 
 func main() {
+	driverCtx := &raw_exec.DriverContext{}
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: shared.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			"raw_exec": &shared.RawExecPlugin{Impl: &raw_exec.RawExec{}},
+			"raw_exec": &shared.RawExecPlugin{Impl: raw_exec.NewRawExecDriver(driverCtx)},
 		},
 
 		GRPCServer: plugin.DefaultGRPCServer,
