@@ -98,10 +98,6 @@ test('body yields content to a section after the subnav', function(assert) {
 
   return wait().then(() => {
     assert.ok(
-      find('[data-test-page-content] .section > .inner-content'),
-      'Content is rendered in a section in a gutter menu'
-    );
-    assert.ok(
       find('[data-test-subnav="job"] + .section > .inner-content'),
       'Content is rendered immediately after the subnav'
     );
