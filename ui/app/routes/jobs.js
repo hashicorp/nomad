@@ -21,7 +21,7 @@ export default Route.extend(WithForbiddenState, {
 
   model() {
     return this.get('store')
-      .findAll('job')
+      .findAll('job', { reload: true })
       .catch(notifyForbidden(this));
   },
 

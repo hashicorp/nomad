@@ -14,10 +14,7 @@
                 selected=system.activeNamespace
                 searchField="name"
                 searchEnabled=(gt sortedNamespaces.length 10)
-                onchange=(action (queue
-                  (action (mut system.activeNamespace))
-                  (action onNamespaceChange)
-                ))
+                onchange=(action gotoJobsForNamespace)
                 tagName="div"
                 class="namespace-switcher"
                 as |namespace|}}
