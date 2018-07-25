@@ -645,6 +645,10 @@ options](/docs/agent/configuration/client.html#options):
   tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a 
   shortcut for whitelisting all capabilities.
 
+* `docker.cleanup.container`: Defaults to `true`. This option can be used to
+  disable Nomad from removing a container when the task exits. Under a name
+  conflict, Nomad may still remove the dead container.
+
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
 `docker.endpoint` is set Nomad will **only** read client configuration from the

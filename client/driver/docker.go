@@ -136,6 +136,11 @@ const (
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	// https://docs.docker.com/engine/api/v1.35/#
 	defaultCFSPeriodUS = 100000
+
+	// dockerCleanupContainerConfigOption is the key for whether or not to
+	// remove containers after the task exits.
+	dockerCleanupContainerConfigOption  = "docker.cleanup.container"
+	dockerCleanupContainerConfigDefault = true
 )
 
 type DockerDriver struct {
@@ -475,24 +480,25 @@ type dockerPID struct {
 }
 
 type DockerHandle struct {
-	pluginClient      *plugin.Client
-	executor          executor.Executor
-	client            *docker.Client
-	waitClient        *docker.Client
-	logger            *log.Logger
-	jobName           string
-	taskGroupName     string
-	taskName          string
-	Image             string
-	ImageID           string
-	containerID       string
-	version           string
-	killTimeout       time.Duration
-	maxKillTimeout    time.Duration
-	resourceUsageLock sync.RWMutex
-	resourceUsage     *cstructs.TaskResourceUsage
-	waitCh            chan *dstructs.WaitResult
-	doneCh            chan bool
+	pluginClient          *plugin.Client
+	executor              executor.Executor
+	client                *docker.Client
+	waitClient            *docker.Client
+	logger                *log.Logger
+	jobName               string
+	taskGroupName         string
+	taskName              string
+	Image                 string
+	ImageID               string
+	containerID           string
+	version               string
+	killTimeout           time.Duration
+	maxKillTimeout        time.Duration
+	resourceUsageLock     sync.RWMutex
+	resourceUsage         *cstructs.TaskResourceUsage
+	waitCh                chan *dstructs.WaitResult
+	doneCh                chan bool
+	removeContainerOnExit bool
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -901,22 +907,23 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
-		client:         client,
-		waitClient:     waitClient,
-		executor:       exec,
-		pluginClient:   pluginClient,
-		logger:         d.logger,
-		jobName:        d.DriverContext.jobName,
-		taskGroupName:  d.DriverContext.taskGroupName,
-		taskName:       d.DriverContext.taskName,
-		Image:          d.driverConfig.ImageName,
-		ImageID:        d.imageID,
-		containerID:    container.ID,
-		version:        d.config.Version.VersionNumber(),
-		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
-		maxKillTimeout: maxKill,
-		doneCh:         make(chan bool),
-		waitCh:         make(chan *dstructs.WaitResult, 1),
+		client:                client,
+		waitClient:            waitClient,
+		executor:              exec,
+		pluginClient:          pluginClient,
+		logger:                d.logger,
+		jobName:               d.DriverContext.jobName,
+		taskGroupName:         d.DriverContext.taskGroupName,
+		taskName:              d.DriverContext.taskName,
+		Image:                 d.driverConfig.ImageName,
+		ImageID:               d.imageID,
+		containerID:           container.ID,
+		version:               d.config.Version.VersionNumber(),
+		killTimeout:           GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:        maxKill,
+		doneCh:                make(chan bool),
+		waitCh:                make(chan *dstructs.WaitResult, 1),
+		removeContainerOnExit: d.config.ReadBoolDefault(dockerCleanupContainerConfigOption, dockerCleanupContainerConfigDefault),
 	}
 	go h.collectStats()
 	go h.run()
@@ -1974,8 +1981,12 @@ func (h *DockerHandle) run() {
 	}
 
 	// Remove the container
-	if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
-		h.logger.Printf("[ERR] driver.docker: error removing container: %v", err)
+	if h.removeContainerOnExit == true {
+		if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
+			h.logger.Printf("[ERR] driver.docker: error removing container: %v", err)
+		}
+	} else {
+		h.logger.Printf("[DEBUG] driver.docker: not removing container %v because of config", h.containerID)
 	}
 
 	// Send the results
