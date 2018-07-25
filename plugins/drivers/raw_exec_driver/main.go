@@ -40,7 +40,7 @@ func main() {
 	execCtx := &proto.ExecContext{}
 	taskInfo := &proto.TaskInfo{}
 
-	result, err := rawExec.Start(execCtx, taskInfo)
+	result, err := rawExec.NewStart(execCtx, taskInfo)
 	if err != nil {
 		fmt.Printf("Encountered errors: %s \n", err.Error())
 	}

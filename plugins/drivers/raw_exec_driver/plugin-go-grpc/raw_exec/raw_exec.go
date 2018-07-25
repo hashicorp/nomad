@@ -14,7 +14,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -22,7 +21,9 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/fields"
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/raw_exec_driver/proto"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -52,21 +53,6 @@ type RawExecDriver struct {
 
 // LogEventFn is a callback which allows Drivers to emit task events.
 type LogEventFn func(message string, args ...interface{})
-
-// DriverContext is a means to inject dependencies such as loggers, configs, and
-// node attributes into a Driver without having to change the Driver interface
-// each time we do it. Used in conjunction with Factory, above.
-type DriverContext struct {
-	jobName       string
-	taskGroupName string
-	taskName      string
-	allocID       string
-	Config        *config.Config
-	logger        *log.Logger
-	node          *structs.Node
-
-	emitEvent LogEventFn
-}
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
@@ -149,6 +135,43 @@ func (d *RawExecDriver) Prestart(*driver.ExecContext, *structs.Task) (*driver.Pr
 	return nil, nil
 }
 
+// Dummy instance for now
+func (d *RawExecDriver) NewStart(ctx *proto.ExecContext, taskInfo *proto.TaskInfo) (*proto.StartResponse, error) {
+	execCtx := &driver.ExecContext{
+		TaskEnv: &env.TaskEnv{},
+		TaskDir: &allocdir.TaskDir{
+			LogDir: "",
+		},
+		LogLevel:  "DEBUG",
+		LogOutput: nil,
+	}
+	task := &structs.Task{
+		Name:   "a",
+		Driver: "raw_exec",
+		Config: map[string]interface{}{
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "1s"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: &structs.Resources{
+			CPU:      250,
+			MemoryMB: 256,
+			DiskMB:   20,
+		},
+	}
+	startResp, err := d.Start(execCtx, task)
+	if err != nil || startResp == nil || startResp.Handle == nil {
+		return &proto.StartResponse{}, err
+	}
+	resp := &proto.StartResponse{
+		TaskId: startResp.Handle.ID(),
+	}
+	return resp, nil
+}
+
 func (d *RawExecDriver) Start(ctx *driver.ExecContext, task *structs.Task) (*driver.StartResponse, error) {
 	var driverConfig driver.ExecDriverConfig
 	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
@@ -164,10 +187,10 @@ func (d *RawExecDriver) Start(ctx *driver.ExecContext, task *structs.Task) (*dri
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
 		LogFile:  pluginLogFile,
-		LogLevel: d.DriverContext.Config.LogLevel,
+		LogLevel: ctx.LogLevel,
 	}
 
-	exec, pluginClient, err := createExecutor(d.DriverContext.Config.LogOutput, d.DriverContext.Config, executorConfig)
+	exec, pluginClient, err := createExecutor(ctx.LogOutput, d.DriverContext.Config, executorConfig)
 	if err != nil {
 		return nil, err
 	}
