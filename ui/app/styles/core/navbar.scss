@@ -79,6 +79,10 @@
 
     &.is-gutter {
       width: $gutter-width;
+
+      @media #{$mq-hidden-gutter} {
+        width: 0;
+      }
     }
   }
 }
