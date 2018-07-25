@@ -1,4 +1,6 @@
 .navbar {
+  display: flex;
+
   &.is-primary {
     background: linear-gradient(to right, $nomad-green-darker, $nomad-green-dark);
     height: 3.5rem;
@@ -42,6 +44,13 @@
       }
     }
 
+    .navbar-end {
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-end;
+      margin-left: auto;
+    }
+
     .navbar-end > a.navbar-item {
       color: rgba($primary-invert, 0.8);
 
@@ -65,6 +74,9 @@
   }
 
   .navbar-item {
+    display: flex;
+    align-items: center;
+
     &.is-gutter {
       width: $gutter-width;
     }
