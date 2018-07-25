@@ -2524,3 +2524,25 @@ func TestDockerImageRef(t *testing.T) {
 		})
 	}
 }
+
+func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	task, _, _ := dockerTask(t)
+	task.Config["cpu_hard_limit"] = true
+	task.Config["cpu_cfs_period"] = 1000000
+
+	client, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	assert.Nil(t, err, "Error inspecting container: %v", err)
+	assert.Equal(t, int64(1000000), container.HostConfig.CPUPeriod, "cpu_cfs_period option incorrectly set")
+}

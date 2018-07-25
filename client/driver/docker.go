@@ -235,6 +235,7 @@ type DockerDriverConfig struct {
 	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
 	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
 	CPUHardLimit         bool                `mapstructure:"cpu_hard_limit"`         // Enforce CPU hard limit.
+	CPUCFSPeriod         int64               `mapstructure:"cpu_cfs_period"`         // Set the period for the CFS scheduler for the cgroup.
 	PidsLimit            int64               `mapstructure:"pids_limit"`             // Enforce Docker Pids limit
 }
 
@@ -741,6 +742,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"cpu_hard_limit": {
 				Type: fields.TypeBool,
 			},
+			"cpu_cfs_period": {
+				Type: fields.TypeInt,
+			},
 			"pids_limit": {
 				Type: fields.TypeInt,
 			},
@@ -1238,7 +1242,14 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	if driverConfig.CPUHardLimit {
 		numCores := runtime.NumCPU()
 		percentTicks := float64(task.Resources.CPU) / float64(d.node.Resources.CPU)
-		hostConfig.CPUQuota = int64(percentTicks*defaultCFSPeriodUS) * int64(numCores)
+		if driverConfig.CPUCFSPeriod < 0 || driverConfig.CPUCFSPeriod > 1000000 {
+			return c, fmt.Errorf("invalid value for cpu_cfs_period")
+		}
+		if driverConfig.CPUCFSPeriod == 0 {
+			driverConfig.CPUCFSPeriod = defaultCFSPeriodUS
+		}
+		hostConfig.CPUPeriod = driverConfig.CPUCFSPeriod
+		hostConfig.CPUQuota = int64(percentTicks*float64(driverConfig.CPUCFSPeriod)) * int64(numCores)
 	}
 
 	// Windows does not support MemorySwap/MemorySwappiness #2193
