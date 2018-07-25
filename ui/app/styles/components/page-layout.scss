@@ -31,10 +31,27 @@
         bottom: 0;
         top: $header-height;
         z-index: $z-gutter;
+        background: $white;
       }
 
       &.is-right {
         margin-left: $gutter-width;
+        overflow-x: auto;
+      }
+
+      @media #{$mq-hidden-gutter} {
+        &.is-left {
+          top: 0;
+          left: -$gutter-width;
+
+          &.is-open {
+            left: 0;
+          }
+        }
+
+        &.is-right {
+          margin-left: 0;
+        }
       }
     }
   }
