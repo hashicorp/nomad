@@ -275,7 +275,7 @@ constraint {
 
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
-[client-meta]: /docs/agent/configuration/client.html#meta "Nomad meta Job Specification"
+[client-meta]: /docs/configuration/client.html#meta "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
 [node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"

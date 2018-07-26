@@ -40,30 +40,30 @@ the first Nomad server contacted.
 - `spark.nomad.docker.email` `(string: nil)` - Specifies the email address to 
 use when downloading the Docker image specified by 
 [spark.nomad.dockerImage](#spark.nomad.dockerImage). See the 
-[Docker driver authentication](https://www.nomadproject.io/docs/drivers/docker.html#authentication) 
+[Docker driver authentication](/docs/drivers/docker.html#authentication) 
 docs for more information.
 
 -  `spark.nomad.docker.password` `(string: nil)` - Specifies the password to use
   when downloading the Docker image specified by 
   [spark.nomad.dockerImage](#spark.nomad.dockerImage). See the 
-[Docker driver authentication](https://www.nomadproject.io/docs/drivers/docker.html#authentication) 
+[Docker driver authentication](/docs/drivers/docker.html#authentication) 
 docs for more information.
 
 - `spark.nomad.docker.serverAddress` `(string: nil)` - Specifies the server 
 address (domain/IP without the protocol) to use when downloading the Docker 
 image specified by [spark.nomad.dockerImage](#spark.nomad.dockerImage). Docker 
 Hub is used by default. See the 
-[Docker driver authentication](https://www.nomadproject.io/docs/drivers/docker.html#authentication) 
+[Docker driver authentication](/docs/drivers/docker.html#authentication) 
 docs for more information.
 
 - `spark.nomad.docker.username` `(string: nil)` - Specifies the username to use
  when downloading the Docker image specified by 
  [spark.nomad.dockerImage](#spark-nomad-dockerImage). See the 
-[Docker driver authentication](https://www.nomadproject.io/docs/drivers/docker.html#authentication) 
+[Docker driver authentication](/docs/drivers/docker.html#authentication) 
 docs for more information.
 
 - `spark.nomad.dockerImage` `(string: nil)` - Specifies the `URL` for the 
-[Docker image](https://www.nomadproject.io/docs/drivers/docker.html#image) to 
+[Docker image](/docs/drivers/docker.html#image) to 
 use to run Spark with Nomad's `docker` driver. When not specified, Nomad's 
 `exec` driver will be used instead.
 

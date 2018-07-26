@@ -583,7 +583,7 @@ of the Linux Kernel and Docker daemon.
 ## Client Configuration
 
 The `docker` driver has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `docker.endpoint` - If using a non-standard socket, HTTP or another location,
   or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
