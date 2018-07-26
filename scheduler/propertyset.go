@@ -60,7 +60,7 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 	return p
 }
 
-// SetJobConstraintAttribute is used to parameterize the property set for a
+// SetJobConstraint is used to parameterize the property set for a
 // distinct_property constraint set at the job level.
 func (p *propertySet) SetJobConstraint(constraint *structs.Constraint) {
 	p.setConstraint(constraint, "")
@@ -89,18 +89,18 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 	} else {
 		allowedCount = 1
 	}
-	p.setPropertySetInner(constraint.LTarget, allowedCount, taskGroup)
+	p.setTargetAttributeWithCount(constraint.LTarget, allowedCount, taskGroup)
 }
 
 // SetTargetAttribute is used to populate this property set without also storing allowed count
 // This is used when evaluating spread stanzas
 func (p *propertySet) SetTargetAttribute(targetAttribute string, taskGroup string) {
-	p.setPropertySetInner(targetAttribute, 0, taskGroup)
+	p.setTargetAttributeWithCount(targetAttribute, 0, taskGroup)
 }
 
-// setConstraint is a shared helper for setting a job or task group attribute and allowedCount
+// setTargetAttributeWithCount is a shared helper for setting a job or task group attribute and allowedCount
 // allowedCount can be zero when this is used in evaluating spread stanzas
-func (p *propertySet) setPropertySetInner(targetAttribute string, allowedCount uint64, taskGroup string) {
+func (p *propertySet) setTargetAttributeWithCount(targetAttribute string, allowedCount uint64, taskGroup string) {
 	// Store that this is for a task group
 	if taskGroup != "" {
 		p.taskGroup = taskGroup
@@ -113,7 +113,7 @@ func (p *propertySet) setPropertySetInner(targetAttribute string, allowedCount u
 
 	// Determine the number of existing allocations that are using a property
 	// value
-	p.populateExisting(targetAttribute)
+	p.populateExisting()
 
 	// Populate the proposed when setting the constraint. We do this because
 	// when detecting if we can inplace update an allocation we stage an
@@ -124,7 +124,7 @@ func (p *propertySet) setPropertySetInner(targetAttribute string, allowedCount u
 
 // populateExisting is a helper shared when setting the constraint to populate
 // the existing values.
-func (p *propertySet) populateExisting(targetAttribute string) {
+func (p *propertySet) populateExisting() {
 	// Retrieve all previously placed allocations
 	ws := memdb.NewWatchSet()
 	allocs, err := p.ctx.State().AllocsByJob(ws, p.namespace, p.jobID, false)

@@ -405,6 +405,21 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	err = j.Validate()
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "System jobs may not have an affinity stanza")
+
+	// Add spread at job and task group level, that should fail validation
+	j.Spreads = []*Spread{{
+		Attribute: "${node.datacenter}",
+		Weight:    100,
+	}}
+	j.TaskGroups[0].Spreads = []*Spread{{
+		Attribute: "${node.datacenter}",
+		Weight:    100,
+	}}
+
+	err = j.Validate()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "System jobs may not have a spread stanza")
+
 }
 
 func TestJob_VaultPolicies(t *testing.T) {
@@ -3960,9 +3975,37 @@ func TestSpread_Validate(t *testing.T) {
 			spread: &Spread{
 				Attribute: "${node.datacenter}",
 				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc2",
+						Percent: 150,
+					},
+				},
 			},
-			err:  fmt.Errorf("Atleast one spread target value must be specified"),
-			name: "No spread targets",
+			err:  fmt.Errorf("Spread target percentage for value \"dc2\" must be between 0 and 100"),
+			name: "Invalid percentages",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 75,
+					},
+					{
+						Value:   "dc2",
+						Percent: 75,
+					},
+				},
+			},
+			err:  fmt.Errorf("Sum of spread target percentages must not be greater than 100"),
+			name: "Invalid percentages",
 		},
 		{
 			spread: &Spread{
