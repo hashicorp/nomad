@@ -37,11 +37,6 @@
           top: 1.25em;
         }
       }
-
-      &.is-logo img {
-        height: 26px;
-        max-height: 26px;
-      }
     }
 
     .navbar-end {
@@ -83,26 +78,6 @@
       @media #{$mq-hidden-gutter} {
         width: 0;
       }
-    }
-  }
-
-  .navbar-gutter-toggle {
-    display: none;
-
-    position: absolute;
-    left: 0;
-    padding: 1rem;
-    transform: translate(-35%, 0%);
-    height: 100%;
-    fill: desaturate(lighten($nomad-green, 20%), 30%);
-    cursor: pointer;
-
-    > svg {
-      width: 20px;
-    }
-
-    @media #{$mq-hidden-gutter} {
-      display: inline-block;
     }
   }
 }
