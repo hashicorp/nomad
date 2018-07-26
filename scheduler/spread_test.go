@@ -57,6 +57,8 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
+	// Create spread target of 80% in dc1
+	// Implicitly, this means 20% in dc2
 	spread := &structs.Spread{
 		Weight:    100,
 		Attribute: "${node.datacenter}",
@@ -64,10 +66,6 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 			{
 				Value:   "dc1",
 				Percent: 80,
-			},
-			{
-				Value:   "dc2",
-				Percent: 20,
 			},
 		},
 	}
