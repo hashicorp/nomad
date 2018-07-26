@@ -1,11 +1,14 @@
 <div class="page-column is-left {{if isOpen "is-open"}}">
   <div class="gutter">
+    <header class="collapsed-menu">
+      <span class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
+        {{partial "partials/hamburger-menu"}}
+      </span>
+      <span class="logo-container">
+        {{partial "partials/nomad-logo"}}
+      </span>
+    </header>
     <aside class="menu">
-      <ul class="menu-list">
-        <li>
-          <div class="menu-item"><a onclick={{action onHamburgerClick}}>Close</a></div>
-        </li>
-      </ul>
       <p class="menu-label">
         Workload
       </p>

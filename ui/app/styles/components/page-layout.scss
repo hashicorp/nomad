@@ -43,7 +43,7 @@
         &.is-left {
           top: 0;
           left: -$gutter-width;
-          transition: left ease-in-out 0.3s;
+          transition: left ease-in-out 0.2s;
 
           &.is-open {
             left: 0;
