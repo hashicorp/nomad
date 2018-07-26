@@ -4,6 +4,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// ImplicitTarget is used to represent any remaining attribute values
+	// when target percentages don't add up to 100
+	ImplicitTarget = "*"
+)
+
 // SpreadIterator is used to spread allocations across a specified attribute
 // according to preset weights
 type SpreadIterator struct {
@@ -28,7 +34,6 @@ type SpreadIterator struct {
 type spreadAttributeMap map[string]*spreadInfo
 
 type spreadInfo struct {
-	sumWeight     uint32
 	weight        int
 	desiredCounts map[string]float64
 }
@@ -110,16 +115,20 @@ func (iter *SpreadIterator) Next() *RankedNode {
 			nValue, errorMsg, usedCount := pset.UsedCount(option.Node, tgName)
 			// Skip if there was errors in resolving this attribute to compute used counts
 			if errorMsg != "" {
-				continue
+				iter.ctx.Logger().Printf("[WARN] sched: error building spread attributes for task group %v:%v", tgName, errorMsg)
 			}
 			spreadAttributeMap := iter.tgSpreadInfo[tgName]
 			spreadDetails := spreadAttributeMap[pset.targetAttribute]
 			// Get the desired count
 			desiredCount, ok := spreadDetails.desiredCounts[nValue]
 			if !ok {
-				// Warn about missing ratio
-				iter.ctx.Logger().Printf("[WARN] sched: missing desired distribution percentage for attribute value %v in spread stanza for job %v", nValue, iter.job.ID)
-				continue
+				// See if there is an implicit target
+				desiredCount, ok = spreadDetails.desiredCounts[ImplicitTarget]
+				if !ok {
+					// The desired count for this attribute is zero if it gets here
+					// don't boost the score
+					continue
+				}
 			}
 			if float64(usedCount) < desiredCount {
 				// Calculate the relative weight of this specific spread attribute
@@ -151,14 +160,16 @@ func (iter *SpreadIterator) computeSpreadInfo(tg *structs.TaskGroup) {
 	combinedSpreads = append(combinedSpreads, tg.Spreads...)
 	combinedSpreads = append(combinedSpreads, iter.jobSpreads...)
 	for _, spread := range combinedSpreads {
-		sumWeight := uint32(0)
+		si := &spreadInfo{weight: spread.Weight, desiredCounts: make(map[string]float64)}
+		sumDesiredCounts := 0.0
 		for _, st := range spread.SpreadTarget {
-			sumWeight += st.Percent
-		}
-		si := &spreadInfo{sumWeight: sumWeight, weight: spread.Weight, desiredCounts: make(map[string]float64)}
-		for _, st := range spread.SpreadTarget {
-			desiredCount := (float64(st.Percent) / float64(sumWeight)) * float64(totalCount)
+			desiredCount := (float64(st.Percent) / float64(100)) * float64(totalCount)
 			si.desiredCounts[st.Value] = desiredCount
+			sumDesiredCounts += desiredCount
+		}
+		if sumDesiredCounts < float64(totalCount) {
+			remainingCount := float64(totalCount) - sumDesiredCounts
+			si.desiredCounts[ImplicitTarget] = remainingCount
 		}
 		spreadInfos[spread.Attribute] = si
 		iter.sumSpreadWeights += spread.Weight
