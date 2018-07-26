@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	getter "github.com/hashicorp/go-getter"
@@ -87,8 +88,7 @@ func (c *Provision) Run(args []string) int {
 
 	args = cmdFlags.Args()
 	if len(args) != 2 {
-		log.Fatalf("expected 2 args, but got: %v", args)
-		log.Fatal(c.Help())
+		log.Fatalf("expected 2 args (provider and environment), but got: %v", args)
 	}
 
 	env, err := newEnv(envPath, args[0], args[1], tfPath)
@@ -101,12 +101,12 @@ func (c *Provision) Run(args []string) int {
 			log.Fatal(err)
 			return 1
 		}
-		fmt.Println("Environment successfully destroyed")
+		log.Println("Environment successfully destroyed")
 		return 0
 	}
 
 	// Use go-getter to fetch the nomad binary
-	nomadPath, err := c.fetchBinary(nomadBinary)
+	nomadPath, err := fetchBinary(nomadBinary)
 	defer os.RemoveAll(nomadPath)
 
 	results, err := env.provision(nomadPath)
@@ -122,7 +122,7 @@ NOMAD_ADDR=%s
 }
 
 // Fetches the nomad binary and returns the temporary directory where it exists
-func (c *Provision) fetchBinary(bin string) (string, error) {
+func fetchBinary(bin string) (string, error) {
 	nomadBinaryDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %v", err)
@@ -152,7 +152,9 @@ type environment struct {
 }
 
 type envResults struct {
-	nomadAddr string
+	nomadAddr  string
+	consulAddr string
+	vaultAddr  string
 }
 
 func newEnv(envPath, provider, name, tfStatePath string) (*environment, error) {
@@ -181,6 +183,31 @@ func newEnv(envPath, provider, name, tfStatePath string) (*environment, error) {
 		tfState:  tfState,
 	}
 	return env, nil
+}
+
+// envsFromGlob allows for the discovery of multiple environments using globs (*).
+// ex. aws/* for all environments in aws.
+func envsFromGlob(envPath, glob, tfStatePath string) ([]*environment, error) {
+	results, err := filepath.Glob(filepath.Join(envPath, glob))
+	if err != nil {
+		return nil, err
+	}
+
+	envs := []*environment{}
+
+	for _, p := range results {
+		elems := strings.Split(p, "/")
+		name := elems[len(elems)-1]
+		provider := elems[len(elems)-2]
+		env, err := newEnv(envPath, provider, name, tfStatePath)
+		if err != nil {
+			return nil, err
+		}
+
+		envs = append(envs, env)
+	}
+
+	return envs, nil
 }
 
 // provision calls terraform to setup the environment with the given nomad binary

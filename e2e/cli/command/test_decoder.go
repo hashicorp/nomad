@@ -79,7 +79,7 @@ func NewDecoder(r io.Reader) *EventDecoder {
 	}
 }
 
-func (d *EventDecoder) Decode() (*TestReport, error) {
+func (d *EventDecoder) Decode(logger io.Writer) (*TestReport, error) {
 	for d.dec.More() {
 		var e TestEvent
 		err := d.dec.Decode(&e)
@@ -88,6 +88,9 @@ func (d *EventDecoder) Decode() (*TestReport, error) {
 		}
 
 		d.report.record(&e)
+		if logger != nil {
+			logger.Write([]byte(e.Output))
+		}
 	}
 	return d.report, nil
 }
