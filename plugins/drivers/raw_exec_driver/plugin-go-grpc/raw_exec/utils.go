@@ -33,6 +33,52 @@ func cgroupsMounted(node *structs.Node) bool {
 
 // createExecutor launches an executor plugin and returns an instance of the
 // Executor interface
+func createExecutor2(w io.Writer, executorConfig *ExecutorConfig) (executor.Executor, *plugin.Client, error) {
+
+	c, err := json.Marshal(executorConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create executor config: %v", err)
+	}
+	//bin, err := discover.NomadExecutable()
+	//	if err != nil {
+	//		return nil, nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+	//	}
+	// TODO
+	bin := "nomad"
+
+	config := &plugin.ClientConfig{
+		Cmd: exec.Command(bin, "executor", string(c)),
+		AllowedProtocols: []plugin.Protocol{
+			plugin.ProtocolNetRPC,
+		},
+	}
+	config.HandshakeConfig = driver.HandshakeConfig
+	config.Plugins = driver.GetPluginMap(w, executorConfig.LogLevel)
+	config.MaxPort = executorConfig.MaxPort
+	config.MinPort = executorConfig.MinPort
+
+	// setting the setsid of the plugin process so that it doesn't get signals sent to
+	// the nomad client.
+	if config.Cmd != nil {
+		isolateCommand(config.Cmd)
+	}
+
+	executorClient := plugin.NewClient(config)
+	rpcClient, err := executorClient.Client()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
+	}
+
+	raw, err := rpcClient.Dispense("executor")
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
+	}
+	executorPlugin := raw.(executor.Executor)
+	return executorPlugin, executorClient, nil
+}
+
+// createExecutor launches an executor plugin and returns an instance of the
+// Executor interface
 func createExecutor(w io.Writer, clientConfig *config.Config,
 	executorConfig *dstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
