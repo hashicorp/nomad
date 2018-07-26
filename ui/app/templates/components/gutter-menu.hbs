@@ -1,7 +1,7 @@
-<div class="page-column is-left {{if isOpen "is-open"}}">
+<div data-test-gutter-menu class="page-column is-left {{if isOpen "is-open"}}">
   <div class="gutter {{if isOpen "is-open"}}">
     <header class="collapsed-menu {{if isOpen "is-open"}}">
-      <span class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
+      <span data-test-gutter-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
         {{partial "partials/hamburger-menu"}}
       </span>
       <span class="logo-container">
@@ -50,4 +50,4 @@
 <div data-test-page-content class="page-column is-right">
   {{yield}}
 </div>
-<div class="gutter-backdrop {{if isOpen "is-open"}}" onclick={{action onHamburgerClick}}></div>
+<div data-test-gutter-backdrop class="gutter-backdrop {{if isOpen "is-open"}}" onclick={{action onHamburgerClick}}></div>
