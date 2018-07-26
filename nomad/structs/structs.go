@@ -2189,10 +2189,16 @@ func (j *Job) Validate() error {
 		}
 	}
 
-	for idx, spread := range j.Spreads {
-		if err := spread.Validate(); err != nil {
-			outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+	if j.Type == JobTypeSystem {
+		if j.Spreads != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a s stanza"))
+		}
+	} else {
+		for idx, spread := range j.Spreads {
+			if err := spread.Validate(); err != nil {
+				outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
 		}
 	}
 
@@ -3466,10 +3472,16 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
 	}
 
-	for idx, spread := range tg.Spreads {
-		if err := spread.Validate(); err != nil {
-			outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
-			mErr.Errors = append(mErr.Errors, outer)
+	if j.Type == JobTypeSystem {
+		if tg.Spreads != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a spread stanza"))
+		}
+	} else {
+		for idx, spread := range tg.Spreads {
+			if err := spread.Validate(); err != nil {
+				outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
 		}
 	}
 
@@ -5407,17 +5419,16 @@ func (a *Affinity) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Spread is used to specify desired distribution of allocations according to weight
 type Spread struct {
-	Attribute    string
-	Weight       int
+	// Attribute is the node attribute used as the spread criteria
+	Attribute string
+	// Weight is the relative weight of this spread, useful when there are multiple
+	// spread and affinities
+	Weight int
+	// SpreadTarget is used to describe desired percentages for each attribute value
 	SpreadTarget []*SpreadTarget
 	str          string
-}
-
-type SpreadTarget struct {
-	Value   string
-	Percent uint32
-	str     string
 }
 
 func (s *Spread) Copy() *Spread {
@@ -5431,29 +5442,11 @@ func (s *Spread) Copy() *Spread {
 	return ns
 }
 
-func (s *SpreadTarget) Copy() *SpreadTarget {
-	if s == nil {
-		return nil
-	}
-
-	ns := new(SpreadTarget)
-	*ns = *s
-	return ns
-}
-
 func (s *Spread) String() string {
 	if s.str != "" {
 		return s.str
 	}
 	s.str = fmt.Sprintf("%s %s %v", s.Attribute, s.SpreadTarget, s.Weight)
-	return s.str
-}
-
-func (s *SpreadTarget) String() string {
-	if s.str != "" {
-		return s.str
-	}
-	s.str = fmt.Sprintf("%s %v", s.Value, s.Percent)
 	return s.str
 }
 
@@ -5465,12 +5458,9 @@ func (s *Spread) Validate() error {
 	if s.Weight <= 0 || s.Weight > 100 {
 		mErr.Errors = append(mErr.Errors, errors.New("Spread stanza must have a positive weight from 0 to 100"))
 	}
-	if len(s.SpreadTarget) == 0 {
-		// TODO(preetha): This should go away if we can assume even spread if there are no targets
-		// In that case, the target percentages should be calculated at schedule time
-		mErr.Errors = append(mErr.Errors, errors.New("Atleast one spread target value must be specified"))
-	}
 	seen := make(map[string]struct{})
+	sumPercent := uint32(0)
+
 	for _, target := range s.SpreadTarget {
 		// Make sure there are no duplicates
 		_, ok := seen[target.Value]
@@ -5479,8 +5469,43 @@ func (s *Spread) Validate() error {
 		} else {
 			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target value %q already defined", target.Value)))
 		}
+		if target.Percent < 0 || target.Percent > 100 {
+			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target percentage for value %q must be between 0 and 100", target.Value)))
+		}
+		sumPercent += target.Percent
+	}
+	if sumPercent > 100 {
+		mErr.Errors = append(mErr.Errors, errors.New("Sum of spread target percentages must not be greater than 100"))
 	}
 	return mErr.ErrorOrNil()
+}
+
+// SpreadTarget is used to specify desired percentages
+// for each attribute value
+type SpreadTarget struct {
+	// Value is a single attribute value, like "dc1"
+	Value string
+	// Percent is the desired percentage of allocs
+	Percent uint32
+	str     string
+}
+
+func (s *SpreadTarget) Copy() *SpreadTarget {
+	if s == nil {
+		return nil
+	}
+
+	ns := new(SpreadTarget)
+	*ns = *s
+	return ns
+}
+
+func (s *SpreadTarget) String() string {
+	if s.str != "" {
+		return s.str
+	}
+	s.str = fmt.Sprintf("%q %v%%", s.Value, s.Percent)
+	return s.str
 }
 
 // EphemeralDisk is an ephemeral disk object
