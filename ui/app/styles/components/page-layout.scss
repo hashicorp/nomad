@@ -42,11 +42,11 @@
       @media #{$mq-hidden-gutter} {
         &.is-left {
           top: 0;
-          left: -$gutter-width;
-          transition: left ease-in-out 0.2s;
+          transform: translateX(-$gutter-width);
+          transition: transform ease-in-out 0.2s;
 
           &.is-open {
-            left: 0;
+            transform: translateX(0);
           }
         }
 
