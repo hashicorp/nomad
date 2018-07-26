@@ -234,9 +234,15 @@ func (p *propertySet) UsedCount(option *structs.Node, tg string) (string, string
 	if !ok {
 		return nValue, fmt.Sprintf("missing property %q", p.targetAttribute), 0
 	}
+	combinedUse := p.GetCombinedUseMap()
+	usedCount := combinedUse[nValue]
+	return nValue, "", usedCount
+}
 
-	// combine the counts of how many times the property has been used by
-	// existing and proposed allocations
+// GetCombinedUseMap counts how many times the property has been used by
+// existing and proposed allocations. It also takes into account any stopped
+// allocations
+func (p *propertySet) GetCombinedUseMap() map[string]uint64 {
 	combinedUse := make(map[string]uint64, helper.IntMax(len(p.existingValues), len(p.proposedValues)))
 	for _, usedValues := range []map[string]uint64{p.existingValues, p.proposedValues} {
 		for propertyValue, usedCount := range usedValues {
@@ -259,9 +265,7 @@ func (p *propertySet) UsedCount(option *structs.Node, tg string) (string, string
 			combinedUse[propertyValue] = 0
 		}
 	}
-
-	usedCount := combinedUse[nValue]
-	return nValue, "", usedCount
+	return combinedUse
 }
 
 // filterAllocs filters a set of allocations to just be those that are running
