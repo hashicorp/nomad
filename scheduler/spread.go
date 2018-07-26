@@ -7,14 +7,21 @@ import (
 // SpreadIterator is used to spread allocations across a specified attribute
 // according to preset weights
 type SpreadIterator struct {
-	ctx               Context
-	source            RankIterator
-	job               *structs.Job
-	tg                *structs.TaskGroup
-	jobSpreads        []*structs.Spread
-	tgSpreadInfo      map[string]spreadAttributeMap
-	sumSpreadWeights  int
-	hasSpread         bool
+	ctx        Context
+	source     RankIterator
+	job        *structs.Job
+	tg         *structs.TaskGroup
+	jobSpreads []*structs.Spread
+	// tgSpreadInfo is a map per task group with precomputed
+	// values for desired counts and weight
+	tgSpreadInfo map[string]spreadAttributeMap
+	// sumSpreadWeights tracks the total weight across all spread
+	// stanzas
+	sumSpreadWeights int
+	hasSpread        bool
+	// groupProperySets is a memoized map from task group to property sets.
+	// existing allocs are computed once, and allocs from the plan are updated
+	// when Reset is called
 	groupPropertySets map[string][]*propertySet
 }
 
@@ -72,7 +79,7 @@ func (iter *SpreadIterator) SetTaskGroup(tg *structs.TaskGroup) {
 		}
 	}
 
-	// Check if there is a distinct property
+	// Check if there are any spreads configured
 	iter.hasSpread = len(iter.groupPropertySets[tg.Name]) != 0
 
 	// Build tgSpreadInfo at the task group level
