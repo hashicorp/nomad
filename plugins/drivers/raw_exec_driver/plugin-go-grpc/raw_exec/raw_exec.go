@@ -21,10 +21,8 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/fields"
-	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/raw_exec_driver/proto"
-	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -135,34 +133,40 @@ func (d *RawExecDriver) Prestart(*driver.ExecContext, *structs.Task) (*driver.Pr
 	return nil, nil
 }
 
-// Dummy instance for now
-func (d *RawExecDriver) NewStart(ctx *proto.ExecContext, taskInfo *proto.TaskInfo) (*proto.StartResponse, error) {
-	execCtx := &driver.ExecContext{
-		TaskEnv: &env.TaskEnv{},
-		TaskDir: &allocdir.TaskDir{
-			LogDir: "",
+// Shim for Start method, this needs to be cleaned up with methods extracted
+// and all extra types need to be added to the protobuf and not be hardcoded here.
+func (d *RawExecDriver) NewStart(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*proto.StartResponse, error) {
+	execCtx := &ExecContext{
+		TaskEnv: &TaskEnv{},
+		TaskDir: &TaskDir{
+			Dir:       ctx.TaskDir.Directory,
+			LogDir:    ctx.TaskDir.LogDir,
+			LogLevel:  ctx.TaskDir.LogLevel,
+			LogOutput: os.Stdout,
 		},
-		LogLevel:  "DEBUG",
-		LogOutput: nil,
+		MaxPort:        5000,
+		MinPort:        2000,
+		MaxKillTimeout: time.Duration(5),
+		Version:        "1.0", // TODO was d.DriverContext.Config.Version.VersionNumber()
 	}
-	task := &structs.Task{
-		Name:   "a",
-		Driver: "raw_exec",
-		Config: map[string]interface{}{
-			"command": testtask.Path(),
-			"args":    []string{"sleep", "1s"},
+	taskInfo := &TaskInfo{
+		Resources: &Resources{
+			CPU:      int(tInfo.Resources.Cpu),
+			MemoryMB: int(tInfo.Resources.MemoryMb),
+			DiskMB:   int(tInfo.Resources.DiskMb),
 		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
+		LogConfig: &LogConfig{
+			MaxFiles:      int(tInfo.LogConfig.MaxFiles),
+			MaxFileSizeMB: int(tInfo.LogConfig.MaxFileSizeMb),
 		},
-		Resources: &structs.Resources{
-			CPU:      250,
-			MemoryMB: 256,
-			DiskMB:   20,
+		Name: "taskName",
+		Config: &Config{
+			Command: "echo",
+			Args:    []string{"hello world"},
 		},
 	}
-	startResp, err := d.Start(execCtx, task)
+
+	startResp, err := d.Start(execCtx, taskInfo)
 	if err != nil || startResp == nil || startResp.Handle == nil {
 		return &proto.StartResponse{}, err
 	}
@@ -172,30 +176,49 @@ func (d *RawExecDriver) NewStart(ctx *proto.ExecContext, taskInfo *proto.TaskInf
 	return resp, nil
 }
 
-func (d *RawExecDriver) Start(ctx *driver.ExecContext, task *structs.Task) (*driver.StartResponse, error) {
-	var driverConfig driver.ExecDriverConfig
-	if err := mapstructure.WeakDecode(task.Config, &driverConfig); err != nil {
-		return nil, err
-	}
-
-	// Get the command to be ran
-	command := driverConfig.Command
+func (d *RawExecDriver) Start(ctx *ExecContext, taskInfo *TaskInfo) (*driver.StartResponse, error) {
+	command := taskInfo.Config.Command
 	if err := validateCommand(command, "args"); err != nil {
 		return nil, err
 	}
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &ExecutorConfig{
 		LogFile:  pluginLogFile,
-		LogLevel: ctx.LogLevel,
+		LogLevel: ctx.TaskDir.LogLevel,
+		MaxPort:  ctx.MaxPort,
+		MinPort:  ctx.MinPort,
 	}
 
-	exec, pluginClient, err := createExecutor(ctx.LogOutput, d.DriverContext.Config, executorConfig)
+	exec, pluginClient, err := createExecutor2(ctx.TaskDir.LogOutput, executorConfig)
 	if err != nil {
 		return nil, err
 	}
+	task := &structs.Task{
+		Name:   taskInfo.Name,
+		Driver: "raw_exec",
+		User:   taskInfo.User,
+		Config: map[string]interface{}{
+			"command": taskInfo.Command,
+			"args":    taskInfo.Args,
+		},
+		Resources: &structs.Resources{
+			CPU:      taskInfo.Resources.CPU,
+			MemoryMB: taskInfo.Resources.MemoryMB,
+			DiskMB:   taskInfo.Resources.DiskMB,
+			IOPS:     taskInfo.Resources.IOPS,
+			Networks: structs.Networks{}, // TODO
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      taskInfo.LogConfig.MaxFiles,
+			MaxFileSizeMB: taskInfo.LogConfig.MaxFileSizeMB,
+		},
+	}
 	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
+		TaskEnv: &env.TaskEnv{
+			NodeAttrs: ctx.TaskEnv.NodeAttrs,
+			EnvMap:    ctx.TaskEnv.EnvMap,
+		},
 		Driver:  "raw_exec",
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
@@ -206,15 +229,16 @@ func (d *RawExecDriver) Start(ctx *driver.ExecContext, task *structs.Task) (*dri
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	// TODO taskKillSignal, err := getTaskKillSignal(taskInfo.KillSignal)
+	taskKillSignal, err := getTaskKillSignal("")
 	if err != nil {
 		return nil, err
 	}
 
 	execCmd := &executor.ExecCommand{
 		Cmd:                command,
-		Args:               driverConfig.Args,
-		User:               task.User,
+		Args:               taskInfo.Config.Args,
+		User:               taskInfo.User,
 		TaskKillSignal:     taskKillSignal,
 		BasicProcessCgroup: d.useCgroup,
 	}
@@ -226,7 +250,7 @@ func (d *RawExecDriver) Start(ctx *driver.ExecContext, task *structs.Task) (*dri
 	// TODO d.logger.Printf("[DEBUG] driver.raw_exec: started process with pid: %v", ps.Pid)
 
 	// Return a driver handle
-	maxKill := d.DriverContext.Config.MaxKillTimeout
+	maxKill := ctx.MaxKillTimeout
 	h := &rawExecHandle{
 		pluginClient:    pluginClient,
 		executor:        exec,
@@ -234,12 +258,18 @@ func (d *RawExecDriver) Start(ctx *driver.ExecContext, task *structs.Task) (*dri
 		userPid:         ps.Pid,
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
-		version:         d.DriverContext.Config.Version.VersionNumber(),
+		version:         ctx.Version,
 		// TODO logger:          d.logger,
-		doneCh:  make(chan struct{}),
-		waitCh:  make(chan *dstructs.WaitResult, 1),
-		taskEnv: ctx.TaskEnv,
-		taskDir: ctx.TaskDir,
+		doneCh: make(chan struct{}),
+		waitCh: make(chan *dstructs.WaitResult, 1),
+		taskEnv: &env.TaskEnv{
+			NodeAttrs: ctx.TaskEnv.NodeAttrs,
+			EnvMap:    ctx.TaskEnv.EnvMap,
+		},
+		taskDir: &allocdir.TaskDir{
+			Dir:    ctx.TaskDir.Dir,
+			LogDir: ctx.TaskDir.LogDir,
+		},
 	}
 	go h.run()
 	return &driver.StartResponse{Handle: h}, nil

@@ -37,13 +37,36 @@ func main() {
 	}
 
 	rawExec := raw.(shared.RawExec)
-	execCtx := &proto.ExecContext{}
-	taskInfo := &proto.TaskInfo{}
+
+	currentDir, err := os.Getwd() // TODO
+	if err != nil {
+		panic(fmt.Sprintf("encoungered error when getting current dir: %s", err.Error()))
+	}
+
+	execCtx := &proto.ExecContext{
+		TaskDir: &proto.TaskDir{
+			Directory: currentDir,
+			LogDir:    currentDir,
+			LogLevel:  "DEBUG",
+		},
+		TaskEnv: &proto.TaskEnv{},
+	}
+	taskInfo := &proto.TaskInfo{
+		Resources: &proto.Resources{
+			Cpu:      250,
+			MemoryMb: 256,
+			DiskMb:   20,
+		},
+		LogConfig: &proto.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMb: 10,
+		},
+	}
 
 	result, err := rawExec.NewStart(execCtx, taskInfo)
 	if err != nil {
 		fmt.Printf("Encountered errors: %s \n", err.Error())
 	}
 
-	fmt.Printf(" Found task id: %s \n", result.TaskId)
+	fmt.Printf(": %s \n", result)
 }
