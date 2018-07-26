@@ -1,8 +1,11 @@
 {{#freestyle-usage "header" title="Global Header"}}
   <nav class="navbar is-primary">
     <div class="navbar-brand">
+      <span class="gutter-toggle" aria-label="menu">
+        {{partial "partials/hamburger-menu"}}
+      </span>
       <span class="navbar-item is-logo">
-        <img src="/ui/images/nomad-logo.svg" alt="Nomad" />
+        {{partial "partials/nomad-logo"}}
       </span>
     </div>
     <div class="navbar-end">
