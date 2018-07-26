@@ -1,4 +1,29 @@
 .gutter {
   height: 100%;
   border-right: 1px solid $grey-blue;
+
+  .collapsed-menu {
+    display: none;
+    height: 3.5rem;
+
+    .gutter-toggle {
+      fill: $grey-light;
+    }
+
+    .nomad-logo {
+      fill: $grey-light;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0.5rem 1rem;
+      margin-left: 20px;
+    }
+
+    @media #{$mq-hidden-gutter} {
+      display: block;
+    }
+  }
 }
