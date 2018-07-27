@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -16,6 +14,7 @@ import (
 	"strings"
 
 	getter "github.com/hashicorp/go-getter"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/mitchellh/cli"
 )
@@ -24,11 +23,18 @@ func init() {
 	getter.Getters["file"].(*getter.FileGetter).Copy = true
 }
 
-func ProvisionCommandFactory() (cli.Command, error) {
-	return &Provision{}, nil
+func ProvisionCommandFactory(ui cli.Ui, logger hclog.Logger) cli.CommandFactory {
+	return func() (cli.Command, error) {
+		meta := Meta{
+			Ui:     ui,
+			logger: logger,
+		}
+		return &Provision{Meta: meta}, nil
+	}
 }
 
 type Provision struct {
+	Meta
 }
 
 func (c *Provision) Help() string {
@@ -75,33 +81,38 @@ func (c *Provision) Run(args []string) int {
 	var nomadBinary string
 	var destroy bool
 	var tfPath string
-	cmdFlags := flag.NewFlagSet("provision", flag.ContinueOnError)
-	cmdFlags.Usage = func() { log.Println(c.Help()) }
+	cmdFlags := c.FlagSet("provision")
+	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
 	cmdFlags.StringVar(&envPath, "env-path", "./environments/", "Path to e2e environment terraform configs")
 	cmdFlags.StringVar(&nomadBinary, "nomad-binary", "", "")
 	cmdFlags.BoolVar(&destroy, "destroy", false, "")
 	cmdFlags.StringVar(&tfPath, "tf-path", "", "")
 
 	if err := cmdFlags.Parse(args); err != nil {
-		log.Fatalf("failed to parse flags: %v", err)
+		c.logger.Error("failed to parse flags:", "error", err)
+		return 1
+	}
+	if c.verbose {
+		c.logger.SetLevel(hclog.Debug)
 	}
 
 	args = cmdFlags.Args()
 	if len(args) != 2 {
-		log.Fatalf("expected 2 args (provider and environment), but got: %v", args)
+		c.logger.Error("expected 2 args (provider and environment)", "args", args)
 	}
 
-	env, err := newEnv(envPath, args[0], args[1], tfPath)
+	env, err := newEnv(envPath, args[0], args[1], tfPath, c.logger)
 	if err != nil {
-		log.Fatal(err)
+		c.logger.Error("failed to build environment", "error", err)
+		return 1
 	}
 
 	if destroy {
 		if err := env.destroy(); err != nil {
-			log.Fatal(err)
+			c.logger.Error("failed to destroy environment", "error", err)
 			return 1
 		}
-		log.Println("Environment successfully destroyed")
+		c.logger.Debug("environment successfully destroyed")
 		return 0
 	}
 
@@ -111,7 +122,8 @@ func (c *Provision) Run(args []string) int {
 
 	results, err := env.provision(nomadPath)
 	if err != nil {
-		log.Fatal(err)
+		c.logger.Error("", "error", err)
+		return 1
 	}
 
 	fmt.Printf(strings.TrimSpace(`
@@ -149,6 +161,7 @@ type environment struct {
 	tf      string
 	tfPath  string
 	tfState string
+	logger  hclog.Logger
 }
 
 type envResults struct {
@@ -157,16 +170,18 @@ type envResults struct {
 	vaultAddr  string
 }
 
-func newEnv(envPath, provider, name, tfStatePath string) (*environment, error) {
+func newEnv(envPath, provider, name, tfStatePath string, logger hclog.Logger) (*environment, error) {
 	// Make sure terraform is on the PATH
 	tf, err := exec.LookPath("terraform")
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup terraform binary: %v", err)
 	}
 
+	logger = logger.Named("provision").With("provider", provider, "name", name)
+
 	// set the path to the terraform module
 	tfPath := path.Join(envPath, provider, name)
-	log.Printf("[DEBUG] provision: using tf path %s", tfPath)
+	logger.Debug("using tf path", "path", tfPath)
 	if _, err := os.Stat(tfPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("failed to lookup terraform configuration dir %s: %v", tfPath, err)
 	}
@@ -181,13 +196,14 @@ func newEnv(envPath, provider, name, tfStatePath string) (*environment, error) {
 		tf:       tf,
 		tfPath:   tfPath,
 		tfState:  tfState,
+		logger:   logger,
 	}
 	return env, nil
 }
 
 // envsFromGlob allows for the discovery of multiple environments using globs (*).
 // ex. aws/* for all environments in aws.
-func envsFromGlob(envPath, glob, tfStatePath string) ([]*environment, error) {
+func envsFromGlob(envPath, glob, tfStatePath string, logger hclog.Logger) ([]*environment, error) {
 	results, err := filepath.Glob(filepath.Join(envPath, glob))
 	if err != nil {
 		return nil, err
@@ -199,7 +215,7 @@ func envsFromGlob(envPath, glob, tfStatePath string) ([]*environment, error) {
 		elems := strings.Split(p, "/")
 		name := elems[len(elems)-1]
 		provider := elems[len(elems)-2]
-		env, err := newEnv(envPath, provider, name, tfStatePath)
+		env, err := newEnv(envPath, provider, name, tfStatePath, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -234,8 +250,8 @@ func (env *environment) provision(nomadPath string) (*envResults, error) {
 
 	// Run 'terraform apply'
 	cmd.Start()
-	go tfLog("tf.stderr", stderr)
-	go tfLog("tf.stdout", stdout)
+	go tfLog(env.logger.Named("tf.stderr"), stderr)
+	go tfLog(env.logger.Named("tf.stdout"), stdout)
 
 	err = cmd.Wait()
 	if err != nil {
@@ -285,8 +301,8 @@ func (env *environment) destroy() error {
 
 	// Run 'terraform destroy'
 	cmd.Start()
-	go tfLog("tf.stderr", stderr)
-	go tfLog("tf.stdout", stdout)
+	go tfLog(env.logger.Named("tf.stderr"), stderr)
+	go tfLog(env.logger.Named("tf.stdout"), stdout)
 
 	err = cmd.Wait()
 	if err != nil {
@@ -296,14 +312,14 @@ func (env *environment) destroy() error {
 	return nil
 }
 
-func tfLog(prefix string, r io.ReadCloser) {
+func tfLog(logger hclog.Logger, r io.ReadCloser) {
 	defer r.Close()
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		log.Printf("[DEBUG] provision.%s: %s", prefix, scanner.Text())
+		logger.Debug(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		log.Printf("[WARN] provision.%s: %v", err)
+		logger.Error("scan error", "error", err)
 	}
 
 }

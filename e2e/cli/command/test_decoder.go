@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 type EventDecoder struct {
@@ -79,7 +80,7 @@ func NewDecoder(r io.Reader) *EventDecoder {
 	}
 }
 
-func (d *EventDecoder) Decode(logger io.Writer) (*TestReport, error) {
+func (d *EventDecoder) Decode(logger hclog.Logger) (*TestReport, error) {
 	for d.dec.More() {
 		var e TestEvent
 		err := d.dec.Decode(&e)
@@ -88,8 +89,8 @@ func (d *EventDecoder) Decode(logger io.Writer) (*TestReport, error) {
 		}
 
 		d.report.record(&e)
-		if logger != nil {
-			logger.Write([]byte(e.Output))
+		if logger != nil && e.Output != "" {
+			logger.Debug(strings.TrimRight(e.Output, "\n"))
 		}
 	}
 	return d.report, nil

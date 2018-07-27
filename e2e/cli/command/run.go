@@ -1,24 +1,29 @@
 package command
 
 import (
-	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 
 	capi "github.com/hashicorp/consul/api"
+	hclog "github.com/hashicorp/go-hclog"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/cli"
 )
 
-func RunCommandFactory() (cli.Command, error) {
-	return &Run{}, nil
+func RunCommandFactory(ui cli.Ui, logger hclog.Logger) cli.CommandFactory {
+	return func() (cli.Command, error) {
+		meta := Meta{
+			Ui:     ui,
+			logger: logger,
+		}
+		return &Run{Meta: meta}, nil
+	}
 }
 
 type Run struct {
+	Meta
 }
 
 func (c *Run) Help() string {
@@ -38,40 +43,43 @@ func (c *Run) Run(args []string) int {
 	var tfPath string
 	var slow bool
 	var run string
-	var verbose bool
-	cmdFlags := flag.NewFlagSet("run", flag.ContinueOnError)
-	cmdFlags.Usage = func() { log.Println(c.Help()) }
+	cmdFlags := c.FlagSet("run")
+	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
 	cmdFlags.StringVar(&envPath, "env-path", "./environments/", "Path to e2e environment terraform configs")
 	cmdFlags.StringVar(&nomadBinary, "nomad-binary", "", "")
 	cmdFlags.StringVar(&tfPath, "tf-path", "", "")
 	cmdFlags.StringVar(&run, "run", "", "Regex to target specific test suites/cases")
 	cmdFlags.BoolVar(&slow, "slow", false, "Toggle slow running suites")
-	cmdFlags.BoolVar(&verbose, "v", false, "Toggle verbose output")
 
 	if err := cmdFlags.Parse(args); err != nil {
-		log.Fatalf("failed to parse flags: %v", err)
+		c.logger.Error("failed to parse flags", "error", err)
+		return 1
+	}
+	if c.verbose {
+		c.logger.SetLevel(hclog.Debug)
 	}
 
 	args = cmdFlags.Args()
 
 	if len(args) == 0 {
-		log.Println("No environments specified, running test suite locally...")
+		c.logger.Info("no environments specified, running test suite locally")
 		var report *TestReport
 		var err error
 		if report, err = c.run(&runOpts{
 			slow:    slow,
-			verbose: verbose,
+			verbose: c.verbose,
 		}); err != nil {
-			log.Fatalf("failed to run test suite: %v", err)
+			c.logger.Error("failed to run test suite", "error", err)
+			return 1
 		}
 		if report.TotalFailedTests == 0 {
-			log.Println("PASSED!")
-			if verbose {
-				log.Println(report.Summary())
+			c.Ui.Output("PASSED!")
+			if c.verbose {
+				c.Ui.Output(report.Summary())
 			}
 		} else {
-			log.Println("***FAILED***")
-			log.Println(report.Summary())
+			c.Ui.Output("***FAILED***")
+			c.Ui.Output(report.Summary())
 		}
 		return 0
 	}
@@ -79,11 +87,13 @@ func (c *Run) Run(args []string) int {
 	environments := []*environment{}
 	for _, e := range args {
 		if len(strings.Split(e, "/")) != 2 {
-			log.Fatalf("argument %s should be formated as <provider>/<environment>", e)
+			c.logger.Error("argument should be formated as <provider>/<environment>", "args", e)
+			return 1
 		}
-		envs, err := envsFromGlob(envPath, e, tfPath)
+		envs, err := envsFromGlob(envPath, e, tfPath, c.logger)
 		if err != nil {
-			log.Fatalf("failed to build environment %s: %v", e, err)
+			c.logger.Error("failed to build environment", "environment", e, "error", err)
+			return 1
 		}
 		environments = append(environments, envs...)
 
@@ -93,22 +103,25 @@ func (c *Run) Run(args []string) int {
 	nomadPath, err := fetchBinary(nomadBinary)
 	defer os.RemoveAll(nomadPath)
 	if err != nil {
-		log.Fatal("failed to fetch nomad binary: %v", err)
+		c.logger.Error("failed to fetch nomad binary", "error", err)
+		return 1
 	}
 
-	log.Printf("Running tests against %d environments...", envCount)
+	c.logger.Debug("starting tests", "totalEnvironments", envCount)
 	for i, env := range environments {
-		log.Printf("[%d/%d] provisioning %s environment on %s provider", i+1, envCount, env.name, env.provider)
+		logger := c.logger.With("name", env.name, "provider", env.provider)
+		logger.Debug("provisioning environment")
 		results, err := env.provision(nomadPath)
 		if err != nil {
-			log.Fatalf("failed to provision environment %s/%s: %v", env.provider, env.name, err)
+			logger.Error("failed to provision environment", "error", err)
+			return 1
 		}
 
 		opts := &runOpts{
 			provider:   env.provider,
 			env:        env.name,
 			slow:       slow,
-			verbose:    verbose,
+			verbose:    c.verbose,
 			nomadAddr:  results.nomadAddr,
 			consulAddr: results.consulAddr,
 			vaultAddr:  results.vaultAddr,
@@ -116,17 +129,18 @@ func (c *Run) Run(args []string) int {
 
 		var report *TestReport
 		if report, err = c.run(opts); err != nil {
-			log.Printf("failed to run tests against environment %s/%s: %v", env.provider, env.name, err)
+			logger.Error("failed to run tests against environment", "error", err)
 			return 1
 		}
 		if report.TotalFailedTests == 0 {
-			log.Printf("[%d/%d] %s/%s: PASSED!\n", i, envCount, env.provider, env.name)
-			if verbose {
-				log.Printf("[%d/%d] %s/%s: %s", i, envCount, env.provider, env.name, report.Summary())
+
+			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: PASSED!\n", i+1, envCount, env.provider, env.name))
+			if c.verbose {
+				c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: %s", i+1, envCount, env.provider, env.name, report.Summary()))
 			}
 		} else {
-			log.Printf("[%d/%d] %s/%s: ***FAILED***\n", i, envCount, env.provider, env.name)
-			log.Printf("[%d/%d] %s/%s: %s", i, envCount, env.provider, env.name, report.Summary())
+			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: ***FAILED***\n", i+1, envCount, env.provider, env.name))
+			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: %s", i+1, envCount, env.provider, env.name, report.Summary()))
 		}
 	}
 	return 0
@@ -151,13 +165,8 @@ func (c *Run) run(opts *runOpts) (*TestReport, error) {
 		return nil, err
 	}
 
-	var logger io.Writer
-	if opts.verbose {
-		logger = os.Stdout
-	}
-
 	dec := NewDecoder(out)
-	report, err := dec.Decode(logger)
+	report, err := dec.Decode(c.logger.Named("run.gotest"))
 	if err != nil {
 		return nil, err
 	}
