@@ -3,14 +3,13 @@
 
   position: absolute;
   left: 0;
-  padding: 1rem;
-  transform: translate(-35%, 0%);
+  padding: 1.25rem 1rem;
   height: 100%;
   fill: desaturate(lighten($nomad-green, 20%), 30%);
   cursor: pointer;
 
   > svg {
-    width: 20px;
+    width: 15px;
   }
 
   @media #{$mq-hidden-gutter} {
