@@ -15,11 +15,9 @@
     display: none;
     position: relative;
     height: 3.5rem;
-
     width: $gutter-width;
     transform: translateX($gutter-width);
     z-index: $z-gutter;
-
     transition: transform ease-in-out 0.2s;
 
     &.is-open {
