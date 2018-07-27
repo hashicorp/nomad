@@ -8,18 +8,6 @@ const (
 	// ImplicitTarget is used to represent any remaining attribute values
 	// when target percentages don't add up to 100
 	ImplicitTarget = "*"
-
-	// evenSpreadBoost is a positive boost used when the job has
-	// even spread over an attribute. Any nodes whose attribute value is
-	// equal to the minimum count over all possible attributes gets boosted
-	evenSpreadBoost = 0.01
-
-	// evenSpreadPenality is a penalty used when the job has
-	// even spread over an attribute. Any nodes whose attribute value is
-	// greater than the minimum count over all possible attributes gets this penalty.
-	// This is to ensure that other nodes are preferred when one of the values
-	// has a larger number of allocations
-	evenSpreadPenalty = -0.5
 )
 
 // SpreadIterator is used to spread allocations across a specified attribute
@@ -145,19 +133,20 @@ func (iter *SpreadIterator) Next() *RankedNode {
 					desiredCount, ok = spreadDetails.desiredCounts[ImplicitTarget]
 					if !ok {
 						// The desired count for this attribute is zero if it gets here
-						// don't boost the score
-						continue
+						// so use the maximum possible penalty for this node
+						totalSpreadScore += -1.0
 					}
 				}
-				if float64(usedCount) < desiredCount {
-					// Calculate the relative weight of this specific spread attribute
-					spreadWeight := float64(spreadDetails.weight) / float64(iter.sumSpreadWeights)
-					// Score Boost is proportional the difference between current and desired count
-					// It is multiplied with the spread weight to account for cases where the job has
-					// more than one spread attribute
-					scoreBoost := ((desiredCount - float64(usedCount)) / desiredCount) * spreadWeight
-					totalSpreadScore += scoreBoost
-				}
+
+				// Calculate the relative weight of this specific spread attribute
+				spreadWeight := float64(spreadDetails.weight) / float64(iter.sumSpreadWeights)
+
+				// Score Boost is proportional the difference between current and desired count
+				// It is negative when the used count is greater than the desired count
+				// It is multiplied with the spread weight to account for cases where the job has
+				// more than one spread attribute
+				scoreBoost := ((desiredCount - float64(usedCount)) / desiredCount) * spreadWeight
+				totalSpreadScore += scoreBoost
 			}
 		}
 
@@ -193,20 +182,31 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 			maxCount = value
 		}
 	}
+
+	// calculate boost based on delta between the current and the minimum
+	deltaBoost := 1.0
+	if minCount == 0 {
+		deltaBoost = -1.0
+	} else {
+		delta := int(minCount - currentAttributeCount)
+		deltaBoost = float64(delta) / float64(minCount)
+	}
 	if currentAttributeCount < minCount {
-		// Small positive boost for attributes with min count
-		return evenSpreadBoost
+		// positive boost for attributes with min count
+		return deltaBoost
 	} else if currentAttributeCount > minCount {
 		// Negative boost if attribute count is greater than minimum
-		// This is so that other nodes will get a preference over this one
-		return evenSpreadPenalty
+		return deltaBoost
 	} else {
-		// When min and max are same the current distribution is even
-		// so we penalize
+		// When min and current value are the same we return the maximum
+		// possible boost or penalty
 		if minCount == maxCount {
-			return evenSpreadPenalty
+			// Maximum possible penalty when the distribution is even
+			return -1.0
 		} else {
-			return evenSpreadBoost
+			// Maximum possible boost when there is another attribute with
+			// more allocations
+			return 1.0
 		}
 	}
 }
