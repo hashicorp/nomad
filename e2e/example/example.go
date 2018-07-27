@@ -1,8 +1,6 @@
 package example
 
 import (
-	"time"
-
 	"github.com/hashicorp/nomad/e2e/framework"
 )
 
@@ -28,8 +26,9 @@ func (tc *SimpleExampleTestCase) TestExample(f *framework.F) {
 	f.Empty(jobs)
 }
 
-func (tc *SimpleExampleTestCase) TestPassExample(f *framework.F) {
-	f.T().Log("all good here")
+func (tc *SimpleExampleTestCase) TestParallelExample(f *framework.F) {
+	f.T().Log("this one can run in parallel with other tests")
+	f.T().Parallel()
 }
 
 type ExampleLongSetupCase struct {
@@ -37,9 +36,5 @@ type ExampleLongSetupCase struct {
 }
 
 func (tc *ExampleLongSetupCase) BeforeEach(f *framework.F) {
-	time.Sleep(5 * time.Second)
-}
-
-func (tc *ExampleLongSetupCase) TestPass(f *framework.F) {
-
+	f.T().Log("Logging before each")
 }

@@ -134,12 +134,12 @@ func (c *Run) Run(args []string) int {
 		}
 		if report.TotalFailedTests == 0 {
 
-			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: PASSED!\n", i+1, envCount, env.provider, env.name))
+			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: PASSED!", i+1, envCount, env.provider, env.name))
 			if c.verbose {
 				c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: %s", i+1, envCount, env.provider, env.name, report.Summary()))
 			}
 		} else {
-			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: ***FAILED***\n", i+1, envCount, env.provider, env.name))
+			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: ***FAILED***", i+1, envCount, env.provider, env.name))
 			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: %s", i+1, envCount, env.provider, env.name, report.Summary()))
 		}
 	}
