@@ -172,9 +172,9 @@ export default Model.extend({
 
   supportsDeployments: equal('type', 'service'),
 
-  latestDeployment: belongsTo('deployment', { inverse: null }),
+  latestDeployment: belongsTo('deployment', { inverse: 'jobForLatest' }),
 
-  runningDeployment: computed('latestDeployment.isRunning', function() {
+  runningDeployment: computed('latestDeployment', 'latestDeployment.isRunning', function() {
     const latest = this.get('latestDeployment');
     if (latest.get('isRunning')) return latest;
   }),

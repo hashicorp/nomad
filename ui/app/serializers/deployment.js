@@ -19,7 +19,12 @@ export default ApplicationSerializer.extend({
       get(hash, 'Job.Namespace') ||
       this.get('system.activeNamespace.id') ||
       'default';
-    hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
+
+    // Ember Data doesn't support multiple inverses. This means that since jobs have
+    // two relationships to a deployment (hasMany deployments, and belongsTo latestDeployment),
+    // the deployment must in turn have two relationships to the job, despite it being the
+    // same job.
+    hash.JobID = hash.JobForLatestID = JSON.stringify([hash.JobID, hash.Namespace]);
 
     return this._super(typeHash, hash);
   },
