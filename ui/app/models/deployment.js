@@ -11,6 +11,7 @@ export default Model.extend({
   shortId: shortUUIDProperty('id'),
 
   job: belongsTo('job', { inverse: 'deployments' }),
+  jobForLatest: belongsTo('job', { inverse: 'latestDeployment' }),
   versionNumber: attr('number'),
 
   // If any task group is not promoted yet requires promotion and the deployment
