@@ -90,6 +90,10 @@ export default function() {
     return this.serialize(deployments.where({ jobId: params.id }));
   });
 
+  this.get('/job/:id/deployment', function({ deployments }, { params }) {
+    return this.serialize(deployments.where({ jobId: params.id }).models[0]);
+  });
+
   this.post('/job/:id/periodic/force', function(schema, { params }) {
     // Create the child job
     const parent = schema.jobs.find(params.id);
