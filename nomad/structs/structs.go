@@ -5423,12 +5423,16 @@ func (a *Affinity) Validate() error {
 type Spread struct {
 	// Attribute is the node attribute used as the spread criteria
 	Attribute string
+
 	// Weight is the relative weight of this spread, useful when there are multiple
 	// spread and affinities
 	Weight int
+
 	// SpreadTarget is used to describe desired percentages for each attribute value
 	SpreadTarget []*SpreadTarget
-	str          string
+
+	// Memoized string representation
+	str string
 }
 
 func (s *Spread) Copy() *Spread {
@@ -5485,9 +5489,12 @@ func (s *Spread) Validate() error {
 type SpreadTarget struct {
 	// Value is a single attribute value, like "dc1"
 	Value string
+
 	// Percent is the desired percentage of allocs
 	Percent uint32
-	str     string
+
+	// Memoized string representation
+	str string
 }
 
 func (s *SpreadTarget) Copy() *SpreadTarget {

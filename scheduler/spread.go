@@ -13,18 +13,27 @@ const (
 // SpreadIterator is used to spread allocations across a specified attribute
 // according to preset weights
 type SpreadIterator struct {
-	ctx        Context
-	source     RankIterator
-	job        *structs.Job
-	tg         *structs.TaskGroup
+	ctx    Context
+	source RankIterator
+	job    *structs.Job
+	tg     *structs.TaskGroup
+
+	// jobSpreads is a slice of spread stored at the job level which apply
+	// to all task groups
 	jobSpreads []*structs.Spread
+
 	// tgSpreadInfo is a map per task group with precomputed
 	// values for desired counts and weight
 	tgSpreadInfo map[string]spreadAttributeMap
+
 	// sumSpreadWeights tracks the total weight across all spread
 	// stanzas
 	sumSpreadWeights int
-	hasSpread        bool
+
+	// hasSpread is used to early return when the job/task group
+	// does not have spread configured
+	hasSpread bool
+
 	// groupProperySets is a memoized map from task group to property sets.
 	// existing allocs are computed once, and allocs from the plan are updated
 	// when Reset is called
@@ -172,6 +181,9 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	currentAttributeCount := uint64(0)
 	if ok {
 		currentAttributeCount = combinedUseMap[nValue]
+	} else {
+		// If the attribute isn't set on the node, it should get the maximum possible penalty
+		return -1.0
 	}
 	minCount := uint64(0)
 	maxCount := uint64(0)
