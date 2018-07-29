@@ -286,7 +286,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 		"dc2": 0,
 	}
 	for _, rn := range out {
-		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
+		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
 	}
 
 	// Update the plan to add allocs to nodes in dc1
@@ -380,11 +380,11 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 	// Expect nodes in dc2 to be penalized because there are 3 allocs there now
 	// dc1 nodes are boosted because that has 2 allocs
 	expectedScores = map[string]float64{
-		"dc1": 1,
+		"dc1": 0.5,
 		"dc2": -0.5,
 	}
 	for _, rn := range out {
-		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
+		require.Equal(t, fmt.Sprintf("%3.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%3.3f", rn.FinalScore))
 	}
 
 	// Add another node in dc3
@@ -427,7 +427,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 		"dc3": 1,
 	}
 	for _, rn := range out {
-		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
+		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
 	}
 
 }

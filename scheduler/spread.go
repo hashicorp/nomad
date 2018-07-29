@@ -135,6 +135,7 @@ func (iter *SpreadIterator) Next() *RankedNode {
 						// The desired count for this attribute is zero if it gets here
 						// so use the maximum possible penalty for this node
 						totalSpreadScore += -1.0
+						continue
 					}
 				}
 
@@ -191,22 +192,18 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 		delta := int(minCount - currentAttributeCount)
 		deltaBoost = float64(delta) / float64(minCount)
 	}
-	if currentAttributeCount < minCount {
-		// positive boost for attributes with min count
-		return deltaBoost
-	} else if currentAttributeCount > minCount {
-		// Negative boost if attribute count is greater than minimum
+	if currentAttributeCount != minCount {
+		// Boost based on delta between current and min
 		return deltaBoost
 	} else {
-		// When min and current value are the same we return the maximum
-		// possible boost or penalty
 		if minCount == maxCount {
 			// Maximum possible penalty when the distribution is even
 			return -1.0
 		} else {
-			// Maximum possible boost when there is another attribute with
-			// more allocations
-			return 1.0
+			// Penalty based on delta from max value
+			delta := int(maxCount - minCount)
+			deltaBoost = float64(delta) / float64(minCount)
+			return deltaBoost
 		}
 	}
 }
