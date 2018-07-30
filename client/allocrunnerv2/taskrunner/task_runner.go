@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	clientstate "github.com/hashicorp/nomad/client/state"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -102,8 +101,7 @@ type TaskRunner struct {
 	// driver is the driver for the task.
 	driver driver.Driver
 
-	handle     driver.DriverHandle     // the handle to the running driver
-	driverNet  *cstructs.DriverNetwork // driver network if one exists
+	handle     driver.DriverHandle // the handle to the running driver
 	handleLock sync.Mutex
 
 	// task is the task being run
@@ -286,7 +284,7 @@ MAIN:
 		}
 
 		// Grab the handle
-		handle, _ = tr.getDriverHandle()
+		handle = tr.getDriverHandle()
 
 		select {
 		case waitRes := <-handle.WaitCh():
@@ -376,7 +374,7 @@ func (tr *TaskRunner) runDriver() error {
 	}
 
 	// Store the driver handle and associated metadata
-	tr.setDriverHandle(sresp.Handle, sresp.Network)
+	tr.setDriverHandle(sresp.Handle)
 
 	// Emit an event that we started
 	tr.SetState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))

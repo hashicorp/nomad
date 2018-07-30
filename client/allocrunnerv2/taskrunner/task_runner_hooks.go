@@ -171,7 +171,8 @@ func (tr *TaskRunner) poststart() error {
 		}()
 	}
 
-	handle, net := tr.getDriverHandle()
+	handle := tr.getDriverHandle()
+	net := handle.Network()
 
 	var merr multierror.Error
 	for _, hook := range tr.runnerHooks {
