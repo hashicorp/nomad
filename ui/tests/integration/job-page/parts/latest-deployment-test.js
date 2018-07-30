@@ -8,8 +8,8 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 
 moduleForComponent(
-  'job-page/parts/running-deployment',
-  'Integration | Component | job-page/parts/running-deployment',
+  'job-page/parts/latest-deployment',
+  'Integration | Component | job-page/parts/latest-deployment',
   {
     integration: true,
     beforeEach() {
@@ -38,7 +38,7 @@ test('there is no active deployment section when the job has no active deploymen
   return wait().then(() => {
     this.set('job', this.store.peekAll('job').get('firstObject'));
     this.render(hbs`
-      {{job-page/parts/running-deployment job=job}})
+      {{job-page/parts/latest-deployment job=job}})
     `);
 
     return wait().then(() => {
@@ -55,7 +55,7 @@ test('the active deployment section shows up for the currently running deploymen
   return wait().then(() => {
     this.set('job', this.store.peekAll('job').get('firstObject'));
     this.render(hbs`
-      {{job-page/parts/running-deployment job=job}}
+      {{job-page/parts/latest-deployment job=job}}
     `);
 
     return wait().then(() => {
@@ -123,7 +123,7 @@ test('the active deployment section can be expanded to show task groups and allo
   return wait().then(() => {
     this.set('job', this.store.peekAll('job').get('firstObject'));
     this.render(hbs`
-      {{job-page/parts/running-deployment job=job}}
+      {{job-page/parts/latest-deployment job=job}}
     `);
 
     return wait().then(() => {
@@ -151,7 +151,7 @@ test('each task group in the expanded task group section shows task group detail
 
     this.set('job', job);
     this.render(hbs`
-      {{job-page/parts/running-deployment job=job}}
+      {{job-page/parts/latest-deployment job=job}}
     `);
 
     return wait()
