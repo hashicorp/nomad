@@ -451,6 +451,10 @@ func (h *qemuHandle) Signal(s os.Signal) error {
 	return fmt.Errorf("Qemu driver can't send signals")
 }
 
+func (d *qemuHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 func (h *qemuHandle) Kill() error {
 	gracefulShutdownSent := false
 	// Attempt a graceful shutdown only if it was configured in the job
