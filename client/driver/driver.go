@@ -320,6 +320,10 @@ type DriverHandle interface {
 	// ScriptExecutor is an interface used to execute commands such as
 	// health check scripts in the a DriverHandle's context.
 	ScriptExecutor
+
+	// Network returns the driver's network or nil if the driver did not
+	// create a network.
+	Network() *cstructs.DriverNetwork
 }
 
 // ScriptExecutor is an interface that supports Exec()ing commands in the
