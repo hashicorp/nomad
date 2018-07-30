@@ -122,19 +122,23 @@ func (iter *SpreadIterator) Next() *RankedNode {
 		totalSpreadScore := 0.0
 		for _, pset := range propertySets {
 			nValue, errorMsg, usedCount := pset.UsedCount(option.Node, tgName)
-			// Skip if there was errors in resolving this attribute to compute used counts
+
+			// Set score to -1 if there were errors in building this attribute
 			if errorMsg != "" {
 				iter.ctx.Logger().Printf("[WARN] sched: error building spread attributes for task group %v:%v", tgName, errorMsg)
+				totalSpreadScore -= 1.0
+				continue
 			}
 			spreadAttributeMap := iter.tgSpreadInfo[tgName]
 			spreadDetails := spreadAttributeMap[pset.targetAttribute]
 
 			if len(spreadDetails.desiredCounts) == 0 {
 				// When desired counts map is empty the user didn't specify any targets
-				// Treat this as a special case
+				// Use even spreading scoring algorithm for this scenario
 				scoreBoost := evenSpreadScoreBoost(pset, option.Node)
 				totalSpreadScore += scoreBoost
 			} else {
+
 				// Get the desired count
 				desiredCount, ok := spreadDetails.desiredCounts[nValue]
 				if !ok {
@@ -143,7 +147,7 @@ func (iter *SpreadIterator) Next() *RankedNode {
 					if !ok {
 						// The desired count for this attribute is zero if it gets here
 						// so use the maximum possible penalty for this node
-						totalSpreadScore += -1.0
+						totalSpreadScore -= 1.0
 						continue
 					}
 				}

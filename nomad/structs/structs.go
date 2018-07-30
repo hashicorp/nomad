@@ -5484,8 +5484,7 @@ func (s *Spread) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// SpreadTarget is used to specify desired percentages
-// for each attribute value
+// SpreadTarget is used to specify desired percentages for each attribute value
 type SpreadTarget struct {
 	// Value is a single attribute value, like "dc1"
 	Value string
