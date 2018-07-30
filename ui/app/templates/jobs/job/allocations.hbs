@@ -1,7 +1,7 @@
 {{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
   {{partial "jobs/job/subnav"}}
   <section class="section">
-    {{#if sortedAllocations.length}}
+    {{#if allocations.length}}
       <div class="content">
         <div>
           {{search-box

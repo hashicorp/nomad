@@ -4,6 +4,8 @@ import {
   create,
   collection,
   fillable,
+  isPresent,
+  text,
   visitable,
 } from 'ember-cli-page-object';
 
@@ -14,9 +16,15 @@ export default create({
 
   pageSize: 25,
 
+  hasSearchBox: isPresent('[data-test-allocations-search]'),
   search: fillable('[data-test-allocations-search] input'),
 
   ...allocations(),
+
+  isEmpty: isPresent('[data-test-empty-allocations-list]'),
+  emptyState: {
+    headline: text('[data-test-empty-allocations-list-headline]'),
+  },
 
   sortOptions: collection('[data-test-sort-by]', {
     id: attribute('data-test-sort-by'),
