@@ -115,6 +115,7 @@ type TaskRunner struct {
 	// updateCh is used to receive updated versions of the allocation
 	updateCh chan *structs.Allocation
 
+	// handle is returned when Starting or Opening a driver
 	handle     driver.DriverHandle
 	handleLock sync.Mutex
 
