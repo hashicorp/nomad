@@ -282,7 +282,7 @@ section.
 
 ## Next Steps
 
-Read [Alerting Overview][alerting] to learn how to incorporate
+Read the Prometheus [Alerting Overview][alerting] to learn how to incorporate
 [Alertmanager][alertmanager] into your Prometheus configuration to send out
 notifications. 
 
