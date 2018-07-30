@@ -373,6 +373,11 @@ func (h *mockDriverHandle) Update(task *structs.Task) error {
 }
 
 // TODO Implement when we need it.
+func (d *mockDriverHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
+// TODO Implement when we need it.
 func (h *mockDriverHandle) Signal(s os.Signal) error {
 	return h.signalErr
 }

@@ -500,6 +500,7 @@ type DockerHandle struct {
 	waitCh                chan *dstructs.WaitResult
 	doneCh                chan bool
 	removeContainerOnExit bool
+	net                   *cstructs.DriverNetwork
 }
 
 func NewDockerDriver(ctx *DriverContext) Driver {
@@ -908,6 +909,15 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 			container.ID, container.State.String())
 	}
 
+	// Detect container address
+	ip, autoUse := d.detectIP(container)
+
+	net := &cstructs.DriverNetwork{
+		PortMap:       d.driverConfig.PortMap,
+		IP:            ip,
+		AutoAdvertise: autoUse,
+	}
+
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &DockerHandle{
@@ -928,22 +938,17 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		doneCh:                make(chan bool),
 		waitCh:                make(chan *dstructs.WaitResult, 1),
 		removeContainerOnExit: d.config.ReadBoolDefault(dockerCleanupContainerConfigOption, dockerCleanupContainerConfigDefault),
+		net: net,
 	}
 	go h.collectStats()
 	go h.run()
 
-	// Detect container address
-	ip, autoUse := d.detectIP(container)
-
 	// Create a response with the driver handle and container network metadata
 	resp := &StartResponse{
-		Handle: h,
-		Network: &cstructs.DriverNetwork{
-			PortMap:       d.driverConfig.PortMap,
-			IP:            ip,
-			AutoAdvertise: autoUse,
-		},
+		Handle:  h,
+		Network: net,
 	}
+
 	return resp, nil
 }
 
@@ -1811,6 +1816,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		maxKillTimeout: pid.MaxKillTimeout,
 		doneCh:         make(chan bool),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
+		net:            nil, //FIXME Need to get driver network
 	}
 	go h.collectStats()
 	go h.run()
@@ -1841,6 +1847,10 @@ func (h *DockerHandle) ContainerID() string {
 
 func (h *DockerHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
+}
+
+func (h *DockerHandle) Network() *cstructs.DriverNetwork {
+	return h.net
 }
 
 func (h *DockerHandle) Update(task *structs.Task) error {

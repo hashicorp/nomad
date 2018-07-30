@@ -408,6 +408,10 @@ func (h *javaHandle) Signal(s os.Signal) error {
 	return h.executor.Signal(s)
 }
 
+func (d *javaHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 func (h *javaHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
 		if h.pluginClient.Exited() {
