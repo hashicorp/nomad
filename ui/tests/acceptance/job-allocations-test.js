@@ -5,6 +5,16 @@ import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 let job;
 let allocations;
 
+const makeSearchAllocations = server => {
+  Array(10)
+    .fill(null)
+    .map((_, index) => {
+      server.create('allocation', {
+        id: index < 5 ? `ffffff-dddddd-${index}` : `111111-222222-${index}`,
+      });
+    });
+};
+
 moduleForAcceptance('Acceptance | job allocations', {
   beforeEach() {
     server.create('node');
@@ -64,13 +74,7 @@ test('allocations table is sortable', function(assert) {
 });
 
 test('allocations table is searchable', function(assert) {
-  Array(10)
-    .fill(null)
-    .map((_, index) => {
-      server.create('allocation', {
-        id: index < 5 ? `ffffff-dddddd-${index}` : `111111-222222-${index}`,
-      });
-    });
+  makeSearchAllocations(server);
 
   allocations = server.schema.allocations.where({ jobId: job.id }).models;
   Allocations.visit({ id: job.id });
@@ -81,5 +85,26 @@ test('allocations table is searchable', function(assert) {
 
   andThen(() => {
     assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
+  });
+});
+
+test('when a search yields no results, the search box remains', function(assert) {
+  makeSearchAllocations(server);
+
+  allocations = server.schema.allocations.where({ jobId: job.id }).models;
+  Allocations.visit({ id: job.id });
+
+  andThen(() => {
+    Allocations.search('^nothing will ever match this long regex$');
+  });
+
+  andThen(() => {
+    assert.equal(
+      Allocations.emptyState.headline,
+      'No Matches',
+      'List is empty and the empty state is about search'
+    );
+
+    assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
   });
 });
