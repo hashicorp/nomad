@@ -815,6 +815,11 @@ func (h *rktHandle) Signal(s os.Signal) error {
 	return fmt.Errorf("Rkt does not support signals")
 }
 
+//FIXME implement
+func (d *rktHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
 func (h *rktHandle) Kill() error {

@@ -270,6 +270,10 @@ func (h *execHandle) Signal(s os.Signal) error {
 	return h.executor.Signal(s)
 }
 
+func (d *execHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 func (h *execHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
 		if h.pluginClient.Exited() {
