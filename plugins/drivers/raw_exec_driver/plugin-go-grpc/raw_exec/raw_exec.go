@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang/protobuf/jsonpb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -66,6 +67,11 @@ type rawExecHandle struct {
 	doneCh          chan struct{}
 	taskEnv         *env.TaskEnv
 	taskDir         *allocdir.TaskDir
+}
+
+type RawExecTaskConfig struct {
+	Command string
+	Args    []string
 }
 
 // NewRawExecDriver is used to create a new raw exec driver
@@ -149,6 +155,19 @@ func (d *RawExecDriver) NewStart(ctx *proto.ExecContext, tInfo *proto.TaskInfo) 
 		MaxKillTimeout: time.Duration(5),
 		Version:        "1.0", // TODO was d.DriverContext.Config.Version.VersionNumber()
 	}
+	marshaller := jsonpb.Marshaler{EnumsAsInts: true, EmitDefaults: true, OrigName: false}
+
+	configString, err := marshaller.MarshalToString(tInfo.Config)
+	if err != nil {
+		// TODO  should log to a logger here
+		fmt.Println("Error decoding json config struct", err)
+		return nil, err
+	}
+	rawExecTaskConfig := &RawExecTaskConfig{}
+	if err := json.Unmarshal([]byte(configString), rawExecTaskConfig); err != nil {
+		return nil, fmt.Errorf("Failed to parse config json '%s': %v", configString, err)
+	}
+
 	taskInfo := &TaskInfo{
 		Resources: &Resources{
 			CPU:      int(tInfo.Resources.Cpu),
@@ -161,8 +180,8 @@ func (d *RawExecDriver) NewStart(ctx *proto.ExecContext, tInfo *proto.TaskInfo) 
 		},
 		Name: "taskName",
 		Config: &Config{
-			Command: "echo",
-			Args:    []string{"hello world"},
+			Command: rawExecTaskConfig.Command,
+			Args:    rawExecTaskConfig.Args,
 		},
 	}
 

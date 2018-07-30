@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 
+	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/hashicorp/nomad/plugins/drivers/raw_exec_driver/proto"
 	"github.com/hashicorp/nomad/plugins/drivers/raw_exec_driver/shared"
 )
@@ -51,6 +52,25 @@ func main() {
 		},
 		TaskEnv: &proto.TaskEnv{},
 	}
+
+	taskConfig := make(map[string]*_struct.Value)
+
+	command := &_struct.Value_StringValue{"echo"}
+	taskConfig["Command"] = &_struct.Value{Kind: command}
+
+	arg1 := &_struct.Value{Kind: &_struct.Value_StringValue{"quick"}}
+	arg2 := &_struct.Value{Kind: &_struct.Value_StringValue{"brown"}}
+	arg3 := &_struct.Value{Kind: &_struct.Value_StringValue{"fox"}}
+	listValue := &_struct.ListValue{
+		Values: []*_struct.Value{
+			arg1,
+			arg2,
+			arg3,
+		},
+	}
+	args := &_struct.Value_ListValue{ListValue: listValue}
+	taskConfig["Args"] = &_struct.Value{Kind: args}
+
 	taskInfo := &proto.TaskInfo{
 		Resources: &proto.Resources{
 			Cpu:      250,
@@ -60,6 +80,9 @@ func main() {
 		LogConfig: &proto.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMb: 10,
+		},
+		Config: &_struct.Struct{
+			Fields: taskConfig,
 		},
 	}
 
