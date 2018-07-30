@@ -7,6 +7,9 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 
+	"strings"
+
+	"github.com/golang/protobuf/jsonpb"
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/hashicorp/nomad/plugins/drivers/raw_exec_driver/proto"
 	"github.com/hashicorp/nomad/plugins/drivers/raw_exec_driver/shared"
@@ -52,25 +55,20 @@ func main() {
 		},
 		TaskEnv: &proto.TaskEnv{},
 	}
+	jsonConfig := `{
+                    "Command":"echo",
+                    "Args":["the", "quick", "brown", "fox", "jumped"]
+                   }`
+	unMarshaller := jsonpb.Unmarshaler{AllowUnknownFields: false}
 
-	taskConfig := make(map[string]*_struct.Value)
+	reader := strings.NewReader(jsonConfig)
+	structConfig := &_struct.Struct{}
+	err = unMarshaller.Unmarshal(reader, structConfig)
 
-	command := &_struct.Value_StringValue{"echo"}
-	taskConfig["Command"] = &_struct.Value{Kind: command}
-
-	arg1 := &_struct.Value{Kind: &_struct.Value_StringValue{"quick"}}
-	arg2 := &_struct.Value{Kind: &_struct.Value_StringValue{"brown"}}
-	arg3 := &_struct.Value{Kind: &_struct.Value_StringValue{"fox"}}
-	listValue := &_struct.ListValue{
-		Values: []*_struct.Value{
-			arg1,
-			arg2,
-			arg3,
-		},
+	if err != nil {
+		fmt.Println("Error unmarshalling json into protobuf Struct:%v", err)
+		os.Exit(-1)
 	}
-	args := &_struct.Value_ListValue{ListValue: listValue}
-	taskConfig["Args"] = &_struct.Value{Kind: args}
-
 	taskInfo := &proto.TaskInfo{
 		Resources: &proto.Resources{
 			Cpu:      250,
@@ -81,9 +79,7 @@ func main() {
 			MaxFiles:      10,
 			MaxFileSizeMb: 10,
 		},
-		Config: &_struct.Struct{
-			Fields: taskConfig,
-		},
+		Config: structConfig,
 	}
 
 	result, err := rawExec.NewStart(execCtx, taskInfo)
