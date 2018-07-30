@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	// ImplicitTarget is used to represent any remaining attribute values
+	// implicitTarget is used to represent any remaining attribute values
 	// when target percentages don't add up to 100
-	ImplicitTarget = "*"
+	implicitTarget = "*"
 )
 
 // SpreadIterator is used to spread allocations across a specified attribute
@@ -139,7 +139,7 @@ func (iter *SpreadIterator) Next() *RankedNode {
 				desiredCount, ok := spreadDetails.desiredCounts[nValue]
 				if !ok {
 					// See if there is an implicit target
-					desiredCount, ok = spreadDetails.desiredCounts[ImplicitTarget]
+					desiredCount, ok = spreadDetails.desiredCounts[implicitTarget]
 					if !ok {
 						// The desired count for this attribute is zero if it gets here
 						// so use the maximum possible penalty for this node
@@ -241,7 +241,7 @@ func (iter *SpreadIterator) computeSpreadInfo(tg *structs.TaskGroup) {
 		// Account for remaining count only if there is any spread targets
 		if sumDesiredCounts > 0 && sumDesiredCounts < float64(totalCount) {
 			remainingCount := float64(totalCount) - sumDesiredCounts
-			si.desiredCounts[ImplicitTarget] = remainingCount
+			si.desiredCounts[implicitTarget] = remainingCount
 		}
 		spreadInfos[spread.Attribute] = si
 		iter.sumSpreadWeights += spread.Weight

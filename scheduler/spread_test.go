@@ -431,3 +431,91 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 	}
 
 }
+
+// Test scenarios where the spread iterator sets maximum penalty (-1.0)
+func TestSpreadIterator_MaxPenalty(t *testing.T) {
+	state, ctx := testContext(t)
+	var nodes []*RankedNode
+
+	// Add nodes in dc3 to the state store
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		node.Datacenter = "dc3"
+		if err := state.UpsertNode(uint64(100+i), node); err != nil {
+			t.Fatalf("failed to upsert node: %v", err)
+		}
+		nodes = append(nodes, &RankedNode{Node: node})
+	}
+
+	static := NewStaticRankIterator(ctx, nodes)
+
+	job := mock.Job()
+	tg := job.TaskGroups[0]
+	job.TaskGroups[0].Count = 5
+
+	// Create spread target of 80% in dc1
+	// and 20% in dc2
+	spread := &structs.Spread{
+		Weight:    100,
+		Attribute: "${node.datacenter}",
+		SpreadTarget: []*structs.SpreadTarget{
+			{
+				Value:   "dc1",
+				Percent: 80,
+			},
+			{
+				Value:   "dc2",
+				Percent: 20,
+			},
+		},
+	}
+	tg.Spreads = []*structs.Spread{spread}
+	spreadIter := NewSpreadIterator(ctx, static)
+	spreadIter.SetJob(job)
+	spreadIter.SetTaskGroup(tg)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, spreadIter)
+
+	out := collectRanked(scoreNorm)
+
+	// All nodes are in dc3 so score should be -1
+	for _, rn := range out {
+		require.Equal(t, -1.0, rn.FinalScore)
+	}
+
+	// Reset scores
+	for _, node := range nodes {
+		node.Scores = nil
+		node.FinalScore = 0
+	}
+
+	// Create spread on attribute that doesn't exist on any nodes
+	spread = &structs.Spread{
+		Weight:    100,
+		Attribute: "${meta.foo}",
+		SpreadTarget: []*structs.SpreadTarget{
+			{
+				Value:   "bar",
+				Percent: 80,
+			},
+			{
+				Value:   "baz",
+				Percent: 20,
+			},
+		},
+	}
+
+	tg.Spreads = []*structs.Spread{spread}
+	static = NewStaticRankIterator(ctx, nodes)
+	spreadIter = NewSpreadIterator(ctx, static)
+	spreadIter.SetJob(job)
+	spreadIter.SetTaskGroup(tg)
+	scoreNorm = NewScoreNormalizationIterator(ctx, spreadIter)
+	out = collectRanked(scoreNorm)
+
+	// All nodes don't have the spread attribute so score should be -1
+	for _, rn := range out {
+		require.Equal(t, -1.0, rn.FinalScore)
+	}
+
+}
