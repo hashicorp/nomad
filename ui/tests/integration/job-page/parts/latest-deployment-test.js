@@ -26,10 +26,10 @@ moduleForComponent(
   }
 );
 
-test('there is no active deployment section when the job has no active deployment', function(assert) {
+test('there is no latest deployment section when the job has no deployments', function(assert) {
   this.server.create('job', {
     type: 'service',
-    noActiveDeployment: true,
+    noDeployments: true,
     createAllocations: false,
   });
 
@@ -47,7 +47,7 @@ test('there is no active deployment section when the job has no active deploymen
   });
 });
 
-test('the active deployment section shows up for the currently running deployment', function(assert) {
+test('the latest deployment section shows up for the currently running deployment', function(assert) {
   this.server.create('job', { type: 'service', createAllocations: false, activeDeployment: true });
 
   this.store.findAll('job');
@@ -59,10 +59,14 @@ test('the active deployment section shows up for the currently running deploymen
     `);
 
     return wait().then(() => {
-      const deployment = this.get('job.runningDeployment');
+      const deployment = this.get('job.latestDeployment');
       const version = deployment.get('version');
 
       assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
+      assert.ok(
+        find('[data-test-active-deployment]').classList.contains('is-info'),
+        'Running deployment gets the is-info class'
+      );
       assert.equal(
         find('[data-test-active-deployment-stat="id"]').textContent.trim(),
         deployment.get('shortId'),
@@ -114,7 +118,32 @@ test('the active deployment section shows up for the currently running deploymen
   });
 });
 
-test('the active deployment section can be expanded to show task groups and allocations', function(assert) {
+test('when there is no running deployment, the latest deployment section shows up for the last deployment', function(assert) {
+  this.server.create('job', {
+    type: 'service',
+    createAllocations: false,
+    noActiveDeployment: true,
+  });
+
+  this.store.findAll('job');
+
+  return wait().then(() => {
+    this.set('job', this.store.peekAll('job').get('firstObject'));
+    this.render(hbs`
+      {{job-page/parts/latest-deployment job=job}}
+    `);
+
+    return wait().then(() => {
+      assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
+      assert.notOk(
+        find('[data-test-active-deployment]').classList.contains('is-info'),
+        'Non-running deployment does not get the is-info class'
+      );
+    });
+  });
+});
+
+test('the latest deployment section can be expanded to show task groups and allocations', function(assert) {
   this.server.create('node');
   this.server.create('job', { type: 'service', activeDeployment: true });
 

@@ -91,7 +91,8 @@ export default function() {
   });
 
   this.get('/job/:id/deployment', function({ deployments }, { params }) {
-    return this.serialize(deployments.where({ jobId: params.id }).models[0]);
+    const deployment = deployments.where({ jobId: params.id }).models[0];
+    return deployment ? this.serialize(deployment) : new Response(200, {}, 'null');
   });
 
   this.post('/job/:id/periodic/force', function(schema, { params }) {
