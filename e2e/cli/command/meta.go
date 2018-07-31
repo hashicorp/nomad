@@ -25,7 +25,7 @@ func NewMeta(ui cli.Ui, logger hclog.Logger) Meta {
 func (m *Meta) FlagSet(n string) *flag.FlagSet {
 	f := flag.NewFlagSet(n, flag.ContinueOnError)
 
-	f.BoolVar(&m.verbose, "v", false, "Toggle verbose output")
+	f.BoolVar(&m.verbose, "verbose", false, "Toggle verbose output")
 	return f
 }
 

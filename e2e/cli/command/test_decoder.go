@@ -40,7 +40,6 @@ type TestEvent struct {
 	Elapsed float64 // seconds
 	Output  string
 
-	eventType string
 	suiteName string
 	caseName  string
 	testName  string

@@ -45,6 +45,12 @@ General Options:
 
 Run Options:
 
+  -run regex
+    Sets a regular expression for what tests to run. Uses '/' as a separator
+	to allow hierarchy between Suite/Case/Test.
+
+	Example '-run MyTestSuite' would only run tests under the MyTestSuite suite.
+
   -slow
     If set, will only run test suites marked as slow.
 `
@@ -82,6 +88,7 @@ func (c *Run) Run(args []string) int {
 	if len(args) == 0 {
 		c.logger.Info("no environments specified, running test suite locally")
 		report, err := c.runTest(&runOpts{
+			run:     run,
 			slow:    slow,
 			verbose: c.verbose,
 		})
@@ -140,6 +147,7 @@ func (c *Run) Run(args []string) int {
 			provider:   env.provider,
 			env:        env.name,
 			slow:       slow,
+			run:        run,
 			verbose:    c.verbose,
 			nomadAddr:  results.nomadAddr,
 			consulAddr: results.consulAddr,
@@ -212,6 +220,7 @@ type runOpts struct {
 	vaultAddr  string
 	provider   string
 	env        string
+	run        string
 	local      bool
 	slow       bool
 	verbose    bool
@@ -223,10 +232,17 @@ func (opts *runOpts) goArgs() []string {
 	a := []string{
 		"test",
 		"-json",
+	}
+
+	if opts.run != "" {
+		a = append(a, "-run=TestE2E/"+opts.run)
+	}
+
+	a = append(a, []string{
 		"github.com/hashicorp/nomad/e2e",
 		"-env=" + opts.env,
 		"-env.provider=" + opts.provider,
-	}
+	}...)
 
 	if opts.slow {
 		a = append(a, "-slow")
