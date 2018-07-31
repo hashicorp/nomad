@@ -2191,7 +2191,7 @@ func (j *Job) Validate() error {
 
 	if j.Type == JobTypeSystem {
 		if j.Spreads != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a s stanza"))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a spread stanza"))
 		}
 	} else {
 		for idx, spread := range j.Spreads {
@@ -5479,7 +5479,7 @@ func (s *Spread) Validate() error {
 		sumPercent += target.Percent
 	}
 	if sumPercent > 100 {
-		mErr.Errors = append(mErr.Errors, errors.New("Sum of spread target percentages must not be greater than 100"))
+		mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Sum of spread target percentages must not be greater than 100%%; got %d%%", sumPercent)))
 	}
 	return mErr.ErrorOrNil()
 }

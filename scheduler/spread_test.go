@@ -30,7 +30,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 
 	job := mock.Job()
 	tg := job.TaskGroups[0]
-	job.TaskGroups[0].Count = 5
+	job.TaskGroups[0].Count = 10
 	// add allocs to nodes in dc1
 	upserting := []*structs.Allocation{
 		{
@@ -79,11 +79,11 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 	out := collectRanked(scoreNorm)
 
 	// Expect nodes in dc1 with existing allocs to get a boost
-	// Boost should be ((desiredCount-actual)/expected)*spreadWeight
-	// For this test, that becomes dc1 = ((4-2)/4 ) = 0.5, and dc2=(1-0)/1
+	// Boost should be ((desiredCount-actual)/desired)*spreadWeight
+	// For this test, that becomes dc1 = ((8-3)/8 ) = 0.5, and dc2=(2-1)/2
 	expectedScores := map[string]float64{
-		"dc1": 0.5,
-		"dc2": 1.0,
+		"dc1": 0.625,
+		"dc2": 0.5,
 	}
 	for _, rn := range out {
 		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
@@ -92,6 +92,14 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 	// Update the plan to add more allocs to nodes in dc1
 	// After this step there are enough allocs to meet the desired count in dc1
 	ctx.plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		{
+			Namespace: structs.DefaultNamespace,
+			TaskGroup: tg.Name,
+			JobID:     job.ID,
+			Job:       job,
+			ID:        uuid.Generate(),
+			NodeID:    nodes[0].Node.ID,
+		},
 		{
 			Namespace: structs.DefaultNamespace,
 			TaskGroup: tg.Name,
@@ -119,6 +127,22 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 			ID:        uuid.Generate(),
 			NodeID:    nodes[3].Node.ID,
 		},
+		{
+			Namespace: structs.DefaultNamespace,
+			TaskGroup: tg.Name,
+			JobID:     job.ID,
+			Job:       job,
+			ID:        uuid.Generate(),
+			NodeID:    nodes[3].Node.ID,
+		},
+		{
+			Namespace: structs.DefaultNamespace,
+			TaskGroup: tg.Name,
+			JobID:     job.ID,
+			Job:       job,
+			ID:        uuid.Generate(),
+			NodeID:    nodes[3].Node.ID,
+		},
 	}
 
 	// Reset the scores
@@ -138,7 +162,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 	// the desired count
 	expectedScores = map[string]float64{
 		"dc1": 0,
-		"dc2": 1.0,
+		"dc2": 0.5,
 	}
 	for _, rn := range out {
 		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
@@ -166,7 +190,7 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 
 	job := mock.Job()
 	tg := job.TaskGroups[0]
-	job.TaskGroups[0].Count = 5
+	job.TaskGroups[0].Count = 10
 	// add allocs to nodes in dc1
 	upserting := []*structs.Allocation{
 		{
@@ -232,13 +256,13 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 
 	out := collectRanked(scoreNorm)
 
-	// Score come from combining two different spread factors
+	// Score comes from combining two different spread factors
 	// Second node should have the highest score because it has no allocs and its in dc2/r1
 	expectedScores := map[string]float64{
-		nodes[0].Node.ID: 0.389,
-		nodes[1].Node.ID: 0.833,
-		nodes[2].Node.ID: 0.444,
-		nodes[3].Node.ID: 0.444,
+		nodes[0].Node.ID: 0.500,
+		nodes[1].Node.ID: 0.667,
+		nodes[2].Node.ID: 0.556,
+		nodes[3].Node.ID: 0.556,
 	}
 	for _, rn := range out {
 		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.ID]), fmt.Sprintf("%.3f", rn.FinalScore))
