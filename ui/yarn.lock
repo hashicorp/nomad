@@ -5469,10 +5469,6 @@ jsmin@1.x:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/jsmin/-/jsmin-1.0.1.tgz#e7bd0dcd6496c3bf4863235bf461a3d98aa3b98c"
 
-json-formatter-js@^2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/json-formatter-js/-/json-formatter-js-2.2.0.tgz#1ed987223ef2f1d945304597faae78b580a8212b"
-
 json-parse-better-errors@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/json-parse-better-errors/-/json-parse-better-errors-1.0.2.tgz#bb867cfb3450e69107c131d1c514bab3dc8bcaa9"
