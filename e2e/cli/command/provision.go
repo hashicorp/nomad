@@ -38,6 +38,10 @@ Usage: nomad-e2e provision <provider> <environment>
   The output is a list of environment variables used to configure
   various api clients such as Nomad, Consul and Vault.
 
+General Options:
+
+` + generalOptionsUsage() + `
+
 Provision Options:
 
   -env-path
@@ -48,10 +52,6 @@ Provision Options:
     Sets the target nomad-binary to use when provisioning a nomad cluster.
 	The binary is retrieved by go-getter and can therefore be a local file
 	path, remote http url, or other support go-getter uri.
-
-  -nomad-checksum
-    If set, will ensure the binary from -nomad-binary matches the given
-	checksum.
 
   -destroy
     If set, will destroy the target environment.
@@ -121,9 +121,9 @@ func (c *Provision) Run(args []string) int {
 		return 1
 	}
 
-	fmt.Printf(strings.TrimSpace(`
+	c.Ui.Output(strings.TrimSpace(fmt.Sprintf(`
 NOMAD_ADDR=%s
-	`), results.nomadAddr)
+	`, results.nomadAddr)))
 
 	return 0
 }

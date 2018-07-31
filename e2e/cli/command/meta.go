@@ -2,6 +2,7 @@ package command
 
 import (
 	"flag"
+	"strings"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/mitchellh/cli"
@@ -26,4 +27,13 @@ func (m *Meta) FlagSet(n string) *flag.FlagSet {
 
 	f.BoolVar(&m.verbose, "v", false, "Toggle verbose output")
 	return f
+}
+
+// generalOptionsUsage return the help string for the global options
+func generalOptionsUsage() string {
+	helpText := `
+  -verbose
+    Enables verbose logging.
+`
+	return strings.TrimSpace(helpText)
 }

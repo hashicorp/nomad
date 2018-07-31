@@ -24,7 +24,29 @@ type Run struct {
 
 func (c *Run) Help() string {
 	helpText := `
-Usage: nomad-e2e run
+Usage: nomad-e2e run (<provider>/<name>)...
+
+  Two modes exist when using the run command.
+
+  When no arguments are given to the run command, it will launch
+  the e2e test suite against the nomad cluster specified by the
+  NOMAD_ADDR environment variable. If this is not set, it defaults
+  to 'http://localhost:4646'
+
+  Multiple arguments may be given to specify one or more environments to
+  provision and run the e2e tests against. These are given in the form of
+  <provider>/<name>. Globs are support, for example 'aws/*' would run tests
+  against all of the environments under the aws provider. When using this mode,
+  all of the provision flags are supported.
+
+General Options:
+
+` + generalOptionsUsage() + `
+
+Run Options:
+
+  -slow
+    If set, will only run test suites marked as slow.
 `
 	return strings.TrimSpace(helpText)
 }
