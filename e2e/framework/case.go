@@ -2,7 +2,6 @@ package framework
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/hashicorp/nomad/api"
 )
@@ -58,8 +57,6 @@ func (c Constraints) matches(env Environment) error {
 
 // TC is the base test case which should be embedded in TestCase implementations.
 type TC struct {
-	t *testing.T
-
 	cluster *ClusterInfo
 }
 
