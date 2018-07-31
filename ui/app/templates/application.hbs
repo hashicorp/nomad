@@ -4,7 +4,12 @@
 {{else}}
   <div class="error-container">
     <div data-test-error class="error-message">
-      {{#if is500}}
+      {{#if isNoLeader}}
+        <h1 data-test-error-title class="title is-spaced">No Cluster Leader</h1>
+        <p data-test-error-message class="subtitle">
+          The cluster has no leader. <a href="https://www.nomadproject.io/guides/outage.html"> Read about Outage Recovery.</a>
+        </p>
+      {{else if is500}}
         <h1 data-test-error-title class="title is-spaced">Server Error</h1>
         <p data-test-error-message class="subtitle">A server error prevented data from being sent to the client.</p>
       {{else if is404}}

@@ -52,3 +52,18 @@ test('the 403 error page links to the ACL tokens page', function(assert) {
     );
   });
 });
+
+test('the no leader error state gets its own error message', function(assert) {
+  server.pretender.get('/v1/jobs', () => [500, {}, 'No cluster leader']);
+
+  JobsList.visit();
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    assert.equal(
+      JobsList.error.title,
+      'No Cluster Leader',
+      'The error is specifically for the lack of a cluster leader'
+    );
+  });
+});
