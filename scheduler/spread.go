@@ -123,6 +123,8 @@ func (iter *SpreadIterator) Next() *RankedNode {
 		for _, pset := range propertySets {
 			nValue, errorMsg, usedCount := pset.UsedCount(option.Node, tgName)
 
+			// Add one to include placement on this node in the scoring calculation
+			usedCount += 1
 			// Set score to -1 if there were errors in building this attribute
 			if errorMsg != "" {
 				iter.ctx.Logger().Printf("[WARN] sched: error building spread attributes for task group %v:%v", tgName, errorMsg)
@@ -182,13 +184,12 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	}
 	// Get the nodes property value
 	nValue, ok := getProperty(option, pset.targetAttribute)
-	currentAttributeCount := uint64(0)
-	if ok {
-		currentAttributeCount = combinedUseMap[nValue]
-	} else {
-		// If the attribute isn't set on the node, it should get the maximum possible penalty
+
+	// Maximum possible penalty when the attribute isn't set on the node
+	if !ok {
 		return -1.0
 	}
+	currentAttributeCount := combinedUseMap[nValue]
 	minCount := uint64(0)
 	maxCount := uint64(0)
 	for _, value := range combinedUseMap {
@@ -211,17 +212,15 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	if currentAttributeCount != minCount {
 		// Boost based on delta between current and min
 		return deltaBoost
-	} else {
-		if minCount == maxCount {
-			// Maximum possible penalty when the distribution is even
-			return -1.0
-		} else {
-			// Penalty based on delta from max value
-			delta := int(maxCount - minCount)
-			deltaBoost = float64(delta) / float64(minCount)
-			return deltaBoost
-		}
+	} else if minCount == maxCount {
+		// Maximum possible penalty when the distribution is even
+		return -1.0
 	}
+	// Penalty based on delta from max value
+	delta := int(maxCount - minCount)
+	deltaBoost = float64(delta) / float64(minCount)
+	return deltaBoost
+
 }
 
 // computeSpreadInfo computes and stores percentages and total values
