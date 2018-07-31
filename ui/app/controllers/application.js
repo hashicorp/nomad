@@ -4,6 +4,7 @@ import { run } from '@ember/runloop';
 import { observer, computed } from '@ember/object';
 import Ember from 'ember';
 import codesForError from '../utils/codes-for-error';
+import NoLeaderError from '../utils/no-leader-error';
 
 export default Controller.extend({
   config: service(),
@@ -35,6 +36,11 @@ export default Controller.extend({
 
   is500: computed('errorCodes.[]', function() {
     return this.get('errorCodes').includes('500');
+  }),
+
+  isNoLeader: computed('error', function() {
+    const error = this.get('error');
+    return error instanceof NoLeaderError;
   }),
 
   throwError: observer('error', function() {
