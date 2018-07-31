@@ -12,12 +12,8 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func RunCommandFactory(ui cli.Ui, logger hclog.Logger) cli.CommandFactory {
+func RunCommandFactory(meta Meta) cli.CommandFactory {
 	return func() (cli.Command, error) {
-		meta := Meta{
-			Ui:     ui,
-			logger: logger,
-		}
 		return &Run{Meta: meta}, nil
 	}
 }
@@ -45,7 +41,7 @@ func (c *Run) Run(args []string) int {
 	var run string
 	cmdFlags := c.FlagSet("run")
 	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
-	cmdFlags.StringVar(&envPath, "env-path", "./environments/", "Path to e2e environment terraform configs")
+	cmdFlags.StringVar(&envPath, "env-path", DefaultEnvironmentsPath, "Path to e2e environment terraform configs")
 	cmdFlags.StringVar(&nomadBinary, "nomad-binary", "", "")
 	cmdFlags.StringVar(&tfPath, "tf-path", "", "")
 	cmdFlags.StringVar(&run, "run", "", "Regex to target specific test suites/cases")
@@ -63,22 +59,21 @@ func (c *Run) Run(args []string) int {
 
 	if len(args) == 0 {
 		c.logger.Info("no environments specified, running test suite locally")
-		var report *TestReport
-		var err error
-		if report, err = c.run(&runOpts{
+		report, err := c.runTest(&runOpts{
 			slow:    slow,
 			verbose: c.verbose,
-		}); err != nil {
+		})
+		if err != nil {
 			c.logger.Error("failed to run test suite", "error", err)
 			return 1
 		}
-		if report.TotalFailedTests == 0 {
-			c.Ui.Output("PASSED!")
-			if c.verbose {
-				c.Ui.Output(report.Summary())
-			}
-		} else {
-			c.Ui.Output("***FAILED***")
+		if report.TotalFailedTests > 0 {
+			c.Ui.Error("***FAILED***")
+			c.Ui.Error(report.Summary())
+			return 1
+		}
+		c.Ui.Output("PASSED!")
+		if c.verbose {
 			c.Ui.Output(report.Summary())
 		}
 		return 0
@@ -98,7 +93,7 @@ func (c *Run) Run(args []string) int {
 		environments = append(environments, envs...)
 
 	}
-	envCount := len(environments)
+
 	// Use go-getter to fetch the nomad binary
 	nomadPath, err := fetchBinary(nomadBinary)
 	defer os.RemoveAll(nomadPath)
@@ -107,7 +102,9 @@ func (c *Run) Run(args []string) int {
 		return 1
 	}
 
+	envCount := len(environments)
 	c.logger.Debug("starting tests", "totalEnvironments", envCount)
+	failedEnvs := map[string]*TestReport{}
 	for i, env := range environments {
 		logger := c.logger.With("name", env.name, "provider", env.provider)
 		logger.Debug("provisioning environment")
@@ -128,25 +125,35 @@ func (c *Run) Run(args []string) int {
 		}
 
 		var report *TestReport
-		if report, err = c.run(opts); err != nil {
+		if report, err = c.runTest(opts); err != nil {
 			logger.Error("failed to run tests against environment", "error", err)
 			return 1
 		}
-		if report.TotalFailedTests == 0 {
+		if report.TotalFailedTests > 0 {
+			c.Ui.Error(fmt.Sprintf("[%d/%d] %s: ***FAILED***", i+1, envCount, env.canonicalName()))
+			c.Ui.Error(fmt.Sprintf("[%d/%d] %s: %s", i+1, envCount, env.canonicalName(), report.Summary()))
+			failedEnvs[env.canonicalName()] = report
+		}
 
-			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: PASSED!", i+1, envCount, env.provider, env.name))
-			if c.verbose {
-				c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: %s", i+1, envCount, env.provider, env.name, report.Summary()))
-			}
-		} else {
-			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: ***FAILED***", i+1, envCount, env.provider, env.name))
-			c.Ui.Output(fmt.Sprintf("[%d/%d] %s/%s: %s", i+1, envCount, env.provider, env.name, report.Summary()))
+		c.Ui.Output(fmt.Sprintf("[%d/%d] %s: PASSED!", i+1, envCount, env.canonicalName()))
+		if c.verbose {
+			c.Ui.Output(fmt.Sprintf("[%d/%d] %s: %s", i+1, envCount, env.canonicalName(), report.Summary()))
 		}
 	}
+
+	if len(failedEnvs) > 0 {
+		c.Ui.Error(fmt.Sprintf("The following environments ***FAILED***"))
+		for name, report := range failedEnvs {
+			c.Ui.Error(fmt.Sprintf("  [%s]: %d out of %d suite failures",
+				name, report.TotalFailedSuites, report.TotalSuites))
+		}
+		return 1
+	}
+	c.Ui.Output("All Environments PASSED!")
 	return 0
 }
 
-func (c *Run) run(opts *runOpts) (*TestReport, error) {
+func (c *Run) runTest(opts *runOpts) (*TestReport, error) {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		return nil, err
@@ -175,6 +182,8 @@ func (c *Run) run(opts *runOpts) (*TestReport, error) {
 
 }
 
+// runOpts contains fields used to build the arguments and environment variabled
+// nessicary to run go test and initialize the e2e framework
 type runOpts struct {
 	nomadAddr  string
 	consulAddr string
@@ -186,6 +195,8 @@ type runOpts struct {
 	verbose    bool
 }
 
+// goArgs returns the list of arguments passed to the go command to start the
+// e2e test framework
 func (opts *runOpts) goArgs() []string {
 	a := []string{
 		"test",
@@ -205,6 +216,8 @@ func (opts *runOpts) goArgs() []string {
 	return a
 }
 
+// goEnv returns the list of environment variabled passed to the go command to start
+// the e2e test framework
 func (opts *runOpts) goEnv() []string {
 	env := append(os.Environ(), "NOMAD_E2E=1")
 	if opts.nomadAddr != "" {

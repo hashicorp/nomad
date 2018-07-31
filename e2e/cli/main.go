@@ -8,6 +8,11 @@ import (
 	"github.com/mitchellh/cli"
 )
 
+const (
+	NomadE2ECli        = "nomad-e2e"
+	NomadE2ECliVersion = "0.0.1"
+)
+
 func main() {
 
 	ui := &cli.BasicUi{
@@ -17,15 +22,17 @@ func main() {
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   "nomad-e2e",
-		Output: &cli.UiWriter{ui},
+		Name:   NomadE2ECli,
+		Output: &cli.UiWriter{Ui: ui},
 	})
 
-	c := cli.NewCLI("nomad-e2e", "0.0.1")
+	c := cli.NewCLI(NomadE2ECli, NomadE2ECliVersion)
 	c.Args = os.Args[1:]
+
+	meta := command.NewMeta(ui, logger)
 	c.Commands = map[string]cli.CommandFactory{
-		"provision": command.ProvisionCommandFactory(ui, logger),
-		"run":       command.RunCommandFactory(ui, logger),
+		"provision": command.ProvisionCommandFactory(meta),
+		"run":       command.RunCommandFactory(meta),
 	}
 
 	exitStatus, err := c.Run()

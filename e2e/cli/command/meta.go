@@ -14,6 +14,13 @@ type Meta struct {
 	verbose bool
 }
 
+func NewMeta(ui cli.Ui, logger hclog.Logger) Meta {
+	return Meta{
+		Ui:     ui,
+		logger: logger,
+	}
+}
+
 func (m *Meta) FlagSet(n string) *flag.FlagSet {
 	f := flag.NewFlagSet(n, flag.ContinueOnError)
 
