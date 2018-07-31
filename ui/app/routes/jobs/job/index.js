@@ -12,7 +12,8 @@ export default Route.extend(WithWatchers, {
       model: this.get('watch').perform(model),
       summary: this.get('watchSummary').perform(model.get('summary')),
       evaluations: this.get('watchEvaluations').perform(model),
-      deployments: model.get('supportsDeployments') && this.get('watchDeployments').perform(model),
+      latestDeployment:
+        model.get('supportsDeployments') && this.get('watchLatestDeployment').perform(model),
       list: model.get('hasChildren') && this.get('watchAll').perform(),
     });
   },
@@ -21,7 +22,13 @@ export default Route.extend(WithWatchers, {
   watchAll: watchAll('job'),
   watchSummary: watchRecord('job-summary'),
   watchEvaluations: watchRelationship('evaluations'),
-  watchDeployments: watchRelationship('deployments'),
+  watchLatestDeployment: watchRelationship('latestDeployment'),
 
-  watchers: collect('watch', 'watchAll', 'watchSummary', 'watchEvaluations', 'watchDeployments'),
+  watchers: collect(
+    'watch',
+    'watchAll',
+    'watchSummary',
+    'watchEvaluations',
+    'watchLatestDeployment'
+  ),
 });

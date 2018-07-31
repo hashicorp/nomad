@@ -1,4 +1,4 @@
-import { alias } from '@ember/object/computed';
+import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
@@ -10,7 +10,8 @@ import sumAggregation from '../utils/properties/sum-aggregation';
 export default Model.extend({
   shortId: shortUUIDProperty('id'),
 
-  job: belongsTo('job'),
+  job: belongsTo('job', { inverse: 'deployments' }),
+  jobForLatest: belongsTo('job', { inverse: 'latestDeployment' }),
   versionNumber: attr('number'),
 
   // If any task group is not promoted yet requires promotion and the deployment
@@ -26,6 +27,9 @@ export default Model.extend({
 
   status: attr('string'),
   statusDescription: attr('string'),
+
+  isRunning: equal('status', 'running'),
+
   taskGroupSummaries: fragmentArray('task-group-deployment-summary'),
   allocations: hasMany('allocations'),
 
