@@ -4004,7 +4004,7 @@ func TestSpread_Validate(t *testing.T) {
 					},
 				},
 			},
-			err:  fmt.Errorf("Sum of spread target percentages must not be greater than 100"),
+			err:  fmt.Errorf("Sum of spread target percentages must not be greater than 100%%; got %d%%", 150),
 			name: "Invalid percentages",
 		},
 		{
