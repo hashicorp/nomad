@@ -152,6 +152,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+	go get -u github.com/golang/protobuf/protoc-gen-go
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
