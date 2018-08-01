@@ -288,7 +288,9 @@ func (tr *TaskRunner) stop() error {
 	return merr.ErrorOrNil()
 }
 
-// update is used to run the runners update hooks.
+// update is used to run the runners update hooks. Should only be called from
+// Run(). To trigger an update, update state on the TaskRunner and call
+// triggerUpdateHooks.
 func (tr *TaskRunner) updateHooks() {
 	if tr.logger.IsTrace() {
 		start := time.Now()

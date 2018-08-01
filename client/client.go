@@ -1880,10 +1880,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Update the existing allocations
 	for _, update := range diff.updated {
-		if err := c.updateAlloc(update); err != nil {
-			c.logger.Printf("[ERR] client: failed to update alloc %q: %v",
-				update.ID, err)
-		}
+		c.logger.Printf("[TRACE] client: updating alloc %q to index %d", update.ID, update.AllocModifyIndex)
+		c.updateAlloc(update)
 	}
 
 	// Make room for new allocations before running
@@ -1928,17 +1926,16 @@ func (c *Client) removeAlloc(allocID string) {
 }
 
 // updateAlloc is invoked when we should update an allocation
-func (c *Client) updateAlloc(update *structs.Allocation) error {
+func (c *Client) updateAlloc(update *structs.Allocation) {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
 	ar, ok := c.allocs[update.ID]
 	if !ok {
 		c.logger.Printf("[WARN] client: missing context for alloc %q", update.ID)
-		return nil
+		return
 	}
 
 	ar.Update(update)
-	return nil
 }
 
 // addAlloc is invoked when we should add an allocation
