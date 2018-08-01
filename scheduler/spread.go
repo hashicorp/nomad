@@ -202,7 +202,7 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	}
 
 	// calculate boost based on delta between the current and the minimum
-	deltaBoost := 1.0
+	var deltaBoost float64
 	if minCount == 0 {
 		deltaBoost = -1.0
 	} else {
