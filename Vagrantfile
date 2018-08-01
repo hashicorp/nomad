@@ -144,6 +144,10 @@ def configureLinuxProvisioners(vmCfg)
 		privileged: false,
 		path: './scripts/vagrant-linux-priv-ui.sh'
 
+	vmCfg.vm.provision "shell",
+		privileged: false,
+		path: './scripts/vagrant-linux-priv-protoc.sh'
+
 	return vmCfg
 end
 
