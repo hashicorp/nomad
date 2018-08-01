@@ -1,6 +1,8 @@
 [Unit]
 Description=Nomad
 Documentation=https://nomadproject.io/docs/
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 KillMode=process
