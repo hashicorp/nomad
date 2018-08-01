@@ -7,12 +7,12 @@ import (
 
 type GRPCClient struct{ client proto.RawExecClient }
 
-func (m *GRPCClient) Start(ctx *proto.ExecContext, taskInfo *proto.TaskInfo) (*proto.StartResponse, error) {
+func (m *GRPCClient) NewStart(ctx *proto.ExecContext, taskInfo *proto.TaskInfo) (*proto.StartResponse, error) {
 	req := &proto.StartRequest{
 		ExecContext: ctx,
 		TaskInfo:    taskInfo,
 	}
-	resp, err := m.client.Start(context.Background(), req)
+	resp, err := m.client.NewStart(context.Background(), req)
 	if err != nil {
 		return nil, err
 	}
@@ -24,9 +24,9 @@ type GRPCServer struct {
 	Impl RawExec
 }
 
-func (m *GRPCServer) Start(
+func (m *GRPCServer) NewStart(
 	ctx context.Context,
 	req *proto.StartRequest) (*proto.StartResponse, error) {
-	resp, err := m.Impl.Start(req.ExecContext, req.TaskInfo)
+	resp, err := m.Impl.NewStart(req.ExecContext, req.TaskInfo)
 	return resp, err
 }
