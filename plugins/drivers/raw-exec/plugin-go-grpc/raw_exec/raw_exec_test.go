@@ -3,7 +3,7 @@ package raw_exec
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/proto"
 	"github.com/stretchr/testify/require"
 )
 

@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/plugin-go-grpc/raw_exec"
-	"github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/shared"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/plugin-go-grpc/raw_exec"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/shared"
 )
 
 func main() {

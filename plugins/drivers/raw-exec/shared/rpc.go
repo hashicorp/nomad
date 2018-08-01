@@ -3,7 +3,7 @@ package shared
 import (
 	"net/rpc"
 
-	"github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/proto"
 )
 
 type RPCClient struct{ client *rpc.Client }

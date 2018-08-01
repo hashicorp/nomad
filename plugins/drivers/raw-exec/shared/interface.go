@@ -6,7 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/proto"
 	"google.golang.org/grpc"
 )
 
