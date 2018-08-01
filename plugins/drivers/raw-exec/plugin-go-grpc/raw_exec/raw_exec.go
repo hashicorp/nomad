@@ -1,6 +1,6 @@
 package raw_exec
 
-import "github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/proto"
+import "github.com/hashicorp/nomad/plugins/drivers/raw-exec/proto"
 
 func NewRawExecDriver() *RawExec {
 	return &RawExec{}

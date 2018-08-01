@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"github.com/hashicorp/nomad/plugins/drivers/raw-exec-plugin/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/proto"
 	"golang.org/x/net/context"
 )
 
