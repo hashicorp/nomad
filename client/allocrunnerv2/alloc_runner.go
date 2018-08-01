@@ -24,6 +24,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// updateChCap is the capacity of AllocRunner's updateCh. It must be 1
+	// as we only want to process the latest update, so if there's already
+	// a pending update it will be removed from the chan before adding the
+	// newer update.
+	updateChCap = 1
+)
+
 // allocRunner is used to run all the tasks in a given allocation
 type allocRunner struct {
 	// id is the ID of the allocation. Can be accessed without a lock
@@ -70,7 +78,9 @@ type allocRunner struct {
 	tasks     map[string]*taskrunner.TaskRunner
 	tasksLock sync.RWMutex
 
-	// updateCh receives allocation updates via the Update method
+	// updateCh receives allocation updates via the Update method. Must
+	// have buffer size 1 in order to support dropping pending updates when
+	// a newer allocation is received.
 	updateCh chan *structs.Allocation
 }
 
@@ -90,7 +100,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		vaultClient:  config.Vault,
 		tasks:        make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:       make(chan struct{}),
-		updateCh:     make(chan *structs.Allocation),
+		updateCh:     make(chan *structs.Allocation, updateChCap),
 		state:        &state.State{},
 		stateDB:      config.StateDB,
 		stateUpdater: config.StateUpdater,
@@ -169,9 +179,12 @@ MAIN:
 			// TaskRunners have all exited
 			break MAIN
 		case updated := <-ar.updateCh:
-			// Updated alloc received
-			//XXX Update hooks
-			//XXX Update ar.alloc
+			// Update ar.alloc
+			ar.setAlloc(updated)
+
+			//TODO Run AR Update hooks
+
+			// Update task runners
 			for _, tr := range ar.tasks {
 				tr.Update(updated)
 			}
@@ -206,11 +219,16 @@ func (ar *allocRunner) runImpl() <-chan struct{} {
 }
 
 // Alloc returns the current allocation being run by this runner.
-//XXX how do we handle mutate the state saving stuff
 func (ar *allocRunner) Alloc() *structs.Allocation {
 	ar.allocLock.RLock()
 	defer ar.allocLock.RUnlock()
 	return ar.alloc
+}
+
+func (ar *allocRunner) setAlloc(updated *structs.Allocation) {
+	ar.allocLock.Lock()
+	ar.alloc = updated
+	ar.allocLock.Unlock()
 }
 
 // SaveState does all the state related stuff. Who knows. FIXME
@@ -389,10 +407,19 @@ func getClientStatus(taskStates map[string]*structs.TaskState) (status, descript
 
 // Update the running allocation with a new version received from the server.
 //
-// This method is safe for calling concurrently with Run() and does not modify
-// the passed in allocation.
+// This method sends the updated alloc to Run for serially processing updates.
+// If there is already a pending update it will be discarded and replaced by
+// the latest update.
 func (ar *allocRunner) Update(update *structs.Allocation) {
-	ar.updateCh <- update
+	select {
+	case ar.updateCh <- update:
+		// Updated alloc sent
+	case <-ar.updateCh:
+		// There was a pending update; replace it with the new update.
+		// This also prevents Update() from blocking if its called
+		// concurrently with Run() exiting.
+		ar.updateCh <- update
+	}
 }
 
 // Destroy the alloc runner by stopping it if it is still running and cleaning
