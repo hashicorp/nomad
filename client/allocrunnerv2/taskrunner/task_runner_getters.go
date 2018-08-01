@@ -11,6 +11,12 @@ func (tr *TaskRunner) Alloc() *structs.Allocation {
 	return tr.alloc
 }
 
+func (tr *TaskRunner) setAlloc(updated *structs.Allocation) {
+	tr.allocLock.Lock()
+	tr.alloc = updated
+	tr.allocLock.Unlock()
+}
+
 func (tr *TaskRunner) Task() *structs.Task {
 	tr.taskLock.RLock()
 	defer tr.taskLock.RUnlock()
@@ -29,10 +35,18 @@ func (tr *TaskRunner) getVaultToken() string {
 	return tr.vaultToken
 }
 
+// setVaultToken updates the vault token on the task runner as well as in the
+// task's environment. These two places must be set atomically to avoid a task
+// seeing a different token on the task runner and in its environment.
 func (tr *TaskRunner) setVaultToken(token string) {
 	tr.vaultTokenLock.Lock()
 	defer tr.vaultTokenLock.Unlock()
+
+	// Update the Vault token on the runner
 	tr.vaultToken = token
+
+	// Update the task's environment
+	tr.envBuilder.SetVaultToken(token, tr.task.Vault.Env)
 }
 
 func (tr *TaskRunner) getDriverHandle() driver.DriverHandle {

@@ -38,14 +38,11 @@ type vaultTokenUpdateHandler interface {
 }
 
 func (tr *TaskRunner) updatedVaultToken(token string) {
-	// Update the Vault token on the runner
+	// Update the task runner and environment
 	tr.setVaultToken(token)
 
-	// Update the tasks environment
-	tr.envBuilder.SetVaultToken(token, tr.task.Vault.Env)
-
-	// Update the hooks with the new Vault token
-	tr.updateHooks()
+	// Trigger update hooks with the new Vault token
+	tr.triggerUpdateHooks()
 }
 
 type vaultHookConfig struct {

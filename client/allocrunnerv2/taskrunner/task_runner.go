@@ -38,6 +38,12 @@ const (
 	// killFailureLimit is how many times we will attempt to kill a task before
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
+
+	// triggerUpdatechCap is the capacity for the triggerUpdateCh used for
+	// triggering updates. It should be exactly 1 as even if multiple
+	// updates have come in since the last one was handled, we only need to
+	// handle the last one.
+	triggerUpdateChCap = 1
 )
 
 var (
@@ -91,8 +97,10 @@ type TaskRunner struct {
 	// Logger is the logger for the task runner.
 	logger log.Logger
 
-	// updateCh receives Alloc updates
-	updateCh chan *structs.Allocation
+	// triggerUpdateCh is ticked whenever update hooks need to be run and
+	// must be created with cap=1 to signal a pending update and prevent
+	// callers from deadlocking if the receiver has exited.
+	triggerUpdateCh chan struct{}
 
 	// waitCh is closed when the task runner has transitioned to a terminal
 	// state
@@ -182,14 +190,14 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		consulClient: config.Consul,
 		vaultClient:  config.VaultClient,
 		//XXX Make a Copy to avoid races?
-		state:        config.Alloc.TaskStates[config.Task.Name],
-		localState:   config.LocalState,
-		stateDB:      config.StateDB,
-		stateUpdater: config.StateUpdater,
-		ctx:          trCtx,
-		ctxCancel:    trCancel,
-		updateCh:     make(chan *structs.Allocation),
-		waitCh:       make(chan struct{}),
+		state:           config.Alloc.TaskStates[config.Task.Name],
+		localState:      config.LocalState,
+		stateDB:         config.StateDB,
+		stateUpdater:    config.StateUpdater,
+		ctx:             trCtx,
+		ctxCancel:       trCancel,
+		triggerUpdateCh: make(chan struct{}, triggerUpdateChCap),
+		waitCh:          make(chan struct{}),
 	}
 
 	// Create the logger based on the allocation ID
@@ -257,6 +265,11 @@ func (tr *TaskRunner) initLabels() {
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var handle driver.DriverHandle
+
+	// Updates are handled asynchronously with the other hooks but each
+	// triggered update - whether due to alloc updates or a new vault token
+	// - should be handled serially.
+	go tr.handleUpdates()
 
 MAIN:
 	for tr.ctx.Err() == nil {
@@ -327,6 +340,20 @@ MAIN:
 	}
 
 	tr.logger.Debug("task run loop exiting")
+}
+
+// handleUpdates runs update hooks when triggerUpdateCh is ticked and exits
+// when Run has returned. Should only be run in a goroutine from Run.
+func (tr *TaskRunner) handleUpdates() {
+	for {
+		select {
+		case <-tr.triggerUpdateCh:
+			// Update triggered; run hooks
+			tr.updateHooks()
+		case <-tr.waitCh:
+			return
+		}
+	}
 }
 
 func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
@@ -665,16 +692,28 @@ func (tr *TaskRunner) WaitCh() <-chan struct{} {
 }
 
 // Update the running allocation with a new version received from the server.
+// Calls Update hooks asynchronously with Run().
 //
 // This method is safe for calling concurrently with Run() and does not modify
 // the passed in allocation.
 func (tr *TaskRunner) Update(update *structs.Allocation) {
+	// Update tr.alloc
+	tr.setAlloc(update)
+
+	// Trigger update hooks
+	tr.triggerUpdateHooks()
+}
+
+// triggerUpdate if there isn't already an update pending. Should be called
+// instead of calling updateHooks directly to serialize runs of update hooks.
+// TaskRunner state should be updated prior to triggering update hooks.
+//
+// Does not block.
+func (tr *TaskRunner) triggerUpdateHooks() {
 	select {
-	case tr.updateCh <- update:
-	case <-tr.WaitCh():
-		//XXX Do we log here like we used to? If we're just
-		//shutting down it's not an error to drop the update as
-		//it will be applied on startup
+	case tr.triggerUpdateCh <- struct{}{}:
+	default:
+		// already an update hook pending
 	}
 }
 
