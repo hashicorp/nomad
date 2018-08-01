@@ -7,6 +7,8 @@ KillMode=process
 KillSignal=SIGINT
 ExecStart=/usr/bin/nomad agent -config /etc/nomad
 ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=30
 LimitNOFILE=65536
 
 [Install]
