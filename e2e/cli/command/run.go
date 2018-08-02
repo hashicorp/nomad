@@ -29,7 +29,7 @@ Usage: nomad-e2e run (<provider>/<name>)...
   Two modes exist when using the run command.
 
   When no arguments are given to the run command, it will launch
-  the e2e test suite against the nomad cluster specified by the
+  the e2e test suite against the Nomad cluster specified by the
   NOMAD_ADDR environment variable. If this is not set, it defaults
   to 'http://localhost:4646'
 

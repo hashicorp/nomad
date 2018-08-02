@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 )
 
-// Fetches the nomad binary and returns the temporary directory where it exists
+// fetchBinary fetches the nomad binary and returns the temporary directory where it exists
 func fetchBinary(bin string) (string, error) {
 	nomadBinaryDir, err := ioutil.TempDir("", "")
 	if err != nil {
