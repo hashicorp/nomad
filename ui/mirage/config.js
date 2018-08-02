@@ -222,6 +222,10 @@ export default function() {
     return new Response(403, {}, null);
   });
 
+  this.get('/regions', function() {
+    return JSON.stringify(['global']);
+  });
+
   const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
     return this.serialize(clientAllocationStats.find(params.id));
   };
