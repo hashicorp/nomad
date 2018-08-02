@@ -139,8 +139,8 @@ func (d *RawExecDriver) Prestart(*driver.ExecContext, *structs.Task) (*driver.Pr
 	return nil, nil
 }
 
-func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*proto.StartResponse, error) {
-	execCtx := &ExecContext{
+func getExecContextFromProto(ctx *proto.ExecContext) *ExecContext {
+	return &ExecContext{
 		TaskEnv: &TaskEnv{},
 		TaskDir: &TaskDir{
 			Dir:       ctx.TaskDir.Directory,
@@ -153,6 +153,9 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 		MaxKillTimeout: time.Duration(5),
 		Version:        "1.0", // TODO was d.DriverContext.Config.Version.VersionNumber()
 	}
+}
+
+func getTaskInfoFromProto(tInfo *proto.TaskInfo) (*TaskInfo, error) {
 	marshaller := jsonpb.Marshaler{EnumsAsInts: true, EmitDefaults: true, OrigName: false}
 
 	configString, err := marshaller.MarshalToString(tInfo.Config)
@@ -182,9 +185,18 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 			Args:    rawExecTaskConfig.Args,
 		},
 	}
-
 	command := taskInfo.Config.Command
 	if err := validateCommand(command, "args"); err != nil {
+		return nil, err
+	}
+
+	return taskInfo, nil
+}
+
+func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*proto.StartResponse, error) {
+	execCtx := getExecContextFromProto(ctx)
+	taskInfo, err := getTaskInfoFromProto(tInfo)
+	if err != nil {
 		return nil, err
 	}
 
@@ -242,7 +254,7 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:                command,
+		Cmd:                taskInfo.Command,
 		Args:               taskInfo.Config.Args,
 		User:               taskInfo.User,
 		TaskKillSignal:     taskKillSignal,
