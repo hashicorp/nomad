@@ -236,7 +236,9 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 	}
 	go h.run()
 	resp := &proto.StartResponse{
-		TaskId: h.ID(),
+		TaskState: &proto.TaskState{
+			TaskId: h.ID(),
+		},
 	}
 	return resp, nil
 }
