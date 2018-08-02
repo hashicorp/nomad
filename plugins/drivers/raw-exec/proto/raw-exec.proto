@@ -76,5 +76,5 @@ message StartResponse {
 message Empty {}
 
 service RawExec {
-    rpc NewStart(StartRequest) returns (StartResponse);
+    rpc Start(StartRequest) returns (StartResponse);
 }

@@ -21,7 +21,7 @@ var PluginMap = map[string]plugin.Plugin{
 }
 
 type RawExec interface {
-	NewStart(*proto.ExecContext, *proto.TaskInfo) (*proto.StartResponse, error)
+	Start(*proto.ExecContext, *proto.TaskInfo) (*proto.StartResponse, error)
 }
 
 type RawExecPlugin struct {

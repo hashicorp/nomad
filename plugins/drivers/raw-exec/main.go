@@ -82,7 +82,7 @@ func main() {
 		Config: structConfig,
 	}
 
-	result, err := rawExec.NewStart(execCtx, taskInfo)
+	result, err := rawExec.Start(execCtx, taskInfo)
 	if err != nil {
 		fmt.Printf("Encountered errors: %s \n", err.Error())
 	}
