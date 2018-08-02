@@ -11,8 +11,8 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	_struct "github.com/golang/protobuf/ptypes/struct"
-	"github.com/hashicorp/nomad/plugins/drivers/raw_exec/proto"
-	"github.com/hashicorp/nomad/plugins/drivers/raw_exec/shared"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/raw-exec/shared"
 )
 
 func main() {
