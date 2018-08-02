@@ -209,7 +209,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, taskInfo *TaskInfo) (*driver.Sta
 		MinPort:  ctx.MinPort,
 	}
 
-	exec, pluginClient, err := createExecutor2(ctx.TaskDir.LogOutput, executorConfig)
+	exec, pluginClient, err := createExecutor(ctx.TaskDir.LogOutput, executorConfig)
 	if err != nil {
 		return nil, err
 	}
