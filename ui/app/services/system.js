@@ -1,6 +1,7 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import PromiseObject from '../utils/classes/promise-object';
+import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
 
 export default Service.extend({
@@ -21,6 +22,41 @@ export default Service.extend({
           return leader;
         }),
     });
+  }),
+
+  regions: computed(function() {
+    const token = this.get('token');
+
+    return PromiseArray.create({
+      promise: token.authorizedRequest(`/${namespace}/regions`).then(res => res.json()),
+    });
+  }),
+
+  activeRegion: computed('regions.[]', {
+    get() {
+      const regions = this.get('regions');
+      const region = window.localStorage.nomadActiveRegion;
+
+      if (regions.includes(region)) {
+        return region;
+      }
+
+      // If the region in localStorage is no longer in the cluster, it needs to
+      // be cleared from localStorage
+      this.set('activeRegion', null);
+      return null;
+    },
+    set(key, value) {
+      if (value == null) {
+        window.localStorage.removeItem('nomadActiveRegion');
+      } else {
+        // All localStorage values are strings. Stringify first so
+        // the return value is consistent with what is persisted.
+        const strValue = value + '';
+        window.localStorage.nomadActiveRegion = strValue;
+        return strValue;
+      }
+    },
   }),
 
   namespaces: computed(function() {
