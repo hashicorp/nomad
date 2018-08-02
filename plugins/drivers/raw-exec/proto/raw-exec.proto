@@ -80,7 +80,16 @@ message TaskState {
   uint32 pid = 2;
 }
 
+message StopRequest {
+  TaskState taskState = 1;
+}
+
+message StopResponse {
+  string error = 1;
+}
+
 service RawExec {
     rpc Start(StartRequest) returns (StartResponse);
+    rpc Stop(StopRequest) returns (StopResponse);
 }
 

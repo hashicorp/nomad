@@ -319,6 +319,10 @@ func (h *rawExecHandle) ID() string {
 	return string(data)
 }
 
+func (d *RawExecDriver) Stop(ts *proto.TaskState) (*proto.StopResponse, error) {
+	return nil, nil
+}
+
 func (h *rawExecHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
