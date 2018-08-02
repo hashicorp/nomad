@@ -42,12 +42,21 @@ func main() {
 
 	rawExec := raw.(shared.RawExec)
 
+	result, err := rawExec.Start(getExampleExecContext(), getExampleTaskInfo())
+	if err != nil {
+		fmt.Printf("Encountered errors: %s \n", err.Error())
+	}
+
+	fmt.Printf(": %s \n", result)
+}
+
+func getExampleExecContext() *proto.ExecContext {
 	currentDir, err := os.Getwd() // TODO
 	if err != nil {
 		panic(fmt.Sprintf("encoungered error when getting current dir: %s", err.Error()))
 	}
 
-	execCtx := &proto.ExecContext{
+	return &proto.ExecContext{
 		TaskDir: &proto.TaskDir{
 			Directory: currentDir,
 			LogDir:    currentDir,
@@ -55,6 +64,9 @@ func main() {
 		},
 		TaskEnv: &proto.TaskEnv{},
 	}
+}
+
+func getExampleTaskInfo() *proto.TaskInfo {
 	jsonConfig := `{
                     "Command":"echo",
                     "Args":["the", "quick", "brown", "fox", "jumped"]
@@ -63,13 +75,12 @@ func main() {
 
 	reader := strings.NewReader(jsonConfig)
 	structConfig := &_struct.Struct{}
-	err = unMarshaller.Unmarshal(reader, structConfig)
-
-	if err != nil {
+	if err := unMarshaller.Unmarshal(reader, structConfig); err != nil {
 		fmt.Println("Error unmarshalling json into protobuf Struct:%v", err)
 		os.Exit(-1)
 	}
-	taskInfo := &proto.TaskInfo{
+
+	return &proto.TaskInfo{
 		Resources: &proto.Resources{
 			Cpu:      250,
 			MemoryMb: 256,
@@ -81,11 +92,4 @@ func main() {
 		},
 		Config: structConfig,
 	}
-
-	result, err := rawExec.Start(execCtx, taskInfo)
-	if err != nil {
-		fmt.Printf("Encountered errors: %s \n", err.Error())
-	}
-
-	fmt.Printf(": %s \n", result)
 }
