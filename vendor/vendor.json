@@ -150,7 +150,7 @@
 		{"path":"github.com/hashicorp/go-envparse","checksumSHA1":"FKmqR4DC3nCXtnT9pe02z5CLNWo=","revision":"310ca1881b22af3522e3a8638c0b426629886196","revisionTime":"2018-01-19T21:58:41Z"},
 		{"path":"github.com/hashicorp/go-getter","checksumSHA1":"uGH6AI982csQJoRPsSooK7FoWqo=","revision":"3f60ec5cfbb2a39731571b9ddae54b303bb0a969","revisionTime":"2018-04-25T22:41:30Z"},
 		{"path":"github.com/hashicorp/go-getter/helper/url","checksumSHA1":"9J+kDr29yDrwsdu2ULzewmqGjpA=","revision":"b345bfcec894fb7ff3fdf9b21baf2f56ea423d98","revisionTime":"2018-04-10T17:49:45Z"},
-		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"miVF4/7JP0lRwZvFJGKwZWk7aAQ=","revision":"b4e5765d1e5f00a0550911084f45f8214b5b83b9","revisionTime":"2017-07-16T17:45:23Z"},
+		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"dOP7kCX3dACHc9mU79826N411QA=","revision":"ff2cf002a8dd750586d91dddd4470c341f981fe1","revisionTime":"2018-07-09T16:53:50Z"},
 		{"path":"github.com/hashicorp/go-immutable-radix","checksumSHA1":"Cas2nprG6pWzf05A2F/OlnjUu2Y=","revision":"8aac2701530899b64bdea735a1de8da899815220","revisionTime":"2017-07-25T22:12:15Z"},
 		{"path":"github.com/hashicorp/go-memdb","checksumSHA1":"FMAvwDar2bQyYAW4XMFhAt0J5xA=","revision":"20ff6434c1cc49b80963d45bf5c6aa89c78d8d57","revisionTime":"2017-08-31T20:15:40Z"},
 		{"path":"github.com/hashicorp/go-msgpack/codec","revision":"fa3f63826f7c23912c15263591e65d54d080b458"},
