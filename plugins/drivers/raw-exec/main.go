@@ -47,7 +47,7 @@ func main() {
 		fmt.Printf("Encountered errors: %s \n", err.Error())
 	}
 
-	fmt.Printf(": %s \n", result)
+	fmt.Printf("Task Started %s \n", result)
 }
 
 func getExampleExecContext() *proto.ExecContext {
