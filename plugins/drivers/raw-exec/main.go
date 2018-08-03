@@ -50,13 +50,14 @@ func main() {
 
 	fmt.Printf("Task started: %d !\n", result.TaskState.Pid)
 	time.Sleep(20 * time.Second)
+	fmt.Printf("killing Task after 20 seconds: %d !\n", result.TaskState.Pid)
 
 	stopResult, err := rawExec.Stop(result.TaskState)
 	if err != nil {
 		fmt.Printf("Encountered errors: %s \n", err.Error())
 	}
 
-	fmt.Printf("Task stopped: %d !\n", stopResult.Pid)
+	fmt.Printf("Task stopped: %d !\n\n", stopResult.Pid)
 }
 
 func getExampleExecContext() *proto.ExecContext {
@@ -78,7 +79,7 @@ func getExampleExecContext() *proto.ExecContext {
 func getExampleTaskInfo() *proto.TaskInfo {
 	jsonConfig := `{
                     "Command":"sleep",
-                    "Args":["30"]
+                    "Args":["50"]
                    }`
 	unMarshaller := jsonpb.Unmarshaler{AllowUnknownFields: false}
 

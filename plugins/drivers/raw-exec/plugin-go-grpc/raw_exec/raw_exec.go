@@ -47,6 +47,8 @@ type RawExecDriver struct {
 	// useCgroup tracks whether we should use a cgroup to manage the process
 	// tree
 	useCgroup bool
+
+	Tasks map[string]*rawExecHandle
 }
 
 // LogEventFn is a callback which allows Drivers to emit task events.
@@ -75,7 +77,10 @@ type RawExecTaskConfig struct {
 
 // NewRawExecDriver is used to create a new raw exec driver
 func NewRawExecDriver(ctx *DriverContext) *RawExecDriver {
-	return &RawExecDriver{DriverContext: *ctx}
+	return &RawExecDriver{
+		DriverContext: *ctx,
+		Tasks:         make(map[string]*rawExecHandle, 0),
+	}
 }
 
 // Validate is used to validate the driver configuration
@@ -136,6 +141,18 @@ func (d *RawExecDriver) Prestart(*driver.ExecContext, *structs.Task) (*driver.Pr
 	}
 
 	return nil, nil
+}
+
+func (d *RawExecDriver) persistTask(h *rawExecHandle) {
+	d.Tasks[h.ID()] = h
+}
+
+func (d *RawExecDriver) getTask(id string) (*rawExecHandle, error) {
+	h := d.Tasks[id]
+	if h == nil {
+		return nil, fmt.Errorf("No task with this ID")
+	}
+	return h, nil
 }
 
 func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*proto.StartResponse, error) {
@@ -236,11 +253,7 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 	}
 	go h.run()
 
-	// TODO quick and dirty persistance layer
-	if persistedTasks == nil {
-		persistedTasks = make(map[string]*rawExecHandle, 0)
-	}
-	persistedTasks[h.ID()] = h
+	d.persistTask(h)
 
 	resp := &proto.StartResponse{
 		TaskState: &proto.TaskState{
@@ -331,12 +344,11 @@ func (h *rawExecHandle) ID() string {
 	return string(data)
 }
 
-// TODO quick and dirty for demo purposes
 func (d *RawExecDriver) Stop(ts *proto.TaskState) (*proto.StopResponse, error) {
-	h := persistedTasks[ts.TaskId]
+	h, err := d.getTask(ts.TaskId)
 
-	if h == nil {
-		return &proto.StopResponse{}, fmt.Errorf("no existing task")
+	if err != nil {
+		return &proto.StopResponse{}, err
 	}
 
 	if err := h.executor.ShutDown(); err != nil {
