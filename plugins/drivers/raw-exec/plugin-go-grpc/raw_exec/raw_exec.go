@@ -142,7 +142,7 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 	execCtx := unmarshallExecContext(ctx)
 	taskInfo, err := unmarshallTaskInfo(tInfo)
 	if err != nil {
-		return nil, err
+		return &proto.StartResponse{}, err
 	}
 
 	pluginLogFile := filepath.Join(execCtx.TaskDir.Dir, "executor.out")
@@ -155,7 +155,7 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 
 	exec, pluginClient, err := createExecutor(execCtx.TaskDir.LogOutput, executorConfig)
 	if err != nil {
-		return nil, err
+		return &proto.StartResponse{}, err
 	}
 	task := &structs.Task{
 		Name:   taskInfo.Name,
@@ -189,13 +189,13 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 	}
 	if err := exec.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
+		return &proto.StartResponse{}, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
 	// TODO taskKillSignal, err := getTaskKillSignal(taskInfo.KillSignal)
 	taskKillSignal, err := getTaskKillSignal("")
 	if err != nil {
-		return nil, err
+		return &proto.StartResponse{}, err
 	}
 
 	execCmd := &executor.ExecCommand{
@@ -208,7 +208,7 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 	ps, err := exec.LaunchCmd(execCmd)
 	if err != nil {
 		pluginClient.Kill()
-		return nil, err
+		return &proto.StartResponse{}, err
 	}
 	// TODO d.logger.Printf("[DEBUG] driver.raw_exec: started process with pid: %v", ps.Pid)
 
