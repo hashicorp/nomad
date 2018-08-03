@@ -14,12 +14,24 @@ func (m *RPCClient) Start(req *proto.StartRequest) (*proto.StartResponse, error)
 	return &resp, err
 }
 
+func (m *RPCClient) Stop(req *proto.StopRequest) (*proto.StopResponse, error) {
+	var resp proto.StopResponse
+	err := m.client.Call("Plugin.Stop", req, &resp)
+	return &resp, err
+}
+
 type RPCServer struct {
 	Impl RawExec
 }
 
 func (m *RPCServer) Start(req *proto.StartRequest, resp *proto.StartResponse) error {
 	v, err := m.Impl.Start(req.ExecContext, req.TaskInfo)
+	resp = v
+	return err
+}
+
+func (m *RPCServer) Stop(req *proto.StopRequest, resp *proto.StopResponse) error {
+	v, err := m.Impl.Stop(req.TaskState)
 	resp = v
 	return err
 }

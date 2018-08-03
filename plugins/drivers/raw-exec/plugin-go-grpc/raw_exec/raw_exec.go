@@ -47,13 +47,15 @@ type RawExecDriver struct {
 	// useCgroup tracks whether we should use a cgroup to manage the process
 	// tree
 	useCgroup bool
+
+	Tasks map[string]*taskHandle
 }
 
 // LogEventFn is a callback which allows Drivers to emit task events.
 type LogEventFn func(message string, args ...interface{})
 
-// rawExecHandle is returned from Start/Open as a handle to the PID
-type rawExecHandle struct {
+// taskHandle is returned from Start/Open as a handle to the PID
+type taskHandle struct {
 	version         string
 	pluginClient    *plugin.Client
 	userPid         int
@@ -75,7 +77,10 @@ type RawExecTaskConfig struct {
 
 // NewRawExecDriver is used to create a new raw exec driver
 func NewRawExecDriver(ctx *DriverContext) *RawExecDriver {
-	return &RawExecDriver{DriverContext: *ctx}
+	return &RawExecDriver{
+		DriverContext: *ctx,
+		Tasks:         make(map[string]*taskHandle, 0),
+	}
 }
 
 // Validate is used to validate the driver configuration
@@ -136,6 +141,18 @@ func (d *RawExecDriver) Prestart(*driver.ExecContext, *structs.Task) (*driver.Pr
 	}
 
 	return nil, nil
+}
+
+func (d *RawExecDriver) persistTask(h *taskHandle) {
+	d.Tasks[h.ID()] = h
+}
+
+func (d *RawExecDriver) getTask(id string) (*taskHandle, error) {
+	h := d.Tasks[id]
+	if h == nil {
+		return nil, fmt.Errorf("No task with this ID")
+	}
+	return h, nil
 }
 
 func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*proto.StartResponse, error) {
@@ -214,7 +231,7 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 
 	// Return a driver handle
 	maxKill := execCtx.MaxKillTimeout
-	h := &rawExecHandle{
+	h := &taskHandle{
 		pluginClient:    pluginClient,
 		executor:        exec,
 		isolationConfig: ps.IsolationConfig,
@@ -235,8 +252,14 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 		},
 	}
 	go h.run()
+
+	d.persistTask(h)
+
 	resp := &proto.StartResponse{
-		TaskId: h.ID(),
+		TaskState: &proto.TaskState{
+			TaskId: h.ID(),
+			Pid:    uint32(h.userPid),
+		},
 	}
 	return resp, nil
 }
@@ -282,7 +305,7 @@ func (d *RawExecDriver) Open(ctx *driver.ExecContext, handleID string) (driver.D
 	// TODO d.logger.Printf("[DEBUG] driver.raw_exec: version of executor: %v", ver.Version)
 
 	// Return a driver handle
-	h := &rawExecHandle{
+	h := &taskHandle{
 		pluginClient:    pluginClient,
 		executor:        exec,
 		userPid:         id.UserPid,
@@ -300,7 +323,7 @@ func (d *RawExecDriver) Open(ctx *driver.ExecContext, handleID string) (driver.D
 	return h, nil
 }
 
-func (h *rawExecHandle) ID() string {
+func (h *taskHandle) ID() string {
 	id := rawExecId{
 		Version:         h.version,
 		KillTimeout:     h.killTimeout,
@@ -317,11 +340,42 @@ func (h *rawExecHandle) ID() string {
 	return string(data)
 }
 
-func (h *rawExecHandle) WaitCh() chan *dstructs.WaitResult {
+func (d *RawExecDriver) Stop(ts *proto.TaskState) (*proto.StopResponse, error) {
+	h, err := d.getTask(ts.TaskId)
+
+	if err != nil {
+		return &proto.StopResponse{}, err
+	}
+
+	if err := h.executor.ShutDown(); err != nil {
+		if h.pluginClient.Exited() {
+			return &proto.StopResponse{}, nil
+		}
+		return &proto.StopResponse{}, fmt.Errorf("executor Shutdown failed: %v", err)
+	}
+
+	select {
+	case <-h.doneCh:
+		return &proto.StopResponse{}, nil
+	case <-time.After(h.killTimeout):
+		if h.pluginClient.Exited() {
+			return &proto.StopResponse{}, nil
+		}
+		if err := h.executor.Exit(); err != nil {
+			return &proto.StopResponse{}, fmt.Errorf("executor Exit failed: %v", err)
+		}
+
+		return &proto.StopResponse{
+			Pid: uint32(h.userPid),
+		}, nil
+	}
+}
+
+func (h *taskHandle) WaitCh() chan *dstructs.WaitResult {
 	return h.waitCh
 }
 
-func (h *rawExecHandle) Update(task *structs.Task) error {
+func (h *taskHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
 	h.executor.UpdateTask(task)
@@ -330,15 +384,15 @@ func (h *rawExecHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-func (h *rawExecHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
 	return executor.ExecScript(ctx, h.taskDir.Dir, h.taskEnv, nil, cmd, args)
 }
 
-func (h *rawExecHandle) Signal(s os.Signal) error {
+func (h *taskHandle) Signal(s os.Signal) error {
 	return h.executor.Signal(s)
 }
 
-func (h *rawExecHandle) Kill() error {
+func (h *taskHandle) Kill() error {
 	if err := h.executor.ShutDown(); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
@@ -361,11 +415,11 @@ func (h *rawExecHandle) Kill() error {
 	}
 }
 
-func (h *rawExecHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+func (h *taskHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	return h.executor.Stats()
 }
 
-func (h *rawExecHandle) run() {
+func (h *taskHandle) run() {
 	ps, werr := h.executor.Wait()
 	close(h.doneCh)
 	if ps.ExitCode == 0 && werr != nil {

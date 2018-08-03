@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/hashicorp/go-plugin"
 
@@ -47,7 +48,16 @@ func main() {
 		fmt.Printf("Encountered errors: %s \n", err.Error())
 	}
 
-	fmt.Printf("Task Started %s \n", result)
+	fmt.Printf("Task started: %d !\n", result.TaskState.Pid)
+	time.Sleep(20 * time.Second)
+	fmt.Printf("killing Task after 20 seconds: %d !\n", result.TaskState.Pid)
+
+	stopResult, err := rawExec.Stop(result.TaskState)
+	if err != nil {
+		fmt.Printf("Encountered errors: %s \n", err.Error())
+	}
+
+	fmt.Printf("Task stopped: %d !\n\n", stopResult.Pid)
 }
 
 func getExampleExecContext() *proto.ExecContext {
@@ -68,8 +78,8 @@ func getExampleExecContext() *proto.ExecContext {
 
 func getExampleTaskInfo() *proto.TaskInfo {
 	jsonConfig := `{
-                    "Command":"echo",
-                    "Args":["the", "quick", "brown", "fox", "jumped"]
+                    "Command":"sleep",
+                    "Args":["50"]
                    }`
 	unMarshaller := jsonpb.Unmarshaler{AllowUnknownFields: false}
 

@@ -68,13 +68,28 @@ message DriverNetwork {
   bool auto_advertise = 3;
 }
 
+message Empty {}
+
 message StartResponse {
-  string task_id = 1;
-  DriverNetwork driver_network = 2;
+  DriverNetwork driver_network = 1;
+  TaskState taskState = 2;
 }
 
-message Empty {}
+message TaskState {
+  string task_id = 1;
+  uint32 pid = 2;
+}
+
+message StopRequest {
+  TaskState taskState = 1;
+}
+
+message StopResponse {
+  uint32 Pid = 1;
+}
 
 service RawExec {
     rpc Start(StartRequest) returns (StartResponse);
+    rpc Stop(StopRequest) returns (StopResponse);
 }
+
