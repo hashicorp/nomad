@@ -348,7 +348,7 @@ func (d *RawExecDriver) Stop(ts *proto.TaskState) (*proto.StopResponse, error) {
 
 	select {
 	case <-h.doneCh:
-		return nil, nil
+		return &proto.StopResponse{}, nil
 	case <-time.After(h.killTimeout):
 		if h.pluginClient.Exited() {
 			return &proto.StopResponse{}, nil
