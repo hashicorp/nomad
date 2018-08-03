@@ -235,9 +235,17 @@ func (d *RawExecDriver) Start(ctx *proto.ExecContext, tInfo *proto.TaskInfo) (*p
 		},
 	}
 	go h.run()
+
+	// TODO quick and dirty persistance layer
+	if persistedTasks == nil {
+		persistedTasks = make(map[string]*rawExecHandle, 0)
+	}
+	persistedTasks[h.ID()] = h
+
 	resp := &proto.StartResponse{
 		TaskState: &proto.TaskState{
 			TaskId: h.ID(),
+			Pid:    uint32(h.userPid),
 		},
 	}
 	return resp, nil
@@ -302,6 +310,10 @@ func (d *RawExecDriver) Open(ctx *driver.ExecContext, handleID string) (driver.D
 	return h, nil
 }
 
+// TODO add a quick and dirty global list where we store handles, and then look
+// this up to kill the process.
+var persistedTasks map[string]*rawExecHandle
+
 func (h *rawExecHandle) ID() string {
 	id := rawExecId{
 		Version:         h.version,
@@ -319,8 +331,36 @@ func (h *rawExecHandle) ID() string {
 	return string(data)
 }
 
+// TODO quick and dirty for demo purposes
 func (d *RawExecDriver) Stop(ts *proto.TaskState) (*proto.StopResponse, error) {
-	return nil, nil
+	h := persistedTasks[ts.TaskId]
+
+	if h == nil {
+		return &proto.StopResponse{}, fmt.Errorf("no existing task")
+	}
+
+	if err := h.executor.ShutDown(); err != nil {
+		if h.pluginClient.Exited() {
+			return &proto.StopResponse{}, nil
+		}
+		return &proto.StopResponse{}, fmt.Errorf("executor Shutdown failed: %v", err)
+	}
+
+	select {
+	case <-h.doneCh:
+		return nil, nil
+	case <-time.After(h.killTimeout):
+		if h.pluginClient.Exited() {
+			return &proto.StopResponse{}, nil
+		}
+		if err := h.executor.Exit(); err != nil {
+			return &proto.StopResponse{}, fmt.Errorf("executor Exit failed: %v", err)
+		}
+
+		return &proto.StopResponse{
+			Pid: uint32(h.userPid),
+		}, nil
+	}
 }
 
 func (h *rawExecHandle) WaitCh() chan *dstructs.WaitResult {

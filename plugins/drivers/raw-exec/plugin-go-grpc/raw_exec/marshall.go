@@ -21,7 +21,7 @@ func unmarshallExecContext(ctx *proto.ExecContext) *ExecContext {
 		},
 		MaxPort:        5000,
 		MinPort:        2000,
-		MaxKillTimeout: time.Duration(5),
+		MaxKillTimeout: time.Duration(40),
 		Version:        "1.0", // TODO was d.DriverContext.Config.Version.VersionNumber()
 	}
 }

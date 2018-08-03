@@ -85,7 +85,7 @@ message StopRequest {
 }
 
 message StopResponse {
-  string error = 1;
+  uint32 Pid = 1;
 }
 
 service RawExec {
