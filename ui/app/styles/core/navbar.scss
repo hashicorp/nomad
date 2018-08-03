@@ -75,6 +75,15 @@
 
     &.is-gutter {
       width: $gutter-width;
+      display: block;
+      padding: 0 1rem;
+      font-size: 1em;
+
+      // Unfortunate necessity to middle align an element larger than
+      // plain text in the subnav.
+      > * {
+        margin: -5px 0;
+      }
 
       @media #{$mq-hidden-gutter} {
         width: 0;
