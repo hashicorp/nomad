@@ -323,10 +323,6 @@ func (d *RawExecDriver) Open(ctx *driver.ExecContext, handleID string) (driver.D
 	return h, nil
 }
 
-// TODO add a quick and dirty global list where we store handles, and then look
-// this up to kill the process.
-var persistedTasks map[string]*taskHandle
-
 func (h *taskHandle) ID() string {
 	id := rawExecId{
 		Version:         h.version,
