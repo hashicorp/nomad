@@ -15,10 +15,6 @@ export default Route.extend(WithForbiddenState, {
     },
   ],
 
-  beforeModel() {
-    return this.get('system.namespaces');
-  },
-
   model() {
     return this.get('store')
       .findAll('job', { reload: true })
