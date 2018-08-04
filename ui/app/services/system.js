@@ -8,7 +8,7 @@ export default Service.extend({
   token: service(),
   store: service(),
 
-  leader: computed(function() {
+  leader: computed('activeRegion', function() {
     const token = this.get('token');
 
     return PromiseObject.create({
@@ -59,8 +59,16 @@ export default Service.extend({
     },
   }),
 
-  namespaces: computed(function() {
-    return this.get('store').findAll('namespace');
+  shouldShowRegions: computed('regions.[]', function() {
+    return this.get('regions.length') > 1;
+  }),
+
+  namespaces: computed('activeRegion', function() {
+    return PromiseArray.create({
+      promise: this.get('store')
+        .findAll('namespace')
+        .then(namespaces => namespaces.compact()),
+    });
   }),
 
   shouldShowNamespaces: computed('namespaces.[]', function() {
@@ -94,4 +102,8 @@ export default Service.extend({
       }
     },
   }),
+
+  reset() {
+    this.set('activeNamespace', null);
+  },
 });
