@@ -2,10 +2,17 @@ import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { next } from '@ember/runloop';
 import { AbortError } from 'ember-data/adapters/errors';
+import RSVP from 'rsvp';
 
 export default Route.extend({
   config: service(),
   system: service(),
+
+  queryParams: {
+    region: {
+      refreshModel: true,
+    },
+  },
 
   resetController(controller, isExiting) {
     if (isExiting) {
@@ -14,7 +21,7 @@ export default Route.extend({
   },
 
   beforeModel() {
-    return this.get('system.regions');
+    return RSVP.all([this.get('system.regions'), this.get('system.namespaces')]);
   },
 
   syncToController(controller) {
