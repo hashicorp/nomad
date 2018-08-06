@@ -49,4 +49,12 @@
       border-top: 1px solid $grey-blue;
     }
   }
+
+  .collapsed-only + .menu-label {
+    border-top: none;
+
+    @media #{$mq-hidden-gutter} {
+      border-top: 1px solid $grey-blue;
+    }
+  }
 }
