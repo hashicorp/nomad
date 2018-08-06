@@ -10,10 +10,4 @@ export default Route.extend(WithWatchers, {
 
   watch: watchAll('job'),
   watchers: collect('watch'),
-
-  actions: {
-    refreshRoute() {
-      return true;
-    },
-  },
 });

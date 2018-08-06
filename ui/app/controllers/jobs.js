@@ -18,12 +18,6 @@ export default Controller.extend({
   // But query param defaults can't be CPs: https://github.com/emberjs/ember.js/issues/9819
   syncNamespaceService: forwardNamespace('jobNamespace', 'system.activeNamespace'),
   syncNamespaceParam: forwardNamespace('system.activeNamespace', 'jobNamespace'),
-
-  actions: {
-    refreshRoute() {
-      return true;
-    },
-  },
 });
 
 function forwardNamespace(source, destination) {
