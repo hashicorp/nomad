@@ -2,6 +2,7 @@
   padding: 0.3em 16px 0.3em 0.3em;
   border-radius: $radius;
   box-shadow: $button-box-shadow-standard;
+  background: $white-bis;
 
   &.is-outlined {
     border-color: rgba($white, 0.5);
