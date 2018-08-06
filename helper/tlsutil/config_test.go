@@ -647,25 +647,27 @@ func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 func TestConfig_ParseCiphers_Valid(t *testing.T) {
 	require := require.New(t)
 
-	validCiphers := strings.Join([]string{
-		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
-		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-		"TLS_RSA_WITH_AES_128_GCM_SHA256",
-		"TLS_RSA_WITH_AES_256_GCM_SHA384",
-		"TLS_RSA_WITH_AES_128_CBC_SHA256",
-		"TLS_RSA_WITH_AES_128_CBC_SHA",
-		"TLS_RSA_WITH_AES_256_CBC_SHA",
-	}, ",")
+	tlsConfig := &config.TLSConfig{
+		TLSCipherSuites: strings.Join([]string{
+			"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
+			"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+			"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+			"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+			"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+			"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+			"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+			"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+			"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+			"TLS_RSA_WITH_AES_128_GCM_SHA256",
+			"TLS_RSA_WITH_AES_256_GCM_SHA384",
+			"TLS_RSA_WITH_AES_128_CBC_SHA256",
+			"TLS_RSA_WITH_AES_128_CBC_SHA",
+			"TLS_RSA_WITH_AES_256_CBC_SHA",
+		}, ","),
+	}
 
 	expectedCiphers := []uint16{
 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
@@ -687,7 +689,7 @@ func TestConfig_ParseCiphers_Valid(t *testing.T) {
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 	}
 
-	parsedCiphers, err := ParseCiphers(validCiphers)
+	parsedCiphers, err := ParseCiphers(tlsConfig)
 	require.Nil(err)
 	require.Equal(parsedCiphers, expectedCiphers)
 }
@@ -708,7 +710,8 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
 
-	parsedCiphers, err := ParseCiphers("")
+	empty := &config.TLSConfig{}
+	parsedCiphers, err := ParseCiphers(empty)
 	require.Nil(err)
 	require.Equal(parsedCiphers, expectedCiphers)
 }
@@ -722,7 +725,10 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	}
 
 	for _, cipher := range invalidCiphers {
-		parsedCiphers, err := ParseCiphers(cipher)
+		tlsConfig := &config.TLSConfig{
+			TLSCipherSuites: cipher,
+		}
+		parsedCiphers, err := ParseCiphers(tlsConfig)
 		require.NotNil(err)
 		require.Equal(fmt.Sprintf("unsupported TLS cipher %q", cipher), err.Error())
 		require.Equal(0, len(parsedCiphers))

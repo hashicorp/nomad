@@ -125,7 +125,7 @@ type Config struct {
 }
 
 func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoing bool) (*Config, error) {
-	ciphers, err := ParseCiphers(newConf.TLSCipherSuites)
+	ciphers, err := ParseCiphers(newConf)
 	if err != nil {
 		return nil, err
 	}
@@ -385,17 +385,17 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 
 // ParseCiphers parses ciphersuites from the comma-separated string into
 // recognized slice
-func ParseCiphers(cipherStr string) ([]uint16, error) {
+func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 	suites := []uint16{}
 
-	cipherStr = strings.TrimSpace(cipherStr)
+	cipherStr := strings.TrimSpace(tlsConfig.TLSCipherSuites)
 
 	var ciphers []string
 	if cipherStr == "" {
 		ciphers = defaultTLSCiphers
 
 	} else {
-		ciphers = strings.Split(cipherStr, ",")
+		ciphers = strings.Split(tlsConfig.TLSCipherSuites, ",")
 	}
 	for _, cipher := range ciphers {
 		c, ok := supportedTLSCiphers[cipher]

@@ -844,7 +844,7 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		return err
 	}
 
-	if _, err := tlsutil.ParseCiphers(tlsConfig.TLSCipherSuites); err != nil {
+	if _, err := tlsutil.ParseCiphers(&tlsConfig); err != nil {
 		return err
 	}
 
