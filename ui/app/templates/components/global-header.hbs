@@ -17,17 +17,7 @@
 </nav>
 <div class="navbar is-secondary">
   <div class="navbar-item is-gutter">
-    {{#if system.shouldShowRegions}}
-      {{#power-select
-        data-test-region-switcher
-        triggerClass="is-outlined"
-        options=sortedRegions
-        selected=system.activeRegion
-        searchEnabled=false
-        onchange=(action gotoRegion) as |region|}}
-        <span class="ember-power-select-prefix">Region: </span>{{region}}
-      {{/power-select}}
-    {{/if}}
+    {{region-switcher decoration="is-outlined"}}
   </div>
   <nav class="breadcrumb is-large">
     <ul>
