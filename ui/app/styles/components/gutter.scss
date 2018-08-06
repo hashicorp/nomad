@@ -3,11 +3,19 @@
   border-right: 1px solid $grey-blue;
   overflow: hidden;
 
+  .collapsed-only {
+    display: none;
+  }
+
   @media #{$mq-hidden-gutter} {
     border-right: none;
 
     &.is-open {
       box-shadow: 0 0 30px darken($nomad-green-darker, 20%);
+    }
+
+    .collapsed-only {
+      display: inherit;
     }
   }
 
