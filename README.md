@@ -130,6 +130,9 @@ $ make dev-ui
 ...
 $ bin/nomad
 ...
+
+To compile protobuf files, installing protoc is required: See
+https://github.com/google/protobuf for more information.
 ```
 
 **Note:** Building the Nomad UI from source requires Node, Yarn, and Ember CLI. These tools are already in the Vagrant VM. Read the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for more info.
