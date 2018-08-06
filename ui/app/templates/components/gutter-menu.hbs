@@ -9,6 +9,20 @@
       </span>
     </header>
     <aside class="menu">
+      {{#if system.shouldShowRegions}}
+        <div class="collapsed-only">
+          <p class="menu-label">
+            Region
+          </p>
+          <ul class="menu-list">
+            <li>
+              <div class="menu-item is-wide">
+                {{region-switcher}}
+              </div>
+            </li>
+          </ul>
+        </div>
+     {{/if}}
       <p class="menu-label">
         Workload
       </p>
