@@ -35,3 +35,9 @@ func (m *RPCServer) Stop(req *proto.StopRequest, resp *proto.StopResponse) error
 	resp = v
 	return err
 }
+
+func (m *RPCServer) Restore(req *proto.RestoreRequest, resp *proto.RestoreResponse) error {
+	v, err := m.Impl.Restore(req.TaskStates)
+	resp = v
+	return err
+}

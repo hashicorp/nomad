@@ -32,6 +32,18 @@ func (m *GRPCClient) Stop(tc *proto.TaskState) (*proto.StopResponse, error) {
 	return resp, nil
 }
 
+func (m *GRPCClient) Restore(taskStates []*proto.TaskState) (*proto.RestoreResponse, error) {
+	req := &proto.RestoreRequest{
+		TaskStates: taskStates,
+	}
+	resp, err := m.client.Restore(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 type GRPCServer struct {
 	Impl RawExec
 }
@@ -47,5 +59,12 @@ func (m *GRPCServer) Stop(
 	ctx context.Context,
 	req *proto.StopRequest) (*proto.StopResponse, error) {
 	resp, err := m.Impl.Stop(req.TaskState)
+	return resp, err
+}
+
+func (m *GRPCServer) Restore(
+	ctx context.Context,
+	req *proto.RestoreRequest) (*proto.RestoreResponse, error) {
+	resp, err := m.Impl.Restore(req.TaskStates)
 	return resp, err
 }
