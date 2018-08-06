@@ -86,8 +86,7 @@
       }
 
       @media #{$mq-hidden-gutter} {
-        width: 0;
-        visibility: hidden;
+        display: none;
       }
     }
   }
