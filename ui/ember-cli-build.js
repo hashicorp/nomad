@@ -19,6 +19,9 @@ module.exports = function(defaults) {
         `${defaults.project.pkg.name}/templates/components/freestyle/**/*`,
       ],
     },
+    babel: {
+      plugins: ['transform-object-rest-spread'],
+    },
   });
 
   // Use `app.import` to add additional libraries to the generated

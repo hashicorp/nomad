@@ -232,7 +232,7 @@ test('when open, a deployment shows a list of all allocations for the deployment
       const allocation = allocations[0];
       const allocationRow = deploymentRow.allocations.objectAt(0);
 
-      assert.equal(allocationRow.id, allocation.id.split('-')[0], 'Allocation is as expected');
+      assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation is as expected');
     });
   });
 });
