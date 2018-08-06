@@ -32,7 +32,7 @@ func cgroupsMounted(node *structs.Node) bool {
 
 // createExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func createExecutor(w io.Writer, executorConfig *ExecutorConfig) (executor.Executor, *plugin.Client, error) {
+func createExecutor(w io.Writer, executorConfig *ExecutorConfig, reattachConfig *plugin.ReattachConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
 	if err != nil {
@@ -45,11 +45,12 @@ func createExecutor(w io.Writer, executorConfig *ExecutorConfig) (executor.Execu
 	// TODO
 	bin := "nomad"
 
-	config := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", string(c)),
-		AllowedProtocols: []plugin.Protocol{
-			plugin.ProtocolNetRPC,
-		},
+	config := &plugin.ClientConfig{}
+	// Set either one of reattachConfig/Cmd fields
+	if reattachConfig != nil {
+		config.Reattach = reattachConfig
+	} else {
+		config.Cmd = exec.Command(bin, "executor", string(c))
 	}
 	config.HandshakeConfig = driver.HandshakeConfig
 	config.Plugins = driver.GetPluginMap(w, executorConfig.LogLevel)
