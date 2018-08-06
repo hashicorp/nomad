@@ -1,71 +1,68 @@
-{{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
-  {{partial "jobs/job/subnav"}}
-  <section class="section">
-    {{#if allocations.length}}
-      <div class="content">
-        <div>
-          {{search-box
-            data-test-allocations-search
-            searchTerm=(mut searchTerm)
-            placeholder="Search allocations..."}}
-        </div>
+{{partial "jobs/job/subnav"}}
+<section class="section">
+  {{#if allocations.length}}
+    <div class="content">
+      <div>
+        {{search-box
+          data-test-allocations-search
+          searchTerm=(mut searchTerm)
+          placeholder="Search allocations..."}}
       </div>
-      {{#list-pagination
-        source=sortedAllocations
-        size=pageSize
-        page=currentPage
-        class="allocations" as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="with-foot" as |t|}}
-          {{#t.head}}
-            <th class="is-narrow"></th>
-            {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
-            {{#t.sort-by prop="taskGroupName"}}Task Group{{/t.sort-by}}
-            {{#t.sort-by prop="createIndex" title="Create Index"}}Created{{/t.sort-by}}
-            {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
-            {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
-            {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
-            {{#t.sort-by prop="node.shortId"}}Client{{/t.sort-by}}
-            <th>CPU</th>
-            <th>Memory</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{allocation-row
-              data-test-allocation=row.model.id
-              allocation=row.model
-              context="job"
-              onClick=(action "gotoAllocation" row.model)}}
-          {{/t.body}}
-        {{/list-table}}
-        <div class="table-foot">
-          <nav class="pagination">
-            <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
-            </div>
-            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
-            <ul class="pagination-list"></ul>
-          </nav>
-        </div>
-      {{else}}
-        <div class="boxed-section-body">
-          <div class="empty-message" data-test-empty-allocations-list>
-            <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
-            <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+    </div>
+    {{#list-pagination
+      source=sortedAllocations
+      size=pageSize
+      page=currentPage
+      class="allocations" as |p|}}
+      {{#list-table
+        source=p.list
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          <th class="is-narrow"></th>
+          {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+          {{#t.sort-by prop="taskGroupName"}}Task Group{{/t.sort-by}}
+          {{#t.sort-by prop="createIndex" title="Create Index"}}Created{{/t.sort-by}}
+          {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
+          {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
+          {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
+          {{#t.sort-by prop="node.shortId"}}Client{{/t.sort-by}}
+          <th>CPU</th>
+          <th>Memory</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          {{allocation-row
+            data-test-allocation=row.model.id
+            allocation=row.model
+            context="job"
+            onClick=(action "gotoAllocation" row.model)}}
+        {{/t.body}}
+      {{/list-table}}
+      <div class="table-foot">
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
           </div>
-        </div>
-      {{/list-pagination}}
+          {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+          {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+          <ul class="pagination-list"></ul>
+        </nav>
+      </div>
     {{else}}
       <div class="boxed-section-body">
         <div class="empty-message" data-test-empty-allocations-list>
-          <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Allocations</h3>
-          <p class="empty-message-body">No allocations have been placed.</p>
+          <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
+          <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
         </div>
       </div>
-    {{/if}}
-  </section>
-{{/gutter-menu}}
-
+    {{/list-pagination}}
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-allocations-list>
+        <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Allocations</h3>
+        <p class="empty-message-body">No allocations have been placed.</p>
+      </div>
+    </div>
+  {{/if}}
+</section>
