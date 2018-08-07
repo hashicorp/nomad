@@ -3,6 +3,7 @@ package e2e
 import (
 	"testing"
 
+	_ "github.com/hashicorp/nomad/e2e/consul"
 	_ "github.com/hashicorp/nomad/e2e/example"
 )
 
