@@ -1,6 +1,6 @@
 import { inject as service } from '@ember/service';
+import { next } from '@ember/runloop';
 import Route from '@ember/routing/route';
-import { run } from '@ember/runloop';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
@@ -15,30 +15,48 @@ export default Route.extend(WithForbiddenState, {
     },
   ],
 
-  model() {
-    return this.get('store')
-      .findAll('job', { reload: true })
-      .catch(notifyForbidden(this));
+  queryParams: {
+    jobNamespace: {
+      refreshModel: true,
+    },
   },
 
-  syncToController(controller) {
-    const namespace = this.get('system.activeNamespace.id');
+  afterSetup(fn) {
+    this._afterSetups || (this._afterSetups = []);
+    this._afterSetups.push(fn);
+  },
 
-    // The run next is necessary to let the controller figure
-    // itself out before updating QPs.
-    // See: https://github.com/emberjs/ember.js/issues/5465
-    run.next(() => {
-      if (namespace && namespace !== 'default') {
-        controller.set('jobNamespace', namespace);
-      } else {
-        controller.set('jobNamespace', 'default');
+  beforeModel(transition) {
+    return this.get('system.namespaces').then(namespaces => {
+      const queryParam = transition.queryParams.namespace;
+      const activeNamespace = this.get('system.activeNamespace.id');
+
+      if (!queryParam && activeNamespace !== 'default') {
+        this.afterSetup(controller => {
+          controller.set('jobNamespace', activeNamespace);
+        });
+      } else if (queryParam && queryParam !== activeNamespace) {
+        this.set('system.activeNamespace', queryParam);
       }
+
+      return namespaces;
     });
   },
 
   setupController(controller) {
-    this.syncToController(controller);
+    next(() => {
+      (this._afterSetups || []).forEach(fn => {
+        fn(controller);
+      });
+      this._afterSetups = [];
+    });
     return this._super(...arguments);
+  },
+
+  model() {
+    return this.get('store')
+      .findAll('job', { reload: true })
+      .catch(notifyForbidden(this));
   },
 
   actions: {
