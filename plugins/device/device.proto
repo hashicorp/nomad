@@ -5,31 +5,36 @@ import "google/protobuf/empty.proto";
 
 // DevicePlugin is the API exposed by device plugins
 service DevicePlugin {
-  // FingerprintDevices allows the device plugin to return a set of   
+  // Fingerprint allows the device plugin to return a set of   
   // detected devices and provide a mechanism to update the state of
   // the device.
-  rpc FingerprintDevices(google.protobuf.Empty) returns (stream DetectedDevices) {}
+  rpc Fingerprint(google.protobuf.Empty) returns (stream DetectedDevices) {}
 
-  // Allocate is called by the client before starting an allocation
+  // Reserve is called by the client before starting an allocation
   // that requires access to the plugin’s devices. The plugin can use
   // this to run any setup steps and provides the mounting details to 
   // the Nomad client
-  rpc Allocate(AllocateRequest) returns (AllocateResponse) {}
+  rpc Reserve(ReserveRequest) returns (ReserveResponse) {}
 }
 
 // DetectedDevices is the set of devices that the device plugin has 
 // detected and is exposing
 message DetectedDevices {
-  // device_name is the name of the device. It should be scoped by 
-  // vendor  (“nvidia/gpu”, “intel/gpu”, “amd/gpu”, …)
-  string device_name = 1;
+  // vendor is the name of the vendor of the device
+  string vendor = 1;
+
+  // device_type is the type of the device (gpu, fpga, etc).
+  string device_type = 2;
   
+  // device_name is the name of the device.
+  string device_name = 3;
+
   // devices is the set of devices detected by the plugin.
-  repeated DetectedDevice devices = 2;
+  repeated DetectedDevice devices = 4;
 
   // node_attributes allows adding node attributes to be used for 
   // constraints or affinities.
-  map<string, string> node_attributes = 3;
+  map<string, string> node_attributes = 5;
 }
 
 // DetectedDevice is a single detected device.
@@ -50,25 +55,25 @@ message DetectedDevice {
   string pci_bus_id = 4; 
 }
 
-// AllocateRequest is used to ask the device driver for information on 
+// ReserveRequest is used to ask the device driver for information on 
 // how to allocate the requested devices.
-message AllocateRequest {
+message ReserveRequest {
   // device_ids are the requested devices.
   repeated string device_ids = 1;
 }
 
-// AllocateResponse informs Nomad how to expose the requested devices
+// ReserveResponse informs Nomad how to expose the requested devices
 // to the the task.
-message AllocateResponse {
-  // container_alloc contains information on how to mount the device
+message ReserveResponse {
+  // container_res contains information on how to mount the device
   // into a task isolated using container technologies (where the 
   // host is shared)
-  ContainerAllocation container_alloc = 1;
+  ContainerReservation container_res = 1;
 }
 
-// ContainerAllocation returns how to mount the device into a 
+// ContainerReservation returns how to mount the device into a 
 // container that shares the host OS.
-message ContainerAllocation {
+message ContainerReservation {
   // List of environment variable to be set
   map<string, string> envs = 1;
 
