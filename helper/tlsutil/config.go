@@ -41,6 +41,61 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
 
+var rsa string = "RSA"
+var ecdsa string = "ECDSA"
+
+var supportedCipherSignatures = map[string]string{
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsa,
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsa,
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   rsa,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": ecdsa,
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   rsa,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": ecdsa,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   rsa,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      rsa,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": ecdsa,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    ecdsa,
+	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      rsa,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    ecdsa,
+	"TLS_RSA_WITH_AES_128_GCM_SHA256":         rsa,
+	"TLS_RSA_WITH_AES_256_GCM_SHA384":         rsa,
+	"TLS_RSA_WITH_AES_128_CBC_SHA256":         rsa,
+	"TLS_RSA_WITH_AES_128_CBC_SHA":            rsa,
+	"TLS_RSA_WITH_AES_256_CBC_SHA":            rsa,
+}
+
+var signatureAlgorithmMapping = map[x509.SignatureAlgorithm]string{
+	x509.MD2WithRSA:       rsa,
+	x509.MD5WithRSA:       rsa,
+	x509.SHA1WithRSA:      rsa,
+	x509.SHA256WithRSA:    rsa,
+	x509.SHA384WithRSA:    rsa,
+	x509.SHA512WithRSA:    rsa,
+	x509.ECDSAWithSHA1:    ecdsa,
+	x509.ECDSAWithSHA256:  ecdsa,
+	x509.ECDSAWithSHA384:  ecdsa,
+	x509.ECDSAWithSHA512:  ecdsa,
+	x509.SHA256WithRSAPSS: rsa,
+	x509.SHA384WithRSAPSS: rsa,
+	x509.SHA512WithRSAPSS: rsa,
+}
+
+func cipherSuitesSupportSignatureAlgorithm(supportedSignature x509.SignatureAlgorithm, supportedCipherSuites []string) (bool, error) {
+	supportedSignatureAlgorithm, ok := signatureAlgorithmMapping[supportedSignature]
+	if !ok {
+		return false, fmt.Errorf("Unsupported signature scheme: %s", supportedSignature.String())
+	}
+
+	for _, cipher := range supportedCipherSuites {
+		cipherSupportedAlg := supportedCipherSignatures[cipher]
+		if supportedSignatureAlgorithm == cipherSupportedAlg {
+			return true, nil
+		}
+	}
+
+	return false, fmt.Errorf("Specified cipher suites don't support %s, consider adding more cipher suites with this signature algorithm.", supportedSignatureAlgorithm)
+}
+
 // defaultTLSCiphers are the TLS Ciphers that are supported by default
 var defaultTLSCiphers = []string{
 	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",

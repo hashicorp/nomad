@@ -875,3 +875,56 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 		require.Equal(shouldReload, testCase.shouldReload, testCase.errorStr)
 	}
 }
+
+func TestConfig_ShouldDetectUnsupportedSignatureAlgorithms(t *testing.T) {
+	require := require.New(t)
+
+	type individualTestCase struct {
+		supportedSignature x509.SignatureAlgorithm
+		supportedCiphers   []string
+		isSupported        bool
+		description        string
+	}
+
+	testCases := []*individualTestCase{
+		{
+			supportedSignature: x509.SHA256WithRSA,
+			supportedCiphers: []string{
+				"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+			},
+			isSupported: true,
+			description: "Should be supported",
+		},
+		{
+			supportedSignature: x509.SHA256WithRSA,
+			supportedCiphers: []string{
+				"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+			},
+			isSupported: false,
+			description: "Should not be supported",
+		},
+		{
+			supportedSignature: x509.SHA256WithRSA,
+			supportedCiphers: []string{
+				"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+				"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+			},
+			isSupported: false,
+			description: "Multiple options without a match should not be supported",
+		},
+		{
+			supportedSignature: x509.MD2WithRSA,
+			supportedCiphers: []string{
+				"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+				"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+			},
+			isSupported: false,
+			description: "Unsupported signature should not find a match",
+		},
+	}
+
+	for _, testCase := range testCases {
+		isSupported, _ := cipherSuitesSupportSignatureAlgorithm(testCase.supportedSignature, testCase.supportedCiphers)
+		require.Equal(testCase.isSupported, isSupported, testCase.description)
+	}
+}
