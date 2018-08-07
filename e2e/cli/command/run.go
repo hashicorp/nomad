@@ -102,9 +102,7 @@ func (c *Run) Run(args []string) int {
 			return 1
 		}
 		c.Ui.Output("PASSED!")
-		if c.verbose {
-			c.Ui.Output(report.Summary())
-		}
+		c.Ui.Output(report.Summary())
 		return 0
 	}
 
