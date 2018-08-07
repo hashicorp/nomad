@@ -13,6 +13,7 @@ import (
 type F struct {
 	id string
 	*require.Assertions
+	*AsyncAssertions
 	assert *assert.Assertions
 	t      *testing.T
 
@@ -37,7 +38,9 @@ func newFWithID(id string, t *testing.T) *F {
 		t:          t,
 		Assertions: require.New(t),
 		assert:     assert.New(t),
+		data:       map[interface{}]interface{}{},
 	}
+	ft.AsyncAssertions = &AsyncAssertions{a: ft.assert}
 
 	return ft
 }

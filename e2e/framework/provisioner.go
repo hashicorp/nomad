@@ -1,9 +1,6 @@
 package framework
 
 import (
-	"fmt"
-	"os"
-
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -53,27 +50,17 @@ func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*C
 	}
 	info.NomadClient = nomadClient
 
-	if len(os.Getenv(capi.HTTPAddrEnvName)) != 0 {
-		consulClient, err := capi.NewClient(capi.DefaultConfig())
-		if err != nil && opts.ExpectConsul {
-			return nil, err
-		}
-		info.ConsulClient = consulClient
-	} else if opts.ExpectConsul {
-		return nil, fmt.Errorf("consul client expected but environment variable %s not set",
-			capi.HTTPAddrEnvName)
+	consulClient, err := capi.NewClient(capi.DefaultConfig())
+	if err != nil && opts.ExpectConsul {
+		return nil, err
 	}
+	info.ConsulClient = consulClient
 
-	if len(os.Getenv(vapi.EnvVaultAddress)) != 0 {
-		vaultClient, err := vapi.NewClient(vapi.DefaultConfig())
-		if err != nil && opts.ExpectVault {
-			return nil, err
-		}
-		info.VaultClient = vaultClient
-	} else if opts.ExpectVault {
-		return nil, fmt.Errorf("vault client expected but environment variable %s not set",
-			vapi.EnvVaultAddress)
+	vaultClient, err := vapi.NewClient(vapi.DefaultConfig())
+	if err != nil && opts.ExpectVault {
+		return nil, err
 	}
+	info.VaultClient = vaultClient
 
 	return info, err
 }

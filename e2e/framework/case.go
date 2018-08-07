@@ -3,7 +3,9 @@ package framework
 import (
 	"fmt"
 
+	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
+	vapi "github.com/hashicorp/vault/api"
 )
 
 // TestSuite defines a set of test cases and under what conditions to run them
@@ -63,6 +65,18 @@ type TC struct {
 // Nomad returns a configured nomad api client
 func (tc *TC) Nomad() *api.Client {
 	return tc.cluster.NomadClient
+}
+
+// Consul returns a configured consul api client if cluster is configured with consul,
+// otherwise returns nil
+func (tc *TC) Consul() *capi.Client {
+	return tc.cluster.ConsulClient
+}
+
+// Vault returns a configured vault api client if cluster is configured with vault,
+// otherwise returns nil
+func (tc *TC) Vault() *vapi.Client {
+	return tc.cluster.VaultClient
 }
 
 // Name returns the name of the test case which is set to the name of the
