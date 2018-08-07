@@ -166,9 +166,11 @@ test('when the allocation is found but the task is not, the application errors',
   Task.visit({ id: allocation.id, name: 'not-a-real-task-name' });
 
   andThen(() => {
-    assert.equal(
-      server.pretender.handledRequests.findBy('status', 200).url,
-      `/v1/allocation/${allocation.id}`,
+    assert.ok(
+      server.pretender.handledRequests
+        .filterBy('status', 200)
+        .mapBy('url')
+        .includes(`/v1/allocation/${allocation.id}`),
       'A request to the allocation is made successfully'
     );
     assert.equal(

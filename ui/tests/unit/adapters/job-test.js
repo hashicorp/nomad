@@ -58,13 +58,15 @@ test('The job endpoint is the only required endpoint for fetching a job', functi
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
-  assert.deepEqual(
-    pretender.handledRequests.mapBy('url'),
-    [`/v1/job/${jobName}`],
-    'The only request made is /job/:id'
-  );
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}`],
+      'The only request made is /job/:id'
+    );
+  });
 });
 
 test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', function(assert) {
@@ -81,8 +83,8 @@ test('When a namespace is set in localStorage but a job in the default namespace
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
-      [`/v1/job/${jobName}`],
-      'The one request made is /job/:id with no namespace query param'
+      ['/v1/namespaces', `/v1/job/${jobName}`],
+      'The only requests made are /namespaces and /job/:id with no namespace query param'
     );
   });
 });
@@ -95,13 +97,15 @@ test('When a namespace is in localStorage and the requested job is in the defaul
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
-  assert.deepEqual(
-    pretender.handledRequests.mapBy('url'),
-    [`/v1/job/${jobName}`],
-    'The request made is /job/:id with no namespace query param'
-  );
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}`],
+      'The request made is /job/:id with no namespace query param'
+    );
+  });
 });
 
 test('When the job has a namespace other than default, it is in the URL', function(assert) {
@@ -110,25 +114,29 @@ test('When the job has a namespace other than default, it is in the URL', functi
   const jobNamespace = 'some-namespace';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
-  assert.deepEqual(
-    pretender.handledRequests.mapBy('url'),
-    [`/v1/job/${jobName}?namespace=${jobNamespace}`],
-    'The only request made is /job/:id?namespace=:namespace'
-  );
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}?namespace=${jobNamespace}`],
+      'The only request made is /job/:id?namespace=:namespace'
+    );
+  });
 });
 
 test('When there is no token set in the token service, no x-nomad-token header is set', function(assert) {
   const { pretender } = this.server;
   const jobId = JSON.stringify(['job-1', 'default']);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
-  assert.notOk(
-    pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
-    'No token header present on either job request'
-  );
+    assert.notOk(
+      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
+      'No token header present on either job request'
+    );
+  });
 });
 
 test('When a token is set in the token service, then x-nomad-token header is set', function(assert) {
@@ -136,15 +144,17 @@ test('When a token is set in the token service, then x-nomad-token header is set
   const jobId = JSON.stringify(['job-1', 'default']);
   const secret = 'here is the secret';
 
-  this.subject().set('token.secret', secret);
-  this.subject().findRecord(null, { modelName: 'job' }, jobId);
+  return wait().then(() => {
+    this.subject().set('token.secret', secret);
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
-  assert.ok(
-    pretender.handledRequests
-      .mapBy('requestHeaders')
-      .every(headers => headers['X-Nomad-Token'] === secret),
-    'The token header is present on both job requests'
-  );
+    assert.ok(
+      pretender.handledRequests
+        .mapBy('requestHeaders')
+        .every(headers => headers['X-Nomad-Token'] === secret),
+      'The token header is present on both job requests'
+    );
+  });
 });
 
 test('findAll can be watched', function(assert) {
@@ -158,7 +168,7 @@ test('findAll can be watched', function(assert) {
 
   request();
   assert.equal(
-    pretender.handledRequests[0].url,
+    pretender.handledRequests[1].url,
     '/v1/jobs?index=1',
     'Second request is a blocking request for jobs'
   );
@@ -166,7 +176,7 @@ test('findAll can be watched', function(assert) {
   return wait().then(() => {
     request();
     assert.equal(
-      pretender.handledRequests[1].url,
+      pretender.handledRequests[2].url,
       '/v1/jobs?index=2',
       'Third request is a blocking request with an incremented index param'
     );

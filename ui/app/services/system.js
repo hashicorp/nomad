@@ -43,7 +43,7 @@ export default Service.extend({
 
       // If the region in localStorage is no longer in the cluster, it needs to
       // be cleared from localStorage
-      this.set('activeRegion', null);
+      // this.set('activeRegion', null);
       return null;
     },
     set(key, value) {
