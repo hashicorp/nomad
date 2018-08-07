@@ -1,17 +1,19 @@
 syntax = "proto3";
 package hashicorp.nomad.plugins.base;
 
-import "google/protobuf/empty.proto";
 import "hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
 
 // BasePlugin is the methods that all Nomad plugins must support.
 service BasePlugin {
 
   // PluginInfo describes the type and version of a plugin.
-  rpc PluginInfo(google.protobuf.Empty) returns (PluginInfoResponse) {}
+  rpc PluginInfo(PluginInfoRequest) returns (PluginInfoResponse) {}
 
   // ConfigSchema returns the schema for parsing the plugins configuration.
-  rpc ConfigSchema(google.protobuf.Empty) returns (ConfigSchemaResponse) {}
+  rpc ConfigSchema(ConfigSchemaRequest) returns (ConfigSchemaResponse) {}
+
+  // SetConfig is used to set the configuration.
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {}
 }
 
 // PluginType enumerates the type of plugins Nomad supports
@@ -20,6 +22,9 @@ enum PluginType {
   DRIVER = 1;
   DEVICE = 2;
 }
+
+// PluginInfoRequest is used to request the plugins basic information.
+message PluginInfoRequest {}
 
 // PluginInfoResponse returns basic information about the plugin such
 // that Nomad can decide whether to load the plugin or not.
@@ -39,8 +44,20 @@ message PluginInfoResponse {
   string name = 4;
 }
 
+// ConfigSchemaRequest is used to request the configurations schema.
+message ConfigSchemaRequest {}
+
 // ConfigSchemaResponse returns the plugins configuration schema.
 message ConfigSchemaResponse {
   // spec is the plugins configuration schema
   hashicorp.nomad.plugins.shared.hclspec.Spec spec = 1;
 }
+
+// SetConfigRequest is used to set the configuration
+message SetConfigRequest {
+  // msgpack_config is the configuration encoded as MessagePack.
+  bytes msgpack_config = 1;    
+}
+
+// SetConfigResponse is used to respond to setting the configuration
+message SetConfigResponse {}
