@@ -255,11 +255,11 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	mockNode2 := mock.Node()
 	a.Metrics = &structs.AllocMetric{
 		ScoreMetaData: map[string][]*structs.NodeScoreMeta{
-			"binpack": []*structs.NodeScoreMeta{
+			"binpack": {
 				{NodeID: mockNode1.ID, Score: 0.77},
 				{NodeID: mockNode2.ID, Score: 0.75},
 			},
-			"node-affinity": []*structs.NodeScoreMeta{
+			"node-affinity": {
 				{NodeID: mockNode1.ID, Score: 0.5},
 				{NodeID: mockNode2.ID, Score: 0.33},
 			},
