@@ -1,6 +1,6 @@
 import { inject as service } from '@ember/service';
-import Route from '@ember/routing/route';
 import { next } from '@ember/runloop';
+import Route from '@ember/routing/route';
 import { AbortError } from 'ember-data/adapters/errors';
 import RSVP from 'rsvp';
 
@@ -20,23 +20,35 @@ export default Route.extend({
     }
   },
 
-  beforeModel() {
-    return RSVP.all([this.get('system.regions'), this.get('system.namespaces')]);
+  afterSetup(fn) {
+    this._afterSetups || (this._afterSetups = []);
+    this._afterSetups.push(fn);
   },
 
-  syncToController(controller) {
-    const region = this.get('system.activeRegion');
+  beforeModel(transition) {
+    return RSVP.all([this.get('system.regions'), this.get('system.namespaces')]).then(promises => {
+      const queryParam = transition.queryParams.region;
+      const activeRegion = this.get('system.activeRegion');
 
-    // The run next is necessary to let the controller figure
-    // itself out before updating QPs.
-    // See: https://github.com/emberjs/ember.js/issues/5465
-    next(() => {
-      controller.set('region', region || 'global');
+      if (!queryParam && activeRegion) {
+        this.afterSetup(controller => {
+          controller.set('region', activeRegion);
+        });
+      } else if (queryParam && queryParam !== activeRegion) {
+        this.set('system.activeRegion', queryParam);
+      }
+
+      return promises;
     });
   },
 
   setupController(controller) {
-    this.syncToController(controller);
+    next(() => {
+      (this._afterSetups || []).forEach(fn => {
+        fn(controller);
+      });
+      this._afterSetups = [];
+    });
     return this._super(...arguments);
   },
 
