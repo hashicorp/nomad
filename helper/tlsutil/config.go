@@ -43,11 +43,14 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
 
+// algorithmStringRepr is the string representation of a signing algorithm
 type algorithmStringRepr string
 
 var rsaStringRepr algorithmStringRepr = "RSA"
 var ecdsaStringRepr algorithmStringRepr = "ECDSA"
 
+// supportedCipherSignatures is the supported cipher suites with their
+// corresponding signature algorithm
 var supportedCipherSignatures = map[string]algorithmStringRepr{
 	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsaStringRepr,
 	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsaStringRepr,
