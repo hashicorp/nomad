@@ -42,7 +42,7 @@ export default RESTAdapter.extend({
     if (region) {
       options.data.region = region;
     }
-    return this._super(...arguments);
+    return this._super(url, type, options);
   },
 
   // In order to remove stale records from the store, findHasMany has to unload
