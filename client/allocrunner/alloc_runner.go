@@ -199,45 +199,46 @@ func (r *AllocRunner) pre060StateFilePath() string {
 
 // RestoreState is used to restore the state of the alloc runner
 func (r *AllocRunner) RestoreState() error {
-	err := r.stateDB.View(func(tx *bolt.Tx) error {
-		bkt, err := state.GetAllocationBucket(tx, r.allocID)
-		if err != nil {
-			return fmt.Errorf("failed to get allocation bucket: %v", err)
-		}
+	//XXX Deprecated: see allocrunnerv2
+	//err := r.stateDB.View(func(tx *bolt.Tx) error {
+	//	bkt, err := state.GetAllocationBucket(tx, r.allocID)
+	//	if err != nil {
+	//		return fmt.Errorf("failed to get allocation bucket: %v", err)
+	//	}
 
-		// Get the state objects
-		var mutable allocRunnerMutableState
-		var immutable allocRunnerImmutableState
-		var allocState allocRunnerAllocState
-		var allocDir allocdir.AllocDir
+	//	// Get the state objects
+	//	var mutable allocRunnerMutableState
+	//	var immutable allocRunnerImmutableState
+	//	var allocState allocRunnerAllocState
+	//	var allocDir allocdir.AllocDir
 
-		if err := state.GetObject(bkt, allocRunnerStateAllocKey, &allocState); err != nil {
-			return fmt.Errorf("failed to read alloc runner alloc state: %v", err)
-		}
-		if err := state.GetObject(bkt, allocRunnerStateImmutableKey, &immutable); err != nil {
-			return fmt.Errorf("failed to read alloc runner immutable state: %v", err)
-		}
-		if err := state.GetObject(bkt, allocRunnerStateMutableKey, &mutable); err != nil {
-			return fmt.Errorf("failed to read alloc runner mutable state: %v", err)
-		}
-		if err := state.GetObject(bkt, allocRunnerStateAllocDirKey, &allocDir); err != nil {
-			return fmt.Errorf("failed to read alloc runner alloc_dir state: %v", err)
-		}
+	//	if err := state.GetObject(bkt, allocRunnerStateAllocKey, &allocState); err != nil {
+	//		return fmt.Errorf("failed to read alloc runner alloc state: %v", err)
+	//	}
+	//	if err := state.GetObject(bkt, allocRunnerStateImmutableKey, &immutable); err != nil {
+	//		return fmt.Errorf("failed to read alloc runner immutable state: %v", err)
+	//	}
+	//	if err := state.GetObject(bkt, allocRunnerStateMutableKey, &mutable); err != nil {
+	//		return fmt.Errorf("failed to read alloc runner mutable state: %v", err)
+	//	}
+	//	if err := state.GetObject(bkt, allocRunnerStateAllocDirKey, &allocDir); err != nil {
+	//		return fmt.Errorf("failed to read alloc runner alloc_dir state: %v", err)
+	//	}
 
-		// Populate the fields
-		r.alloc = allocState.Alloc
-		r.allocDir = &allocDir
-		r.allocClientStatus = mutable.AllocClientStatus
-		r.allocClientDescription = mutable.AllocClientDescription
-		r.taskStates = mutable.TaskStates
-		r.alloc.ClientStatus = getClientStatus(r.taskStates)
-		r.alloc.DeploymentStatus = mutable.DeploymentStatus
-		return nil
-	})
+	//	// Populate the fields
+	//	r.alloc = allocState.Alloc
+	//	r.allocDir = &allocDir
+	//	r.allocClientStatus = mutable.AllocClientStatus
+	//	r.allocClientDescription = mutable.AllocClientDescription
+	//	r.taskStates = mutable.TaskStates
+	//	r.alloc.ClientStatus = getClientStatus(r.taskStates)
+	//	r.alloc.DeploymentStatus = mutable.DeploymentStatus
+	//	return nil
+	//})
 
-	if err != nil {
-		return fmt.Errorf("failed to read allocation state: %v", err)
-	}
+	//if err != nil {
+	//	return fmt.Errorf("failed to read allocation state: %v", err)
+	//}
 
 	var snapshotErrors multierror.Error
 	if r.alloc == nil {
@@ -343,87 +344,90 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		return nil
 	}
 
-	// Grab all the relevant data
-	alloc := r.Alloc()
+	//XXX Deprecated: see allocrunnerv2
+	return nil
 
-	r.allocLock.Lock()
-	allocClientStatus := r.allocClientStatus
-	allocClientDescription := r.allocClientDescription
-	r.allocLock.Unlock()
+	//// Grab all the relevant data
+	//alloc := r.Alloc()
 
-	r.allocDirLock.Lock()
-	allocDir := r.allocDir.Copy()
-	r.allocDirLock.Unlock()
+	//r.allocLock.Lock()
+	//allocClientStatus := r.allocClientStatus
+	//allocClientDescription := r.allocClientDescription
+	//r.allocLock.Unlock()
 
-	// Start the transaction.
-	return r.stateDB.Batch(func(tx *bolt.Tx) error {
+	//r.allocDirLock.Lock()
+	//allocDir := r.allocDir.Copy()
+	//r.allocDirLock.Unlock()
 
-		// Grab the allocation bucket
-		allocBkt, err := state.GetAllocationBucket(tx, r.allocID)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-		}
+	//// Start the transaction.
+	//return r.stateDB.Batch(func(tx *bolt.Tx) error {
 
-		// Write the allocation if the eval has changed
-		r.persistedEvalLock.Lock()
-		lastPersisted := r.persistedEval
-		r.persistedEvalLock.Unlock()
-		if alloc.EvalID != lastPersisted {
-			allocState := &allocRunnerAllocState{
-				Alloc: alloc,
-			}
+	//	// Grab the allocation bucket
+	//	allocBkt, err := state.GetAllocationBucket(tx, r.allocID)
+	//	if err != nil {
+	//		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+	//	}
 
-			if err := state.PutObject(allocBkt, allocRunnerStateAllocKey, &allocState); err != nil {
-				return fmt.Errorf("failed to write alloc_runner alloc state: %v", err)
-			}
+	//	// Write the allocation if the eval has changed
+	//	r.persistedEvalLock.Lock()
+	//	lastPersisted := r.persistedEval
+	//	r.persistedEvalLock.Unlock()
+	//	if alloc.EvalID != lastPersisted {
+	//		allocState := &allocRunnerAllocState{
+	//			Alloc: alloc,
+	//		}
 
-			tx.OnCommit(func() {
-				r.persistedEvalLock.Lock()
-				r.persistedEval = alloc.EvalID
-				r.persistedEvalLock.Unlock()
-			})
-		}
+	//		if err := state.PutObject(allocBkt, allocRunnerStateAllocKey, &allocState); err != nil {
+	//			return fmt.Errorf("failed to write alloc_runner alloc state: %v", err)
+	//		}
 
-		// Write immutable data iff it hasn't been written yet
-		if !r.immutablePersisted {
-			immutable := &allocRunnerImmutableState{
-				Version: r.config.Version.VersionNumber(),
-			}
+	//		tx.OnCommit(func() {
+	//			r.persistedEvalLock.Lock()
+	//			r.persistedEval = alloc.EvalID
+	//			r.persistedEvalLock.Unlock()
+	//		})
+	//	}
 
-			if err := state.PutObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
-				return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
-			}
+	//	// Write immutable data iff it hasn't been written yet
+	//	if !r.immutablePersisted {
+	//		immutable := &allocRunnerImmutableState{
+	//			Version: r.config.Version.VersionNumber(),
+	//		}
 
-			tx.OnCommit(func() {
-				r.immutablePersisted = true
-			})
-		}
+	//		if err := state.PutObject(allocBkt, allocRunnerStateImmutableKey, &immutable); err != nil {
+	//			return fmt.Errorf("failed to write alloc_runner immutable state: %v", err)
+	//		}
 
-		// Write the alloc dir data if it hasn't been written before and it exists.
-		if !r.allocDirPersisted && allocDir != nil {
-			if err := state.PutObject(allocBkt, allocRunnerStateAllocDirKey, allocDir); err != nil {
-				return fmt.Errorf("failed to write alloc_runner allocDir state: %v", err)
-			}
+	//		tx.OnCommit(func() {
+	//			r.immutablePersisted = true
+	//		})
+	//	}
 
-			tx.OnCommit(func() {
-				r.allocDirPersisted = true
-			})
-		}
+	//	// Write the alloc dir data if it hasn't been written before and it exists.
+	//	if !r.allocDirPersisted && allocDir != nil {
+	//		if err := state.PutObject(allocBkt, allocRunnerStateAllocDirKey, allocDir); err != nil {
+	//			return fmt.Errorf("failed to write alloc_runner allocDir state: %v", err)
+	//		}
 
-		// Write the mutable state every time
-		mutable := &allocRunnerMutableState{
-			AllocClientStatus:      allocClientStatus,
-			AllocClientDescription: allocClientDescription,
-			TaskStates:             alloc.TaskStates,
-			DeploymentStatus:       alloc.DeploymentStatus,
-		}
+	//		tx.OnCommit(func() {
+	//			r.allocDirPersisted = true
+	//		})
+	//	}
 
-		if err := state.PutObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
-			return fmt.Errorf("failed to write alloc_runner mutable state: %v", err)
-		}
+	//	// Write the mutable state every time
+	//	mutable := &allocRunnerMutableState{
+	//		AllocClientStatus:      allocClientStatus,
+	//		AllocClientDescription: allocClientDescription,
+	//		TaskStates:             alloc.TaskStates,
+	//		DeploymentStatus:       alloc.DeploymentStatus,
+	//	}
 
-		return nil
-	})
+	//	if err := state.PutObject(allocBkt, allocRunnerStateMutableKey, &mutable); err != nil {
+	//		return fmt.Errorf("failed to write alloc_runner mutable state: %v", err)
+	//	}
+
+	//	return nil
+	//})
 }
 
 // DestroyState is used to cleanup after ourselves
