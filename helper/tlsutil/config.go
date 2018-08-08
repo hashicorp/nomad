@@ -1,6 +1,8 @@
 package tlsutil
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -41,59 +43,27 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
 
-var rsa string = "RSA"
-var ecdsa string = "ECDSA"
+var rsaStringRepr string = "RSA"
+var ecdsaStringRepr string = "ECDSA"
 
 var supportedCipherSignatures = map[string]string{
-	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsa,
-	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsa,
-	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   rsa,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": ecdsa,
-	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   rsa,
-	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": ecdsa,
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   rsa,
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      rsa,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": ecdsa,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    ecdsa,
-	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      rsa,
-	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    ecdsa,
-	"TLS_RSA_WITH_AES_128_GCM_SHA256":         rsa,
-	"TLS_RSA_WITH_AES_256_GCM_SHA384":         rsa,
-	"TLS_RSA_WITH_AES_128_CBC_SHA256":         rsa,
-	"TLS_RSA_WITH_AES_128_CBC_SHA":            rsa,
-	"TLS_RSA_WITH_AES_256_CBC_SHA":            rsa,
-}
-
-var signatureAlgorithmMapping = map[x509.SignatureAlgorithm]string{
-	x509.MD2WithRSA:       rsa,
-	x509.MD5WithRSA:       rsa,
-	x509.SHA1WithRSA:      rsa,
-	x509.SHA256WithRSA:    rsa,
-	x509.SHA384WithRSA:    rsa,
-	x509.SHA512WithRSA:    rsa,
-	x509.ECDSAWithSHA1:    ecdsa,
-	x509.ECDSAWithSHA256:  ecdsa,
-	x509.ECDSAWithSHA384:  ecdsa,
-	x509.ECDSAWithSHA512:  ecdsa,
-	x509.SHA256WithRSAPSS: rsa,
-	x509.SHA384WithRSAPSS: rsa,
-	x509.SHA512WithRSAPSS: rsa,
-}
-
-func cipherSuitesSupportSignatureAlgorithm(supportedSignature x509.SignatureAlgorithm, supportedCipherSuites []string) (bool, error) {
-	supportedSignatureAlgorithm, ok := signatureAlgorithmMapping[supportedSignature]
-	if !ok {
-		return false, fmt.Errorf("Unsupported signature scheme: %s", supportedSignature.String())
-	}
-
-	for _, cipher := range supportedCipherSuites {
-		cipherSupportedAlg := supportedCipherSignatures[cipher]
-		if supportedSignatureAlgorithm == cipherSupportedAlg {
-			return true, nil
-		}
-	}
-
-	return false, fmt.Errorf("Specified cipher suites don't support %s, consider adding more cipher suites with this signature algorithm.", supportedSignatureAlgorithm)
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   rsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": ecdsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    ecdsaStringRepr,
+	"TLS_RSA_WITH_AES_128_GCM_SHA256":         rsaStringRepr,
+	"TLS_RSA_WITH_AES_256_GCM_SHA384":         rsaStringRepr,
+	"TLS_RSA_WITH_AES_128_CBC_SHA256":         rsaStringRepr,
+	"TLS_RSA_WITH_AES_128_CBC_SHA":            rsaStringRepr,
+	"TLS_RSA_WITH_AES_256_CBC_SHA":            rsaStringRepr,
 }
 
 // defaultTLSCiphers are the TLS Ciphers that are supported by default
@@ -445,14 +415,14 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 
 	cipherStr := strings.TrimSpace(tlsConfig.TLSCipherSuites)
 
-	var ciphers []string
+	var parsedCiphers []string
 	if cipherStr == "" {
-		ciphers = defaultTLSCiphers
+		parsedCiphers = defaultTLSCiphers
 
 	} else {
-		ciphers = strings.Split(tlsConfig.TLSCipherSuites, ",")
+		parsedCiphers = strings.Split(tlsConfig.TLSCipherSuites, ",")
 	}
-	for _, cipher := range ciphers {
+	for _, cipher := range parsedCiphers {
 		c, ok := supportedTLSCiphers[cipher]
 		if !ok {
 			return suites, fmt.Errorf("unsupported TLS cipher %q", cipher)
@@ -460,7 +430,46 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 		suites = append(suites, c)
 	}
 
-	return suites, nil
+	var supportedSignatureAlgorithm string
+
+	// Ensure that the specified cipher suite list is supported by the TLS
+	// Certificate signature algorithm. This is a check for user error, where a
+	// TLS certificate could support RSA but a user has configured a cipher suite
+	// list of ciphers where only ECDSA is supported.
+	if tlsConfig.KeyLoader != nil {
+		// Ensure that the keypair has been loaded before continuing
+		tlsConfig.KeyLoader.LoadKeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
+
+		if tlsConfig.KeyLoader.GetCertificate() != nil {
+			tlsCert := tlsConfig.KeyLoader.GetCertificate()
+			if tlsCert != nil {
+				// Determine what type of signature algorithm is being used by typecasting
+				// the certificate's private key
+				privKey := tlsCert.PrivateKey
+				switch privKey.(type) {
+				case *rsa.PrivateKey:
+					supportedSignatureAlgorithm = rsaStringRepr
+				case *ecdsa.PrivateKey:
+					supportedSignatureAlgorithm = ecdsaStringRepr
+				default:
+					return []uint16{}, fmt.Errorf("Unsupported Signature Algorithm; RSA and ECDSA only are supported.")
+				}
+			}
+		}
+	}
+
+	for _, cipher := range parsedCiphers {
+		if supportedCipherSignatures[cipher] == supportedSignatureAlgorithm {
+			// Positive case, return the matched cipher suites as the signature
+			// algorithm is also supported
+			return suites, nil
+		}
+	}
+
+	// Negative case, if this is reached it means that none of the specified
+	// cipher suites signature algorithms match the signature algorithm
+	// for the certificate.
+	return []uint16{}, fmt.Errorf("Specified cipher suites don't support %s, consider adding more cipher suites with this signature algorithm.", supportedSignatureAlgorithm)
 }
 
 // ParseMinVersion parses the specified minimum TLS version for the Nomad agent
