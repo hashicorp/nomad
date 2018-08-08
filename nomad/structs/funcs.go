@@ -247,6 +247,32 @@ func CopySliceSpreadTarget(s []*SpreadTarget) []*SpreadTarget {
 	return c
 }
 
+func CopyNodeScoreMetaMap(m map[string][]*NodeScoreMeta) map[string][]*NodeScoreMeta {
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	cm := make(map[string][]*NodeScoreMeta, l)
+	for k, v := range m {
+		cm[k] = CopySliceNodeScoreMeta(v)
+	}
+	return cm
+}
+
+func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*NodeScoreMeta, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
