@@ -124,22 +124,17 @@ func (tr *TaskRunner) prestart() error {
 
 		// Store the hook state
 		{
-			tr.localStateLock.Lock()
-			hookState, ok := tr.localState.Hooks[name]
-			if !ok {
-				hookState = &state.HookState{}
-				tr.localState.Hooks[name] = hookState
+			hookState := &state.HookState{
+				Data:         resp.HookData,
+				PrestartDone: resp.Done,
 			}
-
-			if resp.HookData != nil {
-				hookState.Data = resp.HookData
-				hookState.PrestartDone = resp.Done
-			}
-			tr.localStateLock.Unlock()
 
 			// Store and persist local state if the hook state has changed
 			if !hookState.Equal(origHookState) {
+				tr.localStateLock.Lock()
 				tr.localState.Hooks[name] = hookState
+				tr.localStateLock.Unlock()
+
 				if err := tr.persistLocalState(); err != nil {
 					return err
 				}
@@ -198,6 +193,8 @@ func (tr *TaskRunner) poststart() error {
 			merr.Errors = append(merr.Errors, fmt.Errorf("poststart hook %q failed: %v", name, err))
 		}
 
+		// No need to persist as PoststartResponse is currently empty
+
 		if tr.logger.IsTrace() {
 			end := time.Now()
 			tr.logger.Trace("finished poststart hooks", "name", name, "end", end, "duration", end.Sub(start))
@@ -237,6 +234,8 @@ func (tr *TaskRunner) exited() error {
 		if err := post.Exited(tr.ctx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("exited hook %q failed: %v", name, err))
 		}
+
+		// No need to persist as TaskExitedResponse is currently empty
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
@@ -278,6 +277,8 @@ func (tr *TaskRunner) stop() error {
 		if err := post.Stop(tr.ctx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("stop hook %q failed: %v", name, err))
 		}
+
+		// No need to persist as TaskStopResponse is currently empty
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
@@ -334,6 +335,8 @@ func (tr *TaskRunner) updateHooks() {
 			tr.logger.Error("update hook failed", "name", name, "error", err)
 		}
 
+		// No need to persist as TaskUpdateResponse is currently empty
+
 		if tr.logger.IsTrace() {
 			end := time.Now()
 			tr.logger.Trace("finished update hooks", "name", name, "end", end, "duration", end.Sub(start))
@@ -374,6 +377,8 @@ func (tr *TaskRunner) kill() {
 		if err := upd.Kill(context.Background(), &req, &resp); err != nil {
 			tr.logger.Error("kill hook failed", "name", name, "error", err)
 		}
+
+		// No need to persist as TaskKillResponse is currently empty
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
