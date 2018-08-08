@@ -430,46 +430,46 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 		suites = append(suites, c)
 	}
 
-	var supportedSignatureAlgorithm string
-
 	// Ensure that the specified cipher suite list is supported by the TLS
 	// Certificate signature algorithm. This is a check for user error, where a
 	// TLS certificate could support RSA but a user has configured a cipher suite
 	// list of ciphers where only ECDSA is supported.
-	if tlsConfig.KeyLoader != nil {
-		// Ensure that the keypair has been loaded before continuing
-		tlsConfig.KeyLoader.LoadKeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
+	keyLoader := tlsConfig.GetKeyLoader()
 
-		if tlsConfig.KeyLoader.GetCertificate() != nil {
-			tlsCert := tlsConfig.KeyLoader.GetCertificate()
-			if tlsCert != nil {
-				// Determine what type of signature algorithm is being used by typecasting
-				// the certificate's private key
-				privKey := tlsCert.PrivateKey
-				switch privKey.(type) {
-				case *rsa.PrivateKey:
-					supportedSignatureAlgorithm = rsaStringRepr
-				case *ecdsa.PrivateKey:
-					supportedSignatureAlgorithm = ecdsaStringRepr
-				default:
-					return []uint16{}, fmt.Errorf("Unsupported Signature Algorithm; RSA and ECDSA only are supported.")
+	// Ensure that the keypair has been loaded before continuing
+	keyLoader.LoadKeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
+
+	if keyLoader.GetCertificate() != nil {
+		var supportedSignatureAlgorithm string
+
+		tlsCert := keyLoader.GetCertificate()
+		if tlsCert != nil {
+			// Determine what type of signature algorithm is being used by typecasting
+			// the certificate's private key
+			privKey := tlsCert.PrivateKey
+			switch privKey.(type) {
+			case *rsa.PrivateKey:
+				supportedSignatureAlgorithm = rsaStringRepr
+			case *ecdsa.PrivateKey:
+				supportedSignatureAlgorithm = ecdsaStringRepr
+			default:
+				return []uint16{}, fmt.Errorf("Unsupported Signature Algorithm; RSA and ECDSA only are supported.")
+			}
+
+			for _, cipher := range parsedCiphers {
+				if supportedCipherSignatures[cipher] == supportedSignatureAlgorithm {
+					// Positive case, return the matched cipher suites as the signature
+					// algorithm is also supported
+					return suites, nil
 				}
 			}
-		}
-	}
-
-	for _, cipher := range parsedCiphers {
-		if supportedCipherSignatures[cipher] == supportedSignatureAlgorithm {
-			// Positive case, return the matched cipher suites as the signature
-			// algorithm is also supported
-			return suites, nil
 		}
 	}
 
 	// Negative case, if this is reached it means that none of the specified
 	// cipher suites signature algorithms match the signature algorithm
 	// for the certificate.
-	return []uint16{}, fmt.Errorf("Specified cipher suites don't support %s, consider adding more cipher suites with this signature algorithm.", supportedSignatureAlgorithm)
+	return []uint16{}, fmt.Errorf("Specified cipher suites don't support the certificate signature algorithm, consider adding more cipher suites to match this signature algorithm.")
 }
 
 // ParseMinVersion parses the specified minimum TLS version for the Nomad agent
