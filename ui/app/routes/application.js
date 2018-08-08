@@ -2,7 +2,6 @@ import { inject as service } from '@ember/service';
 import { next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from 'ember-data/adapters/errors';
-import RSVP from 'rsvp';
 
 export default Route.extend({
   config: service(),
@@ -26,7 +25,7 @@ export default Route.extend({
   },
 
   beforeModel(transition) {
-    return RSVP.all([this.get('system.regions'), this.get('system.namespaces')]).then(promises => {
+    return this.get('system.regions').then(promises => {
       const queryParam = transition.queryParams.region;
       const activeRegion = this.get('system.activeRegion');
 
