@@ -448,25 +448,24 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 		var supportedSignatureAlgorithm algorithmStringRepr
 
 		tlsCert := keyLoader.GetCertificate()
-		if tlsCert != nil {
-			// Determine what type of signature algorithm is being used by typecasting
-			// the certificate's private key
-			privKey := tlsCert.PrivateKey
-			switch privKey.(type) {
-			case *rsa.PrivateKey:
-				supportedSignatureAlgorithm = rsaStringRepr
-			case *ecdsa.PrivateKey:
-				supportedSignatureAlgorithm = ecdsaStringRepr
-			default:
-				return []uint16{}, fmt.Errorf("Unsupported signature algorithm %T; RSA and ECDSA only are supported.", privKey)
-			}
 
-			for _, cipher := range parsedCiphers {
-				if supportedCipherSignatures[cipher] == supportedSignatureAlgorithm {
-					// Positive case, return the matched cipher suites as the signature
-					// algorithm is also supported
-					return suites, nil
-				}
+		// Determine what type of signature algorithm is being used by typecasting
+		// the certificate's private key
+		privKey := tlsCert.PrivateKey
+		switch privKey.(type) {
+		case *rsa.PrivateKey:
+			supportedSignatureAlgorithm = rsaStringRepr
+		case *ecdsa.PrivateKey:
+			supportedSignatureAlgorithm = ecdsaStringRepr
+		default:
+			return []uint16{}, fmt.Errorf("Unsupported signature algorithm %T; RSA and ECDSA only are supported.", privKey)
+		}
+
+		for _, cipher := range parsedCiphers {
+			if supportedCipherSignatures[cipher] == supportedSignatureAlgorithm {
+				// Positive case, return the matched cipher suites as the signature
+				// algorithm is also supported
+				return suites, nil
 			}
 		}
 
