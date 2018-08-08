@@ -32,7 +32,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunnerv2"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/servers"
-	clientstate "github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -122,7 +122,7 @@ type Client struct {
 	start  time.Time
 
 	// stateDB is used to efficiently store client state.
-	stateDB *bolt.DB
+	stateDB state.StateDB
 
 	// configCopy is a copy that should be passed to alloc-runners.
 	configCopy *config.Config
@@ -381,10 +381,10 @@ func (c *Client) init() error {
 	}
 	c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 
-	// Create or open the state database
-	db, err := bolt.Open(filepath.Join(c.config.StateDir, "state.db"), 0600, nil)
+	// Open the state database
+	db, err := state.NewStateDB(c.config.StateDir, c.config.DevMode)
 	if err != nil {
-		return fmt.Errorf("failed to create state database: %v", err)
+		return fmt.Errorf("failed to open state database: %v", err)
 	}
 	c.stateDB = db
 
@@ -737,17 +737,17 @@ func (c *Client) restoreState() error {
 	// Restore using state database
 
 	// Restore allocations
-	var allocs []*structs.Allocation
-	var err error
-	err = c.stateDB.View(func(tx *bolt.Tx) error {
-		allocs, err = clientstate.GetAllAllocations(tx)
-		if err != nil {
-			return fmt.Errorf("failed to list allocations: %v", err)
-		}
-		return nil
-	})
+	allocs, allocErrs, err := c.stateDB.GetAllAllocations()
 	if err != nil {
 		return err
+	}
+
+	for allocID, err := range allocErrs {
+		c.logger.Printf("[ERR] client: failed to restore alloc %q: %v", allocID, err)
+		//XXX Cleanup?
+		// Try to clean up alloc dir
+		// Remove boltdb entries?
+		// Send to server with clientstatus=failed
 	}
 
 	// Load each alloc back
@@ -783,6 +783,7 @@ func (c *Client) restoreState() error {
 		if err := ar.Restore(); err != nil {
 			c.logger.Printf("[ERR] client: failed to restore alloc %q: %v", alloc.ID, err)
 			mErr.Errors = append(mErr.Errors, err)
+			//TODO Cleanup allocrunner
 			continue
 		}
 
