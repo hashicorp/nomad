@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
@@ -17,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	clientstate "github.com/hashicorp/nomad/client/state"
+	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper"
@@ -65,7 +64,7 @@ type allocRunner struct {
 	state     *state.State
 	stateLock sync.RWMutex
 
-	stateDB *bolt.DB
+	stateDB cstate.StateDB
 
 	// allocDir is used to build the allocations directory structure.
 	allocDir *allocdir.AllocDir
@@ -236,26 +235,24 @@ func (ar *allocRunner) setAlloc(updated *structs.Allocation) {
 //    *and* within Run -- *and* Updates are applid within Run -- we may be able to
 //    skip quite a bit of locking? maybe?
 func (ar *allocRunner) SaveState() error {
-	// XXX Do we move this to the client
-	return ar.stateDB.Update(func(tx *bolt.Tx) error {
-		//XXX Track AllocModifyIndex to only write alloc on change?
-		// Write the allocation
-		return clientstate.PutAllocation(tx, ar.Alloc())
-	})
+	//XXX Do we move this to the client
+	//XXX Track AllocModifyIndex to only write alloc on change?
+
+	// Write the allocation
+	return ar.stateDB.PutAllocation(ar.Alloc())
 }
 
 // Restore state from database. Must be called after NewAllocRunner but before
 // Run.
 func (ar *allocRunner) Restore() error {
-	return ar.stateDB.View(func(tx *bolt.Tx) error {
-		// Restore task runners
-		for _, tr := range ar.tasks {
-			if err := tr.Restore(tx); err != nil {
-				return err
-			}
+	// Restore task runners
+	for _, tr := range ar.tasks {
+		if err := tr.Restore(); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+
+	return nil
 }
 
 // TaskStateUpdated is called by TaskRunner when a task's state has been
