@@ -458,7 +458,7 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 			case *ecdsa.PrivateKey:
 				supportedSignatureAlgorithm = ecdsaStringRepr
 			default:
-				return []uint16{}, fmt.Errorf("Unsupported Signature Algorithm; RSA and ECDSA only are supported.")
+				return []uint16{}, fmt.Errorf("Unsupported signature algorithm %T; RSA and ECDSA only are supported.", privKey)
 			}
 
 			for _, cipher := range parsedCiphers {
@@ -469,12 +469,16 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 				}
 			}
 		}
+
+		// Negative case, if this is reached it means that none of the specified
+		// cipher suites signature algorithms match the signature algorithm
+		// for the certificate.
+		return []uint16{}, fmt.Errorf("Specified cipher suites don't support the certificate signature algorithm, consider adding more cipher suites to match this signature algorithm.")
 	}
 
-	// Negative case, if this is reached it means that none of the specified
-	// cipher suites signature algorithms match the signature algorithm
-	// for the certificate.
-	return []uint16{}, fmt.Errorf("Specified cipher suites don't support the certificate signature algorithm, consider adding more cipher suites to match this signature algorithm.")
+	// Default in case this function is called but TLS is not actually configured
+	// This is only reached if the TLS certificate is nil
+	return []uint16{}, nil
 }
 
 // ParseMinVersion parses the specified minimum TLS version for the Nomad agent
