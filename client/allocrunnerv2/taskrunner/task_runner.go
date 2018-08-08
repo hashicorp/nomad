@@ -9,7 +9,6 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/boltdb/bolt"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -19,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
-	clientstate "github.com/hashicorp/nomad/client/state"
+	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -46,16 +45,6 @@ const (
 	triggerUpdateChCap = 1
 )
 
-var (
-	// taskRunnerStateAllKey holds all the task runners state. At the moment
-	// there is no need to split it
-	//XXX refactor out of clientstate and new state
-	//XXX Old key - going to need to migrate
-	//taskRunnerStateAllKey = []byte("simple-all")
-	taskLocalStateKey = []byte("local_state")
-	taskStateKey      = []byte("task_state")
-)
-
 type TaskRunner struct {
 	// allocID and taskName are immutable so these fields may be accessed
 	// without locks
@@ -79,8 +68,8 @@ type TaskRunner struct {
 	localState     *state.LocalState
 	localStateLock sync.RWMutex
 
-	// stateDB is for persisting localState
-	stateDB *bolt.DB
+	// stateDB is for persisting localState and taskState
+	stateDB cstate.StateDB
 
 	// persistedHash is the hash of the last persisted state for skipping
 	// unnecessary writes
@@ -161,7 +150,7 @@ type Config struct {
 	LocalState *state.LocalState
 
 	// StateDB is used to store and restore state.
-	StateDB *bolt.DB
+	StateDB cstate.StateDB
 
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.TaskStateHandler
@@ -464,8 +453,13 @@ func (tr *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool,
 }
 
 // persistLocalState persists local state to disk synchronously.
+//
+//XXX Not safe for concurrent calls. Should it be?
 func (tr *TaskRunner) persistLocalState() error {
-	// buffer for writing to boltdb
+	tr.localStateLock.Lock()
+	defer tr.localStateLock.Unlock()
+
+	// buffer for writing serialized state to
 	var buf bytes.Buffer
 
 	// Hash for skipping unnecessary writes
@@ -479,10 +473,7 @@ func (tr *TaskRunner) persistLocalState() error {
 	w := io.MultiWriter(h, &buf)
 
 	// Encode as msgpack value
-	tr.localStateLock.Lock()
-	err = codec.NewEncoder(w, structs.MsgpackHandle).Encode(&tr.localState)
-	tr.localStateLock.Unlock()
-	if err != nil {
+	if err := codec.NewEncoder(w, structs.MsgpackHandle).Encode(&tr.localState); err != nil {
 		return fmt.Errorf("failed to serialize snapshot: %v", err)
 	}
 
@@ -492,25 +483,14 @@ func (tr *TaskRunner) persistLocalState() error {
 		return nil
 	}
 
-	return tr.stateDB.Update(func(tx *bolt.Tx) error {
-		// Grab the task bucket
-		//XXX move into new state pkg
-		taskBkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-		}
+	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, buf.Bytes()); err != nil {
+		return err
+	}
 
-		if err := clientstate.PutData(taskBkt, taskLocalStateKey, buf.Bytes()); err != nil {
-			return fmt.Errorf("failed to write task_runner state: %v", err)
-		}
+	// State was persisted, set the hash
+	tr.persistedHash = hashVal
 
-		// Store the hash that was persisted
-		tx.OnCommit(func() {
-			tr.persistedHash = hashVal
-		})
-
-		return nil
-	})
+	return nil
 }
 
 // XXX If the objects don't exists since the client shutdown before the task
@@ -519,31 +499,14 @@ func (tr *TaskRunner) persistLocalState() error {
 //
 // Restore task runner state. Called by AllocRunner.Restore after NewTaskRunner
 // but before Run so no locks need to be acquired.
-func (tr *TaskRunner) Restore(tx *bolt.Tx) error {
-	bkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
+func (tr *TaskRunner) Restore() error {
+	ls, ts, err := tr.stateDB.GetTaskRunnerState(tr.allocID, tr.taskName)
 	if err != nil {
-		return fmt.Errorf("failed to get task %q bucket: %v", tr.taskName, err)
+		return err
 	}
 
-	// Restore Local State
-	//XXX set persisted hash to avoid immediate write on first use?
-	var ls state.LocalState
-	if err := clientstate.GetObject(bkt, taskLocalStateKey, &ls); err != nil {
-		return fmt.Errorf("failed to read local task runner state: %v", err)
-	}
-	tr.localState = &ls
-
-	// Restore Task State
-	var ts structs.TaskState
-	if err := clientstate.GetObject(bkt, taskStateKey, &ts); err != nil {
-		return fmt.Errorf("failed to read task state: %v", err)
-	}
-	tr.state = &ts
-
-	// XXX if driver has task {
-	// tr.restoreDriver()
-	// }
-
+	tr.localState = ls
+	tr.state = ts
 	return nil
 }
 
@@ -612,14 +575,7 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 	}
 
 	// Persist the state and event
-	if err := tr.stateDB.Update(func(tx *bolt.Tx) error {
-		bkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
-		if err != nil {
-			return err
-		}
-
-		return clientstate.PutObject(bkt, taskStateKey, tr.state)
-	}); err != nil {
+	if err := tr.stateDB.PutTaskState(tr.allocID, tr.taskName, taskState); err != nil {
 		// Only a warning because the next event/state-transition will
 		// try to persist it again.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
@@ -638,18 +594,8 @@ func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 
 	tr.emitEventImpl(event)
 
-	// Events that do *not* change task state can be batched.
-	//XXX Seems like this clamps the maximum transaction latency to 10ms.
-	err := tr.stateDB.Batch(func(tx *bolt.Tx) error {
-		bkt, err := clientstate.GetTaskBucket(tx, tr.allocID, tr.taskName)
-		if err != nil {
-			return err
-		}
-
-		return clientstate.PutObject(bkt, taskStateKey, tr.state)
-	})
-
-	if err != nil {
+	//XXX EmitEvents do not change TaskState.State so batch?
+	if err := tr.stateDB.PutTaskState(tr.allocID, tr.taskName, tr.state); err != nil {
 		// Only a warning because the next event/state-transition will
 		// try to persist it again.
 		tr.logger.Warn("error persisting event", "error", err, "event", event)
