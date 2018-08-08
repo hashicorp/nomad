@@ -30,6 +30,11 @@ func (*artifactHook) Name() string {
 }
 
 func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	if len(req.Task.Artifacts) == 0 {
+		resp.Done = true
+		return nil
+	}
+
 	h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
 	for _, artifact := range req.Task.Artifacts {
