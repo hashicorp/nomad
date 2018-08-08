@@ -43,10 +43,12 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
 
-var rsaStringRepr string = "RSA"
-var ecdsaStringRepr string = "ECDSA"
+type algorithmStringRepr string
 
-var supportedCipherSignatures = map[string]string{
+var rsaStringRepr algorithmStringRepr = "RSA"
+var ecdsaStringRepr algorithmStringRepr = "ECDSA"
+
+var supportedCipherSignatures = map[string]algorithmStringRepr{
 	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsaStringRepr,
 	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsaStringRepr,
 	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   rsaStringRepr,
@@ -440,7 +442,7 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 	keyLoader.LoadKeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
 
 	if keyLoader.GetCertificate() != nil {
-		var supportedSignatureAlgorithm string
+		var supportedSignatureAlgorithm algorithmStringRepr
 
 		tlsCert := keyLoader.GetCertificate()
 		if tlsCert != nil {
