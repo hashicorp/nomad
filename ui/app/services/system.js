@@ -28,7 +28,7 @@ export default Service.extend({
     const token = this.get('token');
 
     return PromiseArray.create({
-      promise: token.authorizedRequest(`/${namespace}/regions`).then(res => res.json()),
+      promise: token.authorizedRawRequest(`/${namespace}/regions`).then(res => res.json()),
     });
   }),
 
