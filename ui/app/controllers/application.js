@@ -13,10 +13,7 @@ export default Controller.extend({
     region: 'region',
   },
 
-  region: 'global',
-
-  syncRegionService: forwardRegion('region', 'system.activeRegion'),
-  syncRegionParam: forwardRegion('system.activeRegion', 'region'),
+  region: null,
 
   error: null,
 
@@ -53,13 +50,3 @@ export default Controller.extend({
     }
   }),
 });
-
-function forwardRegion(source, destination) {
-  return observer(source, function() {
-    const newRegion = this.get(source);
-    const currentRegion = this.get(destination);
-    if (currentRegion !== newRegion) {
-      this.set(destination, newRegion);
-    }
-  });
-}
