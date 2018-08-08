@@ -353,20 +353,21 @@ func (r *TaskRunner) pre060StateFilePath() string {
 // executor.
 func (r *TaskRunner) RestoreState() (string, error) {
 	var snap taskRunnerState
-	err := r.stateDB.View(func(tx *bolt.Tx) error {
-		bkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
-		if err != nil {
-			return fmt.Errorf("failed to get task bucket: %v", err)
-		}
+	//XXX Deprecated: see allocrunnerv2
+	//err := r.stateDB.View(func(tx *bolt.Tx) error {
+	//	bkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
+	//	if err != nil {
+	//		return fmt.Errorf("failed to get task bucket: %v", err)
+	//	}
 
-		if err := state.GetObject(bkt, taskRunnerStateAllKey, &snap); err != nil {
-			return fmt.Errorf("failed to read task runner state: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
+	//	if err := state.GetObject(bkt, taskRunnerStateAllKey, &snap); err != nil {
+	//		return fmt.Errorf("failed to read task runner state: %v", err)
+	//	}
+	//	return nil
+	//})
+	//if err != nil {
+	//	return "", err
+	//}
 
 	// Restore fields from the snapshot
 	r.artifactsDownloaded = snap.ArtifactDownloaded
@@ -511,24 +512,26 @@ func (r *TaskRunner) SaveState() error {
 	}
 
 	// Start the transaction.
-	return r.stateDB.Batch(func(tx *bolt.Tx) error {
-		// Grab the task bucket
-		taskBkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-		}
+	//XXX Deprecated: see allocrunnerv2
+	return nil
+	//return r.stateDB.Batch(func(tx *bolt.Tx) error {
+	//	// Grab the task bucket
+	//	taskBkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
+	//	if err != nil {
+	//		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+	//	}
 
-		if err := state.PutData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
-			return fmt.Errorf("failed to write task_runner state: %v", err)
-		}
+	//	if err := state.PutData(taskBkt, taskRunnerStateAllKey, buf.Bytes()); err != nil {
+	//		return fmt.Errorf("failed to write task_runner state: %v", err)
+	//	}
 
-		// Store the hash that was persisted
-		tx.OnCommit(func() {
-			r.persistedHash = h
-		})
+	//	// Store the hash that was persisted
+	//	tx.OnCommit(func() {
+	//		r.persistedHash = h
+	//	})
 
-		return nil
-	})
+	//	return nil
+	//})
 }
 
 // DestroyState is used to cleanup after ourselves
