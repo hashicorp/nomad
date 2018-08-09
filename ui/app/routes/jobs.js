@@ -43,7 +43,8 @@ export default Route.extend(WithForbiddenState, {
     });
   },
 
-  setupController(controller) {
+  afterModel() {
+    const controller = this.controllerFor('jobs');
     next(() => {
       (this._afterSetups || []).forEach(fn => {
         fn(controller);
