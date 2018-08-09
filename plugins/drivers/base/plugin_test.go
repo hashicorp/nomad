@@ -2,6 +2,7 @@ package base
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -79,5 +80,47 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	var actualState testDriverState
 	require.NoError(dec.Decode(&actualState))
 	require.Equal(*state, actualState)
+
+}
+
+func TestBaseDriver_WaitTask(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	req := &proto.WaitTaskRequest{
+		TaskId: "foo",
+	}
+
+	result := &TaskResult{ExitCode: 1, Signal: 9}
+
+	signalTask := make(chan struct{})
+
+	impl := &MockDriver{
+		WaitTaskF: func(id string) chan *TaskResult {
+			ch := make(chan *TaskResult)
+			go func() {
+				<-signalTask
+				ch <- result
+			}()
+			return ch
+		},
+	}
+
+	driver := &baseDriver{impl: impl}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var finished bool
+	go func() {
+		defer wg.Done()
+		resp, err := driver.WaitTask(context.TODO(), req)
+		finished = true
+		require.NoError(err)
+		require.Equal(int(resp.ExitCode), result.ExitCode)
+		require.Equal(int(resp.Signal), result.Signal)
+	}()
+	require.False(finished)
+	close(signalTask)
+	wg.Wait()
+	require.True(finished)
 
 }

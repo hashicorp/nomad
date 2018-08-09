@@ -46,6 +46,10 @@ func (p *DriverPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 	return nil
 }
 
+func (p *DriverPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+	return &DriverClient{client: proto.NewDriverClient(c)}, nil
+}
+
 type baseDriver struct {
 	broker *plugin.GRPCBroker
 	impl   Driver
@@ -63,5 +67,19 @@ func (b *baseDriver) StartTask(ctx context.Context, req *proto.StartTaskRequest)
 
 	return &proto.StartTaskResponse{
 		Handle: taskHandleToProto(handle),
+	}, nil
+}
+
+func (b *baseDriver) WaitTask(ctx context.Context, req *proto.WaitTaskRequest) (*proto.WaitTaskResponse, error) {
+	ch := b.impl.WaitTask(req.TaskId)
+	result := <-ch
+	var errStr string
+	if result.Err != nil {
+		errStr = result.Err.Error()
+	}
+	return &proto.WaitTaskResponse{
+		ExitCode: int32(result.ExitCode),
+		Signal:   int32(result.Signal),
+		Err:      errStr,
 	}, nil
 }
