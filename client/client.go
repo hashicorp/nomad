@@ -380,7 +380,7 @@ func (c *Client) init() error {
 	c.logger.Printf("[INFO] client: using state directory %v", c.config.StateDir)
 
 	// Open the state database
-	db, err := state.NewStateDB(c.config.StateDir, c.config.DevMode)
+	db, err := state.GetStateDBFactory(c.config.DevMode)(c.config.StateDir)
 	if err != nil {
 		return fmt.Errorf("failed to open state database: %v", err)
 	}
