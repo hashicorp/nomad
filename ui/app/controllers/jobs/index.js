@@ -32,21 +32,17 @@ export default Controller.extend(Sortable, Searchable, {
     Filtered jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  filteredJobs: computed(
-    'model.[]',
-    'model.@each.parent',
-    'system.activeNamespace',
-    'system.namespaces.length',
-    function() {
-      const hasNamespaces = this.get('system.namespaces.length');
-      const activeNamespace = this.get('system.activeNamespace.id') || 'default';
+  filteredJobs: computed('model.[]', 'model.@each.parent', function() {
+    // Namespace related properties are ommitted from the dependent keys
+    // due to a prop invalidation bug caused by region switching.
+    const hasNamespaces = this.get('system.namespaces.length');
+    const activeNamespace = this.get('system.activeNamespace.id') || 'default';
 
-      return this.get('model')
-        .compact()
-        .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
-        .filter(job => !job.get('parent.content'));
-    }
-  ),
+    return this.get('model')
+      .compact()
+      .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
+      .filter(job => !job.get('parent.content'));
+  }),
 
   listToSort: alias('filteredJobs'),
   listToSearch: alias('listSorted'),
