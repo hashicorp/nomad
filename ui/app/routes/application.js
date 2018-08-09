@@ -28,6 +28,8 @@ export default Route.extend({
   beforeModel(transition) {
     return RSVP.all([this.get('system.regions'), this.get('system.defaultRegion')]).then(
       promises => {
+        if (!this.get('system.shouldShowRegions')) return promises;
+
         const queryParam = transition.queryParams.region;
         const activeRegion = this.get('system.activeRegion');
         const defaultRegion = this.get('system.defaultRegion.region');

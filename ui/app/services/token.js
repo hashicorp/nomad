@@ -39,10 +39,11 @@ export default Service.extend({
   },
 
   authorizedRequest(url, options) {
-    const region = this.get('system.activeRegion');
-
-    if (region) {
-      url = addParams(url, { region });
+    if (this.get('system.shouldIncludeRegion')) {
+      const region = this.get('system.activeRegion');
+      if (region) {
+        url = addParams(url, { region });
+      }
     }
 
     return this.authorizedRawRequest(url, options);
