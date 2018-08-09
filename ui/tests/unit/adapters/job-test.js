@@ -41,7 +41,13 @@ moduleForAdapter('job', 'Unit | Adapter | Job', {
     this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
 
     this.system = getOwner(this).lookup('service:system');
+
+    // Namespace, default region, and all regions are requests that all
+    // job requests depend on. Fetching them ahead of time means testing
+    // job adapter behavior in isolation.
     this.system.get('namespaces');
+    this.system.get('shouldIncludeRegion');
+    this.system.get('defaultRegion');
 
     // Reset the handledRequests array to avoid accounting for this
     // namespaces request everywhere.
@@ -83,8 +89,8 @@ test('When a namespace is set in localStorage but a job in the default namespace
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
-      ['/v1/namespaces', `/v1/job/${jobName}`],
-      'The only requests made are /namespaces and /job/:id with no namespace query param'
+      [`/v1/job/${jobName}`],
+      'The only request made is /job/:id with no namespace query param'
     );
   });
 });
@@ -168,7 +174,7 @@ test('findAll can be watched', function(assert) {
 
   request();
   assert.equal(
-    pretender.handledRequests[1].url,
+    pretender.handledRequests[0].url,
     '/v1/jobs?index=1',
     'Second request is a blocking request for jobs'
   );
@@ -176,7 +182,7 @@ test('findAll can be watched', function(assert) {
   return wait().then(() => {
     request();
     assert.equal(
-      pretender.handledRequests[2].url,
+      pretender.handledRequests[1].url,
       '/v1/jobs?index=2',
       'Third request is a blocking request with an incremented index param'
     );
