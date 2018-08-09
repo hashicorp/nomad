@@ -2,51 +2,41 @@ package base
 
 import (
 	"time"
+
+	"github.com/hashicorp/nomad/client/structs"
 )
-
-const (
-	TaskEventCreated TaskEventType = "created"
-	TaskEventStarted TaskEventType = "started"
-)
-
-type TaskRecorder interface {
-	Record(taskID string, event TaskEvent) error
-}
-
-type TaskEventType string
-
-func TaskEventTypeFromString(t string) TaskEventType {
-	switch TaskEventType(t) {
-	case TaskEventCreated:
-		return TaskEventCreated
-	case TaskEventStarted:
-		return TaskEventStarted
-	}
-	return ""
-}
-
-type TaskEvent struct {
-	Type        TaskEventType
-	Timestamp   time.Time
-	Driver      string
-	Description string
-	Attrs       map[string]string
-}
 
 type Driver interface {
-	//Fingerprint()
-	RecoverTask(taskID string, events []TaskEvent) error
-	CreateTask(TaskConfig) (taskID string, err error)
-	StartTask(taskID string) error
+	Fingerprint() *Fingerprint
+	RecoverTask(*TaskHandle) error
+	StartTask(*TaskConfig) (*TaskHandle, error)
+	WaitTask(taskID string) chan *TaskResult
 	StopTask(taskID string, timeout time.Duration, signal string) error
 	DestroyTask(taskID string)
-	ListTasks(ListTasksQuery) ([]TaskSummary, error)
-	TaskStatus(taskID string) (TaskStatus, error)
-	TaskStats(taskID string) (TaskStats, error)
+	ListTasks(*ListTasksQuery) ([]*TaskSummary, error)
+	InspectTask(taskID string) (*TaskStatus, error)
+	TaskStats(taskID string) (*TaskStats, error)
+}
+
+type Fingerprint struct {
+	Capabilities Capabilities
+	Attributes   map[string]string
+	Detected     bool
+}
+
+type Capabilities struct {
+	// SendSignals marks the driver as being able to send signals
+	SendSignals bool
+
+	// Exec marks the driver as being able to execute arbitrary commands
+	// such as health checks. Used by the ScriptExecutor interface.
+	Exec bool
+
+	FSIsolation structs.FSIsolation
 }
 
 type TaskConfig struct {
-	Name         string
+	ID           string
 	User         string
 	DriverConfig map[string]interface{}
 	Env          map[string]string
@@ -75,6 +65,20 @@ type MountConfig struct {
 	TaskPath string
 	HostPath string
 	Readonly bool
+}
+
+const (
+	TaskStatePending TaskState = "pending"
+	TaskStateRunning TaskState = "running"
+	TaskStateDead    TaskState = "dead"
+)
+
+type TaskState string
+
+type TaskResult struct {
+	ExitCode int
+	Signal   int
+	Err      error
 }
 
 type ListTasksQuery struct {

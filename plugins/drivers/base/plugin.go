@@ -3,7 +3,6 @@ package base
 import (
 	"golang.org/x/net/context"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
@@ -32,7 +31,7 @@ func Serve(cfg ServeConfig) error {
 	return nil
 }
 
-type DriverFactory func(TaskRecorder) Driver
+type DriverFactory func(interface{}) Driver
 
 type DriverPlugin struct {
 	plugin.NetRPCUnsupportedPlugin
@@ -52,37 +51,17 @@ type baseDriver struct {
 	impl   Driver
 }
 
-func (d *baseDriver) CreateTask(ctx context.Context, req *proto.CreateTaskRequest) (*proto.CreateTaskResponse, error) {
-	task := TaskConfig{
-		Name: req.Task.Name,
-		User: req.Task.User,
-		Env:  req.Task.Env,
-	}
-	// More struct munging needed
-	tid, err := d.impl.CreateTask(task)
+func (b *baseDriver) RecoverTask(ctx context.Context, req *proto.RecoverTaskRequest) (*empty.Empty, error) {
+	return nil, b.impl.RecoverTask(taskHandleFromProto(req.Handle))
+}
+
+func (b *baseDriver) StartTask(ctx context.Context, req *proto.StartTaskRequest) (*proto.StartTaskResponse, error) {
+	handle, err := b.impl.StartTask(taskConfigFromProto(req.Task))
 	if err != nil {
 		return nil, err
 	}
-	return &proto.CreateTaskResponse{TaskId: tid}, nil
-}
 
-func (b *baseDriver) RecoverTask(ctx context.Context, req *proto.RecoverTaskRequest) (*empty.Empty, error) {
-	events := []TaskEvent{}
-	for _, e := range req.Events {
-		timestamp, err := ptypes.Timestamp(e.Timestamp)
-		if err != nil {
-			return nil, err
-		}
-		event := TaskEvent{
-			Type:        TaskEventTypeFromString(e.EventType),
-			Timestamp:   timestamp,
-			Driver:      e.Driver,
-			Description: e.Description,
-			Attrs:       e.Attrs,
-		}
-
-		events = append(events, event)
-	}
-	err := b.impl.RecoverTask(req.TaskId, events)
-	return nil, err
+	return &proto.StartTaskResponse{
+		Handle: taskHandleToProto(handle),
+	}, nil
 }
