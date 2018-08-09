@@ -81,7 +81,8 @@ export default Service.extend({
     'shouldShowRegions',
     function() {
       return (
-        this.get('shouldShowRegions') && this.get('activeRegion') !== this.get('defaultRegion')
+        this.get('shouldShowRegions') &&
+        this.get('activeRegion') !== this.get('defaultRegion.region')
       );
     }
   ),
