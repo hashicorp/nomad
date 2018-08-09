@@ -38,9 +38,11 @@ export default RESTAdapter.extend({
 
   ajaxOptions(url, type, options = {}) {
     options.data || (options.data = {});
-    const region = this.get('system.activeRegion');
-    if (region) {
-      options.data.region = region;
+    if (this.get('system.shouldIncludeRegion')) {
+      const region = this.get('system.activeRegion');
+      if (region) {
+        options.data.region = region;
+      }
     }
     return this._super(url, type, options);
   },
