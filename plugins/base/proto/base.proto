@@ -1,5 +1,5 @@
 syntax = "proto3";
-package hashicorp.nomad.plugins.base;
+package hashicorp.nomad.plugins.base.proto;
 option go_package = "base";
 
 import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
