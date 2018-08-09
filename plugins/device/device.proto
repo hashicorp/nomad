@@ -1,6 +1,6 @@
 syntax = "proto3";
 package hashicorp.nomad.plugins.device;
-
+option go_package = "device";
 import "google/protobuf/empty.proto";
 
 // DevicePlugin is the API exposed by device plugins

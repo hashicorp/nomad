@@ -1,7 +1,8 @@
 syntax = "proto3";
 package hashicorp.nomad.plugins.base;
+option go_package = "base";
 
-import "hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
+import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
 
 // BasePlugin is the methods that all Nomad plugins must support.
 service BasePlugin {
