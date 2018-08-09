@@ -19,7 +19,7 @@ func (n noopDB) GetTaskRunnerState(allocID string, taskName string) (*state.Loca
 	return nil, nil, nil
 }
 
-func (n noopDB) PutTaskRunnerLocalState(allocID string, taskName string, buf []byte) error {
+func (n noopDB) PutTaskRunnerLocalState(allocID string, taskName string, val interface{}) error {
 	return nil
 }
 
