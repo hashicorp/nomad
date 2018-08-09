@@ -1,8 +1,13 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { copy } from '@ember/object/internals';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
+
+// When the request isn't ok (e.g., forbidden) handle gracefully
+const jsonWithDefault = defaultResponse => res =>
+  res.ok ? res.json() : copy(defaultResponse, true);
 
 export default Service.extend({
   token: service(),
@@ -29,7 +34,7 @@ export default Service.extend({
     return PromiseObject.create({
       promise: token
         .authorizedRawRequest(`/${namespace}/agent/members`)
-        .then(res => res.json())
+        .then(jsonWithDefault({}))
         .then(json => {
           return { region: json.ServerRegion };
         }),
@@ -40,7 +45,7 @@ export default Service.extend({
     const token = this.get('token');
 
     return PromiseArray.create({
-      promise: token.authorizedRawRequest(`/${namespace}/regions`).then(res => res.json()),
+      promise: token.authorizedRawRequest(`/${namespace}/regions`).then(jsonWithDefault([])),
     });
   }),
 
