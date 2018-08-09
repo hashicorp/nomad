@@ -1,10 +1,8 @@
 package taskrunner
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -21,8 +19,6 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
-	"golang.org/x/crypto/blake2b"
 )
 
 const (
@@ -453,44 +449,11 @@ func (tr *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool,
 }
 
 // persistLocalState persists local state to disk synchronously.
-//
-//XXX Not safe for concurrent calls. Should it be?
 func (tr *TaskRunner) persistLocalState() error {
 	tr.localStateLock.Lock()
 	defer tr.localStateLock.Unlock()
 
-	// buffer for writing serialized state to
-	var buf bytes.Buffer
-
-	// Hash for skipping unnecessary writes
-	h, err := blake2b.New256(nil)
-	if err != nil {
-		// Programming error that should never happen!
-		return err
-	}
-
-	// Multiplex writes to both
-	w := io.MultiWriter(h, &buf)
-
-	// Encode as msgpack value
-	if err := codec.NewEncoder(w, structs.MsgpackHandle).Encode(&tr.localState); err != nil {
-		return fmt.Errorf("failed to serialize snapshot: %v", err)
-	}
-
-	// If the hashes are equal, skip the write
-	hashVal := h.Sum(nil)
-	if bytes.Equal(hashVal, tr.persistedHash) {
-		return nil
-	}
-
-	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, buf.Bytes()); err != nil {
-		return err
-	}
-
-	// State was persisted, set the hash
-	tr.persistedHash = hashVal
-
-	return nil
+	return tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState)
 }
 
 // XXX If the objects don't exists since the client shutdown before the task

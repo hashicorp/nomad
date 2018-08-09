@@ -1,14 +1,13 @@
 package state
 
 import (
-	"bytes"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/boltdb/bolt"
 	trstate "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 )
 
 /*
@@ -40,6 +39,7 @@ var (
 	taskStateKey      = []byte("task_state")
 )
 
+//TODO delete from kvcodec
 // DeleteAllocationBucket is used to delete an allocation bucket if it exists.
 func DeleteAllocationBucket(tx *bolt.Tx, allocID string) error {
 	if !tx.Writable() {
@@ -61,6 +61,7 @@ func DeleteAllocationBucket(tx *bolt.Tx, allocID string) error {
 	return allocations.DeleteBucket(key)
 }
 
+//TODO delete from kvcodec
 // DeleteTaskBucket is used to delete a task bucket if it exists.
 func DeleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
 	if !tx.Writable() {
@@ -88,13 +89,70 @@ func DeleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
 	return alloc.DeleteBucket(key)
 }
 
-var ()
+// NewStateDBFunc creates a StateDB given a state directory.
+type NewStateDBFunc func(stateDir string) (StateDB, error)
 
+// GetStateDBFactory returns a func for creating a StateDB
+func GetStateDBFactory(devMode bool) NewStateDBFunc {
+	// Return a noop state db implementation when in debug mode
+	if devMode {
+		return func(string) (StateDB, error) {
+			return noopDB{}, nil
+		}
+	}
+
+	return NewBoltStateDB
+}
+
+// BoltStateDB persists and restores Nomad client state in a boltdb. All
+// methods are safe for concurrent access. Create via NewStateDB by setting
+// devMode=false.
+type BoltStateDB struct {
+	db    *bolt.DB
+	codec *keyValueCodec
+}
+
+func NewBoltStateDB(stateDir string) (StateDB, error) {
+	// Create or open the boltdb state database
+	db, err := bolt.Open(filepath.Join(stateDir, "state.db"), 0600, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create state database: %v", err)
+	}
+
+	sdb := &BoltStateDB{
+		db:    db,
+		codec: newKeyValueCodec(),
+	}
+	return sdb, nil
+}
+
+// GetAllAllocations gets all allocations persisted by this client and returns
+// a map of alloc ids to errors for any allocations that could not be restored.
+//
+// If a fatal error was encountered it will be returned and the other two
+// values will be nil.
+func (s *BoltStateDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
+	var allocs []*structs.Allocation
+	var errs map[string]error
+	err := s.db.View(func(tx *bolt.Tx) error {
+		allocs, errs = s.getAllAllocations(tx)
+		return nil
+	})
+
+	// db.View itself may return an error, so still check
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return allocs, errs, nil
+}
+
+// allocEntry wraps values in the Allocations buckets
 type allocEntry struct {
 	Alloc *structs.Allocation
 }
 
-func getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map[string]error) {
+func (s *BoltStateDB) getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map[string]error) {
 	allocationsBkt := tx.Bucket(allocationsBucket)
 	if allocationsBkt == nil {
 		// No allocs
@@ -117,7 +175,7 @@ func getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map[string]error) {
 		}
 
 		var allocState allocEntry
-		if err := getObject(allocBkt, allocKey, &allocState); err != nil {
+		if err := s.codec.Get(allocBkt, allocKey, &allocState); err != nil {
 			errs[allocID] = fmt.Errorf("failed to decode alloc %v", err)
 			continue
 		}
@@ -126,52 +184,6 @@ func getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map[string]error) {
 	}
 
 	return allocs, errs
-}
-
-// BoltStateDB persists and restores Nomad client state in a boltdb. All
-// methods are safe for concurrent access. Create via NewStateDB by setting
-// devMode=false.
-type BoltStateDB struct {
-	db *bolt.DB
-}
-
-func NewStateDB(stateDir string, devMode bool) (StateDB, error) {
-	// Return a noop state db implementation when in debug mode
-	if devMode {
-		return noopDB{}, nil
-	}
-
-	// Create or open the boltdb state database
-	db, err := bolt.Open(filepath.Join(stateDir, "state.db"), 0600, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create state database: %v", err)
-	}
-
-	sdb := &BoltStateDB{
-		db: db,
-	}
-	return sdb, nil
-}
-
-// GetAllAllocations gets all allocations persisted by this client and returns
-// a map of alloc ids to errors for any allocations that could not be restored.
-//
-// If a fatal error was encountered it will be returned and the other two
-// values will be nil.
-func (s *BoltStateDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
-	var allocs []*structs.Allocation
-	var errs map[string]error
-	err := s.db.View(func(tx *bolt.Tx) error {
-		allocs, errs = getAllAllocations(tx)
-		return nil
-	})
-
-	// db.View itself may return an error, so still check
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return allocs, errs, nil
 }
 
 // PutAllocation stores an allocation or returns an error.
@@ -193,7 +205,7 @@ func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 		allocState := allocEntry{
 			Alloc: alloc,
 		}
-		return putObject(allocBkt, allocKey, &allocState)
+		return s.codec.Put(allocBkt, alloc.ID, allocKey, &allocState)
 	})
 }
 
@@ -211,12 +223,12 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 
 		// Restore Local State
 		//XXX set persisted hash to avoid immediate write on first use?
-		if err := getObject(bkt, taskLocalStateKey, &ls); err != nil {
+		if err := s.codec.Get(bkt, taskLocalStateKey, &ls); err != nil {
 			return fmt.Errorf("failed to read local task runner state: %v", err)
 		}
 
 		// Restore Task State
-		if err := getObject(bkt, taskStateKey, &ts); err != nil {
+		if err := s.codec.Get(bkt, taskStateKey, &ts); err != nil {
 			return fmt.Errorf("failed to read task state: %v", err)
 		}
 
@@ -237,14 +249,15 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 
 // PutTaskRunnerLocalState stores TaskRunner's LocalState or returns an error.
 // It is up to the caller to serialize the state to bytes.
-func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, buf []byte) error {
+func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, val interface{}) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		taskBkt, err := getTaskBucket(tx, allocID, taskName)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		if err := putData(taskBkt, taskLocalStateKey, buf); err != nil {
+		path := strings.Join([]string{allocID, taskName, string(taskLocalStateKey)}, "-")
+		if err := s.codec.Put(taskBkt, path, taskLocalStateKey, val); err != nil {
 			return fmt.Errorf("failed to write task_runner state: %v", err)
 		}
 
@@ -260,7 +273,8 @@ func (s *BoltStateDB) PutTaskState(allocID, taskName string, state *structs.Task
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		return putObject(taskBkt, taskStateKey, state)
+		path := strings.Join([]string{allocID, taskName, string(taskStateKey)}, "-")
+		return s.codec.Put(taskBkt, path, taskStateKey, state)
 	})
 }
 
@@ -268,51 +282,6 @@ func (s *BoltStateDB) PutTaskState(allocID, taskName string, state *structs.Task
 // All transactions must be closed before closing the database.
 func (s *BoltStateDB) Close() error {
 	return s.db.Close()
-}
-
-func putObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
-	if !bkt.Writable() {
-		return fmt.Errorf("bucket must be writable")
-	}
-
-	// Serialize the object
-	var buf bytes.Buffer
-	if err := codec.NewEncoder(&buf, structs.MsgpackHandle).Encode(obj); err != nil {
-		return fmt.Errorf("failed to encode passed object: %v", err)
-	}
-
-	if err := bkt.Put(key, buf.Bytes()); err != nil {
-		return fmt.Errorf("failed to write data at key %v: %v", string(key), err)
-	}
-
-	return nil
-}
-
-func putData(bkt *bolt.Bucket, key, value []byte) error {
-	if !bkt.Writable() {
-		return fmt.Errorf("bucket must be writable")
-	}
-
-	if err := bkt.Put(key, value); err != nil {
-		return fmt.Errorf("failed to write data at key %v: %v", string(key), err)
-	}
-
-	return nil
-}
-
-func getObject(bkt *bolt.Bucket, key []byte, obj interface{}) error {
-	// Get the data
-	data := bkt.Get(key)
-	if data == nil {
-		return fmt.Errorf("no data at key %v", string(key))
-	}
-
-	// Deserialize the object
-	if err := codec.NewDecoderBytes(data, structs.MsgpackHandle).Decode(obj); err != nil {
-		return fmt.Errorf("failed to decode data into passed object: %v", err)
-	}
-
-	return nil
 }
 
 // getAllocationBucket returns the bucket used to persist state about a
