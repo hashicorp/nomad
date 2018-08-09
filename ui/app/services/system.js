@@ -24,6 +24,18 @@ export default Service.extend({
     });
   }),
 
+  defaultRegion: computed(function() {
+    const token = this.get('token');
+    return PromiseObject.create({
+      promise: token
+        .authorizedRawRequest(`/${namespace}/agent/members`)
+        .then(res => res.json())
+        .then(json => {
+          return { region: json.ServerRegion };
+        }),
+    });
+  }),
+
   regions: computed(function() {
     const token = this.get('token');
 
@@ -62,6 +74,17 @@ export default Service.extend({
   shouldShowRegions: computed('regions.[]', function() {
     return this.get('regions.length') > 1;
   }),
+
+  shouldIncludeRegion: computed(
+    'activeRegion',
+    'defaultRegion.region',
+    'shouldShowRegions',
+    function() {
+      return (
+        this.get('shouldShowRegions') && this.get('activeRegion') !== this.get('defaultRegion')
+      );
+    }
+  ),
 
   namespaces: computed('activeRegion', function() {
     return PromiseArray.create({
