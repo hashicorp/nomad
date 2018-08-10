@@ -46,8 +46,10 @@ var supportedTLSCiphers = map[string]uint16{
 // algorithmStringRepr is the string representation of a signing algorithm
 type algorithmStringRepr string
 
-var rsaStringRepr algorithmStringRepr = "RSA"
-var ecdsaStringRepr algorithmStringRepr = "ECDSA"
+const (
+	rsaStringRepr   algorithmStringRepr = "RSA"
+	ecdsaStringRepr algorithmStringRepr = "ECDSA"
+)
 
 // supportedCipherSignatures is the supported cipher suites with their
 // corresponding signature algorithm
