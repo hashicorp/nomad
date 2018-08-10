@@ -208,6 +208,11 @@ func (s *Server) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx *RPC
 	s.setupRpcServer(rpcServer, rpcCtx)
 
 	for {
+		// stop handling connections if context was cancelled
+		if ctx.Err() != nil {
+			return
+		}
+
 		sub, err := server.Accept()
 		if err != nil {
 			if err != io.EOF {
@@ -311,6 +316,11 @@ func (s *Server) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCtx *R
 	s.setupRpcServer(rpcServer, rpcCtx)
 
 	for {
+		// stop handling connections if context was cancelled
+		if ctx.Err() != nil {
+			return
+		}
+
 		// Accept a new stream
 		sub, err := server.Accept()
 		if err != nil {
