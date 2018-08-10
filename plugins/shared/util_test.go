@@ -5,10 +5,8 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
-	"github.com/hashicorp/hcl2/gohcl"
 	hcl2 "github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcldec"
-	"github.com/hashicorp/hcl2/hclparse"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -18,12 +16,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
-
-/*
-
-Martin suggests writing a function that takes a spec and map[string]interface{}
-and essentially fixes the []map[string]interface{} -> map[string]interface{}
-*/
 
 var (
 	dockerSpec hcldec.Spec = hcldec.ObjectSpec(map[string]hcldec.Spec{
@@ -40,11 +32,9 @@ var (
 			Name: "pids_limit",
 			Type: cty.Number,
 		},
-		"port_map": &hcldec.AttrSpec{
-			Name: "port_map",
-
-			// This should be a block. cty.Map(cty.String)
-			Type: cty.List(cty.Map(cty.String)),
+		"port_map": &hcldec.BlockAttrsSpec{
+			TypeName:    "port_map",
+			ElementType: cty.String,
 		},
 
 		"devices": &hcldec.BlockListSpec{
@@ -74,11 +64,11 @@ var (
 )
 
 type dockerConfig struct {
-	Image     string              `cty:"image"`
-	Args      []string            `cty:"args"`
-	PidsLimit *int64              `cty:"pids_limit"`
-	PortMap   []map[string]string `cty:"port_map"`
-	Devices   []DockerDevice      `cty:"devices"`
+	Image     string            `cty:"image"`
+	Args      []string          `cty:"args"`
+	PidsLimit *int64            `cty:"pids_limit"`
+	PortMap   map[string]string `cty:"port_map"`
+	Devices   []DockerDevice    `cty:"devices"`
 }
 
 type DockerDevice struct {
@@ -175,11 +165,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "single string attr json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2"
-                }
-			}`),
+						{
+							"Config": {
+								"image": "redis:3.2"
+			                }
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -188,14 +178,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
 		{
 			name: "number attr",
 			config: hclConfigToInterface(t, `
-			config {
-				image = "redis:3.2"
-				pids_limit  = 2
-			}`),
+						config {
+							image = "redis:3.2"
+							pids_limit  = 2
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -208,12 +197,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "number attr json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2",
-					"pids_limit": "2"
-                }
-			}`),
+						{
+							"Config": {
+								"image": "redis:3.2",
+								"pids_limit": "2"
+			                }
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -223,14 +212,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
 		{
 			name: "number attr interpolated",
 			config: hclConfigToInterface(t, `
-			config {
-				image = "redis:3.2"
-				pids_limit  = "${2 + 2}"
-			}`),
+						config {
+							image = "redis:3.2"
+							pids_limit  = "${2 + 2}"
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -243,12 +231,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "number attr interploated json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2",
-					"pids_limit": "${2 + 2}"
-                }
-			}`),
+						{
+							"Config": {
+								"image": "redis:3.2",
+								"pids_limit": "${2 + 2}"
+			                }
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -258,14 +246,13 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
 		{
 			name: "multi attr",
 			config: hclConfigToInterface(t, `
-			config {
-				image = "redis:3.2"
-				args = ["foo", "bar"]
-			}`),
+						config {
+							image = "redis:3.2"
+							args = ["foo", "bar"]
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -278,12 +265,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "multi attr json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2",
-					"args": ["foo", "bar"]
-                }
-			}`),
+						{
+							"Config": {
+								"image": "redis:3.2",
+								"args": ["foo", "bar"]
+			                }
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -293,15 +280,14 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
 		{
 			name: "multi attr variables",
 			config: hclConfigToInterface(t, `
-			config {
-				image = "redis:3.2"
-				args = ["${NOMAD_META_hello}", "${NOMAD_ALLOC_INDEX}"]
-				pids_limit = "${NOMAD_ALLOC_INDEX + 2}"
-			}`),
+						config {
+							image = "redis:3.2"
+							args = ["${NOMAD_META_hello}", "${NOMAD_ALLOC_INDEX}"]
+							pids_limit = "${NOMAD_ALLOC_INDEX + 2}"
+						}`),
 			spec: dockerSpec,
 			ctx:  variableCtx,
 			expected: &dockerConfig{
@@ -315,12 +301,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "multi attr variables json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2",
-					"args": ["foo", "bar"]
-                }
-			}`),
+						{
+							"Config": {
+								"image": "redis:3.2",
+								"args": ["foo", "bar"]
+			                }
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -330,26 +316,24 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
 		{
 			name: "port_map",
 			config: hclConfigToInterface(t, `
-		config {
-			image = "redis:3.2"
-			port_map {
-				foo = "db"
-				bar = "db2"
-			}
-		}`),
+			config {
+				image = "redis:3.2"
+				port_map {
+					foo = "db"
+					bar = "db2"
+				}
+			}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
 				Image: "redis:3.2",
-				PortMap: []map[string]string{
-					{
-						"foo": "db",
-						"bar": "db2",
-					}},
+				PortMap: map[string]string{
+					"foo": "db",
+					"bar": "db2",
+				},
 				Devices: []DockerDevice{},
 			},
 			expectedType: &dockerConfig{},
@@ -357,74 +341,44 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "port_map json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2",
-					"port_map": [{
-						"foo": "db",
-						"bar": "db2"
-					}]
-                }
-			}`),
+							{
+								"Config": {
+									"image": "redis:3.2",
+									"port_map": [{
+										"foo": "db",
+										"bar": "db2"
+									}]
+				                }
+							}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
 				Image: "redis:3.2",
-				PortMap: []map[string]string{
-					{
-						"foo": "db",
-						"bar": "db2",
-					}},
+				PortMap: map[string]string{
+					"foo": "db",
+					"bar": "db2",
+				},
 				Devices: []DockerDevice{},
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
-		/*
-					{
-						name: "port_map non-list json",
-						config: jsonConfigToInterface(t, `
-						{
-							"Config": {
-								"image": "redis:3.2",
-								"port_map": {
-									"foo": "db",
-									"bar": "db2"
-								}
-			                }
-						}`),
-						spec: dockerSpec,
-						ctx:  defaultCtx,
-						expected: &dockerConfig{
-							Image: "redis:3.2",
-							PortMap: []map[string]string{
-								{
-									"foo": "db",
-									"bar": "db2",
-								}},
-							Devices: []DockerDevice{},
-						},
-						expectedType: &dockerConfig{},
-					},
-		*/
-		// ------------------------------------------------
 		{
 			name: "devices",
 			config: hclConfigToInterface(t, `
-		config {
-			image = "redis:3.2"
-			devices = [
-				{
-					host_path = "/dev/sda1"
-					container_path = "/dev/xvdc"
-					cgroup_permissions = "r"
-				},
-				{
-					host_path = "/dev/sda2"
-					container_path = "/dev/xvdd"
-				}
-			]
-		}`),
+						config {
+							image = "redis:3.2"
+							devices = [
+								{
+									host_path = "/dev/sda1"
+									container_path = "/dev/xvdc"
+									cgroup_permissions = "r"
+								},
+								{
+									host_path = "/dev/sda2"
+									container_path = "/dev/xvdd"
+								}
+							]
+						}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -446,22 +400,22 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		{
 			name: "devices json",
 			config: jsonConfigToInterface(t, `
-			{
-				"Config": {
-					"image": "redis:3.2",
-					"devices": [
-						{
-							"host_path": "/dev/sda1",
-							"container_path": "/dev/xvdc",
-							"cgroup_permissions": "r"
-						},
-						{
-							"host_path": "/dev/sda2",
-							"container_path": "/dev/xvdd"
-						}
-					]
-                }
-			}`),
+							{
+								"Config": {
+									"image": "redis:3.2",
+									"devices": [
+										{
+											"host_path": "/dev/sda1",
+											"container_path": "/dev/xvdc",
+											"cgroup_permissions": "r"
+										},
+										{
+											"host_path": "/dev/sda2",
+											"container_path": "/dev/xvdd"
+										}
+									]
+				                }
+							}`),
 			spec: dockerSpec,
 			ctx:  defaultCtx,
 			expected: &dockerConfig{
@@ -480,7 +434,6 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			},
 			expectedType: &dockerConfig{},
 		},
-		// ------------------------------------------------
 	}
 
 	for _, c := range cases {
@@ -488,193 +441,6 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			t.Logf("Val: % #v", pretty.Formatter(c.config))
 			// Parse the interface
 			ctyValue, diag := ParseHclInterface(c.config, c.spec, c.ctx)
-			if diag.HasErrors() {
-				for _, err := range diag.Errs() {
-					t.Error(err)
-				}
-				t.FailNow()
-			}
-
-			// Convert cty-value to go structs
-			require.NoError(t, gocty.FromCtyValue(ctyValue, c.expectedType))
-
-			require.EqualValues(t, c.expected, c.expectedType)
-
-		})
-	}
-}
-
-// -------------------------------------------------------------------------
-
-var (
-	dockerSpec2 hcldec.Spec = hcldec.ObjectSpec(map[string]hcldec.Spec{
-		"image": &hcldec.AttrSpec{
-			Name:     "image",
-			Type:     cty.String,
-			Required: true,
-		},
-		"args": &hcldec.AttrSpec{
-			Name: "args",
-			Type: cty.List(cty.String),
-		},
-		//"port_map": &hcldec.AttrSpec{
-		//Name: "port_map",
-		//Type: cty.List(cty.Map(cty.String)),
-		//},
-
-		//"devices": &hcldec.AttrSpec{
-		//Name: "devices",
-		//Type: cty.List(cty.Object(map[string]cty.Type{
-		//"host_path":          cty.String,
-		//"container_path":     cty.String,
-		//"cgroup_permissions": cty.String,
-		//})),
-		//Type: cty.Tuple([]cty.Type{cty.Object(map[string]cty.Type{
-		//"host_path":          cty.String,
-		//"container_path":     cty.String,
-		//"cgroup_permissions": cty.String,
-		//})}),
-		//},
-	},
-	)
-)
-
-func configToHcl2Interface(t *testing.T, config string) interface{} {
-	t.Helper()
-
-	// Parse as we do in the jobspec parser
-	file, diag := hclparse.NewParser().ParseHCL([]byte(config), "config")
-	if diag.HasErrors() {
-		t.Fatalf("failed to hcl parse the config: %v", diag.Error())
-	}
-
-	//t.Logf("Body: % #v", pretty.Formatter(file.Body))
-
-	var c struct {
-		m map[string]interface{}
-	}
-	implied, partial := gohcl.ImpliedBodySchema(&c)
-	t.Logf("partial=%v implied=% #v", partial, pretty.Formatter(implied))
-
-	contents, diag := file.Body.Content(implied)
-	if diag.HasErrors() {
-		t.Fatalf("failed to get contents: %v", diag.Error())
-	}
-
-	t.Fatalf("content=% #v", pretty.Formatter(contents))
-
-	//defaultCtx := &hcl2.EvalContext{
-	//Functions: GetStdlibFuncs(),
-	//}
-	return nil
-}
-
-func TestParseHclInterface_Hcl2(t *testing.T) {
-	t.SkipNow()
-
-	defaultCtx := &hcl2.EvalContext{
-		Functions: GetStdlibFuncs(),
-	}
-
-	cases := []struct {
-		name         string
-		config       string
-		spec         hcldec.Spec
-		ctx          *hcl2.EvalContext
-		expected     interface{}
-		expectedType interface{}
-	}{
-		{
-			name: "single attr",
-			config: `
-				image = "redis:3.2"
-			`,
-			spec: dockerSpec2,
-			ctx:  defaultCtx,
-			expected: &dockerConfig{
-				Image: "redis:3.2",
-			},
-			expectedType: &dockerConfig{},
-		},
-		//{
-		//name: "multi attr",
-		//config: `
-		//config {
-		//image = "redis:3.2"
-		//args = ["foo", "bar"]
-		//}`,
-		//spec: dockerSpec2,
-		//ctx:  defaultCtx,
-		//expected: &dockerConfig{
-		//Image: "redis:3.2",
-		//Args:  []string{"foo", "bar"},
-		//},
-		//expectedType: &dockerConfig{},
-		//},
-		//{
-		//name: "port_map",
-		//config: `
-		//config {
-		//image = "redis:3.2"
-		//port_map {
-		//foo = "db"
-		//}
-		//}`,
-		//spec: dockerSpec,
-		//ctx:  defaultCtx,
-		//expected: &dockerConfig{
-		//Image:   "redis:3.2",
-		//PortMap: []map[string]string{{"foo": "db"}},
-		//},
-		//expectedType: &dockerConfig{},
-		//},
-
-		//{
-		//name: "devices",
-		//config: `
-		//config {
-		//image = "redis:3.2"
-		//devices = [
-		//{
-		//host_path = "/dev/sda1"
-		//container_path = "/dev/xvdc"
-		//cgroup_permissions = "r"
-		//},
-		//{
-		//host_path = "/dev/sda2"
-		//container_path = "/dev/xvdd"
-		//}
-		//]
-		//}`,
-		//spec: dockerSpec,
-		//ctx:  defaultCtx,
-		//expected: &dockerConfig{
-		//Image: "redis:3.2",
-		//Args:  []string{"foo", "bar"},
-		//Devices: []DockerDevice{
-		//{
-		//HostPath:          "/dev/sda1",
-		//ContainerPath:     "/dev/xvdc",
-		//CgroupPermissions: "r",
-		//},
-		//{
-		//HostPath:      "/dev/sda2",
-		//ContainerPath: "/dev/xvdd",
-		//},
-		//},
-		//},
-		//expectedType: &dockerConfig{},
-		//},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			// Convert the config to a value
-			v := configToHcl2Interface(t, c.config)
-			t.Logf("value: % #v", pretty.Formatter(v))
-
-			// Parse the interface
-			ctyValue, diag := ParseHclInterface(v, c.spec, c.ctx)
 			if diag.HasErrors() {
 				for _, err := range diag.Errs() {
 					t.Error(err)

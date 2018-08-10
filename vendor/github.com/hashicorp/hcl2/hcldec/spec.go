@@ -3,6 +3,7 @@ package hcldec
 import (
 	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/zclconf/go-cty/cty"
@@ -765,6 +766,163 @@ func (s *BlockMapSpec) sourceRange(content *hcl.BodyContent, blockLabels []block
 	return sourceRange(childBlock.Body, labelsForBlock(childBlock), s.Nested)
 }
 
+// A BlockAttrsSpec is a Spec that interprets a single block as if it were
+// a map of some element type. That is, each attribute within the block
+// becomes a key in the resulting map and the attribute's value becomes the
+// element value, after conversion to the given element type. The resulting
+// value is a cty.Map of the given element type.
+//
+// This spec imposes a validation constraint that there be exactly one block
+// of the given type name and that this block may contain only attributes. The
+// block does not accept any labels.
+//
+// This is an alternative to an AttrSpec of a map type for situations where
+// block syntax is desired. Note that block syntax does not permit dynamic
+// keys, construction of the result via a "for" expression, etc. In most cases
+// an AttrSpec is preferred if the desired result is a map whose keys are
+// chosen by the user rather than by schema.
+type BlockAttrsSpec struct {
+	TypeName    string
+	ElementType cty.Type
+	Required    bool
+}
+
+func (s *BlockAttrsSpec) visitSameBodyChildren(cb visitFunc) {
+	// leaf node
+}
+
+// blockSpec implementation
+func (s *BlockAttrsSpec) blockHeaderSchemata() []hcl.BlockHeaderSchema {
+	return []hcl.BlockHeaderSchema{
+		{
+			Type:       s.TypeName,
+			LabelNames: nil,
+		},
+	}
+}
+
+// blockSpec implementation
+func (s *BlockAttrsSpec) nestedSpec() Spec {
+	// This is an odd case: we aren't actually going to apply a nested spec
+	// in this case, since we're going to interpret the body directly as
+	// attributes, but we need to return something non-nil so that the
+	// decoder will recognize this as a block spec. We won't actually be
+	// using this for anything at decode time.
+	return noopSpec{}
+}
+
+// specNeedingVariables implementation
+func (s *BlockAttrsSpec) variablesNeeded(content *hcl.BodyContent) []hcl.Traversal {
+
+	block, _ := s.findBlock(content)
+	if block == nil {
+		return nil
+	}
+
+	var vars []hcl.Traversal
+
+	attrs, diags := block.Body.JustAttributes()
+	if diags.HasErrors() {
+		return nil
+	}
+
+	for _, attr := range attrs {
+		vars = append(vars, attr.Expr.Variables()...)
+	}
+
+	// We'll return the variables references in source order so that any
+	// error messages that result are also in source order.
+	sort.Slice(vars, func(i, j int) bool {
+		return vars[i].SourceRange().Start.Byte < vars[j].SourceRange().Start.Byte
+	})
+
+	return vars
+}
+
+func (s *BlockAttrsSpec) decode(content *hcl.BodyContent, blockLabels []blockLabel, ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	block, other := s.findBlock(content)
+	if block == nil {
+		if s.Required {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Missing %s block", s.TypeName),
+				Detail: fmt.Sprintf(
+					"A block of type %q is required here.", s.TypeName,
+				),
+				Subject: &content.MissingItemRange,
+			})
+		}
+		return cty.NullVal(cty.Map(s.ElementType)), diags
+	}
+	if other != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Duplicate %s block", s.TypeName),
+			Detail: fmt.Sprintf(
+				"Only one block of type %q is allowed. Previous definition was at %s.",
+				s.TypeName, block.DefRange.String(),
+			),
+			Subject: &other.DefRange,
+		})
+	}
+
+	attrs, attrDiags := block.Body.JustAttributes()
+	diags = append(diags, attrDiags...)
+
+	if len(attrs) == 0 {
+		return cty.MapValEmpty(s.ElementType), diags
+	}
+
+	vals := make(map[string]cty.Value, len(attrs))
+	for name, attr := range attrs {
+		attrVal, attrDiags := attr.Expr.Value(ctx)
+		diags = append(diags, attrDiags...)
+
+		attrVal, err := convert.Convert(attrVal, s.ElementType)
+		if err != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid attribute value",
+				Detail:   fmt.Sprintf("Invalid value for attribute of %q block: %s.", s.TypeName, err),
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+			attrVal = cty.UnknownVal(s.ElementType)
+		}
+
+		vals[name] = attrVal
+	}
+
+	return cty.MapVal(vals), diags
+}
+
+func (s *BlockAttrsSpec) impliedType() cty.Type {
+	return cty.Map(s.ElementType)
+}
+
+func (s *BlockAttrsSpec) sourceRange(content *hcl.BodyContent, blockLabels []blockLabel) hcl.Range {
+	block, _ := s.findBlock(content)
+	if block == nil {
+		return content.MissingItemRange
+	}
+	return block.DefRange
+}
+
+func (s *BlockAttrsSpec) findBlock(content *hcl.BodyContent) (block *hcl.Block, other *hcl.Block) {
+	for _, candidate := range content.Blocks {
+		if candidate.Type != s.TypeName {
+			continue
+		}
+		if block != nil {
+			return block, candidate
+		}
+		block = candidate
+	}
+
+	return block, nil
+}
+
 // A BlockLabelSpec is a Spec that returns a cty.String representing the
 // label of the block its given body belongs to, if indeed its given body
 // belongs to a block. It is a programming error to use this in a non-block
@@ -1037,4 +1195,29 @@ func (s *TransformFuncSpec) sourceRange(content *hcl.BodyContent, blockLabels []
 	// We'll just pass through our wrapped range here, even though that's
 	// not super-accurate, because there's nothing better to return.
 	return s.Wrapped.sourceRange(content, blockLabels)
+}
+
+// noopSpec is a placeholder spec that does nothing, used in situations where
+// a non-nil placeholder spec is required. It is not exported because there is
+// no reason to use it directly; it is always an implementation detail only.
+type noopSpec struct {
+}
+
+func (s noopSpec) decode(content *hcl.BodyContent, blockLabels []blockLabel, ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	return cty.NullVal(cty.DynamicPseudoType), nil
+}
+
+func (s noopSpec) impliedType() cty.Type {
+	return cty.DynamicPseudoType
+}
+
+func (s noopSpec) visitSameBodyChildren(cb visitFunc) {
+	// nothing to do
+}
+
+func (s noopSpec) sourceRange(content *hcl.BodyContent, blockLabels []blockLabel) hcl.Range {
+	// No useful range for a noopSpec, and nobody should be calling this anyway.
+	return hcl.Range{
+		Filename: "noopSpec",
+	}
 }
