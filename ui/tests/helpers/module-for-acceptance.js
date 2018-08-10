@@ -9,7 +9,7 @@ export default function(name, options = {}) {
       // Clear session storage (a side effect of token storage)
       window.sessionStorage.clear();
 
-      // Also clear local storage (a side effect of namespaces)
+      // Also clear local storage (a side effect of namespaces and regions)
       window.localStorage.clear();
 
       this.application = startApp();
