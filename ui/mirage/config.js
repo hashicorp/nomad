@@ -166,8 +166,9 @@ export default function() {
   });
 
   this.get('/agent/members', function({ agents, regions }) {
+    const firstRegion = regions.first();
     return {
-      ServerRegion: regions.first().id,
+      ServerRegion: firstRegion ? firstRegion.id : null,
       Members: this.serialize(agents.all()),
     };
   });

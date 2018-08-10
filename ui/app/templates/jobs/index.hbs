@@ -25,7 +25,7 @@
           <th class="is-3">Summary</th>
         {{/t.head}}
         {{#t.body key="model.id" as |row|}}
-          {{job-row data-test-job-row job=row.model onClick=(action "gotoJob" row.model)}}
+          {{job-row data-test-job-row=row.model.plainId job=row.model onClick=(action "gotoJob" row.model)}}
         {{/t.body}}
       {{/list-table}}
       <div class="table-foot">
