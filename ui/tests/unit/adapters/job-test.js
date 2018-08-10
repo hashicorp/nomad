@@ -40,6 +40,9 @@ moduleForAdapter('job', 'Unit | Adapter | Job', {
     this.server.create('job', { id: 'job-1', namespaceId: 'default' });
     this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
 
+    this.server.create('region', { id: 'region-1' });
+    this.server.create('region', { id: 'region-2' });
+
     this.system = getOwner(this).lookup('service:system');
 
     // Namespace, default region, and all regions are requests that all
@@ -388,6 +391,65 @@ test('canceling a find record request will never cancel a request with the same 
   return wait().then(() => {
     assert.ok(getXHR.aborted, 'Get request was aborted');
     assert.notOk(deleteXHR.aborted, 'Delete request was aborted');
+  });
+});
+
+test('when there is no region set, requests are made without the region query param', function(assert) {
+  const { pretender } = this.server;
+  const jobName = 'job-1';
+  const jobNamespace = 'default';
+  const jobId = JSON.stringify([jobName, jobNamespace]);
+
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    this.subject().findAll(null, { modelName: 'job' }, null);
+
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}`, '/v1/jobs'],
+      'No requests include the region query param'
+    );
+  });
+});
+
+test('when there is a region set, requests are made with the region query param', function(assert) {
+  const region = 'region-2';
+  window.localStorage.nomadActiveRegion = region;
+
+  const { pretender } = this.server;
+  const jobName = 'job-1';
+  const jobNamespace = 'default';
+  const jobId = JSON.stringify([jobName, jobNamespace]);
+
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    this.subject().findAll(null, { modelName: 'job' }, null);
+
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}?region=${region}`, `/v1/jobs?region=${region}`],
+      'Requests include the region query param'
+    );
+  });
+});
+
+test('when the region is set to the default region, requests are made without the region query param', function(assert) {
+  window.localStorage.nomadActiveRegion = 'region-1';
+
+  const { pretender } = this.server;
+  const jobName = 'job-1';
+  const jobNamespace = 'default';
+  const jobId = JSON.stringify([jobName, jobNamespace]);
+
+  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    this.subject().findAll(null, { modelName: 'job' }, null);
+
+    assert.deepEqual(
+      pretender.handledRequests.mapBy('url'),
+      [`/v1/job/${jobName}`, '/v1/jobs'],
+      'No requests include the region query param'
+    );
   });
 });
 
