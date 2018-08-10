@@ -1,5 +1,4 @@
 import Component from '@ember/component';
-import { next } from '@ember/runloop';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 
@@ -15,12 +14,8 @@ export default Component.extend({
   }),
 
   gotoRegion(region) {
-    this.get('system').reset();
-    this.get('store').unloadAll();
-    next(() => {
-      this.get('router').transitionTo('jobs', {
-        queryParams: { region },
-      });
+    this.get('router').transitionTo('jobs', {
+      queryParams: { region },
     });
   },
 });
