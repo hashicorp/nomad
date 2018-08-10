@@ -94,7 +94,7 @@ resource "azurerm_network_security_rule" "hashistack-sgr-8500" {
 
 resource "azurerm_public_ip" "hashistack-server-public-ip" {
   count                        = "${var.server_count}"
-  name                         = "hashistack-server-ip-${count.index}"
+  name                         = "hashistack-server-ip-${count.index+1}"
   location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.hashistack.name}"
   public_ip_address_allocation = "static"
@@ -102,7 +102,7 @@ resource "azurerm_public_ip" "hashistack-server-public-ip" {
 
 resource "azurerm_network_interface" "hashistack-server-ni" {
   count                     = "${var.server_count}"
-  name                      = "hashistack-server-ni-${count.index}"
+  name                      = "hashistack-server-ni-${count.index+1}"
   location                  = "${var.location}"
   resource_group_name       = "${azurerm_resource_group.hashistack.name}"
   network_security_group_id = "${azurerm_network_security_group.hashistack-sg.id}"
@@ -120,7 +120,7 @@ resource "azurerm_network_interface" "hashistack-server-ni" {
 }
 
 resource "azurerm_virtual_machine" "server" {
-  name                  = "hashistack-server-${count.index}"
+  name                  = "hashistack-server-${count.index+1}"
   location              = "${var.location}"
   resource_group_name   = "${azurerm_resource_group.hashistack.name}"
   network_interface_ids = ["${element(azurerm_network_interface.hashistack-server-ni.*.id,count.index)}"]
@@ -138,14 +138,14 @@ resource "azurerm_virtual_machine" "server" {
   }
 
   storage_os_disk {
-    name              = "hashistack-server-osdisk-${count.index}"
+    name              = "hashistack-server-osdisk-${count.index+1}"
     caching           = "ReadWrite"
     create_option     = "FromImage"
     managed_disk_type = "Standard_LRS"
   }
 
   os_profile {
-    computer_name  = "hashistack-server-${count.index}"
+    computer_name  = "hashistack-server-${count.index+1}"
     admin_username = "ubuntu"
     admin_password = "none"
     custom_data    = "${base64encode(data.template_file.user_data_server.rendered)}"
@@ -172,7 +172,7 @@ data "template_file" "user_data_server" {
 
 resource "azurerm_public_ip" "hashistack-client-public-ip" {
   count                        = "${var.client_count}"
-  name                         = "hashistack-client-ip-${count.index}"
+  name                         = "hashistack-client-ip-${count.index+1}"
   location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.hashistack.name}"
   public_ip_address_allocation = "static"
@@ -180,7 +180,7 @@ resource "azurerm_public_ip" "hashistack-client-public-ip" {
 
 resource "azurerm_network_interface" "hashistack-client-ni" {
   count                     = "${var.client_count}"
-  name                      = "hashistack-client-ni-${count.index}"
+  name                      = "hashistack-client-ni-${count.index+1}"
   location                  = "${var.location}"
   resource_group_name       = "${azurerm_resource_group.hashistack.name}"
   network_security_group_id = "${azurerm_network_security_group.hashistack-sg.id}"
@@ -198,7 +198,7 @@ resource "azurerm_network_interface" "hashistack-client-ni" {
 }
 
 resource "azurerm_virtual_machine" "client" {
-  name                  = "hashistack-client-${count.index}"
+  name                  = "hashistack-client-${count.index+1}"
   location              = "${var.location}"
   resource_group_name   = "${azurerm_resource_group.hashistack.name}"
   network_interface_ids = ["${element(azurerm_network_interface.hashistack-client-ni.*.id,count.index)}"]
@@ -217,14 +217,14 @@ resource "azurerm_virtual_machine" "client" {
   }
 
   storage_os_disk {
-    name              = "hashistack-client-osdisk-${count.index}"
+    name              = "hashistack-client-osdisk-${count.index+1}"
     caching           = "ReadWrite"
     create_option     = "FromImage"
     managed_disk_type = "Standard_LRS"
   }
 
   os_profile {
-    computer_name  = "hashistack-client-${count.index}"
+    computer_name  = "hashistack-client-${count.index+1}"
     admin_username = "ubuntu"
     admin_password = "none"
     custom_data    = "${base64encode(data.template_file.user_data_client.rendered)}"
@@ -248,6 +248,16 @@ data "template_file" "user_data_client" {
   }
 }
 
+
+
+output "server_names" {
+  value = ["${azurerm_virtual_machine.server.*.name}"]
+}
+
+output "client_names" {
+  value = ["${azurerm_virtual_machine.client.*.name}"]
+}
+
 output "server_public_ips" {
   value = ["${azurerm_public_ip.hashistack-server-public-ip.*.ip_address}"]
 }
@@ -255,3 +265,34 @@ output "server_public_ips" {
 output "client_public_ips" {
   value = ["${azurerm_public_ip.hashistack-client-public-ip.*.ip_address}"]
 }
+
+# output "server_private_ips" {
+#   value = ["${aws_instance.server.*.private_ip}"]
+# }
+
+# output "client_private_ips" {
+#   value = ["${aws_instance.client.*.private_ip}"]
+# }
+
+# output "client_addresses" {
+#   value = "${join("\n",formatlist(" * instance %v - Public: %v, Private: %v", aws_instance.client.*.tags.Name, aws_instance.client.*.public_ip, aws_instance.client.*.private_ip ))}"
+# }
+# output "server_addresses" {
+#   value = "${join("\n",formatlist(" * instance %v - Public: %v, Private: %v", aws_instance.server.*.tags.Name, aws_instance.server.*.public_ip, aws_instance.server.*.private_ip ))}"
+# }
+
+# output "hosts_file" {
+#   value = "${join("\n",concat(
+#     formatlist(" %v.hs         %v", aws_instance.server.*.tags.Name, aws_instance.server.*.public_ip),
+#     formatlist(" %v.hs         %v", aws_instance.client.*.tags.Name, aws_instance.client.*.public_ip)
+#     ))}"
+# }
+
+# output "ssh_file" {
+#   value = "${join("\n",concat(
+#     formatlist("Host %v.hs\n  User ubuntu\n  HostName %v\n", aws_instance.server.*.tags.Name, aws_instance.server.*.public_dns),
+#     formatlist("Host %v.hs\n  User ubuntu\n  HostName %v\n", aws_instance.client.*.tags.Name, aws_instance.client.*.public_dns)
+#   ))}"
+}
+
+

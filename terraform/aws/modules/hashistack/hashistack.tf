@@ -108,7 +108,7 @@ resource "aws_instance" "server" {
 
   #Instance tags
   tags {
-    Name           = "${var.name}-server-${count.index}"
+    Name           = "${var.name}-server-${count.index + 1}"
     ConsulAutoJoin = "auto-join"
   }
 
@@ -126,7 +126,7 @@ resource "aws_instance" "client" {
 
   #Instance tags
   tags {
-    Name           = "${var.name}-client-${count.index}"
+    Name           = "${var.name}-client-${count.index + 1}"
     ConsulAutoJoin = "auto-join"
   }
 
@@ -183,6 +183,14 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
   }
 }
 
+output "server_tag_name" {
+  value = ["${aws_instance.server.*.tags.Name}"]
+}
+
+output "client_tag_name" {
+  value = ["${aws_instance.client.*.tags.Name}"]
+}
+
 output "server_public_ips" {
   value = ["${aws_instance.server.*.public_ip}"]
 }
@@ -190,3 +198,33 @@ output "server_public_ips" {
 output "client_public_ips" {
   value = ["${aws_instance.client.*.public_ip}"]
 }
+
+output "server_private_ips" {
+  value = ["${aws_instance.server.*.private_ip}"]
+}
+
+output "client_private_ips" {
+  value = ["${aws_instance.client.*.private_ip}"]
+}
+
+output "client_addresses" {
+  value = "${join("\n",formatlist(" * instance %v - Public: %v, Private: %v", aws_instance.client.*.tags.Name, aws_instance.client.*.public_ip, aws_instance.client.*.private_ip ))}"
+}
+output "server_addresses" {
+  value = "${join("\n",formatlist(" * instance %v - Public: %v, Private: %v", aws_instance.server.*.tags.Name, aws_instance.server.*.public_ip, aws_instance.server.*.private_ip ))}"
+}
+
+output "hosts_file" {
+  value = "${join("\n",concat(
+    formatlist(" %v.hs         %v", aws_instance.server.*.tags.Name, aws_instance.server.*.public_ip),
+    formatlist(" %v.hs         %v", aws_instance.client.*.tags.Name, aws_instance.client.*.public_ip)
+    ))}"
+}
+
+output "ssh_file" {
+  value = "${join("\n",concat(
+    formatlist("Host %v.hs\n  User ubuntu\n  HostName %v\n", aws_instance.server.*.tags.Name, aws_instance.server.*.public_dns),
+    formatlist("Host %v.hs\n  User ubuntu\n  HostName %v\n", aws_instance.client.*.tags.Name, aws_instance.client.*.public_dns)
+  ))}"
+}
+
