@@ -49,14 +49,14 @@
             </div>
           </li>
         {{/if}}
-        <li>{{#link-to "jobs" activeClass="is-active"}}Jobs{{/link-to}}</li>
+        <li>{{#link-to "jobs" activeClass="is-active" data-test-gutter-link="jobs"}}Jobs{{/link-to}}</li>
       </ul>
       <p class="menu-label">
         Cluster
       </p>
       <ul class="menu-list">
-        <li>{{#link-to "clients" activeClass="is-active"}}Clients{{/link-to}}</li>
-        <li>{{#link-to "servers" activeClass="is-active"}}Servers{{/link-to}}</li>
+        <li>{{#link-to "clients" activeClass="is-active" data-test-gutter-link="clients"}}Clients{{/link-to}}</li>
+        <li>{{#link-to "servers" activeClass="is-active" data-test-gutter-link="servers"}}Servers{{/link-to}}</li>
       </ul>
     </aside>
   </div>
