@@ -1,6 +1,6 @@
 syntax = "proto3";
 package hashicorp.nomad.plugins.base.proto;
-option go_package = "base";
+option go_package = "proto";
 
 import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
 
@@ -20,8 +20,9 @@ service BasePlugin {
 // PluginType enumerates the type of plugins Nomad supports
 enum PluginType {
   UNKNOWN = 0;
-  DRIVER = 1;
-  DEVICE = 2;
+  BASE = 1;
+  DRIVER = 2;
+  DEVICE = 3;
 }
 
 // PluginInfoRequest is used to request the plugins basic information.
