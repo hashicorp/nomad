@@ -58,9 +58,6 @@ export default Service.extend({
         return region;
       }
 
-      // If the region in localStorage is no longer in the cluster, it needs to
-      // be cleared from localStorage
-      // this.set('activeRegion', null);
       return null;
     },
     set(key, value) {
@@ -114,7 +111,7 @@ export default Service.extend({
         return namespace;
       }
 
-      // If the namespace is localStorage is no longer in the cluster, it needs to
+      // If the namespace in localStorage is no longer in the cluster, it needs to
       // be cleared from localStorage
       this.set('activeNamespace', null);
       return this.get('namespaces').findBy('id', 'default');
