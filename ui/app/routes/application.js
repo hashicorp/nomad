@@ -7,6 +7,7 @@ import RSVP from 'rsvp';
 export default Route.extend({
   config: service(),
   system: service(),
+  store: service(),
 
   queryParams: {
     region: {
@@ -20,36 +21,25 @@ export default Route.extend({
     }
   },
 
-  afterSetup(fn) {
-    this._afterSetups || (this._afterSetups = []);
-    this._afterSetups.push(fn);
-  },
-
   beforeModel(transition) {
     return RSVP.all([this.get('system.regions'), this.get('system.defaultRegion')]).then(
       promises => {
         if (!this.get('system.shouldShowRegions')) return promises;
 
         const queryParam = transition.queryParams.region;
-        const activeRegion = this.get('system.activeRegion');
         const defaultRegion = this.get('system.defaultRegion.region');
+        const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
-        if (!queryParam && activeRegion !== defaultRegion) {
-          // No query param: use what is in local storage, fallback to defaultRegion
-          this.afterSetup(controller => {
-            controller.set('region', activeRegion);
-          });
-        } else if (queryParam && queryParam !== activeRegion) {
-          // Query param: use the query param, set that value in local storage
-          this.set('system.activeRegion', queryParam);
-          if (queryParam === defaultRegion) {
-            // Query param === default: don't use the query param, set that value in local storage,
-            // and clear the controller value.
-            this.afterSetup(controller => {
-              controller.set('region', null);
-            });
-          }
+        // Only reset the store if the region actually changed
+        if (
+          (queryParam && queryParam !== currentRegion) ||
+          (!queryParam && currentRegion !== defaultRegion)
+        ) {
+          this.get('system').reset();
+          this.get('store').unloadAll();
         }
+
+        this.set('system.activeRegion', queryParam || defaultRegion);
 
         return promises;
       }
@@ -58,14 +48,18 @@ export default Route.extend({
 
   // setupController doesn't refire when the model hook refires as part of
   // a query param change
-  afterModel() {
+  afterModel(model, transition) {
+    const queryParam = transition.queryParams.region;
     const controller = this.controllerFor('application');
-    next(() => {
-      (this._afterSetups || []).forEach(fn => {
-        fn(controller);
+
+    // The default region shouldn't show up as a query param since
+    // it's superfluous.
+    if (queryParam === this.get('system.defaultRegion.region')) {
+      next(() => {
+        controller.set('region', null);
       });
-      this._afterSetups = [];
-    });
+    }
+
     return this._super(...arguments);
   },
 
