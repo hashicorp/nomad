@@ -8,22 +8,29 @@ import (
 	"golang.org/x/net/context"
 )
 
-type DriverClient struct {
+type DriverClient interface {
+	Fingerprint(context.Context) *Fingerprint
+	RecoverTask(context.Context, *TaskHandle) error
+	StartTask(context.Context, *TaskConfig) (*TaskHandle, error)
+	WaitTask(ctx context.Context, taskID string) chan *TaskResult
+}
+
+type driverClient struct {
 	client proto.DriverClient
 }
 
-func (d *DriverClient) Fingerprint() *Fingerprint {
+func (d *driverClient) Fingerprint(ctx context.Context) *Fingerprint {
 	return nil
 }
 
-func (d *DriverClient) RecoverTask(h *TaskHandle) error {
-	_, err := d.client.RecoverTask(context.TODO(),
+func (d *driverClient) RecoverTask(ctx context.Context, h *TaskHandle) error {
+	_, err := d.client.RecoverTask(ctx,
 		&proto.RecoverTaskRequest{Handle: taskHandleToProto(h)})
 	return err
 }
 
-func (d *DriverClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
-	resp, err := d.client.StartTask(context.TODO(),
+func (d *driverClient) StartTask(ctx context.Context, c *TaskConfig) (*TaskHandle, error) {
+	resp, err := d.client.StartTask(ctx,
 		&proto.StartTaskRequest{
 			Task: taskConfigToProto(c),
 		})
@@ -34,12 +41,12 @@ func (d *DriverClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
 	return taskHandleFromProto(resp.Handle), nil
 }
 
-func (d *DriverClient) WaitTask(id string) chan *TaskResult {
+func (d *driverClient) WaitTask(ctx context.Context, id string) chan *TaskResult {
 	ch := make(chan *TaskResult)
 	go func() {
 		defer close(ch)
 		var result TaskResult
-		resp, err := d.client.WaitTask(context.TODO(),
+		resp, err := d.client.WaitTask(ctx,
 			&proto.WaitTaskRequest{
 				TaskId: id,
 			})
@@ -55,8 +62,16 @@ func (d *DriverClient) WaitTask(id string) chan *TaskResult {
 	return ch
 }
 
-func (d *DriverClient) StopTask(taskID string, timeout time.Duration, signal string) error { return nil }
-func (d *DriverClient) DestroyTask(taskID string)                                          {}
-func (d *DriverClient) ListTasks(*ListTasksQuery) ([]*TaskSummary, error)                  { return nil, nil }
-func (d *DriverClient) InspectTask(taskID string) (*TaskStatus, error)                     { return nil, nil }
-func (d *DriverClient) TaskStats(taskID string) (*TaskStats, error)                        { return nil, nil }
+func (d *driverClient) StopTask(ctx context.Context, taskID string, timeout time.Duration, signal string) error {
+	return nil
+}
+func (d *driverClient) DestroyTask(ctx context.Context, taskID string) {}
+func (d *driverClient) ListTasks(ctx context.Context, q *ListTasksQuery) ([]*TaskSummary, error) {
+	return nil, nil
+}
+func (d *driverClient) InspectTask(ctx context.Context, taskID string) (*TaskStatus, error) {
+	return nil, nil
+}
+func (d *driverClient) TaskStats(ctx context.Context, taskID string) (*TaskStats, error) {
+	return nil, nil
+}

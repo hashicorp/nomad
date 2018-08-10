@@ -9,11 +9,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-func LaunchDriver(name string, fac DriverFactory) error {
+func LaunchDriver(d Driver) error {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: plugin.HandshakeConfig{},
 		Plugins: map[string]plugin.Plugin{
-			name: &DriverPlugin{impl: fac(nil)},
+			DriverGoPlugin: &DriverPlugin{impl: d},
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
 	})
@@ -47,7 +47,7 @@ func (p *DriverPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 }
 
 func (p *DriverPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &DriverClient{client: proto.NewDriverClient(c)}, nil
+	return &driverClient{client: proto.NewDriverClient(c)}, nil
 }
 
 type baseDriver struct {

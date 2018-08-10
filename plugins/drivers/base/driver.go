@@ -1,10 +1,14 @@
 package base
 
 import (
+	"path/filepath"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/structs"
 )
+
+const DriverGoPlugin = "driver"
 
 type Driver interface {
 	Fingerprint() *Fingerprint
@@ -37,12 +41,26 @@ type Capabilities struct {
 
 type TaskConfig struct {
 	ID           string
-	User         string
+	Name         string
 	DriverConfig map[string]interface{}
 	Env          map[string]string
 	Resources    Resources
 	Devices      []DeviceConfig
 	Mounts       []MountConfig
+	User         string
+	AllocDir     string
+}
+
+func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {
+	taskDir := filepath.Join(tc.AllocDir, tc.Name)
+	return &allocdir.TaskDir{
+		Dir:            taskDir,
+		SharedAllocDir: filepath.Join(tc.AllocDir, allocdir.SharedAllocName),
+		LogDir:         filepath.Join(tc.AllocDir, allocdir.SharedAllocName, allocdir.LogDirName),
+		SharedTaskDir:  filepath.Join(taskDir, allocdir.SharedAllocName),
+		LocalDir:       filepath.Join(taskDir, allocdir.TaskLocal),
+		SecretsDir:     filepath.Join(taskDir, allocdir.TaskSecrets),
+	}
 }
 
 type Resources struct {
