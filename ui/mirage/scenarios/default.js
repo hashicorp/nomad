@@ -2,6 +2,7 @@ import config from 'nomad-ui/config/environment';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
 const withTokens = getConfigValue('mirageWithTokens', true);
+const withRegions = getConfigValue('mirageWithRegions', false);
 
 const allScenarios = {
   smallCluster,
@@ -27,6 +28,7 @@ export default function(server) {
 
   if (withNamespaces) createNamespaces(server);
   if (withTokens) createTokens(server);
+  if (withRegions) createRegions(server);
   activeScenario(server);
 }
 
@@ -96,6 +98,12 @@ function createTokens(server) {
 
 function createNamespaces(server) {
   server.createList('namespace', 3);
+}
+
+function createRegions(server) {
+  ['americas', 'europe', 'asia', 'some-long-name-just-to-test'].forEach(id => {
+    server.create('region', { id });
+  });
 }
 
 /* eslint-disable */
