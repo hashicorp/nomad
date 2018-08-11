@@ -1,22 +1,49 @@
 package base
 
-import "github.com/hashicorp/nomad/plugins/drivers/base/proto"
+import (
+	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
+	"github.com/ugorji/go/codec"
+)
 
 func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
-	//TODO
+	if pb == nil {
+		return &TaskConfig{}
+	}
+	var driverConfig map[string]interface{}
+	codec.NewDecoderBytes(pb.MsgpackDriverConfig, nstructs.MsgpackHandle).Decode(&driverConfig)
 	return &TaskConfig{
-		ID: pb.Id,
+		ID:           pb.Id,
+		Name:         pb.Name,
+		Env:          pb.Env,
+		DriverConfig: driverConfig,
+		Resources:    Resources{},      //TODO
+		Devices:      []DeviceConfig{}, //TODO
+		Mounts:       []MountConfig{},  //TODO
+		User:         pb.User,
+		AllocDir:     pb.AllocDir,
 	}
 }
 
 func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
-	//TODO
-	return &proto.TaskConfig{
-		Id: cfg.ID,
+	pb := &proto.TaskConfig{
+		Id:        cfg.ID,
+		Name:      cfg.Name,
+		Env:       cfg.Env,
+		Resources: &proto.Resources{},
+		Mounts:    []*proto.Mount{},
+		Devices:   []*proto.Device{},
+		User:      cfg.User,
+		AllocDir:  cfg.AllocDir,
 	}
+	codec.NewEncoderBytes(&pb.MsgpackDriverConfig, nstructs.MsgpackHandle).Encode(cfg.DriverConfig)
+	return pb
 }
 
 func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
+	if pb == nil {
+		return &TaskHandle{}
+	}
 	return &TaskHandle{
 		Driver:      pb.Driver,
 		Config:      taskConfigFromProto(pb.Config),

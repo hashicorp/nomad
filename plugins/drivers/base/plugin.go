@@ -1,6 +1,8 @@
 package base
 
 import (
+	ccontext "context"
+
 	"golang.org/x/net/context"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,6 +40,10 @@ type DriverPlugin struct {
 	impl Driver
 }
 
+func NewDriverPlugin(d Driver) plugin.GRPCPlugin {
+	return &DriverPlugin{impl: d}
+}
+
 func (p *DriverPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	proto.RegisterDriverServer(s, &baseDriver{
 		impl:   p.impl,
@@ -46,7 +52,7 @@ func (p *DriverPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 	return nil
 }
 
-func (p *DriverPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *DriverPlugin) GRPCClient(ctx ccontext.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &driverClient{client: proto.NewDriverClient(c)}, nil
 }
 

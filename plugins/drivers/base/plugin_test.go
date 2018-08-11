@@ -73,7 +73,7 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	resp, err := driver.StartTask(context.TODO(), req)
 	require.NoError(err)
 	require.Equal(handle.Driver, resp.Handle.Driver)
-	require.Equal(req.Task, resp.Handle.Config)
+	require.Equal(req.Task.Id, resp.Handle.Config.Id)
 	require.Equal(string(handle.State), resp.Handle.State)
 
 	dec := codec.NewDecoderBytes(resp.Handle.MsgpackDriverState, structs.MsgpackHandle)

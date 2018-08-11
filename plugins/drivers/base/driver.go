@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/structs"
 )
 
 const DriverGoPlugin = "driver"
@@ -35,8 +34,6 @@ type Capabilities struct {
 	// Exec marks the driver as being able to execute arbitrary commands
 	// such as health checks. Used by the ScriptExecutor interface.
 	Exec bool
-
-	FSIsolation structs.FSIsolation
 }
 
 type TaskConfig struct {
@@ -49,6 +46,14 @@ type TaskConfig struct {
 	Mounts       []MountConfig
 	User         string
 	AllocDir     string
+}
+
+func (tc *TaskConfig) EnvList() []string {
+	l := make([]string, len(tc.Env))
+	for k, v := range tc.Env {
+		l = append(l, k+"="+v)
+	}
+	return l
 }
 
 func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {

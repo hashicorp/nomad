@@ -9,9 +9,9 @@ import (
 )
 
 type DriverClient interface {
-	Fingerprint(context.Context) *Fingerprint
-	RecoverTask(context.Context, *TaskHandle) error
-	StartTask(context.Context, *TaskConfig) (*TaskHandle, error)
+	Fingerprint() *Fingerprint
+	RecoverTask(*TaskHandle) error
+	StartTask(*TaskConfig) (*TaskHandle, error)
 	WaitTask(ctx context.Context, taskID string) chan *TaskResult
 }
 
@@ -19,18 +19,18 @@ type driverClient struct {
 	client proto.DriverClient
 }
 
-func (d *driverClient) Fingerprint(ctx context.Context) *Fingerprint {
+func (d *driverClient) Fingerprint() *Fingerprint {
 	return nil
 }
 
-func (d *driverClient) RecoverTask(ctx context.Context, h *TaskHandle) error {
-	_, err := d.client.RecoverTask(ctx,
+func (d *driverClient) RecoverTask(h *TaskHandle) error {
+	_, err := d.client.RecoverTask(context.Background(),
 		&proto.RecoverTaskRequest{Handle: taskHandleToProto(h)})
 	return err
 }
 
-func (d *driverClient) StartTask(ctx context.Context, c *TaskConfig) (*TaskHandle, error) {
-	resp, err := d.client.StartTask(ctx,
+func (d *driverClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
+	resp, err := d.client.StartTask(context.Background(),
 		&proto.StartTaskRequest{
 			Task: taskConfigToProto(c),
 		})
@@ -62,16 +62,16 @@ func (d *driverClient) WaitTask(ctx context.Context, id string) chan *TaskResult
 	return ch
 }
 
-func (d *driverClient) StopTask(ctx context.Context, taskID string, timeout time.Duration, signal string) error {
+func (d *driverClient) StopTask(taskID string, timeout time.Duration, signal string) error {
 	return nil
 }
-func (d *driverClient) DestroyTask(ctx context.Context, taskID string) {}
-func (d *driverClient) ListTasks(ctx context.Context, q *ListTasksQuery) ([]*TaskSummary, error) {
+func (d *driverClient) DestroyTask(taskID string) {}
+func (d *driverClient) ListTasks(q *ListTasksQuery) ([]*TaskSummary, error) {
 	return nil, nil
 }
-func (d *driverClient) InspectTask(ctx context.Context, taskID string) (*TaskStatus, error) {
+func (d *driverClient) InspectTask(taskID string) (*TaskStatus, error) {
 	return nil, nil
 }
-func (d *driverClient) TaskStats(ctx context.Context, taskID string) (*TaskStats, error) {
+func (d *driverClient) TaskStats(taskID string) (*TaskStats, error) {
 	return nil, nil
 }
