@@ -7,13 +7,15 @@ import (
 	"sync"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/fields"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers/base"
+	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -28,16 +30,49 @@ type RawExecDriver struct {
 	// tree
 	useCgroup bool
 
-	tasks sync.Map
+	tasks *taskStore
 }
 
-type taskHandle struct {
-	id     string
-	config *base.TaskConfig
+type taskStore struct {
+	store map[string]*rawExecTaskHandle
+	lock  sync.RWMutex
+}
+
+func newTaskStore() *taskStore {
+	return &taskStore{store: map[string]*rawExecTaskHandle{}}
+}
+
+func (ts *taskStore) Set(id string, handle *rawExecTaskHandle) {
+	ts.lock.Lock()
+	defer ts.lock.Unlock()
+	ts.store[id] = handle
+}
+
+func (ts *taskStore) Get(id string) (*rawExecTaskHandle, bool) {
+	ts.lock.RLock()
+	defer ts.lock.RUnlock()
+	t, ok := ts.store[id]
+	return t, ok
+}
+
+func (ts *taskStore) Delete(id string) {
+	ts.lock.Lock()
+	defer ts.lock.Unlock()
+	delete(ts.store, id)
+}
+
+func (ts *taskStore) Range(f func(id string, handle *rawExecTaskHandle) bool) {
+	ts.lock.RLock()
+	defer ts.lock.RUnlock()
+	for k, v := range ts.store {
+		if f(k, v) {
+			break
+		}
+	}
 }
 
 func NewRawExecDriver() base.Driver {
-	return &RawExecDriver{}
+	return &RawExecDriver{tasks: newTaskStore()}
 }
 
 func (d *RawExecDriver) Fingerprint() *base.Fingerprint {
@@ -54,9 +89,16 @@ func (d *RawExecDriver) StartTask(config *base.TaskConfig) (*base.TaskHandle, er
 		return nil, err
 	}
 
+	if config.ID == "" {
+		config.ID = uuid.Generate()
+	} else {
+		if _, ok := d.tasks.Get(config.ID); ok {
+			return nil, fmt.Errorf("task with id '%s' already exists", config.ID)
+		}
+	}
+
 	handle := base.NewTaskHandle(DriverName)
 	handle.Config = config
-	d.tasks.Store(config.ID, handle)
 
 	// TODO: Move this struct to correct package
 	var driverConfig driver.ExecDriverConfig
@@ -66,7 +108,7 @@ func (d *RawExecDriver) StartTask(config *base.TaskConfig) (*base.TaskHandle, er
 
 	// Get the command to be ran
 	command := driverConfig.Command
-	if err := drivers.ValidateCommand(command, "args"); err != nil {
+	if err := utils.ValidateCommand(command, "args"); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +118,7 @@ func (d *RawExecDriver) StartTask(config *base.TaskConfig) (*base.TaskHandle, er
 		LogLevel: "debug",
 	}
 
-	exec, pluginClient, err := drivers.CreateExecutor(os.Stderr, "debug", 14000, 14512, executorConfig)
+	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, "debug", 14000, 14512, executorConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -117,15 +159,20 @@ func (d *RawExecDriver) StartTask(config *base.TaskConfig) (*base.TaskHandle, er
 		exec:         exec,
 		pluginClient: pluginClient,
 		task:         config,
+		startTime:    time.Now(),
+		procState:    base.TaskStateRunning,
+		doneCh:       make(chan struct{}),
 	}
 
-	d.tasks.Store(config.ID, h)
+	d.tasks.Set(config.ID, h)
 
 	handle.SetDriverState(RawExecTaskState{
 		ReattachConfig:  pluginClient.ReattachConfig(),
 		ExecutorContext: executorCtx,
 		Pid:             ps.Pid,
 	})
+
+	go h.run()
 
 	return handle, nil
 }
@@ -141,6 +188,15 @@ type rawExecTaskHandle struct {
 	exec         executor.Executor
 	pluginClient *plugin.Client
 	task         *base.TaskConfig
+	startTime    time.Time
+	procState    base.TaskState
+	logger       hclog.Logger
+	doneCh       chan struct{}
+}
+
+func (h *rawExecTaskHandle) run() {
+	h.exec.Wait()
+	h.procState = base.TaskStateDead
 }
 
 func (d *RawExecDriver) Validate(config map[string]interface{}) error {
@@ -168,7 +224,7 @@ func (d *RawExecDriver) WaitTask(taskID string) chan *base.TaskResult {
 	ch := make(chan *base.TaskResult)
 	go func() {
 		defer close(ch)
-		rawTask, ok := d.tasks.Load(taskID)
+		handle, ok := d.tasks.Get(taskID)
 		if !ok {
 			ch <- &base.TaskResult{
 				Err: fmt.Errorf("no task found for id: %s", taskID),
@@ -176,7 +232,6 @@ func (d *RawExecDriver) WaitTask(taskID string) chan *base.TaskResult {
 			return
 		}
 
-		handle := rawTask.(*rawExecTaskHandle)
 		ps, err := handle.exec.Wait()
 		if err != nil {
 			ch <- &base.TaskResult{
@@ -193,16 +248,128 @@ func (d *RawExecDriver) WaitTask(taskID string) chan *base.TaskResult {
 }
 
 func (d *RawExecDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
-	return nil
-}
-func (d *RawExecDriver) DestroyTask(taskID string) {}
-func (d *RawExecDriver) ListTasks(*base.ListTasksQuery) ([]*base.TaskSummary, error) {
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return base.ErrTaskNotFound
+	}
 
-	return nil, nil
+	//TODO executor only supports shutting down with the initial signal provided
+	if err := handle.exec.ShutDown(); err != nil {
+		if handle.pluginClient.Exited() {
+			return nil
+		}
+		return fmt.Errorf("executor Shutdown failed: %v", err)
+	}
+
+	select {
+	case <-d.WaitTask(taskID):
+		return nil
+	case <-time.After(timeout):
+		if handle.pluginClient.Exited() {
+			return nil
+		}
+		if err := handle.exec.Exit(); err != nil {
+			return fmt.Errorf("executor Exit failed: %v", err)
+		}
+		return nil
+	}
+}
+func (d *RawExecDriver) DestroyTask(taskID string) {
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return
+	}
+
+	if !handle.pluginClient.Exited() {
+		if err := handle.exec.Exit(); err != nil {
+			handle.logger.Error("killing executor failed", "err", err)
+		}
+	}
+
+	handle.pluginClient.Kill()
+	d.tasks.Delete(taskID)
+
+}
+
+func (d *RawExecDriver) ListTasks(*base.ListTasksQuery) ([]*base.TaskSummary, error) {
+	//TODO ignore query for now
+
+	tasks := []*base.TaskSummary{}
+	rangeF := func(id string, handle *rawExecTaskHandle) bool {
+		tasks = append(tasks, &base.TaskSummary{
+			ID:        id,
+			Name:      handle.task.Name,
+			State:     string(handle.procState),
+			CreatedAt: handle.startTime,
+		})
+		return false
+	}
+	d.tasks.Range(rangeF)
+
+	return tasks, nil
 }
 func (d *RawExecDriver) InspectTask(taskID string) (*base.TaskStatus, error) {
 	return nil, nil
 }
 func (d *RawExecDriver) TaskStats(taskID string) (*base.TaskStats, error) {
-	return nil, nil
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, base.ErrTaskNotFound
+	}
+
+	eStats, err := handle.exec.Stats()
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &base.TaskStats{
+		ID:        handle.task.ID,
+		Timestamp: eStats.Timestamp,
+		AggResourceUsage: base.ResourceUsage{
+			CPU: base.CPUUsage{
+				SystemMode:       eStats.ResourceUsage.CpuStats.SystemMode,
+				UserMode:         eStats.ResourceUsage.CpuStats.UserMode,
+				TotalTicks:       eStats.ResourceUsage.CpuStats.TotalTicks,
+				ThrottledPeriods: eStats.ResourceUsage.CpuStats.ThrottledPeriods,
+				ThrottledTime:    eStats.ResourceUsage.CpuStats.ThrottledTime,
+				Percent:          eStats.ResourceUsage.CpuStats.Percent,
+				Measured:         eStats.ResourceUsage.CpuStats.Measured,
+			},
+			Memory: base.MemoryUsage{
+				RSS:            eStats.ResourceUsage.MemoryStats.RSS,
+				Cache:          eStats.ResourceUsage.MemoryStats.Cache,
+				Swap:           eStats.ResourceUsage.MemoryStats.Swap,
+				MaxUsage:       eStats.ResourceUsage.MemoryStats.MaxUsage,
+				KernelUsage:    eStats.ResourceUsage.MemoryStats.KernelUsage,
+				KernelMaxUsage: eStats.ResourceUsage.MemoryStats.KernelMaxUsage,
+				Measured:       eStats.ResourceUsage.MemoryStats.Measured,
+			},
+		},
+		ResourceUsageByPid: map[string]*base.ResourceUsage{},
+	}
+
+	for pid, usage := range eStats.Pids {
+		stats.ResourceUsageByPid[pid] = &base.ResourceUsage{
+			CPU: base.CPUUsage{
+				SystemMode:       usage.CpuStats.SystemMode,
+				UserMode:         usage.CpuStats.UserMode,
+				TotalTicks:       usage.CpuStats.TotalTicks,
+				ThrottledPeriods: usage.CpuStats.ThrottledPeriods,
+				ThrottledTime:    usage.CpuStats.ThrottledTime,
+				Percent:          usage.CpuStats.Percent,
+				Measured:         usage.CpuStats.Measured,
+			},
+			Memory: base.MemoryUsage{
+				RSS:            usage.MemoryStats.RSS,
+				Cache:          usage.MemoryStats.Cache,
+				Swap:           usage.MemoryStats.Swap,
+				MaxUsage:       usage.MemoryStats.MaxUsage,
+				KernelUsage:    usage.MemoryStats.KernelUsage,
+				KernelMaxUsage: usage.MemoryStats.KernelMaxUsage,
+				Measured:       usage.MemoryStats.Measured,
+			},
+		}
+	}
+
+	return stats, nil
 }

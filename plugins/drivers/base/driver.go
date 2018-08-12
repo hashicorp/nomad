@@ -126,17 +126,36 @@ type TaskStatus struct {
 }
 
 type TaskStats struct {
-	ID     string
-	CPU    TaskCPUUsage
-	Memory TaskMemoryUsage
+	ID                 string
+	Timestamp          int64
+	AggResourceUsage   ResourceUsage
+	ResourceUsageByPid map[string]*ResourceUsage
 }
 
-type TaskCPUUsage struct {
-	Timestamp            time.Time
-	UsageCoreNanoseconds uint64
+type ResourceUsage struct {
+	CPU    CPUUsage
+	Memory MemoryUsage
+}
+type CPUUsage struct {
+	SystemMode       float64
+	UserMode         float64
+	TotalTicks       float64
+	ThrottledPeriods uint64
+	ThrottledTime    uint64
+	Percent          float64
+
+	// A list of fields whose values were actually sampled
+	Measured []string
 }
 
-type TaskMemoryUsage struct {
-	Timestamp       time.Time
-	WorkingSetBytes uint64
+type MemoryUsage struct {
+	RSS            uint64
+	Cache          uint64
+	Swap           uint64
+	MaxUsage       uint64
+	KernelUsage    uint64
+	KernelMaxUsage uint64
+
+	// A list of fields whose values were actually sampled
+	Measured []string
 }
