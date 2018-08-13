@@ -463,7 +463,7 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 		// Negative case, if this is reached it means that none of the specified
 		// cipher suites signature algorithms match the signature algorithm
 		// for the certificate.
-		return []uint16{}, fmt.Errorf("Specified cipher suites don't support the certificate signature algorithm, consider adding more cipher suites to match this signature algorithm.")
+		return []uint16{}, fmt.Errorf("Specified cipher suites don't support the certificate signature algorithm %s, consider adding more cipher suites to match this signature algorithm.", supportedSignatureAlgorithm)
 	}
 
 	// Default in case this function is called but TLS is not actually configured
