@@ -46,14 +46,15 @@ export default Route.extend({
     );
   },
 
-  // setupController doesn't refire when the model hook refires as part of
-  // a query param change
-  afterModel(model, transition) {
-    const queryParam = transition.queryParams.region;
-    const controller = this.controllerFor('application');
+  // Model is being used as a way to transfer the provided region
+  // query param to update the controller state.
+  model(params) {
+    return params.region;
+  },
 
-    // The default region shouldn't show up as a query param since
-    // it's superfluous.
+  setupController(controller, model) {
+    const queryParam = model;
+
     if (queryParam === this.get('system.defaultRegion.region')) {
       next(() => {
         controller.set('region', null);
