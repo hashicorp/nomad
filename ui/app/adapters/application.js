@@ -9,6 +9,7 @@ export const namespace = 'v1';
 export default RESTAdapter.extend({
   namespace,
 
+  system: service(),
   token: service(),
 
   headers: computed('token.secret', function() {
@@ -33,6 +34,17 @@ export default RESTAdapter.extend({
       // Rethrow to be handled downstream
       throw error;
     });
+  },
+
+  ajaxOptions(url, type, options = {}) {
+    options.data || (options.data = {});
+    if (this.get('system.shouldIncludeRegion')) {
+      const region = this.get('system.activeRegion');
+      if (region) {
+        options.data.region = region;
+      }
+    }
+    return this._super(url, type, options);
   },
 
   // In order to remove stale records from the store, findHasMany has to unload

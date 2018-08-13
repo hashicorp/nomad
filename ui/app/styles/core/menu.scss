@@ -27,6 +27,10 @@
 
     .menu-item {
       margin: 0.5rem 1.5rem;
+
+      &.is-wide {
+        margin: 0.5rem 1rem;
+      }
     }
   }
 
@@ -42,6 +46,14 @@
     }
 
     &:not(:first-child) {
+      border-top: 1px solid $grey-blue;
+    }
+  }
+
+  .collapsed-only + .menu-label {
+    border-top: none;
+
+    @media #{$mq-hidden-gutter} {
       border-top: 1px solid $grey-blue;
     }
   }

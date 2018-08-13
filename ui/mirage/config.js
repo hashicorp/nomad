@@ -165,8 +165,10 @@ export default function() {
     return new Response(501, {}, null);
   });
 
-  this.get('/agent/members', function({ agents }) {
+  this.get('/agent/members', function({ agents, regions }) {
+    const firstRegion = regions.first();
     return {
+      ServerRegion: firstRegion ? firstRegion.id : null,
       Members: this.serialize(agents.all()),
     };
   });
@@ -220,6 +222,10 @@ export default function() {
 
     // Return not authorized otherwise
     return new Response(403, {}, null);
+  });
+
+  this.get('/regions', function({ regions }) {
+    return this.serialize(regions.all());
   });
 
   const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {

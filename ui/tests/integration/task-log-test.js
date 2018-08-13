@@ -56,6 +56,7 @@ moduleForComponent('task-log', 'Integration | Component | task log', {
     this.server = new Pretender(function() {
       this.get(`http://${HOST}/v1/client/fs/logs/:allocation_id`, handler);
       this.get('/v1/client/fs/logs/:allocation_id', handler);
+      this.get('/v1/regions', () => [200, {}, '[]']);
     });
   },
   afterEach() {

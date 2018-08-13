@@ -15,6 +15,7 @@ moduleForAdapter('node', 'Unit | Adapter | Node', {
     'model:job',
     'serializer:application',
     'serializer:node',
+    'service:system',
     'service:token',
     'service:config',
     'service:watchList',

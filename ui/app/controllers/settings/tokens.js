@@ -5,6 +5,7 @@ import { getOwner } from '@ember/application';
 
 export default Controller.extend({
   token: service(),
+  system: service(),
   store: service(),
 
   secret: reads('token.secret'),
@@ -43,6 +44,7 @@ export default Controller.extend({
 
           // Clear out all data to ensure only data the new token is privileged to
           // see is shown
+          this.get('system').reset();
           this.resetStore();
 
           // Immediately refetch the token now that the store is empty

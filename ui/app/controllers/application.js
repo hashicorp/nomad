@@ -7,6 +7,13 @@ import codesForError from '../utils/codes-for-error';
 
 export default Controller.extend({
   config: service(),
+  system: service(),
+
+  queryParams: {
+    region: 'region',
+  },
+
+  region: null,
 
   error: null,
 
