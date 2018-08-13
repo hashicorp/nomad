@@ -33,7 +33,10 @@ type PluginBase struct {
 }
 
 func (p *PluginBase) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-	proto.RegisterBasePluginServer(s, &basePluginServer{impl: p.impl})
+	proto.RegisterBasePluginServer(s, &basePluginServer{
+		impl:   p.impl,
+		broker: broker,
+	})
 	return nil
 }
 

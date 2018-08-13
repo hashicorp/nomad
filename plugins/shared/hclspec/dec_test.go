@@ -46,7 +46,7 @@ func TestDec_Convert_Object(t *testing.T) {
 				Block: &Spec_Object{
 					&Object{
 						Attributes: map[string]*Spec{
-							"foo": &Spec{
+							"foo": {
 								Block: &Spec_Attr{
 									&Attr{
 										Type:     "string",
@@ -54,7 +54,7 @@ func TestDec_Convert_Object(t *testing.T) {
 									},
 								},
 							},
-							"bar": &Spec{
+							"bar": {
 								Block: &Spec_Attr{
 									&Attr{
 										Type:     "number",
@@ -62,7 +62,7 @@ func TestDec_Convert_Object(t *testing.T) {
 									},
 								},
 							},
-							"baz": &Spec{
+							"baz": {
 								Block: &Spec_Attr{
 									&Attr{
 										Type: "bool",
@@ -106,7 +106,7 @@ func TestDec_Convert_Array(t *testing.T) {
 				Block: &Spec_Array{
 					Array: &Array{
 						Values: []*Spec{
-							&Spec{
+							{
 								Block: &Spec_Attr{
 									&Attr{
 										Name:     "foo",
@@ -115,7 +115,7 @@ func TestDec_Convert_Array(t *testing.T) {
 									},
 								},
 							},
-							&Spec{
+							{
 								Block: &Spec_Attr{
 									&Attr{
 										Name:     "bar",

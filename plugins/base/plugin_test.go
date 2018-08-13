@@ -16,27 +16,27 @@ var (
 	// testSpec is an hcl Spec for testing
 	testSpec = &hclspec.Spec{
 		Block: &hclspec.Spec_Object{
-			&hclspec.Object{
+			Object: &hclspec.Object{
 				Attributes: map[string]*hclspec.Spec{
-					"foo": &hclspec.Spec{
+					"foo": {
 						Block: &hclspec.Spec_Attr{
-							&hclspec.Attr{
+							Attr: &hclspec.Attr{
 								Type:     "string",
 								Required: false,
 							},
 						},
 					},
-					"bar": &hclspec.Spec{
+					"bar": {
 						Block: &hclspec.Spec_Attr{
-							&hclspec.Attr{
+							Attr: &hclspec.Attr{
 								Type:     "number",
 								Required: true,
 							},
 						},
 					},
-					"baz": &hclspec.Spec{
+					"baz": {
 						Block: &hclspec.Spec_Attr{
-							&hclspec.Attr{
+							Attr: &hclspec.Attr{
 								Type: "bool",
 							},
 						},

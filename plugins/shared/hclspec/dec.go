@@ -82,8 +82,6 @@ func decodeSpecBlock(spec *Spec, impliedName string) (hcldec.Spec, hcl.Diagnosti
 		})
 		return nil, diags
 	}
-
-	return nil, nil
 }
 
 func decodeObjectSpec(obj *Object) (hcldec.Spec, hcl.Diagnostics) {
