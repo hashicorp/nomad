@@ -43,17 +43,17 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
 
-// algorithmStringRepr is the string representation of a signing algorithm
-type algorithmStringRepr string
+// signatureAlgorithm is the string representation of a signing algorithm
+type signatureAlgorithm string
 
 const (
-	rsaStringRepr   algorithmStringRepr = "RSA"
-	ecdsaStringRepr algorithmStringRepr = "ECDSA"
+	rsaStringRepr   signatureAlgorithm = "RSA"
+	ecdsaStringRepr signatureAlgorithm = "ECDSA"
 )
 
 // supportedCipherSignatures is the supported cipher suites with their
 // corresponding signature algorithm
-var supportedCipherSignatures = map[string]algorithmStringRepr{
+var supportedCipherSignatures = map[string]signatureAlgorithm{
 	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsaStringRepr,
 	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsaStringRepr,
 	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   rsaStringRepr,
@@ -475,7 +475,7 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 // This is determined by examining the type of the certificate's public key,
 // as Golang doesn't expose a more straightforward  API which returns this
 // type
-func getSignatureAlgorithm(tlsCert *tls.Certificate) (algorithmStringRepr, error) {
+func getSignatureAlgorithm(tlsCert *tls.Certificate) (signatureAlgorithm, error) {
 	privKey := tlsCert.PrivateKey
 	switch privKey.(type) {
 	case *rsa.PrivateKey:
