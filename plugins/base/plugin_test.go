@@ -1,4 +1,4 @@
-package shared
+package base
 
 import (
 	"testing"
@@ -6,12 +6,10 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/base/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -68,7 +66,7 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 
 	knownType := func() (*PluginInfoResponse, error) {
 		info := &PluginInfoResponse{
-			Type:             PluginTypeBase,
+			Type:             PluginTypeDriver,
 			PluginApiVersion: apiVersion,
 			PluginVersion:    pluginVersion,
 			Name:             pluginName,
@@ -89,24 +87,32 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 		PluginInfoF: knownType,
 	}
 
-	conn, server := plugin.TestGRPCConn(t, func(s *grpc.Server) {
-		proto.RegisterBasePluginServer(s, &basePluginServer{impl: mock})
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		"base": &PluginBase{impl: mock},
 	})
-	defer conn.Close()
 	defer server.Stop()
-	grpcClient := proto.NewBasePluginClient(conn)
-	client := basePluginClient{client: grpcClient}
+	defer client.Close()
 
-	resp, err := client.PluginInfo()
+	raw, err := client.Dispense("base")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	impl, ok := raw.(BasePlugin)
+	if !ok {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	resp, err := impl.PluginInfo()
 	require.NoError(err)
 	require.Equal(apiVersion, resp.PluginApiVersion)
 	require.Equal(pluginVersion, resp.PluginVersion)
 	require.Equal(pluginName, resp.Name)
-	require.Equal(PluginTypeBase, resp.Type)
+	require.Equal(PluginTypeDriver, resp.Type)
 
 	// Swap the implementation to return an unknown type
 	mock.PluginInfoF = unknownType
-	_, err = client.PluginInfo()
+	_, err = impl.PluginInfo()
 	require.Error(err)
 	require.Contains(err.Error(), "unknown type")
 }
@@ -121,15 +127,23 @@ func TestBasePlugin_ConfigSchema(t *testing.T) {
 		},
 	}
 
-	conn, server := plugin.TestGRPCConn(t, func(s *grpc.Server) {
-		proto.RegisterBasePluginServer(s, &basePluginServer{impl: mock})
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		"base": &PluginBase{impl: mock},
 	})
-	defer conn.Close()
 	defer server.Stop()
-	grpcClient := proto.NewBasePluginClient(conn)
-	client := basePluginClient{client: grpcClient}
+	defer client.Close()
 
-	specOut, err := client.ConfigSchema()
+	raw, err := client.Dispense("base")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	impl, ok := raw.(BasePlugin)
+	if !ok {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	specOut, err := impl.ConfigSchema()
 	require.NoError(err)
 	require.True(pb.Equal(testSpec, specOut))
 }
@@ -149,13 +163,21 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 		},
 	}
 
-	conn, server := plugin.TestGRPCConn(t, func(s *grpc.Server) {
-		proto.RegisterBasePluginServer(s, &basePluginServer{impl: mock})
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		"base": &PluginBase{impl: mock},
 	})
-	defer conn.Close()
 	defer server.Stop()
-	grpcClient := proto.NewBasePluginClient(conn)
-	client := basePluginClient{client: grpcClient}
+	defer client.Close()
+
+	raw, err := client.Dispense("base")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	impl, ok := raw.(BasePlugin)
+	if !ok {
+		t.Fatalf("bad: %#v", raw)
+	}
 
 	config := cty.ObjectVal(map[string]cty.Value{
 		"foo": cty.StringVal("v1"),
@@ -164,7 +186,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	})
 	cdata, err := msgpack.Marshal(config, config.Type())
 	require.NoError(err)
-	require.NoError(client.SetConfig(cdata))
+	require.NoError(impl.SetConfig(cdata))
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back

@@ -1,7 +1,7 @@
-package shared
+package base
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base/proto"
@@ -9,9 +9,6 @@ import (
 )
 
 const (
-	// PluginTypeBase implements the base plugin driver interface
-	PluginTypeBase = "base"
-
 	// PluginTypeDriver implements the driver plugin interface
 	PluginTypeDriver = "driver"
 
@@ -28,6 +25,8 @@ var (
 	}
 )
 
+// PluginBase is wraps a BasePlugin and implements go-plugins GRPCPlugin
+// interface to expose the interface over gRPC.
 type PluginBase struct {
 	plugin.NetRPCUnsupportedPlugin
 	impl BasePlugin

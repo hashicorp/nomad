@@ -1,4 +1,4 @@
-package shared
+package base
 
 import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"

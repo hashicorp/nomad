@@ -20,7 +20,6 @@ service BasePlugin {
 // PluginType enumerates the type of plugins Nomad supports
 enum PluginType {
   UNKNOWN = 0;
-  BASE = 1;
   DRIVER = 2;
   DEVICE = 3;
 }

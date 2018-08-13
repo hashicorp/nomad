@@ -1,11 +1,11 @@
-package shared
+package base
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/nomad/plugins/base/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"golang.org/x/net/context"
 )
 
 // basePluginClient implements the client side of a remote base plugin, using
@@ -22,8 +22,6 @@ func (b *basePluginClient) PluginInfo() (*PluginInfoResponse, error) {
 
 	var ptype string
 	switch presp.GetType() {
-	case proto.PluginType_BASE:
-		ptype = PluginTypeBase
 	case proto.PluginType_DRIVER:
 		ptype = PluginTypeDriver
 	case proto.PluginType_DEVICE:

@@ -1,4 +1,4 @@
-package shared
+package base
 
 import (
 	"fmt"
@@ -23,8 +23,6 @@ func (b *basePluginServer) PluginInfo(context.Context, *proto.PluginInfoRequest)
 
 	var ptype proto.PluginType
 	switch resp.Type {
-	case PluginTypeBase:
-		ptype = proto.PluginType_BASE
 	case PluginTypeDriver:
 		ptype = proto.PluginType_DRIVER
 	case PluginTypeDevice:
