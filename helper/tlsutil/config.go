@@ -447,20 +447,9 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 	keyLoader.LoadKeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
 
 	if keyLoader.GetCertificate() != nil {
-		var supportedSignatureAlgorithm algorithmStringRepr
-
-		tlsCert := keyLoader.GetCertificate()
-
-		// Determine what type of signature algorithm is being used by typecasting
-		// the certificate's private key
-		privKey := tlsCert.PrivateKey
-		switch privKey.(type) {
-		case *rsa.PrivateKey:
-			supportedSignatureAlgorithm = rsaStringRepr
-		case *ecdsa.PrivateKey:
-			supportedSignatureAlgorithm = ecdsaStringRepr
-		default:
-			return []uint16{}, fmt.Errorf("Unsupported signature algorithm %T; RSA and ECDSA only are supported.", privKey)
+		supportedSignatureAlgorithm, err := getSignatureAlgorithm(keyLoader.GetCertificate())
+		if err != nil {
+			return []uint16{}, err
 		}
 
 		for _, cipher := range parsedCiphers {
@@ -480,6 +469,22 @@ func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 	// Default in case this function is called but TLS is not actually configured
 	// This is only reached if the TLS certificate is nil
 	return []uint16{}, nil
+}
+
+// getSignatureAlgorithm returns the signature algorithm for a TLS certificate
+// This is determined by examining the type of the certificate's public key,
+// as Golang doesn't expose a more straightforward  API which returns this
+// type
+func getSignatureAlgorithm(tlsCert *tls.Certificate) (algorithmStringRepr, error) {
+	privKey := tlsCert.PrivateKey
+	switch privKey.(type) {
+	case *rsa.PrivateKey:
+		return rsaStringRepr, nil
+	case *ecdsa.PrivateKey:
+		return ecdsaStringRepr, nil
+	default:
+		return "", fmt.Errorf("Unsupported signature algorithm %T; RSA and ECDSA only are supported.", privKey)
+	}
 }
 
 // ParseMinVersion parses the specified minimum TLS version for the Nomad agent
