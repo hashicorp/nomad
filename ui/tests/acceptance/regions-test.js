@@ -137,7 +137,7 @@ test('switching regions to the default region, unsets the region query param', f
   selectChoose('[data-test-region-switcher]', defaultRegion);
 
   andThen(() => {
-    assert.equal(currentURL(), '/jobs', 'No region query param for the default region');
+    assert.notOk(currentURL().includes('region='), 'No region query param for the default region');
     assert.equal(
       window.localStorage.nomadActiveRegion,
       defaultRegion,
