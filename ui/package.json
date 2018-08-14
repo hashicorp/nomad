@@ -72,7 +72,7 @@
     "flat": "^4.0.0",
     "fuse.js": "~3.2.0",
     "husky": "^0.14.3",
-    "json-formatter-js": "^2.2.0",
+    "ivy-codemirror": "^2.1.0",
     "lint-staged": "^6.0.0",
     "loader.js": "^4.2.3",
     "lodash.intersection": "^4.4.0",
