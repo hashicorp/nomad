@@ -76,6 +76,8 @@ The `rkt` driver supports the following configuration in the job spec:
   }
   ```
 
+* `hostname` - (Optional) The host name of the container to be set by rkt.
+
 * `dns_servers` - (Optional) A list of DNS servers to be used in the container.
   Alternatively a list containing just `host` or `none`. `host` uses the host's
   `resolv.conf` while `none` forces use of the image's name resolution configuration.

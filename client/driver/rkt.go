@@ -88,6 +88,7 @@ type RktDriverConfig struct {
 	PortMap          map[string]string   `mapstructure:"-"`                  // A map of host port and the port name defined in the image manifest file
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
+	Hostname         string              `mapstructure:"hostname"`
 
 	NoOverlay bool   `mapstructure:"no_overlay"` // disable overlayfs for rkt run
 	Debug     bool   `mapstructure:"debug"`      // Enable debug option for rkt command
@@ -286,6 +287,9 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 				Type: fields.TypeArray,
 			},
 			"trust_prefix": {
+				Type: fields.TypeString,
+			},
+			"hostname": {
 				Type: fields.TypeString,
 			},
 			"dns_servers": {
@@ -520,6 +524,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 	// Add CPU isolator
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
+
+	// Hostname
+	if driverConfig.Hostname != "" {
+		runArgs = append(runArgs, fmt.Sprintf("--hostname=%s", driverConfig.Hostname))
+	}
 
 	// Add DNS servers
 	if len(driverConfig.DNSServers) == 1 && (driverConfig.DNSServers[0] == "host" || driverConfig.DNSServers[0] == "none") {
