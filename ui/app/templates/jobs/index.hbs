@@ -2,11 +2,16 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    {{#if filteredJobs.length}}
-      <div class="content">
-        <div>{{search-box data-test-jobs-search searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
+    <div class="columns">
+      {{#if filteredJobs.length}}
+        <div class="column">
+          {{search-box data-test-jobs-search searchTerm=(mut searchTerm) placeholder="Search jobs..."}}
+        </div>
+      {{/if}}
+      <div class="column is-centered">
+        {{#link-to "jobs.run" class="button is-primary is-pulled-right"}}Run Job{{/link-to}}
       </div>
-    {{/if}}
+    </div>
     {{#list-pagination
       source=sortedJobs
       size=pageSize

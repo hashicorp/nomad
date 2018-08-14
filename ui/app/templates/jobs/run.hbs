@@ -1,0 +1,31 @@
+<section class="section">
+  <div class="notification is-info">
+    <div class="columns">
+      <div class="column">
+        <h3 class="title is-4">Run a Job</h3>
+        <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted.</p>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button class="button is-info">Okay</button>
+      </div>
+    </div>
+  </div>
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Job Definition
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{ivy-codemirror
+        value=jobSpec
+        options=(hash
+          mode="javascript"
+          theme="hashi"
+          tabSize=2
+          lineNumbers=true
+        )}}
+    </div>
+  </div>
+  <div class="content is-associative">
+    <button class="button is-primary">Plan</button>
+  </div>
+</section>
