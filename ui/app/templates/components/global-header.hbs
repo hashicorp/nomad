@@ -1,7 +1,10 @@
 <nav class="navbar is-primary">
   <div class="navbar-brand">
+    <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
+      {{partial "partials/hamburger-menu"}}
+    </span>
     <span class="navbar-item is-logo">
-      <img src="/ui/images/nomad-logo.svg" alt="Nomad" />
+      {{partial "partials/nomad-logo"}}
     </span>
   </div>
   <div class="navbar-end">
@@ -13,7 +16,9 @@
   </div>
 </nav>
 <div class="navbar is-secondary">
-  <div class="navbar-item is-gutter"></div>
+  <div class="navbar-item is-gutter">
+    {{region-switcher decoration="is-outlined"}}
+  </div>
   <nav class="breadcrumb is-large">
     <ul>
       {{yield}}

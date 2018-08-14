@@ -1,0 +1,113 @@
+syntax = "proto3";
+package hashicorp.nomad.plugins.device;
+option go_package = "device";
+import "google/protobuf/empty.proto";
+
+// DevicePlugin is the API exposed by device plugins
+service DevicePlugin {
+  // Fingerprint allows the device plugin to return a set of   
+  // detected devices and provide a mechanism to update the state of
+  // the device.
+  rpc Fingerprint(google.protobuf.Empty) returns (stream DetectedDevices) {}
+
+  // Reserve is called by the client before starting an allocation
+  // that requires access to the plugin’s devices. The plugin can use
+  // this to run any setup steps and provides the mounting details to 
+  // the Nomad client
+  rpc Reserve(ReserveRequest) returns (ReserveResponse) {}
+}
+
+// DetectedDevices is the set of devices that the device plugin has 
+// detected and is exposing
+message DetectedDevices {
+  // vendor is the name of the vendor of the device
+  string vendor = 1;
+
+  // device_type is the type of the device (gpu, fpga, etc).
+  string device_type = 2;
+  
+  // device_name is the name of the device.
+  string device_name = 3;
+
+  // devices is the set of devices detected by the plugin.
+  repeated DetectedDevice devices = 4;
+
+  // node_attributes allows adding node attributes to be used for 
+  // constraints or affinities.
+  map<string, string> node_attributes = 5;
+}
+
+// DetectedDevice is a single detected device.
+message DetectedDevice {
+  // ID is the ID of the device. This ID is used during 
+  // allocation.
+  string ID = 1;
+
+  // Health of the device.
+  bool healthy = 2;
+  
+  // health_description allows the device plugin to optionally 
+  // annotate the health field with a human readable reason.
+  string health_description = 3;
+
+  // pci_bus_id is the PCI bus ID for the device. If reported, it
+  // allows Nomad to make NUMA aware optimizations.
+  string pci_bus_id = 4; 
+}
+
+// ReserveRequest is used to ask the device driver for information on 
+// how to allocate the requested devices.
+message ReserveRequest {
+  // device_ids are the requested devices.
+  repeated string device_ids = 1;
+}
+
+// ReserveResponse informs Nomad how to expose the requested devices
+// to the the task.
+message ReserveResponse {
+  // container_res contains information on how to mount the device
+  // into a task isolated using container technologies (where the 
+  // host is shared)
+  ContainerReservation container_res = 1;
+}
+
+// ContainerReservation returns how to mount the device into a 
+// container that shares the host OS.
+message ContainerReservation {
+  // List of environment variable to be set
+  map<string, string> envs = 1;
+
+  // Mounts for the task.
+  repeated Mount mounts = 2;
+
+  // Devices for the task.
+  repeated DeviceSpec devices = 3;
+}
+
+// Mount specifies a host volume to mount into a task.
+// where device library or tools are installed on host and task
+message Mount {
+  // Path of the mount within the task.
+  string task_path = 1;
+
+  // Path of the mount on the host.
+  string host_path = 2;
+
+  // If set, the mount is read-only.
+  bool read_only = 3;
+}
+
+// DeviceSpec specifies a host device to mount into a task.
+message DeviceSpec {
+  // Path of the device within the task.
+  string task_path = 1;
+
+  // Path of the device on the host.
+  string host_path = 2;
+
+  // Cgroups permissions of the device, candidates are one or more of
+  // * r - allows task to read from the specified device.
+  // * w - allows task to write to the specified device.
+  // * m - allows task to create device files that do not yet exist
+  string permissions = 3;
+}

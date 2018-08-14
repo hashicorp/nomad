@@ -23,6 +23,7 @@ module.exports = function(environment) {
       mirageScenario: 'smallCluster',
       mirageWithNamespaces: false,
       mirageWithTokens: true,
+      mirageWithRegions: true,
     },
   };
 

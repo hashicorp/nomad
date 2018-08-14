@@ -12,6 +12,12 @@ export default Factory.extend({
   jobId: null,
   version: 0,
 
+  // ID is used for record tracking within Mirage,
+  // but Nomad uses the JobID as the version ID.
+  tempVersionId() {
+    return this.job.id;
+  },
+
   // Directive to restrict any related deployments from having a 'running' status
   noActiveDeployment: false,
 

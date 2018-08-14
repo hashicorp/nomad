@@ -42,5 +42,9 @@
     + * {
       margin-top: 5em;
     }
+
+    @media #{$mq-hidden-gutter} {
+      left: 0;
+    }
   }
 }

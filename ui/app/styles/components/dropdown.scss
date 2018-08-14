@@ -1,0 +1,36 @@
+.ember-power-select-trigger {
+  padding: 0.3em 16px 0.3em 0.3em;
+  border-radius: $radius;
+  box-shadow: $button-box-shadow-standard;
+  background: $white-bis;
+
+  &.is-outlined {
+    border-color: rgba($white, 0.5);
+    color: $white;
+    background: transparent;
+    box-shadow: $button-box-shadow-standard, 0 0 2px 2px rgba($black, 0.1);
+
+    .ember-power-select-status-icon {
+      border-top-color: rgba($white, 0.75);
+    }
+
+    .ember-power-select-prefix {
+      color: rgba($white, 0.75);
+    }
+  }
+}
+
+.ember-power-select-selected-item {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ember-power-select-prefix {
+  color: $grey;
+}
+
+.ember-power-select-option {
+  .ember-power-select-prefix {
+    display: none;
+  }
+}
