@@ -36,6 +36,17 @@ The `rkt` driver supports the following configuration in the job spec:
     }
     ```
 
+* `rkt_options` - (Optional) A list of extra non-interpolating options to
+  pass to _rkt_ runtime literally.
+
+    ```hcl
+    config {
+      rkt_options = [
+        "--seccomp", "mode=retain,@rkt/default-whitelist,errno=ENOTSUP",
+      ]
+    }
+    ```
+
 * `command` - (Optional) A command to execute on the ACI.
 
     ```hcl
