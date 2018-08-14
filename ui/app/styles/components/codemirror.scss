@@ -4,6 +4,10 @@ $dark-bright: lighten($dark, 15%);
   height: auto;
 }
 
+.CodeMirror-scroll {
+  min-height: 500px;
+}
+
 .cm-s-hashi,
 .cm-s-hashi-read-only {
   &.CodeMirror {
