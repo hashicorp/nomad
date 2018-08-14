@@ -249,7 +249,7 @@ func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.
 
 func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, nextVersion uint64, full bool) error {
 	if job == nil {
-		return fmt.Errorf("Error printing job history for non-existant job or job version")
+		return fmt.Errorf("Error printing job history for non-existing job or job version")
 	}
 
 	basic := []string{
