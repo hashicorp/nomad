@@ -1,6 +1,8 @@
 package tlsutil
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -39,6 +41,36 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
 	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+}
+
+// signatureAlgorithm is the string representation of a signing algorithm
+type signatureAlgorithm string
+
+const (
+	rsaStringRepr   signatureAlgorithm = "RSA"
+	ecdsaStringRepr signatureAlgorithm = "ECDSA"
+)
+
+// supportedCipherSignatures is the supported cipher suites with their
+// corresponding signature algorithm
+var supportedCipherSignatures = map[string]signatureAlgorithm{
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   rsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": ecdsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    ecdsaStringRepr,
+	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      rsaStringRepr,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    ecdsaStringRepr,
+	"TLS_RSA_WITH_AES_128_GCM_SHA256":         rsaStringRepr,
+	"TLS_RSA_WITH_AES_256_GCM_SHA384":         rsaStringRepr,
+	"TLS_RSA_WITH_AES_128_CBC_SHA256":         rsaStringRepr,
+	"TLS_RSA_WITH_AES_128_CBC_SHA":            rsaStringRepr,
+	"TLS_RSA_WITH_AES_256_CBC_SHA":            rsaStringRepr,
 }
 
 // defaultTLSCiphers are the TLS Ciphers that are supported by default
@@ -125,7 +157,7 @@ type Config struct {
 }
 
 func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoing bool) (*Config, error) {
-	ciphers, err := ParseCiphers(newConf.TLSCipherSuites)
+	ciphers, err := ParseCiphers(newConf)
 	if err != nil {
 		return nil, err
 	}
@@ -385,19 +417,19 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 
 // ParseCiphers parses ciphersuites from the comma-separated string into
 // recognized slice
-func ParseCiphers(cipherStr string) ([]uint16, error) {
+func ParseCiphers(tlsConfig *config.TLSConfig) ([]uint16, error) {
 	suites := []uint16{}
 
-	cipherStr = strings.TrimSpace(cipherStr)
+	cipherStr := strings.TrimSpace(tlsConfig.TLSCipherSuites)
 
-	var ciphers []string
+	var parsedCiphers []string
 	if cipherStr == "" {
-		ciphers = defaultTLSCiphers
+		parsedCiphers = defaultTLSCiphers
 
 	} else {
-		ciphers = strings.Split(cipherStr, ",")
+		parsedCiphers = strings.Split(tlsConfig.TLSCipherSuites, ",")
 	}
-	for _, cipher := range ciphers {
+	for _, cipher := range parsedCiphers {
 		c, ok := supportedTLSCiphers[cipher]
 		if !ok {
 			return suites, fmt.Errorf("unsupported TLS cipher %q", cipher)
@@ -405,7 +437,54 @@ func ParseCiphers(cipherStr string) ([]uint16, error) {
 		suites = append(suites, c)
 	}
 
-	return suites, nil
+	// Ensure that the specified cipher suite list is supported by the TLS
+	// Certificate signature algorithm. This is a check for user error, where a
+	// TLS certificate could support RSA but a user has configured a cipher suite
+	// list of ciphers where only ECDSA is supported.
+	keyLoader := tlsConfig.GetKeyLoader()
+
+	// Ensure that the keypair has been loaded before continuing
+	keyLoader.LoadKeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
+
+	if keyLoader.GetCertificate() != nil {
+		supportedSignatureAlgorithm, err := getSignatureAlgorithm(keyLoader.GetCertificate())
+		if err != nil {
+			return []uint16{}, err
+		}
+
+		for _, cipher := range parsedCiphers {
+			if supportedCipherSignatures[cipher] == supportedSignatureAlgorithm {
+				// Positive case, return the matched cipher suites as the signature
+				// algorithm is also supported
+				return suites, nil
+			}
+		}
+
+		// Negative case, if this is reached it means that none of the specified
+		// cipher suites signature algorithms match the signature algorithm
+		// for the certificate.
+		return []uint16{}, fmt.Errorf("Specified cipher suites don't support the certificate signature algorithm %s, consider adding more cipher suites to match this signature algorithm.", supportedSignatureAlgorithm)
+	}
+
+	// Default in case this function is called but TLS is not actually configured
+	// This is only reached if the TLS certificate is nil
+	return []uint16{}, nil
+}
+
+// getSignatureAlgorithm returns the signature algorithm for a TLS certificate
+// This is determined by examining the type of the certificate's public key,
+// as Golang doesn't expose a more straightforward  API which returns this
+// type
+func getSignatureAlgorithm(tlsCert *tls.Certificate) (signatureAlgorithm, error) {
+	privKey := tlsCert.PrivateKey
+	switch privKey.(type) {
+	case *rsa.PrivateKey:
+		return rsaStringRepr, nil
+	case *ecdsa.PrivateKey:
+		return ecdsaStringRepr, nil
+	default:
+		return "", fmt.Errorf("Unsupported signature algorithm %T; RSA and ECDSA only are supported.", privKey)
+	}
 }
 
 // ParseMinVersion parses the specified minimum TLS version for the Nomad agent
