@@ -198,6 +198,11 @@ export default Model.extend({
     return this.store.adapterFor('job').plan(this);
   },
 
+  run() {
+    assert('A job must be parsed before ran', this.get('_newDefinitionJSON'));
+    return this.store.adapterFor('job').run(this);
+  },
+
   parse() {
     const definition = this.get('_newDefinition');
     let promise;
@@ -224,8 +229,16 @@ export default Model.extend({
   },
 
   setIDByPayload(payload) {
-    this.set('plainId', payload.Name);
-    this.set('id', JSON.stringify([payload.Name, payload.Namespace || 'default']));
+    const namespace = payload.Namespace || 'default';
+    const id = payload.Name;
+
+    this.set('plainId', id);
+    this.set('id', JSON.stringify([id, namespace]));
+
+    const namespaceRecord = this.store.peekRecord('namespace', namespace);
+    if (namespaceRecord) {
+      this.set('namespace', namespaceRecord);
+    }
   },
 
   statusClass: computed('status', function() {

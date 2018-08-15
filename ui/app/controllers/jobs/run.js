@@ -1,6 +1,8 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
+import { next } from '@ember/runloop';
 
 export default Controller.extend({
   stage: computed('planOutput', function() {
@@ -18,15 +20,25 @@ export default Controller.extend({
 
     try {
       const planOutput = yield this.get('model').plan();
-      console.log('Heyo!', planOutput);
       this.set('planOutput', planOutput);
     } catch (err) {
       this.set('planError', err);
-      console.log('Uhoh', err);
     }
   }).drop(),
 
-  submit: task(function*() {}),
+  submit: task(function*() {
+    try {
+      yield this.get('model').run();
+      const id = this.get('model.plainId');
+      const namespace = this.get('model.namespace.name') || 'default';
+      // navigate to the new job page
+      this.transitionToRoute('jobs.job', id, {
+        queryParams: { jobNamespace: namespace },
+      });
+    } catch (err) {
+      this.set('runError', err);
+    }
+  }),
 
   cancel() {
     this.set('planOutput', null);
