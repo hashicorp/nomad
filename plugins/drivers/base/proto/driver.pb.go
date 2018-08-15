@@ -7,6 +7,7 @@ import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import duration "github.com/golang/protobuf/ptypes/duration"
+import empty "github.com/golang/protobuf/ptypes/empty"
 import timestamp "github.com/golang/protobuf/ptypes/timestamp"
 import hclspec "github.com/hashicorp/nomad/plugins/shared/hclspec"
 
@@ -49,85 +50,7 @@ func (x TaskState) String() string {
 	return proto.EnumName(TaskState_name, int32(x))
 }
 func (TaskState) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{0}
-}
-
-type FingerprintResponse_HealthState int32
-
-const (
-	FingerprintResponse_UNDETECTED FingerprintResponse_HealthState = 0
-	FingerprintResponse_UNHEALTHY  FingerprintResponse_HealthState = 1
-	FingerprintResponse_HEALTHY    FingerprintResponse_HealthState = 2
-)
-
-var FingerprintResponse_HealthState_name = map[int32]string{
-	0: "UNDETECTED",
-	1: "UNHEALTHY",
-	2: "HEALTHY",
-}
-var FingerprintResponse_HealthState_value = map[string]int32{
-	"UNDETECTED": 0,
-	"UNHEALTHY":  1,
-	"HEALTHY":    2,
-}
-
-func (x FingerprintResponse_HealthState) String() string {
-	return proto.EnumName(FingerprintResponse_HealthState_name, int32(x))
-}
-func (FingerprintResponse_HealthState) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{5, 0}
-}
-
-type StartTaskResponse_Result int32
-
-const (
-	StartTaskResponse_SUCCESS StartTaskResponse_Result = 0
-	StartTaskResponse_RETRY   StartTaskResponse_Result = 1
-	StartTaskResponse_FATAL   StartTaskResponse_Result = 2
-)
-
-var StartTaskResponse_Result_name = map[int32]string{
-	0: "SUCCESS",
-	1: "RETRY",
-	2: "FATAL",
-}
-var StartTaskResponse_Result_value = map[string]int32{
-	"SUCCESS": 0,
-	"RETRY":   1,
-	"FATAL":   2,
-}
-
-func (x StartTaskResponse_Result) String() string {
-	return proto.EnumName(StartTaskResponse_Result_name, int32(x))
-}
-func (StartTaskResponse_Result) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{9, 0}
-}
-
-type DriverCapabilities_FSIsolation int32
-
-const (
-	DriverCapabilities_NONE   DriverCapabilities_FSIsolation = 0
-	DriverCapabilities_CHROOT DriverCapabilities_FSIsolation = 1
-	DriverCapabilities_IMAGE  DriverCapabilities_FSIsolation = 2
-)
-
-var DriverCapabilities_FSIsolation_name = map[int32]string{
-	0: "NONE",
-	1: "CHROOT",
-	2: "IMAGE",
-}
-var DriverCapabilities_FSIsolation_value = map[string]int32{
-	"NONE":   0,
-	"CHROOT": 1,
-	"IMAGE":  2,
-}
-
-func (x DriverCapabilities_FSIsolation) String() string {
-	return proto.EnumName(DriverCapabilities_FSIsolation_name, int32(x))
-}
-func (DriverCapabilities_FSIsolation) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{27, 0}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{0}
 }
 
 type CPUUsage_Fields int32
@@ -162,7 +85,7 @@ func (x CPUUsage_Fields) String() string {
 	return proto.EnumName(CPUUsage_Fields_name, int32(x))
 }
 func (CPUUsage_Fields) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{43, 0}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{27, 0}
 }
 
 type MemoryUsage_Fields int32
@@ -194,194 +117,23 @@ func (x MemoryUsage_Fields) String() string {
 	return proto.EnumName(MemoryUsage_Fields_name, int32(x))
 }
 func (MemoryUsage_Fields) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{44, 0}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{28, 0}
 }
 
-type TaskConfigSchemaRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *TaskConfigSchemaRequest) Reset()         { *m = TaskConfigSchemaRequest{} }
-func (m *TaskConfigSchemaRequest) String() string { return proto.CompactTextString(m) }
-func (*TaskConfigSchemaRequest) ProtoMessage()    {}
-func (*TaskConfigSchemaRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{0}
-}
-func (m *TaskConfigSchemaRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TaskConfigSchemaRequest.Unmarshal(m, b)
-}
-func (m *TaskConfigSchemaRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TaskConfigSchemaRequest.Marshal(b, m, deterministic)
-}
-func (dst *TaskConfigSchemaRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TaskConfigSchemaRequest.Merge(dst, src)
-}
-func (m *TaskConfigSchemaRequest) XXX_Size() int {
-	return xxx_messageInfo_TaskConfigSchemaRequest.Size(m)
-}
-func (m *TaskConfigSchemaRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_TaskConfigSchemaRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_TaskConfigSchemaRequest proto.InternalMessageInfo
-
-type TaskConfigSchemaResponse struct {
+type FingerprintResponse struct {
 	// Spec is the configuration schema for the job driver config stanza
-	Spec                 *hclspec.Spec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
-	XXX_unrecognized     []byte        `json:"-"`
-	XXX_sizecache        int32         `json:"-"`
-}
-
-func (m *TaskConfigSchemaResponse) Reset()         { *m = TaskConfigSchemaResponse{} }
-func (m *TaskConfigSchemaResponse) String() string { return proto.CompactTextString(m) }
-func (*TaskConfigSchemaResponse) ProtoMessage()    {}
-func (*TaskConfigSchemaResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{1}
-}
-func (m *TaskConfigSchemaResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TaskConfigSchemaResponse.Unmarshal(m, b)
-}
-func (m *TaskConfigSchemaResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TaskConfigSchemaResponse.Marshal(b, m, deterministic)
-}
-func (dst *TaskConfigSchemaResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TaskConfigSchemaResponse.Merge(dst, src)
-}
-func (m *TaskConfigSchemaResponse) XXX_Size() int {
-	return xxx_messageInfo_TaskConfigSchemaResponse.Size(m)
-}
-func (m *TaskConfigSchemaResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_TaskConfigSchemaResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_TaskConfigSchemaResponse proto.InternalMessageInfo
-
-func (m *TaskConfigSchemaResponse) GetSpec() *hclspec.Spec {
-	if m != nil {
-		return m.Spec
-	}
-	return nil
-}
-
-type CapabilitiesRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *CapabilitiesRequest) Reset()         { *m = CapabilitiesRequest{} }
-func (m *CapabilitiesRequest) String() string { return proto.CompactTextString(m) }
-func (*CapabilitiesRequest) ProtoMessage()    {}
-func (*CapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{2}
-}
-func (m *CapabilitiesRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CapabilitiesRequest.Unmarshal(m, b)
-}
-func (m *CapabilitiesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CapabilitiesRequest.Marshal(b, m, deterministic)
-}
-func (dst *CapabilitiesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CapabilitiesRequest.Merge(dst, src)
-}
-func (m *CapabilitiesRequest) XXX_Size() int {
-	return xxx_messageInfo_CapabilitiesRequest.Size(m)
-}
-func (m *CapabilitiesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_CapabilitiesRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CapabilitiesRequest proto.InternalMessageInfo
-
-type CapabilitiesResponse struct {
+	Spec *hclspec.Spec `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
 	// Capabilities provides a way for the driver to denote if it implements
 	// non-core RPCs. Some Driver service RPCs expose additional information
 	// or functionality outside of the core task management functions. These
 	// RPCs are only implemented if the driver sets the corresponding capability.
-	Capabilities         *DriverCapabilities `protobuf:"bytes,1,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
-}
-
-func (m *CapabilitiesResponse) Reset()         { *m = CapabilitiesResponse{} }
-func (m *CapabilitiesResponse) String() string { return proto.CompactTextString(m) }
-func (*CapabilitiesResponse) ProtoMessage()    {}
-func (*CapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{3}
-}
-func (m *CapabilitiesResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CapabilitiesResponse.Unmarshal(m, b)
-}
-func (m *CapabilitiesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CapabilitiesResponse.Marshal(b, m, deterministic)
-}
-func (dst *CapabilitiesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CapabilitiesResponse.Merge(dst, src)
-}
-func (m *CapabilitiesResponse) XXX_Size() int {
-	return xxx_messageInfo_CapabilitiesResponse.Size(m)
-}
-func (m *CapabilitiesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CapabilitiesResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CapabilitiesResponse proto.InternalMessageInfo
-
-func (m *CapabilitiesResponse) GetCapabilities() *DriverCapabilities {
-	if m != nil {
-		return m.Capabilities
-	}
-	return nil
-}
-
-type FingerprintRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *FingerprintRequest) Reset()         { *m = FingerprintRequest{} }
-func (m *FingerprintRequest) String() string { return proto.CompactTextString(m) }
-func (*FingerprintRequest) ProtoMessage()    {}
-func (*FingerprintRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{4}
-}
-func (m *FingerprintRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_FingerprintRequest.Unmarshal(m, b)
-}
-func (m *FingerprintRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_FingerprintRequest.Marshal(b, m, deterministic)
-}
-func (dst *FingerprintRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FingerprintRequest.Merge(dst, src)
-}
-func (m *FingerprintRequest) XXX_Size() int {
-	return xxx_messageInfo_FingerprintRequest.Size(m)
-}
-func (m *FingerprintRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_FingerprintRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_FingerprintRequest proto.InternalMessageInfo
-
-type FingerprintResponse struct {
+	Capabilities *DriverCapabilities `protobuf:"bytes,2,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
 	// Attributes are key/value pairs that annotate the nomad client and can be
 	// used in scheduling contraints and affinities.
-	Attributes map[string]string `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Health is used to determine the state of the health the driver is in.
-	// Health can be one of the following states:
-	//  * UNDETECTED: driver dependencies are not met and the driver can not start
-	//  * UNHEALTHY: driver dependencies are met but the driver is unable to
-	//      perform operations due to some other problem
-	//  * HEALTHY: driver is able to perform all operations
-	Health FingerprintResponse_HealthState `protobuf:"varint,2,opt,name=health,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.FingerprintResponse_HealthState" json:"health,omitempty"`
-	// HealthDescription is a human readable message describing the current
-	// state of driver health
-	HealthDescription    string   `protobuf:"bytes,3,opt,name=health_description,json=healthDescription,proto3" json:"health_description,omitempty"`
+	Attributes map[string]string `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// Detected signifies if the necessary dependancies of the drive are met for
+	// nominal operation.
+	Detected             bool     `protobuf:"varint,4,opt,name=detected,proto3" json:"detected,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -391,7 +143,7 @@ func (m *FingerprintResponse) Reset()         { *m = FingerprintResponse{} }
 func (m *FingerprintResponse) String() string { return proto.CompactTextString(m) }
 func (*FingerprintResponse) ProtoMessage()    {}
 func (*FingerprintResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{5}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{0}
 }
 func (m *FingerprintResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FingerprintResponse.Unmarshal(m, b)
@@ -411,6 +163,20 @@ func (m *FingerprintResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_FingerprintResponse proto.InternalMessageInfo
 
+func (m *FingerprintResponse) GetSpec() *hclspec.Spec {
+	if m != nil {
+		return m.Spec
+	}
+	return nil
+}
+
+func (m *FingerprintResponse) GetCapabilities() *DriverCapabilities {
+	if m != nil {
+		return m.Capabilities
+	}
+	return nil
+}
+
 func (m *FingerprintResponse) GetAttributes() map[string]string {
 	if m != nil {
 		return m.Attributes
@@ -418,18 +184,11 @@ func (m *FingerprintResponse) GetAttributes() map[string]string {
 	return nil
 }
 
-func (m *FingerprintResponse) GetHealth() FingerprintResponse_HealthState {
+func (m *FingerprintResponse) GetDetected() bool {
 	if m != nil {
-		return m.Health
+		return m.Detected
 	}
-	return FingerprintResponse_UNDETECTED
-}
-
-func (m *FingerprintResponse) GetHealthDescription() string {
-	if m != nil {
-		return m.HealthDescription
-	}
-	return ""
+	return false
 }
 
 type RecoverTaskRequest struct {
@@ -446,7 +205,7 @@ func (m *RecoverTaskRequest) Reset()         { *m = RecoverTaskRequest{} }
 func (m *RecoverTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*RecoverTaskRequest) ProtoMessage()    {}
 func (*RecoverTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{6}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{1}
 }
 func (m *RecoverTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RecoverTaskRequest.Unmarshal(m, b)
@@ -480,36 +239,6 @@ func (m *RecoverTaskRequest) GetHandle() *TaskHandle {
 	return nil
 }
 
-type RecoverTaskResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *RecoverTaskResponse) Reset()         { *m = RecoverTaskResponse{} }
-func (m *RecoverTaskResponse) String() string { return proto.CompactTextString(m) }
-func (*RecoverTaskResponse) ProtoMessage()    {}
-func (*RecoverTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{7}
-}
-func (m *RecoverTaskResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RecoverTaskResponse.Unmarshal(m, b)
-}
-func (m *RecoverTaskResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RecoverTaskResponse.Marshal(b, m, deterministic)
-}
-func (dst *RecoverTaskResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RecoverTaskResponse.Merge(dst, src)
-}
-func (m *RecoverTaskResponse) XXX_Size() int {
-	return xxx_messageInfo_RecoverTaskResponse.Size(m)
-}
-func (m *RecoverTaskResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_RecoverTaskResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_RecoverTaskResponse proto.InternalMessageInfo
-
 type StartTaskRequest struct {
 	// Task configuration to launch
 	Task                 *TaskConfig `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
@@ -522,7 +251,7 @@ func (m *StartTaskRequest) Reset()         { *m = StartTaskRequest{} }
 func (m *StartTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*StartTaskRequest) ProtoMessage()    {}
 func (*StartTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{8}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{2}
 }
 func (m *StartTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartTaskRequest.Unmarshal(m, b)
@@ -550,33 +279,19 @@ func (m *StartTaskRequest) GetTask() *TaskConfig {
 }
 
 type StartTaskResponse struct {
-	// Result is set depending on the type of error that occurred while starting
-	// a task:
-	//
-	//   * SUCCESS: No error occurred, handle is set
-	//   * RETRY: An error occurred, but is recoverable and the RPC should be retried
-	//   * FATAL: A fatal error occurred and is not likely to succeed if retried
-	//
-	// If Result is not successful, the DriverErrorMsg will be set.
-	Result StartTaskResponse_Result `protobuf:"varint,1,opt,name=result,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.StartTaskResponse_Result" json:"result,omitempty"`
-	// DriverErrorMsg is set if an error occurred
-	DriverErrorMsg string `protobuf:"bytes,2,opt,name=driver_error_msg,json=driverErrorMsg,proto3" json:"driver_error_msg,omitempty"`
-	// Handle is opaque to the client, but must be stored in order to recover
-	// the task.
-	Handle *TaskHandle `protobuf:"bytes,3,opt,name=handle,proto3" json:"handle,omitempty"`
-	// NetworkOverride is set if the driver sets network settings and the service ip/port
-	// needs to be set differently.
-	NetworkOverride      *NetworkOverride `protobuf:"bytes,4,opt,name=network_override,json=networkOverride,proto3" json:"network_override,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
+	// Handle is opague to the client, but must be stored in order to potentially
+	// recover the task.
+	Handle               *TaskHandle `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *StartTaskResponse) Reset()         { *m = StartTaskResponse{} }
 func (m *StartTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*StartTaskResponse) ProtoMessage()    {}
 func (*StartTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{9}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{3}
 }
 func (m *StartTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartTaskResponse.Unmarshal(m, b)
@@ -596,30 +311,9 @@ func (m *StartTaskResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StartTaskResponse proto.InternalMessageInfo
 
-func (m *StartTaskResponse) GetResult() StartTaskResponse_Result {
-	if m != nil {
-		return m.Result
-	}
-	return StartTaskResponse_SUCCESS
-}
-
-func (m *StartTaskResponse) GetDriverErrorMsg() string {
-	if m != nil {
-		return m.DriverErrorMsg
-	}
-	return ""
-}
-
 func (m *StartTaskResponse) GetHandle() *TaskHandle {
 	if m != nil {
 		return m.Handle
-	}
-	return nil
-}
-
-func (m *StartTaskResponse) GetNetworkOverride() *NetworkOverride {
-	if m != nil {
-		return m.NetworkOverride
 	}
 	return nil
 }
@@ -636,7 +330,7 @@ func (m *WaitTaskRequest) Reset()         { *m = WaitTaskRequest{} }
 func (m *WaitTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*WaitTaskRequest) ProtoMessage()    {}
 func (*WaitTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{10}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{4}
 }
 func (m *WaitTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WaitTaskRequest.Unmarshal(m, b)
@@ -664,10 +358,12 @@ func (m *WaitTaskRequest) GetTaskId() string {
 }
 
 type WaitTaskResponse struct {
-	// Result is the exit status of the task
-	Result *ExitResult `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
-	// Err is set if any driver error occurred while waiting for the task
-	Err                  string   `protobuf:"bytes,2,opt,name=err,proto3" json:"err,omitempty"`
+	// ExitCode returned from the task on exit
+	ExitCode int32 `protobuf:"varint,1,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	// Signal is set if a signal was sent to the task
+	Signal int32 `protobuf:"varint,2,opt,name=signal,proto3" json:"signal,omitempty"`
+	// Err is set if any driver error occured while waiting for the task
+	Err                  string   `protobuf:"bytes,3,opt,name=err,proto3" json:"err,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -677,7 +373,7 @@ func (m *WaitTaskResponse) Reset()         { *m = WaitTaskResponse{} }
 func (m *WaitTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*WaitTaskResponse) ProtoMessage()    {}
 func (*WaitTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{11}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{5}
 }
 func (m *WaitTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WaitTaskResponse.Unmarshal(m, b)
@@ -697,11 +393,18 @@ func (m *WaitTaskResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_WaitTaskResponse proto.InternalMessageInfo
 
-func (m *WaitTaskResponse) GetResult() *ExitResult {
+func (m *WaitTaskResponse) GetExitCode() int32 {
 	if m != nil {
-		return m.Result
+		return m.ExitCode
 	}
-	return nil
+	return 0
+}
+
+func (m *WaitTaskResponse) GetSignal() int32 {
+	if m != nil {
+		return m.Signal
+	}
+	return 0
 }
 
 func (m *WaitTaskResponse) GetErr() string {
@@ -729,7 +432,7 @@ func (m *StopTaskRequest) Reset()         { *m = StopTaskRequest{} }
 func (m *StopTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*StopTaskRequest) ProtoMessage()    {}
 func (*StopTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{12}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{6}
 }
 func (m *StopTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopTaskRequest.Unmarshal(m, b)
@@ -770,36 +473,6 @@ func (m *StopTaskRequest) GetSignal() string {
 	return ""
 }
 
-type StopTaskResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StopTaskResponse) Reset()         { *m = StopTaskResponse{} }
-func (m *StopTaskResponse) String() string { return proto.CompactTextString(m) }
-func (*StopTaskResponse) ProtoMessage()    {}
-func (*StopTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{13}
-}
-func (m *StopTaskResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StopTaskResponse.Unmarshal(m, b)
-}
-func (m *StopTaskResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StopTaskResponse.Marshal(b, m, deterministic)
-}
-func (dst *StopTaskResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StopTaskResponse.Merge(dst, src)
-}
-func (m *StopTaskResponse) XXX_Size() int {
-	return xxx_messageInfo_StopTaskResponse.Size(m)
-}
-func (m *StopTaskResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_StopTaskResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StopTaskResponse proto.InternalMessageInfo
-
 type DestroyTaskRequest struct {
 	// TaskId is the ID of the target task
 	TaskId               string   `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -812,7 +485,7 @@ func (m *DestroyTaskRequest) Reset()         { *m = DestroyTaskRequest{} }
 func (m *DestroyTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*DestroyTaskRequest) ProtoMessage()    {}
 func (*DestroyTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{14}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{7}
 }
 func (m *DestroyTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DestroyTaskRequest.Unmarshal(m, b)
@@ -839,36 +512,6 @@ func (m *DestroyTaskRequest) GetTaskId() string {
 	return ""
 }
 
-type DestroyTaskResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *DestroyTaskResponse) Reset()         { *m = DestroyTaskResponse{} }
-func (m *DestroyTaskResponse) String() string { return proto.CompactTextString(m) }
-func (*DestroyTaskResponse) ProtoMessage()    {}
-func (*DestroyTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{15}
-}
-func (m *DestroyTaskResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DestroyTaskResponse.Unmarshal(m, b)
-}
-func (m *DestroyTaskResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DestroyTaskResponse.Marshal(b, m, deterministic)
-}
-func (dst *DestroyTaskResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DestroyTaskResponse.Merge(dst, src)
-}
-func (m *DestroyTaskResponse) XXX_Size() int {
-	return xxx_messageInfo_DestroyTaskResponse.Size(m)
-}
-func (m *DestroyTaskResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_DestroyTaskResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DestroyTaskResponse proto.InternalMessageInfo
-
 type ListTasksRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -879,7 +522,7 @@ func (m *ListTasksRequest) Reset()         { *m = ListTasksRequest{} }
 func (m *ListTasksRequest) String() string { return proto.CompactTextString(m) }
 func (*ListTasksRequest) ProtoMessage()    {}
 func (*ListTasksRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{16}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{8}
 }
 func (m *ListTasksRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListTasksRequest.Unmarshal(m, b)
@@ -901,17 +544,17 @@ var xxx_messageInfo_ListTasksRequest proto.InternalMessageInfo
 
 type ListTasksResponse struct {
 	// Tasks includes a list of summary information for each task
-	Tasks                []*TaskStatus `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
-	XXX_unrecognized     []byte        `json:"-"`
-	XXX_sizecache        int32         `json:"-"`
+	Tasks                []*TaskSummary `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *ListTasksResponse) Reset()         { *m = ListTasksResponse{} }
 func (m *ListTasksResponse) String() string { return proto.CompactTextString(m) }
 func (*ListTasksResponse) ProtoMessage()    {}
 func (*ListTasksResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{17}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{9}
 }
 func (m *ListTasksResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListTasksResponse.Unmarshal(m, b)
@@ -931,7 +574,7 @@ func (m *ListTasksResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ListTasksResponse proto.InternalMessageInfo
 
-func (m *ListTasksResponse) GetTasks() []*TaskStatus {
+func (m *ListTasksResponse) GetTasks() []*TaskSummary {
 	if m != nil {
 		return m.Tasks
 	}
@@ -950,7 +593,7 @@ func (m *InspectTaskRequest) Reset()         { *m = InspectTaskRequest{} }
 func (m *InspectTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*InspectTaskRequest) ProtoMessage()    {}
 func (*InspectTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{18}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{10}
 }
 func (m *InspectTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InspectTaskRequest.Unmarshal(m, b)
@@ -979,21 +622,17 @@ func (m *InspectTaskRequest) GetTaskId() string {
 
 type InspectTaskResponse struct {
 	// Task details
-	Task *TaskStatus `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
-	// Driver details for task
-	Driver *TaskDriverStatus `protobuf:"bytes,2,opt,name=driver,proto3" json:"driver,omitempty"`
-	// NetworkOverride info if set
-	NetworkOverride      *NetworkOverride `protobuf:"bytes,3,opt,name=network_override,json=networkOverride,proto3" json:"network_override,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
+	Task                 *TaskStatus `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *InspectTaskResponse) Reset()         { *m = InspectTaskResponse{} }
 func (m *InspectTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*InspectTaskResponse) ProtoMessage()    {}
 func (*InspectTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{19}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{11}
 }
 func (m *InspectTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InspectTaskResponse.Unmarshal(m, b)
@@ -1020,20 +659,6 @@ func (m *InspectTaskResponse) GetTask() *TaskStatus {
 	return nil
 }
 
-func (m *InspectTaskResponse) GetDriver() *TaskDriverStatus {
-	if m != nil {
-		return m.Driver
-	}
-	return nil
-}
-
-func (m *InspectTaskResponse) GetNetworkOverride() *NetworkOverride {
-	if m != nil {
-		return m.NetworkOverride
-	}
-	return nil
-}
-
 type TaskStatsRequest struct {
 	// TaskId is the ID of the target task
 	TaskId               string   `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1046,7 +671,7 @@ func (m *TaskStatsRequest) Reset()         { *m = TaskStatsRequest{} }
 func (m *TaskStatsRequest) String() string { return proto.CompactTextString(m) }
 func (*TaskStatsRequest) ProtoMessage()    {}
 func (*TaskStatsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{20}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{12}
 }
 func (m *TaskStatsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStatsRequest.Unmarshal(m, b)
@@ -1085,7 +710,7 @@ func (m *TaskStatsResponse) Reset()         { *m = TaskStatsResponse{} }
 func (m *TaskStatsResponse) String() string { return proto.CompactTextString(m) }
 func (*TaskStatsResponse) ProtoMessage()    {}
 func (*TaskStatsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{21}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{13}
 }
 func (m *TaskStatsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStatsResponse.Unmarshal(m, b)
@@ -1112,36 +737,6 @@ func (m *TaskStatsResponse) GetStats() *TaskStats {
 	return nil
 }
 
-type TaskEventsRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *TaskEventsRequest) Reset()         { *m = TaskEventsRequest{} }
-func (m *TaskEventsRequest) String() string { return proto.CompactTextString(m) }
-func (*TaskEventsRequest) ProtoMessage()    {}
-func (*TaskEventsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{22}
-}
-func (m *TaskEventsRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TaskEventsRequest.Unmarshal(m, b)
-}
-func (m *TaskEventsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TaskEventsRequest.Marshal(b, m, deterministic)
-}
-func (dst *TaskEventsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TaskEventsRequest.Merge(dst, src)
-}
-func (m *TaskEventsRequest) XXX_Size() int {
-	return xxx_messageInfo_TaskEventsRequest.Size(m)
-}
-func (m *TaskEventsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_TaskEventsRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_TaskEventsRequest proto.InternalMessageInfo
-
 type SignalTaskRequest struct {
 	// TaskId is the ID of the target task
 	TaskId string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1156,7 +751,7 @@ func (m *SignalTaskRequest) Reset()         { *m = SignalTaskRequest{} }
 func (m *SignalTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*SignalTaskRequest) ProtoMessage()    {}
 func (*SignalTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{23}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{14}
 }
 func (m *SignalTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SignalTaskRequest.Unmarshal(m, b)
@@ -1190,36 +785,6 @@ func (m *SignalTaskRequest) GetSignal() string {
 	return ""
 }
 
-type SignalTaskResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *SignalTaskResponse) Reset()         { *m = SignalTaskResponse{} }
-func (m *SignalTaskResponse) String() string { return proto.CompactTextString(m) }
-func (*SignalTaskResponse) ProtoMessage()    {}
-func (*SignalTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{24}
-}
-func (m *SignalTaskResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SignalTaskResponse.Unmarshal(m, b)
-}
-func (m *SignalTaskResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SignalTaskResponse.Marshal(b, m, deterministic)
-}
-func (dst *SignalTaskResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SignalTaskResponse.Merge(dst, src)
-}
-func (m *SignalTaskResponse) XXX_Size() int {
-	return xxx_messageInfo_SignalTaskResponse.Size(m)
-}
-func (m *SignalTaskResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SignalTaskResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SignalTaskResponse proto.InternalMessageInfo
-
 type ExecTaskRequest struct {
 	// TaskId is the ID of the target task
 	TaskId string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1237,7 +802,7 @@ func (m *ExecTaskRequest) Reset()         { *m = ExecTaskRequest{} }
 func (m *ExecTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*ExecTaskRequest) ProtoMessage()    {}
 func (*ExecTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{25}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{15}
 }
 func (m *ExecTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecTaskRequest.Unmarshal(m, b)
@@ -1279,22 +844,16 @@ func (m *ExecTaskRequest) GetTimeout() *duration.Duration {
 }
 
 type ExecTaskResponse struct {
-	// Stdout from the exec
-	Stdout []byte `protobuf:"bytes,1,opt,name=stdout,proto3" json:"stdout,omitempty"`
-	// Stderr from the exec
-	Stderr []byte `protobuf:"bytes,2,opt,name=stderr,proto3" json:"stderr,omitempty"`
-	// Result from the exec
-	Result               *ExitResult `protobuf:"bytes,3,opt,name=result,proto3" json:"result,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ExecTaskResponse) Reset()         { *m = ExecTaskResponse{} }
 func (m *ExecTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*ExecTaskResponse) ProtoMessage()    {}
 func (*ExecTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{26}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{16}
 }
 func (m *ExecTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecTaskResponse.Unmarshal(m, b)
@@ -1314,46 +873,23 @@ func (m *ExecTaskResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ExecTaskResponse proto.InternalMessageInfo
 
-func (m *ExecTaskResponse) GetStdout() []byte {
-	if m != nil {
-		return m.Stdout
-	}
-	return nil
-}
-
-func (m *ExecTaskResponse) GetStderr() []byte {
-	if m != nil {
-		return m.Stderr
-	}
-	return nil
-}
-
-func (m *ExecTaskResponse) GetResult() *ExitResult {
-	if m != nil {
-		return m.Result
-	}
-	return nil
-}
-
 type DriverCapabilities struct {
 	// SendSignals indicates that the driver can send process signals (ex. SIGUSR1)
 	// to the task.
 	SendSignals bool `protobuf:"varint,1,opt,name=send_signals,json=sendSignals,proto3" json:"send_signals,omitempty"`
 	// Exec indicates that the driver supports executing arbitrary commands
 	// in the task's execution environment.
-	Exec bool `protobuf:"varint,2,opt,name=exec,proto3" json:"exec,omitempty"`
-	// FsIsolation indicates what kind of filesystem isolation a driver supports.
-	FsIsolation          DriverCapabilities_FSIsolation `protobuf:"varint,3,opt,name=fs_isolation,json=fsIsolation,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.DriverCapabilities_FSIsolation" json:"fs_isolation,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
-	XXX_unrecognized     []byte                         `json:"-"`
-	XXX_sizecache        int32                          `json:"-"`
+	Exec                 bool     `protobuf:"varint,2,opt,name=exec,proto3" json:"exec,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *DriverCapabilities) Reset()         { *m = DriverCapabilities{} }
 func (m *DriverCapabilities) String() string { return proto.CompactTextString(m) }
 func (*DriverCapabilities) ProtoMessage()    {}
 func (*DriverCapabilities) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{27}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{17}
 }
 func (m *DriverCapabilities) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverCapabilities.Unmarshal(m, b)
@@ -1387,15 +923,9 @@ func (m *DriverCapabilities) GetExec() bool {
 	return false
 }
 
-func (m *DriverCapabilities) GetFsIsolation() DriverCapabilities_FSIsolation {
-	if m != nil {
-		return m.FsIsolation
-	}
-	return DriverCapabilities_NONE
-}
-
 type TaskConfig struct {
 	// Id of the task, recommended to the globally unique, must be unique to the driver.
+	// If not set, a UUID is to be generated.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Name of the task
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -1424,7 +954,7 @@ func (m *TaskConfig) Reset()         { *m = TaskConfig{} }
 func (m *TaskConfig) String() string { return proto.CompactTextString(m) }
 func (*TaskConfig) ProtoMessage()    {}
 func (*TaskConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{28}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{18}
 }
 func (m *TaskConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskConfig.Unmarshal(m, b)
@@ -1508,248 +1038,6 @@ func (m *TaskConfig) GetAllocDir() string {
 }
 
 type Resources struct {
-	// RawResources are the resources set for the task
-	RawResources *RawResources `protobuf:"bytes,1,opt,name=raw_resources,json=rawResources,proto3" json:"raw_resources,omitempty"`
-	// LinuxResources are the computed values to set for specific Linux features
-	LinuxResources       *LinuxResources `protobuf:"bytes,2,opt,name=linux_resources,json=linuxResources,proto3" json:"linux_resources,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
-}
-
-func (m *Resources) Reset()         { *m = Resources{} }
-func (m *Resources) String() string { return proto.CompactTextString(m) }
-func (*Resources) ProtoMessage()    {}
-func (*Resources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{29}
-}
-func (m *Resources) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Resources.Unmarshal(m, b)
-}
-func (m *Resources) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Resources.Marshal(b, m, deterministic)
-}
-func (dst *Resources) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Resources.Merge(dst, src)
-}
-func (m *Resources) XXX_Size() int {
-	return xxx_messageInfo_Resources.Size(m)
-}
-func (m *Resources) XXX_DiscardUnknown() {
-	xxx_messageInfo_Resources.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Resources proto.InternalMessageInfo
-
-func (m *Resources) GetRawResources() *RawResources {
-	if m != nil {
-		return m.RawResources
-	}
-	return nil
-}
-
-func (m *Resources) GetLinuxResources() *LinuxResources {
-	if m != nil {
-		return m.LinuxResources
-	}
-	return nil
-}
-
-type RawResources struct {
-	Cpu                  int64              `protobuf:"varint,1,opt,name=cpu,proto3" json:"cpu,omitempty"`
-	Memory               int64              `protobuf:"varint,2,opt,name=memory,proto3" json:"memory,omitempty"`
-	Disk                 int64              `protobuf:"varint,3,opt,name=disk,proto3" json:"disk,omitempty"`
-	Iops                 int64              `protobuf:"varint,4,opt,name=iops,proto3" json:"iops,omitempty"`
-	Networks             []*NetworkResource `protobuf:"bytes,5,rep,name=networks,proto3" json:"networks,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
-}
-
-func (m *RawResources) Reset()         { *m = RawResources{} }
-func (m *RawResources) String() string { return proto.CompactTextString(m) }
-func (*RawResources) ProtoMessage()    {}
-func (*RawResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{30}
-}
-func (m *RawResources) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RawResources.Unmarshal(m, b)
-}
-func (m *RawResources) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RawResources.Marshal(b, m, deterministic)
-}
-func (dst *RawResources) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RawResources.Merge(dst, src)
-}
-func (m *RawResources) XXX_Size() int {
-	return xxx_messageInfo_RawResources.Size(m)
-}
-func (m *RawResources) XXX_DiscardUnknown() {
-	xxx_messageInfo_RawResources.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_RawResources proto.InternalMessageInfo
-
-func (m *RawResources) GetCpu() int64 {
-	if m != nil {
-		return m.Cpu
-	}
-	return 0
-}
-
-func (m *RawResources) GetMemory() int64 {
-	if m != nil {
-		return m.Memory
-	}
-	return 0
-}
-
-func (m *RawResources) GetDisk() int64 {
-	if m != nil {
-		return m.Disk
-	}
-	return 0
-}
-
-func (m *RawResources) GetIops() int64 {
-	if m != nil {
-		return m.Iops
-	}
-	return 0
-}
-
-func (m *RawResources) GetNetworks() []*NetworkResource {
-	if m != nil {
-		return m.Networks
-	}
-	return nil
-}
-
-type NetworkResource struct {
-	Device               string         `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
-	Cidr                 string         `protobuf:"bytes,2,opt,name=cidr,proto3" json:"cidr,omitempty"`
-	Ip                   string         `protobuf:"bytes,3,opt,name=ip,proto3" json:"ip,omitempty"`
-	Mbits                int32          `protobuf:"varint,4,opt,name=mbits,proto3" json:"mbits,omitempty"`
-	ReservedPorts        []*NetworkPort `protobuf:"bytes,5,rep,name=reserved_ports,json=reservedPorts,proto3" json:"reserved_ports,omitempty"`
-	DynamicPorts         []*NetworkPort `protobuf:"bytes,6,rep,name=dynamic_ports,json=dynamicPorts,proto3" json:"dynamic_ports,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *NetworkResource) Reset()         { *m = NetworkResource{} }
-func (m *NetworkResource) String() string { return proto.CompactTextString(m) }
-func (*NetworkResource) ProtoMessage()    {}
-func (*NetworkResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{31}
-}
-func (m *NetworkResource) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NetworkResource.Unmarshal(m, b)
-}
-func (m *NetworkResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NetworkResource.Marshal(b, m, deterministic)
-}
-func (dst *NetworkResource) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NetworkResource.Merge(dst, src)
-}
-func (m *NetworkResource) XXX_Size() int {
-	return xxx_messageInfo_NetworkResource.Size(m)
-}
-func (m *NetworkResource) XXX_DiscardUnknown() {
-	xxx_messageInfo_NetworkResource.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NetworkResource proto.InternalMessageInfo
-
-func (m *NetworkResource) GetDevice() string {
-	if m != nil {
-		return m.Device
-	}
-	return ""
-}
-
-func (m *NetworkResource) GetCidr() string {
-	if m != nil {
-		return m.Cidr
-	}
-	return ""
-}
-
-func (m *NetworkResource) GetIp() string {
-	if m != nil {
-		return m.Ip
-	}
-	return ""
-}
-
-func (m *NetworkResource) GetMbits() int32 {
-	if m != nil {
-		return m.Mbits
-	}
-	return 0
-}
-
-func (m *NetworkResource) GetReservedPorts() []*NetworkPort {
-	if m != nil {
-		return m.ReservedPorts
-	}
-	return nil
-}
-
-func (m *NetworkResource) GetDynamicPorts() []*NetworkPort {
-	if m != nil {
-		return m.DynamicPorts
-	}
-	return nil
-}
-
-type NetworkPort struct {
-	Label                string   `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
-	Value                int32    `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *NetworkPort) Reset()         { *m = NetworkPort{} }
-func (m *NetworkPort) String() string { return proto.CompactTextString(m) }
-func (*NetworkPort) ProtoMessage()    {}
-func (*NetworkPort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{32}
-}
-func (m *NetworkPort) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NetworkPort.Unmarshal(m, b)
-}
-func (m *NetworkPort) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NetworkPort.Marshal(b, m, deterministic)
-}
-func (dst *NetworkPort) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NetworkPort.Merge(dst, src)
-}
-func (m *NetworkPort) XXX_Size() int {
-	return xxx_messageInfo_NetworkPort.Size(m)
-}
-func (m *NetworkPort) XXX_DiscardUnknown() {
-	xxx_messageInfo_NetworkPort.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NetworkPort proto.InternalMessageInfo
-
-func (m *NetworkPort) GetLabel() string {
-	if m != nil {
-		return m.Label
-	}
-	return ""
-}
-
-func (m *NetworkPort) GetValue() int32 {
-	if m != nil {
-		return m.Value
-	}
-	return 0
-}
-
-type LinuxResources struct {
 	// CPU CFS (Completely Fair Scheduler) period. Default: 0 (not specified)
 	CpuPeriod int64 `protobuf:"varint,1,opt,name=cpu_period,json=cpuPeriod,proto3" json:"cpu_period,omitempty"`
 	// CPU CFS (Completely Fair Scheduler) quota. Default: 0 (not specified)
@@ -1769,73 +1057,73 @@ type LinuxResources struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *LinuxResources) Reset()         { *m = LinuxResources{} }
-func (m *LinuxResources) String() string { return proto.CompactTextString(m) }
-func (*LinuxResources) ProtoMessage()    {}
-func (*LinuxResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{33}
+func (m *Resources) Reset()         { *m = Resources{} }
+func (m *Resources) String() string { return proto.CompactTextString(m) }
+func (*Resources) ProtoMessage()    {}
+func (*Resources) Descriptor() ([]byte, []int) {
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{19}
 }
-func (m *LinuxResources) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_LinuxResources.Unmarshal(m, b)
+func (m *Resources) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Resources.Unmarshal(m, b)
 }
-func (m *LinuxResources) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_LinuxResources.Marshal(b, m, deterministic)
+func (m *Resources) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Resources.Marshal(b, m, deterministic)
 }
-func (dst *LinuxResources) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LinuxResources.Merge(dst, src)
+func (dst *Resources) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resources.Merge(dst, src)
 }
-func (m *LinuxResources) XXX_Size() int {
-	return xxx_messageInfo_LinuxResources.Size(m)
+func (m *Resources) XXX_Size() int {
+	return xxx_messageInfo_Resources.Size(m)
 }
-func (m *LinuxResources) XXX_DiscardUnknown() {
-	xxx_messageInfo_LinuxResources.DiscardUnknown(m)
+func (m *Resources) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resources.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_LinuxResources proto.InternalMessageInfo
+var xxx_messageInfo_Resources proto.InternalMessageInfo
 
-func (m *LinuxResources) GetCpuPeriod() int64 {
+func (m *Resources) GetCpuPeriod() int64 {
 	if m != nil {
 		return m.CpuPeriod
 	}
 	return 0
 }
 
-func (m *LinuxResources) GetCpuQuota() int64 {
+func (m *Resources) GetCpuQuota() int64 {
 	if m != nil {
 		return m.CpuQuota
 	}
 	return 0
 }
 
-func (m *LinuxResources) GetCpuShares() int64 {
+func (m *Resources) GetCpuShares() int64 {
 	if m != nil {
 		return m.CpuShares
 	}
 	return 0
 }
 
-func (m *LinuxResources) GetMemoryLimitInBytes() int64 {
+func (m *Resources) GetMemoryLimitInBytes() int64 {
 	if m != nil {
 		return m.MemoryLimitInBytes
 	}
 	return 0
 }
 
-func (m *LinuxResources) GetOomScoreAdj() int64 {
+func (m *Resources) GetOomScoreAdj() int64 {
 	if m != nil {
 		return m.OomScoreAdj
 	}
 	return 0
 }
 
-func (m *LinuxResources) GetCpusetCpus() string {
+func (m *Resources) GetCpusetCpus() string {
 	if m != nil {
 		return m.CpusetCpus
 	}
 	return ""
 }
 
-func (m *LinuxResources) GetCpusetMems() string {
+func (m *Resources) GetCpusetMems() string {
 	if m != nil {
 		return m.CpusetMems
 	}
@@ -1858,7 +1146,7 @@ func (m *Mount) Reset()         { *m = Mount{} }
 func (m *Mount) String() string { return proto.CompactTextString(m) }
 func (*Mount) ProtoMessage()    {}
 func (*Mount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{34}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{20}
 }
 func (m *Mount) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Mount.Unmarshal(m, b)
@@ -1904,14 +1192,14 @@ type Device struct {
 	TaskPath string `protobuf:"bytes,1,opt,name=task_path,json=taskPath,proto3" json:"task_path,omitempty"`
 	// HostPath is the path on the host to the source device
 	HostPath string `protobuf:"bytes,2,opt,name=host_path,json=hostPath,proto3" json:"host_path,omitempty"`
-	// CgroupPermissions defines the Cgroup permissions of the device.
+	// Permissions defines the Cgroup permissions of the device.
 	// One or more of the following options can be set:
 	//  * r - allows the task to read from the specified device.
 	//  * w - allows the task to write to the specified device.
 	//  * m - allows the task to create device files that do not yet exist.
 	//
 	// Example: "rw"
-	CgroupPermissions    string   `protobuf:"bytes,3,opt,name=cgroup_permissions,json=cgroupPermissions,proto3" json:"cgroup_permissions,omitempty"`
+	Permissions          string   `protobuf:"bytes,3,opt,name=permissions,proto3" json:"permissions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1921,7 +1209,7 @@ func (m *Device) Reset()         { *m = Device{} }
 func (m *Device) String() string { return proto.CompactTextString(m) }
 func (*Device) ProtoMessage()    {}
 func (*Device) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{35}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{21}
 }
 func (m *Device) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Device.Unmarshal(m, b)
@@ -1955,21 +1243,23 @@ func (m *Device) GetHostPath() string {
 	return ""
 }
 
-func (m *Device) GetCgroupPermissions() string {
+func (m *Device) GetPermissions() string {
 	if m != nil {
-		return m.CgroupPermissions
+		return m.Permissions
 	}
 	return ""
 }
 
 // TaskHandle is created when starting a task and is used to recover task
 type TaskHandle struct {
+	// Driver is the driver which initially created the handle
+	Driver string `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
 	// Config is the TaskConfig for the task
-	Config *TaskConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	Config *TaskConfig `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	// State is the state of the task's execution
-	State TaskState `protobuf:"varint,2,opt,name=state,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.TaskState" json:"state,omitempty"`
+	State TaskState `protobuf:"varint,3,opt,name=state,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.TaskState" json:"state,omitempty"`
 	// DriverState is the encoded state for the specific driver
-	DriverState          []byte   `protobuf:"bytes,3,opt,name=driver_state,json=driverState,proto3" json:"driver_state,omitempty"`
+	DriverState          []byte   `protobuf:"bytes,4,opt,name=driver_state,json=driverState,proto3" json:"driver_state,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1979,7 +1269,7 @@ func (m *TaskHandle) Reset()         { *m = TaskHandle{} }
 func (m *TaskHandle) String() string { return proto.CompactTextString(m) }
 func (*TaskHandle) ProtoMessage()    {}
 func (*TaskHandle) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{36}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{22}
 }
 func (m *TaskHandle) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskHandle.Unmarshal(m, b)
@@ -1998,6 +1288,13 @@ func (m *TaskHandle) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_TaskHandle proto.InternalMessageInfo
+
+func (m *TaskHandle) GetDriver() string {
+	if m != nil {
+		return m.Driver
+	}
+	return ""
+}
 
 func (m *TaskHandle) GetConfig() *TaskConfig {
 	if m != nil {
@@ -2020,150 +1317,98 @@ func (m *TaskHandle) GetDriverState() []byte {
 	return nil
 }
 
-// NetworkOverride contains network settings which the driver may override
-// for the task, such as when the driver is setting up the task's network.
-type NetworkOverride struct {
-	// PortMap can be set to replace ports with driver-specific mappings
-	PortMap map[string]int32 `protobuf:"bytes,1,rep,name=port_map,json=portMap,proto3" json:"port_map,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	// Addr is the IP address for the task created by the driver
-	Addr string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
-	// AutoAdvertise indicates whether the driver thinks services that choose
-	// to auto_advertise_addresses should use this IP instead of the host's.
-	AutoAdvertise        bool     `protobuf:"varint,3,opt,name=auto_advertise,json=autoAdvertise,proto3" json:"auto_advertise,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+// TaskSummary defines summary information of a task, typically used when listing
+// many tasks at once.
+type TaskSummary struct {
+	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// State is the state of the task's execution
+	State TaskState `protobuf:"varint,3,opt,name=state,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.TaskState" json:"state,omitempty"`
+	// StartedAt is the timestamp when the task was started
+	StartedAt            *timestamp.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *NetworkOverride) Reset()         { *m = NetworkOverride{} }
-func (m *NetworkOverride) String() string { return proto.CompactTextString(m) }
-func (*NetworkOverride) ProtoMessage()    {}
-func (*NetworkOverride) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{37}
+func (m *TaskSummary) Reset()         { *m = TaskSummary{} }
+func (m *TaskSummary) String() string { return proto.CompactTextString(m) }
+func (*TaskSummary) ProtoMessage()    {}
+func (*TaskSummary) Descriptor() ([]byte, []int) {
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{23}
 }
-func (m *NetworkOverride) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NetworkOverride.Unmarshal(m, b)
+func (m *TaskSummary) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskSummary.Unmarshal(m, b)
 }
-func (m *NetworkOverride) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NetworkOverride.Marshal(b, m, deterministic)
+func (m *TaskSummary) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskSummary.Marshal(b, m, deterministic)
 }
-func (dst *NetworkOverride) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NetworkOverride.Merge(dst, src)
+func (dst *TaskSummary) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskSummary.Merge(dst, src)
 }
-func (m *NetworkOverride) XXX_Size() int {
-	return xxx_messageInfo_NetworkOverride.Size(m)
+func (m *TaskSummary) XXX_Size() int {
+	return xxx_messageInfo_TaskSummary.Size(m)
 }
-func (m *NetworkOverride) XXX_DiscardUnknown() {
-	xxx_messageInfo_NetworkOverride.DiscardUnknown(m)
+func (m *TaskSummary) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskSummary.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NetworkOverride proto.InternalMessageInfo
+var xxx_messageInfo_TaskSummary proto.InternalMessageInfo
 
-func (m *NetworkOverride) GetPortMap() map[string]int32 {
+func (m *TaskSummary) GetId() string {
 	if m != nil {
-		return m.PortMap
-	}
-	return nil
-}
-
-func (m *NetworkOverride) GetAddr() string {
-	if m != nil {
-		return m.Addr
+		return m.Id
 	}
 	return ""
 }
 
-func (m *NetworkOverride) GetAutoAdvertise() bool {
+func (m *TaskSummary) GetName() string {
 	if m != nil {
-		return m.AutoAdvertise
+		return m.Name
 	}
-	return false
+	return ""
 }
 
-// ExitResult contains information about the exit status of a task
-type ExitResult struct {
-	// ExitCode returned from the task on exit
-	ExitCode int32 `protobuf:"varint,1,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	// Signal is set if a signal was sent to the task
-	Signal int32 `protobuf:"varint,2,opt,name=signal,proto3" json:"signal,omitempty"`
-	// OomKilled is true if the task exited as a result of the OOM Killer
-	OomKilled            bool     `protobuf:"varint,3,opt,name=oom_killed,json=oomKilled,proto3" json:"oom_killed,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ExitResult) Reset()         { *m = ExitResult{} }
-func (m *ExitResult) String() string { return proto.CompactTextString(m) }
-func (*ExitResult) ProtoMessage()    {}
-func (*ExitResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{38}
-}
-func (m *ExitResult) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ExitResult.Unmarshal(m, b)
-}
-func (m *ExitResult) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ExitResult.Marshal(b, m, deterministic)
-}
-func (dst *ExitResult) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ExitResult.Merge(dst, src)
-}
-func (m *ExitResult) XXX_Size() int {
-	return xxx_messageInfo_ExitResult.Size(m)
-}
-func (m *ExitResult) XXX_DiscardUnknown() {
-	xxx_messageInfo_ExitResult.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ExitResult proto.InternalMessageInfo
-
-func (m *ExitResult) GetExitCode() int32 {
+func (m *TaskSummary) GetState() TaskState {
 	if m != nil {
-		return m.ExitCode
+		return m.State
 	}
-	return 0
+	return TaskState_UNKNOWN
 }
 
-func (m *ExitResult) GetSignal() int32 {
+func (m *TaskSummary) GetStartedAt() *timestamp.Timestamp {
 	if m != nil {
-		return m.Signal
+		return m.StartedAt
 	}
-	return 0
+	return nil
 }
 
-func (m *ExitResult) GetOomKilled() bool {
-	if m != nil {
-		return m.OomKilled
-	}
-	return false
-}
-
-// TaskStatus includes information of a specific task
+// TaskStatus includes detailed information of a specific task
 type TaskStatus struct {
 	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// State is the state of the task's execution
 	State TaskState `protobuf:"varint,3,opt,name=state,proto3,enum=hashicorp.nomad.plugins.drivers.base.proto.TaskState" json:"state,omitempty"`
-	// SizeOnDiskMb is the disk space the driver reports the task is consuming
-	// in megabytes.
-	SizeOnDiskMb int64 `protobuf:"varint,4,opt,name=size_on_disk_mb,json=sizeOnDiskMb,proto3" json:"size_on_disk_mb,omitempty"`
 	// StartedAt is the timestamp when the task was started
-	StartedAt *timestamp.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt *timestamp.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// CompletedAt is the timestamp when the task exited.
 	// If the task is still running, CompletedAt will not be set
-	CompletedAt *timestamp.Timestamp `protobuf:"bytes,6,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
-	// Result is set when CompletedAt is set.
-	Result               *ExitResult `protobuf:"bytes,7,opt,name=result,proto3" json:"result,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	CompletedAt *timestamp.Timestamp `protobuf:"bytes,5,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	// ExitCode should only be used when CompletedAt is set.
+	ExitCode int32 `protobuf:"varint,6,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	// DriverStatus is a set of string/string key value pairs specific to the
+	// implementing driver.
+	DriverStatus         map[string]string `protobuf:"bytes,7,rep,name=driver_status,json=driverStatus,proto3" json:"driver_status,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *TaskStatus) Reset()         { *m = TaskStatus{} }
 func (m *TaskStatus) String() string { return proto.CompactTextString(m) }
 func (*TaskStatus) ProtoMessage()    {}
 func (*TaskStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{39}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{24}
 }
 func (m *TaskStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStatus.Unmarshal(m, b)
@@ -2204,13 +1449,6 @@ func (m *TaskStatus) GetState() TaskState {
 	return TaskState_UNKNOWN
 }
 
-func (m *TaskStatus) GetSizeOnDiskMb() int64 {
-	if m != nil {
-		return m.SizeOnDiskMb
-	}
-	return 0
-}
-
 func (m *TaskStatus) GetStartedAt() *timestamp.Timestamp {
 	if m != nil {
 		return m.StartedAt
@@ -2225,49 +1463,16 @@ func (m *TaskStatus) GetCompletedAt() *timestamp.Timestamp {
 	return nil
 }
 
-func (m *TaskStatus) GetResult() *ExitResult {
+func (m *TaskStatus) GetExitCode() int32 {
 	if m != nil {
-		return m.Result
+		return m.ExitCode
 	}
-	return nil
+	return 0
 }
 
-type TaskDriverStatus struct {
-	// Attributes is a set of string/string key value pairs specific to the
-	// implementing driver
-	Attributes           map[string]string `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *TaskDriverStatus) Reset()         { *m = TaskDriverStatus{} }
-func (m *TaskDriverStatus) String() string { return proto.CompactTextString(m) }
-func (*TaskDriverStatus) ProtoMessage()    {}
-func (*TaskDriverStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{40}
-}
-func (m *TaskDriverStatus) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TaskDriverStatus.Unmarshal(m, b)
-}
-func (m *TaskDriverStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TaskDriverStatus.Marshal(b, m, deterministic)
-}
-func (dst *TaskDriverStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TaskDriverStatus.Merge(dst, src)
-}
-func (m *TaskDriverStatus) XXX_Size() int {
-	return xxx_messageInfo_TaskDriverStatus.Size(m)
-}
-func (m *TaskDriverStatus) XXX_DiscardUnknown() {
-	xxx_messageInfo_TaskDriverStatus.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_TaskDriverStatus proto.InternalMessageInfo
-
-func (m *TaskDriverStatus) GetAttributes() map[string]string {
+func (m *TaskStatus) GetDriverStatus() map[string]string {
 	if m != nil {
-		return m.Attributes
+		return m.DriverStatus
 	}
 	return nil
 }
@@ -2290,7 +1495,7 @@ func (m *TaskStats) Reset()         { *m = TaskStats{} }
 func (m *TaskStats) String() string { return proto.CompactTextString(m) }
 func (*TaskStats) ProtoMessage()    {}
 func (*TaskStats) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{41}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{25}
 }
 func (m *TaskStats) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStats.Unmarshal(m, b)
@@ -2352,7 +1557,7 @@ func (m *TaskResourceUsage) Reset()         { *m = TaskResourceUsage{} }
 func (m *TaskResourceUsage) String() string { return proto.CompactTextString(m) }
 func (*TaskResourceUsage) ProtoMessage()    {}
 func (*TaskResourceUsage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{42}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{26}
 }
 func (m *TaskResourceUsage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskResourceUsage.Unmarshal(m, b)
@@ -2404,7 +1609,7 @@ func (m *CPUUsage) Reset()         { *m = CPUUsage{} }
 func (m *CPUUsage) String() string { return proto.CompactTextString(m) }
 func (*CPUUsage) ProtoMessage()    {}
 func (*CPUUsage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{43}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{27}
 }
 func (m *CPUUsage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CPUUsage.Unmarshal(m, b)
@@ -2490,7 +1695,7 @@ func (m *MemoryUsage) Reset()         { *m = MemoryUsage{} }
 func (m *MemoryUsage) String() string { return proto.CompactTextString(m) }
 func (*MemoryUsage) ProtoMessage()    {}
 func (*MemoryUsage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{44}
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{28}
 }
 func (m *MemoryUsage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MemoryUsage.Unmarshal(m, b)
@@ -2552,66 +1757,57 @@ func (m *MemoryUsage) GetMeasuredFields() []MemoryUsage_Fields {
 	return nil
 }
 
-type DriverTaskEvent struct {
+type TaskEvent struct {
 	// TaskId is the id of the task for the event
 	TaskId string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	// Timestamp when the event occurred
-	Timestamp *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Message is the body of the event
-	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Annotations allows for additional key/value data to be sent along with the event
-	Annotations          map[string]string `protobuf:"bytes,4,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Annotations          map[string]string `protobuf:"bytes,3,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *DriverTaskEvent) Reset()         { *m = DriverTaskEvent{} }
-func (m *DriverTaskEvent) String() string { return proto.CompactTextString(m) }
-func (*DriverTaskEvent) ProtoMessage()    {}
-func (*DriverTaskEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_4db9b3af49fa7db9, []int{45}
+func (m *TaskEvent) Reset()         { *m = TaskEvent{} }
+func (m *TaskEvent) String() string { return proto.CompactTextString(m) }
+func (*TaskEvent) ProtoMessage()    {}
+func (*TaskEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_driver_b26cb45d2a523f58, []int{29}
 }
-func (m *DriverTaskEvent) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DriverTaskEvent.Unmarshal(m, b)
+func (m *TaskEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskEvent.Unmarshal(m, b)
 }
-func (m *DriverTaskEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DriverTaskEvent.Marshal(b, m, deterministic)
+func (m *TaskEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskEvent.Marshal(b, m, deterministic)
 }
-func (dst *DriverTaskEvent) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DriverTaskEvent.Merge(dst, src)
+func (dst *TaskEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskEvent.Merge(dst, src)
 }
-func (m *DriverTaskEvent) XXX_Size() int {
-	return xxx_messageInfo_DriverTaskEvent.Size(m)
+func (m *TaskEvent) XXX_Size() int {
+	return xxx_messageInfo_TaskEvent.Size(m)
 }
-func (m *DriverTaskEvent) XXX_DiscardUnknown() {
-	xxx_messageInfo_DriverTaskEvent.DiscardUnknown(m)
+func (m *TaskEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskEvent.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_DriverTaskEvent proto.InternalMessageInfo
+var xxx_messageInfo_TaskEvent proto.InternalMessageInfo
 
-func (m *DriverTaskEvent) GetTaskId() string {
+func (m *TaskEvent) GetTaskId() string {
 	if m != nil {
 		return m.TaskId
 	}
 	return ""
 }
 
-func (m *DriverTaskEvent) GetTimestamp() *timestamp.Timestamp {
-	if m != nil {
-		return m.Timestamp
-	}
-	return nil
-}
-
-func (m *DriverTaskEvent) GetMessage() string {
+func (m *TaskEvent) GetMessage() string {
 	if m != nil {
 		return m.Message
 	}
 	return ""
 }
 
-func (m *DriverTaskEvent) GetAnnotations() map[string]string {
+func (m *TaskEvent) GetAnnotations() map[string]string {
 	if m != nil {
 		return m.Annotations
 	}
@@ -2619,62 +1815,42 @@ func (m *DriverTaskEvent) GetAnnotations() map[string]string {
 }
 
 func init() {
-	proto.RegisterType((*TaskConfigSchemaRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskConfigSchemaRequest")
-	proto.RegisterType((*TaskConfigSchemaResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskConfigSchemaResponse")
-	proto.RegisterType((*CapabilitiesRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.CapabilitiesRequest")
-	proto.RegisterType((*CapabilitiesResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.CapabilitiesResponse")
-	proto.RegisterType((*FingerprintRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.FingerprintRequest")
 	proto.RegisterType((*FingerprintResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.FingerprintResponse")
 	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.base.proto.FingerprintResponse.AttributesEntry")
 	proto.RegisterType((*RecoverTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.RecoverTaskRequest")
-	proto.RegisterType((*RecoverTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.RecoverTaskResponse")
 	proto.RegisterType((*StartTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.StartTaskRequest")
 	proto.RegisterType((*StartTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.StartTaskResponse")
 	proto.RegisterType((*WaitTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.WaitTaskRequest")
 	proto.RegisterType((*WaitTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.WaitTaskResponse")
 	proto.RegisterType((*StopTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.StopTaskRequest")
-	proto.RegisterType((*StopTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.StopTaskResponse")
 	proto.RegisterType((*DestroyTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.DestroyTaskRequest")
-	proto.RegisterType((*DestroyTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.DestroyTaskResponse")
 	proto.RegisterType((*ListTasksRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.ListTasksRequest")
 	proto.RegisterType((*ListTasksResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.ListTasksResponse")
 	proto.RegisterType((*InspectTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.InspectTaskRequest")
 	proto.RegisterType((*InspectTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.InspectTaskResponse")
 	proto.RegisterType((*TaskStatsRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskStatsRequest")
 	proto.RegisterType((*TaskStatsResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskStatsResponse")
-	proto.RegisterType((*TaskEventsRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskEventsRequest")
 	proto.RegisterType((*SignalTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.SignalTaskRequest")
-	proto.RegisterType((*SignalTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.SignalTaskResponse")
 	proto.RegisterType((*ExecTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.base.proto.ExecTaskRequest")
 	proto.RegisterType((*ExecTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.base.proto.ExecTaskResponse")
 	proto.RegisterType((*DriverCapabilities)(nil), "hashicorp.nomad.plugins.drivers.base.proto.DriverCapabilities")
 	proto.RegisterType((*TaskConfig)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskConfig")
 	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskConfig.EnvEntry")
 	proto.RegisterType((*Resources)(nil), "hashicorp.nomad.plugins.drivers.base.proto.Resources")
-	proto.RegisterType((*RawResources)(nil), "hashicorp.nomad.plugins.drivers.base.proto.RawResources")
-	proto.RegisterType((*NetworkResource)(nil), "hashicorp.nomad.plugins.drivers.base.proto.NetworkResource")
-	proto.RegisterType((*NetworkPort)(nil), "hashicorp.nomad.plugins.drivers.base.proto.NetworkPort")
-	proto.RegisterType((*LinuxResources)(nil), "hashicorp.nomad.plugins.drivers.base.proto.LinuxResources")
 	proto.RegisterType((*Mount)(nil), "hashicorp.nomad.plugins.drivers.base.proto.Mount")
 	proto.RegisterType((*Device)(nil), "hashicorp.nomad.plugins.drivers.base.proto.Device")
 	proto.RegisterType((*TaskHandle)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskHandle")
-	proto.RegisterType((*NetworkOverride)(nil), "hashicorp.nomad.plugins.drivers.base.proto.NetworkOverride")
-	proto.RegisterMapType((map[string]int32)(nil), "hashicorp.nomad.plugins.drivers.base.proto.NetworkOverride.PortMapEntry")
-	proto.RegisterType((*ExitResult)(nil), "hashicorp.nomad.plugins.drivers.base.proto.ExitResult")
+	proto.RegisterType((*TaskSummary)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskSummary")
 	proto.RegisterType((*TaskStatus)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskStatus")
-	proto.RegisterType((*TaskDriverStatus)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskDriverStatus")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskDriverStatus.AttributesEntry")
+	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskStatus.DriverStatusEntry")
 	proto.RegisterType((*TaskStats)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskStats")
 	proto.RegisterMapType((map[string]*TaskResourceUsage)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskStats.ResourceUsageByPidEntry")
 	proto.RegisterType((*TaskResourceUsage)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskResourceUsage")
 	proto.RegisterType((*CPUUsage)(nil), "hashicorp.nomad.plugins.drivers.base.proto.CPUUsage")
 	proto.RegisterType((*MemoryUsage)(nil), "hashicorp.nomad.plugins.drivers.base.proto.MemoryUsage")
-	proto.RegisterType((*DriverTaskEvent)(nil), "hashicorp.nomad.plugins.drivers.base.proto.DriverTaskEvent")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.base.proto.DriverTaskEvent.AnnotationsEntry")
+	proto.RegisterType((*TaskEvent)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskEvent")
+	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.base.proto.TaskEvent.AnnotationsEntry")
 	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.base.proto.TaskState", TaskState_name, TaskState_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.base.proto.FingerprintResponse_HealthState", FingerprintResponse_HealthState_name, FingerprintResponse_HealthState_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.base.proto.StartTaskResponse_Result", StartTaskResponse_Result_name, StartTaskResponse_Result_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.base.proto.DriverCapabilities_FSIsolation", DriverCapabilities_FSIsolation_name, DriverCapabilities_FSIsolation_value)
 	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.base.proto.CPUUsage_Fields", CPUUsage_Fields_name, CPUUsage_Fields_value)
 	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.base.proto.MemoryUsage_Fields", MemoryUsage_Fields_name, MemoryUsage_Fields_value)
 }
@@ -2691,24 +1867,12 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DriverClient interface {
-	// TaskConfigSchema returns the schema for parsing the driver
-	// configuration of a task.
-	TaskConfigSchema(ctx context.Context, in *TaskConfigSchemaRequest, opts ...grpc.CallOption) (*TaskConfigSchemaResponse, error)
-	// Capabilities returns a set of features which the driver implements. Some
-	// RPCs are not possible to implement on some runtimes, this allows the
-	// driver to indicate if it doesn't support these RPCs and features.
-	Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error)
-	// Fingerprint starts a stream which emits information about the driver
-	// including whether the driver healthy and able to function in the
-	// existing environment.
-	//
-	// The driver should immediately stream a FingerprintResponse when the RPC
-	// is initially called, then send any additional responses if there is a
-	// change in the driver's state.
-	Fingerprint(ctx context.Context, in *FingerprintRequest, opts ...grpc.CallOption) (Driver_FingerprintClient, error)
+	// Fingerprint collects information about the driver including whether the
+	// driver is able to function in the existing environment.
+	Fingerprint(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*FingerprintResponse, error)
 	// RecoverTask is used when a task has been started but the driver may not
 	// know about it. Such is the case if the driver restarts or is upgraded.
-	RecoverTask(ctx context.Context, in *RecoverTaskRequest, opts ...grpc.CallOption) (*RecoverTaskResponse, error)
+	RecoverTask(ctx context.Context, in *RecoverTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// StartTask starts and tracks the task on the implemented runtime
 	StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskResponse, error)
 	// WaitTask blocks until the given task exits, returning the result of the
@@ -2718,11 +1882,11 @@ type DriverClient interface {
 	// StopTask stops a given task by sending the desired signal to the process.
 	// If the task does not exit on its own within the given timeout, it will be
 	// forcefully killed.
-	StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskResponse, error)
+	StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// DestroyTask removes the task from the driver's internal state and cleans
 	// up any additional resources created by the driver. It cannot be called
 	// on a running task.
-	DestroyTask(ctx context.Context, in *DestroyTaskRequest, opts ...grpc.CallOption) (*DestroyTaskResponse, error)
+	DestroyTask(ctx context.Context, in *DestroyTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// ListTasks returns a list of summary information of all the tasks the
 	// driver is tracking.
 	ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (*ListTasksResponse, error)
@@ -2732,9 +1896,9 @@ type DriverClient interface {
 	TaskStats(ctx context.Context, in *TaskStatsRequest, opts ...grpc.CallOption) (*TaskStatsResponse, error)
 	// TaskEvents starts a streaming RPC where all task events emitted by the
 	// driver are streamed to the caller.
-	TaskEvents(ctx context.Context, in *TaskEventsRequest, opts ...grpc.CallOption) (Driver_TaskEventsClient, error)
+	TaskEvents(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (Driver_TaskEventsClient, error)
 	// SignalTask sends a signal to the task
-	SignalTask(ctx context.Context, in *SignalTaskRequest, opts ...grpc.CallOption) (*SignalTaskResponse, error)
+	SignalTask(ctx context.Context, in *SignalTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	// ExecTask executes a command inside the tasks execution context
 	ExecTask(ctx context.Context, in *ExecTaskRequest, opts ...grpc.CallOption) (*ExecTaskResponse, error)
 }
@@ -2747,58 +1911,17 @@ func NewDriverClient(cc *grpc.ClientConn) DriverClient {
 	return &driverClient{cc}
 }
 
-func (c *driverClient) TaskConfigSchema(ctx context.Context, in *TaskConfigSchemaRequest, opts ...grpc.CallOption) (*TaskConfigSchemaResponse, error) {
-	out := new(TaskConfigSchemaResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/TaskConfigSchema", in, out, opts...)
+func (c *driverClient) Fingerprint(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*FingerprintResponse, error) {
+	out := new(FingerprintResponse)
+	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/Fingerprint", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *driverClient) Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error) {
-	out := new(CapabilitiesResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/Capabilities", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) Fingerprint(ctx context.Context, in *FingerprintRequest, opts ...grpc.CallOption) (Driver_FingerprintClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[0], "/hashicorp.nomad.plugins.drivers.base.proto.Driver/Fingerprint", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &driverFingerprintClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Driver_FingerprintClient interface {
-	Recv() (*FingerprintResponse, error)
-	grpc.ClientStream
-}
-
-type driverFingerprintClient struct {
-	grpc.ClientStream
-}
-
-func (x *driverFingerprintClient) Recv() (*FingerprintResponse, error) {
-	m := new(FingerprintResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *driverClient) RecoverTask(ctx context.Context, in *RecoverTaskRequest, opts ...grpc.CallOption) (*RecoverTaskResponse, error) {
-	out := new(RecoverTaskResponse)
+func (c *driverClient) RecoverTask(ctx context.Context, in *RecoverTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/RecoverTask", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -2824,8 +1947,8 @@ func (c *driverClient) WaitTask(ctx context.Context, in *WaitTaskRequest, opts .
 	return out, nil
 }
 
-func (c *driverClient) StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskResponse, error) {
-	out := new(StopTaskResponse)
+func (c *driverClient) StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/StopTask", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -2833,8 +1956,8 @@ func (c *driverClient) StopTask(ctx context.Context, in *StopTaskRequest, opts .
 	return out, nil
 }
 
-func (c *driverClient) DestroyTask(ctx context.Context, in *DestroyTaskRequest, opts ...grpc.CallOption) (*DestroyTaskResponse, error) {
-	out := new(DestroyTaskResponse)
+func (c *driverClient) DestroyTask(ctx context.Context, in *DestroyTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/DestroyTask", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -2869,8 +1992,8 @@ func (c *driverClient) TaskStats(ctx context.Context, in *TaskStatsRequest, opts
 	return out, nil
 }
 
-func (c *driverClient) TaskEvents(ctx context.Context, in *TaskEventsRequest, opts ...grpc.CallOption) (Driver_TaskEventsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[1], "/hashicorp.nomad.plugins.drivers.base.proto.Driver/TaskEvents", opts...)
+func (c *driverClient) TaskEvents(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (Driver_TaskEventsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[0], "/hashicorp.nomad.plugins.drivers.base.proto.Driver/TaskEvents", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2885,7 +2008,7 @@ func (c *driverClient) TaskEvents(ctx context.Context, in *TaskEventsRequest, op
 }
 
 type Driver_TaskEventsClient interface {
-	Recv() (*DriverTaskEvent, error)
+	Recv() (*TaskEvent, error)
 	grpc.ClientStream
 }
 
@@ -2893,16 +2016,16 @@ type driverTaskEventsClient struct {
 	grpc.ClientStream
 }
 
-func (x *driverTaskEventsClient) Recv() (*DriverTaskEvent, error) {
-	m := new(DriverTaskEvent)
+func (x *driverTaskEventsClient) Recv() (*TaskEvent, error) {
+	m := new(TaskEvent)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func (c *driverClient) SignalTask(ctx context.Context, in *SignalTaskRequest, opts ...grpc.CallOption) (*SignalTaskResponse, error) {
-	out := new(SignalTaskResponse)
+func (c *driverClient) SignalTask(ctx context.Context, in *SignalTaskRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.base.proto.Driver/SignalTask", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -2921,24 +2044,12 @@ func (c *driverClient) ExecTask(ctx context.Context, in *ExecTaskRequest, opts .
 
 // DriverServer is the server API for Driver service.
 type DriverServer interface {
-	// TaskConfigSchema returns the schema for parsing the driver
-	// configuration of a task.
-	TaskConfigSchema(context.Context, *TaskConfigSchemaRequest) (*TaskConfigSchemaResponse, error)
-	// Capabilities returns a set of features which the driver implements. Some
-	// RPCs are not possible to implement on some runtimes, this allows the
-	// driver to indicate if it doesn't support these RPCs and features.
-	Capabilities(context.Context, *CapabilitiesRequest) (*CapabilitiesResponse, error)
-	// Fingerprint starts a stream which emits information about the driver
-	// including whether the driver healthy and able to function in the
-	// existing environment.
-	//
-	// The driver should immediately stream a FingerprintResponse when the RPC
-	// is initially called, then send any additional responses if there is a
-	// change in the driver's state.
-	Fingerprint(*FingerprintRequest, Driver_FingerprintServer) error
+	// Fingerprint collects information about the driver including whether the
+	// driver is able to function in the existing environment.
+	Fingerprint(context.Context, *empty.Empty) (*FingerprintResponse, error)
 	// RecoverTask is used when a task has been started but the driver may not
 	// know about it. Such is the case if the driver restarts or is upgraded.
-	RecoverTask(context.Context, *RecoverTaskRequest) (*RecoverTaskResponse, error)
+	RecoverTask(context.Context, *RecoverTaskRequest) (*empty.Empty, error)
 	// StartTask starts and tracks the task on the implemented runtime
 	StartTask(context.Context, *StartTaskRequest) (*StartTaskResponse, error)
 	// WaitTask blocks until the given task exits, returning the result of the
@@ -2948,11 +2059,11 @@ type DriverServer interface {
 	// StopTask stops a given task by sending the desired signal to the process.
 	// If the task does not exit on its own within the given timeout, it will be
 	// forcefully killed.
-	StopTask(context.Context, *StopTaskRequest) (*StopTaskResponse, error)
+	StopTask(context.Context, *StopTaskRequest) (*empty.Empty, error)
 	// DestroyTask removes the task from the driver's internal state and cleans
 	// up any additional resources created by the driver. It cannot be called
 	// on a running task.
-	DestroyTask(context.Context, *DestroyTaskRequest) (*DestroyTaskResponse, error)
+	DestroyTask(context.Context, *DestroyTaskRequest) (*empty.Empty, error)
 	// ListTasks returns a list of summary information of all the tasks the
 	// driver is tracking.
 	ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error)
@@ -2962,9 +2073,9 @@ type DriverServer interface {
 	TaskStats(context.Context, *TaskStatsRequest) (*TaskStatsResponse, error)
 	// TaskEvents starts a streaming RPC where all task events emitted by the
 	// driver are streamed to the caller.
-	TaskEvents(*TaskEventsRequest, Driver_TaskEventsServer) error
+	TaskEvents(*empty.Empty, Driver_TaskEventsServer) error
 	// SignalTask sends a signal to the task
-	SignalTask(context.Context, *SignalTaskRequest) (*SignalTaskResponse, error)
+	SignalTask(context.Context, *SignalTaskRequest) (*empty.Empty, error)
 	// ExecTask executes a command inside the tasks execution context
 	ExecTask(context.Context, *ExecTaskRequest) (*ExecTaskResponse, error)
 }
@@ -2973,61 +2084,22 @@ func RegisterDriverServer(s *grpc.Server, srv DriverServer) {
 	s.RegisterService(&_Driver_serviceDesc, srv)
 }
 
-func _Driver_TaskConfigSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TaskConfigSchemaRequest)
+func _Driver_Fingerprint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DriverServer).TaskConfigSchema(ctx, in)
+		return srv.(DriverServer).Fingerprint(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.base.proto.Driver/TaskConfigSchema",
+		FullMethod: "/hashicorp.nomad.plugins.drivers.base.proto.Driver/Fingerprint",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).TaskConfigSchema(ctx, req.(*TaskConfigSchemaRequest))
+		return srv.(DriverServer).Fingerprint(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_Capabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CapabilitiesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).Capabilities(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.base.proto.Driver/Capabilities",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).Capabilities(ctx, req.(*CapabilitiesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_Fingerprint_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(FingerprintRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(DriverServer).Fingerprint(m, &driverFingerprintServer{stream})
-}
-
-type Driver_FingerprintServer interface {
-	Send(*FingerprintResponse) error
-	grpc.ServerStream
-}
-
-type driverFingerprintServer struct {
-	grpc.ServerStream
-}
-
-func (x *driverFingerprintServer) Send(m *FingerprintResponse) error {
-	return x.ServerStream.SendMsg(m)
 }
 
 func _Driver_RecoverTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -3175,7 +2247,7 @@ func _Driver_TaskStats_Handler(srv interface{}, ctx context.Context, dec func(in
 }
 
 func _Driver_TaskEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(TaskEventsRequest)
+	m := new(empty.Empty)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
@@ -3183,7 +2255,7 @@ func _Driver_TaskEvents_Handler(srv interface{}, stream grpc.ServerStream) error
 }
 
 type Driver_TaskEventsServer interface {
-	Send(*DriverTaskEvent) error
+	Send(*TaskEvent) error
 	grpc.ServerStream
 }
 
@@ -3191,7 +2263,7 @@ type driverTaskEventsServer struct {
 	grpc.ServerStream
 }
 
-func (x *driverTaskEventsServer) Send(m *DriverTaskEvent) error {
+func (x *driverTaskEventsServer) Send(m *TaskEvent) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -3236,12 +2308,8 @@ var _Driver_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*DriverServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "TaskConfigSchema",
-			Handler:    _Driver_TaskConfigSchema_Handler,
-		},
-		{
-			MethodName: "Capabilities",
-			Handler:    _Driver_Capabilities_Handler,
+			MethodName: "Fingerprint",
+			Handler:    _Driver_Fingerprint_Handler,
 		},
 		{
 			MethodName: "RecoverTask",
@@ -3286,11 +2354,6 @@ var _Driver_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Fingerprint",
-			Handler:       _Driver_Fingerprint_Handler,
-			ServerStreams: true,
-		},
-		{
 			StreamName:    "TaskEvents",
 			Handler:       _Driver_TaskEvents_Handler,
 			ServerStreams: true,
@@ -3299,184 +2362,138 @@ var _Driver_serviceDesc = grpc.ServiceDesc{
 	Metadata: "driver.proto",
 }
 
-func init() { proto.RegisterFile("driver.proto", fileDescriptor_driver_4db9b3af49fa7db9) }
+func init() { proto.RegisterFile("driver.proto", fileDescriptor_driver_b26cb45d2a523f58) }
 
-var fileDescriptor_driver_4db9b3af49fa7db9 = []byte{
-	// 2810 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x59, 0x5f, 0x6f, 0xe3, 0xc6,
-	0x11, 0x37, 0xf5, 0xcf, 0xd2, 0x48, 0x96, 0x79, 0x7b, 0x77, 0x8d, 0xa2, 0xa0, 0xcd, 0x85, 0x40,
-	0x00, 0x23, 0x69, 0xe4, 0xc6, 0x69, 0xd3, 0xfc, 0xb9, 0xbb, 0x44, 0x91, 0x78, 0x67, 0xe7, 0x2c,
-	0xd9, 0x59, 0xc9, 0x48, 0x52, 0x24, 0x61, 0x68, 0x72, 0x4f, 0x62, 0x2c, 0xfe, 0x09, 0x97, 0xf2,
-	0xd9, 0x01, 0x0a, 0xe4, 0x21, 0x40, 0x81, 0xa2, 0x2d, 0x8a, 0xb4, 0xef, 0x41, 0xdf, 0x8b, 0xa2,
-	0xaf, 0x7d, 0xea, 0x17, 0x08, 0xd0, 0x4f, 0xd0, 0x2f, 0x50, 0xa0, 0x7d, 0xe8, 0x27, 0x28, 0xf6,
-	0x0f, 0x29, 0xca, 0xf2, 0x25, 0xa6, 0x74, 0x7d, 0x22, 0x77, 0x76, 0xf9, 0x9b, 0xe1, 0xcc, 0xec,
-	0xcc, 0xec, 0x0e, 0xd4, 0xec, 0xd0, 0x39, 0x25, 0x61, 0x2b, 0x08, 0xfd, 0xc8, 0x47, 0x2f, 0x8c,
-	0x4d, 0x3a, 0x76, 0x2c, 0x3f, 0x0c, 0x5a, 0x9e, 0xef, 0x9a, 0x76, 0x2b, 0x98, 0x4c, 0x47, 0x8e,
-	0x47, 0x5b, 0x62, 0x15, 0x6d, 0x1d, 0x9b, 0x94, 0x88, 0xb5, 0xcd, 0x1f, 0x8d, 0x7c, 0x7f, 0x34,
-	0x21, 0xdb, 0x7c, 0x74, 0x3c, 0x7d, 0xb8, 0x6d, 0x4f, 0x43, 0x33, 0x72, 0x7c, 0x4f, 0xce, 0x3f,
-	0x7b, 0x71, 0x3e, 0x72, 0x5c, 0x42, 0x23, 0xd3, 0x0d, 0xe4, 0x82, 0xb7, 0x47, 0x4e, 0x34, 0x9e,
-	0x1e, 0xb7, 0x2c, 0xdf, 0xdd, 0x4e, 0xf8, 0x6e, 0x73, 0xbe, 0xdb, 0x92, 0xef, 0x36, 0x1d, 0x9b,
-	0x21, 0xb1, 0xb7, 0xc7, 0xd6, 0x84, 0x06, 0xc4, 0x62, 0x4f, 0x83, 0xbd, 0x08, 0x04, 0xed, 0x69,
-	0x78, 0x6a, 0x68, 0xd2, 0x93, 0x8e, 0xef, 0x3d, 0x74, 0x46, 0x03, 0x6b, 0x4c, 0x5c, 0x13, 0x93,
-	0xcf, 0xa7, 0x84, 0x46, 0xda, 0x47, 0xd0, 0x58, 0x9c, 0xa2, 0x81, 0xef, 0x51, 0x82, 0xde, 0x86,
-	0x02, 0x03, 0x69, 0x28, 0xb7, 0x94, 0xad, 0xea, 0xce, 0x8f, 0x5b, 0x8f, 0xfb, 0x69, 0xc1, 0xbc,
-	0x25, 0x99, 0xb7, 0x06, 0x01, 0xb1, 0x30, 0xff, 0x52, 0xbb, 0x09, 0xd7, 0x3b, 0x66, 0x60, 0x1e,
-	0x3b, 0x13, 0x27, 0x72, 0x08, 0x8d, 0x99, 0x7e, 0x01, 0x37, 0xe6, 0xc9, 0x92, 0xe1, 0x31, 0xd4,
-	0xac, 0x14, 0x5d, 0x32, 0xbe, 0xdb, 0xba, 0xba, 0xb6, 0x5b, 0x5d, 0x4e, 0x9a, 0x43, 0x9f, 0xc3,
-	0xd4, 0x6e, 0x00, 0xba, 0xe7, 0x78, 0x23, 0x12, 0x06, 0xa1, 0xe3, 0x45, 0xb1, 0x44, 0x7f, 0xcc,
-	0xc3, 0xf5, 0x39, 0xb2, 0x94, 0xc8, 0x07, 0x30, 0xa3, 0x28, 0x74, 0x8e, 0xa7, 0x11, 0x97, 0x27,
-	0xbf, 0x55, 0xdd, 0x39, 0xc8, 0x22, 0xcf, 0x25, 0xa0, 0xad, 0x76, 0x82, 0xa8, 0x7b, 0x51, 0x78,
-	0x8e, 0x53, 0x2c, 0x90, 0x05, 0xa5, 0x31, 0x31, 0x27, 0xd1, 0xb8, 0x91, 0xbb, 0xa5, 0x6c, 0xd5,
-	0x77, 0x1e, 0xac, 0xca, 0x6c, 0x97, 0xa3, 0x0d, 0x22, 0x33, 0x22, 0x58, 0x42, 0xa3, 0x97, 0x00,
-	0x89, 0x37, 0xc3, 0x26, 0xd4, 0x0a, 0x9d, 0x80, 0xb9, 0x63, 0x23, 0x7f, 0x4b, 0xd9, 0xaa, 0xe0,
-	0x6b, 0x62, 0xa6, 0x3b, 0x9b, 0x68, 0xde, 0x81, 0xcd, 0x0b, 0x22, 0x23, 0x15, 0xf2, 0x27, 0xe4,
-	0x9c, 0x1b, 0xa8, 0x82, 0xd9, 0x2b, 0xba, 0x01, 0xc5, 0x53, 0x73, 0x32, 0x25, 0x5c, 0xee, 0x0a,
-	0x16, 0x83, 0x37, 0x72, 0xaf, 0x29, 0xda, 0xeb, 0x50, 0x4d, 0x09, 0x81, 0xea, 0x00, 0x47, 0xfd,
-	0xae, 0x3e, 0xd4, 0x3b, 0x43, 0xbd, 0xab, 0xae, 0xa1, 0x0d, 0xa8, 0x1c, 0xf5, 0x77, 0xf5, 0xf6,
-	0xfe, 0x70, 0xf7, 0x43, 0x55, 0x41, 0x55, 0x58, 0x8f, 0x07, 0x39, 0xed, 0x97, 0x80, 0x30, 0xb1,
-	0xfc, 0x53, 0x12, 0x32, 0x27, 0x95, 0xc6, 0x42, 0x4f, 0xc1, 0x7a, 0x64, 0xd2, 0x13, 0xc3, 0xb1,
-	0xa5, 0x00, 0x25, 0x36, 0xdc, 0xb3, 0x51, 0x1f, 0x4a, 0x63, 0xd3, 0xb3, 0x27, 0x42, 0x88, 0xea,
-	0xce, 0xab, 0x59, 0x94, 0xc7, 0x38, 0xec, 0xf2, 0xaf, 0xb1, 0x44, 0x61, 0xee, 0x3b, 0xc7, 0x5e,
-	0xa8, 0x54, 0xfb, 0x04, 0xd4, 0x41, 0x64, 0x86, 0x51, 0x5a, 0xa6, 0x77, 0xa1, 0xc0, 0x84, 0x90,
-	0x2e, 0x9b, 0x99, 0xb1, 0xd8, 0x7f, 0x98, 0x63, 0x68, 0x5f, 0xe6, 0xe1, 0x5a, 0x8a, 0x81, 0x74,
-	0xc5, 0x8f, 0xa0, 0x14, 0x12, 0x3a, 0x9d, 0x44, 0x9c, 0x47, 0x7d, 0xa7, 0x9b, 0x85, 0xc7, 0x02,
-	0x5c, 0x0b, 0x73, 0x2c, 0x2c, 0x31, 0xd1, 0x16, 0xa8, 0xe2, 0x33, 0x83, 0x84, 0xa1, 0x1f, 0x1a,
-	0x2e, 0x1d, 0x49, 0x4b, 0xd6, 0x05, 0x5d, 0x67, 0xe4, 0x1e, 0x1d, 0xa5, 0x94, 0x9c, 0x7f, 0x12,
-	0x4a, 0x46, 0x0f, 0x41, 0xf5, 0x48, 0xf4, 0xc8, 0x0f, 0x4f, 0x0c, 0xa6, 0xe9, 0xd0, 0xb1, 0x49,
-	0xa3, 0xc0, 0x91, 0xdf, 0xcc, 0x82, 0xdc, 0x17, 0x18, 0x07, 0x12, 0x02, 0x6f, 0x7a, 0xf3, 0x04,
-	0xed, 0x45, 0x28, 0x89, 0x7f, 0x66, 0x2e, 0x36, 0x38, 0xea, 0x74, 0xf4, 0xc1, 0x40, 0x5d, 0x43,
-	0x15, 0x28, 0x62, 0x7d, 0x88, 0x99, 0xeb, 0x55, 0xa0, 0x78, 0xaf, 0x3d, 0x6c, 0xef, 0xab, 0x39,
-	0xed, 0x05, 0xd8, 0x7c, 0xdf, 0x74, 0xa2, 0xab, 0x78, 0x9d, 0x16, 0x81, 0x3a, 0x5b, 0x2b, 0x8d,
-	0xd5, 0x9f, 0x33, 0x56, 0x46, 0x25, 0xe9, 0x67, 0x4e, 0x74, 0xc1, 0x3c, 0x2a, 0xe4, 0x49, 0x18,
-	0x4a, 0x8b, 0xb0, 0x57, 0xed, 0x11, 0x6c, 0x0e, 0x22, 0x3f, 0xb8, 0xd2, 0xbe, 0x78, 0x05, 0xd6,
-	0x59, 0x52, 0xf1, 0xa7, 0x91, 0xdc, 0x18, 0x4f, 0xb7, 0x44, 0xd2, 0x69, 0xc5, 0x49, 0xa7, 0xd5,
-	0x95, 0x49, 0x09, 0xc7, 0x2b, 0xd1, 0x0f, 0xa0, 0x44, 0x9d, 0x91, 0x67, 0x4e, 0x64, 0x60, 0x90,
-	0x23, 0x0d, 0x31, 0xef, 0x8f, 0x19, 0xcb, 0x1d, 0xf1, 0x12, 0xa0, 0x2e, 0xa1, 0x51, 0xe8, 0x9f,
-	0x5f, 0x49, 0x63, 0x37, 0xe1, 0xfa, 0xdc, 0x72, 0x89, 0x82, 0x40, 0xdd, 0x77, 0x28, 0x57, 0x64,
-	0x92, 0x2a, 0x4c, 0xb8, 0x96, 0xa2, 0x49, 0xed, 0xee, 0x43, 0x91, 0x21, 0xc5, 0x01, 0x39, 0xb3,
-	0x07, 0xb2, 0x40, 0x34, 0xa5, 0x58, 0x80, 0x30, 0xe1, 0xf7, 0x3c, 0x96, 0xae, 0xae, 0x66, 0xee,
-	0x6f, 0x72, 0x70, 0x7d, 0x6e, 0xbd, 0x14, 0x6a, 0xc5, 0x08, 0x20, 0x65, 0xe2, 0x18, 0x68, 0x08,
-	0x25, 0xb1, 0x4c, 0xda, 0xeb, 0x76, 0x56, 0x34, 0x91, 0x06, 0x25, 0xa6, 0xc4, 0xba, 0x74, 0xa7,
-	0xe5, 0xff, 0x2f, 0x3b, 0x4d, 0x8d, 0xff, 0x88, 0x7e, 0xaf, 0x3a, 0x3f, 0x85, 0x6b, 0xa9, 0xc5,
-	0x52, 0x97, 0x0f, 0xa0, 0x48, 0x19, 0x41, 0x2a, 0xf3, 0x67, 0xcb, 0x28, 0x93, 0x62, 0x81, 0xa1,
-	0x5d, 0x17, 0x1c, 0xf4, 0x53, 0xe2, 0x25, 0xf2, 0x68, 0x5d, 0xb8, 0x36, 0xe0, 0xfe, 0x7c, 0xa5,
-	0x0d, 0x34, 0xdb, 0x0b, 0xb9, 0xb9, 0xbd, 0x70, 0x03, 0x50, 0x1a, 0x45, 0xfa, 0xf1, 0x39, 0x6c,
-	0xea, 0x67, 0xc4, 0xba, 0x12, 0x72, 0x03, 0xd6, 0x2d, 0xdf, 0x75, 0x4d, 0xcf, 0x6e, 0xe4, 0x6e,
-	0xe5, 0xb7, 0x2a, 0x38, 0x1e, 0xa6, 0x37, 0x6d, 0xfe, 0xaa, 0x9b, 0x56, 0xfb, 0x5a, 0x01, 0x75,
-	0xc6, 0x5b, 0x6a, 0x93, 0x49, 0x1f, 0xd9, 0x0c, 0x88, 0xf1, 0xae, 0x61, 0x39, 0x92, 0xf4, 0x38,
-	0xae, 0x08, 0x3a, 0x09, 0xc3, 0x54, 0xf0, 0xca, 0x3f, 0x89, 0xe0, 0xa5, 0xfd, 0x4b, 0x01, 0xb4,
-	0x58, 0x97, 0xa1, 0xe7, 0xa0, 0x46, 0x89, 0x67, 0x1b, 0x42, 0x97, 0xc2, 0xd6, 0x65, 0x5c, 0x65,
-	0x34, 0xa1, 0x54, 0x8a, 0x10, 0x14, 0xc8, 0x19, 0xb1, 0xb8, 0x7c, 0x65, 0xcc, 0xdf, 0x91, 0x0b,
-	0xb5, 0x87, 0xd4, 0x70, 0xa8, 0x3f, 0x31, 0x93, 0xb2, 0xa5, 0xbe, 0xf3, 0xee, 0x6a, 0x45, 0x62,
-	0xeb, 0xde, 0x60, 0x2f, 0x46, 0xc4, 0xd5, 0x87, 0x34, 0x19, 0x68, 0x2d, 0xa8, 0xa6, 0xe6, 0x50,
-	0x19, 0x0a, 0xfd, 0x83, 0xbe, 0xae, 0xae, 0x21, 0x80, 0x52, 0x67, 0x17, 0x1f, 0x1c, 0x0c, 0x45,
-	0xe6, 0xd8, 0xeb, 0xb5, 0xef, 0xeb, 0x6a, 0x4e, 0xfb, 0x5d, 0x01, 0x60, 0x96, 0xd1, 0x51, 0x1d,
-	0x72, 0x89, 0xcd, 0x73, 0x8e, 0xcd, 0xfe, 0xc8, 0x33, 0xdd, 0xb8, 0x4a, 0xe2, 0xef, 0x68, 0x07,
-	0x6e, 0xba, 0x74, 0x14, 0x98, 0xd6, 0x89, 0x21, 0x73, 0xb0, 0xc5, 0x3f, 0xe6, 0xbf, 0x56, 0xc3,
-	0xd7, 0xe5, 0xa4, 0x94, 0x5a, 0xe0, 0xbe, 0x07, 0x79, 0xe2, 0x9d, 0x36, 0x0a, 0x3c, 0x00, 0xbe,
-	0xb5, 0x5c, 0xb9, 0xd1, 0xd2, 0xbd, 0x53, 0x51, 0x81, 0x32, 0x2c, 0x34, 0x80, 0x4a, 0x48, 0xa8,
-	0x3f, 0x0d, 0x2d, 0x42, 0x1b, 0xc5, 0xec, 0x1b, 0x0f, 0xc7, 0x1f, 0xe3, 0x19, 0x0e, 0xda, 0x83,
-	0x92, 0xeb, 0x4f, 0xbd, 0x88, 0x36, 0x4a, 0x5c, 0xd4, 0x97, 0xb3, 0x20, 0xf6, 0xd8, 0x97, 0x58,
-	0x02, 0xa0, 0x7d, 0x58, 0xb7, 0xc9, 0xa9, 0xc3, 0xa4, 0x5b, 0xe7, 0x58, 0x3b, 0x99, 0x6c, 0xce,
-	0x3f, 0xc5, 0x31, 0x04, 0x33, 0xc4, 0x94, 0x92, 0xb0, 0x51, 0x16, 0x86, 0x60, 0xef, 0xe8, 0x19,
-	0xa8, 0x98, 0x93, 0x89, 0x6f, 0x19, 0xb6, 0x13, 0x36, 0x2a, 0x7c, 0xa2, 0xcc, 0x09, 0x5d, 0x27,
-	0x6c, 0xbe, 0x0a, 0xe5, 0x58, 0x5f, 0x99, 0xca, 0xdf, 0x7f, 0x28, 0x50, 0x49, 0x54, 0x83, 0x3e,
-	0x86, 0x8d, 0xd0, 0x7c, 0x64, 0xcc, 0x14, 0x2d, 0x22, 0xdc, 0x6b, 0x99, 0x14, 0x6d, 0x3e, 0x9a,
-	0xe9, 0xba, 0x16, 0xa6, 0x46, 0xc8, 0x82, 0xcd, 0x89, 0xe3, 0x4d, 0xcf, 0x52, 0x0c, 0x44, 0x06,
-	0x79, 0x23, 0x0b, 0x83, 0x7d, 0x06, 0x31, 0x63, 0x51, 0x9f, 0xcc, 0x8d, 0xb5, 0xbf, 0x29, 0x50,
-	0x4b, 0xcb, 0xc0, 0xd4, 0x61, 0x05, 0x53, 0xfe, 0x2b, 0x79, 0xcc, 0x5e, 0x59, 0x68, 0x71, 0x89,
-	0xeb, 0x87, 0xe7, 0x9c, 0x7d, 0x1e, 0xcb, 0x11, 0xd3, 0xba, 0xed, 0xd0, 0x13, 0xee, 0xd9, 0x79,
-	0xcc, 0xdf, 0x19, 0xcd, 0xf1, 0x03, 0xca, 0x8b, 0xbe, 0x3c, 0xe6, 0xef, 0xe8, 0x7d, 0x28, 0xcb,
-	0xac, 0xc2, 0x5c, 0x31, 0xbf, 0x64, 0x8a, 0x8a, 0x25, 0xc4, 0x09, 0x98, 0xf6, 0xa7, 0x1c, 0x6c,
-	0x5e, 0x98, 0x65, 0xc2, 0x0a, 0xaf, 0x88, 0x63, 0xb3, 0x18, 0x31, 0xc1, 0x2c, 0xc7, 0x8e, 0xab,
-	0x2e, 0xfe, 0xce, 0xf7, 0x73, 0x20, 0x2b, 0xa2, 0x9c, 0x13, 0x30, 0xbb, 0xbb, 0xc7, 0x4e, 0x24,
-	0xa4, 0x2f, 0x62, 0x31, 0x40, 0x9f, 0x40, 0x3d, 0x24, 0x94, 0x84, 0xa7, 0xc4, 0x36, 0x02, 0x3f,
-	0x8c, 0xe2, 0x9f, 0xf8, 0xf9, 0x12, 0x3f, 0x71, 0xe8, 0x87, 0x11, 0xde, 0x88, 0xe1, 0xd8, 0x88,
-	0xa2, 0x8f, 0x60, 0xc3, 0x3e, 0xf7, 0x4c, 0xd7, 0xb1, 0x24, 0x7c, 0x69, 0x35, 0xf8, 0x9a, 0x44,
-	0xe3, 0xe8, 0xec, 0xc0, 0x96, 0x9a, 0x64, 0xbf, 0x38, 0x31, 0x8f, 0xc9, 0x44, 0x6a, 0x47, 0x0c,
-	0xe6, 0x1d, 0xbe, 0x28, 0x1d, 0x5e, 0xfb, 0x2a, 0x07, 0xf5, 0x79, 0xef, 0x41, 0x3f, 0x04, 0xb0,
-	0x82, 0xa9, 0x11, 0x90, 0xd0, 0xf1, 0x6d, 0xe9, 0x23, 0x15, 0x2b, 0x98, 0x1e, 0x72, 0x02, 0xdb,
-	0x73, 0x6c, 0xfa, 0xf3, 0xa9, 0x1f, 0x99, 0xd2, 0x59, 0xca, 0x56, 0x30, 0x7d, 0x8f, 0x8d, 0xe3,
-	0x6f, 0xf9, 0x05, 0x03, 0x95, 0x4e, 0xc3, 0x96, 0x0f, 0x38, 0x01, 0xbd, 0x0c, 0x37, 0x85, 0x5f,
-	0x19, 0x13, 0xc7, 0x75, 0x22, 0xc3, 0xf1, 0x8c, 0xe3, 0x73, 0x76, 0x50, 0x17, 0xae, 0x84, 0xc4,
-	0xe4, 0x3e, 0x9b, 0xdb, 0xf3, 0xde, 0x61, 0x33, 0x48, 0x83, 0x0d, 0xdf, 0x77, 0x0d, 0x6a, 0xf9,
-	0x21, 0x31, 0x4c, 0xfb, 0x33, 0x1e, 0xe8, 0xf2, 0xb8, 0xea, 0xfb, 0xee, 0x80, 0xd1, 0xda, 0xf6,
-	0x67, 0xe8, 0x59, 0xa8, 0x5a, 0xc1, 0x94, 0x92, 0xc8, 0x60, 0x8f, 0x46, 0x89, 0xff, 0x36, 0x08,
-	0x52, 0x27, 0x98, 0xd2, 0xd4, 0x02, 0x97, 0xb8, 0x2c, 0x1a, 0xa5, 0x16, 0xf4, 0x88, 0x4b, 0xb5,
-	0x8f, 0xa1, 0xc8, 0x63, 0x17, 0xfb, 0x3b, 0x9e, 0xf7, 0x03, 0x33, 0x1a, 0x4b, 0xfd, 0x95, 0x19,
-	0xe1, 0xd0, 0x8c, 0xc6, 0x6c, 0x72, 0xec, 0xd3, 0x48, 0x4c, 0x0a, 0x27, 0x2b, 0x33, 0x02, 0x9f,
-	0x6c, 0x42, 0x39, 0x24, 0xa6, 0xed, 0x7b, 0x93, 0x73, 0xfe, 0xe3, 0x65, 0x9c, 0x8c, 0xb5, 0xcf,
-	0xa1, 0x24, 0xc2, 0xd9, 0x0a, 0xf8, 0x2f, 0x01, 0xb2, 0x46, 0xa1, 0x3f, 0x0d, 0x98, 0x65, 0x5c,
-	0x87, 0x52, 0xc7, 0xf7, 0x68, 0x7c, 0x07, 0x20, 0x66, 0x0e, 0x67, 0x13, 0xda, 0xb7, 0x8a, 0x48,
-	0x6b, 0xe2, 0xf0, 0xc6, 0x4a, 0x04, 0x99, 0xa3, 0x56, 0x3b, 0xf0, 0x4a, 0x94, 0xb8, 0xe0, 0x23,
-	0xf2, 0xd6, 0x63, 0xa9, 0x82, 0x8f, 0x88, 0x82, 0x8f, 0xb0, 0xc2, 0x42, 0xe6, 0x51, 0x81, 0x29,
-	0xd2, 0x68, 0xd5, 0x4e, 0x6a, 0x62, 0xa2, 0xfd, 0x5b, 0x49, 0xc2, 0x40, 0x5c, 0xb6, 0x22, 0x0b,
-	0xca, 0x6c, 0x33, 0x19, 0xae, 0x19, 0xc8, 0x83, 0xc5, 0xee, 0x0a, 0x65, 0x71, 0x8b, 0xed, 0x9d,
-	0x9e, 0x19, 0x88, 0x04, 0xbb, 0x1e, 0x88, 0x11, 0x8b, 0x29, 0xa6, 0x3d, 0x8b, 0x29, 0xec, 0x1d,
-	0x3d, 0x0f, 0x75, 0x73, 0x1a, 0xf9, 0x86, 0x69, 0x9f, 0x92, 0x30, 0x72, 0x28, 0x91, 0x06, 0xdf,
-	0x60, 0xd4, 0x76, 0x4c, 0x6c, 0xbe, 0x01, 0xb5, 0x34, 0xe6, 0xf7, 0x25, 0xa1, 0x62, 0x3a, 0x09,
-	0x7d, 0x0a, 0x30, 0x2b, 0xcc, 0x98, 0x63, 0x90, 0x33, 0x27, 0x32, 0x2c, 0xdf, 0x16, 0x31, 0xaf,
-	0x88, 0xcb, 0x8c, 0xd0, 0xf1, 0x6d, 0x72, 0xa1, 0xd6, 0x2d, 0xc6, 0xb5, 0x2e, 0xdb, 0x8b, 0x6c,
-	0xe7, 0x9c, 0x38, 0x93, 0x09, 0xb1, 0xa5, 0x84, 0x15, 0xdf, 0x77, 0x1f, 0x70, 0x82, 0xf6, 0x9f,
-	0x9c, 0x70, 0x10, 0x71, 0xe6, 0xb8, 0x52, 0xdd, 0x93, 0x18, 0x3d, 0xff, 0x04, 0x8c, 0xfe, 0x3c,
-	0x6c, 0x52, 0xe7, 0x0b, 0x62, 0xf8, 0x9e, 0xc1, 0xb2, 0x8a, 0xe1, 0x1e, 0xcb, 0x28, 0x50, 0x63,
-	0xe4, 0x03, 0xaf, 0xeb, 0xd0, 0x93, 0xde, 0x31, 0x7a, 0x1d, 0x80, 0x46, 0x66, 0x18, 0x11, 0xdb,
-	0x30, 0x23, 0x59, 0xe5, 0x34, 0x17, 0x0a, 0xeb, 0x61, 0x7c, 0x05, 0x8b, 0x2b, 0x72, 0x75, 0x3b,
-	0x42, 0x77, 0xa0, 0x66, 0xf9, 0x6e, 0x30, 0x21, 0xf2, 0xe3, 0xd2, 0xf7, 0x7e, 0x5c, 0x4d, 0xd6,
-	0xb7, 0xa3, 0x54, 0x55, 0xbd, 0xfe, 0x44, 0xaa, 0xea, 0xbf, 0x2b, 0xe2, 0x98, 0x95, 0x3e, 0xea,
-	0xa1, 0xc9, 0x25, 0xf7, 0x95, 0xfb, 0xab, 0x1c, 0x1e, 0xbf, 0xeb, 0xb2, 0x72, 0xd5, 0x8b, 0xc1,
-	0x6f, 0xf3, 0x50, 0x49, 0x4e, 0x6b, 0x0b, 0x1e, 0xf3, 0x1a, 0x54, 0x92, 0x9b, 0x70, 0x59, 0xc4,
-	0x7c, 0xa7, 0xa1, 0x92, 0xc5, 0xe8, 0x04, 0x90, 0x39, 0x1a, 0x25, 0x25, 0x90, 0x31, 0xa5, 0xe6,
-	0x28, 0x3e, 0xe9, 0xde, 0xc9, 0xaa, 0x8c, 0x38, 0x91, 0x1d, 0x31, 0x10, 0xac, 0x9a, 0xa3, 0xd1,
-	0x1c, 0x05, 0x7d, 0xa9, 0xc0, 0xcd, 0x79, 0x4e, 0xc6, 0xf1, 0xb9, 0x11, 0x38, 0xb6, 0xac, 0xcd,
-	0x7b, 0x4b, 0x9d, 0x5d, 0x5b, 0x73, 0x4c, 0xde, 0x39, 0x3f, 0x74, 0x6c, 0xa1, 0x7e, 0x14, 0x2e,
-	0x4c, 0x34, 0xbf, 0x52, 0xe0, 0xa9, 0xc7, 0xac, 0xbf, 0xc4, 0x1e, 0x83, 0xb4, 0x3d, 0x56, 0x56,
-	0x48, 0xca, 0x9c, 0x7f, 0x56, 0xc4, 0x41, 0x7b, 0x5e, 0x3f, 0xf7, 0x66, 0xb5, 0x61, 0x75, 0xe7,
-	0xa7, 0x59, 0x98, 0x75, 0x0e, 0x8f, 0x04, 0x0f, 0x5e, 0x51, 0x1e, 0xcc, 0x55, 0x94, 0x19, 0x6b,
-	0x9d, 0x1e, 0xff, 0x52, 0xa0, 0x49, 0x18, 0xed, 0xaf, 0x79, 0x28, 0xc7, 0x2c, 0x58, 0x46, 0xa7,
-	0xe7, 0x34, 0x22, 0xae, 0xe1, 0xc6, 0x31, 0x51, 0xc1, 0x20, 0x48, 0x3d, 0x16, 0x15, 0x9f, 0x81,
-	0x0a, 0x3b, 0x22, 0x88, 0xe9, 0x1c, 0x9f, 0x2e, 0x33, 0x02, 0x9f, 0x7c, 0x16, 0xaa, 0x91, 0x1f,
-	0x99, 0x13, 0x23, 0x72, 0xac, 0x13, 0x91, 0x44, 0x15, 0x0c, 0x9c, 0x34, 0x64, 0x14, 0xf4, 0x22,
-	0x5c, 0x8b, 0xc6, 0xa1, 0x1f, 0x45, 0x13, 0x56, 0x10, 0xf2, 0xc2, 0x47, 0x14, 0x29, 0x05, 0xac,
-	0x26, 0x13, 0xa2, 0x20, 0xa2, 0x2c, 0x1d, 0xcc, 0x16, 0x33, 0xaf, 0xe6, 0x61, 0xaa, 0x80, 0x37,
-	0x12, 0x2a, 0xf3, 0x7a, 0xd4, 0x80, 0xf5, 0x80, 0x84, 0x16, 0xf1, 0x44, 0x24, 0x52, 0x70, 0x3c,
-	0x44, 0x36, 0x6c, 0xba, 0xc4, 0xa4, 0xd3, 0x90, 0xd8, 0xc6, 0x43, 0x87, 0x4c, 0x6c, 0x71, 0x60,
-	0xaa, 0x67, 0xab, 0xa1, 0x63, 0xdd, 0xb4, 0xee, 0x71, 0x08, 0x5c, 0x8f, 0x31, 0xc5, 0x98, 0x15,
-	0x21, 0xe2, 0x0d, 0x6d, 0x42, 0x75, 0xf0, 0xe1, 0x60, 0xa8, 0xf7, 0x8c, 0xde, 0x41, 0x57, 0x97,
-	0x57, 0xfa, 0x03, 0x1d, 0x8b, 0xa1, 0xc2, 0xe6, 0x87, 0x07, 0xc3, 0xf6, 0xbe, 0x31, 0xdc, 0xeb,
-	0x3c, 0x18, 0xa8, 0x39, 0x74, 0x13, 0xae, 0x0d, 0x77, 0xf1, 0xc1, 0x70, 0xb8, 0xaf, 0x77, 0x8d,
-	0x43, 0x1d, 0xef, 0x1d, 0x74, 0x07, 0x6a, 0x1e, 0x21, 0xa8, 0xcf, 0xc8, 0xc3, 0xbd, 0x9e, 0xae,
-	0x16, 0x50, 0x15, 0xd6, 0x0f, 0x75, 0xdc, 0xd1, 0xfb, 0x43, 0xb5, 0xa8, 0xfd, 0x33, 0x07, 0xd5,
-	0x94, 0x29, 0x99, 0x73, 0x87, 0x54, 0x1c, 0xa1, 0x0a, 0x98, 0xbd, 0xb2, 0x60, 0x63, 0x99, 0xd6,
-	0x58, 0x98, 0xa8, 0x80, 0xc5, 0x80, 0x19, 0xcf, 0x35, 0xcf, 0x52, 0x71, 0xa0, 0x80, 0xcb, 0xae,
-	0x79, 0x26, 0x40, 0x9e, 0x83, 0xda, 0x09, 0x09, 0x3d, 0x32, 0x91, 0xf3, 0xc2, 0x2c, 0x55, 0x41,
-	0x13, 0x4b, 0xb6, 0x40, 0x95, 0x4b, 0x66, 0x30, 0xc2, 0x26, 0x75, 0x41, 0xef, 0xc5, 0x60, 0xa3,
-	0x45, 0xd5, 0x97, 0xb8, 0xea, 0xef, 0x2e, 0xe9, 0xae, 0x8f, 0xd3, 0xfe, 0x20, 0xd1, 0xfe, 0x3a,
-	0xe4, 0x71, 0x7c, 0x93, 0xdd, 0x69, 0x77, 0x76, 0x99, 0xc6, 0x37, 0xa0, 0xd2, 0x6b, 0x7f, 0x60,
-	0x1c, 0xb5, 0x07, 0xf7, 0x75, 0x35, 0x87, 0x54, 0xa8, 0x3d, 0xd0, 0x71, 0x5f, 0xdf, 0x37, 0x8e,
-	0x06, 0xed, 0xfb, 0xba, 0x9a, 0x47, 0x37, 0x40, 0x95, 0x14, 0xbe, 0x8e, 0x53, 0x0b, 0xda, 0x5f,
-	0x72, 0xb0, 0x29, 0x82, 0x7f, 0x72, 0x61, 0xf6, 0xf8, 0x9b, 0xab, 0xe5, 0xe3, 0x73, 0x03, 0xd6,
-	0x5d, 0x42, 0x13, 0x63, 0x54, 0x70, 0x3c, 0x44, 0x1e, 0x54, 0x4d, 0xcf, 0xf3, 0x23, 0x7e, 0xd7,
-	0x42, 0x65, 0x04, 0xdd, 0xcf, 0x7e, 0xb5, 0x93, 0x88, 0xdf, 0x6a, 0xcf, 0xe0, 0x44, 0x00, 0x4d,
-	0x33, 0x68, 0xde, 0x05, 0xf5, 0xe2, 0x82, 0x2c, 0x19, 0xec, 0x85, 0x97, 0x67, 0x09, 0x8c, 0x30,
-	0x57, 0x3d, 0xea, 0x3f, 0xe8, 0x1f, 0xbc, 0xdf, 0x57, 0xd7, 0xd8, 0x00, 0x1f, 0xf5, 0xfb, 0x7b,
-	0xfd, 0xfb, 0xaa, 0x82, 0x00, 0x4a, 0xfa, 0x07, 0x7b, 0x43, 0xbd, 0xab, 0xe6, 0x76, 0xfe, 0xbb,
-	0x09, 0x25, 0x21, 0x24, 0xfa, 0x46, 0x66, 0xf0, 0x74, 0xf3, 0x15, 0x75, 0x96, 0xab, 0xa4, 0xe7,
-	0xba, 0xba, 0xcd, 0xee, 0x6a, 0x20, 0xf2, 0x1e, 0x73, 0x0d, 0xfd, 0x41, 0x81, 0xda, 0xdc, 0x9d,
-	0x5d, 0xa6, 0x9b, 0xa6, 0x4b, 0x5a, 0xbf, 0xcd, 0xb7, 0x97, 0x07, 0x48, 0xa4, 0xfa, 0x5a, 0x81,
-	0x6a, 0xaa, 0xd5, 0x89, 0xee, 0x2e, 0xdd, 0x23, 0x15, 0x32, 0xbd, 0xb5, 0x62, 0x8f, 0x55, 0x5b,
-	0xfb, 0x89, 0x82, 0x7e, 0xaf, 0x40, 0x35, 0xd5, 0x2c, 0xcc, 0x26, 0xd4, 0x62, 0x93, 0x33, 0x9b,
-	0x50, 0x97, 0x75, 0x29, 0xd7, 0xd0, 0xaf, 0x15, 0xa8, 0x24, 0x8d, 0x3f, 0x74, 0x7b, 0xc9, 0x7e,
-	0xa1, 0x10, 0xe7, 0xce, 0x4a, 0xdd, 0x46, 0x6d, 0x0d, 0xfd, 0x4a, 0x81, 0x72, 0xdc, 0x26, 0x43,
-	0x99, 0x12, 0xd1, 0x85, 0x46, 0x5c, 0xf3, 0xf6, 0x72, 0x1f, 0xcf, 0x49, 0x12, 0x77, 0xb0, 0xb2,
-	0x49, 0x72, 0xa1, 0xe1, 0xd6, 0xbc, 0xbd, 0xdc, 0xc7, 0x89, 0x24, 0xcc, 0x67, 0x52, 0x8d, 0xb0,
-	0x6c, 0x3e, 0xb3, 0xd8, 0x70, 0xcb, 0xe6, 0x33, 0x97, 0x75, 0xe0, 0x84, 0xcf, 0x24, 0x0d, 0xb7,
-	0x6c, 0x3e, 0x73, 0xb1, 0x77, 0x97, 0xcd, 0x67, 0x16, 0xba, 0x7c, 0x52, 0x3f, 0xa9, 0x56, 0x5b,
-	0x36, 0xfd, 0x2c, 0xf6, 0xf4, 0xb2, 0xe9, 0xe7, 0x92, 0x1e, 0x9f, 0xd4, 0xcf, 0xec, 0xcc, 0x72,
-	0x7b, 0xb9, 0xc6, 0xd4, 0x32, 0xfa, 0x59, 0x68, 0x92, 0x69, 0x6b, 0xe8, 0x37, 0xf2, 0x52, 0x46,
-	0xb4, 0xb6, 0x50, 0x66, 0xbc, 0xb9, 0x96, 0x58, 0xf3, 0xcd, 0x15, 0xf2, 0x2c, 0x0f, 0x81, 0xbf,
-	0x55, 0x00, 0x66, 0xed, 0xb0, 0x6c, 0xe2, 0x2c, 0x34, 0xe3, 0x9a, 0x77, 0x97, 0xfd, 0x7c, 0x6e,
-	0xa3, 0xc7, 0xcd, 0xb0, 0x6c, 0x1b, 0xfd, 0x42, 0xfb, 0x2e, 0xdb, 0x46, 0xbf, 0xd8, 0x7f, 0xd3,
-	0xd6, 0xde, 0x59, 0xff, 0x45, 0x51, 0x94, 0x44, 0x25, 0xfe, 0x78, 0xe5, 0x7f, 0x01, 0x00, 0x00,
-	0xff, 0xff, 0xb0, 0x0e, 0x99, 0xe1, 0x4f, 0x26, 0x00, 0x00,
+var fileDescriptor_driver_b26cb45d2a523f58 = []byte{
+	// 2071 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x58, 0x4b, 0x73, 0x23, 0x49,
+	0x11, 0x76, 0xeb, 0x65, 0x29, 0xdb, 0x8f, 0x76, 0xed, 0xce, 0xae, 0xd0, 0x04, 0x8c, 0xb7, 0x23,
+	0x88, 0x70, 0xcc, 0x82, 0xcc, 0x78, 0xd9, 0x65, 0x81, 0x79, 0xac, 0xc6, 0xd6, 0xcc, 0x18, 0x5b,
+	0xb6, 0xb7, 0x5a, 0x8e, 0xdd, 0x25, 0x02, 0x9a, 0x76, 0x77, 0x8d, 0xd4, 0x6b, 0xf5, 0x63, 0xba,
+	0xaa, 0x8d, 0x75, 0x20, 0x82, 0x03, 0x11, 0x1b, 0xc1, 0x81, 0xe0, 0x87, 0x70, 0xe0, 0xca, 0x81,
+	0x1b, 0x47, 0xfe, 0x02, 0x37, 0x0e, 0xfc, 0x0b, 0x88, 0x7a, 0xb4, 0xd4, 0x96, 0xc6, 0x33, 0x6e,
+	0x79, 0x2f, 0x9c, 0xba, 0x2b, 0x33, 0xeb, 0xab, 0xac, 0xcc, 0xac, 0xac, 0xac, 0x84, 0x15, 0x2f,
+	0xf1, 0x2f, 0x48, 0xd2, 0x8e, 0x93, 0x88, 0x45, 0xe8, 0xfe, 0xd0, 0xa1, 0x43, 0xdf, 0x8d, 0x92,
+	0xb8, 0x1d, 0x46, 0x81, 0xe3, 0xb5, 0xe3, 0x51, 0x3a, 0xf0, 0x43, 0xda, 0x96, 0x52, 0xb4, 0x7d,
+	0xe6, 0x50, 0x22, 0x65, 0x5b, 0x77, 0x07, 0x51, 0x34, 0x18, 0x91, 0x6d, 0x31, 0x3a, 0x4b, 0x5f,
+	0x6e, 0x93, 0x20, 0x66, 0x63, 0xc5, 0xfc, 0xde, 0x2c, 0xd3, 0x4b, 0x13, 0x87, 0xf9, 0x51, 0xa8,
+	0xf8, 0xf7, 0x66, 0xf9, 0xcc, 0x0f, 0x08, 0x65, 0x4e, 0x10, 0x2b, 0x81, 0xcf, 0x06, 0x3e, 0x1b,
+	0xa6, 0x67, 0x6d, 0x37, 0x0a, 0xb6, 0x27, 0x4a, 0x6d, 0x0b, 0xa5, 0xb6, 0x95, 0x52, 0xdb, 0x74,
+	0xe8, 0x24, 0xc4, 0xdb, 0x1e, 0xba, 0x23, 0x1a, 0x13, 0x97, 0x7f, 0x6d, 0xfe, 0x23, 0x11, 0xcc,
+	0x6f, 0xca, 0xf0, 0xce, 0x33, 0x3f, 0x1c, 0x90, 0x24, 0x4e, 0xfc, 0x90, 0x61, 0x42, 0xe3, 0x28,
+	0xa4, 0x04, 0x7d, 0x06, 0x15, 0x2e, 0xd5, 0xd4, 0x36, 0xb5, 0x2d, 0x7d, 0xe7, 0x07, 0xed, 0xeb,
+	0xb6, 0x2c, 0xd1, 0xdb, 0x0a, 0xbd, 0x6d, 0xc5, 0xc4, 0xc5, 0x62, 0x26, 0x3a, 0x83, 0x15, 0xd7,
+	0x89, 0x9d, 0x33, 0x7f, 0xe4, 0x33, 0x9f, 0xd0, 0x66, 0x49, 0x20, 0x3d, 0x6e, 0xdf, 0xdc, 0x78,
+	0xed, 0x3d, 0x41, 0xda, 0xcd, 0xa1, 0xe0, 0x2b, 0x98, 0x28, 0x02, 0x70, 0x18, 0x4b, 0xfc, 0xb3,
+	0x94, 0x11, 0xda, 0x2c, 0x6f, 0x96, 0xb7, 0xf4, 0x9d, 0xe3, 0x22, 0x2b, 0xbc, 0x66, 0xeb, 0xed,
+	0xce, 0x04, 0xb1, 0x1b, 0xb2, 0x64, 0x8c, 0x73, 0x4b, 0xa0, 0x16, 0xd4, 0x3d, 0xc2, 0x88, 0xcb,
+	0x88, 0xd7, 0xac, 0x6c, 0x6a, 0x5b, 0x75, 0x3c, 0x19, 0xb7, 0x1e, 0xc1, 0xfa, 0xcc, 0x54, 0x64,
+	0x40, 0xf9, 0x9c, 0x8c, 0x85, 0x11, 0x1b, 0x98, 0xff, 0xa2, 0x77, 0xa1, 0x7a, 0xe1, 0x8c, 0x52,
+	0x22, 0xcc, 0xd1, 0xc0, 0x72, 0xf0, 0xb3, 0xd2, 0xa7, 0x9a, 0xf9, 0x3b, 0x40, 0x98, 0xb8, 0xd1,
+	0x05, 0x49, 0xfa, 0x0e, 0x3d, 0xc7, 0xe4, 0x55, 0x4a, 0x28, 0x43, 0xef, 0xc3, 0x32, 0x73, 0xe8,
+	0xb9, 0xed, 0x7b, 0x0a, 0xa5, 0xc6, 0x87, 0xfb, 0x1e, 0x3a, 0x82, 0xda, 0xd0, 0x09, 0xbd, 0x11,
+	0x51, 0x86, 0xfd, 0xa4, 0xc8, 0xb6, 0xf9, 0x0a, 0x2f, 0xc4, 0x6c, 0xac, 0x50, 0xcc, 0x5f, 0x83,
+	0x61, 0x31, 0x27, 0x61, 0xf9, 0xc5, 0x7f, 0x01, 0x15, 0xbe, 0x9a, 0x0a, 0x82, 0xc2, 0x2b, 0xec,
+	0x46, 0xe1, 0x4b, 0x7f, 0x80, 0x05, 0x86, 0xe9, 0xc2, 0x46, 0x0e, 0x5f, 0x45, 0xd9, 0x74, 0x13,
+	0xda, 0xb7, 0xb2, 0x89, 0xfb, 0xb0, 0xfe, 0x85, 0xe3, 0xb3, 0x9b, 0x18, 0xd0, 0xfc, 0x0a, 0x8c,
+	0xa9, 0xac, 0xd2, 0xe7, 0x2e, 0x34, 0xc8, 0xa5, 0xcf, 0x6c, 0x37, 0xf2, 0xa4, 0x4a, 0x55, 0x5c,
+	0xe7, 0x84, 0xdd, 0xc8, 0x23, 0xe8, 0x3d, 0xa8, 0x51, 0x7f, 0x10, 0x3a, 0x23, 0x61, 0xf1, 0x2a,
+	0x56, 0x23, 0xee, 0x64, 0x92, 0x24, 0xcd, 0xb2, 0x74, 0x32, 0x49, 0x12, 0xf3, 0xb7, 0xb0, 0x6e,
+	0xb1, 0x28, 0xbe, 0x91, 0x1f, 0x3f, 0x82, 0x65, 0x7e, 0xaa, 0xa3, 0x94, 0x29, 0x47, 0x7e, 0xa7,
+	0x2d, 0x4f, 0x7d, 0x3b, 0x3b, 0xf5, 0xed, 0x3d, 0x95, 0x15, 0x70, 0x26, 0x99, 0x53, 0x45, 0xae,
+	0xaa, 0x46, 0xe6, 0x0f, 0x01, 0xed, 0x11, 0xca, 0x92, 0x68, 0x7c, 0x23, 0x13, 0x20, 0x30, 0x0e,
+	0x7d, 0x2a, 0x4c, 0x40, 0x95, 0xb0, 0x79, 0x06, 0x1b, 0x39, 0x9a, 0xb2, 0x4b, 0x0f, 0xaa, 0x7c,
+	0x0a, 0x6d, 0x6a, 0xe2, 0x88, 0xfd, 0xa4, 0xa8, 0x9b, 0xac, 0x34, 0x08, 0x9c, 0x64, 0x8c, 0x25,
+	0x0a, 0x57, 0x73, 0x3f, 0xe4, 0x49, 0xe2, 0x66, 0x9e, 0x72, 0xe0, 0x9d, 0x2b, 0xe2, 0x4a, 0xa9,
+	0x5b, 0x46, 0xa7, 0xc5, 0x1c, 0x96, 0x52, 0x15, 0x9d, 0x1f, 0x82, 0x91, 0xd1, 0xe8, 0x5b, 0xf5,
+	0xf9, 0x0d, 0x6c, 0xe4, 0x84, 0x95, 0x36, 0x07, 0x50, 0xa5, 0x9c, 0xa0, 0xd4, 0xf9, 0x78, 0x11,
+	0x75, 0x28, 0x96, 0x18, 0xe6, 0x1e, 0x6c, 0x58, 0xc2, 0xa3, 0x37, 0x0a, 0xa1, 0xab, 0x81, 0x39,
+	0x8d, 0x86, 0x31, 0xac, 0x77, 0x2f, 0x89, 0x7b, 0x23, 0x8c, 0x26, 0x2c, 0xbb, 0x51, 0x10, 0x38,
+	0xa1, 0xd7, 0x2c, 0x6d, 0x96, 0xb7, 0x1a, 0x38, 0x1b, 0xe6, 0x03, 0xb4, 0x7c, 0xd3, 0x00, 0xe5,
+	0x91, 0x35, 0x5d, 0x5a, 0x5a, 0xc8, 0x3c, 0x00, 0x34, 0x9f, 0xd0, 0xd1, 0x07, 0xb0, 0x42, 0x49,
+	0xe8, 0xd9, 0x52, 0x67, 0x69, 0xbe, 0x3a, 0xd6, 0x39, 0x4d, 0x9a, 0x80, 0x22, 0x04, 0x15, 0x72,
+	0x49, 0x5c, 0xb1, 0xbb, 0x3a, 0x16, 0xff, 0xe6, 0x9f, 0x2a, 0x00, 0xd3, 0x1c, 0x83, 0xd6, 0xa0,
+	0x34, 0xd9, 0x52, 0xc9, 0xf7, 0xf8, 0x94, 0xd0, 0x09, 0xb2, 0x2c, 0x2b, 0xfe, 0xd1, 0x0e, 0xdc,
+	0x09, 0xe8, 0x20, 0x76, 0xdc, 0x73, 0x5b, 0xfa, 0xc0, 0x76, 0xc5, 0x64, 0xb1, 0xad, 0x15, 0xfc,
+	0x8e, 0x62, 0x2a, 0x1d, 0x25, 0xee, 0xe7, 0x50, 0x26, 0xe1, 0x45, 0xb3, 0x22, 0xc2, 0xfe, 0xc9,
+	0x62, 0x09, 0xb0, 0xdd, 0x0d, 0x2f, 0xe4, 0x4d, 0xc2, 0xb1, 0x90, 0x05, 0x8d, 0x84, 0xd0, 0x28,
+	0x4d, 0x5c, 0x42, 0x9b, 0xd5, 0xe2, 0xc1, 0x82, 0xb3, 0xc9, 0x78, 0x8a, 0x83, 0xf6, 0xa1, 0x16,
+	0x44, 0x69, 0xc8, 0x68, 0xb3, 0x26, 0x54, 0x7d, 0x50, 0x04, 0xb1, 0xc7, 0x67, 0x62, 0x05, 0x80,
+	0x0e, 0x61, 0xd9, 0x23, 0x17, 0x3e, 0xd7, 0x6e, 0x59, 0x60, 0xed, 0x14, 0xba, 0xb2, 0xc5, 0x54,
+	0x9c, 0x41, 0x70, 0x47, 0xa4, 0x94, 0x24, 0xcd, 0xba, 0x74, 0x04, 0xff, 0xe7, 0x59, 0xd6, 0x19,
+	0x8d, 0x22, 0xd7, 0xf6, 0xfc, 0xa4, 0xd9, 0x10, 0x8c, 0xba, 0x20, 0xec, 0xf9, 0x49, 0xeb, 0x13,
+	0xa8, 0x67, 0xf6, 0x2a, 0x74, 0x7d, 0xfe, 0x57, 0x83, 0xc6, 0xc4, 0x34, 0xe8, 0xbb, 0x00, 0x6e,
+	0x9c, 0xda, 0x31, 0x49, 0xfc, 0x48, 0xc6, 0x45, 0x19, 0x37, 0xdc, 0x38, 0x3d, 0x11, 0x04, 0xae,
+	0x01, 0x67, 0xbf, 0x4a, 0x23, 0xe6, 0x08, 0xa8, 0x32, 0xae, 0xbb, 0x71, 0xfa, 0x39, 0x1f, 0x67,
+	0x73, 0x45, 0x65, 0x43, 0x45, 0x70, 0xc8, 0xb9, 0x96, 0x20, 0xa0, 0x07, 0x70, 0x27, 0x20, 0x41,
+	0x94, 0x8c, 0xed, 0x91, 0x1f, 0xf8, 0xcc, 0xf6, 0x43, 0xfb, 0x6c, 0xcc, 0xcb, 0x8f, 0x8a, 0x90,
+	0x44, 0x92, 0x79, 0xc8, 0x79, 0xfb, 0xe1, 0x53, 0xce, 0x41, 0x26, 0xac, 0x46, 0x51, 0x60, 0x53,
+	0x37, 0x4a, 0x88, 0xed, 0x78, 0x5f, 0x0b, 0xb7, 0x97, 0xb1, 0x1e, 0x45, 0x81, 0xc5, 0x69, 0x1d,
+	0xef, 0x6b, 0x74, 0x0f, 0x74, 0x37, 0x4e, 0x29, 0x61, 0x36, 0xff, 0x34, 0x6b, 0x62, 0x7f, 0x20,
+	0x49, 0xbb, 0x71, 0x4a, 0x73, 0x02, 0x01, 0x09, 0xb8, 0x6f, 0x72, 0x02, 0x3d, 0x12, 0x50, 0xf3,
+	0x57, 0x50, 0x15, 0x9e, 0xe4, 0xbb, 0x13, 0x87, 0x3c, 0x76, 0xd8, 0x50, 0x19, 0xaf, 0xce, 0x09,
+	0x27, 0x0e, 0x1b, 0x72, 0xe6, 0x30, 0xa2, 0x4c, 0x32, 0xa5, 0x15, 0xeb, 0x9c, 0x20, 0x98, 0x2d,
+	0xa8, 0x27, 0xc4, 0xf1, 0xa2, 0x70, 0x34, 0x16, 0x1b, 0xaf, 0xe3, 0xc9, 0xd8, 0xf4, 0xa0, 0x26,
+	0x9d, 0x7b, 0x0b, 0xfc, 0x4d, 0xd0, 0x63, 0x92, 0x04, 0x3e, 0xa5, 0x7e, 0x14, 0x52, 0x75, 0x79,
+	0xe5, 0x49, 0xe6, 0xbf, 0x35, 0x79, 0xae, 0xe5, 0xc5, 0xce, 0x53, 0x9b, 0x0c, 0xb2, 0x2c, 0x5d,
+	0xc9, 0x11, 0x2f, 0x1c, 0xd4, 0xe1, 0x2d, 0xdd, 0xaa, 0x36, 0x51, 0x28, 0x59, 0xf6, 0x26, 0x42,
+	0xa5, 0xb5, 0xc5, 0xb2, 0x37, 0x91, 0xd9, 0x9b, 0xf0, 0x94, 0xa6, 0x12, 0x8c, 0xc4, 0xac, 0x88,
+	0xfc, 0xa2, 0x4b, 0x9a, 0x90, 0x34, 0xff, 0xa6, 0x81, 0x9e, 0xbb, 0x18, 0x6f, 0x94, 0xbf, 0xbe,
+	0x55, 0x1d, 0x7f, 0x0a, 0x40, 0x79, 0x39, 0x46, 0x3c, 0xdb, 0x61, 0x42, 0x43, 0x7d, 0xa7, 0x35,
+	0x97, 0xd8, 0xfb, 0xd9, 0x7b, 0x03, 0x37, 0x94, 0x74, 0x87, 0x99, 0xff, 0x28, 0x4b, 0x17, 0xc9,
+	0x0b, 0xf4, 0xff, 0x49, 0x75, 0xf4, 0x08, 0x56, 0xdc, 0x28, 0x88, 0x47, 0x44, 0x4d, 0xae, 0xbe,
+	0x75, 0xb2, 0x3e, 0x91, 0xef, 0xb0, 0xab, 0xe5, 0x61, 0x6d, 0xa6, 0x3c, 0x0c, 0x60, 0x35, 0xe7,
+	0xf5, 0x34, 0xcb, 0x9e, 0x2f, 0x16, 0xab, 0x4b, 0xd4, 0xdb, 0x47, 0x0e, 0xe4, 0xed, 0xb1, 0xe2,
+	0xe5, 0x48, 0xad, 0x27, 0xb0, 0x31, 0x27, 0x52, 0x28, 0x61, 0xfe, 0xb3, 0x0c, 0x8d, 0x49, 0xe1,
+	0x31, 0xe7, 0xc5, 0x4f, 0xa1, 0x31, 0x79, 0x6c, 0xaa, 0x33, 0xf6, 0x46, 0x1b, 0x4f, 0x84, 0xd1,
+	0x39, 0x20, 0x67, 0x30, 0xb0, 0xb3, 0xbb, 0xc9, 0x4e, 0xa9, 0x33, 0x20, 0xaa, 0x74, 0x78, 0x54,
+	0xd4, 0x18, 0x59, 0x46, 0x3f, 0xe5, 0x20, 0xd8, 0x70, 0x06, 0x83, 0x2b, 0x14, 0xf4, 0x7b, 0x0d,
+	0xee, 0x5c, 0x5d, 0xc9, 0x3e, 0x1b, 0xdb, 0xb1, 0xef, 0xa9, 0x2b, 0xbb, 0xb7, 0x50, 0x19, 0xd6,
+	0xbe, 0xb2, 0xc8, 0xd3, 0xf1, 0x89, 0xef, 0x49, 0x17, 0xa0, 0x64, 0x8e, 0xd1, 0xfa, 0x83, 0x06,
+	0xef, 0x5f, 0x23, 0xff, 0x1a, 0x7f, 0x58, 0x79, 0x7f, 0xdc, 0xda, 0x20, 0x39, 0x77, 0xfe, 0x45,
+	0x93, 0x55, 0xe9, 0x55, 0xfb, 0x3c, 0x83, 0xb2, 0x1b, 0xa7, 0xaa, 0x26, 0xfd, 0x71, 0x91, 0xc5,
+	0x76, 0x4f, 0x4e, 0xe5, 0x1a, 0x1c, 0x00, 0x1d, 0x43, 0x4d, 0xde, 0x6b, 0x4a, 0xef, 0x42, 0x2f,
+	0x80, 0x9e, 0x98, 0x29, 0xd1, 0x14, 0x8c, 0xf9, 0xd7, 0x32, 0xd4, 0xb3, 0x25, 0xf8, 0xd5, 0x46,
+	0xc7, 0x94, 0x91, 0xc0, 0x0e, 0xb2, 0x87, 0x97, 0x86, 0x41, 0x92, 0x7a, 0xfc, 0x6c, 0xdd, 0x85,
+	0x06, 0xaf, 0x1c, 0x24, 0xbb, 0x24, 0xd8, 0x75, 0x4e, 0x10, 0xcc, 0x7b, 0xa0, 0xb3, 0x88, 0x39,
+	0x23, 0x9b, 0xf9, 0xee, 0xb9, 0xbc, 0x54, 0x34, 0x0c, 0x82, 0xd4, 0xe7, 0x14, 0xf4, 0x21, 0x6c,
+	0xb0, 0x61, 0x12, 0x31, 0x36, 0x22, 0x9e, 0x2a, 0x09, 0xe4, 0x6d, 0x5d, 0xc1, 0xc6, 0x84, 0x21,
+	0x2b, 0x03, 0x8a, 0xbe, 0x0f, 0x6b, 0x53, 0x61, 0x1e, 0xd5, 0x22, 0x49, 0x54, 0xf0, 0xea, 0x84,
+	0xca, 0xa3, 0x9e, 0xd7, 0xcb, 0x31, 0x49, 0x5c, 0x12, 0x32, 0x91, 0x08, 0x34, 0x9c, 0x0d, 0x91,
+	0x07, 0xeb, 0x01, 0x71, 0x68, 0x9a, 0x10, 0xcf, 0x7e, 0xe9, 0x93, 0x91, 0x27, 0x33, 0xc1, 0xda,
+	0xce, 0xcf, 0x17, 0x31, 0x7f, 0xfb, 0x99, 0x80, 0xc0, 0x6b, 0x19, 0xa6, 0x1c, 0x9b, 0xaf, 0xa0,
+	0x26, 0xff, 0xd0, 0x3a, 0xe8, 0xd6, 0x57, 0x56, 0xbf, 0xdb, 0xb3, 0x7b, 0xc7, 0x7b, 0x5d, 0x63,
+	0x09, 0xad, 0x42, 0xe3, 0xd4, 0xea, 0x62, 0x39, 0xd4, 0x38, 0xbf, 0x7f, 0xdc, 0xef, 0x1c, 0xda,
+	0xfd, 0xfd, 0xdd, 0x03, 0xcb, 0x28, 0xa1, 0x3b, 0xb0, 0xd1, 0x7f, 0x81, 0x8f, 0xfb, 0xfd, 0xc3,
+	0xee, 0x9e, 0x7d, 0xd2, 0xc5, 0xfb, 0xc7, 0x7b, 0x96, 0x51, 0x46, 0x08, 0xd6, 0xa6, 0xe4, 0xfe,
+	0x7e, 0xaf, 0x6b, 0x54, 0x90, 0x0e, 0xcb, 0x27, 0x5d, 0xbc, 0xdb, 0x3d, 0xea, 0x1b, 0x55, 0xf3,
+	0x5f, 0x25, 0xd0, 0x73, 0xae, 0xe4, 0xc1, 0x9d, 0x50, 0x59, 0xb0, 0x57, 0x30, 0xff, 0xe5, 0xc9,
+	0xc6, 0x75, 0xdc, 0xa1, 0x74, 0x51, 0x05, 0xcb, 0x01, 0x77, 0x5e, 0xe0, 0x5c, 0xe6, 0xf2, 0x40,
+	0x05, 0xd7, 0x03, 0xe7, 0x52, 0x82, 0x7c, 0x00, 0x2b, 0xe7, 0x24, 0x09, 0xc9, 0x48, 0xf1, 0xa5,
+	0x5b, 0x74, 0x49, 0x93, 0x22, 0x5b, 0x60, 0x28, 0x91, 0x29, 0x8c, 0xf4, 0xc9, 0x9a, 0xa4, 0xf7,
+	0x32, 0xb0, 0xc1, 0xbc, 0xe9, 0x6b, 0xc2, 0xf4, 0x8f, 0x17, 0x0c, 0xd7, 0xeb, 0xac, 0x6f, 0x4d,
+	0xac, 0xbf, 0x0c, 0x65, 0x6c, 0x59, 0xc6, 0x12, 0x6a, 0x40, 0x75, 0xb7, 0xb3, 0xfb, 0x82, 0x5b,
+	0x7c, 0x15, 0x1a, 0xbd, 0xce, 0x97, 0xf6, 0x69, 0xc7, 0x7a, 0xde, 0x35, 0x4a, 0xc8, 0x80, 0x95,
+	0x83, 0x2e, 0x3e, 0xea, 0x1e, 0xda, 0xa7, 0x56, 0xe7, 0x79, 0xd7, 0x28, 0xa3, 0x77, 0xc1, 0x50,
+	0x14, 0x21, 0x27, 0xa8, 0x15, 0xf3, 0x3f, 0x9a, 0x4c, 0xc8, 0xdd, 0x0b, 0x1e, 0x46, 0x6f, 0x7a,
+	0xa9, 0x05, 0x84, 0x0a, 0x2b, 0xc8, 0x9c, 0x9e, 0x0d, 0xd1, 0x10, 0x74, 0x27, 0x0c, 0x23, 0x26,
+	0xde, 0x62, 0x59, 0x3b, 0xec, 0x59, 0xd1, 0x0c, 0x23, 0x96, 0x6f, 0x77, 0xa6, 0x40, 0x32, 0xf5,
+	0xe5, 0xa1, 0x5b, 0x8f, 0xc1, 0x98, 0x15, 0x28, 0x72, 0xf7, 0xdc, 0x7f, 0x30, 0xbd, 0x7a, 0x08,
+	0x0f, 0xb2, 0xd3, 0xa3, 0x83, 0xa3, 0xe3, 0x2f, 0x8e, 0x8c, 0x25, 0x3e, 0xc0, 0xa7, 0x47, 0x47,
+	0xfb, 0x47, 0xcf, 0x0d, 0x0d, 0x01, 0xd4, 0xba, 0x5f, 0xee, 0xf7, 0xbb, 0x7b, 0x46, 0x69, 0xe7,
+	0xef, 0x3a, 0xd4, 0xe4, 0x85, 0xc7, 0xf7, 0x99, 0xeb, 0xdb, 0xa1, 0xf7, 0xe6, 0xee, 0xa5, 0x6e,
+	0x10, 0xb3, 0x71, 0xeb, 0xc9, 0x2d, 0x1b, 0x81, 0xe6, 0x12, 0x1a, 0x80, 0x9e, 0xeb, 0xc9, 0xa1,
+	0xc7, 0xc5, 0xde, 0x69, 0xb3, 0xcd, 0xbc, 0xd6, 0x35, 0x9a, 0x9a, 0x4b, 0xe8, 0x8f, 0x1a, 0x34,
+	0x26, 0xed, 0x31, 0xf4, 0xb0, 0xc8, 0x3a, 0xb3, 0x5d, 0xbb, 0xd6, 0xa3, 0x05, 0x67, 0x4f, 0x76,
+	0xfd, 0x8d, 0x06, 0xf5, 0xac, 0x35, 0x86, 0x0a, 0x65, 0xad, 0x99, 0xe6, 0x5b, 0xeb, 0xe1, 0x62,
+	0x93, 0x27, 0x9a, 0x38, 0x50, 0xcf, 0x1a, 0x69, 0xc5, 0x14, 0x99, 0x69, 0xbf, 0xbd, 0xc1, 0xf2,
+	0x03, 0xd0, 0x73, 0x2d, 0xb3, 0x62, 0x2e, 0x9e, 0xef, 0xb5, 0xbd, 0xc5, 0xc5, 0x93, 0xce, 0x5a,
+	0x31, 0x17, 0xcf, 0x36, 0xe9, 0x8a, 0xb9, 0x78, 0xae, 0x9d, 0x67, 0x2e, 0xa1, 0x3f, 0x6b, 0xa0,
+	0xe7, 0x7a, 0x6a, 0xc5, 0xb6, 0x3d, 0xdf, 0xbb, 0x2b, 0x76, 0xd6, 0x5e, 0xd3, 0xcc, 0x53, 0xf6,
+	0x99, 0xd6, 0xa3, 0x0f, 0x17, 0xeb, 0x9f, 0x2d, 0x62, 0x9f, 0xb9, 0x5e, 0x9e, 0xb9, 0x84, 0x6c,
+	0xf9, 0xc4, 0x11, 0xb9, 0x90, 0x5e, 0x9b, 0x61, 0x3e, 0x5e, 0x28, 0xb7, 0x9a, 0x4b, 0x3f, 0xd2,
+	0x10, 0x01, 0x98, 0x76, 0xf8, 0x50, 0xb1, 0x23, 0x3b, 0xdb, 0x19, 0x7c, 0x43, 0xd0, 0xf1, 0xa3,
+	0x9c, 0x35, 0xe2, 0x8a, 0x9d, 0xa0, 0x99, 0xce, 0x61, 0xb1, 0xa3, 0x3c, 0xd7, 0xfb, 0x5b, 0x7a,
+	0xba, 0xfc, 0xcb, 0xaa, 0xd4, 0xae, 0x26, 0x3e, 0x1f, 0xfd, 0x2f, 0x00, 0x00, 0xff, 0xff, 0x09,
+	0xb8, 0x19, 0x07, 0x54, 0x1b, 0x00, 0x00,
 }
