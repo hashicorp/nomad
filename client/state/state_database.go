@@ -3,7 +3,6 @@ package state
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/boltdb/bolt"
 	trstate "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
@@ -38,56 +37,6 @@ var (
 	taskLocalStateKey = []byte("local_state")
 	taskStateKey      = []byte("task_state")
 )
-
-//TODO delete from kvcodec
-// DeleteAllocationBucket is used to delete an allocation bucket if it exists.
-func DeleteAllocationBucket(tx *bolt.Tx, allocID string) error {
-	if !tx.Writable() {
-		return fmt.Errorf("transaction must be writable")
-	}
-
-	// Retrieve the root allocations bucket
-	allocations := tx.Bucket(allocationsBucket)
-	if allocations == nil {
-		return nil
-	}
-
-	// Check if the bucket exists
-	key := []byte(allocID)
-	if allocBkt := allocations.Bucket(key); allocBkt == nil {
-		return nil
-	}
-
-	return allocations.DeleteBucket(key)
-}
-
-//TODO delete from kvcodec
-// DeleteTaskBucket is used to delete a task bucket if it exists.
-func DeleteTaskBucket(tx *bolt.Tx, allocID, taskName string) error {
-	if !tx.Writable() {
-		return fmt.Errorf("transaction must be writable")
-	}
-
-	// Retrieve the root allocations bucket
-	allocations := tx.Bucket(allocationsBucket)
-	if allocations == nil {
-		return nil
-	}
-
-	// Retrieve the specific allocations bucket
-	alloc := allocations.Bucket([]byte(allocID))
-	if alloc == nil {
-		return nil
-	}
-
-	// Check if the bucket exists
-	key := []byte(taskName)
-	if taskBkt := alloc.Bucket(key); taskBkt == nil {
-		return nil
-	}
-
-	return alloc.DeleteBucket(key)
-}
 
 // NewStateDBFunc creates a StateDB given a state directory.
 type NewStateDBFunc func(stateDir string) (StateDB, error)
@@ -153,7 +102,7 @@ type allocEntry struct {
 }
 
 func (s *BoltStateDB) getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map[string]error) {
-	allocationsBkt := tx.Bucket(allocationsBucket)
+	allocationsBkt := newNamedBucket(tx, allocationsBucket)
 	if allocationsBkt == nil {
 		// No allocs
 		return nil, nil
@@ -163,7 +112,7 @@ func (s *BoltStateDB) getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map
 	errs := map[string]error{}
 
 	// Create a cursor for iteration.
-	c := allocationsBkt.Cursor()
+	c := allocationsBkt.bkt.Cursor()
 
 	// Iterate over all the allocation buckets
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
@@ -190,7 +139,7 @@ func (s *BoltStateDB) getAllAllocations(tx *bolt.Tx) ([]*structs.Allocation, map
 func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		// Retrieve the root allocations bucket
-		allocsBkt, err := tx.CreateBucketIfNotExists(allocationsBucket)
+		allocsBkt, err := createNamedBucketIfNotExists(tx, allocationsBucket)
 		if err != nil {
 			return err
 		}
@@ -205,7 +154,7 @@ func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 		allocState := allocEntry{
 			Alloc: alloc,
 		}
-		return s.codec.Put(allocBkt, alloc.ID, allocKey, &allocState)
+		return s.codec.Put(allocBkt, allocKey, &allocState)
 	})
 }
 
@@ -256,8 +205,7 @@ func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, val inte
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		path := strings.Join([]string{allocID, taskName, string(taskLocalStateKey)}, "-")
-		if err := s.codec.Put(taskBkt, path, taskLocalStateKey, val); err != nil {
+		if err := s.codec.Put(taskBkt, taskLocalStateKey, val); err != nil {
 			return fmt.Errorf("failed to write task_runner state: %v", err)
 		}
 
@@ -273,8 +221,42 @@ func (s *BoltStateDB) PutTaskState(allocID, taskName string, state *structs.Task
 			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
 		}
 
-		path := strings.Join([]string{allocID, taskName, string(taskStateKey)}, "-")
-		return s.codec.Put(taskBkt, path, taskStateKey, state)
+		return s.codec.Put(taskBkt, taskStateKey, state)
+	})
+}
+
+// DeleteTaskBucket is used to delete a task bucket if it exists.
+func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		// Retrieve the root allocations bucket
+		allocations := newNamedBucket(tx, allocationsBucket)
+		if allocations == nil {
+			return nil
+		}
+
+		// Retrieve the specific allocations bucket
+		alloc := allocations.Bucket([]byte(allocID))
+		if alloc == nil {
+			return nil
+		}
+
+		// Check if the bucket exists
+		key := []byte(taskName)
+		return s.codec.DeleteBucket(alloc, key)
+	})
+}
+
+// DeleteAllocationBucket is used to delete an allocation bucket if it exists.
+func (s *BoltStateDB) DeleteAllocationBucket(allocID string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		// Retrieve the root allocations bucket
+		allocations := newNamedBucket(tx, allocationsBucket)
+		if allocations == nil {
+			return nil
+		}
+
+		key := []byte(allocID)
+		return s.codec.DeleteBucket(allocations, key)
 	})
 }
 
@@ -288,18 +270,18 @@ func (s *BoltStateDB) Close() error {
 // particular allocation. If the root allocation bucket or the specific
 // allocation bucket doesn't exist, it will be created as long as the
 // transaction is writable.
-func getAllocationBucket(tx *bolt.Tx, allocID string) (*bolt.Bucket, error) {
+func getAllocationBucket(tx *bolt.Tx, allocID string) (kvStore, error) {
 	var err error
 	w := tx.Writable()
 
 	// Retrieve the root allocations bucket
-	allocations := tx.Bucket(allocationsBucket)
+	allocations := newNamedBucket(tx, allocationsBucket)
 	if allocations == nil {
 		if !w {
 			return nil, fmt.Errorf("Allocations bucket doesn't exist and transaction is not writable")
 		}
 
-		allocations, err = tx.CreateBucket(allocationsBucket)
+		allocations, err = createNamedBucketIfNotExists(tx, allocationsBucket)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +308,7 @@ func getAllocationBucket(tx *bolt.Tx, allocID string) (*bolt.Bucket, error) {
 // particular task. If the root allocation bucket, the specific
 // allocation or task bucket doesn't exist, they will be created as long as the
 // transaction is writable.
-func getTaskBucket(tx *bolt.Tx, allocID, taskName string) (*bolt.Bucket, error) {
+func getTaskBucket(tx *bolt.Tx, allocID, taskName string) (kvStore, error) {
 	alloc, err := getAllocationBucket(tx, allocID)
 	if err != nil {
 		return nil, err
