@@ -4,6 +4,8 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
+import RSVP from 'rsvp';
+import { assert } from '@ember/debug';
 
 const JOB_TYPES = ['service', 'batch', 'system'];
 
@@ -191,6 +193,41 @@ export default Model.extend({
     return this.store.adapterFor('job').stop(this);
   },
 
+  plan() {
+    assert('A job must be parsed before planned', this.get('_newDefinitionJSON'));
+    return this.store.adapterFor('job').plan(this);
+  },
+
+  parse() {
+    const definition = this.get('_newDefinition');
+    let promise;
+
+    try {
+      // If the definition is already JSON then it doesn't need to be parsed.
+      const json = JSON.parse(definition);
+      this.set('_newDefinitionJSON', definition);
+      this.setIDByPayload(json);
+      promise = RSVP.Resolve(definition);
+    } catch (err) {
+      // If the definition is invalid JSON, assume it is HCL. If it is invalid
+      // in anyway, the parse endpoint will throw an error.
+      promise = this.store
+        .adapterFor('job')
+        .parse(this.get('_newDefinition'))
+        .then(response => {
+          this.set('_newDefinitionJSON', response);
+          this.setIDByPayload(response);
+        });
+    }
+
+    return promise;
+  },
+
+  setIDByPayload(payload) {
+    this.set('plainId', payload.Name);
+    this.set('id', JSON.stringify([payload.Name, payload.Namespace || 'default']));
+  },
+
   statusClass: computed('status', function() {
     const classMap = {
       pending: 'is-pending',
@@ -206,4 +243,13 @@ export default Model.extend({
     // Lazily decode the base64 encoded payload
     return window.atob(this.get('payload') || '');
   }),
+
+  // An arbitrary HCL or JSON string that is used by the serializer to plan
+  // and run this job. Used for both new job models and saved job models.
+  _newDefinition: attr('string'),
+
+  // The new definition may be HCL, in which case the API will need to parse the
+  // spec first. In order to preserve both the original HCL and the parsed response
+  // that will be submitted to the create job endpoint, another prop is necessary.
+  _newDefinitionJSON: attr('string'),
 });

@@ -59,6 +59,26 @@ export default Watchable.extend({
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'DELETE');
   },
+
+  parse(spec) {
+    const url = addToPath(this.urlForFindAll('job'), '/parse');
+    return this.ajax(url, 'POST', {
+      data: {
+        JobHCL: spec,
+        Canonicalize: true,
+      },
+    });
+  },
+
+  plan(job) {
+    const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/plan');
+    return this.ajax(url, 'POST', {
+      data: {
+        Job: job.get('_newDefinitionJSON'),
+        Diff: true,
+      },
+    });
+  },
 });
 
 function associateNamespace(url, namespace) {
