@@ -13,7 +13,6 @@ module.exports = function(defaults) {
       paths: ['public/images/icons'],
     },
     codemirror: {
-      themes: ['solarized'],
       modes: ['javascript'],
     },
     funnel: {
