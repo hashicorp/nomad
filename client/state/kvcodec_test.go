@@ -12,6 +12,26 @@ type mockKVStore struct {
 	puts int
 }
 
+func (mockKVStore) Path() []byte {
+	return []byte{}
+}
+
+func (m *mockKVStore) Bucket(name []byte) kvStore {
+	return m
+}
+
+func (m *mockKVStore) CreateBucket(key []byte) (kvStore, error) {
+	return m, nil
+}
+
+func (m *mockKVStore) CreateBucketIfNotExists(key []byte) (kvStore, error) {
+	return m, nil
+}
+
+func (m *mockKVStore) DeleteBucket(key []byte) error {
+	return nil
+}
+
 func (mockKVStore) Get(key []byte) (val []byte) {
 	return nil
 }
@@ -19,10 +39,6 @@ func (mockKVStore) Get(key []byte) (val []byte) {
 func (m *mockKVStore) Put(key, val []byte) error {
 	m.puts++
 	return nil
-}
-
-func (mockKVStore) Writable() bool {
-	return true
 }
 
 // TestKVCodec_PutHash asserts that Puts on the underlying kvstore only occur
@@ -33,7 +49,6 @@ func TestKVCodec_PutHash(t *testing.T) {
 
 	// Create arguments for Put
 	kv := new(mockKVStore)
-	path := "path-path"
 	key := []byte("key1")
 	val := &struct {
 		Val int
@@ -42,29 +57,24 @@ func TestKVCodec_PutHash(t *testing.T) {
 	}
 
 	// Initial Put should be written
-	require.NoError(codec.Put(kv, path, key, val))
+	require.NoError(codec.Put(kv, key, val))
 	require.Equal(1, kv.puts)
 
 	// Writing the same values again should be a noop
-	require.NoError(codec.Put(kv, path, key, val))
+	require.NoError(codec.Put(kv, key, val))
 	require.Equal(1, kv.puts)
 
 	// Changing the value should write again
 	val.Val++
-	require.NoError(codec.Put(kv, path, key, val))
+	require.NoError(codec.Put(kv, key, val))
 	require.Equal(2, kv.puts)
 
 	// Changing the key should write again
 	key = []byte("key2")
-	require.NoError(codec.Put(kv, path, key, val))
+	require.NoError(codec.Put(kv, key, val))
 	require.Equal(3, kv.puts)
 
-	// Changing the path should write again
-	path = "new-path"
-	require.NoError(codec.Put(kv, path, key, val))
-	require.Equal(4, kv.puts)
-
 	// Writing the same values again should be a noop
-	require.NoError(codec.Put(kv, path, key, val))
-	require.Equal(4, kv.puts)
+	require.NoError(codec.Put(kv, key, val))
+	require.Equal(3, kv.puts)
 }
