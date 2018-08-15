@@ -2,7 +2,6 @@ syntax = "proto3";
 package hashicorp.nomad.plugins.drivers.base.proto;
 option go_package = "proto";
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -12,13 +11,27 @@ import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
 // Some rpcs may not be implemented by the driver based on it's capabilities.
 service Driver {
 
-    // Fingerprint collects information about the driver including whether the
-    // driver is able to function in the existing environment.
-    rpc Fingerprint(google.protobuf.Empty) returns (FingerprintResponse) {}
+    // DriverTaskConfigSchema returns the schema for parsing the driver
+    // configuration of a task.
+    rpc DriverTaskConfigSchema(DriverTaskConfigSchemaRequest) returns (DriverTaskConfigSchemaResponse) {}
+
+    // Capabilities returns a set of features which the driver implements. Some
+    // RPCs are not possible to implement on some runtimes, this allows the
+    // driver to indicate if it doesn't support these RPCs and features.
+    rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse) {}
+
+    // Fingerprint starts a stream which emits information about the driver
+    // including whether the driver healthy and able to function in the
+    // existing environment.
+    //
+    // The driver should immediately stream a FingerprintResponse when the RPC
+    // is initially called, then send any additional responses if there is a
+    // change in the driver's state.
+    rpc Fingerprint(FingerprintRequest) returns (stream FingerprintResponse) {}
 
     // RecoverTask is used when a task has been started but the driver may not
     // know about it. Such is the case if the driver restarts or is upgraded.
-    rpc RecoverTask(RecoverTaskRequest) returns (google.protobuf.Empty) {}
+    rpc RecoverTask(RecoverTaskRequest) returns (RecoverTaskResponse) {}
 
     // StartTask starts and tracks the task on the implemented runtime
     rpc StartTask(StartTaskRequest) returns (StartTaskResponse) {}
@@ -31,12 +44,12 @@ service Driver {
     // StopTask stops a given task by sending the desired signal to the process.
     // If the task does not exit on its own within the given timeout, it will be
     // forcefully killed.
-    rpc StopTask(StopTaskRequest) returns (google.protobuf.Empty) {}
+    rpc StopTask(StopTaskRequest) returns (StopTaskResponse) {}
 
     // DestroyTask removes the task from the driver's internal state and cleans
     // up any additional resources created by the driver. It cannot be called
     // on a running task.
-    rpc DestroyTask(DestroyTaskRequest)  returns (google.protobuf.Empty) {}
+    rpc DestroyTask(DestroyTaskRequest)  returns (DestroyTaskResponse) {}
 
     // ListTasks returns a list of summary information of all the tasks the
     // driver is tracking.
@@ -50,37 +63,53 @@ service Driver {
 
     // TaskEvents starts a streaming RPC where all task events emitted by the
     // driver are streamed to the caller.
-    rpc TaskEvents(google.protobuf.Empty) returns (stream TaskEvent) {}
+    rpc TaskEvents(TaskEventsRequest) returns (stream DriverTaskEvent) {}
 
     // The following RPCs are only implemented if the driver sets the
     // corresponding capability.
 
     // SignalTask sends a signal to the task
-    rpc SignalTask(SignalTaskRequest) returns (google.protobuf.Empty) {}
+    rpc SignalTask(SignalTaskRequest) returns (SignalTaskResponse) {}
 
     // ExecTask executes a command inside the tasks execution context
     rpc ExecTask(ExecTaskRequest) returns (ExecTaskResponse) {}
 }
 
+message DriverTaskConfigSchemaRequest {}
 
-message FingerprintResponse {
+message DriverTaskConfigSchemaResponse {
 
     // Spec is the configuration schema for the job driver config stanza
     hashicorp.nomad.plugins.shared.hclspec.Spec spec = 1;
+}
+
+message CapabilitiesRequest {}
+
+message CapabilitiesResponse {
 
     // Capabilities provides a way for the driver to denote if it implements
     // non-core RPCs. Some Driver service RPCs expose additional information
     // or functionality outside of the core task management functions. These
     // RPCs are only implemented if the driver sets the corresponding capability.
-    DriverCapabilities capabilities = 2;
+    DriverCapabilities capabilities = 1;
+}
+
+message FingerprintRequest {}
+
+message FingerprintResponse {
+
 
     // Attributes are key/value pairs that annotate the nomad client and can be
     // used in scheduling contraints and affinities.
-    map<string, string> attributes = 3;
+    map<string, string> attributes = 1;
 
     // Detected signifies if the necessary dependancies of the drive are met for
     // nominal operation.
-    bool detected = 4;
+    bool detected = 2;
+
+    // Healthy is true if the driver is able to make changes to a task's state
+    // ex. Start/Stop
+    bool healthy = 3;
 }
 
 message RecoverTaskRequest {
@@ -92,17 +121,42 @@ message RecoverTaskRequest {
     TaskHandle handle = 2;
 }
 
+message RecoverTaskResponse {}
+
 message StartTaskRequest {
 
     // Task configuration to launch
     TaskConfig task = 1;
+
+    //NetworkOverride is set if the driver sets network settings and the service ip/port
+    //needs to be set differently.
+    NetworkOverride network_override = 2;
 }
 
 message StartTaskResponse {
 
+    enum Result {
+        SUCCESS = 0;
+        RETRY = 1;
+        FATAL = 2;
+    }
+
+    // Result is set depending on the type of error that occured while starting
+    // a task:
+    //
+    //   * SUCCESS: No error occured, handle is set
+    //   * RETRY: An error occured, but is recoverable and the RPC should be retried
+    //   * FATAL: A fatal error occured and is not likely to succeed if retried
+    //
+    // If Result is not successful, the DriverErrorMsg will be set.
+    Result result = 1;
+
     // Handle is opague to the client, but must be stored in order to potentially
     // recover the task.
-    TaskHandle handle = 1;
+    TaskHandle handle = 2;
+
+    // DriverErrorMsg is set if an error occured
+    string driver_error_msg = 3;
 }
 
 message WaitTaskRequest {
@@ -113,14 +167,10 @@ message WaitTaskRequest {
 
 message WaitTaskResponse {
 
-    // ExitCode returned from the task on exit
-    int32 exit_code = 1;
-
-    // Signal is set if a signal was sent to the task
-    int32 signal = 2;
-
+    // Result is the exit status of the task
+    ExitResult result = 1;
     // Err is set if any driver error occured while waiting for the task
-    string err = 3;
+    string err = 2;
 }
 
 message StopTaskRequest {
@@ -137,18 +187,22 @@ message StopTaskRequest {
     string signal = 3;
 }
 
+message StopTaskResponse {}
+
 message DestroyTaskRequest {
 
     // TaskId is the ID of the target task
     string task_id = 1;
 }
 
+message DestroyTaskResponse {}
+
 message ListTasksRequest {}
 
 message ListTasksResponse {
 
     // Tasks includes a list of summary information for each task
-    repeated TaskSummary tasks = 1;
+    repeated TaskStatus tasks = 1;
 }
 
 message InspectTaskRequest {
@@ -161,6 +215,12 @@ message InspectTaskResponse {
 
     // Task details
     TaskStatus task = 1;
+
+    // Driver details for task
+    TaskDriverStatus driver = 2;
+
+    // NetworkOverride info if set
+    NetworkOverride network_override = 3;
 }
 
 message TaskStatsRequest {
@@ -175,6 +235,8 @@ message TaskStatsResponse {
     TaskStats stats = 1;
 }
 
+message TaskEventsRequest {}
+
 message SignalTaskRequest {
 
     // TaskId is the ID of the target task
@@ -183,6 +245,8 @@ message SignalTaskRequest {
     // Signal is the operating system signal to send to the task. Ex: SIGHUP
     string signal = 2;
 }
+
+message SignalTaskResponse {}
 
 message ExecTaskRequest {
 
@@ -197,7 +261,17 @@ message ExecTaskRequest {
     google.protobuf.Duration timeout = 3;
 }
 
-message ExecTaskResponse {}
+message ExecTaskResponse {
+
+    // Stdout from the exec
+    bytes stdout = 1;
+
+    // Stderr from the exec
+    bytes stderr = 2;
+
+    // Result from the exec
+    ExitResult result = 3;
+}
 
 message DriverCapabilities {
 
@@ -208,12 +282,19 @@ message DriverCapabilities {
     // Exec indicates that the driver supports executing arbitrary commands
     // in the task's execution environment.
     bool exec = 2;
+
+    enum FSIsolation {
+        NONE = 0;
+        CHROOT = 1;
+        IMAGE = 2;
+    }
+    // FsIsolation indicates what kind of filesystem isolation a driver supports.
+    FSIsolation fs_isolation = 3;
 }
 
 message TaskConfig {
 
     // Id of the task, recommended to the globally unique, must be unique to the driver.
-    // If not set, a UUID is to be generated.
     string id = 1;
 
     // Name of the task
@@ -244,6 +325,38 @@ message TaskConfig {
 }
 
 message Resources {
+
+    // RawResources are the resources set for the task
+    RawResources raw_resources = 1;
+
+    // LinuxResources are the computed values to set for specific Linux features
+    LinuxResources linux_resources = 2;
+}
+
+message RawResources {
+    int64 cpu = 1;
+    int64 memory = 2;
+    int64 disk = 3;
+    int64 iops = 4;
+    repeated NetworkResource networks = 5;
+}
+
+message NetworkResource {
+    string device = 1;
+    string cidr = 2;
+    string ip = 3;
+    int32 mbits = 4;
+    repeated NetworkPort reserved_ports = 5;
+    repeated NetworkPort dynamic_ports = 6;
+}
+
+message NetworkPort {
+    string label = 1;
+    int32 value = 2;
+}
+
+message LinuxResources {
+
     // CPU CFS (Completely Fair Scheduler) period. Default: 0 (not specified)
     int64 cpu_period = 1;
     // CPU CFS (Completely Fair Scheduler) quota. Default: 0 (not specified)
@@ -280,14 +393,14 @@ message Device {
     // HostPath is the path on the host to the source device
     string host_path = 2;
 
-    // Permissions defines the Cgroup permissions of the device.
+    // CgroupPermissions defines the Cgroup permissions of the device.
     // One or more of the following options can be set:
     //  * r - allows the task to read from the specified device.
     //  * w - allows the task to write to the specified device.
     //  * m - allows the task to create device files that do not yet exist.
     //
     // Example: "rw"
-    string permissions = 3;
+    string cgroup_permissions = 3;
 }
 
 enum TaskState {
@@ -299,34 +412,46 @@ enum TaskState {
 // TaskHandle is created when starting a task and is used to recover task
 message TaskHandle {
 
-    // Driver is the driver which initially created the handle
-    string driver = 1;
-
     // Config is the TaskConfig for the task
-    TaskConfig config = 2;
+    TaskConfig config = 1;
 
     // State is the state of the task's execution
-    TaskState state = 3;
+    TaskState state = 2;
 
     // DriverState is the encoded state for the specific driver
-    bytes driver_state = 4;
+    bytes driver_state = 3;
 }
 
+// NetworkOverride contains network settings which the driver may override
+// for the task, such as when the driver is setting up the task's network.
+message NetworkOverride {
 
-// TaskSummary defines summary information of a task, typically used when listing
-// many tasks at once.
-message TaskSummary {
-    string id = 1;
-    string name = 2;
+    // PortMap can be set to replace ports with driver-specific mappings
+    map<string,int32> port_map = 1;
 
-    // State is the state of the task's execution
-    TaskState state = 3;
+    // Addr is the IP address for the task created by the driver
+    string addr = 2;
 
-    // StartedAt is the timestamp when the task was started
-    google.protobuf.Timestamp started_at = 4;
+    // AutoAdvertise indicates whether the driver thinks services that choose
+    // to auto_advertise_addresses should use this IP instead of the host's.
+    bool auto_advertise = 3;
 }
 
-// TaskStatus includes detailed information of a specific task
+// ExitResult contains information about the exit status of a task
+message ExitResult {
+
+    // ExitCode returned from the task on exit
+    int32 exit_code = 1;
+
+    // Signal is set if a signal was sent to the task
+    int32 signal = 2;
+
+    // OomKilled is true if the task exited as a result of the OOM Killer
+    bool oom_killed = 3;
+
+}
+
+// TaskStatus includes information of a specific task
 message TaskStatus {
     string id = 1;
     string name = 2;
@@ -341,12 +466,15 @@ message TaskStatus {
     // If the task is still running, CompletedAt will not be set
     google.protobuf.Timestamp completed_at = 5;
 
-    // ExitCode should only be used when CompletedAt is set.
-    int32 exit_code = 6;
+    // Result is set when CompletedAt is set.
+    ExitResult result = 6;
+}
 
-    // DriverStatus is a set of string/string key value pairs specific to the
-    // implementing driver.
-    map<string, string> driver_status = 7;
+message TaskDriverStatus {
+
+    // Attributes is a set of string/string key value pairs specific to the
+    // implementing driver
+    map<string, string> attributes = 1;
 }
 
 message TaskStats {
@@ -412,14 +540,17 @@ message MemoryUsage {
     repeated Fields measured_fields = 6;
 }
 
-message TaskEvent {
+message DriverTaskEvent {
 
     // TaskId is the id of the task for the event
     string task_id = 1;
 
+    // Timestamp when the event occured
+    google.protobuf.Timestamp timestamp = 2;
+
     // Message is the body of the event
-    string message = 2;
+    string message = 3;
 
     // Annotations allows for additional key/value data to be sent along with the event
-    map<string,string> annotations = 3;
+    map<string,string> annotations = 4;
 }
