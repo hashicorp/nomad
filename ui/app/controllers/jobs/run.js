@@ -9,6 +9,8 @@ export default Controller.extend({
   planError: null,
   runError: null,
 
+  planOutput: null,
+
   showPlanMessage: localStorageProperty('nomadMessageJobPlan', true),
   showEditorMessage: localStorageProperty('nomadMessageJobEditor', true),
 
@@ -29,7 +31,7 @@ export default Controller.extend({
 
     try {
       const planOutput = yield this.get('model').plan();
-      this.set('planOutput', planOutput);
+      this.set('planOutput', planOutput.Diff);
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not plan job';
       this.set('planError', error);
