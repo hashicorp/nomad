@@ -6,6 +6,8 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
+
 // Driver service defines RPCs used to communicate with a nomad runtime driver.
 // Some rpcs may not be implemented by the driver based on it's capabilities.
 service Driver {
@@ -31,8 +33,9 @@ service Driver {
     // forcefully killed.
     rpc StopTask(StopTaskRequest) returns (google.protobuf.Empty) {}
 
-    // DestroyTask removes the task from the driver's internal state. It cannot
-    // be called on a running task.
+    // DestroyTask removes the task from the driver's internal state and cleans
+    // up any additional resources created by the driver. It cannot be called
+    // on a running task.
     rpc DestroyTask(DestroyTaskRequest)  returns (google.protobuf.Empty) {}
 
     // ListTasks returns a list of summary information of all the tasks the
@@ -44,6 +47,10 @@ service Driver {
 
     // TaskStats collects and returns runtime metrics for the given task
     rpc TaskStats(TaskStatsRequest) returns (TaskStatsResponse) {}
+
+    // TaskEvents starts a streaming RPC where all task events emitted by the
+    // driver are streamed to the caller.
+    rpc TaskEvents(google.protobuf.Empty) returns (stream TaskEvent) {}
 
     // The following RPCs are only implemented if the driver sets the
     // corresponding capability.
@@ -58,19 +65,22 @@ service Driver {
 
 message FingerprintResponse {
 
+    // Spec is the configuration schema for the job driver config stanza
+    hashicorp.nomad.plugins.shared.hclspec.Spec spec = 1;
+
     // Capabilities provides a way for the driver to denote if it implements
     // non-core RPCs. Some Driver service RPCs expose additional information
     // or functionality outside of the core task management functions. These
     // RPCs are only implemented if the driver sets the corresponding capability.
-    DriverCapabilities capabilities = 1;
+    DriverCapabilities capabilities = 2;
 
     // Attributes are key/value pairs that annotate the nomad client and can be
     // used in scheduling contraints and affinities.
-    map<string, string> attributes = 2;
+    map<string, string> attributes = 3;
 
     // Detected signifies if the necessary dependancies of the drive are met for
     // nominal operation.
-    bool detected = 3;
+    bool detected = 4;
 }
 
 message RecoverTaskRequest {
@@ -281,9 +291,9 @@ message Device {
 }
 
 enum TaskState {
-    TASK_UNKNOWN = 0;
-    TASK_RUNNING = 1;
-    TASK_EXITED = 2;
+    UNKNOWN = 0;
+    RUNNING = 1;
+    EXITED = 2;
 }
 
 // TaskHandle is created when starting a task and is used to recover task
@@ -400,4 +410,16 @@ message MemoryUsage {
     }
     // MeasuredFields indicates which fields were actually sampled
     repeated Fields measured_fields = 6;
+}
+
+message TaskEvent {
+
+    // TaskId is the id of the task for the event
+    string task_id = 1;
+
+    // Message is the body of the event
+    string message = 2;
+
+    // Annotations allows for additional key/value data to be sent along with the event
+    map<string,string> annotations = 3;
 }
