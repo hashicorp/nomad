@@ -1,31 +1,58 @@
 <section class="section">
-  <div class="notification is-info">
-    <div class="columns">
-      <div class="column">
-        <h3 class="title is-4">Run a Job</h3>
-        <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted.</p>
+  {{#if (eq stage "editor")}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4">Run a Job</h3>
+          <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info">Okay</button>
+        </div>
       </div>
-      <div class="column is-centered is-minimum">
-        <button class="button is-info">Okay</button>
+    </div>
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Job Definition
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{ivy-codemirror
+          value=(or model._newDefinition jobSpec)
+          valueUpdated=(action (mut model._newDefinition))
+          options=(hash
+            mode="javascript"
+            theme="hashi"
+            tabSize=2
+            lineNumbers=true
+          )}}
       </div>
     </div>
-  </div>
-  <div class="boxed-section">
-    <div class="boxed-section-head">
-      Job Definition
+    <div class="content is-associative">
+      <button class="button is-primary {{if plan.isRunning "is-loading"}}" onclick={{perform plan}}>Plan</button>
     </div>
-    <div class="boxed-section-body is-full-bleed">
-      {{ivy-codemirror
-        value=jobSpec
-        options=(hash
-          mode="javascript"
-          theme="hashi"
-          tabSize=2
-          lineNumbers=true
-        )}}
+  {{/if}}
+
+  {{#if (eq stage "plan")}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4">Job Plan</h3>
+          <p>This is the impact running this job will have on your cluster.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info">Okay</button>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="content is-associative">
-    <button class="button is-primary">Plan</button>
-  </div>
+    <div class="boxed-section">
+      <div class="boxed-section-head">Job Plan</div>
+      <div class="boxed-section-body is-dark">
+        {{job-diff diff=planOutput.Diff}}
+      </div>
+    </div>
+    <div class="content is-associative">
+      <button class="button is-primary {{if submit.isRunning "is-loading"}}" onclick={{perform submit}}>Submit</button>
+      <button class="button is-light" onclick={{action cancel}}>Cancel</button>
+    </div>
+  {{/if}}
 </section>

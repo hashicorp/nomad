@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 
 export default Route.extend({
   store: service(),
+  system: service(),
 
   breadcrumbs: [
     {
@@ -10,4 +11,16 @@ export default Route.extend({
       args: ['jobs.run'],
     },
   ],
+
+  model() {
+    return this.get('store').createRecord('job', {
+      namespace: this.get('system.activeNamespace'),
+    });
+  },
+
+  resetController(controller, isExiting) {
+    if (isExiting) {
+      controller.get('model').deleteRecord();
+    }
+  },
 });
