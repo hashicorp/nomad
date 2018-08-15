@@ -286,7 +286,19 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
-			require.EqualValues(actual, tc.Result)
+
+			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
+			require.EqualValues(removeHelperAttributes(actual), tc.Result)
 		})
 	}
+}
+
+// In order to compare the Config struct after parsing, and from generating what
+// is expected in the test, we need to remove helper attributes that are
+// instantiated in the process of parsing the configuration
+func removeHelperAttributes(c *Config) *Config {
+	if c.TLSConfig != nil {
+		c.TLSConfig.KeyLoader = nil
+	}
+	return c
 }
