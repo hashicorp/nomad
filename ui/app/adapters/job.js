@@ -79,6 +79,16 @@ export default Watchable.extend({
       },
     });
   },
+
+  // Running a job doesn't follow REST create semantics so it's easier to
+  // treat it as an action.
+  run(job) {
+    return this.ajax(this.urlForCreateRecord('job'), 'POST', {
+      data: {
+        Job: job.get('_newDefinitionJSON'),
+      },
+    });
+  },
 });
 
 function associateNamespace(url, namespace) {
