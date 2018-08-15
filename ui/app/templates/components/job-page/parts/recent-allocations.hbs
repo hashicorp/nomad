@@ -2,7 +2,7 @@
   <div class="boxed-section-head">
     Recent Allocations
   </div>
-  <div class="boxed-section-body is-full-bleed">
+  <div class="boxed-section-body {{if job.allocations.length "is-full-bleed"}}">
     {{#if job.allocations.length}}
       {{#list-table
         source=sortedAllocations
