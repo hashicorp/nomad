@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -432,15 +431,16 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 
 // DestroyState is used to cleanup after ourselves
 func (r *AllocRunner) DestroyState() error {
-	r.allocStateLock.Lock()
-	defer r.allocStateLock.Unlock()
+	//r.allocStateLock.Lock()
+	//defer r.allocStateLock.Unlock()
 
-	return r.stateDB.Update(func(tx *bolt.Tx) error {
-		if err := state.DeleteAllocationBucket(tx, r.allocID); err != nil {
-			return fmt.Errorf("failed to delete allocation bucket: %v", err)
-		}
-		return nil
-	})
+	//return r.stateDB.Update(func(tx *bolt.Tx) error {
+	//	if err := state.DeleteAllocationBucket(tx, r.allocID); err != nil {
+	//		return fmt.Errorf("failed to delete allocation bucket: %v", err)
+	//	}
+	//	return nil
+	//})
+	panic("deprecated: use allocrunnerv2")
 }
 
 // DestroyContext is used to destroy the context
