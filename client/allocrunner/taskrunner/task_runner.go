@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
-	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -536,15 +535,17 @@ func (r *TaskRunner) SaveState() error {
 
 // DestroyState is used to cleanup after ourselves
 func (r *TaskRunner) DestroyState() error {
-	r.persistLock.Lock()
-	defer r.persistLock.Unlock()
+	//r.persistLock.Lock()
+	//defer r.persistLock.Unlock()
 
-	return r.stateDB.Update(func(tx *bolt.Tx) error {
-		if err := state.DeleteTaskBucket(tx, r.alloc.ID, r.task.Name); err != nil {
-			return fmt.Errorf("failed to delete task bucket: %v", err)
-		}
-		return nil
-	})
+	//return r.stateDB.Update(func(tx *bolt.Tx) error {
+	//	if err := state.DeleteTaskBucket(tx, r.alloc.ID, r.task.Name); err != nil {
+	//		return fmt.Errorf("failed to delete task bucket: %v", err)
+	//	}
+	//	return nil
+	//})
+	//XXX Deprecated: see allocrunnerv2
+	panic("deprecated")
 }
 
 // setState is used to update the state of the task runner
