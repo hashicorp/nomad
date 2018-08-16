@@ -22,11 +22,11 @@ description: |-
 </table>
 
 The `update` stanza specifies the group's update strategy. The update strategy
-is used to control things like rolling upgrades and canary deployments. If
-omitted, rolling updates and canaries are disabled. If specified at the job
-level, the configuration will apply to all groups within the job. If multiple
-`update` stanzas are specified, they are merged with the group stanza taking the
-highest precedence and then the job.
+is used to control things like [rolling upgrades][rolling] and [canary
+deployments][canary]. If omitted, rolling updates and canaries are disabled. If
+specified at the job level, the configuration will apply to all groups within
+the job. If multiple `update` stanzas are specified, they are merged with the
+group stanza taking the highest precedence and then the job.
 
 ```hcl
 job "docs" {
@@ -43,10 +43,11 @@ job "docs" {
 }
 ```
 
-~> For `system` jobs, only `max_parallel` and `stagger` are enforced. The job is
-updated at a rate of `max_parallel`, waiting `stagger` duration before the next
-set of updates. The `system` scheduler will be updated to support the new
-`update` stanza in a future release.
+~> For `system` jobs, only [`max_parallel`](#max_parallel) and
+   [`stagger`](#stagger) are enforced. The job is updated at a rate of
+   `max_parallel`, waiting `stagger` duration before the next set of updates.
+   The `system` scheduler will be updated to support the new `update` stanza in
+   a future release.
 
 ## `update` Parameters
 
@@ -97,9 +98,10 @@ set of updates. The `system` scheduler will be updated to support the new
   are healthy, they can be promoted which unblocks a rolling update of the
   remaining allocations at a rate of `max_parallel`.
 
-- `stagger` `(string: "30s")` - Specifies the delay between migrating
-  allocations off nodes marked for draining. This is specified using a label
-  suffix like "30s" or "1h".
+- `stagger` `(string: "30s")` - Specifies the delay between each set of
+  [`max_parallel`](#max_parallel) updates when updating system jobs. This
+  setting no longer applies to service jobs which use
+  [deployments.][strategies]
 
 ## `update` Examples
 
@@ -258,4 +260,7 @@ group "two" {
 }
 ```
 
+[canary]: /guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html "Nomad Canary Deployments"
 [checks]: /docs/job-specification/service.html#check-parameters "Nomad check Job Specification"
+[rolling]: /guides/operating-a-job/update-strategies/rolling-upgrades.html "Nomad Rolling Upgrades"
+[strategies]: /guides/operating-a-job/update-strategies/index.html "Nomad Update Strategies"
