@@ -10,5 +10,5 @@ type Client interface {
 type AllocStateHandler interface {
 	// AllocStateUpdated is used to emit an updated allocation. This allocation
 	// is stripped to only include client settable fields.
-	AllocStateUpdated(alloc *structs.Allocation) error
+	AllocStateUpdated(alloc *structs.Allocation)
 }
