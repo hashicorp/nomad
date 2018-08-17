@@ -140,7 +140,6 @@ func (iter *SpreadIterator) Next() *RankedNode {
 				scoreBoost := evenSpreadScoreBoost(pset, option.Node)
 				totalSpreadScore += scoreBoost
 			} else {
-
 				// Get the desired count
 				desiredCount, ok := spreadDetails.desiredCounts[nValue]
 				if !ok {
