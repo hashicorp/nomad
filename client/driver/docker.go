@@ -1913,7 +1913,7 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 // Kill is used to terminate the task. This uses `docker stop -t killTimeout`
 func (h *DockerHandle) Kill() error {
 	// Stop the container
-	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
+	err := h.waitClient.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
 		h.executor.Exit()
 		h.pluginClient.Kill()
