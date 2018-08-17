@@ -177,16 +177,6 @@ MAIN:
 		case <-taskWaitCh:
 			// TaskRunners have all exited
 			break MAIN
-		case updated := <-ar.updateCh:
-			// Update ar.alloc
-			ar.setAlloc(updated)
-
-			//TODO Run AR Update hooks
-
-			// Update task runners
-			for _, tr := range ar.tasks {
-				tr.Update(updated)
-			}
 		}
 	}
 
@@ -228,18 +218,6 @@ func (ar *allocRunner) setAlloc(updated *structs.Allocation) {
 	ar.allocLock.Lock()
 	ar.alloc = updated
 	ar.allocLock.Unlock()
-}
-
-// SaveState does all the state related stuff. Who knows. FIXME
-//XXX do we need to do periodic syncing? if Saving is only called *before* Run
-//    *and* within Run -- *and* Updates are applid within Run -- we may be able to
-//    skip quite a bit of locking? maybe?
-func (ar *allocRunner) SaveState() error {
-	//XXX Do we move this to the client
-	//XXX Track AllocModifyIndex to only write alloc on change?
-
-	// Write the allocation
-	return ar.stateDB.PutAllocation(ar.Alloc())
 }
 
 // Restore state from database. Must be called after NewAllocRunner but before
@@ -308,9 +286,7 @@ func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskStat
 	calloc := ar.clientAlloc(states)
 
 	// Update the server
-	if err := ar.stateUpdater.AllocStateUpdated(calloc); err != nil {
-		ar.logger.Error("failed to update remote allocation state", "error", err)
-	}
+	ar.stateUpdater.AllocStateUpdated(calloc)
 }
 
 // clientAlloc takes in the task states and returns an Allocation populated
@@ -408,14 +384,14 @@ func getClientStatus(taskStates map[string]*structs.TaskState) (status, descript
 // If there is already a pending update it will be discarded and replaced by
 // the latest update.
 func (ar *allocRunner) Update(update *structs.Allocation) {
-	select {
-	case ar.updateCh <- update:
-		// Updated alloc sent
-	case <-ar.updateCh:
-		// There was a pending update; replace it with the new update.
-		// This also prevents Update() from blocking if its called
-		// concurrently with Run() exiting.
-		ar.updateCh <- update
+	// Update ar.alloc
+	ar.setAlloc(update)
+
+	//TODO Run AR Update hooks
+
+	// Update task runners
+	for _, tr := range ar.tasks {
+		tr.Update(update)
 	}
 }
 

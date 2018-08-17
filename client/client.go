@@ -105,7 +105,6 @@ type AllocRunner interface {
 	IsWaiting() bool
 	IsMigrating() bool
 	WaitCh() <-chan struct{}
-	SaveState() error
 	Update(*structs.Allocation)
 	Alloc() *structs.Allocation
 	Restore() error
@@ -546,7 +545,7 @@ func (c *Client) Shutdown() error {
 	c.shutdown = true
 	close(c.shutdownCh)
 	c.connPool.Shutdown()
-	return c.saveState()
+	return nil
 }
 
 // Stats is used to return statistics for debugging and insight
@@ -810,10 +809,6 @@ func (c *Client) restoreState() error {
 
 // saveState is used to snapshot our state into the data dir.
 func (c *Client) saveState() error {
-	if c.config.DevMode {
-		return nil
-	}
-
 	var wg sync.WaitGroup
 	var l sync.Mutex
 	var mErr multierror.Error
@@ -822,7 +817,7 @@ func (c *Client) saveState() error {
 
 	for id, ar := range runners {
 		go func(id string, ar AllocRunner) {
-			err := ar.SaveState()
+			err := c.stateDB.PutAllocation(ar.Alloc())
 			if err != nil {
 				c.logger.Printf("[ERR] client: failed to save state for alloc %q: %v", id, err)
 				l.Lock()
@@ -1540,18 +1535,9 @@ func (c *Client) updateNodeStatus() error {
 	return nil
 }
 
-// XXX combine with below
-func (c *Client) AllocStateUpdated(alloc *structs.Allocation) error {
-	if alloc == nil {
-		return fmt.Errorf("nil allocation provided to AllocStateUpdated")
-	}
-
-	c.updateAllocStatus(alloc)
-	return nil
-}
-
-// updateAllocStatus is used to update the status of an allocation
-func (c *Client) updateAllocStatus(alloc *structs.Allocation) {
+// AllocStateUpdated asynchronously updates the server with the current state
+// of an allocations and its tasks.
+func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 	if alloc.Terminated() {
 		// Terminated, mark for GC if we're still tracking this alloc
 		// runner. If it's not being tracked that means the server has
@@ -1935,6 +1921,12 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 		return
 	}
 
+	// Update local copy of alloc
+	if err := c.stateDB.PutAllocation(update); err != nil {
+		c.logger.Printf("[ERR] client: dropping alloc update. Unable to persist locally: %q", update.ID)
+	}
+
+	// Update alloc runner
 	ar.Update(update)
 }
 
@@ -1947,6 +1939,12 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	if _, ok := c.allocs[alloc.ID]; ok {
 		c.logger.Printf("[DEBUG]: client: dropping duplicate add allocation request: %q", alloc.ID)
 		return nil
+	}
+
+	// Initialize local copy of alloc before creating the alloc runner so
+	// we can't end up with an alloc runner that does not have an alloc.
+	if err := c.stateDB.PutAllocation(alloc); err != nil {
+		return err
 	}
 
 	//FIXME disabled previous alloc waiting/migrating
@@ -1965,7 +1963,6 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
-	//ar := allocrunner.NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
 	//XXX FIXME create a root logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       "nomad",
@@ -1992,11 +1989,6 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
-
-	// Initialize local state
-	if err := ar.SaveState(); err != nil {
-		c.logger.Printf("[WARN] client: initial save state for alloc %q failed: %v", alloc.ID, err)
-	}
 
 	go ar.Run()
 	return nil
