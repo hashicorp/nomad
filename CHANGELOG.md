@@ -4,6 +4,7 @@ IMPROVEMENTS:
 * client: Added option to prevent Nomad from removing containers when the task exits [[GH-4535](https://github.com/hashicorp/nomad/issues/4535)]
 
 BUG FIXES:
+* driver/docker: Fix kill timeout not being respected when timeout is over five minutes [[GH-4599](https://github.com/hashicorp/nomad/issues/4599)]
 
 ## 0.8.4 (June 11, 2018)
 
