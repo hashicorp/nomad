@@ -470,6 +470,10 @@ func (h *lxcDriverHandle) Signal(s os.Signal) error {
 	return fmt.Errorf("LXC does not support signals")
 }
 
+func (d *lxcDriverHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 func (h *lxcDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	cpuStats, err := h.container.CPUStats()
 	if err != nil {
