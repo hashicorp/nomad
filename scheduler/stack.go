@@ -57,6 +57,7 @@ type GenericStack struct {
 	limit                      *LimitIterator
 	maxScore                   *MaxScoreIterator
 	nodeAffinity               *NodeAffinityIterator
+	spread                     *SpreadIterator
 	scoreNorm                  *ScoreNormalizationIterator
 }
 
@@ -117,7 +118,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 
 	s.nodeAffinity = NewNodeAffinityIterator(ctx, s.nodeReschedulingPenalty)
 
-	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.nodeAffinity)
+	s.spread = NewSpreadIterator(ctx, s.nodeAffinity)
+
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.spread)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	s.limit = NewLimitIterator(ctx, s.scoreNorm, 2, skipScoreThreshold, maxSkip)
@@ -156,6 +159,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.binPack.SetPriority(job.Priority)
 	s.jobAntiAff.SetJob(job)
 	s.nodeAffinity.SetJob(job)
+	s.spread.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
@@ -200,7 +204,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 		s.nodeReschedulingPenalty.SetPenaltyNodes(options.PenaltyNodeIDs)
 	}
 	s.nodeAffinity.SetTaskGroup(tg)
-	if s.nodeAffinity.hasAffinities() {
+	s.spread.SetTaskGroup(tg)
+
+	if s.nodeAffinity.hasAffinities() || s.spread.hasSpreads() {
 		s.limit.SetLimit(math.MaxInt32)
 	}
 

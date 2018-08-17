@@ -2008,6 +2008,10 @@ type Job struct {
 	// scheduling preferences that apply to all groups and tasks
 	Affinities []*Affinity
 
+	// Spread can be specified at the job level to express spreading
+	// allocations across a desired attribute, such as datacenter
+	Spreads []*Spread
+
 	// TaskGroups are the collections of task groups that this job needs
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
@@ -2180,6 +2184,19 @@ func (j *Job) Validate() error {
 		for idx, affinity := range j.Affinities {
 			if err := affinity.Validate(); err != nil {
 				outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
+		}
+	}
+
+	if j.Type == JobTypeSystem {
+		if j.Spreads != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a spread stanza"))
+		}
+	} else {
+		for idx, spread := range j.Spreads {
+			if err := spread.Validate(); err != nil {
+				outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
 				mErr.Errors = append(mErr.Errors, outer)
 			}
 		}
@@ -3336,6 +3353,10 @@ type TaskGroup struct {
 	// Affinities can be specified at the task group level to express
 	// scheduling preferences.
 	Affinities []*Affinity
+
+	// Spread can be specified at the task group level to express spreading
+	// allocations across a desired attribute, such as datacenter
+	Spreads []*Spread
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -3349,6 +3370,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
+	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))
@@ -3448,6 +3470,19 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	} else {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Task Group %v should have a restart policy", tg.Name))
+	}
+
+	if j.Type == JobTypeSystem {
+		if tg.Spreads != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have a spread stanza"))
+		}
+	} else {
+		for idx, spread := range tg.Spreads {
+			if err := spread.Validate(); err != nil {
+				outer := fmt.Errorf("Spread %d validation failed: %s", idx+1, err)
+				mErr.Errors = append(mErr.Errors, outer)
+			}
+		}
 	}
 
 	if j.Type == JobTypeSystem {
@@ -5382,6 +5417,101 @@ func (a *Affinity) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// Spread is used to specify desired distribution of allocations according to weight
+type Spread struct {
+	// Attribute is the node attribute used as the spread criteria
+	Attribute string
+
+	// Weight is the relative weight of this spread, useful when there are multiple
+	// spread and affinities
+	Weight int
+
+	// SpreadTarget is used to describe desired percentages for each attribute value
+	SpreadTarget []*SpreadTarget
+
+	// Memoized string representation
+	str string
+}
+
+func (s *Spread) Copy() *Spread {
+	if s == nil {
+		return nil
+	}
+	ns := new(Spread)
+	*ns = *s
+
+	ns.SpreadTarget = CopySliceSpreadTarget(s.SpreadTarget)
+	return ns
+}
+
+func (s *Spread) String() string {
+	if s.str != "" {
+		return s.str
+	}
+	s.str = fmt.Sprintf("%s %s %v", s.Attribute, s.SpreadTarget, s.Weight)
+	return s.str
+}
+
+func (s *Spread) Validate() error {
+	var mErr multierror.Error
+	if s.Attribute == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing spread attribute"))
+	}
+	if s.Weight <= 0 || s.Weight > 100 {
+		mErr.Errors = append(mErr.Errors, errors.New("Spread stanza must have a positive weight from 0 to 100"))
+	}
+	seen := make(map[string]struct{})
+	sumPercent := uint32(0)
+
+	for _, target := range s.SpreadTarget {
+		// Make sure there are no duplicates
+		_, ok := seen[target.Value]
+		if !ok {
+			seen[target.Value] = struct{}{}
+		} else {
+			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target value %q already defined", target.Value)))
+		}
+		if target.Percent < 0 || target.Percent > 100 {
+			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target percentage for value %q must be between 0 and 100", target.Value)))
+		}
+		sumPercent += target.Percent
+	}
+	if sumPercent > 100 {
+		mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Sum of spread target percentages must not be greater than 100%%; got %d%%", sumPercent)))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// SpreadTarget is used to specify desired percentages for each attribute value
+type SpreadTarget struct {
+	// Value is a single attribute value, like "dc1"
+	Value string
+
+	// Percent is the desired percentage of allocs
+	Percent uint32
+
+	// Memoized string representation
+	str string
+}
+
+func (s *SpreadTarget) Copy() *SpreadTarget {
+	if s == nil {
+		return nil
+	}
+
+	ns := new(SpreadTarget)
+	*ns = *s
+	return ns
+}
+
+func (s *SpreadTarget) String() string {
+	if s.str != "" {
+		return s.str
+	}
+	s.str = fmt.Sprintf("%q %v%%", s.Value, s.Percent)
+	return s.str
 }
 
 // EphemeralDisk is an ephemeral disk object

@@ -221,6 +221,32 @@ func CopySliceAffinities(s []*Affinity) []*Affinity {
 	return c
 }
 
+func CopySliceSpreads(s []*Spread) []*Spread {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*Spread, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
+func CopySliceSpreadTarget(s []*SpreadTarget) []*SpreadTarget {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*SpreadTarget, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
