@@ -7,11 +7,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type heapItem struct {
+	Value    string
+	ScoreVal float64
+}
+
+func (h *heapItem) Data() interface{} {
+	return h.Value
+}
+
+func (h *heapItem) Score() float64 {
+	return h.ScoreVal
+}
+
 func TestScoreHeap(t *testing.T) {
 	type testCase struct {
 		desc     string
 		items    map[string]float64
-		expected []*HeapItem
+		expected []*heapItem
 	}
 
 	cases := []testCase{
@@ -28,12 +41,12 @@ func TestScoreHeap(t *testing.T) {
 				"lemon":      3.9,
 				"cherry":     0.03,
 			},
-			expected: []*HeapItem{
-				{Value: "pear", Score: 2.32},
-				{Value: "banana", Score: 3.0},
-				{Value: "lemon", Score: 3.9},
-				{Value: "watermelon", Score: 5.45},
-				{Value: "strawberry", Score: 9.03},
+			expected: []*heapItem{
+				{Value: "pear", ScoreVal: 2.32},
+				{Value: "banana", ScoreVal: 3.0},
+				{Value: "lemon", ScoreVal: 3.9},
+				{Value: "watermelon", ScoreVal: 5.45},
+				{Value: "strawberry", ScoreVal: 9.03},
 			},
 		},
 		{
@@ -43,10 +56,10 @@ func TestScoreHeap(t *testing.T) {
 				"okra":     -1.0,
 				"corn":     0.25,
 			},
-			expected: []*HeapItem{
-				{Value: "okra", Score: -1.0},
-				{Value: "corn", Score: 0.25},
-				{Value: "eggplant", Score: 9.0},
+			expected: []*heapItem{
+				{Value: "okra", ScoreVal: -1.0},
+				{Value: "corn", ScoreVal: 0.25},
+				{Value: "eggplant", ScoreVal: 9.0},
 			},
 		},
 	}
@@ -56,9 +69,9 @@ func TestScoreHeap(t *testing.T) {
 			// Create Score heap, push elements into it
 			pq := NewScoreHeap(5)
 			for value, score := range tc.items {
-				heapItem := &HeapItem{
-					Value: value,
-					Score: score,
+				heapItem := &heapItem{
+					Value:    value,
+					ScoreVal: score,
 				}
 				heap.Push(pq, heapItem)
 			}
@@ -69,7 +82,7 @@ func TestScoreHeap(t *testing.T) {
 
 			i := 0
 			for pq.Len() > 0 {
-				item := heap.Pop(pq).(*HeapItem)
+				item := heap.Pop(pq).(*heapItem)
 				require.Equal(tc.expected[i], item)
 				i++
 			}

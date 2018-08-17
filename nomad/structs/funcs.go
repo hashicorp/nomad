@@ -247,19 +247,6 @@ func CopySliceSpreadTarget(s []*SpreadTarget) []*SpreadTarget {
 	return c
 }
 
-func CopyNodeScoreMetaMap(m map[string][]*NodeScoreMeta) map[string][]*NodeScoreMeta {
-	l := len(m)
-	if l == 0 {
-		return nil
-	}
-
-	cm := make(map[string][]*NodeScoreMeta, l)
-	for k, v := range m {
-		cm[k] = CopySliceNodeScoreMeta(v)
-	}
-	return cm
-}
-
 func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 	l := len(s)
 	if l == 0 {

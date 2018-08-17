@@ -4,17 +4,17 @@ import (
 	"container/heap"
 )
 
-// An HeapItem represents elements being managed in the Score heap
-type HeapItem struct {
-	Value string  // The Value of the item; arbitrary.
-	Score float64 // The Score of the item in the heap
+// HeapItem is an interface type implemented by objects stored in the ScoreHeap
+type HeapItem interface {
+	Data() interface{} // The data object
+	Score() float64    // Score to use as the sort criteria
 }
 
 // A ScoreHeap implements heap.Interface and is a min heap
 // that keeps the top K elements by Score. Push can be called
 // with an arbitrary number of values but only the top K are stored
 type ScoreHeap struct {
-	items    []*HeapItem
+	items    []HeapItem
 	capacity int
 }
 
@@ -25,7 +25,7 @@ func NewScoreHeap(capacity uint32) *ScoreHeap {
 func (pq ScoreHeap) Len() int { return len(pq.items) }
 
 func (pq ScoreHeap) Less(i, j int) bool {
-	return pq.items[i].Score < pq.items[j].Score
+	return pq.items[i].Score() < pq.items[j].Score()
 }
 
 func (pq ScoreHeap) Swap(i, j int) {
@@ -35,7 +35,7 @@ func (pq ScoreHeap) Swap(i, j int) {
 // Push implements heap.Interface and only stores
 // the top K elements by Score
 func (pq *ScoreHeap) Push(x interface{}) {
-	item := x.(*HeapItem)
+	item := x.(HeapItem)
 	if len(pq.items) < pq.capacity {
 		pq.items = append(pq.items, item)
 	} else {
@@ -43,7 +43,7 @@ func (pq *ScoreHeap) Push(x interface{}) {
 		// greater than the min Score so far
 		minIndex := 0
 		min := pq.items[minIndex]
-		if item.Score > min.Score {
+		if item.Score() > min.Score() {
 			// Replace min and heapify
 			pq.items[minIndex] = item
 			heap.Fix(pq, minIndex)
