@@ -212,7 +212,7 @@ export default Model.extend({
       const json = JSON.parse(definition);
       this.set('_newDefinitionJSON', definition);
       this.setIDByPayload(json);
-      promise = RSVP.Resolve(definition);
+      promise = RSVP.resolve(definition);
     } catch (err) {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
       // in anyway, the parse endpoint will throw an error.
