@@ -613,6 +613,7 @@ type Job struct {
 	Affinities        []*Affinity
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
+	Spreads           []*Spread
 	Periodic          *PeriodicConfig
 	ParameterizedJob  *ParameterizedJobConfig
 	Dispatched        bool
@@ -852,6 +853,11 @@ func (j *Job) AddTaskGroup(grp *TaskGroup) *Job {
 // AddPeriodicConfig adds a periodic config to an existing job.
 func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 	j.Periodic = cfg
+	return j
+}
+
+func (j *Job) AddSpread(s *Spread) *Job {
+	j.Spreads = append(j.Spreads, s)
 	return j
 }
 
