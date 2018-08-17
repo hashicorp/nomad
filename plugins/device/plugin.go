@@ -3,6 +3,7 @@ package device
 import (
 	"context"
 
+	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base"
 	bproto "github.com/hashicorp/nomad/plugins/base/proto"
@@ -32,4 +33,17 @@ func (p *PluginDevice) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker
 			Client: bproto.NewBasePluginClient(c),
 		},
 	}, nil
+}
+
+// Serve is used to serve a device plugin
+func Serve(dev DevicePlugin, logger log.Logger) {
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: base.Handshake,
+		Plugins: map[string]plugin.Plugin{
+			base.PluginTypeBase:   &base.PluginBase{Impl: dev},
+			base.PluginTypeDevice: &PluginDevice{Impl: dev},
+		},
+		GRPCServer: plugin.DefaultGRPCServer,
+		Logger:     logger,
+	})
 }

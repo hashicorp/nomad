@@ -38,6 +38,21 @@ type FingerprintResponse struct {
 	Error error
 }
 
+// NewFingerprint takes a set of device groups and returns a fingerprint
+// response
+func NewFingerprint(devices ...*DeviceGroup) *FingerprintResponse {
+	return &FingerprintResponse{
+		Devices: devices,
+	}
+}
+
+// NewFingerprintError takes an error and returns a fingerprint response
+func NewFingerprintError(err error) *FingerprintResponse {
+	return &FingerprintResponse{
+		Error: err,
+	}
+}
+
 // DeviceGroup is a grouping of devices that share a common vendor, device type
 // and name.
 type DeviceGroup struct {
