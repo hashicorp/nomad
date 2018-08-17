@@ -71,7 +71,17 @@ export default function() {
       return new Response(400, {}, 'JobHCL is a required field on the request payload');
     if (!body.Canonicalize) return new Response(400, {}, 'Expected Canonicalize to be true');
 
-    return new Response(200, {}, this.serialize(jobs.first()));
+    // Parse the name out of the first real line of HCL to match IDs in the new job record
+    // Regex expectation:
+    //   in:  job "job-name" {
+    //   out: job-name
+    const nameFromHCLBlock = /.+?"(.+?)"/;
+    const jobName = body.JobHCL.trim()
+      .split('\n')[0]
+      .match(nameFromHCLBlock)[1];
+
+    const job = server.create('job', { id: jobName });
+    return new Response(200, {}, this.serialize(job));
   });
 
   this.post('/job/:id/plan', function({ jobs }, req) {
