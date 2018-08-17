@@ -1,10 +1,13 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 export default Controller.extend({
+  store: service(),
+
   parseError: null,
   planError: null,
   runError: null,
@@ -30,8 +33,9 @@ export default Controller.extend({
     }
 
     try {
-      const planOutput = yield this.get('model').plan();
-      this.set('planOutput', planOutput.Diff);
+      yield this.get('model').plan();
+      const plan = this.get('store').peekRecord('job-plan', this.get('model.id'));
+      this.set('planOutput', plan);
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not plan job';
       this.set('planError', error);
