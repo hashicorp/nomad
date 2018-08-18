@@ -304,6 +304,9 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		// Store the available nodes by datacenter
 		s.ctx.Metrics().NodesAvailable = s.nodesByDC
 
+		// Compute top K scoring node metadata
+		s.ctx.Metrics().PopulateScoreMetaData()
+
 		// Set fields based on if we found an allocation option
 		if option != nil {
 			// Create an allocation for this

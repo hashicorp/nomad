@@ -6618,13 +6618,9 @@ func (a *AllocMetric) PopulateScoreMetaData() {
 		if a.ScoreMetaData == nil {
 			a.ScoreMetaData = make([]*NodeScoreMeta, a.topScores.Len())
 		}
-		i := a.topScores.Len() - 1
-		// Pop from the heap and store in reverse to get top K
-		// scoring nodes in descending order
-		for a.topScores.Len() > 0 {
-			item := heap.Pop(a.topScores).(*NodeScoreMeta)
-			a.ScoreMetaData[i] = item
-			i--
+		heapItems := a.topScores.GetItemsReverse()
+		for i, item := range heapItems {
+			a.ScoreMetaData[i] = item.(*NodeScoreMeta)
 		}
 	}
 }
