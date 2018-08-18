@@ -124,6 +124,10 @@ client {
   generated, but setting this to `false` will use the system's UUID. Before
   Nomad 0.6 the default was to use the system UUID.
 
+- `restrict_nvidia` `(bool: false)` - By default all Nvidia gpus discovered
+  would be used for tasks allocation, but setting this flag to `true`
+  would restrict nomad to allocate any resources from this agent
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/docs/drivers/exec.html) implement file

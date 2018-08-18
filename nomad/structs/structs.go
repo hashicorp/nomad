@@ -1623,11 +1623,12 @@ func (ns Networks) Port(label string) (string, int) {
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
-	CPU      int
-	MemoryMB int
-	DiskMB   int
-	IOPS     int
-	Networks Networks
+	CPU                int
+	MemoryMB           int
+	DiskMB             int
+	IOPS               int
+	Networks           Networks
+	NvidiaGPUResources []*NvidiaGPUResource
 }
 
 const (
@@ -1680,6 +1681,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
+	}
+	if len(other.NvidiaGPUResources) != 0 {
+		r.NvidiaGPUResources = other.NvidiaGPUResources
 	}
 }
 
@@ -1746,6 +1750,15 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 	return -1
 }
 
+func (r *Resources) NvidiaGPUIndex(n *NvidiaGPUResource) int {
+	for idx, gpu := range r.NvidiaGPUResources {
+		if gpu.UUID == n.UUID {
+			return idx
+		}
+	}
+	return -1
+}
+
 // Superset checks if one set of resources is a superset
 // of another. This ignores network resources, and the NetworkIndex
 // should be used for that.
@@ -1785,11 +1798,40 @@ func (r *Resources) Add(delta *Resources) error {
 			r.Networks[idx].Add(n)
 		}
 	}
+
+	// Add the GPU resource to the list of gpus otherwise ignore it since we
+	// don't allocate partial gpu resources to allocations
+	for _, g := range delta.NvidiaGPUResources {
+		idx := r.NvidiaGPUIndex(g)
+		if idx == -1 {
+			r.NvidiaGPUResources = append(r.NvidiaGPUResources, g.Copy())
+		}
+	}
 	return nil
 }
 
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
+}
+
+type NvidiaGPUResource struct {
+	UUID          string
+	DriverVersion string
+	ModelName     string
+	MemoryMiB     uint64
+}
+
+func (n *NvidiaGPUResource) Copy() *NvidiaGPUResource {
+	return &NvidiaGPUResource{
+		UUID:          n.UUID,
+		DriverVersion: n.DriverVersion,
+		ModelName:     n.ModelName,
+		MemoryMiB:     n.MemoryMiB,
+	}
+}
+
+func (n *NvidiaGPUResource) GoString() string {
+	return fmt.Sprintf("GPU-Resource-%v", n.UUID)
 }
 
 type Port struct {

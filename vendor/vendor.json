@@ -212,6 +212,7 @@
 		{"path":"github.com/mattn/go-shellwords","checksumSHA1":"ajImwVZHzsI+aNwsgzCSFSbmJqs=","revision":"f4e566c536cf69158e808ec28ef4182a37fdc981","revisionTime":"2015-03-21T17:42:21Z"},
 		{"path":"github.com/matttproud/golang_protobuf_extensions/pbutil","checksumSHA1":"bKMZjd2wPw13VwoE7mBeSv5djFA=","revision":"c12348ce28de40eed0136aa2b644d0ee0650e56c","revisionTime":"2016-04-24T11:30:07Z"},
 		{"path":"github.com/miekg/dns","revision":"7e024ce8ce18b21b475ac6baf8fa3c42536bf2fa"},
+		{"path":"github.com/mindprince/gonvml","checksumSHA1":"gS5wdfbttHTrMDjINxMV72ga1nY=","revision":"b364b296c7320f5d3dc084aa536a3dba33b68f90","revisionTime":"2018-05-14T03:13:26Z"},
 		{"path":"github.com/mitchellh/cli","checksumSHA1":"+o0siVvR8q36mKCpT5F/Sn2T7xo=","revision":"c54c85e9bd492bdba226ffdda55d4e293b79f8e8","revisionTime":"2018-04-06T01:10:36Z"},
 		{"path":"github.com/mitchellh/colorstring","checksumSHA1":"ttEN1Aupb7xpPMkQLqb3tzLFdXs=","revision":"8631ce90f28644f54aeedcb3e389a85174e067d1","revisionTime":"2015-09-17T21:48:07Z"},
 		{"path":"github.com/mitchellh/copystructure","checksumSHA1":"+p4JY4wmFQAppCdlrJ8Kxybmht8=","revision":"d23ffcb85de31694d6ccaa23ccb4a03e55c1303f","revisionTime":"2017-05-25T01:39:02Z"},

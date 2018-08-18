@@ -205,6 +205,10 @@ type Config struct {
 	// This period is meant to be long enough for a leader election to take
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
+
+	// RestrictNvidia flag gives cluster operator an opportunity to restrict nomad
+	// to use nvidia resources
+	RestrictNvidia bool
 }
 
 func (c *Config) Copy() *Config {

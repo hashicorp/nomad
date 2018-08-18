@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mindprince/gonvml"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
@@ -20,6 +21,7 @@ type HostStats struct {
 	CPU              []*CPUStats
 	DiskStats        []*DiskStats
 	AllocDirStats    *DiskStats
+	NvidiaStats      []*NvidiaStats
 	Uptime           uint64
 	Timestamp        int64
 	CPUTicksConsumed float64
@@ -51,6 +53,18 @@ type DiskStats struct {
 	Available         uint64
 	UsedPercent       float64
 	InodesUsedPercent float64
+}
+
+// NvidiaStats represents stats related to Nvidia Usage
+type NvidiaStats struct {
+	UUID                  string
+	PowerUsage            uint
+	AveragePowerUsage     uint
+	AverageGPUUtilization uint
+	GPUUtilization        uint
+	MemoryUtilization     uint
+	Temperature           uint
+	UsedMemoryMiB         uint64
 }
 
 // NodeStatsCollector is an interface which is used for the purposes of mocking
@@ -138,10 +152,124 @@ func (h *HostStatsCollector) collectLocked() error {
 	}
 	hs.AllocDirStats = h.toDiskStats(usage, nil)
 
+	// Getting Nvidia stats
+	// TODO(oleksii-shyman). there is no config available in stats collector
+	// flag "RestrictNvidia" has to be used here
+	nvidiaStats, err := h.collectNvidiaStats()
+	if err != nil {
+		return fmt.Errorf("failed to get nvidia stats with error '%v'", err)
+	}
+	hs.NvidiaStats = nvidiaStats
 	// Update the collected status object.
 	h.hostStats = hs
 
 	return nil
+}
+
+func (h *HostStatsCollector) collectNvidiaStats() ([]*NvidiaStats, error) {
+	/*
+		TODO(oleksii-shyman) add nvml function calls to each of this rows
+		nvml fields to be reported to stats api
+		1  - Used Memory
+		2  - Utilization of GPU
+		3  - Utilization of Memory
+		4  - Current GPU Temperature
+		5  - Power Draw
+		6  - Average Power Usage
+		7  - Average GPU Utilization
+		8  - UUID
+
+
+		nvml fields that would be great to report, but they are not supported by mindprince/gonvml yet
+		1  - GPU Operation Mode
+		2  - Performance State
+		3  - Compute Mode (indicates whether individual or multiple compute applications may run on the GPU.)
+		4  - GPU Slowdown Temperature
+		5  - GPU Shutdown Temperature
+		6  - Power limit
+		7  - Graphics clocks
+		8  - Max Graphics clocks
+		9  - SM clocks
+		10 - Max SM clocks
+		11 - Memory Clocks
+		12 - Max Memory Clocks
+		13 - Video Clocks
+		14 - Max Video Clocks
+		15 - Average Power Usage
+	*/
+	err := gonvml.Initialize()
+	if err != nil {
+		// There was an error during initialization, this node would not report
+		// any functioning GPUs
+		h.logger.Printf("[DEBUG] failed to initialize gonvml to get GPU data with error '%v'", err)
+		return nil, nil
+	}
+	defer gonvml.Shutdown()
+
+	numDevices, err := gonvml.DeviceCount()
+	if err != nil {
+		return nil, fmt.Errorf("nvidia nvml DeviceCount() error: %v\n", err)
+	}
+
+	allNvidiaGPUStats := make([]*NvidiaStats, numDevices)
+	// TODO(oleksii-shyman) move timeInterval to config
+	timeInterval := 10 * time.Second
+
+	for i := 0; i < int(numDevices); i++ {
+		dev, err := gonvml.DeviceHandleByIndex(uint(i))
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml DeviceHandleByIndex() error: %v\n", err)
+		}
+
+		uuid, err := dev.UUID()
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.UUID() error: %v\n", err)
+		}
+
+		powerUsage, err := dev.PowerUsage()
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.PowerUsage() error: %v\n", err)
+		}
+
+		averagePowerUsage, err := dev.AveragePowerUsage(timeInterval)
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.AveragePowerUsage() error: %v\n", err)
+		}
+
+		averageGpuUtilization, err := dev.AverageGPUUtilization(timeInterval)
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.AverageGPUUtilization() error: %v\n", err)
+		}
+
+		utilizationGpu, utilizationMemory, err := dev.UtilizationRates()
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.UtilizationRates() error: %v\n", err)
+		}
+
+		temperature, err := dev.Temperature()
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.Temperature() error: %v\n", err)
+		}
+
+		_, usedMemory, err := dev.MemoryInfo()
+		if err != nil {
+			return allNvidiaGPUStats, fmt.Errorf("nvidia nvml dev.MemoryInfo() error: %v\n", err)
+		}
+
+		allNvidiaGPUStats[i] = &NvidiaStats{
+			UUID:                  uuid,
+			PowerUsage:            powerUsage,
+			AveragePowerUsage:     averagePowerUsage,
+			AverageGPUUtilization: averageGpuUtilization,
+			GPUUtilization:        utilizationGpu,
+			MemoryUtilization:     utilizationMemory,
+			Temperature:           temperature,
+			// usedMemory returns amount in bytes
+			// to convert in mebibytes -> we need to divide it to 2**20
+			UsedMemoryMiB: usedMemory / 1024 / 1024,
+		}
+	}
+	return allNvidiaGPUStats, nil
 }
 
 func (h *HostStatsCollector) collectMemoryStats() (*MemoryStats, error) {
