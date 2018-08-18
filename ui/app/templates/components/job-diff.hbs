@@ -85,7 +85,7 @@
             {{#unless (eq index (dec task.Annotations.length))}},{{/unless}}
           {{/each~}})
         {{/if}}
-        {{#if (or verbose (eq (lowercase task.Type "edited")))}}
+        {{#if (or verbose (eq (lowercase task.Type) "edited"))}}
           {{job-diff-fields-and-objects fields=task.Fields objects=task.Objects}}
         {{/if}}
       </div>
