@@ -380,7 +380,7 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 				// Add header as first row
 				if i == 0 {
 					scoreOutput[0] = "Node|"
-					for scorerName, _ := range scoreMeta.Scores {
+					for scorerName := range scoreMeta.Scores {
 						scoreOutput[0] += fmt.Sprintf("%v|", scorerName)
 					}
 					scoreOutput[0] += "Final Score"
