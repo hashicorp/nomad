@@ -1,4 +1,4 @@
-package lib
+package kheap
 
 import (
 	"container/heap"

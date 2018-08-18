@@ -34,8 +34,8 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
-	"github.com/hashicorp/nomad/helper/lib"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/kheap"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
 
@@ -6510,7 +6510,7 @@ type AllocMetric struct {
 
 	// topScores is used to maintain a heap of the top K nodes with
 	// the highest normalized score
-	topScores *lib.ScoreHeap
+	topScores *kheap.ScoreHeap
 
 	// AllocationTime is a measure of how long the allocation
 	// attempt took. This can affect performance and SLAs.
@@ -6599,7 +6599,7 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 
 		// Create the heap if its not there already
 		if a.topScores == nil {
-			a.topScores = lib.NewScoreHeap(MaxRetainedNodeScores)
+			a.topScores = kheap.NewScoreHeap(MaxRetainedNodeScores)
 		}
 		heap.Push(a.topScores, a.nodeScoreMeta)
 
