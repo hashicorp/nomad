@@ -59,6 +59,36 @@ export default Watchable.extend({
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'DELETE');
   },
+
+  parse(spec) {
+    const url = addToPath(this.urlForFindAll('job'), '/parse');
+    return this.ajax(url, 'POST', {
+      data: {
+        JobHCL: spec,
+        Canonicalize: true,
+      },
+    });
+  },
+
+  plan(job) {
+    const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/plan');
+    return this.ajax(url, 'POST', {
+      data: {
+        Job: job.get('_newDefinitionJSON'),
+        Diff: true,
+      },
+    });
+  },
+
+  // Running a job doesn't follow REST create semantics so it's easier to
+  // treat it as an action.
+  run(job) {
+    return this.ajax(this.urlForCreateRecord('job'), 'POST', {
+      data: {
+        Job: job.get('_newDefinitionJSON'),
+      },
+    });
+  },
 });
 
 function associateNamespace(url, namespace) {

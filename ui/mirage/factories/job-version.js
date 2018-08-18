@@ -6,7 +6,7 @@ export default Factory.extend({
   stable: faker.random.boolean,
   submitTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
   diff() {
-    return generateDiff(this);
+    return generateDiff(this.jobId);
   },
 
   jobId: null,
@@ -39,10 +39,10 @@ export default Factory.extend({
   },
 });
 
-function generateDiff(version) {
+export function generateDiff(id) {
   return {
     Fields: null,
-    ID: version.jobId,
+    ID: id,
     Objects: null,
     TaskGroups: [
       {

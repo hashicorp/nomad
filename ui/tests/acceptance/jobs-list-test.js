@@ -69,6 +69,18 @@ test('each job row should link to the corresponding job', function(assert) {
   });
 });
 
+test('the new job button transitions to the new job page', function(assert) {
+  JobsList.visit();
+
+  andThen(() => {
+    JobsList.runJob();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs/run');
+  });
+});
+
 test('when there are no jobs, there is an empty message', function(assert) {
   JobsList.visit();
 

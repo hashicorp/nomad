@@ -2,6 +2,7 @@ import Ember from 'ember';
 import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
 import { logFrames, logEncode } from './data/logs';
+import { generateDiff } from './factories/job-version';
 
 const { copy } = Ember;
 
@@ -55,6 +56,43 @@ export default function() {
     })
   );
 
+  this.post('/jobs', function({ jobs }, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
+
+    return okEmpty();
+  });
+
+  this.post('/jobs/parse', function({ jobs }, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.JobHCL)
+      return new Response(400, {}, 'JobHCL is a required field on the request payload');
+    if (!body.Canonicalize) return new Response(400, {}, 'Expected Canonicalize to be true');
+
+    // Parse the name out of the first real line of HCL to match IDs in the new job record
+    // Regex expectation:
+    //   in:  job "job-name" {
+    //   out: job-name
+    const nameFromHCLBlock = /.+?"(.+?)"/;
+    const jobName = body.JobHCL.trim()
+      .split('\n')[0]
+      .match(nameFromHCLBlock)[1];
+
+    const job = server.create('job', { id: jobName });
+    return new Response(200, {}, this.serialize(job));
+  });
+
+  this.post('/job/:id/plan', function({ jobs }, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
+    if (!body.Diff) return new Response(400, {}, 'Expected Diff to be true');
+
+    return new Response(200, {}, JSON.stringify({ Diff: generateDiff(req.params.id) }));
+  });
+
   this.get(
     '/job/:id',
     withBlockingSupport(function({ jobs }, { params, queryParams }) {
@@ -107,8 +145,7 @@ export default function() {
       createAllocations: parent.createAllocations,
     });
 
-    // Return bogus, since the response is normally just eval information
-    return new Response(200, {}, '{}');
+    return okEmpty();
   });
 
   this.delete('/job/:id', function(schema, { params }) {
@@ -275,4 +312,10 @@ function filterKeys(object, ...keys) {
   });
 
   return clone;
+}
+
+// An empty response but not a 204 No Content. This is still a valid JSON
+// response that represents a payload with no worthwhile data.
+function okEmpty() {
+  return new Response(200, {}, '{}');
 }

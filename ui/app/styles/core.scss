@@ -1,34 +1,35 @@
 // Utils
-@import "./utils/reset.scss";
-@import "./utils/z-indices";
-@import "./utils/product-colors";
-@import "./utils/bumper";
+@import './utils/reset.scss';
+@import './utils/z-indices';
+@import './utils/product-colors';
+@import './utils/bumper';
+@import './utils/layout';
 
 // Start with Bulma variables as a foundation
-@import "bulma/sass/utilities/initial-variables";
+@import 'bulma/sass/utilities/initial-variables';
 
 // Override variables where appropriate
-@import "./core/variables.scss";
+@import './core/variables.scss';
 
 // Bring in the rest of Bulma
-@import "bulma/bulma";
+@import 'bulma/bulma';
 
 // Override Bulma details where appropriate
-@import "./core/buttons";
-@import "./core/breadcrumb";
-@import "./core/columns";
-@import "./core/forms";
-@import "./core/icon";
-@import "./core/level";
-@import "./core/menu";
-@import "./core/message";
-@import "./core/navbar";
-@import "./core/notification";
-@import "./core/pagination";
-@import "./core/progress";
-@import "./core/section";
-@import "./core/table";
-@import "./core/tabs";
-@import "./core/tag";
-@import "./core/title";
-@import "./core/typography";
+@import './core/buttons';
+@import './core/breadcrumb';
+@import './core/columns';
+@import './core/forms';
+@import './core/icon';
+@import './core/level';
+@import './core/menu';
+@import './core/message';
+@import './core/navbar';
+@import './core/notification';
+@import './core/pagination';
+@import './core/progress';
+@import './core/section';
+@import './core/table';
+@import './core/tabs';
+@import './core/tag';
+@import './core/title';
+@import './core/typography';
