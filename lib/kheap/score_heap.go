@@ -61,3 +61,16 @@ func (pq *ScoreHeap) Pop() interface{} {
 	pq.items = old[0 : n-1]
 	return item
 }
+
+// GetItemsReverse returns the items in this min heap in reverse order
+// sorted by score descending
+func (pq *ScoreHeap) GetItemsReverse() []interface{} {
+	ret := make([]interface{}, pq.Len())
+	i := pq.Len() - 1
+	for pq.Len() > 0 {
+		item := heap.Pop(pq)
+		ret[i] = item
+		i--
+	}
+	return ret
+}
