@@ -254,14 +254,20 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	mockNode1 := mock.Node()
 	mockNode2 := mock.Node()
 	a.Metrics = &structs.AllocMetric{
-		ScoreMetaData: map[string][]*structs.NodeScoreMeta{
-			"binpack": {
-				{NodeID: mockNode1.ID, Score: 0.77},
-				{NodeID: mockNode2.ID, Score: 0.75},
+		ScoreMetaData: []*structs.NodeScoreMeta{
+			{
+				NodeID: mockNode1.ID,
+				Scores: map[string]float64{
+					"binpack":       0.77,
+					"node-affinity": 0.5,
+				},
 			},
-			"node-affinity": {
-				{NodeID: mockNode1.ID, Score: 0.5},
-				{NodeID: mockNode2.ID, Score: 0.33},
+			{
+				NodeID: mockNode2.ID,
+				Scores: map[string]float64{
+					"binpack":       0.75,
+					"node-affinity": 0.33,
+				},
 			},
 		},
 	}
@@ -272,10 +278,9 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	}
 	out := ui.OutputWriter.String()
 	require.Contains(out, "Placement Metrics")
-	require.Contains(out, fmt.Sprintf("Scorer %q, Node %q", "binpack", mockNode1.ID))
-	require.Contains(out, fmt.Sprintf("Scorer %q, Node %q", "binpack", mockNode2.ID))
-	require.Contains(out, fmt.Sprintf("Scorer %q, Node %q", "node-affinity", mockNode1.ID))
-	require.Contains(out, fmt.Sprintf("Scorer %q, Node %q", "binpack", mockNode2.ID))
+	require.Contains(out, mockNode1.ID)
+	require.Contains(out, mockNode2.ID)
+	require.Contains(out, "Final Score")
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
