@@ -12,48 +12,6 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
-var (
-	// testSpec is an hcl Spec for testing
-	testSpec = &hclspec.Spec{
-		Block: &hclspec.Spec_Object{
-			Object: &hclspec.Object{
-				Attributes: map[string]*hclspec.Spec{
-					"foo": {
-						Block: &hclspec.Spec_Attr{
-							Attr: &hclspec.Attr{
-								Type:     "string",
-								Required: false,
-							},
-						},
-					},
-					"bar": {
-						Block: &hclspec.Spec_Attr{
-							Attr: &hclspec.Attr{
-								Type:     "number",
-								Required: true,
-							},
-						},
-					},
-					"baz": {
-						Block: &hclspec.Spec_Attr{
-							Attr: &hclspec.Attr{
-								Type: "bool",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-)
-
-// testConfig is used to decode a config from the testSpec
-type testConfig struct {
-	Foo string `cty:"foo" codec:"foo"`
-	Bar int64  `cty:"bar" codec:"bar"`
-	Baz bool   `cty:"baz" codec:"baz"`
-}
-
 func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -88,12 +46,12 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 	}
 
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		"base": &PluginBase{impl: mock},
+		PluginTypeBase: &PluginBase{Impl: mock},
 	})
 	defer server.Stop()
 	defer client.Close()
 
-	raw, err := client.Dispense("base")
+	raw, err := client.Dispense(PluginTypeBase)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -123,17 +81,17 @@ func TestBasePlugin_ConfigSchema(t *testing.T) {
 
 	mock := &MockPlugin{
 		ConfigSchemaF: func() (*hclspec.Spec, error) {
-			return testSpec, nil
+			return TestSpec, nil
 		},
 	}
 
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		"base": &PluginBase{impl: mock},
+		PluginTypeBase: &PluginBase{Impl: mock},
 	})
 	defer server.Stop()
 	defer client.Close()
 
-	raw, err := client.Dispense("base")
+	raw, err := client.Dispense(PluginTypeBase)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -145,7 +103,7 @@ func TestBasePlugin_ConfigSchema(t *testing.T) {
 
 	specOut, err := impl.ConfigSchema()
 	require.NoError(err)
-	require.True(pb.Equal(testSpec, specOut))
+	require.True(pb.Equal(TestSpec, specOut))
 }
 
 func TestBasePlugin_SetConfig(t *testing.T) {
@@ -155,7 +113,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	var receivedData []byte
 	mock := &MockPlugin{
 		ConfigSchemaF: func() (*hclspec.Spec, error) {
-			return testSpec, nil
+			return TestSpec, nil
 		},
 		SetConfigF: func(data []byte) error {
 			receivedData = data
@@ -164,12 +122,12 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	}
 
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		"base": &PluginBase{impl: mock},
+		PluginTypeBase: &PluginBase{Impl: mock},
 	})
 	defer server.Stop()
 	defer client.Close()
 
-	raw, err := client.Dispense("base")
+	raw, err := client.Dispense(PluginTypeBase)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -190,7 +148,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back
-	var actual testConfig
+	var actual TestConfig
 	require.NoError(structs.Decode(receivedData, &actual))
 	require.Equal("v1", actual.Foo)
 	require.EqualValues(1337, actual.Bar)

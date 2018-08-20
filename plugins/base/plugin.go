@@ -9,6 +9,9 @@ import (
 )
 
 const (
+	// PluginTypeBase implements the base plugin interface
+	PluginTypeBase = "base"
+
 	// PluginTypeDriver implements the driver plugin interface
 	PluginTypeDriver = "driver"
 
@@ -29,17 +32,17 @@ var (
 // interface to expose the interface over gRPC.
 type PluginBase struct {
 	plugin.NetRPCUnsupportedPlugin
-	impl BasePlugin
+	Impl BasePlugin
 }
 
 func (p *PluginBase) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	proto.RegisterBasePluginServer(s, &basePluginServer{
-		impl:   p.impl,
+		impl:   p.Impl,
 		broker: broker,
 	})
 	return nil
 }
 
 func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &basePluginClient{client: proto.NewBasePluginClient(c)}, nil
+	return &BasePluginClient{Client: proto.NewBasePluginClient(c)}, nil
 }

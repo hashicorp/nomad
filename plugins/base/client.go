@@ -8,14 +8,14 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
-// basePluginClient implements the client side of a remote base plugin, using
+// BasePluginClient implements the client side of a remote base plugin, using
 // gRPC to communicate to the remote plugin.
-type basePluginClient struct {
-	client proto.BasePluginClient
+type BasePluginClient struct {
+	Client proto.BasePluginClient
 }
 
-func (b *basePluginClient) PluginInfo() (*PluginInfoResponse, error) {
-	presp, err := b.client.PluginInfo(context.Background(), &proto.PluginInfoRequest{})
+func (b *BasePluginClient) PluginInfo() (*PluginInfoResponse, error) {
+	presp, err := b.Client.PluginInfo(context.Background(), &proto.PluginInfoRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +40,8 @@ func (b *basePluginClient) PluginInfo() (*PluginInfoResponse, error) {
 	return resp, nil
 }
 
-func (b *basePluginClient) ConfigSchema() (*hclspec.Spec, error) {
-	presp, err := b.client.ConfigSchema(context.Background(), &proto.ConfigSchemaRequest{})
+func (b *BasePluginClient) ConfigSchema() (*hclspec.Spec, error) {
+	presp, err := b.Client.ConfigSchema(context.Background(), &proto.ConfigSchemaRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -49,9 +49,9 @@ func (b *basePluginClient) ConfigSchema() (*hclspec.Spec, error) {
 	return presp.GetSpec(), nil
 }
 
-func (b *basePluginClient) SetConfig(data []byte) error {
+func (b *BasePluginClient) SetConfig(data []byte) error {
 	// Send the config
-	_, err := b.client.SetConfig(context.Background(), &proto.SetConfigRequest{
+	_, err := b.Client.SetConfig(context.Background(), &proto.SetConfigRequest{
 		MsgpackConfig: data,
 	})
 
