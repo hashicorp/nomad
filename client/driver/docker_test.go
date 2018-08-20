@@ -695,6 +695,59 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Start_KillTimeout(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+	timeout := 2 * time.Second
+	task := &structs.Task{
+		Name:   "nc-demo",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "/bin/sleep",
+			"args":    []string{"10"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources:   basicResources,
+		KillTimeout: timeout,
+		KillSignal:  "SIGUSR1", // Pick something that doesn't actually kill it
+	}
+
+	_, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+
+	// Reduce the timeout for the docker client.
+	handle.client.SetTimeout(1 * time.Second)
+
+	// Kill the task
+	var killSent, killed time.Time
+	go func() {
+		killSent = time.Now()
+		if err := handle.Kill(); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	select {
+	case <-handle.WaitCh():
+		killed = time.Now()
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if killed.Sub(killSent) < timeout {
+		t.Fatalf("kill timeout not respected")
+	}
+}
+
 func TestDockerDriver_StartN(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
