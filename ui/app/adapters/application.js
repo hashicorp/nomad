@@ -3,6 +3,7 @@ import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
+import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
 
 export const namespace = 'v1';
 
@@ -20,6 +21,13 @@ export default RESTAdapter.extend({
       };
     }
   }),
+
+  handleResponse(status, headers, payload) {
+    if (status === 500 && payload === NO_LEADER) {
+      return new NoLeaderError();
+    }
+    return this._super(...arguments);
+  },
 
   findAll() {
     return this._super(...arguments).catch(error => {
