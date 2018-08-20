@@ -20,6 +20,10 @@ type devicePluginClient struct {
 	client proto.DevicePluginClient
 }
 
+// Fingerprint is used to retrieve the set of devices and their health from the
+// device plugin. An error may be immediately returned if the fingerprint call
+// could not be made or as part of the streaming response. If the context is
+// cancelled, the error will be propogated.
 func (d *devicePluginClient) Fingerprint(ctx context.Context) (<-chan *FingerprintResponse, error) {
 	var req proto.FingerprintRequest
 	stream, err := d.client.Fingerprint(ctx, &req)
