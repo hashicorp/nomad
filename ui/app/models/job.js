@@ -210,7 +210,7 @@ export default Model.extend({
     try {
       // If the definition is already JSON then it doesn't need to be parsed.
       const json = JSON.parse(definition);
-      this.set('_newDefinitionJSON', definition);
+      this.set('_newDefinitionJSON', json);
       this.setIDByPayload(json);
       promise = RSVP.resolve(definition);
     } catch (err) {
