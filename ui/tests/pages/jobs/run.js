@@ -1,4 +1,4 @@
-import { clickable, create, isPresent, text, visitable } from 'ember-cli-page-object';
+import { clickable, create, hasClass, isPresent, text, visitable } from 'ember-cli-page-object';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 
 import error from 'nomad-ui/tests/pages/components/error';
@@ -34,5 +34,13 @@ export default create({
     isPresent: isPresent('[data-test-editor]'),
     contents: code('[data-test-editor]'),
     fillIn: codeFillable('[data-test-editor]'),
+  },
+
+  dryRunMessage: {
+    scope: '[data-test-dry-run-message]',
+    title: text('[data-test-dry-run-title]'),
+    body: text('[data-test-dry-run-body]'),
+    errored: hasClass('is-warning'),
+    succeeded: hasClass('is-primary'),
   },
 });

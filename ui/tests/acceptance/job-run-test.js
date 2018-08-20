@@ -5,6 +5,7 @@ import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
 const newJobName = 'new-job';
+const newJobTaskGroupName = 'redis';
 
 const jsonJob = overrides => {
   return JSON.stringify(
@@ -15,15 +16,17 @@ const jsonJob = overrides => {
         Namespace: 'default',
         Datacenters: ['dc1'],
         Priority: 50,
-        TaskGroups: {
-          redis: {
-            Tasks: {
-              redis: {
+        TaskGroups: [
+          {
+            Name: newJobTaskGroupName,
+            Tasks: [
+              {
+                Name: 'redis',
                 Driver: 'docker',
               },
-            },
+            ],
           },
-        },
+        ],
       },
       overrides
     ),
@@ -37,7 +40,7 @@ job "${newJobName}" {
   namespace = "default"
   datacenters = ["dc1"]
 
-  task "redis" {
+  task "${newJobTaskGroupName}" {
     driver = "docker"
   }
 }
@@ -310,6 +313,55 @@ test('when submitting a job to a different namespace, the redirect to the job ov
       currentURL(),
       `/jobs/${newJobName}?namespace=${newNamespace}`,
       `Redirected to the job overview page for ${newJobName} and switched the namespace to ${newNamespace}`
+    );
+  });
+});
+
+test('when the scheduler dry-run has warnings, the warnings are shown to the user', function(assert) {
+  // Unschedulable is a hint to Mirage to respond with warnings from the plan endpoint
+  const spec = jsonJob({ Unschedulable: true });
+
+  JobRun.visit();
+
+  andThen(() => {
+    JobRun.editor.fillIn(spec);
+    JobRun.plan();
+  });
+
+  andThen(() => {
+    assert.ok(
+      JobRun.dryRunMessage.errored,
+      'The scheduler dry-run message is in the warning state'
+    );
+    assert.notOk(
+      JobRun.dryRunMessage.succeeded,
+      'The success message is not shown in addition to the warning message'
+    );
+    assert.ok(
+      JobRun.dryRunMessage.body.includes(newJobTaskGroupName),
+      'The scheduler dry-run message includes the warning from send back by the API'
+    );
+  });
+});
+
+test('when the scheduler dry-run has no warnings, a success message is shown to the user', function(assert) {
+  const spec = hclJob();
+
+  JobRun.visit();
+
+  andThen(() => {
+    JobRun.editor.fillIn(spec);
+    JobRun.plan();
+  });
+
+  andThen(() => {
+    assert.ok(
+      JobRun.dryRunMessage.succeeded,
+      'The scheduler dry-run message is in the success state'
+    );
+    assert.notOk(
+      JobRun.dryRunMessage.errored,
+      'The warning message is not shown in addition to the success message'
     );
   });
 });
