@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
@@ -17,9 +18,9 @@ export default Component.extend({
     },
     set(key, value) {
       const allowedValues = ['new', 'edit'];
-      if (!allowedValues.includes(value)) {
-        throw new Error(`context must be one of: ${allowedValues.join(', ')}`);
-      }
+
+      assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
+
       this.set('_context', value);
       return value;
     },
