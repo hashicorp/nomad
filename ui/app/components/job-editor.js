@@ -7,10 +7,25 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 export default Component.extend({
   store: service(),
+  config: service(),
 
   job: null,
   onSubmit() {},
+  context: computed({
+    get() {
+      return this.get('_context');
+    },
+    set(key, value) {
+      const allowedValues = ['new', 'edit'];
+      if (!allowedValues.includes(value)) {
+        throw new Error(`context must be one of: ${allowedValues.join(', ')}`);
+      }
+      this.set('_context', value);
+      return value;
+    },
+  }),
 
+  _context: null,
   parseError: null,
   planError: null,
   runError: null,
@@ -32,6 +47,7 @@ export default Component.extend({
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not parse input';
       this.set('parseError', error);
+      this.scrollToError();
       return;
     }
 
@@ -42,12 +58,17 @@ export default Component.extend({
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not plan job';
       this.set('planError', error);
+      this.scrollToError();
     }
   }).drop(),
 
   submit: task(function*() {
     try {
-      yield this.get('job').run();
+      if (this.get('context') === 'new') {
+        yield this.get('job').run();
+      } else {
+        yield this.get('job').update();
+      }
 
       const id = this.get('job.plainId');
       const namespace = this.get('job.namespace.name') || 'default';
@@ -59,6 +80,8 @@ export default Component.extend({
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not submit job';
       this.set('runError', error);
+      this.set('planOutput', null);
+      this.scrollToError();
     }
   }),
 
@@ -66,5 +89,12 @@ export default Component.extend({
     this.set('planOutput', null);
     this.set('planError', null);
     this.set('parseError', null);
+    this.set('runError', null);
+  },
+
+  scrollToError() {
+    if (!this.get('config.isTest')) {
+      window.scrollTo(0, 0);
+    }
   },
 });
