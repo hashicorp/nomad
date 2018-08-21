@@ -33,6 +33,12 @@ export default Watchable.extend({
     return associateNamespace(url, namespace);
   },
 
+  urlForUpdateRecord(id, type, hash) {
+    const [name, namespace] = JSON.parse(id);
+    let url = this._super(name, type, hash);
+    return associateNamespace(url, namespace);
+  },
+
   xhrKey(url, method, options = {}) {
     const plainKey = this._super(...arguments);
     const namespace = options.data && options.data.namespace;
@@ -87,6 +93,15 @@ export default Watchable.extend({
   // treat it as an action.
   run(job) {
     return this.ajax(this.urlForCreateRecord('job'), 'POST', {
+      data: {
+        Job: job.get('_newDefinitionJSON'),
+      },
+    });
+  },
+
+  update(job) {
+    const url = this.urlForUpdateRecord(job.get('id'), 'job');
+    return this.ajax(this.urlForUpdateRecord(job.get('id'), 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
       },
