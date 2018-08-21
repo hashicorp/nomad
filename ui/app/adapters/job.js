@@ -100,7 +100,6 @@ export default Watchable.extend({
   },
 
   update(job) {
-    const url = this.urlForUpdateRecord(job.get('id'), 'job');
     return this.ajax(this.urlForUpdateRecord(job.get('id'), 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
