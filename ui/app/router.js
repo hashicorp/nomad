@@ -16,6 +16,7 @@ Router.map(function() {
       this.route('deployments');
       this.route('evaluations');
       this.route('allocations');
+      this.route('edit');
     });
   });
 
