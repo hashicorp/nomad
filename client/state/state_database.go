@@ -54,12 +54,13 @@ func GetStateDBFactory(devMode bool) NewStateDBFunc {
 }
 
 // BoltStateDB persists and restores Nomad client state in a boltdb. All
-// methods are safe for concurrent access. Create via NewStateDB by setting
-// devMode=false.
+// methods are safe for concurrent access.
 type BoltStateDB struct {
 	db *boltdd.DB
 }
 
+// NewBoltStateDB creates or opens an existing boltdb state file or returns an
+// error.
 func NewBoltStateDB(stateDir string) (StateDB, error) {
 	// Create or open the boltdb state database
 	db, err := boltdd.Open(filepath.Join(stateDir, "state.db"), 0600, nil)
@@ -121,13 +122,13 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 			continue
 		}
 
-		var allocState allocEntry
-		if err := allocBkt.Get(allocKey, &allocState); err != nil {
-			errs[allocID] = fmt.Errorf("failed to decode alloc %v", err)
+		var ae allocEntry
+		if err := allocBkt.Get(allocKey, &ae); err != nil {
+			errs[allocID] = fmt.Errorf("failed to decode alloc: %v", err)
 			continue
 		}
 
-		allocs = append(allocs, allocState.Alloc)
+		allocs = append(allocs, ae.Alloc)
 	}
 
 	return allocs, errs
@@ -157,7 +158,6 @@ func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 }
 
 // GetTaskRunnerState restores TaskRunner specific state.
-//TODO wrap in a single struct?
 func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.LocalState, *structs.TaskState, error) {
 	var ls trstate.LocalState
 	var ts structs.TaskState
@@ -169,7 +169,6 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 		}
 
 		// Restore Local State
-		//XXX set persisted hash to avoid immediate write on first use?
 		if err := bkt.Get(taskLocalStateKey, &ls); err != nil {
 			return fmt.Errorf("failed to read local task runner state: %v", err)
 		}
@@ -178,10 +177,6 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 		if err := bkt.Get(taskStateKey, &ts); err != nil {
 			return fmt.Errorf("failed to read task state: %v", err)
 		}
-
-		// XXX if driver has task {
-		// tr.restoreDriver()
-		// }
 
 		return nil
 	})
@@ -195,7 +190,6 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 }
 
 // PutTaskRunnerLocalState stores TaskRunner's LocalState or returns an error.
-// It is up to the caller to serialize the state to bytes.
 func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, val interface{}) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		taskBkt, err := getTaskBucket(tx, allocID, taskName)
