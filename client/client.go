@@ -1923,7 +1923,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 
 	// Update local copy of alloc
 	if err := c.stateDB.PutAllocation(update); err != nil {
-		c.logger.Printf("[ERR] client: dropping alloc update. Unable to persist locally: %q", update.ID)
+		c.logger.Printf("[ERR] client: error persisting updated alloc locally: %q", update.ID)
 	}
 
 	// Update alloc runner

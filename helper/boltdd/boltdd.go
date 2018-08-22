@@ -148,7 +148,7 @@ func (tx *Tx) Writable() bool {
 	return tx.btx.Writable()
 }
 
-// BoltTx returns the unerlying bolt.Tx
+// BoltTx returns the underlying bolt.Tx.
 func (tx *Tx) BoltTx() *bolt.Tx {
 	return tx.btx
 }
