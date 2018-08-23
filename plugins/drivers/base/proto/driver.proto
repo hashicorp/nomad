@@ -149,17 +149,17 @@ message StartTaskResponse {
         FATAL = 2;
     }
 
-    // Result is set depending on the type of error that occured while starting
+    // Result is set depending on the type of error that occurred while starting
     // a task:
     //
-    //   * SUCCESS: No error occured, handle is set
-    //   * RETRY: An error occured, but is recoverable and the RPC should be retried
-    //   * FATAL: A fatal error occured and is not likely to succeed if retried
+    //   * SUCCESS: No error occurred, handle is set
+    //   * RETRY: An error occurred, but is recoverable and the RPC should be retried
+    //   * FATAL: A fatal error occurred and is not likely to succeed if retried
     //
     // If Result is not successful, the DriverErrorMsg will be set.
     Result result = 1;
 
-    // DriverErrorMsg is set if an error occured
+    // DriverErrorMsg is set if an error occurred
     string driver_error_msg = 2;
 
     // Handle is opaque to the client, but must be stored in order to recover
@@ -181,7 +181,7 @@ message WaitTaskResponse {
 
     // Result is the exit status of the task
     ExitResult result = 1;
-    // Err is set if any driver error occured while waiting for the task
+    // Err is set if any driver error occurred while waiting for the task
     string err = 2;
 }
 
@@ -561,7 +561,7 @@ message DriverTaskEvent {
     // TaskId is the id of the task for the event
     string task_id = 1;
 
-    // Timestamp when the event occured
+    // Timestamp when the event occurred
     google.protobuf.Timestamp timestamp = 2;
 
     // Message is the body of the event
