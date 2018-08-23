@@ -6,6 +6,8 @@ import error from 'nomad-ui/tests/pages/components/error';
 export default () => ({
   scope: '[data-test-job-editor]',
 
+  isPresent: isPresent(),
+
   planError: error('data-test-plan-error'),
   parseError: error('data-test-parse-error'),
   runError: error('data-test-run-error'),
