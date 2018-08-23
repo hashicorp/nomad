@@ -51,10 +51,6 @@ func TestConfig_AppendCA_Valid(t *testing.T) {
 func TestConfig_AppendCA_Valid_MultipleCerts(t *testing.T) {
 	require := require.New(t)
 
-	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
-	require.Nil(err)
-	defer os.Remove(tmpCAFile.Name())
-
 	certs := `
 -----BEGIN CERTIFICATE-----
 MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
@@ -71,6 +67,61 @@ AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
 Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 -----END CERTIFICATE-----
 -----BEGIN CERTIFICATE-----
+MIICNTCCAZagAwIBAgIRANjgoh5iVZI26+Hz/K65G0UwCgYIKoZIzj0EAwQwNjEb
+MBkGA1UEChMSSGFzaGlDb3JwIFRyYWluaW5nMRcwFQYDVQQDEw5zZXJ2aWNlLmNv
+bnN1bDAeFw0xODA4MjMxNzM0NTBaFw0xODA5MjIxNzM0NTBaMDYxGzAZBgNVBAoT
+Ekhhc2hpQ29ycCBUcmFpbmluZzEXMBUGA1UEAxMOc2VydmljZS5jb25zdWwwgZsw
+EAYHKoZIzj0CAQYFK4EEACMDgYYABAGjC4sWsOfirS/DQ9/e7PdQeJwlOjziiOx/
+CALjS6ryEDkZPqRqMuoFXfudAmfdk6tl8AT1IKMVcgiQU5jkm7fliwFIk48uh+n2
+obqZjwDyM76VYBVSYi6i3BPXown1ivIMJNQS1txnWZLZHsv+WxbHydS+GNOAwKDK
+KsXj9dEhd36pvaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8w
+HQYDVR0OBBYEFIk3oG2hu0FxueW4e7fL+FdMOquBMAoGCCqGSM49BAMEA4GMADCB
+iAJCAPIPwPyk+8Ymj7Zlvb5qIUQg+UxoacAeJtFZrJ8xQjro0YjsM33O86rAfw+x
+sWWGul4Ews93KFBXvhbKCwb0F0PhAkIAh2z7COsKcQzvBoIy+Kx92+9j/sUjlzzl
+TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
+-----END CERTIFICATE-----
+`
+
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+	require.NoError(err)
+	defer os.Remove(tmpCAFile.Name())
+
+	_, err = tmpCAFile.Write([]byte(certs))
+	require.NoError(err)
+	tmpCAFile.Close()
+
+	conf := &Config{
+		CAFile: tmpCAFile.Name(),
+	}
+	pool := x509.NewCertPool()
+	require.NoError(conf.AppendCA(pool))
+
+	require.Len(pool.Subjects(), 2)
+}
+
+// TestConfig_AppendCA_Valid_Whitespace asserts that a PEM file containing
+// trailing whitespace is valid.
+func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
+	require := require.New(t)
+
+	const cacertWhitespace = "./testdata/ca-whitespace.pem"
+	conf := &Config{
+		CAFile: cacertWhitespace,
+	}
+	pool := x509.NewCertPool()
+	require.NoError(conf.AppendCA(pool))
+
+	require.Len(pool.Subjects(), 1)
+}
+
+// TestConfig_AppendCA_Invalid_MultipleCerts_Whitespace asserts that a PEM file
+// containing non-PEM data between certificate blocks is still valid.
+func TestConfig_AppendCA_Valid_MultipleCerts_ExtraData(t *testing.T) {
+	require := require.New(t)
+
+	certs := `
+Did you know...
+-----BEGIN CERTIFICATE-----
 MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
 eDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
 biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
@@ -83,10 +134,34 @@ uNdZJZWSi4Q/4HojM5FTSBqYxNgSrmY/o3oQrCPlo0IwQDAOBgNVHQ8BAf8EBAMC
 AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
 /UAwCgYIKoZIzj0EAwIDRwAwRAIgTemDJGSGtcQPXLWKiQNw4SKO9wAPhn/WoKW4
 Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
------END CERTIFICATE-----`
+-----END CERTIFICATE-----
 
+...PEM parsers don't care about data...
+
+-----BEGIN CERTIFICATE-----
+MIICNTCCAZagAwIBAgIRANjgoh5iVZI26+Hz/K65G0UwCgYIKoZIzj0EAwQwNjEb
+MBkGA1UEChMSSGFzaGlDb3JwIFRyYWluaW5nMRcwFQYDVQQDEw5zZXJ2aWNlLmNv
+bnN1bDAeFw0xODA4MjMxNzM0NTBaFw0xODA5MjIxNzM0NTBaMDYxGzAZBgNVBAoT
+Ekhhc2hpQ29ycCBUcmFpbmluZzEXMBUGA1UEAxMOc2VydmljZS5jb25zdWwwgZsw
+EAYHKoZIzj0CAQYFK4EEACMDgYYABAGjC4sWsOfirS/DQ9/e7PdQeJwlOjziiOx/
+CALjS6ryEDkZPqRqMuoFXfudAmfdk6tl8AT1IKMVcgiQU5jkm7fliwFIk48uh+n2
+obqZjwDyM76VYBVSYi6i3BPXown1ivIMJNQS1txnWZLZHsv+WxbHydS+GNOAwKDK
+KsXj9dEhd36pvaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8w
+HQYDVR0OBBYEFIk3oG2hu0FxueW4e7fL+FdMOquBMAoGCCqGSM49BAMEA4GMADCB
+iAJCAPIPwPyk+8Ymj7Zlvb5qIUQg+UxoacAeJtFZrJ8xQjro0YjsM33O86rAfw+x
+sWWGul4Ews93KFBXvhbKCwb0F0PhAkIAh2z7COsKcQzvBoIy+Kx92+9j/sUjlzzl
+TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
+-----END CERTIFICATE-----
+
+...outside of -----XXX----- blocks?
+`
+
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file_extra")
+	require.NoError(err)
+	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.Nil(err)
+	require.NoError(err)
+	tmpCAFile.Close()
 
 	conf := &Config{
 		CAFile: tmpCAFile.Name(),
@@ -94,15 +169,14 @@ Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 	pool := x509.NewCertPool()
 	err = conf.AppendCA(pool)
 
-	require.Nil(err)
+	require.NoError(err)
+	require.Len(pool.Subjects(), 2)
 }
 
-func TestConfig_AppendCA_InValid_MultipleCerts(t *testing.T) {
+// TestConfig_AppendCA_Invalid_MultipleCerts asserts only the valid certificate
+// is returned.
+func TestConfig_AppendCA_Invalid_MultipleCerts(t *testing.T) {
 	require := require.New(t)
-
-	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
-	require.Nil(err)
-	defer os.Remove(tmpCAFile.Name())
 
 	certs := `
 -----BEGIN CERTIFICATE-----
@@ -123,16 +197,20 @@ Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 Invalid
 -----END CERTIFICATE-----`
 
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+	require.NoError(err)
+	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.Nil(err)
+	require.NoError(err)
+	tmpCAFile.Close()
 
 	conf := &Config{
 		CAFile: tmpCAFile.Name(),
 	}
 	pool := x509.NewCertPool()
-	err = conf.AppendCA(pool)
+	require.NoError(conf.AppendCA(pool))
 
-	require.NotNil(err)
+	require.Len(pool.Subjects(), 1)
 }
 
 func TestConfig_AppendCA_Invalid(t *testing.T) {
@@ -160,8 +238,8 @@ func TestConfig_AppendCA_Invalid(t *testing.T) {
 		}
 		pool := x509.NewCertPool()
 		err = conf.AppendCA(pool)
-		require.NotNil(err)
-		require.Contains(err.Error(), "Failed to decode CA file from pem format")
+		require.Error(err)
+		require.Contains(err.Error(), "Failed to parse any valid certificates in CA file:")
 		require.Equal(len(pool.Subjects()), 0)
 	}
 }
