@@ -11,9 +11,9 @@ import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
 // Some rpcs may not be implemented by the driver based on it's capabilities.
 service Driver {
 
-    // DriverTaskConfigSchema returns the schema for parsing the driver
+    // TaskConfigSchema returns the schema for parsing the driver
     // configuration of a task.
-    rpc DriverTaskConfigSchema(DriverTaskConfigSchemaRequest) returns (DriverTaskConfigSchemaResponse) {}
+    rpc TaskConfigSchema(TaskConfigSchemaRequest) returns (TaskConfigSchemaResponse) {}
 
     // Capabilities returns a set of features which the driver implements. Some
     // RPCs are not possible to implement on some runtimes, this allows the
@@ -39,7 +39,7 @@ service Driver {
     // WaitTask blocks until the given task exits, returning the result of the
     // task. It may be called after the task has exited, but before the task is
     // destroyed.
-	rpc WaitTask(WaitTaskRequest) returns (WaitTaskResponse) {}
+    rpc WaitTask(WaitTaskRequest) returns (WaitTaskResponse) {}
 
     // StopTask stops a given task by sending the desired signal to the process.
     // If the task does not exit on its own within the given timeout, it will be
@@ -75,9 +75,9 @@ service Driver {
     rpc ExecTask(ExecTaskRequest) returns (ExecTaskResponse) {}
 }
 
-message DriverTaskConfigSchemaRequest {}
+message TaskConfigSchemaRequest {}
 
-message DriverTaskConfigSchemaResponse {
+message TaskConfigSchemaResponse {
 
     // Spec is the configuration schema for the job driver config stanza
     hashicorp.nomad.plugins.shared.hclspec.Spec spec = 1;
@@ -103,13 +103,24 @@ message FingerprintResponse {
     // used in scheduling contraints and affinities.
     map<string, string> attributes = 1;
 
-    // Detected signifies if the necessary dependancies of the drive are met for
-    // nominal operation.
-    bool detected = 2;
+    enum HealthState {
+        UNDETECTED = 0;
+        UNHEALTHY = 1;
+        HEALTHY = 2;
 
-    // Healthy is true if the driver is able to make changes to a task's state
-    // ex. Start/Stop
-    bool healthy = 3;
+    }
+
+    // Health is used to determine the state of the health the driver is in.
+    // Health can be one of the following states:
+    //  * UNDETECTED: driver dependencies are not met and the driver can not start
+    //  * UNHEALTHY: driver dependencies are met but the driver is unable to
+    //      perform operations due to some other problem
+    //  * HEALTHY: driver is able to perform all operations
+    HealthState health = 2;
+
+    // HealthDescription is a human readable message describing the current
+    // state of driver health
+    string health_description = 3;
 }
 
 message RecoverTaskRequest {
@@ -128,9 +139,6 @@ message StartTaskRequest {
     // Task configuration to launch
     TaskConfig task = 1;
 
-    //NetworkOverride is set if the driver sets network settings and the service ip/port
-    //needs to be set differently.
-    NetworkOverride network_override = 2;
 }
 
 message StartTaskResponse {
@@ -151,12 +159,16 @@ message StartTaskResponse {
     // If Result is not successful, the DriverErrorMsg will be set.
     Result result = 1;
 
-    // Handle is opague to the client, but must be stored in order to potentially
-    // recover the task.
-    TaskHandle handle = 2;
-
     // DriverErrorMsg is set if an error occured
-    string driver_error_msg = 3;
+    string driver_error_msg = 2;
+
+    // Handle is opaque to the client, but must be stored in order to recover
+    // the task.
+    TaskHandle handle = 3;
+
+    // NetworkOverride is set if the driver sets network settings and the service ip/port
+    // needs to be set differently.
+    NetworkOverride network_override = 4;
 }
 
 message WaitTaskRequest {
