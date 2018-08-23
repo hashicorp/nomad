@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner"
+	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
@@ -51,9 +52,13 @@ type allocRunner struct {
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
 
-	// waitCh is closed when the alloc runner has transitioned to a terminal
-	// state
+	// waitCh is closed when the Run() loop has exited
 	waitCh chan struct{}
+
+	// destroyed is true when the Run() loop has exited, postrun hooks have
+	// run, and alloc runner has been destroyed
+	destroyed     bool
+	destroyedLock sync.Mutex
 
 	// Alloc captures the allocation being run.
 	alloc     *structs.Allocation
@@ -81,6 +86,13 @@ type allocRunner struct {
 	// have buffer size 1 in order to support dropping pending updates when
 	// a newer allocation is received.
 	updateCh chan *structs.Allocation
+
+	// allocBroadcaster sends client allocation updates to all listeners
+	allocBroadcaster *cstructs.AllocBroadcaster
+
+	// prevAllocWatcher allows waiting for a previous allocation to exit
+	// and if necessary migrate its alloc dir.
+	prevAllocWatcher allocwatcher.PrevAllocWatcher
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -92,17 +104,19 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	}
 
 	ar := &allocRunner{
-		id:           alloc.ID,
-		alloc:        alloc,
-		clientConfig: config.ClientConfig,
-		consulClient: config.Consul,
-		vaultClient:  config.Vault,
-		tasks:        make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
-		waitCh:       make(chan struct{}),
-		updateCh:     make(chan *structs.Allocation, updateChCap),
-		state:        &state.State{},
-		stateDB:      config.StateDB,
-		stateUpdater: config.StateUpdater,
+		id:               alloc.ID,
+		alloc:            alloc,
+		clientConfig:     config.ClientConfig,
+		consulClient:     config.Consul,
+		vaultClient:      config.Vault,
+		tasks:            make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
+		waitCh:           make(chan struct{}),
+		updateCh:         make(chan *structs.Allocation, updateChCap),
+		state:            &state.State{},
+		stateDB:          config.StateDB,
+		stateUpdater:     config.StateUpdater,
+		allocBroadcaster: cstructs.NewAllocBroadcaster(alloc),
+		prevAllocWatcher: config.PrevAllocWatcher,
 	}
 
 	// Create alloc dir
@@ -154,7 +168,7 @@ func (ar *allocRunner) WaitCh() <-chan struct{} {
 }
 
 // XXX How does alloc Restart work
-// Run is the main go-routine that executes all the tasks.
+// Run is the main goroutine that executes all the tasks.
 func (ar *allocRunner) Run() {
 	// Close the wait channel
 	defer close(ar.waitCh)
@@ -218,6 +232,11 @@ func (ar *allocRunner) setAlloc(updated *structs.Allocation) {
 	ar.allocLock.Lock()
 	ar.alloc = updated
 	ar.allocLock.Unlock()
+}
+
+// GetAllocDir returns the alloc dir which is safe for concurrent use.
+func (ar *allocRunner) GetAllocDir() *allocdir.AllocDir {
+	return ar.allocDir
 }
 
 // Restore state from database. Must be called after NewAllocRunner but before
@@ -287,6 +306,9 @@ func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskStat
 
 	// Update the server
 	ar.stateUpdater.AllocStateUpdated(calloc)
+
+	// Broadcast client alloc to listeners
+	ar.allocBroadcaster.Send(calloc)
 }
 
 // clientAlloc takes in the task states and returns an Allocation populated
@@ -395,19 +417,45 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 	}
 }
 
-// Destroy the alloc runner by stopping it if it is still running and cleaning
-// up all of its resources.
-//
-// This method is safe for calling concurrently with Run(). Callers must
-// receive on WaitCh() to block until alloc runner has stopped and been
-// destroyed.
-//XXX TODO
-func (ar *allocRunner) Destroy() {
-	//TODO
+func (ar *allocRunner) Listener() *cstructs.AllocListener {
+	return ar.allocBroadcaster.Listen()
+}
 
-	for _, tr := range ar.tasks {
-		tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskKilled))
+// Destroy the alloc runner by synchronously stopping it if it is still running
+// and cleaning up all of its resources.
+//
+// This method is safe for calling concurrently with Run() and will cause it to
+// exit (thus closing WaitCh).
+func (ar *allocRunner) Destroy() {
+	// Stop tasks
+	for name, tr := range ar.tasks {
+		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
+		if err != nil {
+			if err == taskrunner.ErrTaskNotRunning {
+				ar.logger.Trace("task not running", "task_name", name)
+			} else {
+				ar.logger.Warn("failed to kill task", "error", err, "task_name", name)
+			}
+		}
 	}
+
+	// Wait for tasks to exit and postrun hooks to finish
+	<-ar.waitCh
+
+	// Run destroy hooks
+	if err := ar.destroy(); err != nil {
+		ar.logger.Warn("error running destroy hooks", "error", err)
+	}
+
+	// Cleanup state db
+	if err := ar.stateDB.DeleteAllocationBucket(ar.id); err != nil {
+		ar.logger.Warn("failed to delete allocation state", "error", err)
+	}
+
+	// Mark alloc as destroyed
+	ar.destroyedLock.Lock()
+	ar.destroyed = true
+	ar.destroyedLock.Unlock()
 }
 
 // IsDestroyed returns true if the alloc runner has been destroyed (stopped and
@@ -416,27 +464,26 @@ func (ar *allocRunner) Destroy() {
 // This method is safe for calling concurrently with Run(). Callers must
 // receive on WaitCh() to block until alloc runner has stopped and been
 // destroyed.
-//XXX TODO
 func (ar *allocRunner) IsDestroyed() bool {
-	return false
+	ar.destroyedLock.Lock()
+	defer ar.destroyedLock.Unlock()
+	return ar.destroyed
 }
 
 // IsWaiting returns true if the alloc runner is waiting for its previous
 // allocation to terminate.
 //
 // This method is safe for calling concurrently with Run().
-//XXX TODO
 func (ar *allocRunner) IsWaiting() bool {
-	return false
+	return ar.prevAllocWatcher.IsWaiting()
 }
 
 // IsMigrating returns true if the alloc runner is migrating data from its
 // previous allocation.
 //
 // This method is safe for calling concurrently with Run().
-//XXX TODO
 func (ar *allocRunner) IsMigrating() bool {
-	return false
+	return ar.prevAllocWatcher.IsMigrating()
 }
 
 // StatsReporter needs implementing

@@ -55,6 +55,8 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
 	return handle.Signal(s)
 }
 
+// Kill a task. Blocks until task exits or context is canceled. State is set to
+// dead.
 func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error {
 	// Grab the handle
 	handle := tr.getDriverHandle()
