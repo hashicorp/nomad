@@ -1,6 +1,8 @@
 package interfaces
 
 import (
+	"context"
+
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 )
 
@@ -11,7 +13,7 @@ type RunnerHook interface {
 
 type RunnerPrerunHook interface {
 	RunnerHook
-	Prerun() error
+	Prerun(context.Context) error
 }
 
 type RunnerPostrunHook interface {
