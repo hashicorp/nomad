@@ -12,5 +12,7 @@ type StateDB interface {
 	GetTaskRunnerState(allocID, taskName string) (*state.LocalState, *structs.TaskState, error)
 	PutTaskRunnerLocalState(allocID, taskName string, val interface{}) error
 	PutTaskState(allocID, taskName string, state *structs.TaskState) error
+	DeleteTaskBucket(allocID, taskName string) error
+	DeleteAllocationBucket(allocID string) error
 	Close() error
 }

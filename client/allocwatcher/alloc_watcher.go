@@ -1,4 +1,4 @@
-package allocrunner
+package allocwatcher
 
 import (
 	"archive/tar"
@@ -38,10 +38,18 @@ type terminated interface {
 	Terminated() bool
 }
 
-// prevAllocWatcher allows AllocRunners to wait for a previous allocation to
+// AllocRunnerMeta provides metadata about an AllocRunner such as its alloc and
+// alloc dir.
+type AllocRunnerMeta interface {
+	GetAllocDir() *allocdir.AllocDir
+	Listener() *cstructs.AllocListener
+	Alloc() *structs.Allocation
+}
+
+// PrevAllocWatcher allows AllocRunners to wait for a previous allocation to
 // terminate and migrate its data whether or not the previous allocation is
 // local or remote.
-type prevAllocWatcher interface {
+type PrevAllocWatcher interface {
 	// Wait for previous alloc to terminate
 	Wait(context.Context) error
 
@@ -55,10 +63,10 @@ type prevAllocWatcher interface {
 	IsMigrating() bool
 }
 
-// NewAllocWatcher creates a prevAllocWatcher appropriate for whether this
+// NewAllocWatcher creates a PrevAllocWatcher appropriate for whether this
 // alloc's previous allocation was local or remote. If this alloc has no
 // previous alloc then a noop implementation is returned.
-func NewAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) prevAllocWatcher {
+func NewAllocWatcher(alloc *structs.Allocation, prevAR AllocRunnerMeta, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) PrevAllocWatcher {
 	if alloc.PreviousAllocation == "" {
 		// No previous allocation, use noop transitioner
 		return NoopPrevAlloc{}
@@ -74,8 +82,7 @@ func NewAllocWatcher(alloc *structs.Allocation, prevAR *AllocRunner, rpc rpcer, 
 			tasks:        tg.Tasks,
 			sticky:       tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky,
 			prevAllocDir: prevAR.GetAllocDir(),
-			prevListener: prevAR.GetListener(),
-			prevWaitCh:   prevAR.WaitCh(),
+			prevListener: prevAR.Listener(),
 			prevStatus:   prevAR.Alloc(),
 			logger:       l,
 		}
@@ -118,10 +125,6 @@ type localPrevAlloc struct {
 	// terminated (and therefore won't send updates to the listener)
 	prevStatus terminated
 
-	// prevWaitCh is closed when the previous alloc is garbage collected
-	// which is a failsafe against blocking the new alloc forever
-	prevWaitCh <-chan struct{}
-
 	// waiting and migrating are true when alloc runner is waiting on the
 	// prevAllocWatcher. Writers must acquire the waitingLock and readers
 	// should use the helper methods IsWaiting and IsMigrating.
@@ -161,11 +164,6 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 
 	defer p.prevListener.Close()
 
-	if p.prevStatus.Terminated() {
-		// Fast path - previous alloc already terminated!
-		return nil
-	}
-
 	// Block until previous alloc exits
 	p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate", p.allocID, p.prevAllocID)
 	for {
@@ -174,8 +172,6 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 			if !ok || prevAlloc.Terminated() {
 				return nil
 			}
-		case <-p.prevWaitCh:
-			return nil
 		case <-ctx.Done():
 			return ctx.Err()
 		}

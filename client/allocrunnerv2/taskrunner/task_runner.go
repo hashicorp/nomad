@@ -333,11 +333,21 @@ func (tr *TaskRunner) handleUpdates() {
 	for {
 		select {
 		case <-tr.triggerUpdateCh:
-			// Update triggered; run hooks
-			tr.updateHooks()
 		case <-tr.waitCh:
 			return
 		}
+
+		if tr.Alloc().TerminalStatus() {
+			// Terminal update: kill TaskRunner and let Run execute postrun hooks
+			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
+			if err != nil {
+				tr.logger.Warn("error stopping task", "error", err)
+			}
+			continue
+		}
+
+		// Non-terminal update; run hooks
+		tr.updateHooks()
 	}
 }
 
