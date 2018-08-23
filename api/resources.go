@@ -5,11 +5,12 @@ import "github.com/hashicorp/nomad/helper"
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU      *int
-	MemoryMB *int `mapstructure:"memory"`
-	DiskMB   *int `mapstructure:"disk"`
-	IOPS     *int
-	Networks []*NetworkResource
+	CPU                *int
+	MemoryMB           *int `mapstructure:"memory"`
+	DiskMB             *int `mapstructure:"disk"`
+	IOPS               *int
+	Networks           []*NetworkResource
+	NvidiaGPUResources []*NvidiaGPUResource
 }
 
 // Canonicalize will supply missing values in the cases
@@ -75,6 +76,9 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
 	}
+	if len(other.NvidiaGPUResources) != 0 {
+		r.NvidiaGPUResources = other.NvidiaGPUResources
+	}
 }
 
 type Port struct {
@@ -97,4 +101,11 @@ func (n *NetworkResource) Canonicalize() {
 	if n.MBits == nil {
 		n.MBits = helper.IntToPtr(10)
 	}
+}
+
+type NvidiaGPUResource struct {
+	UUID          string
+	DriverVersion string
+	ModelName     string
+	MemoryMiB     int
 }
