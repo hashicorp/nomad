@@ -72,19 +72,7 @@ export default Factory.extend({
       }
 
       const placementFailures = failedTaskGroupNames.reduce((hash, name) => {
-        hash[name] = {
-          CoalescedFailures: faker.random.number({ min: 1, max: 20 }),
-          NodesEvaluated: faker.random.number({ min: 1, max: 100 }),
-          NodesExhausted: faker.random.number({ min: 1, max: 100 }),
-
-          NodesAvailable: Math.random() > 0.7 ? generateNodesAvailable() : null,
-          ClassFiltered: Math.random() > 0.7 ? generateClassFiltered() : null,
-          ConstraintFiltered: Math.random() > 0.7 ? generateConstraintFiltered() : null,
-          ClassExhausted: Math.random() > 0.7 ? generateClassExhausted() : null,
-          DimensionExhausted: Math.random() > 0.7 ? generateDimensionExhausted() : null,
-          QuotaExhausted: Math.random() > 0.7 ? generateQuotaExhausted() : null,
-          Scores: Math.random() > 0.7 ? generateScores() : null,
-        };
+        hash[name] = generateTaskGroupFailures();
         return hash;
       }, {});
 
@@ -110,4 +98,20 @@ function assignJob(evaluation, server) {
     jobId: job.id,
     job_id: job.id,
   });
+}
+
+export function generateTaskGroupFailures() {
+  return {
+    CoalescedFailures: faker.random.number({ min: 1, max: 20 }),
+    NodesEvaluated: faker.random.number({ min: 1, max: 100 }),
+    NodesExhausted: faker.random.number({ min: 1, max: 100 }),
+
+    NodesAvailable: Math.random() > 0.7 ? generateNodesAvailable() : null,
+    ClassFiltered: Math.random() > 0.7 ? generateClassFiltered() : null,
+    ConstraintFiltered: Math.random() > 0.7 ? generateConstraintFiltered() : null,
+    ClassExhausted: Math.random() > 0.7 ? generateClassExhausted() : null,
+    DimensionExhausted: Math.random() > 0.7 ? generateDimensionExhausted() : null,
+    QuotaExhausted: Math.random() > 0.7 ? generateQuotaExhausted() : null,
+    Scores: Math.random() > 0.7 ? generateScores() : null,
+  };
 }

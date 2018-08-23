@@ -77,6 +77,9 @@ export default Watchable.extend({
         Job: job.get('_newDefinitionJSON'),
         Diff: true,
       },
+    }).then(json => {
+      json.ID = job.get('id');
+      this.get('store').pushPayload('job-plan', { jobPlans: [json] });
     });
   },
 

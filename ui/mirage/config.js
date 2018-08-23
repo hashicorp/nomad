@@ -3,6 +3,7 @@ import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
 import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
+import { generateTaskGroupFailures } from './factories/evaluation';
 
 const { copy } = Ember;
 
@@ -56,7 +57,7 @@ export default function() {
     })
   );
 
-  this.post('/jobs', function({ jobs }, req) {
+  this.post('/jobs', function(schema, req) {
     const body = JSON.parse(req.requestBody);
 
     if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
@@ -64,7 +65,7 @@ export default function() {
     return okEmpty();
   });
 
-  this.post('/jobs/parse', function({ jobs }, req) {
+  this.post('/jobs/parse', function(schema, req) {
     const body = JSON.parse(req.requestBody);
 
     if (!body.JobHCL)
@@ -84,13 +85,19 @@ export default function() {
     return new Response(200, {}, this.serialize(job));
   });
 
-  this.post('/job/:id/plan', function({ jobs }, req) {
+  this.post('/job/:id/plan', function(schema, req) {
     const body = JSON.parse(req.requestBody);
 
     if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
     if (!body.Diff) return new Response(400, {}, 'Expected Diff to be true');
 
-    return new Response(200, {}, JSON.stringify({ Diff: generateDiff(req.params.id) }));
+    const FailedTGAllocs = body.Job.Unschedulable && generateFailedTGAllocs(body.Job);
+
+    return new Response(
+      200,
+      {},
+      JSON.stringify({ FailedTGAllocs, Diff: generateDiff(req.params.id) })
+    );
   });
 
   this.get(
@@ -318,4 +325,17 @@ function filterKeys(object, ...keys) {
 // response that represents a payload with no worthwhile data.
 function okEmpty() {
   return new Response(200, {}, '{}');
+}
+
+function generateFailedTGAllocs(job, taskGroups) {
+  const taskGroupsFromSpec = job.TaskGroups && job.TaskGroups.mapBy('Name');
+
+  let tgNames = ['tg-one', 'tg-two'];
+  if (taskGroupsFromSpec && taskGroupsFromSpec.length) tgNames = taskGroupsFromSpec;
+  if (taskGroups && taskGroups.length) tgNames = taskGroups;
+
+  return tgNames.reduce((hash, tgName) => {
+    hash[tgName] = generateTaskGroupFailures();
+    return hash;
+  }, {});
 }
