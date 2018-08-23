@@ -18,7 +18,7 @@
 {{/if}}
 
 {{#if (eq stage "editor")}}
-  {{#if showEditorMessage}}
+  {{#if (and showEditorMessage (eq context "new"))}}
     <div class="notification is-info">
       <div class="columns">
         <div class="column">
@@ -35,7 +35,7 @@
     <div class="boxed-section-head">
       Job Definition
       {{#if cancelable}}
-        <button class="button is-light is-compact pull-right" onclick={{action onCancel}}>Cancel</button>
+        <button class="button is-light is-compact pull-right" onclick={{action onCancel}} data-test-cancel-editing>Cancel</button>
       {{/if}}
     </div>
     <div class="boxed-section-body is-full-bleed">

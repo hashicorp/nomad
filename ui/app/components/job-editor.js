@@ -10,6 +10,8 @@ export default Component.extend({
   store: service(),
   config: service(),
 
+  'data-test-job-editor': true,
+
   job: null,
   onSubmit() {},
   context: computed({

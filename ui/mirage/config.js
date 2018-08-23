@@ -116,6 +116,14 @@ export default function() {
     })
   );
 
+  this.post('/job/:id', function(schema, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
+
+    return okEmpty();
+  });
+
   this.get(
     '/job/:id/summary',
     withBlockingSupport(function({ jobSummaries }, { params }) {
