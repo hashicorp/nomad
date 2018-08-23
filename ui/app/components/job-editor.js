@@ -55,8 +55,7 @@ export default Component.extend({
     }
 
     try {
-      yield this.get('job').plan();
-      const plan = this.get('store').peekRecord('job-plan', this.get('job.id'));
+      const plan = yield this.get('job').plan();
       this.set('planOutput', plan);
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not plan job';
