@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunnerv2"
+	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
@@ -103,9 +104,11 @@ type ClientStatsReporter interface {
 type AllocRunner interface {
 	StatsReporter() allocrunner.AllocStatsReporter
 	Destroy()
+	GetAllocDir() *allocdir.AllocDir
 	IsDestroyed() bool
 	IsWaiting() bool
 	IsMigrating() bool
+	Listener() *cstructs.AllocListener
 	WaitCh() <-chan struct{}
 	Update(*structs.Allocation)
 	Alloc() *structs.Allocation
@@ -1913,18 +1916,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		return err
 	}
 
-	//FIXME disabled previous alloc waiting/migrating
-	// get the previous alloc runner - if one exists - for the
-	// blocking/migrating watcher
-	/*
-		var prevAR *allocrunner.AllocRunner
-		if alloc.PreviousAllocation != "" {
-			prevAR = c.allocs[alloc.PreviousAllocation]
-		}
-
-		c.configLock.RLock()
-		prevAlloc := allocrunner.NewAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
-	*/
+	// Since only the Client has access to other AllocRunners and the RPC
+	// client, create the previous allocation watcher here.
+	prevAlloc := c.allocs[alloc.PreviousAllocation]
+	prevAllocWatcher := allocwatcher.NewAllocWatcher(alloc, prevAlloc, c, c.configCopy, c.logger, migrateToken)
 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
@@ -1938,13 +1933,14 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	c.configLock.RLock()
 	arConf := &allocrunnerv2.Config{
-		Alloc:        alloc,
-		Logger:       logger,
-		ClientConfig: c.config,
-		StateDB:      c.stateDB,
-		Consul:       c.consulService,
-		Vault:        c.vaultClient,
-		StateUpdater: c,
+		Alloc:            alloc,
+		Logger:           logger,
+		ClientConfig:     c.config,
+		StateDB:          c.stateDB,
+		Consul:           c.consulService,
+		Vault:            c.vaultClient,
+		StateUpdater:     c,
+		PrevAllocWatcher: prevAllocWatcher,
 	}
 	c.configLock.RUnlock()
 

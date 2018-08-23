@@ -2,6 +2,7 @@ package allocrunnerv2
 
 import (
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/interfaces"
@@ -32,4 +33,8 @@ type Config struct {
 
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.AllocStateHandler
+
+	// PrevAllocWatcher handles waiting on previous allocations and
+	// migrating their ephemeral disk when necessary.
+	PrevAllocWatcher allocwatcher.PrevAllocWatcher
 }
