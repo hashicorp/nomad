@@ -1,4 +1,4 @@
-package allocrunner
+package allocwatcher
 
 import (
 	"archive/tar"
@@ -14,26 +14,118 @@ import (
 	"testing"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/testutil"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
+
+// fakeAllocRunner implements AllocRunnerMeta
+type fakeAllocRunner struct {
+	alloc       *structs.Allocation
+	AllocDir    *allocdir.AllocDir
+	Broadcaster *cstructs.AllocBroadcaster
+}
+
+// newFakeAllocRunner creates a new AllocRunnerMeta. Callers must call
+// AllocDir.Destroy() when finished.
+func newFakeAllocRunner(t *testing.T, logger hclog.Logger) *fakeAllocRunner {
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
+	alloc.Job.TaskGroups[0].EphemeralDisk.Migrate = true
+
+	path, err := ioutil.TempDir("", "nomad_test_wathcer")
+	require.NoError(t, err)
+
+	return &fakeAllocRunner{
+		alloc:       alloc,
+		AllocDir:    allocdir.NewAllocDir(logger, path),
+		Broadcaster: cstructs.NewAllocBroadcaster(alloc),
+	}
+}
+
+func (f *fakeAllocRunner) GetAllocDir() *allocdir.AllocDir {
+	return f.AllocDir
+}
+
+func (f *fakeAllocRunner) Listener() *cstructs.AllocListener {
+	return f.Broadcaster.Listen()
+}
+
+func (f *fakeAllocRunner) Alloc() *structs.Allocation {
+	return f.alloc
+}
+
+// newConfig returns a new Config and cleanup func
+func newConfig(t *testing.T) (Config, func()) {
+	logger := testlog.HCLogger(t)
+
+	prevAR := newFakeAllocRunner(t, logger)
+
+	alloc := mock.Alloc()
+	alloc.PreviousAllocation = prevAR.Alloc().ID
+	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
+	alloc.Job.TaskGroups[0].EphemeralDisk.Migrate = true
+
+	config := Config{
+		Alloc:          alloc,
+		PreviousRunner: prevAR,
+		RPC:            nil,
+		Config:         nil,
+		MigrateToken:   "fake_token",
+		Logger:         logger,
+	}
+
+	cleanup := func() {
+		prevAR.AllocDir.Destroy()
+	}
+
+	return config, cleanup
+}
+
+// TestPrevAlloc_Noop asserts that when no previous allocation is set the noop
+// implementation is returned that does not block or perform migrations.
+func TestPrevAlloc_Noop(t *testing.T) {
+	conf, cleanup := newConfig(t)
+	defer cleanup()
+
+	conf.Alloc.PreviousAllocation = ""
+
+	watcher := NewAllocWatcher(conf)
+	require.NotNil(t, watcher)
+	_, ok := watcher.(NoopPrevAlloc)
+	require.True(t, ok, "expected watcher to be NoopPrevAlloc")
+
+	done := make(chan int, 2)
+	go func() {
+		watcher.Wait(context.Background())
+		done <- 1
+		watcher.Migrate(context.Background(), nil)
+		done <- 1
+	}()
+	require.False(t, watcher.IsWaiting())
+	require.False(t, watcher.IsMigrating())
+	<-done
+	<-done
+}
 
 // TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
 // set a localPrevAlloc will block on it.
 func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
-	_, prevAR := TestAllocRunner(t, false)
-	prevAR.alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "10s"
+	t.Parallel()
+	conf, cleanup := newConfig(t)
 
-	newAlloc := mock.Alloc()
-	newAlloc.PreviousAllocation = prevAR.Alloc().ID
-	newAlloc.Job.TaskGroups[0].EphemeralDisk.Sticky = false
-	task := newAlloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config["run_for"] = "500ms"
+	defer cleanup()
 
-	waiter := NewAllocWatcher(newAlloc, prevAR, nil, nil, testlog.Logger(t), "")
+	conf.Alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "500ms"
+
+	waiter := NewAllocWatcher(conf)
 
 	// Wait in a goroutine with a context to make sure it exits at the right time
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,39 +135,55 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 		waiter.Wait(ctx)
 	}()
 
-	select {
-	case <-ctx.Done():
-		t.Fatalf("Wait exited too early")
-	case <-time.After(33 * time.Millisecond):
-		// Good! It's blocking
-	}
+	// Assert watcher is waiting
+	testutil.WaitForResult(func() (bool, error) {
+		return waiter.IsWaiting(), fmt.Errorf("expected watcher to be waiting")
+	}, func(err error) {
+		t.Fatalf("error: %v", err)
+	})
 
-	// Start the previous allocs to cause it to update but not terminate
-	go prevAR.Run()
-	defer prevAR.Destroy()
+	// Broadcast a non-terminal alloc update to assert only terminal
+	// updates break out of waiting.
+	update := conf.PreviousRunner.Alloc().Copy()
+	update.DesiredStatus = structs.AllocDesiredStatusStop
+	update.ModifyIndex++
+	update.AllocModifyIndex++
 
-	select {
-	case <-ctx.Done():
-		t.Fatalf("Wait exited too early")
-	case <-time.After(33 * time.Millisecond):
-		// Good! It's still blocking
-	}
+	broadcaster := conf.PreviousRunner.(*fakeAllocRunner).Broadcaster
+	err := broadcaster.Send(update)
+	require.NoError(t, err)
 
-	// Stop the previous alloc
-	prevAR.Destroy()
+	// Assert watcher is still waiting because alloc isn't terminal
+	testutil.WaitForResult(func() (bool, error) {
+		return waiter.IsWaiting(), fmt.Errorf("expected watcher to be waiting")
+	}, func(err error) {
+		t.Fatalf("error: %v", err)
+	})
 
-	select {
-	case <-ctx.Done():
-		// Good! We unblocked when the previous alloc stopped
-	case <-time.After(time.Second):
-		t.Fatalf("Wait exited too early")
-	}
+	// Stop the previous alloc and assert watcher stops blocking
+	update = update.Copy()
+	update.DesiredStatus = structs.AllocDesiredStatusStop
+	update.ClientStatus = structs.AllocClientStatusComplete
+	update.ModifyIndex++
+	update.AllocModifyIndex++
+
+	err = broadcaster.Send(update)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		if waiter.IsWaiting() {
+			return false, fmt.Errorf("did not expect watcher to be waiting")
+		}
+		return !waiter.IsMigrating(), fmt.Errorf("did not expect watcher to be migrating")
+	}, func(err error) {
+		t.Fatalf("error: %v", err)
+	})
 }
 
 // TestPrevAlloc_StreamAllocDir_Ok asserts that streaming a tar to an alloc dir
 // works.
 func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
-	testutil.RequireRoot(t)
+	ctestutil.RequireRoot(t)
 	t.Parallel()
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -178,7 +286,7 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	defer os.RemoveAll(dir1)
 
 	rc := ioutil.NopCloser(buf)
-	prevAlloc := &remotePrevAlloc{logger: testlog.Logger(t)}
+	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
 	if err := prevAlloc.streamAllocDir(context.Background(), rc, dir1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -228,7 +336,7 @@ func TestPrevAlloc_StreamAllocDir_Error(t *testing.T) {
 	// This test only unit tests streamAllocDir so we only need a partially
 	// complete remotePrevAlloc
 	prevAlloc := &remotePrevAlloc{
-		logger:      testlog.Logger(t),
+		logger:      testlog.HCLogger(t),
 		allocID:     "123",
 		prevAllocID: "abc",
 		migrate:     true,

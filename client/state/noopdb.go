@@ -27,6 +27,14 @@ func (n noopDB) PutTaskState(allocID string, taskName string, state *structs.Tas
 	return nil
 }
 
+func (n noopDB) DeleteTaskBucket(allocID, taskName string) error {
+	return nil
+}
+
+func (n noopDB) DeleteAllocationBucket(allocID string) error {
+	return nil
+}
+
 func (n noopDB) Close() error {
 	return nil
 }

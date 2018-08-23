@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
+	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -77,7 +78,7 @@ type AllocRunner struct {
 	// the migrates it data. If sticky volumes aren't used and there's no
 	// previous allocation a noop implementation is used so it always safe
 	// to call.
-	prevAlloc prevAllocWatcher
+	prevAlloc allocwatcher.PrevAllocWatcher
 
 	// ctx is cancelled with exitFn to cause the alloc to be destroyed
 	// (stopped and GC'd).
@@ -133,26 +134,26 @@ type allocRunnerMutableState struct {
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB, updater AllocStateUpdater,
 	alloc *structs.Allocation, vaultClient vaultclient.VaultClient, consulClient consulApi.ConsulServiceAPI,
-	prevAlloc prevAllocWatcher) *AllocRunner {
+	prevAlloc allocwatcher.PrevAllocWatcher) *AllocRunner {
 
 	ar := &AllocRunner{
-		config:         config,
-		stateDB:        stateDB,
-		updater:        updater,
-		logger:         logger,
-		alloc:          alloc,
-		allocID:        alloc.ID,
-		allocBroadcast: cstructs.NewAllocBroadcaster(8),
-		prevAlloc:      prevAlloc,
-		dirtyCh:        make(chan struct{}, 1),
-		allocDir:       allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
-		tasks:          make(map[string]*taskrunner.TaskRunner),
-		taskStates:     copyTaskStates(alloc.TaskStates),
-		restored:       make(map[string]struct{}),
-		updateCh:       make(chan *structs.Allocation, 64),
-		waitCh:         make(chan struct{}),
-		vaultClient:    vaultClient,
-		consulClient:   consulClient,
+		config:  config,
+		stateDB: stateDB,
+		updater: updater,
+		logger:  logger,
+		alloc:   alloc,
+		allocID: alloc.ID,
+		//allocBroadcast: cstructs.NewAllocBroadcaster(8),
+		prevAlloc:    prevAlloc,
+		dirtyCh:      make(chan struct{}, 1),
+		allocDir:     allocdir.NewAllocDir(logger, filepath.Join(config.AllocDir, alloc.ID)),
+		tasks:        make(map[string]*taskrunner.TaskRunner),
+		taskStates:   copyTaskStates(alloc.TaskStates),
+		restored:     make(map[string]struct{}),
+		updateCh:     make(chan *structs.Allocation, 64),
+		waitCh:       make(chan struct{}),
+		vaultClient:  vaultClient,
+		consulClient: consulClient,
 	}
 
 	// TODO Should be passed a context
@@ -612,9 +613,9 @@ func (r *AllocRunner) sendBroadcast(alloc *structs.Allocation) {
 	// Try to send the alloc up to three times with a delay to allow recovery.
 	sent := false
 	for i := 0; i < 3; i++ {
-		if sent = r.allocBroadcast.Send(alloc); sent {
-			break
-		}
+		//if sent = r.allocBroadcast.Send(alloc); sent {
+		//	break
+		//}
 		time.Sleep(500 * time.Millisecond)
 	}
 	if !sent {
