@@ -8,6 +8,8 @@ export default Factory.extend({
   autoRevert: () => Math.random() > 0.5,
   promoted: () => Math.random() > 0.5,
 
+  requiresPromotion: false,
+
   requireProgressBy: () => faker.date.past(0.5 / 365, REF_TIME),
 
   desiredTotal: faker.random.number({ min: 1, max: 10 }),
