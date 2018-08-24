@@ -9,7 +9,7 @@
       cancelText="Cancel"
       confirmText="Yes, Stop"
       confirmationMessage="Are you sure you want to stop this job?"
-      onConfirm=(action "stopJob")}}
+      onConfirm=(perform stopJob)}}
   {{else}}
     {{two-step-button
       data-test-start
@@ -17,6 +17,6 @@
       cancelText="Cancel"
       confirmText="Yes, Start"
       confirmationMessage="Are you sure you want to start this job?"
-      onConfirm=(action "startJob")}}
+      onConfirm=(perform startJob)}}
   {{/if}}
 </h1>
