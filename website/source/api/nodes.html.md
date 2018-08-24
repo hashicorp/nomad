@@ -875,6 +875,58 @@ $ curl \
 }
 ```
 
+## Toggle Node Eligibility
+
+This endpoint toggles the scheduling eligibility of the node.
+
+| Method  | Path                            | Produces                   |
+| ------- | ------------------------------- | -------------------------- |
+| `POST`  | `/v1/node/:node_id/eligibility` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required       |
+| ---------------- | ------------------ |
+| `NO`             | `node:write`       |
+
+### Parameters
+
+- `:node_id` `(string: <required>)`- Specifies the UUID of the node. This must
+  be the full UUID, not the short 8-character one. This is specified as part of
+  the path.
+
+- `Eligibility` `(string: <required>)` - Either `eligible` or `ineligible`.
+
+### Sample Payload
+
+```json
+{
+    "Eligibility": "ineligible"
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    -XPOST \
+    --data @eligibility.json \
+    http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/eligibility
+```
+
+### Sample Response
+
+```json
+{
+  "EvalCreateIndex": 0,
+  "EvalIDs": null,
+  "Index": 3742,
+  "NodeModifyIndex": 3742
+}
+```
+
 #### Field Reference
 
 - Events - A list of the last 10 node events for this node. A node event is a
