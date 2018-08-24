@@ -19,10 +19,7 @@
     data-test-confirm-button
     class="button is-danger is-small {{if awaitingConfirmation "is-loading"}}"
     disabled={{awaitingConfirmation}}
-    onclick={{action (queue
-      (action "setToIdle")
-      (action onConfirm)
-    )}}>
+    onclick={{action "confirm"}}>
     {{confirmText}}
   </button>
 {{/if}}
