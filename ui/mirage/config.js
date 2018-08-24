@@ -162,6 +162,9 @@ export default function() {
   });
 
   this.get('/deployment/:id');
+  this.post('/deployment/promote/:id', function() {
+    return new Response(204, {}, '');
+  });
 
   this.get('/job/:id/evaluations', function({ evaluations }, { params }) {
     return this.serialize(evaluations.where({ jobId: params.id }));

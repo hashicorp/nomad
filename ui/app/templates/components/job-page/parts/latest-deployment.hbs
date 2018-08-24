@@ -14,6 +14,7 @@
         </span>
         {{#if job.latestDeployment.requiresPromotion}}
           <button
+            data-test-promote-canary
             type="button"
             class="button is-warning is-small pull-right {{if promote.isRunning "is-loading"}}"
             disabled={{promote.isRunning}}
