@@ -8,6 +8,7 @@ export default Component.extend({
   cancelText: '',
   confirmText: '',
   confirmationMessage: '',
+  awaitingConfirmation: false,
   onConfirm() {},
   onCancel() {},
 
