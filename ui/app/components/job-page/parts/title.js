@@ -12,7 +12,10 @@ export default Component.extend({
 
   stopJob: task(function*() {
     try {
-      yield this.get('job').stop();
+      const job = this.get('job');
+      yield job.stop();
+      // Eagerly update the job status to avoid flickering
+      this.job.set('status', 'dead');
     } catch (err) {
       this.get('handleError')({
         title: 'Could Not Stop Job',
@@ -31,6 +34,8 @@ export default Component.extend({
     try {
       yield job.parse();
       yield job.update();
+      // Eagerly update the job status to avoid flickering
+      job.set('status', 'running');
     } catch (err) {
       let message = messageFromAdapterError(err);
       if (!message || message === 'Forbidden') {
