@@ -86,3 +86,53 @@ func (d *devicePluginClient) Reserve(deviceIDs []string) (*ContainerReservation,
 	out := convertProtoContainerReservation(resp.GetContainerRes())
 	return out, nil
 }
+
+// Stats is used to retrieve device statistics from the device plugin. An error
+// may be immediately returned if the stats call could not be made or as part of
+// the streaming response. If the context is cancelled, the error will be
+// propogated.
+func (d *devicePluginClient) Stats(ctx context.Context) (<-chan *StatsResponse, error) {
+	var req proto.StatsRequest
+	stream, err := d.client.Stats(ctx, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan *StatsResponse, 1)
+	go d.handleStats(ctx, stream, out)
+	return out, nil
+}
+
+// handleStats should be launched in a goroutine and handles converting
+// the gRPC stream to a channel. Exits either when context is cancelled or the
+// stream has an error.
+func (d *devicePluginClient) handleStats(
+	ctx netctx.Context,
+	stream proto.DevicePlugin_StatsClient,
+	out chan *StatsResponse) {
+
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			// Handle a non-graceful stream error
+			if err != io.EOF {
+				if errStatus := status.FromContextError(ctx.Err()); errStatus.Code() == codes.Canceled {
+					err = context.Canceled
+				}
+
+				out <- &StatsResponse{
+					Error: err,
+				}
+			}
+
+			// End the stream
+			close(out)
+			return
+		}
+
+		// Send the response
+		out <- &StatsResponse{
+			Groups: convertProtoDeviceGroupsStats(resp.GetGroups()),
+		}
+	}
+}

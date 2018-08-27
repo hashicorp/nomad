@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/nomad/plugins/base"
 )
@@ -22,6 +23,9 @@ type DevicePlugin interface {
 	// Reserve is used to reserve a set of devices and retrieve mount
 	// instructions.
 	Reserve(deviceIDs []string) (*ContainerReservation, error)
+
+	// Stats returns a stream of statistics per device.
+	Stats(ctx context.Context) (<-chan *StatsResponse, error)
 }
 
 // FingerprintResponse includes a set of detected devices or an error in the
@@ -111,4 +115,74 @@ type DeviceSpec struct {
 
 	// CgroupPerms defines the permissions to use when mounting the device.
 	CgroupPerms string
+}
+
+// StatsResponse returns statistics for each device group.
+type StatsResponse struct {
+	// Groups contains statistics for each device group.
+	Groups []*DeviceGroupStats
+
+	// Error is populated when collecting statistics has failed.
+	Error error
+}
+
+// DeviceGroupStats contains statistics for each device of a particular
+// device group, identified by the vendor, type and name of the device.
+type DeviceGroupStats struct {
+	Vendor string
+	Type   string
+	Name   string
+
+	// InstanceStats is a mapping of each device ID to its statistics.
+	InstanceStats map[string]*DeviceStats
+}
+
+// DeviceStats is the statistics for an individual device
+type DeviceStats struct {
+	// Summary exposes a single summary metric that should be the most
+	// informative to users.
+	Summary *StatValue
+
+	// Stats contains the verbose statistics for the device.
+	Stats *StatObject
+
+	// Timestamp is the time the statistics were collected.
+	Timestamp time.Time
+}
+
+// StatObject is a collection of statistics either exposed at the top
+// level or via nested StatObjects.
+type StatObject struct {
+	// Nested is a mapping of object name to a nested stats object.
+	Nested map[string]*StatObject
+
+	// Attributes is a mapping of statistic name to its value.
+	Attributes map[string]*StatValue
+}
+
+// StatValue exposes the values of a particular statistic. The value may be of
+// type float, integer, string or boolean. Numeric types can be exposed as a
+// single value or as a fraction.
+type StatValue struct {
+	// FloatNumeratorVal exposes a floating point value. If denominator is set
+	// it is assumed to be a fractional value, otherwise it is a scalar.
+	FloatNumeratorVal   float64
+	FloatDenominatorVal float64
+
+	// IntNumeratorVal exposes a int value. If denominator is set it is assumed
+	// to be a fractional value, otherwise it is a scalar.
+	IntNumeratorVal   int64
+	IntDenominatorVal int64
+
+	// StringVal exposes a string value. These are likely annotations.
+	StringVal string
+
+	// BoolVal exposes a boolean statistic.
+	BoolVal bool
+
+	// Unit gives the unit type: °F, %, MHz, MB, etc.
+	Unit string
+
+	// Desc provides a human readable description of the statistic.
+	Desc string
 }
