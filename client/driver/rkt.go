@@ -79,6 +79,7 @@ type RktDriver struct {
 type RktDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`
 	Command          string              `mapstructure:"command"`
+	RktOpts          []string            `mapstructure:"rkt_options"`
 	Args             []string            `mapstructure:"args"`
 	TrustPrefix      string              `mapstructure:"trust_prefix"`
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
@@ -281,6 +282,9 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 			},
 			"command": {
 				Type: fields.TypeString,
+			},
+			"rkt_options": {
+				Type: fields.TypeArray,
 			},
 			"args": {
 				Type: fields.TypeArray,
@@ -606,6 +610,12 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	// config for a custom group
 	if driverConfig.Group != "" {
 		prepareArgs = append(prepareArgs, fmt.Sprintf("--group=%s", driverConfig.Group))
+	}
+
+	// Add custom rkt options.
+	if len(driverConfig.RktOpts) != 0 {
+		d.logger.Printf("[DEBUG] driver.rkt: rkt_options: %s", driverConfig.RktOpts)
+		prepareArgs = append(prepareArgs, driverConfig.RktOpts...)
 	}
 
 	// Add user passed arguments.
