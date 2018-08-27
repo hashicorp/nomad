@@ -137,6 +137,8 @@ testing.
   allocation data as well as cluster information. Server nodes use this
   directory to store cluster state, including the replicated log and snapshot
   data. This must be specified as an absolute path.
+  
+      ~> **WARNING**: This directory **must not** be set to a directory that is [included in the chroot](/docs/drivers/exec.html#chroot) if you use the [`exec`](/docs/drivers/exec.html) driver.
 
 - `disable_anonymous_signature` `(bool: false)` - Specifies if Nomad should
   provide an anonymous signature for de-duplication with the update check.
