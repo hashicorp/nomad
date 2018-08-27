@@ -19,7 +19,7 @@ The following characteristics generally differentiate Nomad from related product
 * **Scalability and High Performance**: Nomad can schedule thousands of containers 
   per second, scale to thousands of nodes in a single cluster, and easily federate 
   across regions and cloud providers.
-* **HashiCorp Synergy**: Nomad elegantly integrates with Vault for secrets 
+* **HashiCorp Interoperability**: Nomad elegantly integrates with Vault for secrets
   management and Consul for service discovery and dynamic configuration. Nomad's 
   Consul-like architecture and Terraform-like job specification lower the barrier 
   to entry for existing users of the HashiCorp stack.
