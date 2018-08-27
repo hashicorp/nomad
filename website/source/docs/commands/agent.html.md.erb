@@ -14,7 +14,8 @@ or server functionality, including exposing interfaces for client consumption
 and running jobs.
 
 Due to the power and flexibility of this command, the Nomad agent is documented
-in its own section. See the [Nomad Agent](/docs/agent/index.html) section for
+in its own section. See the [Nomad Agent](/guides/operations/agent/index.html) 
+guide and the [Configuration](/docs/configuration/index.html) documentation section for
 more information on how to use this command and the options it has.
 
 ## Command-line Options
@@ -24,39 +25,38 @@ via CLI arguments. The `agent` command accepts the following arguments:
 
 * `-alloc-dir=<path>`: Equivalent to the Client [alloc_dir](#alloc_dir) config
    option.
-* `-acl-enabled`: Equivalent to the ACL [enabled](/docs/agent/configuration/acl.html#enabled) config option.
-* `-acl-replication-token`: Equivalent to the ACL [replication_token](/docs/agent/configuration/acl.html#replication_token) config option.
+* `-acl-enabled`: Equivalent to the ACL [enabled](/docs/configuration/acl.html#enabled) config option.
+* `-acl-replication-token`: Equivalent to the ACL [replication_token](/docs/configuration/acl.html#replication_token) config option.
 * `-bind=<address>`: Equivalent to the [bind_addr](#bind_addr) config option.
 * `-bootstrap-expect=<num>`: Equivalent to the
   [bootstrap_expect](#bootstrap_expect) config option.
 * `-client`: Enable client mode on the local agent.
 * `-config=<path>`: Specifies the path to a configuration file or a directory of
   configuration files to load. Can be specified multiple times.
-* `-consul-address=<addr>`: Equivalent to the [address](/docs/agent/configuration/consul.html#address) config option.
-* `-consul-auth=<auth>`: Equivalent to the [auth](/docs/agent/configuration/consul.html#auth) config option.
-* `-consul-auto-advertise`: Equivalent to the [auto_advertise](/docs/agent/configuration/consul.html#auto_advertise) config option.
-* `-consul-ca-file=<path>`: Equivalent to the [ca_file](/docs/agent/configuration/consul.html#ca_file) config option.
-* `-consul-cert-file=<path>`: Equivalent to the [cert_file](/docs/agent/configuration/consul.html#cert_file) config option.
-* `-consul-checks-use-advertise`: Equivalent to the [checks_use_advertise](/docs/agent/configuration/consul.html#checks_use_advertise) config option.
-* `-consul-client-auto-join`: Equivalent to the [client_auto_join](/docs/agent/configuration/consul.html#client_auto_join) config option.
-* `-consul-client-service-name=<name>`: Equivalent to the [client_service_name](/docs/agent/configuration/consul.html#client_service_name) config option.
-* `-consul-client-http-check-name=<name>`: Equivalent to the [client_http_check_name](/docs/agent/configuration/consul.html#client_http_check_name) config option.
-* `-consul-key-file=<path>`: Equivalent to the [key_file](/docs/agent/configuration/consul.html#key_file) config option.
-* `-consul-server-service-name=<name>`: Equivalent to the [server_service_name](/docs/agent/configuration/consul.html#server_service_name) config option.
-* `-consul-server-http-check-name=<name>`: Equivalent to the [server_http_check_name](/docs/agent/configuration/consul.html#server_http_check_name) config option.
-* `-consul-server-serf-check-name=<name>`: Equivalent to the [server_serf_check_name](/docs/agent/configuration/consul.html#server_serf_check_name) config option.
-* `-consul-server-rpc-check-name=<name>`: Equivalent to the [server_rpc_check_name](/docs/agent/configuration/consul.html#server_rpc_check_name) config option.
-* `-consul-server-auto-join`: Equivalent to the [server_auto_join](/docs/agent/configuration/consul.html#server_auto_join) config option.
-* `-consul-ssl`: Equivalent to the [ssl](/docs/agent/configuration/consul.html#ssl) config option.
-* `-consul-token=<token>`: Equivalent to the [token](/docs/agent/configuration/consul.html#token) config option.
-* `-consul-verify-ssl`: Equivalent to the [verify_ssl](/docs/agent/configuration/consul.html#verify_ssl) config option.
+* `-consul-address=<addr>`: Equivalent to the [address](/docs/configuration/consul.html#address) config option.
+* `-consul-auth=<auth>`: Equivalent to the [auth](/docs/configuration/consul.html#auth) config option.
+* `-consul-auto-advertise`: Equivalent to the [auto_advertise](/docs/configuration/consul.html#auto_advertise) config option.
+* `-consul-ca-file=<path>`: Equivalent to the [ca_file](/docs/configuration/consul.html#ca_file) config option.
+* `-consul-cert-file=<path>`: Equivalent to the [cert_file](/docs/configuration/consul.html#cert_file) config option.
+* `-consul-checks-use-advertise`: Equivalent to the [checks_use_advertise](/docs/configuration/consul.html#checks_use_advertise) config option.
+* `-consul-client-auto-join`: Equivalent to the [client_auto_join](/docs/configuration/consul.html#client_auto_join) config option.
+* `-consul-client-service-name=<name>`: Equivalent to the [client_service_name](/docs/configuration/consul.html#client_service_name) config option.
+* `-consul-client-http-check-name=<name>`: Equivalent to the [client_http_check_name](/docs/configuration/consul.html#client_http_check_name) config option.
+* `-consul-key-file=<path>`: Equivalent to the [key_file](/docs/configuration/consul.html#key_file) config option.
+* `-consul-server-service-name=<name>`: Equivalent to the [server_service_name](/docs/configuration/consul.html#server_service_name) config option.
+* `-consul-server-http-check-name=<name>`: Equivalent to the [server_http_check_name](/docs/configuration/consul.html#server_http_check_name) config option.
+* `-consul-server-serf-check-name=<name>`: Equivalent to the [server_serf_check_name](/docs/configuration/consul.html#server_serf_check_name) config option.
+* `-consul-server-rpc-check-name=<name>`: Equivalent to the [server_rpc_check_name](/docs/configuration/consul.html#server_rpc_check_name) config option.
+* `-consul-server-auto-join`: Equivalent to the [server_auto_join](/docs/configuration/consul.html#server_auto_join) config option.
+* `-consul-ssl`: Equivalent to the [ssl](/docs/configuration/consul.html#ssl) config option.
+* `-consul-token=<token>`: Equivalent to the [token](/docs/configuration/consul.html#token) config option.
+* `-consul-verify-ssl`: Equivalent to the [verify_ssl](/docs/configuration/consul.html#verify_ssl) config option.
 * `-data-dir=<path>`: Equivalent to the [data_dir](#data_dir) config option.
 * `-dc=<datacenter>`: Equivalent to the [datacenter](#datacenter) config option.
 * `-dev`: Start the agent in development mode. This enables a pre-configured
   dual-role agent (client + server) which is useful for developing or testing
   Nomad. No other configuration is required to start the agent in this mode.
-* `-encrypt`: Set the Serf encryption key. See [Agent
-  Encryption](/docs/agent/encryption.html) for more details.
+* `-encrypt`: Set the Serf encryption key. See the [Encryption Overview](/guides/security/encryption.html) for more details.
 * `-join=<address>`: Address of another agent to join upon starting up. This can
   be specified multiple times to specify multiple agents to join.
 * `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.

@@ -9,7 +9,7 @@ description: >
 # Command: operator autopilot set-config
 
 The Autopilot operator command is used to set the current Autopilot configuration. See the
-[Autopilot Guide](/guides/autopilot.html) for more information about Autopilot.
+[Autopilot Guide](/guides/operations/autopilot.html) for more information about Autopilot.
 
 
 ## Usage
@@ -41,11 +41,11 @@ running Raft protocol version 3 or higher. Must be a duration value such as `10s
 new servers until it can perform a migration. Must be one of `[true|false]`.
 
 * `-redundancy-zone-tag`- (Enterprise-only) Controls the
-  [`redundancy_zone`](/docs/agent/configuration/server.html#redundancy_zone)
+  [`redundancy_zone`](/docs/configuration/server.html#redundancy_zone)
   used for separating servers into different redundancy zones.
 
 * `-upgrade-version-tag` - (Enterprise-only) Controls the
-  [`upgrade_version`](/docs/agent/configuration/server.html#upgrade_version) to
+  [`upgrade_version`](/docs/configuration/server.html#upgrade_version) to
   use for version info when performing upgrade migrations. If left blank, the
   Nomad version will be used.
 
