@@ -21,18 +21,18 @@ moduleForAcceptance('Acceptance | tokens', {
   },
 });
 
-test('the token form sets the token in session storage', function(assert) {
+test('the token form sets the token in local storage', function(assert) {
   const { secretId } = managementToken;
 
   Tokens.visit();
 
   andThen(() => {
-    assert.ok(window.sessionStorage.nomadTokenSecret == null, 'No token secret set');
+    assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
 
     Tokens.secret(secretId).submit();
 
     andThen(() => {
-      assert.equal(window.sessionStorage.nomadTokenSecret, secretId, 'Token secret was set');
+      assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
     });
   });
 });
@@ -91,7 +91,7 @@ test('an error message is shown when authenticating a token fails', function(ass
 
     andThen(() => {
       assert.ok(
-        window.sessionStorage.nomadTokenSecret == null,
+        window.localStorage.nomadTokenSecret == null,
         'Token secret is discarded on failure'
       );
       assert.ok(Tokens.errorMessage, 'Token error message is shown');
