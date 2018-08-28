@@ -39,7 +39,7 @@
     class="split-view" as |chart|}}
     <ol data-test-legend class="legend">
       {{#each chart.data as |datum index|}}
-        <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
+        <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
           <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
           <span class="value" data-test-legend-value="{{datum.className}}">{{datum.value}}</span>
           <span class="label">

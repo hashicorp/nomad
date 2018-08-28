@@ -33,6 +33,12 @@ export default Watchable.extend({
     return associateNamespace(url, namespace);
   },
 
+  urlForUpdateRecord(id, type, hash) {
+    const [name, namespace] = JSON.parse(id);
+    let url = this._super(name, type, hash);
+    return associateNamespace(url, namespace);
+  },
+
   xhrKey(url, method, options = {}) {
     const plainKey = this._super(...arguments);
     const namespace = options.data && options.data.namespace;
@@ -71,15 +77,19 @@ export default Watchable.extend({
   },
 
   plan(job) {
-    const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/plan');
+    const jobId = job.get('id');
+    const store = this.get('store');
+    const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/plan');
+
     return this.ajax(url, 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
         Diff: true,
       },
     }).then(json => {
-      json.ID = job.get('id');
-      this.get('store').pushPayload('job-plan', { jobPlans: [json] });
+      json.ID = jobId;
+      store.pushPayload('job-plan', { jobPlans: [json] });
+      return store.peekRecord('job-plan', jobId);
     });
   },
 
@@ -87,6 +97,14 @@ export default Watchable.extend({
   // treat it as an action.
   run(job) {
     return this.ajax(this.urlForCreateRecord('job'), 'POST', {
+      data: {
+        Job: job.get('_newDefinitionJSON'),
+      },
+    });
+  },
+
+  update(job) {
+    return this.ajax(this.urlForUpdateRecord(job.get('id'), 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
       },

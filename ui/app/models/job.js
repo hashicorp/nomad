@@ -203,6 +203,11 @@ export default Model.extend({
     return this.store.adapterFor('job').run(this);
   },
 
+  update() {
+    assert('A job must be parsed before updated', this.get('_newDefinitionJSON'));
+    return this.store.adapterFor('job').update(this);
+  },
+
   parse() {
     const definition = this.get('_newDefinition');
     let promise;
@@ -211,7 +216,12 @@ export default Model.extend({
       // If the definition is already JSON then it doesn't need to be parsed.
       const json = JSON.parse(definition);
       this.set('_newDefinitionJSON', json);
-      this.setIDByPayload(json);
+
+      // You can't set the ID of a record that already exists
+      if (this.get('isNew')) {
+        this.setIdByPayload(json);
+      }
+
       promise = RSVP.resolve(definition);
     } catch (err) {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
@@ -221,14 +231,14 @@ export default Model.extend({
         .parse(this.get('_newDefinition'))
         .then(response => {
           this.set('_newDefinitionJSON', response);
-          this.setIDByPayload(response);
+          this.setIdByPayload(response);
         });
     }
 
     return promise;
   },
 
-  setIDByPayload(payload) {
+  setIdByPayload(payload) {
     const namespace = payload.Namespace || 'default';
     const id = payload.Name;
 
@@ -239,6 +249,10 @@ export default Model.extend({
     if (namespaceRecord) {
       this.set('namespace', namespaceRecord);
     }
+  },
+
+  resetId() {
+    this.set('id', JSON.stringify([this.get('plainId'), this.get('namespace.name') || 'default']));
   },
 
   statusClass: computed('status', function() {

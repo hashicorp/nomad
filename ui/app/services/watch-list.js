@@ -18,6 +18,6 @@ export default Service.extend({
   },
 
   setIndexFor(url, value) {
-    list[url] = value;
+    list[url] = +value;
   },
 });
