@@ -443,3 +443,264 @@ func TestDevicePlugin_Reserve(t *testing.T) {
 	require.EqualValues(req, received)
 	require.EqualValues(reservation, containerRes)
 }
+
+func TestDevicePlugin_Stats(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	devices1 := []*DeviceGroupStats{
+		{
+			Vendor: "nvidia",
+			Type:   DeviceTypeGPU,
+			Name:   "foo",
+			InstanceStats: map[string]*DeviceStats{
+				"1": {
+					Summary: &StatValue{
+						IntNumeratorVal:   10,
+						IntDenominatorVal: 20,
+						Unit:              "MB",
+						Desc:              "Unit test",
+					},
+				},
+			},
+		},
+	}
+	devices2 := []*DeviceGroupStats{
+		{
+			Vendor: "nvidia",
+			Type:   DeviceTypeGPU,
+			Name:   "foo",
+			InstanceStats: map[string]*DeviceStats{
+				"1": {
+					Summary: &StatValue{
+						FloatNumeratorVal:   10.0,
+						FloatDenominatorVal: 20.0,
+						Unit:                "MB",
+						Desc:                "Unit test",
+					},
+				},
+			},
+		},
+		{
+			Vendor: "nvidia",
+			Type:   DeviceTypeGPU,
+			Name:   "bar",
+			InstanceStats: map[string]*DeviceStats{
+				"1": {
+					Summary: &StatValue{
+						StringVal: "foo",
+						Unit:      "MB",
+						Desc:      "Unit test",
+					},
+				},
+			},
+		},
+		{
+			Vendor: "nvidia",
+			Type:   DeviceTypeGPU,
+			Name:   "baz",
+			InstanceStats: map[string]*DeviceStats{
+				"1": {
+					Summary: &StatValue{
+						BoolVal: true,
+						Unit:    "MB",
+						Desc:    "Unit test",
+					},
+				},
+			},
+		},
+	}
+
+	mock := &MockDevicePlugin{
+		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+			outCh := make(chan *StatsResponse, 1)
+			go func() {
+				// Send two messages
+				for _, devs := range [][]*DeviceGroupStats{devices1, devices2} {
+					select {
+					case <-ctx.Done():
+						return
+					case outCh <- &StatsResponse{Groups: devs}:
+					}
+				}
+				close(outCh)
+				return
+			}()
+			return outCh, nil
+		},
+	}
+
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		base.PluginTypeBase:   &base.PluginBase{Impl: mock},
+		base.PluginTypeDevice: &PluginDevice{Impl: mock},
+	})
+	defer server.Stop()
+	defer client.Close()
+
+	raw, err := client.Dispense(base.PluginTypeDevice)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	impl, ok := raw.(DevicePlugin)
+	if !ok {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	// Create a context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Get the stream
+	stream, err := impl.Stats(ctx)
+	require.NoError(err)
+
+	// Get the first message
+	var first *StatsResponse
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	case first = <-stream:
+	}
+
+	require.NoError(first.Error)
+	require.EqualValues(devices1, first.Groups)
+
+	// Get the second message
+	var second *StatsResponse
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	case second = <-stream:
+	}
+
+	require.NoError(second.Error)
+	require.EqualValues(devices2, second.Groups)
+
+	select {
+	case _, ok := <-stream:
+		require.False(ok)
+	case <-time.After(1 * time.Second):
+		t.Fatal("stream should be closed")
+	}
+}
+
+func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	ferr := fmt.Errorf("mock stats failed")
+	mock := &MockDevicePlugin{
+		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+			outCh := make(chan *StatsResponse, 1)
+			go func() {
+				// Send the error
+				select {
+				case <-ctx.Done():
+					return
+				case outCh <- &StatsResponse{Error: ferr}:
+				}
+
+				close(outCh)
+				return
+			}()
+			return outCh, nil
+		},
+	}
+
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		base.PluginTypeBase:   &base.PluginBase{Impl: mock},
+		base.PluginTypeDevice: &PluginDevice{Impl: mock},
+	})
+	defer server.Stop()
+	defer client.Close()
+
+	raw, err := client.Dispense(base.PluginTypeDevice)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	impl, ok := raw.(DevicePlugin)
+	if !ok {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	// Create a context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Get the stream
+	stream, err := impl.Stats(ctx)
+	require.NoError(err)
+
+	// Get the first message
+	var first *StatsResponse
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	case first = <-stream:
+	}
+
+	errStatus := status.Convert(ferr)
+	require.EqualError(first.Error, errStatus.Err().Error())
+}
+
+func TestDevicePlugin_Stats_CancelCtx(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	mock := &MockDevicePlugin{
+		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+			outCh := make(chan *StatsResponse, 1)
+			go func() {
+				<-ctx.Done()
+				close(outCh)
+				return
+			}()
+			return outCh, nil
+		},
+	}
+
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		base.PluginTypeBase:   &base.PluginBase{Impl: mock},
+		base.PluginTypeDevice: &PluginDevice{Impl: mock},
+	})
+	defer server.Stop()
+	defer client.Close()
+
+	raw, err := client.Dispense(base.PluginTypeDevice)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	impl, ok := raw.(DevicePlugin)
+	if !ok {
+		t.Fatalf("bad: %#v", raw)
+	}
+
+	// Create a context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Get the stream
+	stream, err := impl.Stats(ctx)
+	require.NoError(err)
+
+	// Get the first message
+	select {
+	case <-time.After(testutil.Timeout(10 * time.Millisecond)):
+	case _ = <-stream:
+		t.Fatal("bad value")
+	}
+
+	// Cancel the context
+	cancel()
+
+	// Make sure we are done
+	select {
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("timeout")
+	case v := <-stream:
+		require.Error(v.Error)
+		require.EqualError(v.Error, context.Canceled.Error())
+	}
+}

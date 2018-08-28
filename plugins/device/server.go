@@ -64,3 +64,41 @@ func (d *devicePluginServer) Reserve(ctx context.Context, req *proto.ReserveRequ
 
 	return presp, nil
 }
+
+func (d *devicePluginServer) Stats(req *proto.StatsRequest, stream proto.DevicePlugin_StatsServer) error {
+	ctx := stream.Context()
+	outCh, err := d.impl.Stats(ctx)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case resp, ok := <-outCh:
+			// The output channel has been closed, end the stream
+			if !ok {
+				return nil
+			}
+
+			// Handle any error
+			if resp.Error != nil {
+				return resp.Error
+			}
+
+			// Convert the devices
+			out := convertStructDeviceGroupsStats(resp.Groups)
+
+			// Build the response
+			presp := &proto.StatsResponse{
+				Groups: out,
+			}
+
+			// Send the devices
+			if err := stream.Send(presp); err != nil {
+				return err
+			}
+		}
+	}
+}

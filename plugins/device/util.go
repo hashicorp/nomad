@@ -1,6 +1,7 @@
 package device
 
 import "github.com/hashicorp/nomad/plugins/device/proto"
+import "github.com/golang/protobuf/ptypes"
 
 // convertProtoDeviceGroups converts between a list of proto and structs DeviceGroup
 func convertProtoDeviceGroups(in []*proto.DeviceGroup) []*DeviceGroup {
@@ -23,11 +24,11 @@ func convertProtoDeviceGroup(in *proto.DeviceGroup) *DeviceGroup {
 	}
 
 	return &DeviceGroup{
-		Vendor:     in.GetVendor(),
-		Type:       in.GetDeviceType(),
-		Name:       in.GetDeviceName(),
-		Devices:    convertProtoDevices(in.GetDevices()),
-		Attributes: in.GetAttributes(),
+		Vendor:     in.Vendor,
+		Type:       in.DeviceType,
+		Name:       in.DeviceName,
+		Devices:    convertProtoDevices(in.Devices),
+		Attributes: in.Attributes,
 	}
 }
 
@@ -52,10 +53,10 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 	}
 
 	return &Device{
-		ID:         in.GetID(),
-		Healthy:    in.GetHealthy(),
-		HealthDesc: in.GetHealthDescription(),
-		HwLocality: convertProtoDeviceLocality(in.GetHwLocality()),
+		ID:         in.ID,
+		Healthy:    in.Healthy,
+		HealthDesc: in.HealthDescription,
+		HwLocality: convertProtoDeviceLocality(in.HwLocality),
 	}
 }
 
@@ -66,7 +67,7 @@ func convertProtoDeviceLocality(in *proto.DeviceLocality) *DeviceLocality {
 	}
 
 	return &DeviceLocality{
-		PciBusID: in.GetPciBusId(),
+		PciBusID: in.PciBusId,
 	}
 }
 
@@ -78,9 +79,9 @@ func convertProtoContainerReservation(in *proto.ContainerReservation) *Container
 	}
 
 	return &ContainerReservation{
-		Envs:    in.GetEnvs(),
-		Mounts:  convertProtoMounts(in.GetMounts()),
-		Devices: convertProtoDeviceSpecs(in.GetDevices()),
+		Envs:    in.Envs,
+		Mounts:  convertProtoMounts(in.Mounts),
+		Devices: convertProtoDeviceSpecs(in.Devices),
 	}
 }
 
@@ -105,9 +106,9 @@ func convertProtoMount(in *proto.Mount) *Mount {
 	}
 
 	return &Mount{
-		TaskPath: in.GetTaskPath(),
-		HostPath: in.GetHostPath(),
-		ReadOnly: in.GetReadOnly(),
+		TaskPath: in.TaskPath,
+		HostPath: in.HostPath,
+		ReadOnly: in.ReadOnly,
 	}
 }
 
@@ -132,9 +133,9 @@ func convertProtoDeviceSpec(in *proto.DeviceSpec) *DeviceSpec {
 	}
 
 	return &DeviceSpec{
-		TaskPath:    in.GetTaskPath(),
-		HostPath:    in.GetHostPath(),
-		CgroupPerms: in.GetPermissions(),
+		TaskPath:    in.TaskPath,
+		HostPath:    in.HostPath,
+		CgroupPerms: in.Permissions,
 	}
 }
 
@@ -271,5 +272,193 @@ func convertStructDeviceSpec(in *DeviceSpec) *proto.DeviceSpec {
 		TaskPath:    in.TaskPath,
 		HostPath:    in.HostPath,
 		Permissions: in.CgroupPerms,
+	}
+}
+
+// convertProtoDeviceGroupsStats converts between a list of struct and proto
+// DeviceGroupStats
+func convertProtoDeviceGroupsStats(in []*proto.DeviceGroupStats) []*DeviceGroupStats {
+	if in == nil {
+		return nil
+	}
+
+	out := make([]*DeviceGroupStats, len(in))
+	for i, m := range in {
+		out[i] = convertProtoDeviceGroupStats(m)
+	}
+
+	return out
+}
+
+// convertProtoDeviceGroupStats converts between a proto and struct
+// DeviceGroupStats
+func convertProtoDeviceGroupStats(in *proto.DeviceGroupStats) *DeviceGroupStats {
+	if in == nil {
+		return nil
+	}
+
+	out := &DeviceGroupStats{
+		Vendor:        in.Vendor,
+		Type:          in.Type,
+		Name:          in.Name,
+		InstanceStats: make(map[string]*DeviceStats, len(in.InstanceStats)),
+	}
+
+	for k, v := range in.InstanceStats {
+		out.InstanceStats[k] = convertProtoDeviceStats(v)
+	}
+
+	return out
+}
+
+// convertProtoDeviceStats converts between a proto and struct DeviceStats
+func convertProtoDeviceStats(in *proto.DeviceStats) *DeviceStats {
+	if in == nil {
+		return nil
+	}
+
+	ts, err := ptypes.Timestamp(in.Timestamp)
+	if err != nil {
+		return nil
+	}
+
+	return &DeviceStats{
+		Summary:   convertProtoStatValue(in.Summary),
+		Stats:     convertProtoStatObject(in.Stats),
+		Timestamp: ts,
+	}
+}
+
+// convertProtoStatObject converts between a proto and struct StatObject
+func convertProtoStatObject(in *proto.StatObject) *StatObject {
+	if in == nil {
+		return nil
+	}
+
+	out := &StatObject{
+		Nested:     make(map[string]*StatObject, len(in.Nested)),
+		Attributes: make(map[string]*StatValue, len(in.Attributes)),
+	}
+
+	for k, v := range in.Nested {
+		out.Nested[k] = convertProtoStatObject(v)
+	}
+
+	for k, v := range in.Attributes {
+		out.Attributes[k] = convertProtoStatValue(v)
+	}
+
+	return out
+}
+
+// convertProtoStatValue converts between a proto and struct StatValue
+func convertProtoStatValue(in *proto.StatValue) *StatValue {
+	if in == nil {
+		return nil
+	}
+
+	return &StatValue{
+		FloatNumeratorVal:   in.FloatNumeratorVal,
+		FloatDenominatorVal: in.FloatDenominatorVal,
+		IntNumeratorVal:     in.IntNumeratorVal,
+		IntDenominatorVal:   in.IntDenominatorVal,
+		StringVal:           in.StringVal,
+		BoolVal:             in.BoolVal,
+		Unit:                in.Unit,
+		Desc:                in.Desc,
+	}
+}
+
+// convertStructDeviceGroupsStats converts between a list of struct and proto
+// DeviceGroupStats
+func convertStructDeviceGroupsStats(in []*DeviceGroupStats) []*proto.DeviceGroupStats {
+	if in == nil {
+		return nil
+	}
+
+	out := make([]*proto.DeviceGroupStats, len(in))
+	for i, m := range in {
+		out[i] = convertStructDeviceGroupStats(m)
+	}
+
+	return out
+}
+
+// convertStructDeviceGroupStats converts between a struct and proto
+// DeviceGroupStats
+func convertStructDeviceGroupStats(in *DeviceGroupStats) *proto.DeviceGroupStats {
+	if in == nil {
+		return nil
+	}
+
+	out := &proto.DeviceGroupStats{
+		Vendor:        in.Vendor,
+		Type:          in.Type,
+		Name:          in.Name,
+		InstanceStats: make(map[string]*proto.DeviceStats, len(in.InstanceStats)),
+	}
+
+	for k, v := range in.InstanceStats {
+		out.InstanceStats[k] = convertStructDeviceStats(v)
+	}
+
+	return out
+}
+
+// convertStructDeviceStats converts between a struct and proto DeviceStats
+func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
+	if in == nil {
+		return nil
+	}
+
+	ts, err := ptypes.TimestampProto(in.Timestamp)
+	if err != nil {
+		return nil
+	}
+
+	return &proto.DeviceStats{
+		Summary:   convertStructStatValue(in.Summary),
+		Stats:     convertStructStatObject(in.Stats),
+		Timestamp: ts,
+	}
+}
+
+// convertStructStatObject converts between a struct and proto StatObject
+func convertStructStatObject(in *StatObject) *proto.StatObject {
+	if in == nil {
+		return nil
+	}
+
+	out := &proto.StatObject{
+		Nested:     make(map[string]*proto.StatObject, len(in.Nested)),
+		Attributes: make(map[string]*proto.StatValue, len(in.Attributes)),
+	}
+
+	for k, v := range in.Nested {
+		out.Nested[k] = convertStructStatObject(v)
+	}
+
+	for k, v := range in.Attributes {
+		out.Attributes[k] = convertStructStatValue(v)
+	}
+
+	return out
+}
+
+// convertStructStatValue converts between a struct and proto StatValue
+func convertStructStatValue(in *StatValue) *proto.StatValue {
+	if in == nil {
+		return nil
+	}
+
+	return &proto.StatValue{
+		FloatNumeratorVal:   in.FloatNumeratorVal,
+		FloatDenominatorVal: in.FloatDenominatorVal,
+		IntNumeratorVal:     in.IntNumeratorVal,
+		IntDenominatorVal:   in.IntDenominatorVal,
+		StringVal:           in.StringVal,
+		BoolVal:             in.BoolVal,
+		Unit:                in.Unit,
+		Desc:                in.Desc,
 	}
 }
