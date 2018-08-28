@@ -454,7 +454,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Type:   DeviceTypeGPU,
 			Name:   "foo",
 			InstanceStats: map[string]*DeviceStats{
-				"1": &DeviceStats{
+				"1": {
 					Summary: &StatValue{
 						IntNumeratorVal:   10,
 						IntDenominatorVal: 20,
@@ -471,7 +471,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Type:   DeviceTypeGPU,
 			Name:   "foo",
 			InstanceStats: map[string]*DeviceStats{
-				"1": &DeviceStats{
+				"1": {
 					Summary: &StatValue{
 						FloatNumeratorVal:   10.0,
 						FloatDenominatorVal: 20.0,
@@ -486,7 +486,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Type:   DeviceTypeGPU,
 			Name:   "bar",
 			InstanceStats: map[string]*DeviceStats{
-				"1": &DeviceStats{
+				"1": {
 					Summary: &StatValue{
 						StringVal: "foo",
 						Unit:      "MB",
@@ -500,7 +500,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Type:   DeviceTypeGPU,
 			Name:   "baz",
 			InstanceStats: map[string]*DeviceStats{
-				"1": &DeviceStats{
+				"1": {
 					Summary: &StatValue{
 						BoolVal: true,
 						Unit:    "MB",
