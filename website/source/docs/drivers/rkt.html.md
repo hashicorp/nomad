@@ -114,6 +114,10 @@ The `rkt` driver supports the following configuration in the job spec:
     }
     ```
 
+* `group` - (Optional) Specifies the group that will run the task. Sets the
+  `--group` flag and overrides the group specified by the image. The
+  [`user`][user] may be specified at the task level.
+
 ## Networking
 
 The `rkt` can specify `--net` and `--port` for the rkt client. Hence, there are two ways to use host ports by
@@ -201,3 +205,6 @@ job "docs" {
 
 This driver supports CPU and memory isolation by delegating to `rkt`. Network
 isolation is not supported as of now.
+
+
+[user]: /docs/job-specification/task.html#user
