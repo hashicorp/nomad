@@ -319,13 +319,8 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
-		Driver:  "qemu",
-		Task:    task,
-		TaskDir: ctx.TaskDir.Dir,
-		LogDir:  ctx.TaskDir.LogDir,
-	}
+	executorCtx := createExecutorContext("qemu", ctx, task, d.config)
+
 	if err := exec.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("failed to set executor context: %v", err)

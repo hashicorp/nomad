@@ -23,7 +23,6 @@ import (
 	"github.com/shirou/gopsutil/process"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -62,7 +61,7 @@ type Executor interface {
 	Wait() (*ProcessState, error)
 	ShutDown() error
 	Exit() error
-	UpdateLogConfig(logConfig *structs.LogConfig) error
+	UpdateLogConfig(logConfig *LogConfig) error
 	UpdateTask(task *structs.Task) error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
@@ -73,17 +72,17 @@ type Executor interface {
 // ExecutorContext holds context to configure the command user
 // wants to run and isolate it
 type ExecutorContext struct {
-	// TaskEnv holds information about the environment of a Task
-	TaskEnv *env.TaskEnv
-
-	// Task is the task whose executor is being launched
-	Task *structs.Task
-
 	// TaskDir is the host path to the task's root
 	TaskDir string
 
-	// LogDir is the host path where logs should be written
-	LogDir string
+	// LogConfig is the configuration for the executor logger
+	LogConfig *LogConfig
+
+	// Env is the set of environment variabled passed to the child process
+	Env []string
+
+	// Resources is the used to configure appropriate isolation
+	Resources *Resources
 
 	// Driver is the name of the driver that invoked the executor
 	Driver string
@@ -95,6 +94,31 @@ type ExecutorContext struct {
 	// PortLowerBound is the lower bound of the ports that we can use to start
 	// the syslog server
 	PortLowerBound uint
+}
+
+type LogConfig struct {
+	// LogDir is the host path where logs should be written
+	LogDir string
+
+	// StdoutLogFile is the path relative to LogDir for stdout logging
+	StdoutLogFile string
+
+	// StderrLogFile is the path relative to LogDir for stderr logging
+	StderrLogFile string
+
+	// MaxFiles is the max rotated files allowed
+	MaxFiles int
+
+	// MaxFileSizeMB is the max log file size in MB allowed before rotation occures
+	MaxFileSizeMB int
+}
+
+// Resources describes the resource isolation required
+type Resources struct {
+	CPU      int
+	MemoryMB int
+	DiskMB   int
+	IOPS     int
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -266,7 +290,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	e.cmd.Stderr = e.lre.processOutWriter
 
 	// Look up the binary path and make it executable
-	absPath, err := e.lookupBin(e.ctx.TaskEnv.ReplaceEnv(command.Cmd))
+	absPath, err := e.lookupBin(command.Cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -288,8 +312,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 
 	// Set the commands arguments
 	e.cmd.Path = path
-	e.cmd.Args = append([]string{e.cmd.Path}, e.ctx.TaskEnv.ParseAndReplace(command.Args)...)
-	e.cmd.Env = e.ctx.TaskEnv.List()
+	e.cmd.Args = append([]string{e.cmd.Path}, command.Args...)
+	e.cmd.Env = e.ctx.Env
 
 	// Start the process
 	if err := e.cmd.Start(); err != nil {
@@ -310,20 +334,19 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.cmd.Dir, e.ctx.TaskEnv, e.cmd.SysProcAttr, name, args)
+	return ExecScript(ctx, e.cmd.Dir, e.ctx.Env, e.cmd.SysProcAttr, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
 // error. Output is truncated to client/driver/structs.CheckBufSize
-func ExecScript(ctx context.Context, dir string, env *env.TaskEnv, attrs *syscall.SysProcAttr,
+func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.SysProcAttr,
 	name string, args []string) ([]byte, int, error) {
-	name = env.ReplaceEnv(name)
-	cmd := exec.CommandContext(ctx, name, env.ParseAndReplace(args)...)
+	cmd := exec.CommandContext(ctx, name, args...)
 
 	// Copy runtime environment from the main command
 	cmd.SysProcAttr = attrs
 	cmd.Dir = dir
-	cmd.Env = env.List()
+	cmd.Env = env
 
 	// Capture output
 	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
@@ -356,12 +379,12 @@ func (e *UniversalExecutor) configureLoggers() error {
 	e.rotatorLock.Lock()
 	defer e.rotatorLock.Unlock()
 
-	logFileSize := int64(e.ctx.Task.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	logFileSize := int64(e.ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
 	if e.lro == nil {
-		lro, err := logging.NewFileRotator(e.ctx.LogDir, fmt.Sprintf("%v.stdout", e.ctx.Task.Name),
-			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
+		lro, err := logging.NewFileRotator(e.ctx.LogConfig.LogDir, e.ctx.LogConfig.StdoutLogFile,
+			e.ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 		if err != nil {
-			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
+			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.LogConfig.StdoutLogFile, err)
 		}
 
 		r, err := newLogRotatorWrapper(e.logger, lro)
@@ -372,10 +395,10 @@ func (e *UniversalExecutor) configureLoggers() error {
 	}
 
 	if e.lre == nil {
-		lre, err := logging.NewFileRotator(e.ctx.LogDir, fmt.Sprintf("%v.stderr", e.ctx.Task.Name),
-			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
+		lre, err := logging.NewFileRotator(e.ctx.LogConfig.LogDir, e.ctx.LogConfig.StderrLogFile,
+			e.ctx.LogConfig.MaxFiles, logFileSize, e.logger)
 		if err != nil {
-			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
+			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.LogConfig.StderrLogFile, err)
 		}
 
 		r, err := newLogRotatorWrapper(e.logger, lre)
@@ -395,8 +418,8 @@ func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 
 // COMPAT: prior to Nomad 0.3.2, UpdateTask didn't exist.
 // UpdateLogConfig updates the log configuration
-func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error {
-	e.ctx.Task.LogConfig = logConfig
+func (e *UniversalExecutor) UpdateLogConfig(logConfig *LogConfig) error {
+	e.ctx.LogConfig = logConfig
 	if e.lro == nil {
 		return fmt.Errorf("log rotator for stdout doesn't exist")
 	}
@@ -412,7 +435,7 @@ func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error 
 }
 
 func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
-	e.ctx.Task = task
+	//e.ctx.Task = task
 
 	// Updating Log Config
 	e.rotatorLock.Lock()

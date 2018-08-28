@@ -656,13 +656,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	eb := env.NewEmptyBuilder()
 	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
-	executorCtx := &executor.ExecutorContext{
-		TaskEnv: rktEnv,
-		Driver:  "rkt",
-		Task:    task,
-		TaskDir: ctx.TaskDir.Dir,
-		LogDir:  ctx.TaskDir.LogDir,
-	}
+	executorCtx := createExecutorContext("rkt", ctx, task, d.config)
+
 	if err := execIntf.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
@@ -806,9 +801,9 @@ func (h *rktHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte
 	enterArgs := make([]string, 3+len(args))
 	enterArgs[0] = "enter"
 	enterArgs[1] = h.uuid
-	enterArgs[2] = cmd
-	copy(enterArgs[3:], args)
-	return executor.ExecScript(ctx, h.taskDir.Dir, h.env, nil, rktCmd, enterArgs)
+	enterArgs[2] = h.env.ReplaceEnv(cmd)
+	copy(enterArgs[3:], h.env.ParseAndReplace(args))
+	return executor.ExecScript(ctx, h.taskDir.Dir, h.env.List(), nil, rktCmd, enterArgs)
 }
 
 func (h *rktHandle) Signal(s os.Signal) error {

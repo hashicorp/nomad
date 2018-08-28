@@ -30,6 +30,31 @@ func cgroupsMounted(node *structs.Node) bool {
 	return ok
 }
 
+// createExecutorContext builds an executor.ExecutorContext from an ExecContext and Task
+func createExecutorContext(driver string, ctx *ExecContext, task *structs.Task, config *config.Config) *executor.ExecutorContext {
+	return &executor.ExecutorContext{
+		Resources: &executor.Resources{
+			CPU:      task.Resources.CPU,
+			MemoryMB: task.Resources.MemoryMB,
+			IOPS:     task.Resources.IOPS,
+			DiskMB:   task.Resources.DiskMB,
+		},
+		Env:    ctx.TaskEnv.List(),
+		Driver: driver,
+		LogConfig: &executor.LogConfig{
+			LogDir:        ctx.TaskDir.LogDir,
+			StdoutLogFile: fmt.Sprintf("%v.stdout", task.Name),
+			StderrLogFile: fmt.Sprintf("%v.stderr", task.Name),
+			MaxFiles:      task.LogConfig.MaxFiles,
+			MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
+		},
+		TaskDir:        ctx.TaskDir.Dir,
+		PortLowerBound: config.ClientMinPort,
+		PortUpperBound: config.ClientMaxPort,
+	}
+
+}
+
 // createExecutor launches an executor plugin and returns an instance of the
 // Executor interface
 func createExecutor(w io.Writer, clientConfig *config.Config,

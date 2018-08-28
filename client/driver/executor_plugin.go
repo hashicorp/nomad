@@ -75,7 +75,7 @@ func (e *ExecutorRPC) SetContext(ctx *executor.ExecutorContext) error {
 	return e.client.Call("Plugin.SetContext", ctx, new(interface{}))
 }
 
-func (e *ExecutorRPC) UpdateLogConfig(logConfig *structs.LogConfig) error {
+func (e *ExecutorRPC) UpdateLogConfig(logConfig *executor.LogConfig) error {
 	return e.client.Call("Plugin.UpdateLogConfig", logConfig, new(interface{}))
 }
 
@@ -158,7 +158,7 @@ func (e *ExecutorRPCServer) SetContext(args *executor.ExecutorContext, resp *int
 	return e.Impl.SetContext(args)
 }
 
-func (e *ExecutorRPCServer) UpdateLogConfig(args *structs.LogConfig, resp *interface{}) error {
+func (e *ExecutorRPCServer) UpdateLogConfig(args *executor.LogConfig, resp *interface{}) error {
 	return e.Impl.UpdateLogConfig(args)
 }
 

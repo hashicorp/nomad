@@ -249,13 +249,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	}
 
 	// Set the context
-	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
-		Driver:  "java",
-		Task:    task,
-		TaskDir: ctx.TaskDir.Dir,
-		LogDir:  ctx.TaskDir.LogDir,
-	}
+	executorCtx := createExecutorContext("java", ctx, task, d.config)
 	if err := execIntf.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
