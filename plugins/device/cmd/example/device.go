@@ -57,7 +57,7 @@ var (
 			hclspec.NewLiteral("\"-rwxrwxrwx\""),
 		),
 		"stats_period": hclspec.NewDefault(
-			hclspec.NewAttr("list_period", "string", false),
+			hclspec.NewAttr("stats_period", "string", false),
 			hclspec.NewLiteral("\"5s\""),
 		),
 	})
