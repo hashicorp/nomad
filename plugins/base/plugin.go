@@ -1,10 +1,13 @@
 package base
 
 import (
+	"bytes"
 	"context"
+	"reflect"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base/proto"
+	"github.com/ugorji/go/codec"
 	"google.golang.org/grpc"
 )
 
@@ -45,4 +48,16 @@ func (p *PluginBase) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error
 
 func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &BasePluginClient{Client: proto.NewBasePluginClient(c)}, nil
+}
+
+// MsgpackHandle is a shared handle for encoding/decoding of structs
+var MsgpackHandle = func() *codec.MsgpackHandle {
+	h := &codec.MsgpackHandle{RawToString: true}
+	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	return h
+}()
+
+// MsgPackDecode is used to decode a MsgPack encoded object
+func MsgPackDecode(buf []byte, out interface{}) error {
+	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
