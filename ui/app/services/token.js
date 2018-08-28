@@ -9,13 +9,13 @@ export default Service.extend({
 
   secret: computed({
     get() {
-      return window.sessionStorage.nomadTokenSecret;
+      return window.localStorage.nomadTokenSecret;
     },
     set(key, value) {
       if (value == null) {
-        window.sessionStorage.removeItem('nomadTokenSecret');
+        window.localStorage.removeItem('nomadTokenSecret');
       } else {
-        window.sessionStorage.nomadTokenSecret = value;
+        window.localStorage.nomadTokenSecret = value;
       }
 
       return value;
