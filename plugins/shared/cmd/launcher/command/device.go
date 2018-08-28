@@ -252,12 +252,14 @@ func (c *Device) startRepl() error {
 	// Start the output goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	fingerprint := make(chan struct{})
+	fingerprint := make(chan context.Context)
+	stats := make(chan context.Context)
 	reserve := make(chan []string)
-	go c.replOutput(ctx, fingerprint, reserve)
+	go c.replOutput(ctx, fingerprint, stats, reserve)
 
-	c.Ui.Output("> Availabile commands are: exit(), fingerprint(), reserve(id1, id2, ...)")
-	var hasFingerprinted bool
+	c.Ui.Output("> Availabile commands are: exit(), fingerprint(), stop_fingerprint(), stats(), stop_stats(), reserve(id1, id2, ...)")
+	var fingerprintCtx, statsCtx context.Context
+	var fingerprintCancel, statsCancel context.CancelFunc
 	for {
 		in, err := c.Ui.Ask("> ")
 		if err != nil {
@@ -268,11 +270,29 @@ func (c *Device) startRepl() error {
 		case in == "exit()":
 			return nil
 		case in == "fingerprint()":
-			if hasFingerprinted {
+			if fingerprintCtx != nil {
 				continue
 			}
-			hasFingerprinted = true
-			fingerprint <- struct{}{}
+			fingerprintCtx, fingerprintCancel = context.WithCancel(ctx)
+			fingerprint <- fingerprintCtx
+		case in == "stop_fingerprint()":
+			if fingerprintCtx == nil {
+				continue
+			}
+			fingerprintCancel()
+			fingerprintCtx = nil
+		case in == "stats()":
+			if statsCtx != nil {
+				continue
+			}
+			statsCtx, statsCancel = context.WithCancel(ctx)
+			stats <- statsCtx
+		case in == "stop_stats()":
+			if statsCtx == nil {
+				continue
+			}
+			statsCancel()
+			statsCtx = nil
 		case strings.HasPrefix(in, "reserve(") && strings.HasSuffix(in, ")"):
 			listString := strings.TrimSuffix(strings.TrimPrefix(in, "reserve("), ")")
 			ids := strings.Split(strings.TrimSpace(listString), ",")
@@ -285,13 +305,14 @@ func (c *Device) startRepl() error {
 	return nil
 }
 
-func (c *Device) replOutput(ctx context.Context, startFingerprint <-chan struct{}, reserve <-chan []string) {
+func (c *Device) replOutput(ctx context.Context, startFingerprint, startStats <-chan context.Context, reserve <-chan []string) {
 	var fingerprint <-chan *device.FingerprintResponse
+	var stats <-chan *device.StatsResponse
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-startFingerprint:
+		case ctx := <-startFingerprint:
 			var err error
 			fingerprint, err = c.dev.Fingerprint(ctx)
 			if err != nil {
@@ -301,7 +322,8 @@ func (c *Device) replOutput(ctx context.Context, startFingerprint <-chan struct{
 		case resp, ok := <-fingerprint:
 			if !ok {
 				c.Ui.Output("> fingerprint: fingerprint output closed")
-				os.Exit(1)
+				fingerprint = nil
+				continue
 			}
 
 			if resp == nil {
@@ -309,11 +331,27 @@ func (c *Device) replOutput(ctx context.Context, startFingerprint <-chan struct{
 				os.Exit(1)
 			}
 
-			if resp.Error != nil {
-				c.Ui.Warn(fmt.Sprintf("> fingerprint: % #v", pretty.Formatter(resp)))
+			c.Ui.Output(fmt.Sprintf("> fingerprint: % #v", pretty.Formatter(resp)))
+		case ctx := <-startStats:
+			var err error
+			stats, err = c.dev.Stats(ctx)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("stats: %s", err))
 				os.Exit(1)
 			}
-			c.Ui.Output(fmt.Sprintf("> fingerprint: % #v", pretty.Formatter(resp)))
+		case resp, ok := <-stats:
+			if !ok {
+				c.Ui.Output("> stats: stats output closed")
+				stats = nil
+				continue
+			}
+
+			if resp == nil {
+				c.Ui.Warn("> stats: received nil result")
+				os.Exit(1)
+			}
+
+			c.Ui.Output(fmt.Sprintf("> stats: % #v", pretty.Formatter(resp)))
 		case ids := <-reserve:
 			resp, err := c.dev.Reserve(ids)
 			if err != nil {
