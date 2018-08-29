@@ -2,12 +2,12 @@ package stats
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"runtime"
 	"sync"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
@@ -64,7 +64,6 @@ type NodeStatsCollector interface {
 type HostStatsCollector struct {
 	numCores        int
 	statsCalculator map[string]*HostCpuStatsCalculator
-	logger          *log.Logger
 	hostStats       *HostStats
 	hostStatsLock   sync.RWMutex
 	allocDir        string
@@ -72,12 +71,15 @@ type HostStatsCollector struct {
 	// badParts is a set of partitions whose usage cannot be read; used to
 	// squelch logspam.
 	badParts map[string]struct{}
+
+	logger hclog.Logger
 }
 
 // NewHostStatsCollector returns a HostStatsCollector. The allocDir is passed in
 // so that we can present the disk related statistics for the mountpoint where
 // the allocation directory lives
-func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollector {
+func NewHostStatsCollector(logger hclog.Logger, allocDir string) *HostStatsCollector {
+	logger = logger.Named("host_stats")
 	numCores := runtime.NumCPU()
 	statsCalculator := make(map[string]*HostCpuStatsCalculator)
 	collector := &HostStatsCollector{
@@ -175,7 +177,7 @@ func (h *HostStatsCollector) collectDiskStats() ([]*DiskStats, error) {
 			}
 
 			h.badParts[partition.Mountpoint] = struct{}{}
-			h.logger.Printf("[WARN] client: error fetching host disk usage stats for %v: %v", partition.Mountpoint, err)
+			h.logger.Warn("error fetching host disk usage stats", "error", err, "partition", partition.Mountpoint)
 			continue
 		}
 		delete(h.badParts, partition.Mountpoint)
@@ -194,7 +196,7 @@ func (h *HostStatsCollector) Stats() *HostStats {
 
 	if h.hostStats == nil {
 		if err := h.collectLocked(); err != nil {
-			h.logger.Printf("[WARN] client: error fetching host resource usage stats: %v", err)
+			h.logger.Warn("error fetching host resource usage stats", "error", err)
 		}
 	}
 

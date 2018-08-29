@@ -3,10 +3,10 @@ package allocdir
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
+	hclog "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -37,15 +37,18 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // newTaskDir creates a TaskDir struct with paths set. Call Build() to
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
+func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
 	taskDir := filepath.Join(allocDir, taskName)
+
+	logger = logger.Named("task_dir").With("task_name", taskName)
+
 	return &TaskDir{
 		Dir:            taskDir,
 		SharedAllocDir: filepath.Join(allocDir, SharedAllocName),

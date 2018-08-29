@@ -52,7 +52,7 @@ func TestAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation, restarts 
 		alloc.Job.Type = structs.JobTypeBatch
 	}
 	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(testlog.Logger(t), conf, db, upd.Update, alloc, vclient, consulApi.NewMockConsulServiceClient(t), allocwatcher.NoopPrevAlloc{})
+	ar := NewAllocRunner(testlog.Logger(t), conf, db, upd.Update, alloc, vclient, consulApi.NewMockConsulServiceClient(t, testlog.HCLogger(t)), allocwatcher.NoopPrevAlloc{})
 	return upd, ar
 }
 
