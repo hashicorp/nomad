@@ -4,7 +4,6 @@
 package servers
 
 import (
-	"log"
 	"math/rand"
 	"net"
 	"sort"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -153,8 +153,6 @@ type Manager struct {
 	// shutdownCh is a copy of the channel in Nomad.Client
 	shutdownCh chan struct{}
 
-	logger *log.Logger
-
 	// numNodes is used to estimate the approximate number of nodes in
 	// a cluster and limit the rate at which it rebalances server
 	// connections. This should be read and set using atomic.
@@ -164,11 +162,14 @@ type Manager struct {
 	// pool. Pinger is an interface that wraps client.ConnPool.
 	connPoolPinger Pinger
 
+	logger hclog.Logger
+
 	sync.Mutex
 }
 
 // New is the only way to safely create a new Manager struct.
-func New(logger *log.Logger, shutdownCh chan struct{}, connPoolPinger Pinger) (m *Manager) {
+func New(logger hclog.Logger, shutdownCh chan struct{}, connPoolPinger Pinger) (m *Manager) {
+	logger = logger.Named("server_mgr")
 	return &Manager{
 		logger:         logger,
 		connPoolPinger: connPoolPinger,
@@ -188,7 +189,7 @@ func (m *Manager) Start() {
 			m.refreshServerRebalanceTimer()
 
 		case <-m.shutdownCh:
-			m.logger.Printf("[DEBUG] manager: shutting down")
+			m.logger.Debug("shutting down")
 			return
 		}
 	}
@@ -221,7 +222,7 @@ func (m *Manager) FindServer() *Server {
 	defer m.Unlock()
 
 	if len(m.servers) == 0 {
-		m.logger.Printf("[WARN] manager: No servers available")
+		m.logger.Warn("no servers available")
 		return nil
 	}
 
@@ -303,13 +304,13 @@ func (m *Manager) RebalanceServers() {
 			foundHealthyServer = true
 			break
 		}
-		m.logger.Printf(`[DEBUG] manager: pinging server "%s" failed: %s`, srv, err)
+		m.logger.Debug("error pinging server", "error", err, "server", srv)
 
 		servers.cycle()
 	}
 
 	if !foundHealthyServer {
-		m.logger.Printf("[DEBUG] manager: No healthy servers during rebalance")
+		m.logger.Debug("no healthy servers during rebalance")
 		return
 	}
 
