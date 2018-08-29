@@ -175,6 +175,15 @@ func TestConfig_Merge(t *testing.T) {
 			DisableUpgradeMigration: &falseValue,
 			EnableCustomUpgrades:    &falseValue,
 		},
+		Plugins: []*config.PluginConfig{
+			{
+				Name: "docker",
+				Args: []string{"foo"},
+				Config: map[string]interface{}{
+					"bar": 1,
+				},
+			},
+		},
 	}
 
 	c3 := &Config{
@@ -340,6 +349,22 @@ func TestConfig_Merge(t *testing.T) {
 			EnableRedundancyZones:   &trueValue,
 			DisableUpgradeMigration: &trueValue,
 			EnableCustomUpgrades:    &trueValue,
+		},
+		Plugins: []*config.PluginConfig{
+			{
+				Name: "docker",
+				Args: []string{"bam"},
+				Config: map[string]interface{}{
+					"baz": 2,
+				},
+			},
+			{
+				Name: "exec",
+				Args: []string{"arg"},
+				Config: map[string]interface{}{
+					"config": true,
+				},
+			},
 		},
 	}
 

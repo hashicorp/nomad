@@ -215,6 +215,26 @@ func TestConfig_Parse(t *testing.T) {
 					DisableUpgradeMigration: &trueValue,
 					EnableCustomUpgrades:    &trueValue,
 				},
+				Plugins: []*config.PluginConfig{
+					{
+						Name: "docker",
+						Args: []string{"foo", "bar"},
+						Config: map[string]interface{}{
+							"foo": "bar",
+							"nested": []map[string]interface{}{
+								{
+									"bam": 2,
+								},
+							},
+						},
+					},
+					{
+						Name: "exec",
+						Config: map[string]interface{}{
+							"foo": true,
+						},
+					},
+				},
 			},
 			false,
 		},
@@ -264,19 +284,19 @@ func TestConfig_Parse(t *testing.T) {
 				SyslogFacility:            "",
 				DisableUpdateCheck:        nil,
 				DisableAnonymousSignature: false,
-				Consul:                 nil,
-				Vault:                  nil,
-				TLSConfig:              nil,
-				HTTPAPIResponseHeaders: nil,
-				Sentinel:               nil,
+				Consul:                    nil,
+				Vault:                     nil,
+				TLSConfig:                 nil,
+				HTTPAPIResponseHeaders:    nil,
+				Sentinel:                  nil,
 			},
 			false,
 		},
 	}
 
 	for _, tc := range cases {
-		require := require.New(t)
 		t.Run(tc.File, func(t *testing.T) {
+			require := require.New(t)
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)

@@ -101,6 +101,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"acl",
 		"sentinel",
 		"autopilot",
+		"plugin",
 	}
 	if err := helper.CheckHCLKeys(list, valid); err != nil {
 		return multierror.Prefix(err, "config:")
@@ -125,6 +126,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	delete(m, "acl")
 	delete(m, "sentinel")
 	delete(m, "autopilot")
+	delete(m, "plugin")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -212,6 +214,13 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 	if o := list.Filter("autopilot"); len(o.Items) > 0 {
 		if err := parseAutopilot(&result.Autopilot, o); err != nil {
 			return multierror.Prefix(err, "autopilot->")
+		}
+	}
+
+	// Parse Plugin configs
+	if o := list.Filter("plugin"); len(o.Items) > 0 {
+		if err := parsePlugins(&result.Plugins, o); err != nil {
+			return multierror.Prefix(err, "plugin->")
 		}
 	}
 
@@ -984,5 +993,40 @@ func parseAutopilot(result **config.AutopilotConfig, list *ast.ObjectList) error
 	}
 
 	*result = autopilotConfig
+	return nil
+}
+
+func parsePlugins(result *[]*config.PluginConfig, list *ast.ObjectList) error {
+	listLen := len(list.Items)
+	plugins := make([]*config.PluginConfig, listLen)
+
+	// Check for invalid keys
+	valid := []string{
+		"args",
+		"config",
+	}
+
+	for i := 0; i < listLen; i++ {
+		// Get the current plugin object
+		listVal := list.Items[i]
+
+		if err := helper.CheckHCLKeys(listVal.Val, valid); err != nil {
+			return fmt.Errorf("invalid keys in plugin config %d: %v", i+1, err)
+		}
+
+		// Ensure there is a key
+		if len(listVal.Keys) != 1 {
+			return fmt.Errorf("plugin config %d doesn't incude a name key", i+1)
+		}
+
+		var plugin config.PluginConfig
+		if err := hcl.DecodeObject(&plugin, listVal); err != nil {
+			return fmt.Errorf("error decoding plugin config %d: %v", i+1, err)
+		}
+
+		plugins[i] = &plugin
+	}
+
+	*result = plugins
 	return nil
 }

@@ -133,6 +133,9 @@ type Config struct {
 
 	// Autopilot contains the configuration for Autopilot behavior.
 	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
+
+	// Plugins is the set of configured plugins
+	Plugins []*config.PluginConfig `hcl:"plugin,expand"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -853,6 +856,16 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Autopilot = &autopilot
 	} else if b.Autopilot != nil {
 		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
+	}
+
+	if len(result.Plugins) == 0 && len(b.Plugins) != 0 {
+		copy := make([]*config.PluginConfig, len(b.Plugins))
+		for i, v := range b.Plugins {
+			copy[i] = v.Copy()
+		}
+		result.Plugins = copy
+	} else if len(b.Plugins) != 0 {
+		result.Plugins = config.PluginConfigSetMerge(result.Plugins, b.Plugins)
 	}
 
 	// Merge config files lists
