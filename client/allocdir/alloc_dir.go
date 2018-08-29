@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -78,7 +78,7 @@ type AllocDir struct {
 
 	mu sync.RWMutex
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // AllocDirFS exposes file operations on the alloc dir
@@ -93,7 +93,8 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
+func NewAllocDir(logger hclog.Logger, allocDir string) *AllocDir {
+	logger = logger.Named("alloc_dir")
 	return &AllocDir{
 		AllocDir:  allocDir,
 		SharedDir: filepath.Join(allocDir, SharedAllocName),
@@ -209,7 +210,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 				// the snapshotting side closed the connect
 				// prematurely and won't try to use the tar
 				// anyway.
-				d.logger.Printf("[WARN] client: snapshotting failed and unable to write error marker: %v", writeErr)
+				d.logger.Warn("snapshotting failed and unable to write error marker", "error", writeErr)
 			}
 			return fmt.Errorf("failed to snapshot %s: %v", path, err)
 		}

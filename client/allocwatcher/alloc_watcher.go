@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/go-hclog"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -26,8 +26,8 @@ const (
 	getRemoteRetryIntv = 30 * time.Second
 )
 
-// rpcer is the interface needed by a prevAllocWatcher to make RPC calls.
-type rpcer interface {
+// RPCer is the interface needed by a prevAllocWatcher to make RPC calls.
+type RPCer interface {
 	// RPC allows retrieving remote allocs.
 	RPC(method string, args interface{}, reply interface{}) error
 }
@@ -63,40 +63,66 @@ type PrevAllocWatcher interface {
 	IsMigrating() bool
 }
 
+type Config struct {
+	// Alloc is the current allocation which may need to block on its
+	// previous allocation stopping.
+	Alloc *structs.Allocation
+
+	// PreviousRunner is non-nil iff All has a PreviousAllocation and it is
+	// running locally.
+	PreviousRunner AllocRunnerMeta
+
+	// RPC allows the alloc watcher to monitor remote allocations.
+	RPC RPCer
+
+	// Config is necessary for using the RPC.
+	Config *config.Config
+
+	// MigrateToken is used to migrate remote alloc dirs when ACLs are
+	// enabled.
+	MigrateToken string
+
+	Logger hclog.Logger
+}
+
 // NewAllocWatcher creates a PrevAllocWatcher appropriate for whether this
 // alloc's previous allocation was local or remote. If this alloc has no
 // previous alloc then a noop implementation is returned.
-func NewAllocWatcher(alloc *structs.Allocation, prevAR AllocRunnerMeta, rpc rpcer, config *config.Config, l *log.Logger, migrateToken string) PrevAllocWatcher {
-	if alloc.PreviousAllocation == "" {
+func NewAllocWatcher(c Config) PrevAllocWatcher {
+	if c.Alloc.PreviousAllocation == "" {
 		// No previous allocation, use noop transitioner
 		return NoopPrevAlloc{}
 	}
 
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	logger := c.Logger.Named("alloc_watcher")
+	logger = logger.With("alloc_id", c.Alloc.ID)
+	logger = logger.With("previous_alloc", c.Alloc.PreviousAllocation)
 
-	if prevAR != nil {
+	tg := c.Alloc.Job.LookupTaskGroup(c.Alloc.TaskGroup)
+
+	if c.PreviousRunner != nil {
 		// Previous allocation is local, use local transitioner
 		return &localPrevAlloc{
-			allocID:      alloc.ID,
-			prevAllocID:  alloc.PreviousAllocation,
+			allocID:      c.Alloc.ID,
+			prevAllocID:  c.Alloc.PreviousAllocation,
 			tasks:        tg.Tasks,
 			sticky:       tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky,
-			prevAllocDir: prevAR.GetAllocDir(),
-			prevListener: prevAR.Listener(),
-			prevStatus:   prevAR.Alloc(),
-			logger:       l,
+			prevAllocDir: c.PreviousRunner.GetAllocDir(),
+			prevListener: c.PreviousRunner.Listener(),
+			prevStatus:   c.PreviousRunner.Alloc(),
+			logger:       logger,
 		}
 	}
 
 	return &remotePrevAlloc{
-		allocID:      alloc.ID,
-		prevAllocID:  alloc.PreviousAllocation,
+		allocID:      c.Alloc.ID,
+		prevAllocID:  c.Alloc.PreviousAllocation,
 		tasks:        tg.Tasks,
-		config:       config,
+		config:       c.Config,
 		migrate:      tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate,
-		rpc:          rpc,
-		logger:       l,
-		migrateToken: migrateToken,
+		rpc:          c.RPC,
+		migrateToken: c.MigrateToken,
+		logger:       logger,
 	}
 }
 
@@ -132,7 +158,7 @@ type localPrevAlloc struct {
 	migrating   bool
 	waitingLock sync.RWMutex
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // IsWaiting returns true if there's a concurrent call inside Wait
@@ -165,7 +191,7 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 	defer p.prevListener.Close()
 
 	// Block until previous alloc exits
-	p.logger.Printf("[DEBUG] client: alloc %q waiting for previous alloc %q to terminate", p.allocID, p.prevAllocID)
+	p.logger.Debug("waiting for previous alloc to terminate")
 	for {
 		select {
 		case prevAlloc, ok := <-p.prevListener.Ch:
@@ -194,13 +220,14 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) e
 		p.waitingLock.Unlock()
 	}()
 
-	p.logger.Printf("[DEBUG] client: alloc %q copying previous alloc %q", p.allocID, p.prevAllocID)
+	p.logger.Debug("copying previous alloc")
 
 	moveErr := dest.Move(p.prevAllocDir, p.tasks)
 
 	// Always cleanup previous alloc
 	if err := p.prevAllocDir.Destroy(); err != nil {
-		p.logger.Printf("[ERR] client: error destroying allocdir %v: %v", p.prevAllocDir.AllocDir, err)
+		p.logger.Error("error destroying alloc dir",
+			"error", err, "previous_alloc_dir", p.prevAllocDir.AllocDir)
 	}
 
 	return moveErr
@@ -226,7 +253,7 @@ type remotePrevAlloc struct {
 
 	// rpc provides an RPC method for watching for updates to the previous
 	// alloc and determining what node it was on.
-	rpc rpcer
+	rpc RPCer
 
 	// nodeID is the node the previous alloc. Set by Wait() for use in
 	// Migrate() iff the previous alloc has not already been GC'd.
@@ -239,7 +266,7 @@ type remotePrevAlloc struct {
 	migrating   bool
 	waitingLock sync.RWMutex
 
-	logger *log.Logger
+	logger hclog.Logger
 
 	// migrateToken allows a client to migrate data in an ACL-protected remote
 	// volume
@@ -273,7 +300,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		p.waitingLock.Unlock()
 	}()
 
-	p.logger.Printf("[DEBUG] client: alloc %q waiting for remote previous alloc %q to terminate", p.allocID, p.prevAllocID)
+	p.logger.Debug("waiting for remote previous alloc to terminate")
 	req := structs.AllocSpecificRequest{
 		AllocID: p.prevAllocID,
 		QueryOptions: structs.QueryOptions{
@@ -296,7 +323,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		resp := structs.SingleAllocResponse{}
 		err := p.rpc.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
-			p.logger.Printf("[ERR] client: failed to query previous alloc %q: %v", p.prevAllocID, err)
+			p.logger.Error("error querying previous alloc", "error", err)
 			retry := getRemoteRetryIntv + lib.RandomStagger(getRemoteRetryIntv)
 			select {
 			case <-time.After(retry):
@@ -306,7 +333,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 			}
 		}
 		if resp.Alloc == nil {
-			p.logger.Printf("[DEBUG] client: blocking alloc %q has been GC'd", p.prevAllocID)
+			p.logger.Debug("blocking alloc was GC'd")
 			return nil
 		}
 		if resp.Alloc.Terminated() {
@@ -341,12 +368,11 @@ func (p *remotePrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) 
 		p.waitingLock.Unlock()
 	}()
 
-	p.logger.Printf("[DEBUG] client: alloc %q copying from remote previous alloc %q", p.allocID, p.prevAllocID)
+	p.logger.Debug("copying from remote previous alloc")
 
 	if p.nodeID == "" {
 		// NodeID couldn't be found; likely alloc was GC'd
-		p.logger.Printf("[WARN] client: alloc %q couldn't migrate data from previous alloc %q; previous alloc may have been GC'd",
-			p.allocID, p.prevAllocID)
+		p.logger.Warn("unable to migrate data from previous alloc; previous alloc may have been GC'd")
 		return nil
 	}
 
@@ -367,7 +393,8 @@ func (p *remotePrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) 
 	}
 
 	if err := prevAllocDir.Destroy(); err != nil {
-		p.logger.Printf("[ERR] client: error destroying allocdir %q: %v", prevAllocDir.AllocDir, err)
+		p.logger.Error("error destroying alloc dir",
+			"error", err, "previous_alloc_dir", prevAllocDir.AllocDir)
 	}
 	return nil
 }
@@ -387,7 +414,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 	for {
 		err := p.rpc.RPC("Node.GetNode", &req, &resp)
 		if err != nil {
-			p.logger.Printf("[ERR] client: failed to query node info %q: %v", nodeID, err)
+			p.logger.Error("failed to query node", "error", err, "node", nodeID)
 			retry := getRemoteRetryIntv + lib.RandomStagger(getRemoteRetryIntv)
 			select {
 			case <-time.After(retry):
@@ -452,7 +479,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 // stream remote alloc to dir to a local path. Caller should cleanup dest on
 // error.
 func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser, dest string) error {
-	p.logger.Printf("[DEBUG] client: alloc %q streaming snapshot of previous alloc %q to %q", p.allocID, p.prevAllocID, dest)
+	p.logger.Debug("streaming snapshot of previous alloc", "destination", dest)
 	tr := tar.NewReader(resp)
 	defer resp.Close()
 
@@ -462,8 +489,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 	canceled := func() bool {
 		select {
 		case <-ctx.Done():
-			p.logger.Printf("[INFO] client: stopping migration of previous alloc %q for new alloc: %v",
-				p.prevAllocID, p.allocID)
+			p.logger.Info("migration of previous alloc canceled")
 			return true
 		default:
 			return false
