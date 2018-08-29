@@ -119,12 +119,11 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		prevAllocWatcher: config.PrevAllocWatcher,
 	}
 
-	// Create alloc dir
-	//XXX update AllocDir to hc log
-	ar.allocDir = allocdir.NewAllocDir(nil, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
-
 	// Create the logger based on the allocation ID
 	ar.logger = config.Logger.With("alloc_id", alloc.ID)
+
+	// Create alloc dir
+	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
 
 	// Initialize the runners hooks.
 	ar.initRunnerHooks()
