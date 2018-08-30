@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // RunnnerHook is a lifecycle hook into the life cycle of an allocation runner.
@@ -28,7 +29,11 @@ type RunnerDestroyHook interface {
 
 type RunnerUpdateHook interface {
 	RunnerHook
-	Update() error
+	Update(*RunnerUpdateRequest) error
+}
+
+type RunnerUpdateRequest struct {
+	Alloc *structs.Allocation
 }
 
 // XXX Not sure yet
