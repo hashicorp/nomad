@@ -27,6 +27,8 @@ export default Factory.extend({
       server.create('deployment-task-group-summary', {
         deployment,
         name: server.db.taskGroups.find(id).name,
+        desiredCanaries: 1,
+        promoted: false,
       })
     );
 

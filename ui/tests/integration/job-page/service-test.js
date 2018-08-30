@@ -1,16 +1,19 @@
 import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { test, moduleForComponent } from 'ember-qunit';
+import { click, find } from 'ember-native-dom-helpers';
 import wait from 'ember-test-helpers/wait';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { stopJob, expectStopError, expectDeleteRequest } from './helpers';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
+import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 
 moduleForComponent('job-page/service', 'Integration | Component | job-page/service', {
   integration: true,
   beforeEach() {
     Job.setContext(this);
+    fragmentSerializerInitializer(getOwner(this));
     window.localStorage.clear();
     this.store = getOwner(this).lookup('service:store');
     this.server = startMirage();
@@ -163,5 +166,79 @@ test('Recent allocations shows an empty message when the job has no allocations'
         Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
         'No allocations empty message'
       );
+    });
+});
+
+test('Active deployment can be promoted', function(assert) {
+  let job;
+  let deployment;
+
+  this.server.create('node');
+  const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
+
+  this.store.findAll('job');
+
+  return wait()
+    .then(() => {
+      job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+      deployment = job.get('latestDeployment');
+
+      this.setProperties(commonProperties(job));
+      this.render(commonTemplate);
+
+      return wait();
+    })
+    .then(() => {
+      click('[data-test-promote-canary]');
+      return wait();
+    })
+    .then(() => {
+      const requests = this.server.pretender.handledRequests;
+      assert.ok(
+        requests
+          .filterBy('method', 'POST')
+          .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
+        'A promote POST request was made'
+      );
+    });
+});
+
+test('When promoting the active deployment fails, an error is shown', function(assert) {
+  this.server.pretender.post('/v1/deployment/promote/:id', () => [403, {}, null]);
+
+  let job;
+
+  this.server.create('node');
+  const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
+
+  this.store.findAll('job');
+
+  return wait()
+    .then(() => {
+      job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+
+      this.setProperties(commonProperties(job));
+      this.render(commonTemplate);
+
+      return wait();
+    })
+    .then(() => {
+      click('[data-test-promote-canary]');
+      return wait();
+    })
+    .then(() => {
+      assert.equal(
+        find('[data-test-job-error-title]').textContent,
+        'Could Not Promote Deployment',
+        'Appropriate error is shown'
+      );
+      assert.ok(
+        find('[data-test-job-error-body]').textContent.includes('ACL'),
+        'The error message mentions ACLs'
+      );
+
+      click('[data-test-job-error-close]');
+      assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+      return wait();
     });
 });

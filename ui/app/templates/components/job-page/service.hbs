@@ -17,7 +17,7 @@
 
   {{job-page/parts/placement-failures job=job}}
 
-  {{job-page/parts/latest-deployment job=job}}
+  {{job-page/parts/latest-deployment job=job handleError=(action "handleError")}}
 
   {{job-page/parts/task-groups
     job=job
