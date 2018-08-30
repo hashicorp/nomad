@@ -37,6 +37,9 @@ type Config struct {
 	// DataDir is the directory to store our state in
 	DataDir string `mapstructure:"data_dir"`
 
+	// PluginDir is the directory to lookup plugins.
+	PluginDir string `mapstructure:"plugin_dir"`
+
 	// LogLevel is the level of the logs to putout
 	LogLevel string `mapstructure:"log_level"`
 
@@ -736,6 +739,9 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	if b.DataDir != "" {
 		result.DataDir = b.DataDir
+	}
+	if b.PluginDir != "" {
+		result.PluginDir = b.PluginDir
 	}
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel

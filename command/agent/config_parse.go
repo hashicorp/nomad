@@ -78,6 +78,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"datacenter",
 		"name",
 		"data_dir",
+		"plugin_dir",
 		"log_level",
 		"bind_addr",
 		"enable_debug",
