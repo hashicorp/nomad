@@ -9,25 +9,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestAllocBroadcaster_SendRecv asserts the initial and latest sends to a
-// broadcaster are received by listeners.
+// TestAllocBroadcaster_SendRecv asserts the latest sends to a broadcaster are
+// received by listeners.
 func TestAllocBroadcaster_SendRecv(t *testing.T) {
 	t.Parallel()
 
-	alloc := mock.Alloc()
-	alloc.AllocModifyIndex = 10
-
-	b := NewAllocBroadcaster(alloc.Copy())
+	b := NewAllocBroadcaster()
 	defer b.Close()
 
-	// Create a listener and get the initial alloc
+	// Create a listener and assert it blocks until an update
 	l := b.Listen()
 	defer l.Close()
-	initial := <-l.Ch
-	require.Equal(t, alloc.AllocModifyIndex, initial.AllocModifyIndex)
+	select {
+	case <-l.Ch:
+		t.Fatalf("unexpected initial alloc")
+	case <-time.After(10 * time.Millisecond):
+		// Ok! Ch is empty until a Send
+	}
 
-	// Increment the index and send a new copy
-	alloc.AllocModifyIndex = 20
+	// Send an update
+	alloc := mock.Alloc()
+	alloc.AllocModifyIndex = 10
 	require.NoError(t, b.Send(alloc.Copy()))
 	recvd := <-l.Ch
 	require.Equal(t, alloc.AllocModifyIndex, recvd.AllocModifyIndex)
@@ -47,7 +49,7 @@ func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
-	b := NewAllocBroadcaster(alloc.Copy())
+	b := NewAllocBroadcaster()
 	defer b.Close()
 
 	l1 := b.Listen()
@@ -55,11 +57,6 @@ func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
 
 	l2 := b.Listen()
 	defer l2.Close()
-
-	// Every listener should get the initial alloc even when there hasn't
-	// been a Send()
-	require.NotNil(t, <-l1.Ch)
-	require.NotNil(t, <-l2.Ch)
 
 	done := make(chan int, 2)
 
@@ -92,7 +89,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
-	b := NewAllocBroadcaster(alloc.Copy())
+	b := NewAllocBroadcaster()
 	defer b.Close()
 
 	errs := make(chan error, 10)
