@@ -19,11 +19,31 @@ export function stopJob() {
   });
 }
 
-export function expectStopError(assert) {
+export function startJob() {
+  click('[data-test-start] [data-test-idle-button]');
+  return wait().then(() => {
+    click('[data-test-start] [data-test-confirm-button]');
+    return wait();
+  });
+}
+
+export function expectStartRequest(assert, server, job) {
+  const expectedURL = jobURL(job);
+  const request = server.pretender.handledRequests
+    .filterBy('method', 'POST')
+    .find(req => req.url === expectedURL);
+
+  const requestPayload = JSON.parse(request.requestBody).Job;
+
+  assert.ok(request, 'POST URL was made correctly');
+  assert.ok(requestPayload.Stop == null, 'The Stop signal is not sent in the POST request');
+}
+
+export function expectError(assert, title) {
   return () => {
     assert.equal(
       find('[data-test-job-error-title]').textContent,
-      'Could Not Stop Job',
+      title,
       'Appropriate error is shown'
     );
     assert.ok(

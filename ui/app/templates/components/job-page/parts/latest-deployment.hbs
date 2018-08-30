@@ -13,7 +13,12 @@
           {{job.latestDeployment.status}}
         </span>
         {{#if job.latestDeployment.requiresPromotion}}
-          <span class="tag bumper-left is-warning no-text-transform">Deployment is running but requires promotion</span>
+          <button
+            data-test-promote-canary
+            type="button"
+            class="button is-warning is-small pull-right {{if promote.isRunning "is-loading"}}"
+            disabled={{promote.isRunning}}
+            onclick={{perform promote}}>Promote Canary</button>
         {{/if}}
       </div>
     </div>

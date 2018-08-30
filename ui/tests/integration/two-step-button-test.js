@@ -13,6 +13,7 @@ const commonProperties = () => ({
   cancelText: 'Cancel Action',
   confirmText: 'Confirm Action',
   confirmationMessage: 'Are you certain',
+  awaitingConfirmation: false,
   onConfirm: sinon.spy(),
   onCancel: sinon.spy(),
 });
@@ -23,6 +24,7 @@ const commonTemplate = hbs`
     cancelText=cancelText
     confirmText=confirmText
     confirmationMessage=confirmationMessage
+    awaitingConfirmation=awaitingConfirmation
     onConfirm=onConfirm
     onCancel=onCancel}}
 `;
@@ -107,5 +109,29 @@ test('confirming the promptForConfirmation state calls the onConfirm hook and re
       assert.ok(props.onConfirm.calledOnce, 'The onConfirm hook fired');
       assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
     });
+  });
+});
+
+test('when awaitingConfirmation is true, the cancel and submit buttons are disabled and the submit button is loading', function(assert) {
+  const props = commonProperties();
+  props.awaitingConfirmation = true;
+  this.setProperties(props);
+  this.render(commonTemplate);
+
+  click('[data-test-idle-button]');
+
+  return wait().then(() => {
+    assert.ok(
+      find('[data-test-cancel-button]').hasAttribute('disabled'),
+      'The cancel button is disabled'
+    );
+    assert.ok(
+      find('[data-test-confirm-button]').hasAttribute('disabled'),
+      'The confirm button is disabled'
+    );
+    assert.ok(
+      find('[data-test-confirm-button]').classList.contains('is-loading'),
+      'The confirm button is in a loading state'
+    );
   });
 });
