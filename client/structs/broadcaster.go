@@ -23,18 +23,14 @@ var ErrAllocBroadcasterClosed = errors.New("alloc broadcaster closed")
 // receive the latest allocation update -- never a stale version.
 type AllocBroadcaster struct {
 	m         sync.Mutex
-	alloc     *structs.Allocation
 	listeners map[int]chan *structs.Allocation // lazy init
 	nextId    int
 	closed    bool
 }
 
-// NewAllocBroadcaster returns a new AllocBroadcaster with the given initial
-// allocation.
-func NewAllocBroadcaster(initial *structs.Allocation) *AllocBroadcaster {
-	return &AllocBroadcaster{
-		alloc: initial,
-	}
+// NewAllocBroadcaster returns a new AllocBroadcaster.
+func NewAllocBroadcaster() *AllocBroadcaster {
+	return &AllocBroadcaster{}
 }
 
 // Send broadcasts an allocation update. Any pending updates are replaced with
@@ -46,9 +42,6 @@ func (b *AllocBroadcaster) Send(v *structs.Allocation) error {
 	if b.closed {
 		return ErrAllocBroadcasterClosed
 	}
-
-	// Update alloc on broadcaster to send to newly created listeners
-	b.alloc = v
 
 	// Send alloc to already created listeners
 	for _, l := range b.listeners {
@@ -64,7 +57,8 @@ func (b *AllocBroadcaster) Send(v *structs.Allocation) error {
 }
 
 // Close closes the channel, disabling the sending of further allocation
-// updates. Safe to call concurrently and more than once.
+// updates. Pending updates are still received by listeners. Safe to call
+// concurrently and more than once.
 func (b *AllocBroadcaster) Close() {
 	b.m.Lock()
 	defer b.m.Unlock()
@@ -79,7 +73,6 @@ func (b *AllocBroadcaster) Close() {
 
 	// Clear all references and mark broadcaster as closed
 	b.listeners = nil
-	b.alloc = nil
 	b.closed = true
 }
 
@@ -118,12 +111,9 @@ func (b *AllocBroadcaster) Listen() *AllocListener {
 
 	ch := make(chan *structs.Allocation, listenerCap)
 
+	// Broadcaster is already closed, close this listener
 	if b.closed {
-		// Broadcaster is already closed, close this listener
 		close(ch)
-	} else {
-		// Send the current allocation to the listener
-		ch <- b.alloc
 	}
 
 	b.listeners[b.nextId] = ch
