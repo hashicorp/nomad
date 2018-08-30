@@ -17,15 +17,15 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/fsouza/go-dockerclient"
+	metrics "github.com/armon/go-metrics"
+	docker "github.com/fsouza/go-dockerclient"
 
-	"github.com/docker/docker/cli/config/configfile"
-	"github.com/docker/docker/reference"
+	"github.com/docker/cli/cli/config/configfile"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/registry"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
