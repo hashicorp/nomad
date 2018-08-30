@@ -483,7 +483,8 @@ func (tr *TaskRunner) Restore() error {
 	return nil
 }
 
-// SetState sets the task runners allocation state.
+// SetState sets the task runners allocation state and triggers a server
+// update.
 func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
 	// Update the local state
 	stateCopy := tr.setStateLocal(state, event)
