@@ -1,6 +1,8 @@
 package state
 
 import (
+	"time"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -16,4 +18,28 @@ type State struct {
 
 	// DeploymentStatus captures the status of the deployment
 	DeploymentStatus *structs.AllocDeploymentStatus
+}
+
+// SetDeploymentStatus is a helper for updating the client-controlled
+// DeploymentStatus fields: Healthy and Timestamp. The Canary and ModifyIndex
+// fields should only be updated by the server.
+func (s *State) SetDeploymentStatus(timestamp time.Time, healthy bool) {
+	if s.DeploymentStatus == nil {
+		s.DeploymentStatus = &structs.AllocDeploymentStatus{}
+	}
+
+	s.DeploymentStatus.Healthy = &healthy
+	s.DeploymentStatus.Timestamp = timestamp
+}
+
+// ClearDeploymentStatus is a helper to clear the client-controlled
+// DeploymentStatus fields: Healthy and Timestamp. The Canary and ModifyIndex
+// fields should only be updated by the server.
+func (s *State) ClearDeploymentStatus() {
+	if s.DeploymentStatus == nil {
+		return
+	}
+
+	s.DeploymentStatus.Healthy = nil
+	s.DeploymentStatus.Timestamp = time.Time{}
 }

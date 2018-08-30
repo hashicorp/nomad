@@ -24,14 +24,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// updateChCap is the capacity of AllocRunner's updateCh. It must be 1
-	// as we only want to process the latest update, so if there's already
-	// a pending update it will be removed from the chan before adding the
-	// newer update.
-	updateChCap = 1
-)
-
 // allocRunner is used to run all the tasks in a given allocation
 type allocRunner struct {
 	// id is the ID of the allocation. Can be accessed without a lock
@@ -82,11 +74,6 @@ type allocRunner struct {
 	tasks     map[string]*taskrunner.TaskRunner
 	tasksLock sync.RWMutex
 
-	// updateCh receives allocation updates via the Update method. Must
-	// have buffer size 1 in order to support dropping pending updates when
-	// a newer allocation is received.
-	updateCh chan *structs.Allocation
-
 	// allocBroadcaster sends client allocation updates to all listeners
 	allocBroadcaster *cstructs.AllocBroadcaster
 
@@ -111,16 +98,15 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		vaultClient:      config.Vault,
 		tasks:            make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:           make(chan struct{}),
-		updateCh:         make(chan *structs.Allocation, updateChCap),
 		state:            &state.State{},
 		stateDB:          config.StateDB,
 		stateUpdater:     config.StateUpdater,
-		allocBroadcaster: cstructs.NewAllocBroadcaster(alloc),
+		allocBroadcaster: cstructs.NewAllocBroadcaster(),
 		prevAllocWatcher: config.PrevAllocWatcher,
 	}
 
 	// Create the logger based on the allocation ID
-	ar.logger = config.Logger.With("alloc_id", alloc.ID)
+	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
 
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
@@ -249,6 +235,56 @@ func (ar *allocRunner) Restore() error {
 	}
 
 	return nil
+}
+
+// SetHealth allows the health watcher hook to set the alloc's
+// deployment/migration health and emit task events.
+//
+// Only for use by health hook.
+func (ar *allocRunner) SetHealth(healthy, isDeploy bool, trackerTaskEvents map[string]*structs.TaskEvent) {
+	// Updating alloc deployment state is tricky because it may be nil, but
+	// if it's not then we need to maintain the values of Canary and
+	// ModifyIndex as they're only mutated by the server.
+	ar.stateLock.Lock()
+	ar.state.SetDeploymentStatus(time.Now(), healthy)
+	ar.stateLock.Unlock()
+
+	// If deployment is unhealthy emit task events explaining why
+	ar.tasksLock.RLock()
+	if !healthy && isDeploy {
+		for task, event := range trackerTaskEvents {
+			if tr, ok := ar.tasks[task]; ok {
+				tr.EmitEvent(event)
+			}
+		}
+	}
+
+	// Gather the state of the other tasks
+	states := make(map[string]*structs.TaskState, len(ar.tasks))
+	for name, tr := range ar.tasks {
+		states[name] = tr.TaskState()
+	}
+	ar.tasksLock.RUnlock()
+
+	// Build the client allocation
+	calloc := ar.clientAlloc(states)
+
+	// Update the server
+	ar.stateUpdater.AllocStateUpdated(calloc)
+
+	// Broadcast client alloc to listeners
+	ar.allocBroadcaster.Send(calloc)
+}
+
+// ClearHealth allows the health watcher hook to clear the alloc's deployment
+// health if the deployment id changes. It does not update the server as the
+// status is only cleared when already receiving an update from the server.
+//
+// Only for use by health hook.
+func (ar *allocRunner) ClearHealth() {
+	ar.stateLock.Lock()
+	ar.state.ClearDeploymentStatus()
+	ar.stateLock.Unlock()
 }
 
 // TaskStateUpdated is called by TaskRunner when a task's state has been
@@ -408,7 +444,10 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 	// Update ar.alloc
 	ar.setAlloc(update)
 
-	//TODO Run AR Update hooks
+	// Run hooks
+	if err := ar.update(update); err != nil {
+		ar.logger.Error("error running update hooks", "error", err)
+	}
 
 	// Update task runners
 	for _, tr := range ar.tasks {
