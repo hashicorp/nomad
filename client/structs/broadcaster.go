@@ -37,17 +37,9 @@ func NewAllocBroadcaster(initial *structs.Allocation) *AllocBroadcaster {
 	}
 }
 
-// AllocListener implements a listening endpoint for an allocation broadcast
-// channel.
-type AllocListener struct {
-	// Ch receives the broadcast messages.
-	Ch <-chan *structs.Allocation
-	b  *AllocBroadcaster
-	id int
-}
-
 // Send broadcasts an allocation update. Any pending updates are replaced with
 // this version of the allocation to prevent blocking on slow receivers.
+// Returns ErrAllocBroadcasterClosed if called after broadcaster is closed.
 func (b *AllocBroadcaster) Send(v *structs.Allocation) error {
 	b.m.Lock()
 	defer b.m.Unlock()
@@ -72,7 +64,7 @@ func (b *AllocBroadcaster) Send(v *structs.Allocation) error {
 }
 
 // Close closes the channel, disabling the sending of further allocation
-// updates.
+// updates. Safe to call concurrently and more than once.
 func (b *AllocBroadcaster) Close() {
 	b.m.Lock()
 	defer b.m.Unlock()
@@ -80,11 +72,36 @@ func (b *AllocBroadcaster) Close() {
 		return
 	}
 
-	b.alloc = nil
-	b.closed = true
+	// Close all listener chans
 	for _, l := range b.listeners {
 		close(l)
 	}
+
+	// Clear all references and mark broadcaster as closed
+	b.listeners = nil
+	b.alloc = nil
+	b.closed = true
+}
+
+// stop an individual listener
+func (b *AllocBroadcaster) stop(id int) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	// If broadcaster has been closed there's nothing more to do.
+	if b.closed {
+		return
+	}
+
+	l, ok := b.listeners[id]
+	if !ok {
+		// If this listener has been stopped already there's nothing
+		// more to do.
+		return
+	}
+
+	close(l)
+	delete(b.listeners, id)
 }
 
 // Listen returns a Listener for the broadcast channel.
@@ -114,9 +131,17 @@ func (b *AllocBroadcaster) Listen() *AllocListener {
 	return &AllocListener{ch, b, b.nextId}
 }
 
-// Close closes the Listener, disabling the receival of further messages.
+// AllocListener implements a listening endpoint for an allocation broadcast
+// channel.
+type AllocListener struct {
+	// Ch receives the broadcast messages.
+	Ch <-chan *structs.Allocation
+	b  *AllocBroadcaster
+	id int
+}
+
+// Close closes the Listener, disabling the receival of further messages. Safe
+// to call more than once and concurrently with receiving on Ch.
 func (l *AllocListener) Close() {
-	l.b.m.Lock()
-	defer l.b.m.Unlock()
-	delete(l.b.listeners, l.id)
+	l.b.stop(l.id)
 }
