@@ -39,9 +39,11 @@ export default Route.extend(WithWatchers, {
 
   watchers: collect('watch', 'watchAllocations'),
 
-  setupController(controller) {
+  setupController(controller, model) {
     this._super(...arguments);
-    controller.get('pollStats').perform();
+    if (model) {
+      controller.get('pollStats').perform();
+    }
   },
 
   resetController(controller) {

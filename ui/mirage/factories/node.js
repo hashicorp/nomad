@@ -117,6 +117,10 @@ export default Factory.extend({
     node.update({
       eventIds: events.mapBy('id'),
     });
+
+    server.create('client-stats', {
+      id: node.id,
+    });
   },
 });
 
