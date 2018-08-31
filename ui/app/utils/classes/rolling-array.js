@@ -23,7 +23,7 @@ export default function RollingArray(maxLength, ...items) {
       this.splice(0, surplus);
     }
 
-    return returnValue;
+    return Math.min(returnValue, this.maxLength);
   };
 
   array.splice = function(...args) {
