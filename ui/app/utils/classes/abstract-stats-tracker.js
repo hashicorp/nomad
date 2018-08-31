@@ -5,12 +5,12 @@ export default Mixin.create({
   url: '',
 
   fetch() {
-    assert('StatTrackers need a fetch method, which should have an interface like window.fetch');
+    assert('StatsTrackers need a fetch method, which should have an interface like window.fetch');
   },
 
   append(/* frame */) {
     assert(
-      'StatTrackers need an append method, which takes the JSON response from a request to url as an argument'
+      'StatsTrackers need an append method, which takes the JSON response from a request to url as an argument'
     );
   },
 
