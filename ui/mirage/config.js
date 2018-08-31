@@ -2,6 +2,8 @@ import Ember from 'ember';
 import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
 import { logFrames, logEncode } from './data/logs';
+import { generateDiff } from './factories/job-version';
+import { generateTaskGroupFailures } from './factories/evaluation';
 
 const { copy } = Ember;
 
@@ -55,6 +57,49 @@ export default function() {
     })
   );
 
+  this.post('/jobs', function(schema, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
+
+    return okEmpty();
+  });
+
+  this.post('/jobs/parse', function(schema, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.JobHCL)
+      return new Response(400, {}, 'JobHCL is a required field on the request payload');
+    if (!body.Canonicalize) return new Response(400, {}, 'Expected Canonicalize to be true');
+
+    // Parse the name out of the first real line of HCL to match IDs in the new job record
+    // Regex expectation:
+    //   in:  job "job-name" {
+    //   out: job-name
+    const nameFromHCLBlock = /.+?"(.+?)"/;
+    const jobName = body.JobHCL.trim()
+      .split('\n')[0]
+      .match(nameFromHCLBlock)[1];
+
+    const job = server.create('job', { id: jobName });
+    return new Response(200, {}, this.serialize(job));
+  });
+
+  this.post('/job/:id/plan', function(schema, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
+    if (!body.Diff) return new Response(400, {}, 'Expected Diff to be true');
+
+    const FailedTGAllocs = body.Job.Unschedulable && generateFailedTGAllocs(body.Job);
+
+    return new Response(
+      200,
+      {},
+      JSON.stringify({ FailedTGAllocs, Diff: generateDiff(req.params.id) })
+    );
+  });
+
   this.get(
     '/job/:id',
     withBlockingSupport(function({ jobs }, { params, queryParams }) {
@@ -70,6 +115,14 @@ export default function() {
       return job ? this.serialize(job) : new Response(404, {}, null);
     })
   );
+
+  this.post('/job/:id', function(schema, req) {
+    const body = JSON.parse(req.requestBody);
+
+    if (!body.Job) return new Response(400, {}, 'Job is a required field on the request payload');
+
+    return okEmpty();
+  });
 
   this.get(
     '/job/:id/summary',
@@ -107,8 +160,7 @@ export default function() {
       createAllocations: parent.createAllocations,
     });
 
-    // Return bogus, since the response is normally just eval information
-    return new Response(200, {}, '{}');
+    return okEmpty();
   });
 
   this.delete('/job/:id', function(schema, { params }) {
@@ -118,6 +170,9 @@ export default function() {
   });
 
   this.get('/deployment/:id');
+  this.post('/deployment/promote/:id', function() {
+    return new Response(204, {}, '');
+  });
 
   this.get('/job/:id/evaluations', function({ evaluations }, { params }) {
     return this.serialize(evaluations.where({ jobId: params.id }));
@@ -275,4 +330,23 @@ function filterKeys(object, ...keys) {
   });
 
   return clone;
+}
+
+// An empty response but not a 204 No Content. This is still a valid JSON
+// response that represents a payload with no worthwhile data.
+function okEmpty() {
+  return new Response(200, {}, '{}');
+}
+
+function generateFailedTGAllocs(job, taskGroups) {
+  const taskGroupsFromSpec = job.TaskGroups && job.TaskGroups.mapBy('Name');
+
+  let tgNames = ['tg-one', 'tg-two'];
+  if (taskGroupsFromSpec && taskGroupsFromSpec.length) tgNames = taskGroupsFromSpec;
+  if (taskGroups && taskGroups.length) tgNames = taskGroups;
+
+  return tgNames.reduce((hash, tgName) => {
+    hash[tgName] = generateTaskGroupFailures();
+    return hash;
+  }, {});
 }

@@ -1,5 +1,6 @@
 import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
+import { assert } from '@ember/debug';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
@@ -58,4 +59,9 @@ export default Model.extend({
 
     return classMap[this.get('status')] || 'is-dark';
   }),
+
+  promote() {
+    assert('A deployment needs to requirePromotion to be promoted', this.get('requiresPromotion'));
+    return this.store.adapterFor('deployment').promote(this);
+  },
 });
