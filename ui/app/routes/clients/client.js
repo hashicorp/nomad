@@ -38,4 +38,13 @@ export default Route.extend(WithWatchers, {
   watchAllocations: watchRelationship('allocations'),
 
   watchers: collect('watch', 'watchAllocations'),
+
+  setupController(controller) {
+    this._super(...arguments);
+    controller.get('pollStats').perform();
+  },
+
+  resetController(controller) {
+    controller.get('pollStats').cancelAll();
+  },
 });
