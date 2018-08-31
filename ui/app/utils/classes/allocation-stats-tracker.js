@@ -1,4 +1,4 @@
-import EmberObject, { computed } from '@ember/object';
+import EmberObject, { computed, get } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
@@ -14,7 +14,7 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   allocation: null,
 
-  bufferSize: 10,
+  bufferSize: 100,
 
   url: computed('allocation', function() {
     return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
@@ -75,11 +75,11 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   tasks: computed('allocation', function() {
     const bufferSize = this.get('bufferSize');
     return this.get('allocation.taskGroup.tasks').map(task => ({
-      task: task.get('name'),
+      task: get(task, 'name'),
 
       // Static figures, denominators for stats
-      reservedCPU: task.get('reservedCPU'),
-      reservedMemory: task.get('reservedMemory'),
+      reservedCPU: get(task, 'reservedCPU'),
+      reservedMemory: get(task, 'reservedMemory'),
 
       // Dynamic figures, collected over time
       // []{ timestamp: Date, used: Number, percent: Number }
