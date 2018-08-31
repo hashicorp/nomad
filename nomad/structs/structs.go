@@ -6586,7 +6586,8 @@ func (a *AllocMetric) ExhaustQuota(dimensions []string) {
 
 // ScoreNode is used to gather top K scoring nodes in a heap
 func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
-	if a.nodeScoreMeta == nil {
+	// Create nodeScoreMeta lazily if its the first time or if its a new node
+	if a.nodeScoreMeta == nil || a.nodeScoreMeta.NodeID != node.ID {
 		a.nodeScoreMeta = &NodeScoreMeta{
 			NodeID: node.ID,
 			Scores: make(map[string]float64),
@@ -6614,14 +6615,16 @@ func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
 // The map is populated by popping elements from a heap of top K scores
 // maintained per scorer
 func (a *AllocMetric) PopulateScoreMetaData() {
-	if a.topScores != nil {
-		if a.ScoreMetaData == nil {
-			a.ScoreMetaData = make([]*NodeScoreMeta, a.topScores.Len())
-		}
-		heapItems := a.topScores.GetItemsReverse()
-		for i, item := range heapItems {
-			a.ScoreMetaData[i] = item.(*NodeScoreMeta)
-		}
+	if a.topScores == nil {
+		return
+	}
+
+	if a.ScoreMetaData == nil {
+		a.ScoreMetaData = make([]*NodeScoreMeta, a.topScores.Len())
+	}
+	heapItems := a.topScores.GetItemsReverse()
+	for i, item := range heapItems {
+		a.ScoreMetaData[i] = item.(*NodeScoreMeta)
 	}
 }
 
