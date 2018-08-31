@@ -1,3 +1,4 @@
+import Ember from 'ember';
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
@@ -41,10 +42,10 @@ export default Controller.extend(Sortable, Searchable, {
   }),
 
   pollStats: task(function*() {
-    while (true) {
+    do {
       yield this.get('stats').poll();
       yield timeout(1000);
-    }
+    } while (!Ember.testing);
   }),
 
   actions: {

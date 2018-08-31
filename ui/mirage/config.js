@@ -306,7 +306,7 @@ export default function() {
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
 
-  this.get('/client/v1/client/stats', function({ clientStats }, { queryParams }) {
+  this.get('/client/stats', function({ clientStats }, { queryParams }) {
     return this.serialize(clientStats.find(queryParams.node_id));
   });
 
