@@ -19,6 +19,10 @@ matrix:
       sudo: required
     - os: linux
       dist: trusty
+      sudo: required
+      env: ENABLE_RACE=1
+    - os: linux
+      dist: trusty
       sudo: false
       env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
     - os: linux
@@ -28,7 +32,10 @@ matrix:
     - os: osx
       osx_image: xcode9.1
   allow_failures:
+    # Allow osx to fail as its flaky
     - os: osx
+    #FIXME Allow race enabled builds to fail for now.
+    - env: ENABLE_RACE=1
   fast_finish: true
 
 before_install:
