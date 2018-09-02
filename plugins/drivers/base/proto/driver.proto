@@ -48,12 +48,8 @@ service Driver {
 
     // DestroyTask removes the task from the driver's internal state and cleans
     // up any additional resources created by the driver. It cannot be called
-    // on a running task.
+    // on a running task, unless force is set to true.
     rpc DestroyTask(DestroyTaskRequest)  returns (DestroyTaskResponse) {}
-
-    // ListTasks returns a list of summary information of all the tasks the
-    // driver is tracking.
-    rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {}
 
     // InspectTask returns detailed information for the given task
     rpc InspectTask(InspectTaskRequest) returns (InspectTaskResponse) {}
@@ -205,17 +201,12 @@ message DestroyTaskRequest {
 
     // TaskId is the ID of the target task
     string task_id = 1;
+
+    // Force destroys the task even if it is still in a running state
+    bool force = 2;
 }
 
 message DestroyTaskResponse {}
-
-message ListTasksRequest {}
-
-message ListTasksResponse {
-
-    // Tasks includes a list of summary information for each task
-    repeated TaskStatus tasks = 1;
-}
 
 message InspectTaskRequest {
 
