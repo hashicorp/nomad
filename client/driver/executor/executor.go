@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	syslog "github.com/RackSec/srslog"
@@ -196,9 +197,7 @@ type UniversalExecutor struct {
 	processExited       chan interface{}
 	fsIsolationEnforced bool
 
-	lre         *logRotatorWrapper
-	lro         *logRotatorWrapper
-	rotatorLock sync.Mutex
+	logRotator
 
 	syslogServer *logging.SyslogServer
 	syslogChan   chan *logging.SyslogMessage
@@ -211,21 +210,37 @@ type UniversalExecutor struct {
 	logger         *log.Logger
 }
 
+type logRotator struct {
+	lre         *logRotatorWrapper
+	lro         *logRotatorWrapper
+	rotatorLock sync.Mutex
+}
+
 // NewExecutor returns an Executor
 func NewExecutor(logger *log.Logger) Executor {
 	if err := shelpers.Init(); err != nil {
 		logger.Printf("[ERR] executor: unable to initialize stats: %v", err)
 	}
 
-	exec := &UniversalExecutor{
+	var exec Executor
+
+	exec = &LibcontainerExecutor{
+		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
 		logger:         logger,
-		processExited:  make(chan interface{}),
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
-		pids:           make(map[int]*nomadPid),
 	}
-
+	/*
+		exec = &UniversalExecutor{
+			logger:         logger,
+			processExited:  make(chan interface{}),
+			totalCpuStats:  stats.NewCpuStats(),
+			userCpuStats:   stats.NewCpuStats(),
+			systemCpuStats: stats.NewCpuStats(),
+			pids:           make(map[int]*nomadPid),
+		}
+	*/
 	return exec
 }
 
@@ -283,7 +298,7 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	}
 
 	// Setup the loggers
-	if err := e.configureLoggers(); err != nil {
+	if err := e.configureLoggers(e.ctx.LogConfig, e.logger); err != nil {
 		return nil, err
 	}
 	e.cmd.Stdout = e.lro.processOutWriter
@@ -375,19 +390,19 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 }
 
 // configureLoggers sets up the standard out/error file rotators
-func (e *UniversalExecutor) configureLoggers() error {
+func (e *logRotator) configureLoggers(cfg *LogConfig, logger *log.Logger) error {
 	e.rotatorLock.Lock()
 	defer e.rotatorLock.Unlock()
 
-	logFileSize := int64(e.ctx.LogConfig.MaxFileSizeMB * 1024 * 1024)
+	logFileSize := int64(cfg.MaxFileSizeMB * 1024 * 1024)
 	if e.lro == nil {
-		lro, err := logging.NewFileRotator(e.ctx.LogConfig.LogDir, e.ctx.LogConfig.StdoutLogFile,
-			e.ctx.LogConfig.MaxFiles, logFileSize, e.logger)
+		lro, err := logging.NewFileRotator(cfg.LogDir, cfg.StdoutLogFile,
+			cfg.MaxFiles, logFileSize, logger)
 		if err != nil {
-			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.LogConfig.StdoutLogFile, err)
+			return fmt.Errorf("error creating new stdout log file for %q: %v", cfg.StdoutLogFile, err)
 		}
 
-		r, err := newLogRotatorWrapper(e.logger, lro)
+		r, err := newLogRotatorWrapper(logger, lro)
 		if err != nil {
 			return err
 		}
@@ -395,13 +410,13 @@ func (e *UniversalExecutor) configureLoggers() error {
 	}
 
 	if e.lre == nil {
-		lre, err := logging.NewFileRotator(e.ctx.LogConfig.LogDir, e.ctx.LogConfig.StderrLogFile,
-			e.ctx.LogConfig.MaxFiles, logFileSize, e.logger)
+		lre, err := logging.NewFileRotator(cfg.LogDir, cfg.StderrLogFile,
+			cfg.MaxFiles, logFileSize, logger)
 		if err != nil {
-			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.LogConfig.StderrLogFile, err)
+			return fmt.Errorf("error creating new stderr log file for %q: %v", cfg.StderrLogFile, err)
 		}
 
-		r, err := newLogRotatorWrapper(e.logger, lre)
+		r, err := newLogRotatorWrapper(logger, lre)
 		if err != nil {
 			return err
 		}
@@ -841,7 +856,7 @@ func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
 		return nil, err
 	}
 	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
-	if err := e.configureLoggers(); err != nil {
+	if err := e.configureLoggers(e.ctx.LogConfig, e.logger); err != nil {
 		return nil, err
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -13,8 +14,24 @@ import (
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/sean-/seed"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
+
+	"github.com/opencontainers/runc/libcontainer"
+	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
+
+func init() {
+	if len(os.Args) > 1 && os.Args[1] == "libcontainer-shim" {
+		runtime.GOMAXPROCS(1)
+		runtime.LockOSThread()
+		factory, _ := libcontainer.New("")
+		if err := factory.StartInitialization(); err != nil {
+			logrus.Fatal(err)
+		}
+		panic("--this line should have never been executed, congratulations--")
+	}
+}
 
 var (
 	// Hidden hides the commands from both help and autocomplete. Commands that
