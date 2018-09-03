@@ -11,6 +11,7 @@ const DriverGoPlugin = "driver"
 
 type Driver interface {
 	Fingerprint() *Fingerprint
+	Capabilities() *Capabilities
 	RecoverTask(*TaskHandle) error
 	StartTask(*TaskConfig) (*TaskHandle, error)
 	WaitTask(taskID string) chan *TaskResult
@@ -21,11 +22,27 @@ type Driver interface {
 	TaskStats(taskID string) (*TaskStats, error)
 }
 
+type HealthState string
+
+var (
+	HealthStateUndetected = HealthState("undetected")
+	HealthStateUnhealthy  = HealthState("unhealthy")
+	HealthStateHealthy    = HealthState("healthy")
+)
+
 type Fingerprint struct {
-	Capabilities Capabilities
-	Attributes   map[string]string
-	Detected     bool
+	Attributes        map[string]string
+	Health            HealthState
+	HealthDescription string
 }
+
+type FSIsolation string
+
+var (
+	FSIsolationNone   = FSIsolation("none")
+	FSIsolationChroot = FSIsolation("chroot")
+	FSIsolationImage  = FSIsolation("image")
+)
 
 type Capabilities struct {
 	// SendSignals marks the driver as being able to send signals
@@ -34,6 +51,9 @@ type Capabilities struct {
 	// Exec marks the driver as being able to execute arbitrary commands
 	// such as health checks. Used by the ScriptExecutor interface.
 	Exec bool
+
+	//FSIsolation indicates what kind of filesystem isolation the driver supports.
+	FSIsolation FSIsolation
 }
 
 type TaskConfig struct {
@@ -91,17 +111,18 @@ type MountConfig struct {
 }
 
 const (
-	TaskStatePending TaskState = "pending"
+	TaskStateUnknown TaskState = "unknown"
 	TaskStateRunning TaskState = "running"
-	TaskStateDead    TaskState = "dead"
+	TaskStateExited  TaskState = "exited"
 )
 
 type TaskState string
 
 type TaskResult struct {
-	ExitCode int
-	Signal   int
-	Err      error
+	ExitCode  int
+	Signal    int
+	OOMKilled bool
+	Err       error
 }
 
 type ListTasksQuery struct {

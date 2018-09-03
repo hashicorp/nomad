@@ -9,7 +9,7 @@ import (
 )
 
 type DriverClient interface {
-	Fingerprint() *Fingerprint
+	Fingerprint() chan *Fingerprint
 	RecoverTask(*TaskHandle) error
 	StartTask(*TaskConfig) (*TaskHandle, error)
 	WaitTask(ctx context.Context, taskID string) chan *TaskResult
@@ -19,7 +19,7 @@ type driverClient struct {
 	client proto.DriverClient
 }
 
-func (d *driverClient) Fingerprint() *Fingerprint {
+func (d *driverClient) Fingerprint() chan *Fingerprint {
 	return nil
 }
 
@@ -53,9 +53,12 @@ func (d *driverClient) WaitTask(ctx context.Context, id string) chan *TaskResult
 		if err != nil {
 			result.Err = err
 		} else {
-			result.ExitCode = int(resp.ExitCode)
-			result.Signal = int(resp.Signal)
-			result.Err = errors.New(resp.Err)
+			result.ExitCode = int(resp.Result.ExitCode)
+			result.Signal = int(resp.Result.Signal)
+			result.OOMKilled = resp.Result.OomKilled
+			if len(resp.Err) > 0 {
+				result.Err = errors.New(resp.Err)
+			}
 		}
 		ch <- &result
 	}()

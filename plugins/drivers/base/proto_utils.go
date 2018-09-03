@@ -1,10 +1,18 @@
 package base
 
 import (
+	"strings"
+
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
 	"github.com/ugorji/go/codec"
 )
+
+var protoTaskStateMap = map[TaskState]proto.TaskState{
+	TaskStateUnknown: proto.TaskState_UNKNOWN,
+	TaskStateRunning: proto.TaskState_RUNNING,
+	TaskStateExited:  proto.TaskState_EXITED,
+}
 
 func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	if pb == nil {
@@ -45,18 +53,16 @@ func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
 		return &TaskHandle{}
 	}
 	return &TaskHandle{
-		Driver:      pb.Driver,
 		Config:      taskConfigFromProto(pb.Config),
-		State:       TaskState(pb.State),
-		driverState: pb.MsgpackDriverState,
+		State:       TaskState(strings.ToLower(pb.State.String())),
+		driverState: pb.DriverState,
 	}
 }
 
 func taskHandleToProto(handle *TaskHandle) *proto.TaskHandle {
 	return &proto.TaskHandle{
-		Driver:             handle.Driver,
-		Config:             taskConfigToProto(handle.Config),
-		State:              string(handle.State),
-		MsgpackDriverState: handle.driverState,
+		Config:      taskConfigToProto(handle.Config),
+		State:       protoTaskStateMap[handle.State],
+		DriverState: handle.driverState,
 	}
 }

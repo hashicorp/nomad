@@ -2,6 +2,7 @@ package base
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 	"testing"
 
@@ -28,8 +29,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 	enc.Encode(state)
 	req := &proto.RecoverTaskRequest{
 		Handle: &proto.TaskHandle{
-			Driver:             "test",
-			MsgpackDriverState: buf.Bytes(),
+			DriverState: buf.Bytes(),
 		},
 	}
 
@@ -72,11 +72,10 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	driver := &baseDriver{impl: impl}
 	resp, err := driver.StartTask(context.TODO(), req)
 	require.NoError(err)
-	require.Equal(handle.Driver, resp.Handle.Driver)
 	require.Equal(req.Task.Id, resp.Handle.Config.Id)
-	require.Equal(string(handle.State), resp.Handle.State)
+	require.Equal(string(handle.State), string(strings.ToLower(resp.Handle.State.String())))
 
-	dec := codec.NewDecoderBytes(resp.Handle.MsgpackDriverState, structs.MsgpackHandle)
+	dec := codec.NewDecoderBytes(resp.Handle.DriverState, structs.MsgpackHandle)
 	var actualState testDriverState
 	require.NoError(dec.Decode(&actualState))
 	require.Equal(*state, actualState)
@@ -115,8 +114,8 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 		resp, err := driver.WaitTask(context.TODO(), req)
 		finished = true
 		require.NoError(err)
-		require.Equal(int(resp.ExitCode), result.ExitCode)
-		require.Equal(int(resp.Signal), result.Signal)
+		require.Equal(int(resp.Result.ExitCode), result.ExitCode)
+		require.Equal(int(resp.Result.Signal), result.Signal)
 	}()
 	require.False(finished)
 	close(signalTask)

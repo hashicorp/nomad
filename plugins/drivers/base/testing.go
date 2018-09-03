@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
@@ -54,3 +55,23 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig) func() {
 	t.AllocDir = allocDir
 	return func() { os.RemoveAll(allocDir) }
 }
+
+// MockDriver is used for testing.
+// Each function can be set as a closure to make assertions about how data
+// is passed through the base plugin layer.
+type MockDriver struct {
+	RecoverTaskF func(*TaskHandle) error
+	StartTaskF   func(*TaskConfig) (*TaskHandle, error)
+	WaitTaskF    func(string) chan *TaskResult
+}
+
+func (d *MockDriver) Fingerprint() *Fingerprint                                          { return nil }
+func (d *MockDriver) Capabilities() *Capabilities                                        { return nil }
+func (d *MockDriver) RecoverTask(h *TaskHandle) error                                    { return d.RecoverTaskF(h) }
+func (d *MockDriver) StartTask(c *TaskConfig) (*TaskHandle, error)                       { return d.StartTaskF(c) }
+func (d *MockDriver) WaitTask(id string) chan *TaskResult                                { return d.WaitTaskF(id) }
+func (d *MockDriver) StopTask(taskID string, timeout time.Duration, signal string) error { return nil }
+func (d *MockDriver) DestroyTask(taskID string)                                          {}
+func (d *MockDriver) ListTasks(*ListTasksQuery) ([]*TaskSummary, error)                  { return nil, nil }
+func (d *MockDriver) InspectTask(taskID string) (*TaskStatus, error)                     { return nil, nil }
+func (d *MockDriver) TaskStats(taskID string) (*TaskStats, error)                        { return nil, nil }
