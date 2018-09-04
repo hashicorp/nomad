@@ -264,10 +264,10 @@ func (c *Device) startRepl() error {
 	for {
 		in, err := c.Ui.Ask("> ")
 		if err != nil {
-			if fingerprintCancel != nil { 
+			if fingerprintCancel != nil {
 				fingerprintCancel()
 			}
-			if statsCancel != nil { 
+			if statsCancel != nil {
 				statsCancel()
 			}
 			return err
@@ -275,10 +275,10 @@ func (c *Device) startRepl() error {
 
 		switch {
 		case in == "exit()":
-			if fingerprintCancel != nil { 
+			if fingerprintCancel != nil {
 				fingerprintCancel()
 			}
-			if statsCancel != nil { 
+			if statsCancel != nil {
 				statsCancel()
 			}
 			return nil
