@@ -2,8 +2,8 @@
 
 IMPROVEMENTS:
  * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
- * core: Added support for specifying node affinities. Affinities allow job operators to specify placement preferences according to 
-   different attribute [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
+ * core: Added support for specifying node affinities. Affinities allow job operators to specify weighted placement preferences
+ according to different node attributes [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * core: Added support for spreading allocations across a specific attribute. Operators can specify spread
    target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * client: Extend timeout to 60 seconds for Windows CPU fingerprinting [[GH-4441](https://github.com/hashicorp/nomad/pull/4441)]
