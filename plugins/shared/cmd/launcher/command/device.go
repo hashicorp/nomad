@@ -260,14 +260,27 @@ func (c *Device) startRepl() error {
 	c.Ui.Output("> Availabile commands are: exit(), fingerprint(), stop_fingerprint(), stats(), stop_stats(), reserve(id1, id2, ...)")
 	var fingerprintCtx, statsCtx context.Context
 	var fingerprintCancel, statsCancel context.CancelFunc
+
 	for {
 		in, err := c.Ui.Ask("> ")
 		if err != nil {
+			if fingerprintCancel != nil { 
+				fingerprintCancel()
+			}
+			if statsCancel != nil { 
+				statsCancel()
+			}
 			return err
 		}
 
 		switch {
 		case in == "exit()":
+			if fingerprintCancel != nil { 
+				fingerprintCancel()
+			}
+			if statsCancel != nil { 
+				statsCancel()
+			}
 			return nil
 		case in == "fingerprint()":
 			if fingerprintCtx != nil {
@@ -301,8 +314,6 @@ func (c *Device) startRepl() error {
 			c.Ui.Error(fmt.Sprintf("> Unknown command %q", in))
 		}
 	}
-
-	return nil
 }
 
 func (c *Device) replOutput(ctx context.Context, startFingerprint, startStats <-chan context.Context, reserve <-chan []string) {
