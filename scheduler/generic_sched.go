@@ -470,6 +470,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
 
+			// Compute top K scoring node metadata
+			s.ctx.Metrics().PopulateScoreMetaData()
+
 			// Set fields based on if we found an allocation option
 			if option != nil {
 				// Create an allocation for this

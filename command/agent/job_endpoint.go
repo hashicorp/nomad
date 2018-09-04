@@ -616,6 +616,13 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	if l := len(job.Affinities); l != 0 {
+		j.Affinities = make([]*structs.Affinity, l)
+		for i, a := range job.Affinities {
+			j.Affinities[i] = ApiAffinityToStructs(a)
+		}
+	}
+
 	// COMPAT: Remove in 0.7.0. Update has been pushed into the task groups
 	if job.Update != nil {
 		j.Update = structs.UpdateStrategy{}
@@ -625,6 +632,13 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 		if job.Update.MaxParallel != nil {
 			j.Update.MaxParallel = *job.Update.MaxParallel
+		}
+	}
+
+	if l := len(job.Spreads); l != 0 {
+		j.Spreads = make([]*structs.Spread, l)
+		for i, apiSpread := range job.Spreads {
+			j.Spreads[i] = ApiSpreadToStructs(apiSpread)
 		}
 	}
 
@@ -675,6 +689,13 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		}
 	}
 
+	if l := len(taskGroup.Affinities); l != 0 {
+		tg.Affinities = make([]*structs.Affinity, l)
+		for k, affinity := range taskGroup.Affinities {
+			tg.Affinities[k] = ApiAffinityToStructs(affinity)
+		}
+	}
+
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
 		Interval: *taskGroup.RestartPolicy.Interval,
@@ -706,6 +727,13 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
 		Migrate: *taskGroup.EphemeralDisk.Migrate,
+	}
+
+	if l := len(taskGroup.Spreads); l != 0 {
+		tg.Spreads = make([]*structs.Spread, l)
+		for k, spread := range taskGroup.Spreads {
+			tg.Spreads[k] = ApiSpreadToStructs(spread)
+		}
 	}
 
 	if taskGroup.Update != nil {
@@ -751,6 +779,13 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			c := &structs.Constraint{}
 			ApiConstraintToStructs(constraint, c)
 			structsTask.Constraints[i] = c
+		}
+	}
+
+	if l := len(apiTask.Affinities); l != 0 {
+		structsTask.Affinities = make([]*structs.Affinity, l)
+		for i, a := range apiTask.Affinities {
+			structsTask.Affinities[i] = ApiAffinityToStructs(a)
 		}
 	}
 
@@ -891,4 +926,29 @@ func ApiConstraintToStructs(c1 *api.Constraint, c2 *structs.Constraint) {
 	c2.LTarget = c1.LTarget
 	c2.RTarget = c1.RTarget
 	c2.Operand = c1.Operand
+}
+
+func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
+	return &structs.Affinity{
+		LTarget: a1.LTarget,
+		Operand: a1.Operand,
+		RTarget: a1.RTarget,
+		Weight:  a1.Weight,
+	}
+}
+
+func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
+	ret := &structs.Spread{}
+	ret.Attribute = a1.Attribute
+	ret.Weight = a1.Weight
+	if a1.SpreadTarget != nil {
+		ret.SpreadTarget = make([]*structs.SpreadTarget, len(a1.SpreadTarget))
+		for i, st := range a1.SpreadTarget {
+			ret.SpreadTarget[i] = &structs.SpreadTarget{
+				Value:   st.Value,
+				Percent: st.Percent,
+			}
+		}
+	}
+	return ret
 }

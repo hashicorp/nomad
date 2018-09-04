@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
@@ -56,6 +57,42 @@ func TestTaskGroup_Constrain(t *testing.T) {
 	}
 }
 
+func TestTaskGroup_AddAffinity(t *testing.T) {
+	t.Parallel()
+	grp := NewTaskGroup("grp1", 1)
+
+	// Add an affinity to the group
+	out := grp.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
+	if n := len(grp.Affinities); n != 1 {
+		t.Fatalf("expected 1 affinity, got: %d", n)
+	}
+
+	// Check that the group was returned
+	if out != grp {
+		t.Fatalf("expected: %#v, got: %#v", grp, out)
+	}
+
+	// Add a second affinity
+	grp.AddAffinity(NewAffinity("${node.affinity}", "=", "dc2", 50))
+	expect := []*Affinity{
+		{
+			LTarget: "kernel.version",
+			RTarget: "4.6",
+			Operand: "=",
+			Weight:  100,
+		},
+		{
+			LTarget: "${node.affinity}",
+			RTarget: "dc2",
+			Operand: "=",
+			Weight:  50,
+		},
+	}
+	if !reflect.DeepEqual(grp.Affinities, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, grp.Constraints)
+	}
+}
+
 func TestTaskGroup_SetMeta(t *testing.T) {
 	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
@@ -76,6 +113,57 @@ func TestTaskGroup_SetMeta(t *testing.T) {
 	expect := map[string]string{"foo": "bar", "baz": "zip"}
 	if !reflect.DeepEqual(grp.Meta, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, grp.Meta)
+	}
+}
+
+func TestTaskGroup_AddSpread(t *testing.T) {
+	t.Parallel()
+	grp := NewTaskGroup("grp1", 1)
+
+	// Create and add spread
+	spreadTarget := NewSpreadTarget("r1", 50)
+	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
+
+	out := grp.AddSpread(spread)
+	if n := len(grp.Spreads); n != 1 {
+		t.Fatalf("expected 1 spread, got: %d", n)
+	}
+
+	// Check that the group was returned
+	if out != grp {
+		t.Fatalf("expected: %#v, got: %#v", grp, out)
+	}
+
+	// Add a second spread
+	spreadTarget2 := NewSpreadTarget("dc1", 100)
+	spread2 := NewSpread("${node.datacenter}", 100, []*SpreadTarget{spreadTarget2})
+
+	grp.AddSpread(spread2)
+
+	expect := []*Spread{
+		{
+			Attribute: "${meta.rack}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+			},
+		},
+		{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "dc1",
+					Percent: 100,
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(grp.Spreads, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, grp.Spreads)
 	}
 }
 
@@ -229,6 +317,41 @@ func TestTask_Constrain(t *testing.T) {
 	}
 	if !reflect.DeepEqual(task.Constraints, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, task.Constraints)
+	}
+}
+
+func TestTask_AddAffinity(t *testing.T) {
+	t.Parallel()
+	task := NewTask("task1", "exec")
+
+	// Add an affinity to the task
+	out := task.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
+	require := require.New(t)
+	require.Len(out.Affinities, 1)
+
+	// Check that the task was returned
+	if out != task {
+		t.Fatalf("expected: %#v, got: %#v", task, out)
+	}
+
+	// Add a second affinity
+	task.AddAffinity(NewAffinity("${node.datacenter}", "=", "dc2", 50))
+	expect := []*Affinity{
+		{
+			LTarget: "kernel.version",
+			RTarget: "4.6",
+			Operand: "=",
+			Weight:  100,
+		},
+		{
+			LTarget: "${node.datacenter}",
+			RTarget: "dc2",
+			Operand: "=",
+			Weight:  50,
+		},
+	}
+	if !reflect.DeepEqual(task.Affinities, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, task.Affinities)
 	}
 }
 

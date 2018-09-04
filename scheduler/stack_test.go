@@ -295,6 +295,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
 	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	ctx.Metrics().PopulateScoreMetaData()
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -310,7 +311,8 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	if met.ClassExhausted["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if len(met.Scores) != 1 {
+	// Expect score metadata for one node
+	if len(met.ScoreMetaData) != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }
@@ -516,6 +518,7 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 
 	selectOptions := &SelectOptions{}
 	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	ctx.Metrics().PopulateScoreMetaData()
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -531,7 +534,8 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	if met.ClassExhausted["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if len(met.Scores) != 1 {
+	// Should have two scores, one from bin packing and one from normalization
+	if len(met.ScoreMetaData) != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }

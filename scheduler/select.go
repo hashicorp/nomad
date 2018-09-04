@@ -43,7 +43,7 @@ func (iter *LimitIterator) Next() *RankedNode {
 
 	if len(iter.skippedNodes) < iter.maxSkip {
 		// Try skipping ahead up to maxSkip to find an option with score lesser than the threshold
-		for option != nil && option.Score <= iter.scoreThreshold && len(iter.skippedNodes) < iter.maxSkip {
+		for option != nil && option.FinalScore <= iter.scoreThreshold && len(iter.skippedNodes) < iter.maxSkip {
 			iter.skippedNodes = append(iter.skippedNodes, option)
 			option = iter.source.Next()
 		}
@@ -104,7 +104,7 @@ func (iter *MaxScoreIterator) Next() *RankedNode {
 			return iter.max
 		}
 
-		if iter.max == nil || option.Score > iter.max.Score {
+		if iter.max == nil || option.FinalScore > iter.max.FinalScore {
 			iter.max = option
 		}
 	}

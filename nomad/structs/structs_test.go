@@ -384,6 +384,42 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	if err := j.Validate(); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
+
+	// Add affinities at job, task group and task level, that should fail validation
+
+	j.Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${node.datacenter}",
+		RTarget: "dc1",
+	}}
+	j.TaskGroups[0].Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+	}}
+	j.TaskGroups[0].Tasks[0].Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+	}}
+	err = j.Validate()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "System jobs may not have an affinity stanza")
+
+	// Add spread at job and task group level, that should fail validation
+	j.Spreads = []*Spread{{
+		Attribute: "${node.datacenter}",
+		Weight:    100,
+	}}
+	j.TaskGroups[0].Spreads = []*Spread{{
+		Attribute: "${node.datacenter}",
+		Weight:    100,
+	}}
+
+	err = j.Validate()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "System jobs may not have a spread stanza")
+
 }
 
 func TestJob_VaultPolicies(t *testing.T) {
@@ -739,7 +775,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeBatch)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -752,7 +788,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -769,7 +805,7 @@ func TestTask_Validate(t *testing.T) {
 		LogConfig: DefaultLogConfig(),
 	}
 	ephemeralDisk.SizeMB = 200
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -783,7 +819,7 @@ func TestTask_Validate(t *testing.T) {
 			LTarget: "${meta.rack}",
 		})
 
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
 		t.Fatalf("err: %s", err)
@@ -866,7 +902,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -887,7 +923,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err = task1.Validate(ephemeralDisk); err != nil {
+	if err = task1.Validate(ephemeralDisk, JobTypeService); err != nil {
 		t.Fatalf("err : %v", err)
 	}
 }
@@ -946,7 +982,7 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			if err := task.Validate(ephemeralDisk); err != nil {
+			if err := task.Validate(ephemeralDisk, JobTypeService); err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
 		})
@@ -999,7 +1035,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk)
+			err := task.Validate(ephemeralDisk, JobTypeService)
 			if err == nil {
 				t.Fatalf("expected an error")
 			}
@@ -1320,7 +1356,7 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
@@ -1337,7 +1373,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService)
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1350,7 +1386,7 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 
 	task.Templates = []*Template{good, good}
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeService)
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1363,7 +1399,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		},
 	}
 
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeService)
 	if err == nil {
 		t.Fatalf("expected error from Template.Validate")
 	}
@@ -1560,6 +1596,94 @@ func TestConstraint_Validate(t *testing.T) {
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "Unknown constraint type") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestAffinity_Validate(t *testing.T) {
+
+	type tc struct {
+		affinity *Affinity
+		err      error
+		name     string
+	}
+
+	testCases := []tc{
+		{
+			affinity: &Affinity{},
+			err:      fmt.Errorf("Missing affinity operand"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "foo",
+				LTarget: "${meta.node_class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Unknown affinity operator \"foo\""),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Operator \"=\" requires an RTarget"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				RTarget: "c4",
+				Weight:  0,
+			},
+			err: fmt.Errorf("Affinity weight cannot be zero"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				RTarget: "c4",
+				Weight:  500,
+			},
+			err: fmt.Errorf("Affinity weight must be within the range [-100,100]"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${node.class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Operator \"=\" requires an RTarget"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "version",
+				LTarget: "${meta.os}",
+				RTarget: ">>2.0",
+				Weight:  500,
+			},
+			err: fmt.Errorf("Version affinity is invalid"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "regexp",
+				LTarget: "${meta.os}",
+				RTarget: "\\K2.0",
+				Weight:  100,
+			},
+			err: fmt.Errorf("Regular expression failed to compile"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.affinity.Validate()
+			if tc.err != nil {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
 	}
 }
 
@@ -3816,4 +3940,120 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Events, node2.Events)
 	require.Equal(node.DrainStrategy, node2.DrainStrategy)
 	require.Equal(node.Drivers, node2.Drivers)
+}
+
+func TestSpread_Validate(t *testing.T) {
+	type tc struct {
+		spread *Spread
+		err    error
+		name   string
+	}
+
+	testCases := []tc{
+		{
+			spread: &Spread{},
+			err:    fmt.Errorf("Missing spread attribute"),
+			name:   "empty spread",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    -1,
+			},
+			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
+			name: "Invalid weight",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    200,
+			},
+			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
+			name: "Invalid weight",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc2",
+						Percent: 150,
+					},
+				},
+			},
+			err:  fmt.Errorf("Spread target percentage for value \"dc2\" must be between 0 and 100"),
+			name: "Invalid percentages",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 75,
+					},
+					{
+						Value:   "dc2",
+						Percent: 75,
+					},
+				},
+			},
+			err:  fmt.Errorf("Sum of spread target percentages must not be greater than 100%%; got %d%%", 150),
+			name: "Invalid percentages",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+				},
+			},
+			err:  fmt.Errorf("Spread target value \"dc1\" already defined"),
+			name: "No spread targets",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc2",
+						Percent: 50,
+					},
+				},
+			},
+			err:  nil,
+			name: "Valid spread",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spread.Validate()
+			if tc.err != nil {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
 }

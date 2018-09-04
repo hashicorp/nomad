@@ -1,4 +1,4 @@
-package lib
+package delayheap
 
 import (
 	"container/heap"
