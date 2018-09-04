@@ -763,8 +763,8 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 			return
 		case <-timerChannel:
 			// remove from the heap since we can enqueue it now
-			b.delayHeap.Remove(&evalWrapper{eval})
 			b.l.Lock()
+			b.delayHeap.Remove(&evalWrapper{eval})
 			b.stats.TotalWaiting -= 1
 			b.enqueueLocked(eval, eval.Type)
 			b.l.Unlock()
@@ -777,12 +777,14 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 // nextDelayedEval returns the next delayed eval to launch and when it should be enqueued.
 // This peeks at the heap to return the top. If the heap is empty, this returns nil and zero time.
 func (b *EvalBroker) nextDelayedEval() (*structs.Evaluation, time.Time) {
+	b.l.RLock()
 	// If there is nothing wait for an update.
 	if b.delayHeap.Length() == 0 {
+		b.l.RUnlock()
 		return nil, time.Time{}
 	}
 	nextEval := b.delayHeap.Peek()
-
+	b.l.RUnlock()
 	if nextEval == nil {
 		return nil, time.Time{}
 	}
