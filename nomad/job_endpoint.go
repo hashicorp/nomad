@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1103,6 +1104,89 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 
 		}}
 	return j.srv.blockingRPC(&opts)
+}
+
+// Scale
+func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
+	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
+
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for revert")
+	}
+
+	// Lookup the job by version
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	cur, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
+	if err != nil {
+		return err
+	}
+	if cur == nil {
+		return fmt.Errorf("job %q not found", args.JobID)
+	}
+
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return fmt.Errorf("job %q in namespace %q not found", args.JobID, args.RequestNamespace())
+	}
+
+	scaledJob := job.Copy()
+	for _, tg := range scaledJob.TaskGroups {
+		if val, ok := args.Scale[tg.Name]; ok {
+			orig := tg.Count
+			if strings.HasPrefix(val, "-") {
+				i, err := strconv.ParseInt(val[1:], 10, 64)
+				if err != nil {
+					return fmt.Errorf("failed to parse scale operation '%s' for task group %s of job %s", val, tg.Name, job.Name)
+				}
+				orig = orig - int(i)
+				if orig < 0 {
+					return fmt.Errorf("cannot scale below 0 for task group %s or job %s", tg.Name, job.Name)
+				}
+			} else if strings.HasPrefix(val, "+") {
+				i, err := strconv.ParseInt(val[1:], 10, 64)
+				if err != nil {
+					return fmt.Errorf("failed to parse scale operation '%s' for task group %s of job %s", val, tg.Name, job.Name)
+				}
+				orig = orig + int(i)
+			} else {
+				i, err := strconv.ParseInt(val, 10, 64)
+				if err != nil {
+					return fmt.Errorf("failed to parse scale operation '%s' for task group %s of job %s", val, tg.Name, job.Name)
+				}
+				orig = int(i)
+			}
+
+			tg.Count = orig
+		}
+	}
+
+	// Build the register request
+	reg := &structs.JobRegisterRequest{
+		Job:          scaledJob,
+		WriteRequest: args.WriteRequest,
+	}
+
+	// Register the version.
+	return j.Register(reg, reply)
 }
 
 // Plan is used to cause a dry-run evaluation of the Job and return the results

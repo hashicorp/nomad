@@ -43,6 +43,7 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 
 func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/job/")
+	fmt.Println("JOBS")
 	switch {
 	case strings.HasSuffix(path, "/evaluate"):
 		jobName := strings.TrimSuffix(path, "/evaluate")
@@ -80,6 +81,10 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/stable"):
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
+	case strings.HasSuffix(path, "/scale"):
+		fmt.Println("SCALING")
+		jobName := strings.TrimSuffix(path, "/scale")
+		return s.jobScale(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -485,6 +490,39 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 
 	setMeta(resp, &out.QueryMeta)
 	return out, nil
+}
+
+func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var scaleReq structs.JobScaleRequest
+	if err := decodeBody(req, &scaleReq); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	fmt.Println(scaleReq)
+
+	if scaleReq.JobID == "" {
+		return nil, CodedError(400, "JobID must be specified")
+	}
+	if scaleReq.JobID != jobName {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+
+	s.parseWriteRequest(req, &scaleReq.WriteRequest)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Scale", &scaleReq, &out); err != nil {
+		return nil, err
+	}
+
+	setIndex(resp, out.Index)
+	return out, nil
+
 }
 
 func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,

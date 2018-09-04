@@ -292,6 +292,20 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	return &resp, wm, nil
 }
 
+func (j *Jobs) Scale(jobID string, scaleOps map[string]string, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	var resp JobRegisterResponse
+
+	req := &JobScaleRequest{
+		JobID: jobID,
+		Scale: scaleOps,
+	}
+	wm, err := j.client.write("/v1/job/"+jobID+"/scale", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, error) {
 	var resp JobSummary
 	qm, err := j.client.query("/v1/job/"+jobID+"/summary", &resp, q)
@@ -1010,6 +1024,11 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
+}
+
+type JobScaleRequest struct {
+	JobID string
+	Scale map[string]string
 }
 
 type JobDispatchRequest struct {

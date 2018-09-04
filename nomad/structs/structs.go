@@ -81,6 +81,7 @@ const (
 	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
+	ScaleJobRequestType
 )
 
 const (
@@ -543,6 +544,13 @@ type JobRevertRequest struct {
 	// version before reverting.
 	EnforcePriorVersion *uint64
 
+	WriteRequest
+}
+
+type JobScaleRequest struct {
+	JobID string
+
+	Scale map[string]string
 	WriteRequest
 }
 
@@ -1566,13 +1574,13 @@ func (n *Node) Stub() *NodeListStub {
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	return &NodeListStub{
-		Address:    addr,
-		ID:         n.ID,
-		Datacenter: n.Datacenter,
-		Name:       n.Name,
-		NodeClass:  n.NodeClass,
-		Version:    n.Attributes["nomad.version"],
-		Drain:      n.Drain,
+		Address:               addr,
+		ID:                    n.ID,
+		Datacenter:            n.Datacenter,
+		Name:                  n.Name,
+		NodeClass:             n.NodeClass,
+		Version:               n.Attributes["nomad.version"],
+		Drain:                 n.Drain,
 		SchedulingEligibility: n.SchedulingEligibility,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
