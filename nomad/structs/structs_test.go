@@ -2869,7 +2869,7 @@ func TestAllocation_LastEventTime(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			desc: "nil task state",
+			desc:                  "nil task state",
 			expectedLastEventTime: t1,
 		},
 		{
@@ -2937,7 +2937,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 				DelayFunction: "constant",
 				Delay:         5 * time.Second,
 			},
-			alloc: &Allocation{},
+			alloc:                      &Allocation{},
 			expectedRescheduleTime:     time.Time{},
 			expectedRescheduleEligible: false,
 		},
@@ -2948,7 +2948,7 @@ func TestAllocation_NextDelay(t *testing.T) {
 				Delay:         5 * time.Second,
 				Unlimited:     true,
 			},
-			alloc: &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
+			alloc:                      &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
 			expectedRescheduleTime:     now.UTC().Add(5 * time.Second),
 			expectedRescheduleEligible: true,
 		},

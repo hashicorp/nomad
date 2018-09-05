@@ -310,8 +310,8 @@ func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
 	}
 	{
 		conf := &Config{
-			VerifyOutgoing: true,
-			CAFile:         cacert,
+			VerifyOutgoing:           true,
+			CAFile:                   cacert,
 			PreferServerCipherSuites: true,
 		}
 		tlsConfig, err := conf.OutgoingTLSConfig()

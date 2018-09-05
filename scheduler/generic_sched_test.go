@@ -4357,11 +4357,18 @@ func Test_updateRescheduleTracker(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			desc:                     "No past events",
-			prevAllocEvents:          nil,
-			reschedPolicy:            &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second},
-			reschedTime:              t1,
-			expectedRescheduleEvents: []*structs.RescheduleEvent{{t1.UnixNano(), prevAlloc.ID, prevAlloc.NodeID, 5 * time.Second}},
+			desc:            "No past events",
+			prevAllocEvents: nil,
+			reschedPolicy:   &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second},
+			reschedTime:     t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+			},
 		},
 		{
 			desc: "one past event, linear delay",
