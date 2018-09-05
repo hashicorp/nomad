@@ -9,27 +9,28 @@ description: |-
 
 # Using Prometheus to Monitor Nomad Metrics
 
-This guide explains how to configure [Prometheus][prometheus]
-to integrate with a Nomad cluster. While this guide introduces the basics of
-enabling [telemetry][telemetry] and collecting metrics, a Nomad operator can
-go much further by customizing dashboards and setting up [alerting][alerting]
-as well.
+This guide explains how to configure [Prometheus][prometheus] to integrate with
+a Nomad cluster and Prometheus [Alertmanager][alertmanager]. While this guide introduces the basics of enabling [telemetry][telemetry] and alerting, a Nomad operator can go much further by customizing dashboards and integrating different
+[receivers][receivers] for alerts.
 
 ## Reference Material
 
 - [Configuring Prometheus][configuring prometheus]
 - [Telemetry Stanza in Nomad Agent Configuration][telemetry stanza]
+- [Alerting Overview][alerting]
 
 ## Estimated Time to Complete
 
-20 minutes
+25 minutes
 
 ## Challenge
 
 Think of a scenario where a Nomad operator needs to deploy Prometheus to
 collect metrics from a Nomad cluster. The operator must enable telemetry on
 the Nomad servers and clients as well as configure Prometheus to use Consul
-for service discovery.
+for service discovery. The operator must also configure Prometheus Alertmanager
+so notifications can be sent out to a specified [receiver][receivers].
+
 
 ## Solution
 
@@ -54,7 +55,7 @@ node. In a production cluster, 3 or 5 server nodes are recommended.
 
 ### Step 1: Enable Telemetry on Nomad Servers and Clients
 
-Add the stanza below in your Nomad client and server configuration 
+Add the stanza below in your Nomad client and server configuration
 files. If you have used the provided repo in this guide to set up a Nomad
 cluster, the configuration file will be `/etc/nomad.d/nomad.hcl`.
 After making this change, restart the Nomad service on each server and
@@ -66,7 +67,7 @@ telemetry {
   disable_hostname = true
   prometheus_metrics = true
   publish_allocation_metrics = true
-  publish_node_metrics = true 
+  publish_node_metrics = true
 }
 ```
 
@@ -115,7 +116,7 @@ fabio will be deployed on all client nodes. We have also set `network_mode` to
 We can now register our fabio job:
 
 ```shell
-$ nomad job run fabio.nomad 
+$ nomad job run fabio.nomad
 ==> Monitoring evaluation "7b96701e"
     Evaluation triggered by job "fabio"
     Allocation "d0e34682" created: node "28d7f859", group "fabio"
@@ -280,19 +281,330 @@ the other hand, is `1` since we have only deployed one instance of it.
 To see the description of other metrics, visit the [telemetry][telemetry]
 section.
 
+### Step 6: Deploy Alertmanager
+
+Now that we have enabled Prometheus to collect metrics from our cluster and see
+the state of our jobs, let's deploy [Alertmanager][alertmanager]. Keep in mind
+that Prometheus sends alerts to Alertmanager. It is then Alertmanager's job to
+send out the notifications on those alerts to any designated [receiver][receivers].
+
+Create a job for Alertmanager and named it `alertmanager.nomad`
+
+```hcl
+job "alertmanager" {
+  datacenters = ["dc1"]
+  type = "service"
+
+  update {
+    max_parallel = 1
+    min_healthy_time = "10s"
+    healthy_deadline = "3m"
+    auto_revert = false
+    canary = 0
+  }
+
+  migrate {
+    max_parallel = 1
+    health_check = "checks"
+    min_healthy_time = "10s"
+    healthy_deadline = "5m"
+  }
+
+  group "alerting" {
+    count = 1
+    restart {
+      attempts = 2
+      interval = "30m"
+      delay = "15s"
+      mode = "fail"
+    }
+    ephemeral_disk {
+      size = 300
+    }
+
+    task "alertmanager" {
+      driver = "docker"
+      config {
+        image = "prom/alertmanager:latest"
+        port_map {
+          alertmanager_ui = 9093
+        }
+      }
+      resources {
+        network {
+          mbits = 10
+          port "alertmanager_ui" {}
+        }
+      }
+      service {
+        name = "alertmanager"
+        tags = ["urlprefix-/alertmanager strip=/alertmanager"]
+        port = "alertmanager_ui"
+        check {
+          name     = "alertmanager_ui port alive"
+          type     = "http"
+          path     = "/-/healthy"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+
+### Step 7: Configure Prometheus to Integrate with Alertmanager
+
+Now that we have deployed Alertmanager, let's slightly modify our Prometheus job
+configuration to allow it to recognize and send alerts to it. Note that there are
+some rules in the configuration that refer a to a web server we will deploy soon.
+
+Below is the same Prometheus configuration we detailed above, but we have added
+some sections that hook Prometheus into the Alertmanager and set up some Alerting
+rules.
+
+```hcl
+job "prometheus" {
+  datacenters = ["dc1"]
+  type = "service"
+
+  update {
+    max_parallel = 1
+    min_healthy_time = "10s"
+    healthy_deadline = "3m"
+    auto_revert = false
+    canary = 0
+  }
+
+  migrate {
+    max_parallel = 1
+    health_check = "checks"
+    min_healthy_time = "10s"
+    healthy_deadline = "5m"
+  }
+
+  group "monitoring" {
+    count = 1
+    restart {
+      attempts = 2
+      interval = "30m"
+      delay = "15s"
+      mode = "fail"
+    }
+    ephemeral_disk {
+      size = 300
+    }
+
+    task "prometheus" {
+      template {
+        change_mode = "noop"
+        destination = "local/webserver_alert.yml"
+        data = <<EOH
+---
+groups:
+- name: prometheus_alerts
+  rules:
+  - alert: Webserver down
+    expr: absent(up{job="webserver"})
+    for: 10s
+    labels:
+      severity: critical
+    annotations:
+      description: "Our webserver is down."
+EOH
+      }
+
+      template {
+        change_mode = "noop"
+        destination = "local/prometheus.yml"
+        data = <<EOH
+---
+global:
+  scrape_interval:     5s
+  evaluation_interval: 5s
+
+alerting:
+  alertmanagers:
+  - consul_sd_configs:
+    - server: '{{ env "NOMAD_IP_prometheus_ui" }}:8500'
+      services: ['alertmanager']
+
+rule_files:
+  - "webserver_alert.yml"
+
+scrape_configs:
+
+  - job_name: 'alertmanager'
+
+    consul_sd_configs:
+    - server: '{{ env "NOMAD_IP_prometheus_ui" }}:8500'
+      services: ['alertmanager']
+
+  - job_name: 'nomad_metrics'
+
+    consul_sd_configs:
+    - server: '{{ env "NOMAD_IP_prometheus_ui" }}:8500'
+      services: ['nomad-client', 'nomad']
+
+    relabel_configs:
+    - source_labels: ['__meta_consul_tags']
+      regex: '(.*)http(.*)'
+      action: keep
+
+    scrape_interval: 5s
+    metrics_path: /v1/metrics
+    params:
+      format: ['prometheus']
+
+  - job_name: 'webserver'
+
+    consul_sd_configs:
+    - server: '{{ env "NOMAD_IP_prometheus_ui" }}:8500'
+      services: ['webserver']
+
+    metrics_path: /metrics
+EOH
+      }
+      driver = "docker"
+      config {
+        image = "prom/prometheus:latest"
+        volumes = [
+          "local/webserver_alert.yml:/etc/prometheus/webserver_alert.yml",
+          "local/prometheus.yml:/etc/prometheus/prometheus.yml"
+        ]
+        port_map {
+          prometheus_ui = 9090
+        }
+      }
+      resources {
+        network {
+          mbits = 10
+          port "prometheus_ui" {}
+        }
+      }
+      service {
+        name = "prometheus"
+        tags = ["urlprefix-/"]
+        port = "prometheus_ui"
+        check {
+          name     = "prometheus_ui port alive"
+          type     = "http"
+          path     = "/-/healthy"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+Notice we have added a few important sections to this job file:
+
+  - We added another template stanza that defines an [alerting rule][alertingrules]
+    for our web server. Namely, Prometheus will send out an alert if it detects
+    the `webserver` service has disappeared.
+
+  - We added an `alerting` block to our Prometheus configuration as well as a
+    `rule_files` block to make Prometheus aware of Alertmanager as well as the
+    rule we have defined.
+
+  - We are now also scraping Alertmanager along with our
+    web server.
+
+### Step 8: Deploy Web Server
+
+Create a job for our web server and name it `webserver.nomad`
+
+```hcl
+job "webserver" {
+  datacenters = ["dc1"]
+
+  group "echo" {
+    task "server" {
+      driver = "exec"
+      config {
+        command = "/local/demo"
+      }
+
+      artifact {
+        source = "https://s3-us-west-2.amazonaws.com/hashicorp-education/demo-binaries/prometheus-instrumentation"
+        destination = "local/demo"
+        mode = "file"
+      }
+
+      resources {
+        cpu = 500
+        memory = 256
+        network {
+          mbits = 10
+          port  "http"{}
+        }
+      }
+
+      service {
+        name = "webserver"
+        port = "http"
+
+        tags = [
+          "testweb",
+          "urlprefix-/webserver strip=/webserver",
+        ]
+
+        check {
+          type     = "http"
+          path     = "/"
+          interval = "2s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+At this point, re-run your Prometheus job. After a few seconds, you will see the
+web server and Alertmanager appear in your list of targets.
+
+[![New Targets][new-targets]][new-targets]
+
+You should also be able to go to the `Alerts` section of the Prometheus web interface
+and see the alert that we have configured. No alerts are active because our web server
+is up and running.
+
+[![Alerts][alerts]][alerts]
+
+### Step 9: Stop the Web Server
+
+Run `nomad stop webserver` to stop our webserver. After a few seconds, you will see
+that we have an active alert in the `Alerts` section of the web interface.
+
+[![Active Alerts][active-alerts]][active-alerts]
+
+We can now go to the Alertmanager web interface to see that Alertmanager has received
+this alert as well. Since Alertmanager has been configured behind fabio, go to the IP address of any of your client nodes at port `9999` and use `/alertmanager` as the route. An example is shown below:
+
+-> < client node IP >:9999/alertmanager
+
+You should see that Alertmanager has received the alert.
+
+[![Alertmanager Web UI][alertmanager-webui]][alertmanager-webui]
+
 ## Next Steps
 
-Read the Prometheus [Alerting Overview][alerting] to learn how to incorporate
-[Alertmanager][alertmanager] into your Prometheus configuration to send out
-notifications. 
+Read more about Prometheus [Alertmanager][alertmanager] and how to configure it
+to send out notifications to a [receiver][receivers] of your choice.
 
+[active-alerts]: /assets/images/active-alert.png
+[alerts]: /assets/images/alerts.png
 [alerting]: https://prometheus.io/docs/alerting/overview/
+[alertingrules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
 [alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
+[alertmanager-webui]: /assets/images/alertmanager-webui.png
 [configuring prometheus]: https://prometheus.io/docs/introduction/first_steps/#configuring-prometheus
 [consul_sd_config]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cconsul_sd_config%3E
 [env]: /docs/runtime/environment.html
 [fabio]: https://fabiolb.net/
 [fabio-lb]: http://example.com
+[new-targets]: /assets/images/new-targets.png
 [prometheus-targets]: /assets/images/prometheus-targets.png
 [running-jobs]: /assets/images/running-jobs.png
 [telemetry]: /docs/agent/telemetry.html
@@ -300,4 +612,5 @@ notifications.
 [template]: /docs/job-specification/template.html
 [volumes]: /docs/drivers/docker.html#volumes
 [prometheus]: https://prometheus.io/docs/introduction/overview/
+[receivers]: https://prometheus.io/docs/alerting/configuration/#%3Creceiver%3E
 [system]: /docs/runtime/schedulers.html#system
