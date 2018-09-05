@@ -173,6 +173,16 @@ testing.
   value is used to identify individual agents. When specified on a server, the
   name must be unique within the region.
 
+- `plugin_dir` `(string: "[data_dir]/plugins")` - Specifies the directory to
+  use for looking up plugins. By default, this is the top-level
+  [data_dir](#data_dir) suffixed with "plugins", like `"/opt/nomad/plugins"`.
+  This must be an absolute path.
+
+- `plugin` <code>([Plugin][plugin]: nil)</code> - Specifies configuration for a
+  specific plugin. The plugin stanza may be repeated, once for each plugin being
+  configured. The key of the stanza is the plugin's executable name relative to
+  the [plugin_dir](#plugin_dir).
+
 - `ports` `(Port: see below)` - Specifies the network ports used for different
   services required by the Nomad agent.
 
@@ -243,3 +253,4 @@ http_api_response_headers {
 [sentinel]: /docs/configuration/sentinel.html "Nomad Agent sentinel Configuration"
 [server]: /docs/configuration/server.html "Nomad Agent server Configuration"
 [acl]: /docs/configuration/acl.html "Nomad Agent ACL Configuration"
+[plugin]: /docs/configuration/plugin.html "Nomad Agent Plugin Configuration"

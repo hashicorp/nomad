@@ -45,6 +45,7 @@ func TestConfig_Merge(t *testing.T) {
 		Datacenter:                "dc1",
 		NodeName:                  "node1",
 		DataDir:                   "/tmp/dir1",
+		PluginDir:                 "/tmp/pluginDir1",
 		LogLevel:                  "INFO",
 		EnableDebug:               false,
 		LeaveOnInt:                false,
@@ -175,6 +176,15 @@ func TestConfig_Merge(t *testing.T) {
 			DisableUpgradeMigration: &falseValue,
 			EnableCustomUpgrades:    &falseValue,
 		},
+		Plugins: []*config.PluginConfig{
+			{
+				Name: "docker",
+				Args: []string{"foo"},
+				Config: map[string]interface{}{
+					"bar": 1,
+				},
+			},
+		},
 	}
 
 	c3 := &Config{
@@ -182,6 +192,7 @@ func TestConfig_Merge(t *testing.T) {
 		Datacenter:                "dc2",
 		NodeName:                  "node2",
 		DataDir:                   "/tmp/dir2",
+		PluginDir:                 "/tmp/pluginDir2",
 		LogLevel:                  "DEBUG",
 		EnableDebug:               true,
 		LeaveOnInt:                true,
@@ -340,6 +351,22 @@ func TestConfig_Merge(t *testing.T) {
 			EnableRedundancyZones:   &trueValue,
 			DisableUpgradeMigration: &trueValue,
 			EnableCustomUpgrades:    &trueValue,
+		},
+		Plugins: []*config.PluginConfig{
+			{
+				Name: "docker",
+				Args: []string{"bam"},
+				Config: map[string]interface{}{
+					"baz": 2,
+				},
+			},
+			{
+				Name: "exec",
+				Args: []string{"arg"},
+				Config: map[string]interface{}{
+					"config": true,
+				},
+			},
 		},
 	}
 

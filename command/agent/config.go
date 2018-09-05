@@ -37,6 +37,9 @@ type Config struct {
 	// DataDir is the directory to store our state in
 	DataDir string `mapstructure:"data_dir"`
 
+	// PluginDir is the directory to lookup plugins.
+	PluginDir string `mapstructure:"plugin_dir"`
+
 	// LogLevel is the level of the logs to putout
 	LogLevel string `mapstructure:"log_level"`
 
@@ -133,6 +136,9 @@ type Config struct {
 
 	// Autopilot contains the configuration for Autopilot behavior.
 	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
+
+	// Plugins is the set of configured plugins
+	Plugins []*config.PluginConfig `hcl:"plugin,expand"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -734,6 +740,9 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.DataDir != "" {
 		result.DataDir = b.DataDir
 	}
+	if b.PluginDir != "" {
+		result.PluginDir = b.PluginDir
+	}
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
 	}
@@ -853,6 +862,16 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Autopilot = &autopilot
 	} else if b.Autopilot != nil {
 		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
+	}
+
+	if len(result.Plugins) == 0 && len(b.Plugins) != 0 {
+		copy := make([]*config.PluginConfig, len(b.Plugins))
+		for i, v := range b.Plugins {
+			copy[i] = v.Copy()
+		}
+		result.Plugins = copy
+	} else if len(b.Plugins) != 0 {
+		result.Plugins = config.PluginConfigSetMerge(result.Plugins, b.Plugins)
 	}
 
 	// Merge config files lists

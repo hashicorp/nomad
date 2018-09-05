@@ -87,6 +87,9 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
+
+	// TODO setup plugin loader
+
 	if err := a.setupServer(); err != nil {
 		return nil, err
 	}

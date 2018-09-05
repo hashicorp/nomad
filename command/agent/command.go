@@ -105,6 +105,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
 	flags.StringVar(&cmdConfig.Region, "region", "", "")
 	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
+	flags.StringVar(&cmdConfig.PluginDir, "plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
@@ -265,6 +266,12 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
+	// Default the plugin directory to be under that of the data directory if it
+	// isn't explicitly specified.
+	if config.PluginDir == "" && config.DataDir != "" {
+		config.PluginDir = filepath.Join(config.DataDir, "plugins")
+	}
+
 	if dev {
 		// Skip validation for dev mode
 		return config
@@ -289,9 +296,10 @@ func (c *Command) readConfig() *Config {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":  config.DataDir,
-		"alloc-dir": config.Client.AllocDir,
-		"state-dir": config.Client.StateDir,
+		"data-dir":   config.DataDir,
+		"plugin-dir": config.PluginDir,
+		"alloc-dir":  config.Client.AllocDir,
+		"state-dir":  config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -304,7 +312,7 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Ensure that we have the directories we neet to run.
+	// Ensure that we have the directories we need to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
 		return nil
@@ -313,8 +321,8 @@ func (c *Command) readConfig() *Config {
 	// The config is valid if the top-level data-dir is set or if both
 	// alloc-dir and state-dir are set.
 	if config.Client.Enabled && config.DataDir == "" {
-		if config.Client.AllocDir == "" || config.Client.StateDir == "" {
-			c.Ui.Error("Must specify both the state and alloc dir if data-dir is omitted.")
+		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
+			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
 			return nil
 		}
 	}
@@ -1011,6 +1019,10 @@ General Options (clients and servers):
     On client machines this is used to house allocation data such as
     downloaded artifacts used by drivers. On server nodes, the data
     dir is also used to store the replicated log.
+
+  -plugin-dir=<path>
+    The plugin directory is used to discover Nomad plugins. If not specified,
+    the plugin directory defaults to be that of <data-dir>/plugins/.
 
   -dc=<datacenter>
     The name of the datacenter this Nomad agent is a member of. By

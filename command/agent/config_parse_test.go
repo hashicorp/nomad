@@ -24,6 +24,7 @@ func TestConfig_Parse(t *testing.T) {
 				Datacenter:  "dc2",
 				NodeName:    "my-web",
 				DataDir:     "/tmp/nomad",
+				PluginDir:   "/tmp/nomad-plugins",
 				LogLevel:    "ERR",
 				BindAddr:    "192.168.0.1",
 				EnableDebug: true,
@@ -215,6 +216,26 @@ func TestConfig_Parse(t *testing.T) {
 					DisableUpgradeMigration: &trueValue,
 					EnableCustomUpgrades:    &trueValue,
 				},
+				Plugins: []*config.PluginConfig{
+					{
+						Name: "docker",
+						Args: []string{"foo", "bar"},
+						Config: map[string]interface{}{
+							"foo": "bar",
+							"nested": []map[string]interface{}{
+								{
+									"bam": 2,
+								},
+							},
+						},
+					},
+					{
+						Name: "exec",
+						Config: map[string]interface{}{
+							"foo": true,
+						},
+					},
+				},
 			},
 			false,
 		},
@@ -225,6 +246,7 @@ func TestConfig_Parse(t *testing.T) {
 				Datacenter:     "",
 				NodeName:       "",
 				DataDir:        "",
+				PluginDir:      "",
 				LogLevel:       "",
 				BindAddr:       "",
 				EnableDebug:    false,
@@ -275,8 +297,8 @@ func TestConfig_Parse(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		require := require.New(t)
 		t.Run(tc.File, func(t *testing.T) {
+			require := require.New(t)
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
