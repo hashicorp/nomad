@@ -91,9 +91,9 @@ restart {
 ```
 
 - `"delay"` - Instructs the scheduler to delay the next restart until the next
-  `interval` is reached. This is the default behavior.
+  `interval` is reached.
 
 - `"fail"` - Instructs the scheduler to not attempt to restart the task on
-  failure. This mode is useful for non-idempotent jobs which are unlikely to
+  failure. This is the default behavior. This mode is useful for non-idempotent jobs which are unlikely to
   succeed after a few failures. Failed jobs will be restarted according to
   the [`reschedule`](/docs/job-specification/reschedule.html) stanza.
