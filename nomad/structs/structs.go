@@ -6021,6 +6021,10 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 // It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay() time.Duration {
 	policy := a.ReschedulePolicy()
+	// Can be nil if the task group was updated to remove its reschedule policy
+	if policy == nil {
+		return 0
+	}
 	delayDur := policy.Delay
 	if a.RescheduleTracker == nil || a.RescheduleTracker.Events == nil || len(a.RescheduleTracker.Events) == 0 {
 		return delayDur

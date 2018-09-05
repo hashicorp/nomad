@@ -2818,6 +2818,12 @@ func TestAllocation_NextDelay(t *testing.T) {
 			expectedRescheduleEligible: false,
 		},
 		{
+			desc:                       "Allocation has no reschedule policy",
+			alloc:                      &Allocation{},
+			expectedRescheduleTime:     time.Time{},
+			expectedRescheduleEligible: false,
+		},
+		{
 			desc: "Allocation lacks task state",
 			reschedulePolicy: &ReschedulePolicy{
 				DelayFunction: "constant",
@@ -3261,7 +3267,9 @@ func TestAllocation_NextDelay(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			require := require.New(t)
 			j := testJob()
-			j.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+			if tc.reschedulePolicy != nil {
+				j.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+			}
 			tc.alloc.Job = j
 			tc.alloc.TaskGroup = j.TaskGroups[0].Name
 			reschedTime, allowed := tc.alloc.NextRescheduleTime()
