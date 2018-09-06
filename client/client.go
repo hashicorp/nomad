@@ -647,13 +647,17 @@ func (c *Client) setServersImpl(in []string, force bool) (int, error) {
 			addr, err := resolveServer(srv)
 			if err != nil {
 				c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", srv, err)
+				mu.Lock()
 				merr.Errors = append(merr.Errors, err)
+				mu.Unlock()
 				return
 			}
 
 			// Try to ping to check if it is a real server
 			if err := c.Ping(addr); err != nil {
+				mu.Lock()
 				merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
+				mu.Unlock()
 
 				// If we are forcing the setting of the servers, inject it to
 				// the serverlist even if we can't ping immediately.
