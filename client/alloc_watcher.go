@@ -421,9 +421,10 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	apiConfig := nomadapi.DefaultConfig()
 	apiConfig.Address = nodeAddr
 	apiConfig.TLSConfig = &nomadapi.TLSConfig{
-		CACert:     p.config.TLSConfig.CAFile,
-		ClientCert: p.config.TLSConfig.CertFile,
-		ClientKey:  p.config.TLSConfig.KeyFile,
+		CACert:        p.config.TLSConfig.CAFile,
+		ClientCert:    p.config.TLSConfig.CertFile,
+		ClientKey:     p.config.TLSConfig.KeyFile,
+		TLSServerName: fmt.Sprintf("client.%s.nomad", p.config.Region),
 	}
 	apiClient, err := nomadapi.NewClient(apiConfig)
 	if err != nil {
