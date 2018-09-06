@@ -17,6 +17,7 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Reset queued allocation summary to zero when job stopped [[GH-4414](https://github.com/hashicorp/nomad/issues/4414)]
  * core: Fix panic due to missing synchronization in delayed evaluations heap [[GH-4632](https://github.com/hashicorp/nomad/issues/4632)]
+ * client: Fix migrating ephemeral disks when TLS is enabled [[GH-4648](https://github.com/hashicorp/nomad/issues/4648)]
  * driver/docker: Fix kill timeout not being respected when timeout is over five
    minutes [[GH-4599](https://github.com/hashicorp/nomad/issues/4599)]
  * scheduler: Fix nil pointer dereference [[GH-4463](https://github.com/hashicorp/nomad/issues/4463)]
