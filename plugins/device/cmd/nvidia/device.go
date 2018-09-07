@@ -48,6 +48,10 @@ var (
 			hclspec.NewAttr("fingerprint_period", "string", false),
 			hclspec.NewLiteral("\"5s\""),
 		),
+		"stats_period": hclspec.NewDefault(
+			hclspec.NewAttr("stats_period", "string", false),
+			hclspec.NewLiteral("\"5s\""),
+		),
 	})
 )
 
@@ -55,6 +59,7 @@ var (
 type Config struct {
 	IgnoredGPUIDs     []string `codec:"ignored_gpu_ids"`
 	FingerprintPeriod string   `codec:"fingerprint_period"`
+	StatsPeriod       string   `codec:"stats_period"`
 }
 
 // NvidiaDevice contains all plugin specific data
@@ -71,6 +76,10 @@ type NvidiaDevice struct {
 
 	// fingerprintPeriod is how often we should call nvml to get list of devices
 	fingerprintPeriod time.Duration
+
+	// statsPeriod is how often we should collect statistics for fingerprinted
+	// devices.
+	statsPeriod time.Duration
 
 	// devices is the set of detected eligible devices
 	devices    map[string]struct{}
@@ -122,6 +131,13 @@ func (d *NvidiaDevice) SetConfig(data []byte) error {
 	}
 	d.fingerprintPeriod = period
 
+	// Convert the stats period
+	speriod, err := time.ParseDuration(config.StatsPeriod)
+	if err != nil {
+		return fmt.Errorf("failed to parse stats period %q: %v", config.StatsPeriod, err)
+	}
+	d.statsPeriod = speriod
+
 	return nil
 }
 
@@ -140,5 +156,7 @@ func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation
 
 // Stats streams statistics for the detected devices.
 func (d *NvidiaDevice) Stats(ctx context.Context) (<-chan *device.StatsResponse, error) {
-	return nil, nil
+	outCh := make(chan *device.StatsResponse)
+	go d.stats(ctx, outCh)
+	return outCh, nil
 }

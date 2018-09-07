@@ -5,7 +5,8 @@ import (
 )
 
 // DeviceInfo represents nvml device data
-// this struct is returned by NvmlDriver DeviceInfoByIndex method
+// this struct is returned by NvmlDriver DeviceInfoByIndex and
+// DeviceInfoAndStatusByIndex methods
 type DeviceInfo struct {
 	// The following fields are guaranteed to be retrieved from nvml
 	UUID            string
@@ -24,6 +25,24 @@ type DeviceInfo struct {
 	MemoryClockMHz     *uint
 }
 
+// DeviceStatus represents nvml device status
+// this struct is returned by NvmlDriver DeviceInfoAndStatusByIndex method
+type DeviceStatus struct {
+	// The following fields can be nil after call to nvml, because nvml was
+	// not able to retrieve this fields for specific nvidia card
+	PowerUsageW        *uint
+	TemperatureC       *uint
+	GPUUtilization     *uint // %
+	MemoryUtilization  *uint // %
+	EncoderUtilization *uint // %
+	DecoderUtilization *uint // %
+	BAR1UsedMiB        *uint64
+	UsedMemoryMiB      *uint64
+	ECCErrorsL1Cache   *uint64
+	ECCErrorsL2Cache   *uint64
+	ECCErrorsDevice    *uint64
+}
+
 // NvmlDriver represents set of methods to query nvml library
 type NvmlDriver interface {
 	Initialize() error
@@ -31,6 +50,7 @@ type NvmlDriver interface {
 	SystemDriverVersion() (string, error)
 	DeviceCount() (uint, error)
 	DeviceInfoByIndex(uint) (*DeviceInfo, error)
+	DeviceInfoAndStatusByIndex(uint) (*DeviceInfo, *DeviceStatus, error)
 }
 
 // nvmlDriver implements NvmlDriver
@@ -80,4 +100,39 @@ func (n *nvmlDriver) DeviceInfoByIndex(index uint) (*DeviceInfo, error) {
 		DisplayState:       deviceMode.DisplayInfo.Mode.String(),
 		PersistenceMode:    deviceMode.Persistence.String(),
 	}, nil
+}
+
+// DeviceInfoByIndex returns DeviceInfo and DeviceStatus for index GPU in system device list
+func (n *nvmlDriver) DeviceInfoAndStatusByIndex(index uint) (*DeviceInfo, *DeviceStatus, error) {
+	device, err := nvml.NewDevice(index)
+	if err != nil {
+		return nil, nil, err
+	}
+	status, err := device.Status()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &DeviceInfo{
+			UUID:               device.UUID,
+			Name:               device.Model,
+			MemoryMiB:          device.Memory,
+			PowerW:             device.Power,
+			BAR1MiB:            device.PCI.BAR1,
+			PCIBandwidthMBPerS: device.PCI.Bandwidth,
+			PCIBusID:           device.PCI.BusID,
+			CoresClockMHz:      device.Clocks.Cores,
+			MemoryClockMHz:     device.Clocks.Memory,
+		}, &DeviceStatus{
+			TemperatureC:       status.Temperature,
+			GPUUtilization:     status.Utilization.GPU,
+			MemoryUtilization:  status.Utilization.Memory,
+			EncoderUtilization: status.Utilization.Encoder,
+			DecoderUtilization: status.Utilization.Decoder,
+			UsedMemoryMiB:      status.Memory.Global.Used,
+			ECCErrorsL1Cache:   status.Memory.ECCErrors.L1Cache,
+			ECCErrorsL2Cache:   status.Memory.ECCErrors.L2Cache,
+			ECCErrorsDevice:    status.Memory.ECCErrors.Device,
+			PowerUsageW:        status.Power,
+			BAR1UsedMiB:        status.PCI.BAR1Used,
+		}, nil
 }
