@@ -1,0 +1,29 @@
+<svg>
+  <defs>
+    <clipPath>
+      <linearGradient x1="0" x2="0" y1="0" y2="1" class="{{chartClass}}" id="{{fillId}}">
+        <stop class="start" offset="0%" />
+        <stop class="end" offset="100%" />
+      </linearGradient>
+    </clipPath>
+  </defs>
+  <g class="y-gridlines gridlines" transform="translate({{yAxisOffset}}, 0)"></g>
+  <g class="canvas {{chartClass}}">
+    <path class="line" d="{{line}}" />
+    <path class="fill" d="{{area}}" fill="url(#{{fillId}})" />
+    <rect class="hover-target" x="0" y="0" width="{{yAxisOffset}}" height="{{xAxisOffset}}" />
+  </g>
+  <g class="x-axis axis" transform="translate(0, {{xAxisOffset}})"></g>
+  <g class="y-axis axis" transform="translate({{yAxisOffset}}, 0)"></g>
+</svg>
+<div class="chart-tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
+  <ol>
+    <p>
+      <span class="label">
+        <span class="color-swatch {{chartClass}}" />
+        {{activeDatumLabel}}
+      </span>
+      <span class="value">{{activeDatumValue}}</span>
+    </p>
+  </ol>
+</div>
