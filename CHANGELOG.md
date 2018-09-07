@@ -15,6 +15,7 @@ IMPROVEMENTS:
 
 
 BUG FIXES:
+ * core: Fix treating valid PEM files as invalid [[GH-4613](https://github.com/hashicorp/nomad/issues/4613)]
  * core: Reset queued allocation summary to zero when job stopped [[GH-4414](https://github.com/hashicorp/nomad/issues/4414)]
  * core: Fix panic due to missing synchronization in delayed evaluations heap [[GH-4632](https://github.com/hashicorp/nomad/issues/4632)]
  * client: Fix migrating ephemeral disks when TLS is enabled [[GH-4648](https://github.com/hashicorp/nomad/issues/4648)]
