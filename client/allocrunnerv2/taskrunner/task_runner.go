@@ -486,6 +486,7 @@ func (tr *TaskRunner) Restore() error {
 // SetState sets the task runners allocation state and triggers a server
 // update.
 func (tr *TaskRunner) SetState(state string, event *structs.TaskEvent) {
+	tr.logger.Debug("setting task state", "state", state, "event", event.Type)
 	// Update the local state
 	stateCopy := tr.setStateLocal(state, event)
 
@@ -505,6 +506,7 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 	}
 
 	// Update the task state
+	oldState := tr.state.State
 	taskState := tr.state
 	taskState.State = state
 
@@ -515,7 +517,7 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 	switch state {
 	case structs.TaskStateRunning:
 		// Capture the start time if it is just starting
-		if taskState.State != structs.TaskStateRunning {
+		if oldState != structs.TaskStateRunning {
 			taskState.StartedAt = time.Now().UTC()
 			if !tr.clientConfig.DisableTaggedMetrics {
 				metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
