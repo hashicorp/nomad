@@ -1,0 +1,29 @@
+{{#freestyle-usage "line-chart-standard"}}
+  <div class="block" style="height:100px; width: 400px;">
+    {{line-chart data=lineChartData xProp="year" yProp="value" chartClass="is-primary"}}
+  </div>
+  <div class="block" style="height:100px; width: 400px;">
+    {{line-chart data=lineChartMild xProp="year" yProp="value" chartClass="is-info"}}
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "line-chart-fill-width"}}
+  <div class="block" style="height:250px;">
+    {{line-chart data=lineChartData xProp="year" yProp="value" chartClass="is-danger"}}
+  </div>
+  <div class="block" style="height:250px;">
+    {{line-chart data=lineChartMild xProp="year" yProp="value" chartClass="is-warning"}}
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "line-chart-live-data"}}
+  <div class="block" style="height:250px">
+    {{line-chart
+      data=lineChartLive
+      xProp="ts"
+      yProp="val"
+      timeseries=true
+      chartClass="is-primary"
+      xFormat=secondsFormat}}
+  </div>
+{{/freestyle-usage}}
