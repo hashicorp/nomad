@@ -113,7 +113,9 @@ export default Component.extend(WindowResizable, {
   yTicks: computed('xAxisOffset', function() {
     const height = this.get('xAxisOffset');
     const tickCount = Math.ceil(height / 120) * 2 + 1;
-    return nice(lerp(this.get('yScale').domain(), tickCount));
+    const domain = this.get('yScale').domain();
+    const ticks = lerp(domain, tickCount);
+    return domain[1] - domain[0] > 1 ? nice(ticks) : ticks;
   }),
 
   yAxis: computed('yScale', function() {
