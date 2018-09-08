@@ -48,6 +48,10 @@ export default Component.extend(WindowResizable, {
     return `line-chart-fill-${guidFor(this)}`;
   }),
 
+  maskId: computed(function() {
+    return `line-chart-mask-${guidFor(this)}`;
+  }),
+
   activeDatum: null,
 
   activeDatumLabel: computed('activeDatum', function() {
