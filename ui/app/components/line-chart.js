@@ -197,11 +197,14 @@ export default Component.extend(WindowResizable, {
     const canvas = d3.select(this.element.querySelector('.canvas'));
     const updateActiveDatum = this.updateActiveDatum.bind(this);
 
-    canvas.on('mouseenter', () => {
-      run.schedule('afterRender', this, () => this.set('isActive', true));
+    const chart = this;
+    canvas.on('mouseenter', function() {
+      const mouseX = d3.mouse(this)[0];
+      chart.set('latestMouseX', mouseX);
+      updateActiveDatum(mouseX);
+      run.schedule('afterRender', chart, () => chart.set('isActive', true));
     });
 
-    const chart = this;
     canvas.on('mousemove', function() {
       const mouseX = d3.mouse(this)[0];
       chart.set('latestMouseX', mouseX);
@@ -209,7 +212,7 @@ export default Component.extend(WindowResizable, {
     });
 
     canvas.on('mouseleave', () => {
-      this.set('isActive', false);
+      run.schedule('afterRender', this, () => this.set('isActive', false));
       this.set('activeDatum', null);
     });
   },
