@@ -287,7 +287,7 @@
 		{"path":"github.com/opencontainers/go-digest","checksumSHA1":"NTperEHVh1uBqfTy9+oKceN4tKI=","revision":"21dfd564fd89c944783d00d069f33e3e7123c448","revisionTime":"2017-01-11T18:16:59Z"},
 		{"path":"github.com/opencontainers/image-spec/specs-go","checksumSHA1":"ZGlIwSRjdLYCUII7JLE++N4w7Xc=","revision":"89b51c794e9113108a2914e38e66c826a649f2b5","revisionTime":"2017-11-03T11:36:04Z"},
 		{"path":"github.com/opencontainers/image-spec/specs-go/v1","checksumSHA1":"jdbXRRzeu0njLE9/nCEZG+Yg/Jk=","revision":"89b51c794e9113108a2914e38e66c826a649f2b5","revisionTime":"2017-11-03T11:36:04Z"},
-		{"path":"github.com/opencontainers/runc/libcontainer","checksumSHA1":"cqrf+HmlptrK2lRhQ0PkYdOe5cQ=","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},
+		{"path":"github.com/opencontainers/runc/libcontainer","checksumSHA1":"6qP/ejjcc/+HelbVHmtl6cyUZmc=","origin":"github.com/hashicorp/runc/libcontainer","revision":"8df81be073884e4e4c613d893f5877310136820f","revisionTime":"2018-09-10T14:23:11Z","version":"nomad","versionExact":"nomad"},
 		{"path":"github.com/opencontainers/runc/libcontainer/apparmor","checksumSHA1":"gVVY8k2G3ws+V1czsfxfuRs8log=","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/cgroups","checksumSHA1":"eA9qNw7Tkpi1GLojT/Vxa99aL00=","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/cgroups/fs","checksumSHA1":"YgPihDRi3OxI0qv7CxTxrqZuvfU=","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},

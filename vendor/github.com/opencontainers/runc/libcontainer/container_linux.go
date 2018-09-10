@@ -452,8 +452,7 @@ func (c *linuxContainer) newParentProcess(p *Process) (parentProcess, error) {
 }
 
 func (c *linuxContainer) commandTemplate(p *Process, childPipe *os.File) (*exec.Cmd, error) {
-	cmd := exec.Command(c.initPath, c.initArgs[1:]...)
-	cmd.Args[0] = c.initArgs[0]
+	cmd := exec.Command(c.initPath, c.initArgs...)
 	cmd.Stdin = p.Stdin
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr
