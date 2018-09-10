@@ -464,24 +464,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
 
-	// Calculate the allowed number of changes and set the desired changes
-	// accordingly.
-	if !a.deploymentFailed && !a.deploymentPaused {
-		desiredChanges.Migrate += uint64(len(migrate))
-	} else {
-		desiredChanges.Stop += uint64(len(migrate))
-	}
-
+	// Migrate all the allocations
+	desiredChanges.Migrate += uint64(len(migrate))
 	for _, alloc := range migrate.nameOrder() {
-		// If the deployment is failed or paused, don't replace it, just mark as stop.
-		if a.deploymentFailed || a.deploymentPaused {
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             alloc,
-				statusDescription: allocNodeTainted,
-			})
-			continue
-		}
-
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			statusDescription: allocMigrating,
