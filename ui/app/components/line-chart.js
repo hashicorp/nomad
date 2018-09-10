@@ -97,11 +97,15 @@ export default Component.extend(WindowResizable, {
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
     const yProp = this.get('yProp');
+    let max = d3Array.max(this.get('data'), d => d[yProp]);
+    if (max > 1) {
+      max = nice(max);
+    }
 
     return d3Scale
       .scaleLinear()
       .rangeRound([this.get('xAxisOffset'), 10])
-      .domain([0, d3Array.max(this.get('data'), d => d[yProp])]);
+      .domain([0, max]);
   }),
 
   xAxis: computed('xScale', function() {
