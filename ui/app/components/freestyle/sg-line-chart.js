@@ -16,28 +16,6 @@ export default Component.extend({
         if (ref.length > 60) {
           ref.splice(0, ref.length - 60);
         }
-
-        if (this.get('timerTicks') % 2 === 0) {
-          const ref2 = this.get('metrics');
-          const prev = ref2.length ? ref2[ref2.length - 1].value : 0.9;
-          ref2.addObject({
-            timestamp: Date.now(),
-            value: Math.min(Math.max(prev + Math.random() * 0.05 - 0.025, 0), 1),
-          });
-          if (ref2.length > 300) {
-            ref2.splice(0, ref2.length - 300);
-          }
-
-          const ref3 = this.get('metrics2');
-          const prev2 = ref3.length ? ref3[ref3.length - 1].value : 0.1;
-          ref3.addObject({
-            timestamp: Date.now(),
-            value: Math.min(Math.max(prev2 + Math.random() * 0.05 - 0.025, 0), 1),
-          });
-          if (ref3.length > 300) {
-            ref3.splice(0, ref3.length - 300);
-          }
-        }
       }, 500)
     );
   }.on('init'),
@@ -75,14 +53,6 @@ export default Component.extend({
   }),
 
   lineChartLive: computed(() => {
-    return [];
-  }),
-
-  metrics: computed(() => {
-    return [];
-  }),
-
-  metrics2: computed(() => {
     return [];
   }),
 
