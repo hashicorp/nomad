@@ -35,7 +35,7 @@ func main() {
     logger.Println("Configuring cgm")
 
     cmc := &cgm.Config{}
-    cmc.Debug := false // set to true for debug messages
+    cmc.Debug = false // set to true for debug messages
     cmc.Log = logger
 
     // Circonus API Token key (https://login.circonus.com/user/tokens)
@@ -122,9 +122,10 @@ func main() {
     cmc.CheckManager.API.TokenKey = os.Getenv("CIRCONUS_API_TOKEN")
     cmc.CheckManager.API.TokenApp = os.Getenv("CIRCONUS_API_APP")
     cmc.CheckManager.API.URL = os.Getenv("CIRCONUS_API_URL")
+    cmc.CheckManager.API.TLSConfig = nil
 
     // Check configuration options
-    cmc.CheckManager.Check.SubmissionURL = os.Getenv("CIRCONUS_SUBMISION_URL")
+    cmc.CheckManager.Check.SubmissionURL = os.Getenv("CIRCONUS_SUBMISSION_URL")
     cmc.CheckManager.Check.ID = os.Getenv("CIRCONUS_CHECK_ID")
     cmc.CheckManager.Check.InstanceID = ""
     cmc.CheckManager.Check.DisplayName = ""
@@ -142,6 +143,7 @@ func main() {
     cmc.CheckManager.Broker.ID = ""
     cmc.CheckManager.Broker.SelectTag = ""
     cmc.CheckManager.Broker.MaxResponseTime = "500ms"
+    cmc.CheckManager.Broker.TLSConfig = nil
 
     logger.Println("Creating new cgm instance")
 
@@ -230,3 +232,5 @@ func main() {
 ```
 
 Unless otherwise noted, the source files are distributed under the BSD-style license found in the LICENSE file.
+
+[![codecov](https://codecov.io/gh/maier/circonus-gometrics/branch/master/graph/badge.svg)](https://codecov.io/gh/maier/circonus-gometrics)
