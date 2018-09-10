@@ -8229,6 +8229,14 @@ func (p *Plan) IsNoOp() bool {
 		len(p.DeploymentUpdates) == 0
 }
 
+// PreemptedAllocs is used to store information about a set of allocations
+// for the same job that get preempted as part of placing allocations for the
+// job in the plan.
+
+// Preempted allocs represents a map from jobid to allocations
+// to be preempted
+type PreemptedAllocs map[*NamespacedID][]*Allocation
+
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
 	// NodeUpdate contains all the updates that were committed.
