@@ -4,6 +4,7 @@ IMPROVEMENTS:
 * client: Added option to prevent Nomad from removing containers when the task exits [[GH-4535](https://github.com/hashicorp/nomad/issues/4535)]
 
 BUG FIXES:
+* client: Fix migrating ephemeral disks when TLS is enabled [[GH-4648](https://github.com/hashicorp/nomad/issues/4648)]
 * core: Reset queued allocation summary to zero when job stopped [[GH-4414](https://github.com/hashicorp/nomad/issues/4414)]
 * core: Fix inverted logic bug where if disable_update_check was enabled, update checks would be performed [[GH-4570](https://github.com/hashicorp/nomad/issues/4570)]
 * core: Fix panic due to missing synchronization in delayed evaluations heap [[GH-4632](https://github.com/hashicorp/nomad/issues/4632)]
