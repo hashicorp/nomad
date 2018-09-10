@@ -162,7 +162,7 @@
 		{"path":"github.com/hashicorp/go-msgpack/codec","revision":"fa3f63826f7c23912c15263591e65d54d080b458"},
 		{"path":"github.com/hashicorp/go-multierror","revision":"d30f09973e19c1dfcd120b2d9c4f168e68d6b5d5"},
 		{"path":"github.com/hashicorp/go-plugin","checksumSHA1":"lbG9uwM7qJlTIBg+8mjCC88sCPc=","revision":"e8d22c780116115ae5624720c9af0c97afe4f551","revisionTime":"2018-03-31T00:25:53Z"},
-		{"path":"github.com/hashicorp/go-retryablehttp","checksumSHA1":"ErJHGU6AVPZM9yoY/xV11TwSjQs=","revision":"6e85be8fee1dcaa02c0eaaac2df5a8fbecf94145","revisionTime":"2016-09-30T03:51:02Z"},
+		{"path":"github.com/hashicorp/go-retryablehttp","checksumSHA1":"/yKfFSspjuDzyOe/bBslrPzyfYM=","revision":"e651d75abec6fbd4f2c09508f72ae7af8a8b7171","revisionTime":"2018-07-18T19:50:05Z"},
 		{"path":"github.com/hashicorp/go-rootcerts","checksumSHA1":"A1PcINvF3UiwHRKn8UcgARgvGRs=","revision":"6bb64b370b90e7ef1fa532be9e591a81c3493e00","revisionTime":"2016-05-03T14:34:40Z"},
 		{"path":"github.com/hashicorp/go-safetemp","checksumSHA1":"CduvzBFfTv77nhjtXPGdIjQQLMI=","revision":"b1a1dbde6fdc11e3ae79efd9039009e22d4ae240","revisionTime":"2018-03-26T21:11:50Z"},
 		{"path":"github.com/hashicorp/go-sockaddr","checksumSHA1":"J47ySO1q0gcnmoMnir1q1loKzCk=","revision":"6d291a969b86c4b633730bfc6b8b9d64c3aafed9","revisionTime":"2018-03-20T11:50:54Z"},
