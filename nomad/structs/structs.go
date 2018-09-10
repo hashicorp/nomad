@@ -1885,6 +1885,29 @@ func (r *Resources) Add(delta *Resources) error {
 	return nil
 }
 
+// Subtract removes the resources of the delta to this, potentially
+// returning an error if not possible.
+func (r *Resources) Subtract(delta *Resources) error {
+	if delta == nil {
+		return nil
+	}
+	r.CPU -= delta.CPU
+	r.MemoryMB -= delta.MemoryMB
+	r.DiskMB -= delta.DiskMB
+	r.IOPS -= delta.IOPS
+
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := r.NetIndex(n)
+		if idx == -1 {
+			r.Networks = append(r.Networks, n.Copy())
+		} else {
+			r.Networks[idx].MBits -= delta.Networks[idx].MBits
+		}
+	}
+	return nil
+}
+
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
@@ -7026,6 +7049,14 @@ type Allocation struct {
 	// that can be rescheduled in the future
 	FollowupEvalID string
 
+	// PreemptedAllocations captures IDs of any allocations that were preempted
+	// in order to place this allocation
+	PreemptedAllocations []string
+
+	// PreemptedByAllocation tracks the alloc ID of the allocation that caused this allocation
+	// to stop running because it got preempted
+	PreemptedByAllocation string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -7100,6 +7131,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
+	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
 	return na
 }
 
@@ -8001,11 +8033,12 @@ func (e *Evaluation) ShouldBlock() bool {
 // for a given Job
 func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
-		EvalID:         e.ID,
-		Priority:       e.Priority,
-		Job:            j,
-		NodeUpdate:     make(map[string][]*Allocation),
-		NodeAllocation: make(map[string][]*Allocation),
+		EvalID:          e.ID,
+		Priority:        e.Priority,
+		Job:             j,
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodeAllocation:  make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
 	}
 	if j != nil {
 		p.AllAtOnce = j.AllAtOnce
@@ -8118,6 +8151,11 @@ type Plan struct {
 	// deployments. This allows the scheduler to cancel any unneeded deployment
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as evicted.
+	NodePreemptions map[string][]*Allocation
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the
@@ -8209,6 +8247,14 @@ func (p *Plan) IsNoOp() bool {
 		len(p.DeploymentUpdates) == 0
 }
 
+// PreemptedAllocs is used to store information about a set of allocations
+// for the same job that get preempted as part of placing allocations for the
+// job in the plan.
+
+// Preempted allocs represents a map from jobid to allocations
+// to be preempted
+type PreemptedAllocs map[*NamespacedID][]*Allocation
+
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
 	// NodeUpdate contains all the updates that were committed.
@@ -8222,6 +8268,11 @@ type PlanResult struct {
 
 	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as stopped.
+	NodePreemptions map[string][]*Allocation
 
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.

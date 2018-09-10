@@ -1013,6 +1013,7 @@ type ObjectDiff struct {
 
 type PlanAnnotations struct {
 	DesiredTGUpdates map[string]*DesiredUpdates
+	PreemptedAllocs  []*AllocationListStub
 }
 
 type DesiredUpdates struct {
