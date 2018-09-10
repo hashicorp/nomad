@@ -1869,6 +1869,58 @@ func TestResource_Add_Network(t *testing.T) {
 	}
 }
 
+func TestResource_Subtract(t *testing.T) {
+	r1 := &Resources{
+		CPU:      2000,
+		MemoryMB: 2048,
+		DiskMB:   10000,
+		IOPS:     100,
+		Networks: []*NetworkResource{
+			{
+				CIDR:          "10.0.0.0/8",
+				MBits:         100,
+				ReservedPorts: []Port{{"ssh", 22}},
+			},
+		},
+	}
+	r2 := &Resources{
+		CPU:      1000,
+		MemoryMB: 1024,
+		DiskMB:   5000,
+		IOPS:     50,
+		Networks: []*NetworkResource{
+			{
+				IP:            "10.0.0.1",
+				MBits:         20,
+				ReservedPorts: []Port{{"web", 80}},
+			},
+		},
+	}
+
+	err := r1.Subtract(r2)
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+
+	expect := &Resources{
+		CPU:      1000,
+		MemoryMB: 1024,
+		DiskMB:   5000,
+		IOPS:     50,
+		Networks: []*NetworkResource{
+			{
+				CIDR:          "10.0.0.0/8",
+				MBits:         80,
+				ReservedPorts: []Port{{"ssh", 22}},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
+		t.Fatalf("bad: %#v %#v", expect, r1)
+	}
+}
+
 func TestEncodeDecode(t *testing.T) {
 	type FooRequest struct {
 		Foo string
