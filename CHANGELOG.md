@@ -22,6 +22,7 @@ BUG FIXES:
  * driver/docker: Fix kill timeout not being respected when timeout is over five
    minutes [[GH-4599](https://github.com/hashicorp/nomad/issues/4599)]
  * scheduler: Fix nil pointer dereference [[GH-4463](https://github.com/hashicorp/nomad/issues/4463)]
+ * scheduler: Fix panic when allocation's reschedule policy doesn't exist [[GH-4647](https://github.com/hashicorp/nomad/issues/4647)]
 
 ## 0.8.4 (June 11, 2018)
 
