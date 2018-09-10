@@ -1,17 +1,20 @@
 package api
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"os"
 
+	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-rootcerts"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/hashicorp/vault/helper/hclutil"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -41,16 +44,16 @@ type SSHHelper struct {
 type SSHVerifyResponse struct {
 	// Usually empty. If the request OTP is echo request message, this will
 	// be set to the corresponding echo response message.
-	Message string `json:"message" structs:"message" mapstructure:"message"`
+	Message string `json:"message" mapstructure:"message"`
 
 	// Username associated with the OTP
-	Username string `json:"username" structs:"username" mapstructure:"username"`
+	Username string `json:"username" mapstructure:"username"`
 
 	// IP associated with the OTP
-	IP string `json:"ip" structs:"ip" mapstructure:"ip"`
+	IP string `json:"ip" mapstructure:"ip"`
 
 	// Name of the role against which the OTP was issued
-	RoleName string `json:"role_name" structs:"role_name" mapstructure:"role_name"`
+	RoleName string `json:"role_name" mapstructure:"role_name"`
 }
 
 // SSHHelperConfig is a structure which represents the entries from the vault-ssh-helper's configuration file.
@@ -141,12 +144,12 @@ func LoadSSHHelperConfig(path string) (*SSHHelperConfig, error) {
 func ParseSSHHelperConfig(contents string) (*SSHHelperConfig, error) {
 	root, err := hcl.Parse(string(contents))
 	if err != nil {
-		return nil, fmt.Errorf("ssh_helper: error parsing config: %s", err)
+		return nil, errwrap.Wrapf("error parsing config: {{err}}", err)
 	}
 
 	list, ok := root.Node.(*ast.ObjectList)
 	if !ok {
-		return nil, fmt.Errorf("ssh_helper: error parsing config: file doesn't contain a root object")
+		return nil, fmt.Errorf("error parsing config: file doesn't contain a root object")
 	}
 
 	valid := []string{
@@ -159,7 +162,7 @@ func ParseSSHHelperConfig(contents string) (*SSHHelperConfig, error) {
 		"tls_skip_verify",
 		"tls_server_name",
 	}
-	if err := checkHCLKeys(list, valid); err != nil {
+	if err := hclutil.CheckHCLKeys(list, valid); err != nil {
 		return nil, multierror.Prefix(err, "ssh_helper:")
 	}
 
@@ -170,7 +173,7 @@ func ParseSSHHelperConfig(contents string) (*SSHHelperConfig, error) {
 	}
 
 	if c.VaultAddr == "" {
-		return nil, fmt.Errorf("ssh_helper: missing config 'vault_addr'")
+		return nil, fmt.Errorf(`missing config "vault_addr"`)
 	}
 	return &c, nil
 }
@@ -205,7 +208,9 @@ func (c *SSHHelper) Verify(otp string) (*SSHVerifyResponse, error) {
 		return nil, err
 	}
 
-	resp, err := c.c.RawRequest(r)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -226,32 +231,4 @@ func (c *SSHHelper) Verify(otp string) (*SSHVerifyResponse, error) {
 		return nil, err
 	}
 	return &verifyResp, nil
-}
-
-func checkHCLKeys(node ast.Node, valid []string) error {
-	var list *ast.ObjectList
-	switch n := node.(type) {
-	case *ast.ObjectList:
-		list = n
-	case *ast.ObjectType:
-		list = n.List
-	default:
-		return fmt.Errorf("cannot check HCL keys of type %T", n)
-	}
-
-	validMap := make(map[string]struct{}, len(valid))
-	for _, v := range valid {
-		validMap[v] = struct{}{}
-	}
-
-	var result error
-	for _, item := range list.Items {
-		key := item.Keys[0].Token.Value().(string)
-		if _, ok := validMap[key]; !ok {
-			result = multierror.Append(result, fmt.Errorf(
-				"invalid key '%s' on line %d", key, item.Assign.Line))
-		}
-	}
-
-	return result
 }
