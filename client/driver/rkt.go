@@ -656,12 +656,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	eb := env.NewEmptyBuilder()
 	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
-	executorCtx := createExecutorContext("rkt", ctx, task, d.config)
-
-	if err := execIntf.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}
 
 	// Enable ResourceLimits to place the executor in a parent cgroup of
 	// the rkt container. This allows stats collection via the executor to
@@ -670,8 +664,16 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		Cmd:            absPath,
 		Args:           runArgs,
 		ResourceLimits: true,
+		Resources: &executor.Resources{
+			CPU:      task.Resources.CPU,
+			MemoryMB: task.Resources.MemoryMB,
+			IOPS:     task.Resources.IOPS,
+			DiskMB:   task.Resources.DiskMB,
+		},
+		Env:     ctx.TaskEnv.List(),
+		TaskDir: ctx.TaskDir.Dir,
 	}
-	ps, err := execIntf.LaunchCmd(execCmd)
+	ps, err := execIntf.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -787,7 +789,6 @@ func (h *rktHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *rktHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
@@ -818,12 +819,12 @@ func (d *rktHandle) Network() *cstructs.DriverNetwork {
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
 func (h *rktHandle) Kill() error {
-	h.executor.ShutDown()
+	h.executor.Signal(os.Interrupt)
 	select {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		return h.executor.Exit()
+		return h.executor.Kill()
 	}
 }
 
@@ -840,8 +841,8 @@ func (h *rktHandle) run() {
 		}
 	}
 
-	// Exit the executor
-	if err := h.executor.Exit(); err != nil {
+	// Destroy the executor
+	if err := h.executor.Destroy(); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

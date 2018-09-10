@@ -2,16 +2,15 @@ package driver
 
 import (
 	"encoding/gob"
-	"log"
 	"net/rpc"
 	"os"
 	"syscall"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Registering these types since we have to serialize and de-serialize the Task
@@ -26,35 +25,29 @@ func init() {
 
 type ExecutorRPC struct {
 	client *rpc.Client
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // LaunchCmdArgs wraps a user command and the args for the purposes of RPC
-type LaunchCmdArgs struct {
+type LaunchArgs struct {
 	Cmd *executor.ExecCommand
 }
 
-type ExecCmdArgs struct {
+type ExecArgs struct {
 	Deadline time.Time
 	Name     string
 	Args     []string
 }
 
-type ExecCmdReturn struct {
+type ExecReturn struct {
 	Output []byte
 	Code   int
 }
 
-func (e *ExecutorRPC) LaunchCmd(cmd *executor.ExecCommand) (*executor.ProcessState, error) {
+func (e *ExecutorRPC) Launch(cmd *executor.ExecCommand) (*executor.ProcessState, error) {
 	var ps *executor.ProcessState
-	err := e.client.Call("Plugin.LaunchCmd", LaunchCmdArgs{Cmd: cmd}, &ps)
+	err := e.client.Call("Plugin.Launch", LaunchArgs{Cmd: cmd}, &ps)
 	return ps, err
-}
-
-func (e *ExecutorRPC) LaunchSyslogServer() (*executor.SyslogServerState, error) {
-	var ss *executor.SyslogServerState
-	err := e.client.Call("Plugin.LaunchSyslogServer", new(interface{}), &ss)
-	return ss, err
 }
 
 func (e *ExecutorRPC) Wait() (*executor.ProcessState, error) {
@@ -63,28 +56,16 @@ func (e *ExecutorRPC) Wait() (*executor.ProcessState, error) {
 	return &ps, err
 }
 
-func (e *ExecutorRPC) ShutDown() error {
-	return e.client.Call("Plugin.ShutDown", new(interface{}), new(interface{}))
+func (e *ExecutorRPC) Kill() error {
+	return e.client.Call("Plugin.Kill", new(interface{}), new(interface{}))
 }
 
-func (e *ExecutorRPC) Exit() error {
-	return e.client.Call("Plugin.Exit", new(interface{}), new(interface{}))
+func (e *ExecutorRPC) Destroy() error {
+	return e.client.Call("Plugin.Destroy", new(interface{}), new(interface{}))
 }
 
-func (e *ExecutorRPC) SetContext(ctx *executor.ExecutorContext) error {
-	return e.client.Call("Plugin.SetContext", ctx, new(interface{}))
-}
-
-func (e *ExecutorRPC) UpdateLogConfig(logConfig *executor.LogConfig) error {
-	return e.client.Call("Plugin.UpdateLogConfig", logConfig, new(interface{}))
-}
-
-func (e *ExecutorRPC) UpdateTask(task *structs.Task) error {
-	return e.client.Call("Plugin.UpdateTask", task, new(interface{}))
-}
-
-func (e *ExecutorRPC) DeregisterServices() error {
-	return e.client.Call("Plugin.DeregisterServices", new(interface{}), new(interface{}))
+func (e *ExecutorRPC) UpdateResources(resources *executor.Resources) error {
+	return e.client.Call("Plugin.UpdateResources", resources, new(interface{}))
 }
 
 func (e *ExecutorRPC) Version() (*executor.ExecutorVersion, error) {
@@ -104,12 +85,12 @@ func (e *ExecutorRPC) Signal(s os.Signal) error {
 }
 
 func (e *ExecutorRPC) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
-	req := ExecCmdArgs{
+	req := ExecArgs{
 		Deadline: deadline,
 		Name:     name,
 		Args:     args,
 	}
-	var resp *ExecCmdReturn
+	var resp *ExecReturn
 	err := e.client.Call("Plugin.Exec", req, &resp)
 	if resp == nil {
 		return nil, 0, err
@@ -119,21 +100,13 @@ func (e *ExecutorRPC) Exec(deadline time.Time, name string, args []string) ([]by
 
 type ExecutorRPCServer struct {
 	Impl   executor.Executor
-	logger *log.Logger
+	logger hclog.Logger
 }
 
-func (e *ExecutorRPCServer) LaunchCmd(args LaunchCmdArgs, ps *executor.ProcessState) error {
-	state, err := e.Impl.LaunchCmd(args.Cmd)
+func (e *ExecutorRPCServer) Launch(args LaunchArgs, ps *executor.ProcessState) error {
+	state, err := e.Impl.Launch(args.Cmd)
 	if state != nil {
 		*ps = *state
-	}
-	return err
-}
-
-func (e *ExecutorRPCServer) LaunchSyslogServer(args interface{}, ss *executor.SyslogServerState) error {
-	state, err := e.Impl.LaunchSyslogServer()
-	if state != nil {
-		*ss = *state
 	}
 	return err
 }
@@ -146,29 +119,16 @@ func (e *ExecutorRPCServer) Wait(args interface{}, ps *executor.ProcessState) er
 	return err
 }
 
-func (e *ExecutorRPCServer) ShutDown(args interface{}, resp *interface{}) error {
-	return e.Impl.ShutDown()
+func (e *ExecutorRPCServer) Kill(args interface{}, resp *interface{}) error {
+	return e.Impl.Kill()
 }
 
-func (e *ExecutorRPCServer) Exit(args interface{}, resp *interface{}) error {
-	return e.Impl.Exit()
+func (e *ExecutorRPCServer) Destroy(args interface{}, resp *interface{}) error {
+	return e.Impl.Destroy()
 }
 
-func (e *ExecutorRPCServer) SetContext(args *executor.ExecutorContext, resp *interface{}) error {
-	return e.Impl.SetContext(args)
-}
-
-func (e *ExecutorRPCServer) UpdateLogConfig(args *executor.LogConfig, resp *interface{}) error {
-	return e.Impl.UpdateLogConfig(args)
-}
-
-func (e *ExecutorRPCServer) UpdateTask(args *structs.Task, resp *interface{}) error {
-	return e.Impl.UpdateTask(args)
-}
-
-func (e *ExecutorRPCServer) DeregisterServices(args interface{}, resp *interface{}) error {
-	// In 0.6 this is a noop. Goes away in 0.7.
-	return nil
+func (e *ExecutorRPCServer) UpdateResources(args *executor.Resources, resp *interface{}) error {
+	return e.Impl.UpdateResources(args)
 }
 
 func (e *ExecutorRPCServer) Version(args interface{}, version *executor.ExecutorVersion) error {
@@ -202,7 +162,7 @@ func (e *ExecutorRPCServer) Exec(args ExecCmdArgs, result *ExecCmdReturn) error 
 }
 
 type ExecutorPlugin struct {
-	logger *log.Logger
+	logger hclog.Logger
 	Impl   *ExecutorRPCServer
 }
 

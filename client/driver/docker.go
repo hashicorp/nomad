@@ -834,7 +834,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &executor.ExecutorContext{
+	/*executorCtx := &executor.ExecutorContext{
 		Resources: &executor.Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
@@ -857,12 +857,12 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 	if err := exec.SetContext(executorCtx); err != nil {
 		pluginClient.Kill()
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}
+	}*/
 
 	// The user hasn't specified any logging options so launch our own syslog
 	// server if possible.
 	syslogAddr := ""
-	if len(d.driverConfig.Logging) == 0 {
+	/*if len(d.driverConfig.Logging) == 0 {
 		if runtime.GOOS == "darwin" {
 			d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
 		} else {
@@ -873,7 +873,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 			}
 			syslogAddr = ss.Addr
 		}
-	}
+	}*/
 
 	config, err := d.createContainerConfig(ctx, task, d.driverConfig, syslogAddr)
 	if err != nil {
@@ -1867,9 +1867,9 @@ func (h *DockerHandle) Network() *cstructs.DriverNetwork {
 func (h *DockerHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	if err := h.executor.UpdateTask(task); err != nil {
-		h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
-	}
+	//if err := h.executor.UpdateTask(task); err != nil {
+	//	h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
+	//}
 
 	// Update is not possible
 	return nil
@@ -1936,7 +1936,7 @@ func (h *DockerHandle) Kill() error {
 	// Stop the container
 	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
-		h.executor.Exit()
+		h.executor.Destroy()
 		h.pluginClient.Kill()
 
 		// Container has already been removed.
@@ -1997,7 +1997,7 @@ func (h *DockerHandle) run() {
 	close(h.doneCh)
 
 	// Shutdown the syslog collector
-	if err := h.executor.Exit(); err != nil {
+	if err := h.executor.Destroy(); err != nil {
 		h.logger.Printf("[ERR] driver.docker: failed to kill the syslog collector: %v", err)
 	}
 	h.pluginClient.Kill()

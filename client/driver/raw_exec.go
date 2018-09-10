@@ -151,12 +151,6 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := createExecutorContext("raw_exec", ctx, task, d.config)
-
-	if err := exec.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}
 
 	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
 	if err != nil {
@@ -169,8 +163,10 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 		User:               task.User,
 		TaskKillSignal:     taskKillSignal,
 		BasicProcessCgroup: d.useCgroup,
+		Env:                ctx.TaskEnv.List(),
+		TaskDir:            ctx.TaskDir.Dir,
 	}
-	ps, err := exec.LaunchCmd(execCmd)
+	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -225,12 +221,6 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
-		if id.IsolationConfig != nil {
-			ePid := pluginConfig.Reattach.Pid
-			if e := executor.ClientCleanup(id.IsolationConfig, ePid); e != nil {
-				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying resource container failed: %v", e))
-			}
-		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
@@ -280,7 +270,6 @@ func (h *rawExecHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *rawExecHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
@@ -299,7 +288,7 @@ func (d *rawExecHandle) Network() *cstructs.DriverNetwork {
 }
 
 func (h *rawExecHandle) Kill() error {
-	if err := h.executor.ShutDown(); err != nil {
+	if err := h.executor.Signal(os.Interrupt); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
 		}
@@ -313,7 +302,7 @@ func (h *rawExecHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		if err := h.executor.Exit(); err != nil {
+		if err := h.executor.Destroy(); err != nil {
 			return fmt.Errorf("executor Exit failed: %v", err)
 		}
 
@@ -329,20 +318,13 @@ func (h *rawExecHandle) run() {
 	ps, werr := h.executor.Wait()
 	close(h.doneCh)
 	if ps.ExitCode == 0 && werr != nil {
-		if h.isolationConfig != nil {
-			ePid := h.pluginClient.ReattachConfig().Pid
-			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
-				h.logger.Printf("[ERR] driver.raw_exec: destroying resource container failed: %v", e)
-			}
-		} else {
-			if e := killProcess(h.userPid); e != nil {
-				h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
-			}
+		if e := killProcess(h.userPid); e != nil {
+			h.logger.Printf("[ERR] driver.raw_exec: error killing user process: %v", e)
 		}
 	}
 
-	// Exit the executor
-	if err := h.executor.Exit(); err != nil {
+	// Destroy the executor
+	if err := h.executor.Destroy(); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

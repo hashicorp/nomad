@@ -248,13 +248,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
-	// Set the context
-	executorCtx := createExecutorContext("java", ctx, task, d.config)
-	if err := execIntf.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}
-
 	absPath, err := GetAbsolutePath("java")
 	if err != nil {
 		return nil, err
@@ -272,8 +265,16 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
 		TaskKillSignal: taskKillSignal,
+		Resources: &executor.Resources{
+			CPU:      task.Resources.CPU,
+			MemoryMB: task.Resources.MemoryMB,
+			IOPS:     task.Resources.IOPS,
+			DiskMB:   task.Resources.DiskMB,
+		},
+		Env:     ctx.TaskEnv.List(),
+		TaskDir: ctx.TaskDir.Dir,
 	}
-	ps, err := execIntf.LaunchCmd(execCmd)
+	ps, err := execIntf.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -328,12 +329,6 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
-		if id.IsolationConfig != nil {
-			ePid := pluginConfig.Reattach.Pid
-			if e := executor.ClientCleanup(id.IsolationConfig, ePid); e != nil {
-				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying resource container failed: %v", e))
-			}
-		}
 
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
@@ -383,7 +378,12 @@ func (h *javaHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *javaHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
+	h.executor.UpdateResources(&executor.Resources{
+		CPU:      task.Resources.CPU,
+		MemoryMB: task.Resources.MemoryMB,
+		IOPS:     task.Resources.IOPS,
+		DiskMB:   task.Resources.DiskMB,
+	})
 
 	// Update is not possible
 	return nil
@@ -407,11 +407,11 @@ func (d *javaHandle) Network() *cstructs.DriverNetwork {
 }
 
 func (h *javaHandle) Kill() error {
-	if err := h.executor.ShutDown(); err != nil {
+	if err := h.executor.Kill(); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		return fmt.Errorf("executor Shutdown failed: %v", err)
+		return fmt.Errorf("executor Kill failed: %v", err)
 	}
 
 	select {
@@ -420,8 +420,8 @@ func (h *javaHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			break
 		}
-		if err := h.executor.Exit(); err != nil {
-			return fmt.Errorf("executor Exit failed: %v", err)
+		if err := h.executor.Destroy(); err != nil {
+			return fmt.Errorf("executor Destroy failed: %v", err)
 		}
 
 	}
@@ -436,20 +436,13 @@ func (h *javaHandle) run() {
 	ps, werr := h.executor.Wait()
 	close(h.doneCh)
 	if ps.ExitCode == 0 && werr != nil {
-		if h.isolationConfig != nil {
-			ePid := h.pluginClient.ReattachConfig().Pid
-			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
-				h.logger.Printf("[ERR] driver.java: destroying resource container failed: %v", e)
-			}
-		} else {
-			if e := killProcess(h.userPid); e != nil {
-				h.logger.Printf("[ERR] driver.java: error killing user process: %v", e)
-			}
+		if e := killProcess(h.userPid); e != nil {
+			h.logger.Printf("[ERR] driver.java: error killing user process: %v", e)
 		}
 	}
 
-	// Exit the executor
-	h.executor.Exit()
+	// Destroy the executor
+	h.executor.Destroy()
 	h.pluginClient.Kill()
 
 	// Send the results

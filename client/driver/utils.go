@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -28,31 +29,6 @@ import (
 func cgroupsMounted(node *structs.Node) bool {
 	_, ok := node.Attributes["unique.cgroup.mountpoint"]
 	return ok
-}
-
-// createExecutorContext builds an executor.ExecutorContext from an ExecContext and Task
-func createExecutorContext(driver string, ctx *ExecContext, task *structs.Task, config *config.Config) *executor.ExecutorContext {
-	return &executor.ExecutorContext{
-		Resources: &executor.Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
-			DiskMB:   task.Resources.DiskMB,
-		},
-		Env:    ctx.TaskEnv.List(),
-		Driver: driver,
-		LogConfig: &executor.LogConfig{
-			LogDir:        ctx.TaskDir.LogDir,
-			StdoutLogFile: fmt.Sprintf("%v.stdout", task.Name),
-			StderrLogFile: fmt.Sprintf("%v.stderr", task.Name),
-			MaxFiles:      task.LogConfig.MaxFiles,
-			MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
-		},
-		TaskDir:        ctx.TaskDir.Dir,
-		PortLowerBound: config.ClientMinPort,
-		PortUpperBound: config.ClientMaxPort,
-	}
-
 }
 
 // createExecutor launches an executor plugin and returns an instance of the
@@ -73,7 +49,7 @@ func createExecutor(w io.Writer, clientConfig *config.Config,
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
 	config.HandshakeConfig = HandshakeConfig
-	config.Plugins = GetPluginMap(w, clientConfig.LogLevel)
+	config.Plugins = GetPluginMap(w, hclog.LevelFromString(clientConfig.LogLevel))
 	config.MaxPort = clientConfig.ClientMaxPort
 	config.MinPort = clientConfig.ClientMinPort
 
@@ -102,7 +78,7 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	config.Plugins = GetPluginMap(w, "DEBUG")
+	config.Plugins = GetPluginMap(w, hclog.Debug)
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
@@ -118,11 +94,6 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}
-	// 0.6 Upgrade path: Deregister services from the executor as the Nomad
-	// client agent now handles all Consul interactions. Ignore errors as
-	// this shouldn't cause the alloc to fail and there's nothing useful to
-	// do with them.
-	executorPlugin.DeregisterServices()
 	return executorPlugin, executorClient, nil
 }
 

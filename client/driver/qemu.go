@@ -319,19 +319,15 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := createExecutorContext("qemu", ctx, task, d.config)
-
-	if err := exec.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:  args[0],
-		Args: args[1:],
-		User: task.User,
+		Cmd:     args[0],
+		Args:    args[1:],
+		User:    task.User,
+		TaskDir: ctx.TaskDir.Dir,
+		Env:     ctx.TaskEnv.List(),
 	}
-	ps, err := exec.LaunchCmd(execCmd)
+	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -432,7 +428,6 @@ func (h *qemuHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *qemuHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
@@ -465,7 +460,7 @@ func (h *qemuHandle) Kill() error {
 	// the qemu process as a last resort
 	if gracefulShutdownSent == false {
 		h.logger.Printf("[DEBUG] driver.qemu: graceful shutdown is not enabled, sending an interrupt signal to pid: %d", h.userPid)
-		if err := h.executor.ShutDown(); err != nil {
+		if err := h.executor.Signal(os.Interrupt); err != nil {
 			if h.pluginClient.Exited() {
 				return nil
 			}
@@ -485,8 +480,8 @@ func (h *qemuHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		if err := h.executor.Exit(); err != nil {
-			return fmt.Errorf("executor Exit failed: %v", err)
+		if err := h.executor.Destroy(); err != nil {
+			return fmt.Errorf("executor Destroy failed: %v", err)
 		}
 		return nil
 	}
@@ -505,8 +500,8 @@ func (h *qemuHandle) run() {
 	}
 	close(h.doneCh)
 
-	// Exit the executor
-	h.executor.Exit()
+	// Destroy the executor
+	h.executor.Destroy()
 	h.pluginClient.Kill()
 
 	// Send the results

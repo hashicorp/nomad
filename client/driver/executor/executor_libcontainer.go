@@ -1,20 +1,21 @@
+// +build linux
+
 package executor
 
 import (
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"net"
 	"os"
+	"os/exec"
 	"path"
-	"runtime"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
-	syslog "github.com/RackSec/srslog"
 	"github.com/armon/circbuf"
+	"github.com/davecgh/go-spew/spew"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
@@ -22,22 +23,44 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/syndtr/gocapability/capability"
 )
 
 const (
-	defaultCgroupParent  = "nomad"
-	defaultSystemdParent = "system.slice"
+	defaultCgroupParent = "nomad"
 )
 
-type LibcontainerExecutor struct {
-	id  string
-	ctx *ExecutorContext
+var allCaps []string
 
-	logger *log.Logger
-	logRotator
+var (
+	// The statistics the executor exposes when using cgroups
+	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
+)
+
+func init() {
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	}
+}
+
+// LibcontainerExecutor implements an Executor with the runc/libcontainer api
+type LibcontainerExecutor struct {
+	id      string
+	command *ExecCommand
+
+	logger hclog.Logger
 
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
@@ -52,29 +75,25 @@ type LibcontainerExecutor struct {
 	syslogChan   chan *logging.SyslogMessage
 }
 
-func (l *LibcontainerExecutor) SetContext(ctx *ExecutorContext) error {
-	l.ctx = ctx
-	return nil
-}
-
-func (l *LibcontainerExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
+func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
+	// Find the nomad executable to launch the executor process with
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	if err = l.configureLoggers(l.ctx.LogConfig, l.logger); err != nil {
-		return nil, fmt.Errorf("failed to configure logging: %v", err)
-	}
-
-	factory, err := libcontainer.New(path.Join(l.ctx.TaskDir, "../alloc/container"),
-		libcontainer.Cgroupfs, libcontainer.InitArgs(bin, "libcontainer-shim"))
+	factory, err := libcontainer.New(
+		path.Join(command.TaskDir, "../alloc/container"),
+		libcontainer.Cgroupfs,
+		libcontainer.InitArgs(bin, "libcontainer-shim"),
+	)
 	if err != nil {
 		wrapped := fmt.Errorf("failed to create factory: %v", err)
 		return nil, wrapped
 	}
 
-	container, err := factory.Create(l.id, newLibcontainerConfig(l.ctx.TaskDir))
+	// A container is groups processes under the same isolation enforcement
+	container, err := factory.Create(l.id, newLibcontainerConfig(command))
 	if err != nil {
 		wrapped := fmt.Errorf("failed to create container(%s): %v", l.id, err)
 		return nil, wrapped
@@ -82,12 +101,20 @@ func (l *LibcontainerExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, e
 	l.container = container
 
 	combined := append([]string{command.Cmd}, command.Args...)
+	stdout, err := command.Stdout()
+	if err != nil {
+		return nil, err
+	}
+	stderr, err := command.Stderr()
+	if err != nil {
+		return nil, err
+	}
 
 	process := &libcontainer.Process{
 		Args:   combined,
-		Env:    l.ctx.Env,
-		Stdout: l.lro.processOutWriter,
-		Stderr: l.lre.processOutWriter,
+		Env:    command.Env,
+		Stdout: stdout,
+		Stderr: stderr,
 		Init:   true,
 	}
 	l.userProc = process
@@ -103,6 +130,7 @@ func (l *LibcontainerExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, e
 
 	pid, err := process.Pid()
 	if err != nil {
+		container.Destroy()
 		return nil, err
 	}
 
@@ -117,85 +145,6 @@ func (l *LibcontainerExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, e
 	}, nil
 }
 
-func (e *LibcontainerExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
-	// Ensure the context has been set first
-	if e.ctx == nil {
-		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
-	}
-
-	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
-	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
-	if err != nil {
-		return nil, err
-	}
-	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
-	if err := e.configureLoggers(e.ctx.LogConfig, e.logger); err != nil {
-		return nil, err
-	}
-
-	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
-	go e.syslogServer.Start()
-	go e.collectLogs(e.lre.rotatorWriter, e.lro.rotatorWriter)
-	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
-	return &SyslogServerState{Addr: syslogAddr}, nil
-}
-
-func (e *LibcontainerExecutor) collectLogs(we io.Writer, wo io.Writer) {
-	for logParts := range e.syslogChan {
-		// If the severity of the log line is err then we write to stderr
-		// otherwise all messages go to stdout
-		if logParts.Severity == syslog.LOG_ERR {
-			we.Write(logParts.Message)
-			we.Write([]byte{'\n'})
-		} else {
-			wo.Write(logParts.Message)
-			wo.Write([]byte{'\n'})
-		}
-	}
-}
-
-func (e *LibcontainerExecutor) getListener(lowerBound uint, upperBound uint) (net.Listener, error) {
-	if runtime.GOOS == "windows" {
-		return e.listenerTCP(lowerBound, upperBound)
-	}
-
-	return e.listenerUnix()
-}
-
-// listenerTCP creates a TCP listener using an unused port between an upper and
-// lower bound
-func (e *LibcontainerExecutor) listenerTCP(lowerBound uint, upperBound uint) (net.Listener, error) {
-	for i := lowerBound; i <= upperBound; i++ {
-		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
-		if err != nil {
-			return nil, err
-		}
-		l, err := net.ListenTCP("tcp", addr)
-		if err != nil {
-			continue
-		}
-		return l, nil
-	}
-	return nil, fmt.Errorf("No free port found")
-}
-
-// listenerUnix creates a Unix domain socket
-func (e *LibcontainerExecutor) listenerUnix() (net.Listener, error) {
-	f, err := ioutil.TempFile("", "plugin")
-	if err != nil {
-		return nil, err
-	}
-	path := f.Name()
-
-	if err := f.Close(); err != nil {
-		return nil, err
-	}
-	if err := os.Remove(path); err != nil {
-		return nil, err
-	}
-
-	return net.Listen("unix", path)
-}
 func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
 	<-l.userProcExited
 	return l.exitState, nil
@@ -203,19 +152,25 @@ func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
 
 func (l *LibcontainerExecutor) wait() {
 	defer close(l.userProcExited)
+
 	ic := l.getIsolationConfig()
 	ps, err := l.userProc.Wait()
 	if err != nil {
-		l.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
-		return
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			ps = exitErr.ProcessState
+		} else {
+			l.logger.Error("failed to call wait on user process", "err", err)
+			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
+			return
+		}
 	}
 
 	exitCode := 1
 	var signal int
 	if status, ok := ps.Sys().(syscall.WaitStatus); ok {
 		exitCode = status.ExitStatus()
+		spew.Dump(status.Signaled())
 		if status.Signaled() {
-
 			const exitSignalBase = 128
 			signal = int(status.Signal())
 			exitCode = exitSignalBase + signal
@@ -231,15 +186,11 @@ func (l *LibcontainerExecutor) wait() {
 	}
 }
 
-func (l *LibcontainerExecutor) Exit() error {
+func (l *LibcontainerExecutor) Destroy() error {
+	if l.container == nil {
+		return nil
+	}
 	defer l.container.Destroy()
-	if l.lre != nil {
-		l.lre.Close()
-	}
-
-	if l.lro != nil {
-		l.lro.Close()
-	}
 
 	status, err := l.container.Status()
 	if err != nil {
@@ -252,27 +203,11 @@ func (l *LibcontainerExecutor) Exit() error {
 	return nil
 }
 
-func (l *LibcontainerExecutor) ShutDown() error {
+func (l *LibcontainerExecutor) Kill() error {
 	return l.container.Signal(os.Interrupt, true)
 }
 
-func (l *LibcontainerExecutor) UpdateLogConfig(logConfig *LogConfig) error {
-	// noop
-	return nil
-}
-
-func (l *LibcontainerExecutor) UpdateTask(task *structs.Task) error {
-
-	// Updating Log Config
-	l.rotatorLock.Lock()
-	defer l.rotatorLock.Unlock()
-	if l.lro != nil && l.lre != nil {
-		fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
-		l.lro.rotatorWriter.MaxFiles = task.LogConfig.MaxFiles
-		l.lro.rotatorWriter.FileSize = fileSize
-		l.lre.rotatorWriter.MaxFiles = task.LogConfig.MaxFiles
-		l.lre.rotatorWriter.FileSize = fileSize
-	}
+func (l *LibcontainerExecutor) UpdateResources(resources *Resources) error {
 	return nil
 }
 
@@ -341,7 +276,7 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 
 	process := &libcontainer.Process{
 		Args:   combined,
-		Env:    l.ctx.Env,
+		Env:    l.command.Env,
 		Stdout: buf,
 		Stderr: buf,
 	}
@@ -376,130 +311,56 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 }
 
 func (l *LibcontainerExecutor) getIsolationConfig() *dstructs.IsolationConfig {
-	return &dstructs.IsolationConfig{
+	cfg := &dstructs.IsolationConfig{
 		Cgroup:      l.container.Config().Cgroups,
-		CgroupPaths: l.container.Config().Cgroups.Paths,
+		CgroupPaths: map[string]string{},
 	}
+	state, err := l.container.State()
+	if err != nil {
+		return cfg
+	}
+
+	cfg.CgroupPaths = state.CgroupPaths
+	return cfg
 }
 
-func newLibcontainerConfig(rootfs string) *lconfigs.Config {
-	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
-	cg := &lconfigs.Cgroup{
-		Resources: &lconfigs.Resources{
-			AllowAllDevices: helper.BoolToPtr(true),
-		},
-		Name: uuid.Generate(),
-		//Path: filepath.Join(defaultCgroupParent, uuid.Generate()),
+func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+	// TODO: allow better control of these
+	cfg.Capabilities = &lconfigs.Capabilities{
+		Bounding:    allCaps,
+		Permitted:   allCaps,
+		Inheritable: allCaps,
+		Ambient:     allCaps,
+		Effective:   allCaps,
 	}
-	return &lconfigs.Config{
-		Rootfs: rootfs,
-		Capabilities: &lconfigs.Capabilities{
-			Bounding: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Permitted: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Inheritable: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Ambient: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-			Effective: []string{
-				"CAP_CHOWN",
-				"CAP_DAC_OVERRIDE",
-				"CAP_FSETID",
-				"CAP_FOWNER",
-				"CAP_MKNOD",
-				"CAP_NET_RAW",
-				"CAP_SETGID",
-				"CAP_SETUID",
-				"CAP_SETFCAP",
-				"CAP_SETPCAP",
-				"CAP_NET_BIND_SERVICE",
-				"CAP_SYS_CHROOT",
-				"CAP_KILL",
-				"CAP_AUDIT_WRITE",
-			},
-		},
-		Namespaces: lconfigs.Namespaces([]lconfigs.Namespace{
+
+}
+
+func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
+	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+
+	if command.FSIsolation {
+		cfg.Rootfs = command.TaskDir
+		cfg.Namespaces = lconfigs.Namespaces{
 			{Type: lconfigs.NEWNS},
-			{Type: lconfigs.NEWUTS},
-			{Type: lconfigs.NEWIPC},
-			{Type: lconfigs.NEWPID},
-			//{Type: lconfigs.NEWUSER},
-			{Type: lconfigs.NEWNET},
-		}),
-		Cgroups: cg,
-		MaskPaths: []string{
+		}
+		cfg.MaskPaths = []string{
 			"/proc/kcore",
 			"/sys/firmware",
-		},
-		ReadonlyPaths: []string{
+		}
+
+		cfg.ReadonlyPaths = []string{
 			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
-		},
-		Devices: lconfigs.DefaultAutoCreatedDevices,
-		//Hostname: "testing",
-		Mounts: []*lconfigs.Mount{
-			{
+		}
+
+		cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+		cfg.Mounts = []*lconfigs.Mount{
+			/*{
 				Source:      "proc",
 				Destination: "/proc",
 				Device:      "proc",
 				Flags:       defaultMountFlags,
-			},
+			},*/
 			{
 				Source:      "tmpfs",
 				Destination: "/dev",
@@ -533,35 +394,87 @@ func newLibcontainerConfig(rootfs string) *lconfigs.Config {
 				Device:      "sysfs",
 				Flags:       defaultMountFlags | syscall.MS_RDONLY,
 			},
-		},
-		//UidMappings: []lconfigs.IDMap{
-		//{
-		//ContainerID: 0,
-		//HostID:      1000,
-		//Size:        65536,
-		//},
-		//},
-		//GidMappings: []lconfigs.IDMap{
-		//{
-		//ContainerID: 0,
-		//HostID:      1000,
-		//Size:        65536,
-		//},
-		//},
-		Networks: []*lconfigs.Network{
-			{
-				Type:    "loopback",
-				Address: "127.0.0.1/0",
-				Gateway: "localhost",
+		}
+	} else {
+		cfg.Rootfs = "/"
+		cfg.Cgroups.AllowAllDevices = helper.BoolToPtr(true)
+	}
+}
+
+func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+	id := uuid.Generate()
+
+	if !command.ResourceLimits {
+		// Manually create freezer and devices cgroups
+		cfg.Cgroups.Paths = map[string]string{}
+		root, err := cgroups.FindCgroupMountpointDir()
+		if err != nil {
+			return err
+		}
+
+		if _, err := os.Stat(root); err != nil {
+			return err
+		}
+
+		for _, subsystem := range []string{"devices", "freezer"} {
+			path, err := cgroups.FindCgroupMountpoint(subsystem)
+			if err != nil {
+				return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
+			}
+			// Sometimes subsystems can be mounted together as 'cpu,cpuacct'.
+			path = filepath.Join(root, filepath.Base(path), defaultCgroupParent, id)
+
+			if err = os.MkdirAll(path, 0755); err != nil {
+				return err
+			}
+
+			cfg.Cgroups.Paths[subsystem] = path
+		}
+
+		return nil
+	}
+
+	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
+	if command.Resources.MemoryMB > 0 {
+		// Total amount of memory allowed to consume
+		cfg.Cgroups.Resources.Memory = int64(command.Resources.MemoryMB * 1024 * 1024)
+		// Disable swap to avoid issues on the machine
+		var memSwappiness uint64 = 0
+		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
+	}
+
+	if command.Resources.CPU < 2 {
+		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.CPU)
+	}
+
+	// Set the relative CPU shares for this cgroup.
+	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.CPU)
+
+	if command.Resources.IOPS != 0 {
+		// Validate it is in an acceptable range.
+		if command.Resources.IOPS < 10 || command.Resources.IOPS > 1000 {
+			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", command.Resources.IOPS)
+		}
+
+		cfg.Cgroups.Resources.BlkioWeight = uint16(command.Resources.IOPS)
+	}
+	return nil
+}
+
+func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
+	cfg := &lconfigs.Config{
+		Cgroups: &lconfigs.Cgroup{
+			Resources: &lconfigs.Resources{
+				AllowAllDevices:  nil,
+				MemorySwappiness: nil,
+				AllowedDevices:   lconfigs.DefaultAllowedDevices,
 			},
 		},
-		//		Rlimits: []lconfigs.Rlimit{
-		//			{
-		//				Type: syscall.RLIMIT_NOFILE,
-		//				Hard: uint64(1025),
-		//				Soft: uint64(1025),
-		//			},
-		//		},
 		Version: "1.0.0",
 	}
+
+	configureCapabilities(cfg, command)
+	configureIsolation(cfg, command)
+	configureCgroups(cfg, command)
+	return cfg
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/hashicorp/nomad/client/driver"
@@ -43,7 +44,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 	}
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: driver.HandshakeConfig,
-		Plugins:         driver.GetPluginMap(stdo, executorConfig.LogLevel),
+		Plugins:         driver.GetPluginMap(stdo, hclog.LevelFromString(executorConfig.LogLevel)),
 	})
 	return 0
 }
