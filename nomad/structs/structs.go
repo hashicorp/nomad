@@ -643,6 +643,14 @@ type ApplyPlanResultsRequest struct {
 	// processed many times, potentially making state updates, without the state of
 	// the evaluation itself being updated.
 	EvalID string
+
+	// NodePreemptions is a slice of allocations from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	NodePreemptions []*Allocation
+
+	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
+	// have been preempted to place allocs in this plan
+	PreemptionEvals []*Evaluation
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -1871,6 +1879,27 @@ func (r *Resources) Add(delta *Resources) error {
 			r.Networks = append(r.Networks, n.Copy())
 		} else {
 			r.Networks[idx].Add(n)
+		}
+	}
+	return nil
+}
+
+// Subtract removes the resources of the delta to this, potentially
+// returning an error if not possible.
+func (r *Resources) Subtract(delta *Resources) error {
+	if delta == nil {
+		return nil
+	}
+	r.CPU -= delta.CPU
+	r.MemoryMB -= delta.MemoryMB
+	r.DiskMB -= delta.DiskMB
+	r.IOPS -= delta.IOPS
+
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := r.NetIndex(n)
+		if idx != -1 {
+			r.Networks[idx].MBits -= delta.Networks[idx].MBits
 		}
 	}
 	return nil
@@ -8175,6 +8204,9 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 type PlanAnnotations struct {
 	// DesiredTGUpdates is the set of desired updates per task group.
 	DesiredTGUpdates map[string]*DesiredUpdates
+
+	// PreemptedAllocs is the set of allocations to be preempted to make the placement successful.
+	PreemptedAllocs []*AllocListStub
 }
 
 // DesiredUpdates is the set of changes the scheduler would like to make given
