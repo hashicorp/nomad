@@ -141,6 +141,9 @@ const (
 	// remove containers after the task exits.
 	dockerCleanupContainerConfigOption  = "docker.cleanup.container"
 	dockerCleanupContainerConfigDefault = true
+
+	// dockerCgroupParent is the parent cgroup for all docker containers
+	dockerCgroupParentConfigOption = "docker.cgroup.parent"
 )
 
 type DockerDriver struct {
@@ -1214,6 +1217,10 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	}
 
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
+	cgroupParent, ok := d.config.Options[dockerCgroupParentConfigOption]
+	if ok != true {
+		cgroupParent = ""
+	}
 
 	if len(driverConfig.Logging) == 0 {
 		if runtime.GOOS == "darwin" {
@@ -1235,7 +1242,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
-		Binds: binds,
+		Binds:        binds,
+		CgroupParent: cgroupParent,
 
 		VolumeDriver: driverConfig.VolumeDriver,
 
@@ -1281,6 +1289,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		d.logger.Printf("[DEBUG] driver.docker: using %dms cpu quota and %dms cpu period for %s", hostConfig.CPUQuota, defaultCFSPeriodUS, task.Name)
 	}
 	d.logger.Printf("[DEBUG] driver.docker: binding directories %#v for %s", hostConfig.Binds, task.Name)
+	d.logger.Printf("[DEBUG] driver.docker: using %s cgroup for %s", hostConfig.CgroupParent, task.Name)
 
 	//  set privileged mode
 	hostPrivileged := d.config.ReadBoolDefault(dockerPrivilegedConfigOption, false)
