@@ -184,6 +184,7 @@
 		{"path":"github.com/hashicorp/serf/serf","checksumSHA1":"QrT+nzyXsD/MmhTjjhcPdnALZ1I=","revision":"80ab48778deee28e4ea2dc4ef1ebb2c5f4063996","revisionTime":"2018-05-07T23:19:28Z"},
 		{"path":"github.com/hashicorp/vault/api","checksumSHA1":"+B4wuJNerIUKNAVzld7CmMaNW5A=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
 		{"path":"github.com/hashicorp/vault/helper/compressutil","checksumSHA1":"bSdPFOHaTwEvM4PIvn0PZfn75jM=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
+		{"path":"github.com/hashicorp/vault/helper/consts","checksumSHA1":"QNGGvSYtwk6VCkj4laZPjM2301E=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
 		{"path":"github.com/hashicorp/vault/helper/hclutil","checksumSHA1":"RlqPBLOexQ0jj6jomhiompWKaUg=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
 		{"path":"github.com/hashicorp/vault/helper/jsonutil","checksumSHA1":"POgkM3GrjRFw6H3sw95YNEs552A=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
 		{"path":"github.com/hashicorp/vault/helper/parseutil","checksumSHA1":"HA2MV/2XI0HcoThSRxQCaBZR2ps=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
