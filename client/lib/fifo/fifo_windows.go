@@ -61,5 +61,9 @@ func New(path string) (io.ReadWriteCloser, error) {
 
 func Open(path string) (io.ReadWriteCloser, error) {
 	conn, err := winio.DialPipe(path, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	return &FIFO{conn: conn}, nil
 }
