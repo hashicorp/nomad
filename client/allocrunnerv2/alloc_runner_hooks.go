@@ -44,7 +44,9 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	if !healthy && isDeploy {
 		for task, event := range trackerTaskEvents {
 			if tr, ok := a.ar.tasks[task]; ok {
-				tr.EmitEvent(event)
+				// Append but don't emit event since the server
+				// will be updated below
+				tr.AppendEvent(event)
 			}
 		}
 	}
