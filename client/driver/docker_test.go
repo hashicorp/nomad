@@ -2525,7 +2525,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 			"command":                "/bin/nc",
 			"args":                   []string{"-l", "127.0.0.1", "-p", "0"},
 			"advertise_ipv6_address": expectedAdvertise,
-      	},
+                },
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
@@ -2535,7 +2535,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 			MaxFileSizeMB: 10,
 		},
 	}
-  
+
 	client := newTestDockerClient(t)
 
 	// Make sure IPv6 is enabled
@@ -2575,9 +2575,9 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	defer sresp.Handle.Kill()
 	handle := sresp.Handle.(*DockerHandle)
-	
+
 	waitForExist(t, client, handle)
-	
+
 	container, err := client.InspectContainer(handle.ContainerID())
 	if err != nil {
 		t.Fatalf("Error inspecting container: %v", err)
