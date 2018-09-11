@@ -2536,7 +2536,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 		},
 	}
   
-  client := newTestDockerClient(t)
+  	client := newTestDockerClient(t)
 
 	// Make sure IPv6 is enabled
 	net, err := client.NetworkInfo("bridge")
@@ -2575,7 +2575,9 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	defer sresp.Handle.Kill()
 	handle := sresp.Handle.(*DockerHandle)
-  
+	waitForExist(t, client, handle)
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
   		t.Fatalf("Error inspecting container: %v", err)
 	}
 
