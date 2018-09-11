@@ -2,7 +2,6 @@ package loader
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -119,12 +118,12 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) 
 		info.baseInfo = i
 
 		// Parse and set the plugin version
-		if v, err := version.NewVersion(i.PluginVersion); err != nil {
+		v, err := version.NewVersion(i.PluginVersion)
+		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("failed to parse version %q for internal plugin %s: %v", i.PluginVersion, k, err))
 			continue
-		} else {
-			info.version = v
 		}
+		info.version = v
 
 		// Get the config schema
 		schema, err := base.ConfigSchema()
@@ -144,18 +143,34 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) 
 // scan scans the plugin directory and retrieves potentially eligible binaries
 func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 	// Capture the list of binaries in the plugins folder
-	files, err := ioutil.ReadDir(l.pluginDir)
+	f, err := os.Open(l.pluginDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open plugin directory %q: %v", l.pluginDir, err)
+	}
+	files, err := f.Readdirnames(-1)
+	f.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read plugin directory %q: %v", l.pluginDir, err)
 	}
 
 	var plugins []os.FileInfo
 	for _, f := range files {
-		if f.IsDir() {
-			l.logger.Debug("skipping sub-dir in plugin folder", "sub-dir", f.Name())
+		f = filepath.Join(l.pluginDir, f)
+		s, err := os.Stat(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to stat file %q: %v", f, err)
+		}
+		if s.IsDir() {
+			l.logger.Debug("skipping subdir in plugin folder", "subdir", f)
 			continue
 		}
-		plugins = append(plugins, f)
+
+		// Check if it is executable by anyone
+		if s.Mode().Perm()&0111 == 0 {
+			l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
+			continue
+		}
+		plugins = append(plugins, s)
 	}
 
 	return plugins, nil
@@ -182,10 +197,20 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 
 		// Detect if we already have seen a version of this plugin
 		if prev, ok := fingerprinted[id]; ok {
+			oldVersion := prev.version
+			selectedVersion := info.version
+			skip := false
 
 			// Determine if we should keep the previous version or override
 			if prev.version.GreaterThan(info.version) {
-				l.logger.Info("multiple versions of plugin detected", "plugin", info.baseInfo.Name)
+				oldVersion = info.version
+				selectedVersion = prev.version
+				skip = true
+			}
+			l.logger.Info("multiple versions of plugin detected",
+				"plugin", info.baseInfo.Name, "older_version", oldVersion, "selected_version", selectedVersion)
+
+			if skip {
 				continue
 			}
 		}
@@ -250,12 +275,12 @@ func (l *PluginLoader) fingerprintPlugin(pluginExe os.FileInfo, config *config.P
 	info.baseInfo = i
 
 	// Parse and set the plugin version
-	if v, err := version.NewVersion(i.PluginVersion); err != nil {
+	v, err := version.NewVersion(i.PluginVersion)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse plugin %q (%v) version %q: %v",
 			i.Name, info.exePath, i.PluginVersion, err)
-	} else {
-		info.version = v
 	}
+	info.version = v
 
 	// Retrieve the schema
 	schema, err := bplugin.ConfigSchema()
@@ -283,9 +308,9 @@ func (l *PluginLoader) mergePlugins(internal, external map[PluginID]*pluginInfo)
 			// We have overlapping plugins, determine if we should keep the
 			// internal version or override
 			if extPlugin.version.LessThan(internal.version) {
-				l.logger.Info("preferring external version of plugin",
-					"plugin", extPlugin.baseInfo.Name, "internal_version", internal.version.String(),
-					"external_version", extPlugin.version.String())
+				l.logger.Info("preferring internal version of plugin",
+					"plugin", extPlugin.baseInfo.Name, "internal_version", internal.version,
+					"external_version", extPlugin.version)
 				continue
 			}
 		}

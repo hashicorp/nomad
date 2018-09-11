@@ -23,7 +23,7 @@ type harness struct {
 }
 
 // newHarness returns a harness and copies our test binary to the temp directory
-// with teh passed plugin names.
+// with the passed plugin names.
 func newHarness(t *testing.T, plugins []string) *harness {
 	t.Helper()
 
@@ -252,7 +252,7 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 	require := require.New(t)
 
 	// Create two plugins
-	plugins := []string{"mock-device", "mock-device"}
+	plugins := []string{"mock-device", "mock-device-2"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 	h := newHarness(t, plugins)
 	defer h.cleanup()
@@ -270,7 +270,7 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 			},
 			{
 				Name: plugins[1],
-				Args: []string{"-plugin", "-name", plugins[1],
+				Args: []string{"-plugin", "-name", plugins[0],
 					"-type", base.PluginTypeDevice, "-version", pluginVersions[1]},
 			},
 		},
@@ -289,7 +289,7 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 
 	expected := []*base.PluginInfoResponse{
 		{
-			Name:             plugins[1],
+			Name:             plugins[0],
 			Type:             base.PluginTypeDevice,
 			PluginVersion:    pluginVersions[1],
 			PluginApiVersion: "v0.1.0",
@@ -812,7 +812,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 	p2, err := l.Reattach(base.PluginTypeDevice, reattach)
 	require.NoError(err)
 
-	// Get the reattached plugin and ensure its teh same
+	// Get the reattached plugin and ensure its the same
 	instance2, ok := p2.Plugin().(device.DevicePlugin)
 	require.True(ok)
 
@@ -848,4 +848,64 @@ func TestPluginLoader_Bad_Executable(t *testing.T) {
 	_, err := NewPluginLoader(lconfig)
 	require.Error(err)
 	require.Contains(err.Error(), "failed to fingerprint plugin")
+}
+
+// Test that we skip directories, non-executables and follow symlinks
+func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create two plugins
+	plugins := []string{"mock-device"}
+	pluginVersions := []string{"v0.0.1"}
+	h := newHarness(t, nil)
+	defer h.cleanup()
+
+	// Create a folder inside our plugin dir
+	require.NoError(os.Mkdir(filepath.Join(h.pluginDir(), "folder"), 0666))
+
+	// Get our own executable path
+	selfExe, err := os.Executable()
+	require.NoError(err)
+
+	// Create a symlink from our own binary to the directory
+	require.NoError(os.Symlink(selfExe, filepath.Join(h.pluginDir(), plugins[0])))
+
+	// Create a non-executable file
+	require.NoError(ioutil.WriteFile(filepath.Join(h.pluginDir(), "some.yaml"), []byte("hcl > yaml"), 0666))
+
+	logger := log.Default()
+	logger.SetLevel(log.Trace)
+	lconfig := &PluginLoaderConfig{
+		Logger:    logger, // XXX Use testlog package
+		PluginDir: h.pluginDir(),
+		Configs: []*config.PluginConfig{
+			{
+				Name: plugins[0],
+				Args: []string{"-plugin", "-name", plugins[0],
+					"-type", base.PluginTypeDevice, "-version", pluginVersions[0]},
+			},
+		},
+	}
+
+	l, err := NewPluginLoader(lconfig)
+	require.NoError(err)
+
+	// Get the catalog and assert we have the two plugins
+	c := l.Catalog()
+	require.Len(c, 1)
+	require.Contains(c, base.PluginTypeDevice)
+	detected := c[base.PluginTypeDevice]
+	require.Len(detected, 1)
+	sort.Slice(detected, func(i, j int) bool { return detected[i].Name < detected[j].Name })
+
+	expected := []*base.PluginInfoResponse{
+		{
+			Name:             plugins[0],
+			Type:             base.PluginTypeDevice,
+			PluginVersion:    pluginVersions[0],
+			PluginApiVersion: "v0.1.0",
+		},
+	}
+	require.EqualValues(expected, detected)
 }

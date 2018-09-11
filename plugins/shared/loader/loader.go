@@ -133,7 +133,7 @@ func NewPluginLoader(config *PluginLoaderConfig) (*PluginLoader, error) {
 		return nil, fmt.Errorf("invalid plugin loader configuration passed: %v", err)
 	}
 
-	logger := config.Logger.Named("plugin-loader").With("plugin-dir", config.PluginDir)
+	logger := config.Logger.Named("plugin_loader").With("plugin_dir", config.PluginDir)
 	l := &PluginLoader{
 		logger:    logger,
 		pluginDir: config.PluginDir,
