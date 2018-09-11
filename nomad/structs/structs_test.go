@@ -2818,8 +2818,8 @@ func TestAllocation_NextDelay(t *testing.T) {
 			expectedRescheduleEligible: false,
 		},
 		{
-			desc:                       "Allocation has no reschedule policy",
-			alloc:                      &Allocation{},
+			desc:  "Allocation has no reschedule policy",
+			alloc: &Allocation{},
 			expectedRescheduleTime:     time.Time{},
 			expectedRescheduleEligible: false,
 		},
