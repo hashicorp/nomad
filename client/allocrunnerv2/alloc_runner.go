@@ -237,56 +237,6 @@ func (ar *allocRunner) Restore() error {
 	return nil
 }
 
-// SetHealth allows the health watcher hook to set the alloc's
-// deployment/migration health and emit task events.
-//
-// Only for use by health hook.
-func (ar *allocRunner) SetHealth(healthy, isDeploy bool, trackerTaskEvents map[string]*structs.TaskEvent) {
-	// Updating alloc deployment state is tricky because it may be nil, but
-	// if it's not then we need to maintain the values of Canary and
-	// ModifyIndex as they're only mutated by the server.
-	ar.stateLock.Lock()
-	ar.state.SetDeploymentStatus(time.Now(), healthy)
-	ar.stateLock.Unlock()
-
-	// If deployment is unhealthy emit task events explaining why
-	ar.tasksLock.RLock()
-	if !healthy && isDeploy {
-		for task, event := range trackerTaskEvents {
-			if tr, ok := ar.tasks[task]; ok {
-				tr.EmitEvent(event)
-			}
-		}
-	}
-
-	// Gather the state of the other tasks
-	states := make(map[string]*structs.TaskState, len(ar.tasks))
-	for name, tr := range ar.tasks {
-		states[name] = tr.TaskState()
-	}
-	ar.tasksLock.RUnlock()
-
-	// Build the client allocation
-	calloc := ar.clientAlloc(states)
-
-	// Update the server
-	ar.stateUpdater.AllocStateUpdated(calloc)
-
-	// Broadcast client alloc to listeners
-	ar.allocBroadcaster.Send(calloc)
-}
-
-// ClearHealth allows the health watcher hook to clear the alloc's deployment
-// health if the deployment id changes. It does not update the server as the
-// status is only cleared when already receiving an update from the server.
-//
-// Only for use by health hook.
-func (ar *allocRunner) ClearHealth() {
-	ar.stateLock.Lock()
-	ar.state.ClearDeploymentStatus()
-	ar.stateLock.Unlock()
-}
-
 // TaskStateUpdated is called by TaskRunner when a task's state has been
 // updated. This hook is used to compute changes to the alloc's ClientStatus
 // and to update the server with the new state.
