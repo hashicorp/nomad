@@ -2832,96 +2832,6 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 	}
 }
 
-// Tests the reconciler handles migrations correctly when a deployment is paused
-// or failed
-func TestReconciler_PausedOrFailedDeployment_Migrations(t *testing.T) {
-	job := mock.Job()
-	job.TaskGroups[0].Update = noCanaryUpdate
-
-	cases := []struct {
-		name              string
-		deploymentStatus  string
-		place             int
-		stop              int
-		ignoreAnnotation  uint64
-		migrateAnnotation uint64
-		stopAnnotation    uint64
-	}{
-		{
-			name:             "paused deployment",
-			deploymentStatus: structs.DeploymentStatusPaused,
-			place:            0,
-			stop:             3,
-			ignoreAnnotation: 5,
-			stopAnnotation:   3,
-		},
-		{
-			name:              "failed deployment",
-			deploymentStatus:  structs.DeploymentStatusFailed,
-			place:             0,
-			stop:              3,
-			ignoreAnnotation:  5,
-			migrateAnnotation: 0,
-			stopAnnotation:    3,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			// Create a deployment that is paused and has placed some canaries
-			d := structs.NewDeployment(job)
-			d.Status = c.deploymentStatus
-			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
-				Promoted:     false,
-				DesiredTotal: 10,
-				PlacedAllocs: 8,
-			}
-
-			// Create 8 allocations in the deployment
-			var allocs []*structs.Allocation
-			for i := 0; i < 8; i++ {
-				alloc := mock.Alloc()
-				alloc.Job = job
-				alloc.JobID = job.ID
-				alloc.NodeID = uuid.Generate()
-				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
-				alloc.TaskGroup = job.TaskGroups[0].Name
-				alloc.DeploymentID = d.ID
-				allocs = append(allocs, alloc)
-			}
-
-			// Build a map of tainted nodes
-			tainted := make(map[string]*structs.Node, 3)
-			for i := 0; i < 3; i++ {
-				n := mock.Node()
-				n.ID = allocs[i].NodeID
-				allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-				n.Drain = true
-				tainted[n.ID] = n
-			}
-
-			reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, tainted, "")
-			r := reconciler.Compute()
-
-			// Assert the correct results
-			assertResults(t, r, &resultExpectation{
-				createDeployment:  nil,
-				deploymentUpdates: nil,
-				place:             c.place,
-				inplace:           0,
-				stop:              c.stop,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					job.TaskGroups[0].Name: {
-						Migrate: c.migrateAnnotation,
-						Ignore:  c.ignoreAnnotation,
-						Stop:    c.stopAnnotation,
-					},
-				},
-			})
-		})
-	}
-}
-
 // Tests the reconciler handles migrating a canary correctly on a draining node
 func TestReconciler_DrainNode_Canary(t *testing.T) {
 	job := mock.Job()
@@ -3791,9 +3701,9 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 2), stopResultsToNames(r.stop))
 }
 
-// Tests the reconciler handles a failed deployment and only replaces lost
-// deployments
-func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
+// Tests the reconciler handles a failed deployment with allocs on tainted
+// nodes
+func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -3857,19 +3767,20 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             1, // Only replace the lost node
+		place:             2,
 		inplace:           0,
 		stop:              2,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Place:  1,
-				Stop:   2,
-				Ignore: 8,
+				Place:   1,
+				Migrate: 1,
+				Stop:    1,
+				Ignore:  8,
 			},
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
