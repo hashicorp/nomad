@@ -14,27 +14,20 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// healthMutator is able to set/clear alloc health as well as listen for alloc
-// changes.
-type healthMutator interface {
-	// Alloc returns the original alloc
-	Alloc() *structs.Allocation
-
+// healthMutator is able to set/clear alloc health.
+type healthSetter interface {
 	// Set health via the mutator
 	SetHealth(healthy, isDeploy bool, taskEvents map[string]*structs.TaskEvent)
 
 	// Clear health when the deployment ID changes
 	ClearHealth()
-
-	// Listener listens for alloc updates
-	Listener() *cstructs.AllocListener
 }
 
 // allocHealthWatcherHook is responsible for watching an allocation's task
 // status and (optionally) Consul health check status to determine if the
 // allocation is health or unhealthy. Used by deployments and migrations.
 type allocHealthWatcherHook struct {
-	runner healthMutator
+	healthSetter healthSetter
 
 	// consul client used to monitor health checks
 	consul consul.ConsulServiceAPI
@@ -70,8 +63,8 @@ type allocHealthWatcherHook struct {
 	logger log.Logger
 }
 
-func newAllocHealthWatcherHook(logger log.Logger, runner healthMutator, consul consul.ConsulServiceAPI) interfaces.RunnerHook {
-	alloc := runner.Alloc()
+func newAllocHealthWatcherHook(logger log.Logger, alloc *structs.Allocation, hs healthSetter,
+	listener *cstructs.AllocListener, consul consul.ConsulServiceAPI) interfaces.RunnerHook {
 
 	// Neither deployments nor migrations care about the health of
 	// non-service jobs so never watch their health
@@ -80,11 +73,11 @@ func newAllocHealthWatcherHook(logger log.Logger, runner healthMutator, consul c
 	}
 
 	h := &allocHealthWatcherHook{
-		runner:   runner,
-		alloc:    alloc,
-		cancelFn: func() {}, // initialize to prevent nil func panics
-		consul:   consul,
-		listener: runner.Listener(),
+		alloc:        alloc,
+		cancelFn:     func() {}, // initialize to prevent nil func panics
+		consul:       consul,
+		healthSetter: hs,
+		listener:     listener,
 	}
 
 	h.logger = logger.Named(h.Name())
@@ -166,7 +159,7 @@ func (h *allocHealthWatcherHook) Update(req *interfaces.RunnerUpdateRequest) err
 
 	// Deployment has changed, reset status
 	if req.Alloc.DeploymentID != h.alloc.DeploymentID {
-		h.runner.ClearHealth()
+		h.healthSetter.ClearHealth()
 	}
 
 	// Update alloc
@@ -211,7 +204,7 @@ func (h *allocHealthWatcherHook) watchHealth(ctx context.Context, tracker *alloc
 			taskEvents = tracker.TaskEvents()
 		}
 
-		h.runner.SetHealth(healthy, h.isDeploy, taskEvents)
+		h.healthSetter.SetHealth(healthy, h.isDeploy, taskEvents)
 	}
 }
 
