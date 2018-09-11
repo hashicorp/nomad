@@ -109,7 +109,7 @@ func (ar *allocRunner) prerun() error {
 		}
 
 		if err := pre.Prerun(context.TODO()); err != nil {
-			return fmt.Errorf("hook %q failed: %v", name, err)
+			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 
 		//TODO Persist hook state locally
@@ -139,6 +139,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 		Alloc: update,
 	}
 
+	var merr multierror.Error
 	for _, hook := range ar.runnerHooks {
 		h, ok := hook.(interfaces.RunnerUpdateHook)
 		if !ok {
@@ -153,7 +154,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 		}
 
 		if err := h.Update(req); err != nil {
-			return fmt.Errorf("hook %q failed: %v", name, err)
+			merr.Errors = append(merr.Errors, fmt.Errorf("update hook %q failed: %v", name, err))
 		}
 
 		if ar.logger.IsTrace() {
@@ -162,7 +163,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 		}
 	}
 
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // postrun is used to run the runners postrun hooks.
