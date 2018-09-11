@@ -149,11 +149,17 @@ export default Component.extend(WindowResizable, {
   }),
 
   xAxisHeight: computed(function() {
+    // Avoid divide by zero errors by always having a height
+    if (!this.element) return 1;
+
     const axis = this.element.querySelector('.x-axis');
     return axis && axis.getBBox().height;
   }),
 
   yAxisWidth: computed(function() {
+    // Avoid divide by zero errors by always having a width
+    if (!this.element) return 1;
+
     const axis = this.element.querySelector('.y-axis');
     return axis && axis.getBBox().width;
   }),
@@ -264,6 +270,9 @@ export default Component.extend(WindowResizable, {
   // The renderChart method should only ever be responsible for runtime calculations
   // and appending d3 created elements to the DOM (such as axes).
   renderChart() {
+    // There is nothing to do if the element hasn't been inserted yet
+    if (!this.element) return;
+
     // First, create the axes to get the dimensions of the resulting
     // svg elements
     this.mountD3Elements();
