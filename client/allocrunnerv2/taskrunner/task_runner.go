@@ -561,7 +561,7 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual
-// TaskState.State (pending, running, dead) is *not* updated. Use SetState to
+// TaskState.State (pending, running, dead) is not changed. Use SetState to
 // transition states.
 // Events are persisted locally but errors are simply logged.
 func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {

@@ -10,16 +10,75 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// allocHealthSetter is a shim to allow the alloc health watcher hook to set
+// and clear the alloc health without full access to the alloc runner state
+type allocHealthSetter struct {
+	ar *allocRunner
+}
+
+// ClearHealth allows the health watcher hook to clear the alloc's deployment
+// health if the deployment id changes. It does not update the server as the
+// status is only cleared when already receiving an update from the server.
+//
+// Only for use by health hook.
+func (a *allocHealthSetter) ClearHealth() {
+	a.ar.stateLock.Lock()
+	a.ar.state.ClearDeploymentStatus()
+	a.ar.stateLock.Unlock()
+}
+
+// SetHealth allows the health watcher hook to set the alloc's
+// deployment/migration health and emit task events.
+//
+// Only for use by health hook.
+func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents map[string]*structs.TaskEvent) {
+	// Updating alloc deployment state is tricky because it may be nil, but
+	// if it's not then we need to maintain the values of Canary and
+	// ModifyIndex as they're only mutated by the server.
+	a.ar.stateLock.Lock()
+	a.ar.state.SetDeploymentStatus(time.Now(), healthy)
+	a.ar.stateLock.Unlock()
+
+	// If deployment is unhealthy emit task events explaining why
+	a.ar.tasksLock.RLock()
+	if !healthy && isDeploy {
+		for task, event := range trackerTaskEvents {
+			if tr, ok := a.ar.tasks[task]; ok {
+				tr.EmitEvent(event)
+			}
+		}
+	}
+
+	// Gather the state of the other tasks
+	states := make(map[string]*structs.TaskState, len(a.ar.tasks))
+	for name, tr := range a.ar.tasks {
+		states[name] = tr.TaskState()
+	}
+	a.ar.tasksLock.RUnlock()
+
+	// Build the client allocation
+	calloc := a.ar.clientAlloc(states)
+
+	// Update the server
+	a.ar.stateUpdater.AllocStateUpdated(calloc)
+
+	// Broadcast client alloc to listeners
+	a.ar.allocBroadcaster.Send(calloc)
+}
+
 // initRunnerHooks intializes the runners hooks.
 func (ar *allocRunner) initRunnerHooks() {
 	hookLogger := ar.logger.Named("runner_hook")
+
+	// create health setting shim
+	hs := &allocHealthSetter{ar}
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directoy path exists for other hooks.
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newDiskMigrationHook(hookLogger, ar.prevAllocWatcher, ar.allocDir),
-		newAllocHealthWatcherHook(hookLogger, ar, ar.consulClient),
+		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
 	}
 }
 
